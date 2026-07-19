@@ -231,7 +231,10 @@ namespace DuneVector
                 {
                     if (_collectibleIcon != null)
                     {
-                        _collectibleIcon.localRotation = Quaternion.AngleAxis(-2f * _visualSpin, Vector3.up)
+                        // Cancel the parent ring's spin around its normal, then spin the
+                        // collectible around the vertical axis lying in the ring plane.
+                        _collectibleIcon.localRotation = Quaternion.AngleAxis(-_visualSpin, Vector3.up)
+                            * Quaternion.AngleAxis(_visualSpin, Vector3.forward)
                             * _collectibleIconBaseRotation;
                     }
                 }
