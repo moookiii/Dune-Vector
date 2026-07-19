@@ -1847,6 +1847,9 @@ namespace DuneVector
         [Tooltip("World-space wind regions, authoritative forces, placement, falloff, and streamline presentation.")]
         public WindFieldSystemTuning WindFields = new WindFieldSystemTuning();
 
+        [Tooltip("Procedural dust-devil spawning, traversal forces, fragile-cargo damage, and distant column presentation.")]
+        public DustDevilTuning DustDevils = new DustDevilTuning();
+
         [Tooltip("Authored stylized cloud archetypes, placement, shading, and motion.")]
         public CloudTuning Clouds = new CloudTuning();
 
@@ -1932,6 +1935,7 @@ namespace DuneVector
             FlightSwooshes ??= new FlightSwooshTuning();
             WindFields ??= new WindFieldSystemTuning();
             WindFields.EnsureInitialized();
+            DustDevils ??= new DustDevilTuning();
             Clouds ??= new CloudTuning();
             Clouds.EnsureInitialized();
             Weather ??= new DesertWeatherTuning();

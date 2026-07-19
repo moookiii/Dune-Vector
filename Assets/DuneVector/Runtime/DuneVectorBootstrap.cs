@@ -19,6 +19,7 @@ namespace DuneVector
         public DroneVisualTuning DroneVisuals => RuntimeSettings.DroneVisuals;
         public FlightSwooshTuning FlightSwooshes => RuntimeSettings.FlightSwooshes;
         public WindFieldSystemTuning WindFieldSettings => RuntimeSettings.WindFields;
+        public DustDevilTuning DustDevilSettings => RuntimeSettings.DustDevils;
         public CloudTuning Clouds => RuntimeSettings.Clouds;
         public DesertWeatherTuning WeatherSettings => RuntimeSettings.Weather;
         public AudioTuning AudioSettings => RuntimeSettings.Audio;
@@ -80,6 +81,7 @@ namespace DuneVector
         public DuneVectorStormPyramidDirector StormPyramidDirector { get; private set; }
         public DuneVectorWeatherController WeatherSystem { get; private set; }
         public DuneVectorWindFieldSystem WindFieldSystem { get; private set; }
+        public DuneVectorDustDevilSystem DustDevilSystem { get; private set; }
         public DuneVectorGameOverController GameOverController { get; private set; }
         public DuneVectorAudioManager AudioManager { get; private set; }
         public DuneVectorPauseMenu PauseMenu { get; private set; }
@@ -332,6 +334,7 @@ namespace DuneVector
             BuildInterface();
             BuildEnemyGameplay();
             BuildDeliveryGameplay();
+            BuildDustDevils();
             BuildDynamicCourierGameplay();
             BuildDroneWeapon();
 
@@ -599,6 +602,24 @@ namespace DuneVector
             windObject.transform.SetParent(transform, false);
             WindFieldSystem = windObject.AddComponent<DuneVectorWindFieldSystem>();
             WindFieldSystem.Initialize(Drone, DroneCamera.Camera, World, WindFieldSettings);
+        }
+
+        private void BuildDustDevils()
+        {
+            if (!DustDevilSettings.Enabled)
+            {
+                return;
+            }
+
+            GameObject dustDevilObject = new GameObject("Procedural Sand Funnels and Dust Devils");
+            dustDevilObject.transform.SetParent(transform, false);
+            DustDevilSystem = dustDevilObject.AddComponent<DuneVectorDustDevilSystem>();
+            DustDevilSystem.Initialize(
+                Drone,
+                DroneCamera.Camera,
+                World,
+                CourierGame,
+                DustDevilSettings);
         }
 
         private void BuildInterface()

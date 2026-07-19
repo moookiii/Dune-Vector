@@ -1131,6 +1131,20 @@ namespace DuneVector
             DamageCargo(amount * multiplier);
         }
 
+        public bool DamageFragileCargo(float amount)
+        {
+            if (amount <= 0f
+                || State != CourierRunState.Delivering
+                || ActiveContract == null
+                || !ActiveContract.Has(CourierContractModifier.Fragile))
+            {
+                return false;
+            }
+
+            DamageCargo(amount);
+            return true;
+        }
+
         private void HandlePlayerDied()
         {
             if (!IsContractActive || ActiveContract == null)

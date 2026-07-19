@@ -136,6 +136,9 @@ namespace DuneVector
         public Vector3 CurrentWindForce { get; private set; }
         public float CurrentWindInfluence { get; private set; }
         public WindFieldType CurrentWindType { get; private set; }
+        public Vector3 CurrentDustDevilForce { get; private set; }
+        public float CurrentDustDevilInfluence { get; private set; }
+        public float CurrentDustDevilCoreInfluence { get; private set; }
 
         private Vector2 _rawMove;
         private bool _flightBrakeHeld;
@@ -156,6 +159,10 @@ namespace DuneVector
         private DroneBoostSpeedModifier _boostSpeedModifier;
         private DuneVectorWindFieldSystem _windFields;
         private WindFieldSystemTuning _windFieldSettings;
+        private DuneVectorDustDevilSystem _dustDevils;
+        private DustDevilTuning _dustDevilSettings;
+        private int _activeDustDevilId = int.MinValue;
+        private bool _launchedByActiveDustDevil;
 
         private bool _flightRequested;
         private bool _flightJustEntered;
@@ -215,6 +222,12 @@ namespace DuneVector
         {
             _windFields = windFields;
             _windFieldSettings = settings;
+        }
+
+        public void BindDustDevils(DuneVectorDustDevilSystem dustDevils, DustDevilTuning settings)
+        {
+            _dustDevils = dustDevils;
+            _dustDevilSettings = settings;
         }
 
         public void SetCargoHandlingModifiers(float speedMultiplier, float accelerationMultiplier, float turningMultiplier)
@@ -399,6 +412,80 @@ namespace DuneVector
                 UpdateNormalVelocity(ref currentVelocity, deltaTime);
             }
             ApplyWindFieldForce(ref currentVelocity, deltaTime);
+            ApplyDustDevilForce(ref currentVelocity, deltaTime);
+        }
+
+        private void ApplyDustDevilForce(ref Vector3 currentVelocity, float deltaTime)
+        {
+            if (_dustDevils == null || _dustDevilSettings == null)
+            {
+                CurrentDustDevilForce = Vector3.zero;
+                CurrentDustDevilInfluence = 0f;
+                CurrentDustDevilCoreInfluence = 0f;
+                _activeDustDevilId = int.MinValue;
+                _launchedByActiveDustDevil = false;
+                return;
+            }
+
+            DustDevilSample sample = _dustDevils.Sample(WorldCenter);
+            CurrentDustDevilForce = sample.Acceleration;
+            CurrentDustDevilInfluence = sample.Influence;
+            CurrentDustDevilCoreInfluence = sample.CoreInfluence;
+            if (sample.Influence <= 0f)
+            {
+                _activeDustDevilId = int.MinValue;
+                _launchedByActiveDustDevil = false;
+                return;
+            }
+
+            if (_activeDustDevilId != sample.SourceId)
+            {
+                _activeDustDevilId = sample.SourceId;
+                _launchedByActiveDustDevil = false;
+            }
+
+            if (Motor.GroundingStatus.IsStableOnGround
+                && sample.Influence >= _dustDevilSettings.GroundLaunchInfluenceThreshold)
+            {
+                Motor.ForceUnground();
+            }
+
+            Vector3 planarVelocity = Vector3.ProjectOnPlane(currentVelocity, Vector3.up);
+            if (planarVelocity.sqrMagnitude > 0.001f)
+            {
+                float spinDegrees = _dustDevilSettings.TrajectorySpinDegreesPerSecond
+                    * sample.Influence
+                    * sample.SpinSign
+                    * Mathf.Max(0f, deltaTime);
+                Vector3 spunPlanarVelocity = Quaternion.AngleAxis(spinDegrees, Vector3.up) * planarVelocity;
+                currentVelocity += spunPlanarVelocity - planarVelocity;
+            }
+
+            currentVelocity += sample.Acceleration * Mathf.Max(0f, deltaTime);
+            currentVelocity.y = Mathf.Min(currentVelocity.y, _dustDevilSettings.MaximumUpwardSpeed);
+
+            if (_launchedByActiveDustDevil
+                || sample.CoreInfluence < _dustDevilSettings.CoreLaunchInfluenceThreshold)
+            {
+                return;
+            }
+
+            _launchedByActiveDustDevil = true;
+            Motor.ForceUnground();
+            currentVelocity.y = Mathf.Max(currentVelocity.y, _dustDevilSettings.CoreMinimumLaunchSpeed);
+            Vector3 launchPlanar = Vector3.ProjectOnPlane(currentVelocity, Vector3.up);
+            if (launchPlanar.sqrMagnitude < 0.001f)
+            {
+                launchPlanar = Vector3.ProjectOnPlane(Motor.CharacterForward, Vector3.up);
+            }
+            Vector3 launchDirection = (Vector3.up * _dustDevilSettings.LaunchUpwardWeight)
+                + (launchPlanar.normalized * _dustDevilSettings.LaunchForwardWeight)
+                + (sample.Tangent * _dustDevilSettings.LaunchTangentialWeight);
+            if (launchDirection.sqrMagnitude < 0.001f)
+            {
+                launchDirection = Vector3.up;
+            }
+            RequestFlight(launchDirection, _dustDevilSettings.LaunchFlightSpeedMultiplier);
         }
 
         private void ApplyWindFieldForce(ref Vector3 currentVelocity, float deltaTime)
