@@ -87,6 +87,23 @@ namespace DuneVector
         private GUIStyle _hudTitleStyle;
         private GUIStyle _hudStatusStyle;
 
+        public bool TryGetHorizontalDistanceToStormfront(Vector3 position, out float distance)
+        {
+            if (!_stormWasVisible || _stormRoot == null || !_stormRoot.activeInHierarchy)
+            {
+                distance = float.PositiveInfinity;
+                return false;
+            }
+
+            Vector3 localPosition = _stormRoot.transform.InverseTransformPoint(position);
+            float outsideWidth = Mathf.Max(0f,
+                Mathf.Abs(localPosition.x) - (_settings.StormfrontWidth * 0.5f));
+            float outsideDepth = Mathf.Max(0f,
+                Mathf.Abs(localPosition.z) - (_settings.StormfrontDepth * 0.5f));
+            distance = Mathf.Sqrt((outsideWidth * outsideWidth) + (outsideDepth * outsideDepth));
+            return true;
+        }
+
         public void Initialize(
             DuneVectorEnvironmentalHazardSystem hazards,
             DroneCharacterController drone,

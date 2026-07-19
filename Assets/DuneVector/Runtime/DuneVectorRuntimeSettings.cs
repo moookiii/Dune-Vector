@@ -1816,6 +1816,8 @@ namespace DuneVector
     {
         public bool Enabled = true;
         [Range(0f, 1f)] public float MinimumStormIntensity = 0.7f;
+        [Tooltip("Horizontal distance beyond the visible stormfront footprint where electrical interference and lightning become active.")]
+        [Min(0f)] public float ElectricalEffectRange = 35f;
         [Min(0f)] public float InitialStrikeDelay = 4f;
         [Min(0.1f)] public float ElectricalBuildupDuration = 1.4f;
         [Min(0.1f)] public float TargetTelegraphDuration = 1.8f;

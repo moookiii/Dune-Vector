@@ -58,6 +58,7 @@ namespace DuneVector
         private DesertWorldStreamer _world;
         private DuneVectorWeatherController _weather;
         private DuneVectorCourierGame _courierGame;
+        private DuneVectorElectricalStormVisualSystem _electricalVisuals;
         private ElectricalSandstormTuning _electricalSettings;
         private HeatZoneTuning _heatSettings;
         private System.Random _random;
@@ -94,9 +95,8 @@ namespace DuneVector
             _world.WorldShifted += HandleWorldShift;
             if (_electricalSettings.Enabled && _electricalSettings.Visuals.Enabled)
             {
-                DuneVectorElectricalStormVisualSystem electricalVisuals =
-                    gameObject.AddComponent<DuneVectorElectricalStormVisualSystem>();
-                electricalVisuals.Initialize(this, _drone, _world, _weather, _electricalSettings.Visuals);
+                _electricalVisuals = gameObject.AddComponent<DuneVectorElectricalStormVisualSystem>();
+                _electricalVisuals.Initialize(this, _drone, _world, _weather, _electricalSettings.Visuals);
             }
             if (_heatSettings.VisualsEnabled)
             {
@@ -119,8 +119,14 @@ namespace DuneVector
 
         private void UpdateElectricalStorm(float deltaTime)
         {
-            bool stormActive = _electricalSettings.Enabled && _weather != null &&
+            bool intensityActive = _electricalSettings.Enabled && _weather != null &&
                 _weather.CurrentStormIntensity >= _electricalSettings.MinimumStormIntensity;
+            bool withinRange = _electricalVisuals != null &&
+                _electricalVisuals.TryGetHorizontalDistanceToStormfront(
+                    _drone.WorldCenter,
+                    out float stormDistance) &&
+                stormDistance <= Mathf.Max(0f, _electricalSettings.ElectricalEffectRange);
+            bool stormActive = intensityActive && withinRange;
             IsElectricalInterferenceActive = stormActive;
             if (!stormActive)
             {
