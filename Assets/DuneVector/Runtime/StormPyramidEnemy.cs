@@ -248,9 +248,13 @@ namespace DuneVector
             {
                 return;
             }
-            Gizmos.color = new Color(0.15f, 0.75f, 1f, 0.45f);
+            Color detectionColor = _settings.WarningColor;
+            detectionColor.a = 0.45f;
+            Gizmos.color = detectionColor;
             Gizmos.DrawWireSphere(transform.position, _settings.DetectionRange);
-            Gizmos.color = new Color(0.7f, 0.9f, 1f, 0.7f);
+            Color strikeColor = _settings.LightningColor;
+            strikeColor.a = 0.7f;
+            Gizmos.color = strikeColor;
             Gizmos.DrawWireSphere(_lightning != null ? _lightning.TargetPosition : transform.position, _settings.StrikeRadius);
         }
     }
@@ -469,8 +473,8 @@ namespace DuneVector
             _identity = identity;
             _marker = DuneVectorVisuals.CreateStormStrikeMarker(owner.parent, materials, settings.StrikeRadius);
             _impactFlash = _marker.Find("Strike Impact Flash");
-            _chargeLine = CreateLine("Lightning Charge Telegraph", materials.LightningWarning, 0.055f);
-            _lightningLine = CreateLine("Lightning Bolt", materials.Lightning, 0.24f);
+            _chargeLine = CreateLine("Lightning Charge Telegraph", materials.LightningWarning, settings.ChargeTelegraphWidth);
+            _lightningLine = CreateLine("Lightning Bolt", materials.Lightning, settings.LightningWidth);
             CancelAttack();
         }
 
@@ -585,7 +589,10 @@ namespace DuneVector
             _chargeLine.positionCount = 2;
             _chargeLine.SetPosition(0, _origin.position);
             _chargeLine.SetPosition(1, _target.Position);
-            _chargeLine.startWidth = Mathf.Lerp(0.025f, 0.12f, charge01) * pulse;
+            _chargeLine.startWidth = Mathf.Lerp(
+                _settings.ChargeTelegraphWidth * 0.25f,
+                _settings.ChargeTelegraphWidth,
+                charge01) * pulse;
             _chargeLine.endWidth = _chargeLine.startWidth;
         }
 

@@ -137,9 +137,19 @@ namespace DuneVector
         [Min(0f)] public float LightningDamage = 32f;
         [Min(0.1f)] public float StrikeRadius = 5.5f;
         [Min(0.05f)] public float LightningVisualDuration = 0.28f;
+        [Min(0.01f)] public float ChargeTelegraphWidth = 0.12f;
+        [Min(0.01f)] public float LightningWidth = 0.48f;
 
         [Header("Presentation")]
         [Min(0.1f)] public float VisualScale = 2.2f;
+        [ColorUsage(false)] public Color BodyColor = new Color(0.025f, 0.13f, 0.075f);
+        [ColorUsage(false, true)] public Color BodyEmission = new Color(0.08f, 0.8f, 0.36f);
+        [ColorUsage(false)] public Color CoreColor = new Color(0.025f, 0.24f, 0.13f);
+        [ColorUsage(false, true)] public Color CoreEmission = new Color(0.3f, 5.5f, 2.8f);
+        [ColorUsage(false)] public Color LightningColor = new Color(0.55f, 0.86f, 1f);
+        [ColorUsage(false, true)] public Color LightningEmission = new Color(7.5f, 12f, 18f);
+        [ColorUsage(false)] public Color WarningColor = new Color(0.18f, 0.42f, 0.62f);
+        [ColorUsage(false, true)] public Color WarningEmission = new Color(0.45f, 2.8f, 5.8f);
     }
 
     [System.Serializable]

@@ -68,6 +68,30 @@ namespace DuneVector
             _ownedMaterials.Clear();
         }
 
+        public void ConfigureStormPyramid(StormPyramidTuning settings)
+        {
+            if (settings == null)
+            {
+                return;
+            }
+
+            ConfigureLitColors(StormPyramidBody, settings.BodyColor, settings.BodyEmission);
+            ConfigureLitColors(StormPyramidCore, settings.CoreColor, settings.CoreEmission);
+            ConfigureLitColors(Lightning, settings.LightningColor, settings.LightningEmission);
+            ConfigureLitColors(LightningWarning, settings.WarningColor, settings.WarningEmission);
+        }
+
+        private static void ConfigureLitColors(Material material, Color baseColor, Color emission)
+        {
+            if (material == null)
+            {
+                return;
+            }
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", baseColor);
+            if (material.HasProperty("_UnlitColor")) material.SetColor("_UnlitColor", baseColor);
+            if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", emission);
+        }
+
         private Material CreateLit(string name, Color baseColor, float smoothness, float metallic, Color? emission = null)
         {
             Shader shader = Shader.Find("HDRP/Lit");
