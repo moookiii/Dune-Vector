@@ -66,6 +66,7 @@ namespace DuneVector
         private Transform _visual;
         private Transform _core;
         private Transform _counterRotator;
+        private StormLightningTarget _trackedTarget;
         private float _stateTime;
         private float _attackTimer;
         private int _identity;
@@ -178,6 +179,7 @@ namespace DuneVector
             _attackTimer = Mathf.Max(0f, _attackTimer - deltaTime);
             if (_attackTimer <= 0f)
             {
+                _trackedTarget = _attackSelector.SelectAttack(transform.position);
                 SetState(StormPyramidState.TrackingPlayer);
             }
         }
@@ -190,15 +192,14 @@ namespace DuneVector
                 return;
             }
 
-            StormLightningTarget target = _attackSelector.SelectAttack(transform.position);
-            _lightning.BeginCharge(target);
+            _lightning.BeginCharge(_trackedTarget);
             SetState(StormPyramidState.ChargingAttack);
         }
 
         private void UpdateCharging(float deltaTime)
         {
             if (_lightning.TargetType == StormLightningAttackType.PlayerStrike
-                && !CanChargePlayerStrike())
+                && !_targeting.CanTargetPlayer(transform.position))
             {
                 _lightning.CancelAttack();
                 _attackTimer = GetAttackInterval(StormLightningAttackType.PlayerStrike);
@@ -283,12 +284,6 @@ namespace DuneVector
             return Mathf.Max(0.1f, configuredInterval);
         }
 
-        private bool CanChargePlayerStrike()
-        {
-            return !_player.IsStableGrounded
-                && _targeting.CanTargetPlayer(transform.position);
-        }
-
         private void SetState(StormPyramidState state)
         {
             CurrentState = state;
@@ -311,12 +306,11 @@ namespace DuneVector
 
             if (CurrentState == StormPyramidState.TrackingPlayer)
             {
-                StormLightningTarget target = _attackSelector.SelectAttack(transform.position);
-                float chargeDuration = _lightning.GetChargeDuration(target.Type);
+                float chargeDuration = _lightning.GetChargeDuration(_trackedTarget.Type);
                 float totalWarningDuration = Mathf.Max(0.01f, _settings.TrackingDuration + chargeDuration);
                 warning = new StormPyramidThreatWarning(
-                    target.Type,
-                    target.Position,
+                    _trackedTarget.Type,
+                    _trackedTarget.Position,
                     Mathf.Max(0f, _settings.TrackingDuration - _stateTime) + chargeDuration,
                     Mathf.Clamp01(_stateTime / totalWarningDuration));
                 return true;
