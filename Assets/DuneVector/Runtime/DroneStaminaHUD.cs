@@ -135,9 +135,10 @@ namespace DuneVector
             }
 
             float size = Mathf.Max(1f, _settings.MeterBackgroundIconSize);
+            Vector2 iconCenter = center + _settings.MeterBackgroundIconOffset;
             Rect destination = new Rect(
-                center.x - (size * 0.5f),
-                center.y - (size * 0.5f),
+                iconCenter.x - (size * 0.5f),
+                iconCenter.y - (size * 0.5f),
                 size,
                 size);
             Color previousColor = GUI.color;

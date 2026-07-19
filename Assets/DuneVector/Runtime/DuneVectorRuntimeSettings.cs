@@ -2152,6 +2152,8 @@ namespace DuneVector
         public Texture2D MeterBackgroundIcon;
         [Tooltip("Screen-space width and height of the stamina background texture.")]
         [Min(1f)] public float MeterBackgroundIconSize = 76f;
+        [Tooltip("Screen-space correction used to align the background texture's ring center with the live fill.")]
+        public Vector2 MeterBackgroundIconOffset = Vector2.zero;
         [Tooltip("Tessellation used to keep the continuous ring visually smooth; this does not create visible tick marks.")]
         [Range(32, 256)] public int MeterArcResolution = 128;
         [Range(90f, 360f)] public float MeterArcDegrees = 280f;
