@@ -1903,9 +1903,48 @@ namespace DuneVector
         [Min(0.1f)] public float HeatPlumeMaximumLifetime = 8f;
         [Min(0.01f)] public float HeatPlumeMinimumSize = 4f;
         [Min(0.01f)] public float HeatPlumeMaximumSize = 10f;
+        [Min(1f)] public float HeatPlumeMinimumHeightMultiplier = 3.2f;
+        [Min(1f)] public float HeatPlumeMaximumHeightMultiplier = 5.8f;
         [Min(0f)] public float HeatPlumeRiseSpeed = 5.5f;
         [Min(0f)] public float HeatPlumeTurbulence = 0.45f;
-        [Min(0f)] public float HeatPlumeStretch = 1f;
+
+        [Header("Heat Plume Distortion Mask")]
+        [Min(0f)] public float HeatPlumeDistortionStrength = 0.12f;
+        [Range(0f, 1f)] public float HeatPlumeDistortionBlur = 0.04f;
+        public Vector2 HeatPlumePrimaryTiling = new Vector2(2.4f, 3.2f);
+        public Vector2 HeatPlumeSecondaryTiling = new Vector2(4.1f, 2.3f);
+        public Vector2 HeatPlumePrimaryVelocity = new Vector2(0.035f, 0.12f);
+        public Vector2 HeatPlumeSecondaryVelocity = new Vector2(-0.055f, 0.073f);
+        [Range(0f, 1f)] public float HeatPlumeSecondaryStrength = 0.48f;
+        [Range(0f, 1f)] public float HeatPlumeHorizontalTurbulence = 0.24f;
+        [Range(0.05f, 0.5f)] public float HeatPlumeCoreWidth = 0.28f;
+        [Range(0.05f, 0.5f)] public float HeatPlumeTopWidth = 0.4f;
+        [Range(0f, 0.5f)] public float HeatPlumeWidthVariation = 0.16f;
+        [Min(0f)] public float HeatPlumeWidthFrequency = 5.2f;
+        [Range(0.01f, 1f)] public float HeatPlumeSideFeather = 0.42f;
+        [Range(0.01f, 1f)] public float HeatPlumeBottomFeather = 0.2f;
+        [Range(0.01f, 1f)] public float HeatPlumeTopFeather = 0.34f;
+        [Range(0f, 0.5f)] public float HeatPlumeMaximumLean = 0.12f;
+        [Min(0f)] public float HeatPlumeMinimumAnimationSpeedMultiplier = 0.78f;
+        [Min(0f)] public float HeatPlumeMaximumAnimationSpeedMultiplier = 1.22f;
+        [Min(0f)] public float HeatPlumeMinimumStrengthMultiplier = 0.75f;
+        [Min(0f)] public float HeatPlumeMaximumStrengthMultiplier = 1.2f;
+        [Min(0f)] public float HeatPlumePhaseRange = 17.371f;
+        public float HeatPlumePrimaryPhaseOffset = 0.37f;
+        public float HeatPlumeSecondaryPhaseOffset = -0.23f;
+        [Range(0.001f, 0.25f)] public float HeatPlumeCardEdgeFeather = 0.04f;
+        [Range(0f, 1f)] public float HeatPlumeEdgeNoiseBase = 0.72f;
+        [Range(0f, 1f)] public float HeatPlumePrimaryEdgeNoise = 0.56f;
+        [Range(0f, 1f)] public float HeatPlumeSecondaryEdgeNoise = 0.28f;
+        [Range(0f, 1f)] public float HeatPlumeFadeProfileVariation = 0.18f;
+        [Range(0f, 1f)] public float HeatPlumeLifetimeFadeInFraction = 0.12f;
+        [Range(0f, 1f)] public float HeatPlumeLifetimeFadeOutFraction = 0.72f;
+        [Min(0f)] public float HeatPlumeDistanceFadeStart = 160f;
+        [Min(0f)] public float HeatPlumeDistanceFadeEnd = 480f;
+        [Min(0f)] public float HeatPlumeDetailFadeStart = 120f;
+        [Min(0f)] public float HeatPlumeDetailFadeEnd = 320f;
+        [Min(0f)] public float HeatPlumeDepthFadeDistance = 2.5f;
+        [Min(0f)] public float HeatPlumeMaskClipThreshold = 0.001f;
 
         [Header("Hot Wind Streaks")]
         [Range(0, 320)] public int HeatStreakParticleBudget = 110;

@@ -57,7 +57,7 @@ namespace DuneVector
             _upperFlightRingHud = world.GetComponent<DuneVectorUpperFlightRingHUD>();
             _distortionTexture = CreateDistortionTexture(Mathf.Max(16, settings.DistortionTextureResolution));
             _particleTexture = CreateSoftParticleTexture(Mathf.Max(16, settings.DistortionTextureResolution));
-            _plumeMaterial = CreateDistortionMaterial("Heat Plume Refraction", true, Color.clear, settings.DistantDistortionStrength);
+            _plumeMaterial = CreateHeatPlumeMaterial();
             _streakMaterial = CreateParticleMaterial("Hot Wind Streaks", settings.HeatStreakColor);
             _hotPlateMaterial = CreateLitMaterial("Heat Pocket Basalt", settings.HotSpotPlateColor, Color.black);
             _hotGlowMaterial = CreateLitMaterial("Heat Pocket Mineral Glow", Color.black, settings.HotSpotGlowColor);
@@ -85,7 +85,6 @@ namespace DuneVector
                 visual.CurtainMaterial?.SetTextureOffset("_DistortionVectorMap", offset);
                 visual.GroundMaterial?.SetTextureOffset("_DistortionVectorMap", offset);
             }
-            _plumeMaterial?.SetTextureOffset("_DistortionVectorMap", offset);
 
             float desiredBlend = Mathf.Clamp01(
                 _hazards.HeatZoneIntensity * Mathf.Max(_settings.MildSeverity, _hazards.CurrentHeatZoneSeverity));
@@ -297,6 +296,15 @@ namespace DuneVector
             main.startSize = new ParticleSystem.MinMaxCurve(
                 _settings.HeatPlumeMinimumSize,
                 Mathf.Max(_settings.HeatPlumeMinimumSize, _settings.HeatPlumeMaximumSize));
+            main.startSize3D = true;
+            main.startSizeX = new ParticleSystem.MinMaxCurve(
+                _settings.HeatPlumeMinimumSize,
+                Mathf.Max(_settings.HeatPlumeMinimumSize, _settings.HeatPlumeMaximumSize));
+            main.startSizeY = new ParticleSystem.MinMaxCurve(
+                _settings.HeatPlumeMinimumSize * _settings.HeatPlumeMinimumHeightMultiplier,
+                Mathf.Max(
+                    _settings.HeatPlumeMinimumSize * _settings.HeatPlumeMinimumHeightMultiplier,
+                    _settings.HeatPlumeMaximumSize * _settings.HeatPlumeMaximumHeightMultiplier));
             ParticleSystem.EmissionModule emission = system.emission;
             emission.rateOverTime = _settings.HeatPlumeEmissionRate * sample.Severity;
             ParticleSystem.ShapeModule shape = system.shape;
@@ -311,10 +319,34 @@ namespace DuneVector
             noise.enabled = true;
             noise.quality = ParticleSystemNoiseQuality.Medium;
             noise.strength = _settings.HeatPlumeTurbulence;
+            ParticleSystem.ColorOverLifetimeModule plumeFade = system.colorOverLifetime;
+            plumeFade.enabled = true;
+            Gradient plumeGradient = new Gradient();
+            plumeGradient.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f),
+                },
+                new[]
+                {
+                    new GradientAlphaKey(0f, 0f),
+                    new GradientAlphaKey(1f, _settings.HeatPlumeLifetimeFadeInFraction),
+                    new GradientAlphaKey(1f, _settings.HeatPlumeLifetimeFadeOutFraction),
+                    new GradientAlphaKey(0f, 1f),
+                });
+            plumeFade.color = plumeGradient;
             ParticleSystemRenderer renderer = plumeObject.GetComponent<ParticleSystemRenderer>();
             renderer.sharedMaterial = _plumeMaterial;
-            renderer.renderMode = ParticleSystemRenderMode.Stretch;
-            renderer.velocityScale = _settings.HeatPlumeStretch;
+            renderer.renderMode = ParticleSystemRenderMode.VerticalBillboard;
+            renderer.sortMode = ParticleSystemSortMode.Distance;
+            renderer.SetActiveVertexStreams(new List<ParticleSystemVertexStream>
+            {
+                ParticleSystemVertexStream.Position,
+                ParticleSystemVertexStream.Color,
+                ParticleSystemVertexStream.UV,
+                ParticleSystemVertexStream.StableRandomX,
+            });
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
             system.Play();
@@ -462,6 +494,48 @@ namespace DuneVector
             material.SetFloat("_DistortionVectorBias", -1f);
             material.SetFloat("_DistortionBlurScale", _settings.DistortionBlurStrength);
             HDMaterial.ValidateMaterial(material);
+            return material;
+        }
+
+        private Material CreateHeatPlumeMaterial()
+        {
+            Shader shader = Shader.Find("DuneVector/HDRP Heat Plume Distortion");
+            Material material = new Material(shader) { name = "Masked Heat Plume Refraction" };
+            material.SetTexture("_NoiseTex", _distortionTexture);
+            material.SetFloat("_DistortionStrength", _settings.HeatPlumeDistortionStrength);
+            material.SetFloat("_DistortionBlur", _settings.HeatPlumeDistortionBlur);
+            material.SetVector("_PrimaryTiling", _settings.HeatPlumePrimaryTiling);
+            material.SetVector("_SecondaryTiling", _settings.HeatPlumeSecondaryTiling);
+            material.SetVector("_PrimaryVelocity", _settings.HeatPlumePrimaryVelocity);
+            material.SetVector("_SecondaryVelocity", _settings.HeatPlumeSecondaryVelocity);
+            material.SetFloat("_SecondaryStrength", _settings.HeatPlumeSecondaryStrength);
+            material.SetFloat("_HorizontalTurbulence", _settings.HeatPlumeHorizontalTurbulence);
+            material.SetFloat("_CoreWidth", _settings.HeatPlumeCoreWidth);
+            material.SetFloat("_TopWidth", _settings.HeatPlumeTopWidth);
+            material.SetFloat("_WidthVariation", _settings.HeatPlumeWidthVariation);
+            material.SetFloat("_WidthFrequency", _settings.HeatPlumeWidthFrequency);
+            material.SetFloat("_SideFeather", _settings.HeatPlumeSideFeather);
+            material.SetFloat("_BottomFeather", _settings.HeatPlumeBottomFeather);
+            material.SetFloat("_TopFeather", _settings.HeatPlumeTopFeather);
+            material.SetFloat("_Lean", _settings.HeatPlumeMaximumLean);
+            material.SetFloat("_MinimumSpeedMultiplier", _settings.HeatPlumeMinimumAnimationSpeedMultiplier);
+            material.SetFloat("_MaximumSpeedMultiplier", _settings.HeatPlumeMaximumAnimationSpeedMultiplier);
+            material.SetFloat("_MinimumStrengthMultiplier", _settings.HeatPlumeMinimumStrengthMultiplier);
+            material.SetFloat("_MaximumStrengthMultiplier", _settings.HeatPlumeMaximumStrengthMultiplier);
+            material.SetFloat("_PhaseRange", _settings.HeatPlumePhaseRange);
+            material.SetFloat("_PrimaryPhaseOffset", _settings.HeatPlumePrimaryPhaseOffset);
+            material.SetFloat("_SecondaryPhaseOffset", _settings.HeatPlumeSecondaryPhaseOffset);
+            material.SetFloat("_CardEdgeFeather", _settings.HeatPlumeCardEdgeFeather);
+            material.SetFloat("_EdgeNoiseBase", _settings.HeatPlumeEdgeNoiseBase);
+            material.SetFloat("_PrimaryEdgeNoise", _settings.HeatPlumePrimaryEdgeNoise);
+            material.SetFloat("_SecondaryEdgeNoise", _settings.HeatPlumeSecondaryEdgeNoise);
+            material.SetFloat("_FadeProfileVariation", _settings.HeatPlumeFadeProfileVariation);
+            material.SetFloat("_DistanceFadeStart", _settings.HeatPlumeDistanceFadeStart);
+            material.SetFloat("_DistanceFadeEnd", _settings.HeatPlumeDistanceFadeEnd);
+            material.SetFloat("_DetailFadeStart", _settings.HeatPlumeDetailFadeStart);
+            material.SetFloat("_DetailFadeEnd", _settings.HeatPlumeDetailFadeEnd);
+            material.SetFloat("_DepthFadeDistance", _settings.HeatPlumeDepthFadeDistance);
+            material.SetFloat("_MaskClipThreshold", _settings.HeatPlumeMaskClipThreshold);
             return material;
         }
 
