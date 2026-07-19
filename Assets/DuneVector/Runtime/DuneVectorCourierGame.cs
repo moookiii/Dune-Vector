@@ -1718,7 +1718,22 @@ namespace DuneVector
             string prompt = distance <= _hubSettings.TerminalInteractionRadius
                 ? "PRESS E — OPEN CONTRACT TERMINAL"
                 : $"CONTRACT TERMINAL  {distance:0} m";
-            GUI.Label(new Rect(0f, Screen.height - 150f, Screen.width, 32f), prompt, _objectiveStyle);
+            float promptWidth = Mathf.Min(_hubSettings.TerminalPromptWidth, Screen.width);
+            float promptHeight = _hubSettings.TerminalPromptHeight;
+            Rect promptRect = new Rect(
+                (Screen.width - promptWidth) * 0.5f,
+                (Screen.height * 0.5f) + _hubSettings.TerminalPromptVerticalOffset - (promptHeight * 0.5f),
+                promptWidth,
+                promptHeight);
+            Color promptColor = _objectiveStyle.normal.textColor;
+            _objectiveStyle.normal.textColor = _hubSettings.TerminalPromptShadowColor;
+            GUI.Label(new Rect(
+                promptRect.x + _hubSettings.TerminalPromptShadowOffset.x,
+                promptRect.y + _hubSettings.TerminalPromptShadowOffset.y,
+                promptRect.width,
+                promptRect.height), prompt, _objectiveStyle);
+            _objectiveStyle.normal.textColor = promptColor;
+            GUI.Label(promptRect, prompt, _objectiveStyle);
             GUI.Label(new Rect(24f, 24f, 360f, 86f),
                 $"COURIER AERIE\nDELIVERIES  {Progress.CompletedDeliveries}\nCONTRACT GOLD  {Progress.TotalContractGold:N0}", _hudBodyStyle);
         }

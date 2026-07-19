@@ -203,6 +203,19 @@ namespace DuneVector
                 travelForward = Vector3.forward;
             }
             travelForward.Normalize();
+            if (_courierGame.ActiveObjective != null)
+            {
+                Vector3 objectiveForward = Vector3.ProjectOnPlane(
+                    _courierGame.ActiveObjective.position - playerPosition,
+                    Vector3.up);
+                if (objectiveForward.sqrMagnitude > 0.001f)
+                {
+                    travelForward = Vector3.Slerp(
+                        travelForward,
+                        objectiveForward.normalized,
+                        _settings.FormationObjectiveDirectionWeight).normalized;
+                }
+            }
             Vector3 travelRight = Vector3.Cross(Vector3.up, travelForward).normalized;
             _waveAnnouncement = FormationTitle(formation);
             _waveAnnouncementUntil = Time.unscaledTime + _settings.WaveAnnouncementDuration;
@@ -219,39 +232,90 @@ namespace DuneVector
             for (int i = 0; i < count; i++)
             {
                 float centered = i - ((count - 1) * 0.5f);
+                float wingDistance = Mathf.Abs(centered);
+                float maximumWingDistance = (count - 1) * 0.5f;
                 float altitude = formation == RouteFormationType.VerticalAttack
                     ? Mathf.Lerp(_settings.LowAltitude, _settings.HighAltitude, i / Mathf.Max(1f, count - 1f))
-                    : _settings.MediumAltitude + ((i % 2) * 4f);
+                    : _settings.MediumAltitude + ((i % 2) * _settings.FormationAltitudeStagger);
                 Vector3 spawnOffset;
+                Vector3 approachTarget;
+                Vector3 passTarget;
                 switch (formation)
                 {
                     case RouteFormationType.CrossAttack:
-                        spawnOffset = (travelRight * _settings.SpawnDistance) + (travelForward * centered * _settings.FormationSpacing);
+                        float crossSide = i % 2 == 0 ? 1f : -1f;
+                        int crossLaneCount = Mathf.CeilToInt(count * 0.5f);
+                        float crossLane = Mathf.Floor(i * 0.5f) - ((crossLaneCount - 1) * 0.5f);
+                        spawnOffset = (travelRight * crossSide * _settings.SpawnDistance) +
+                            (travelForward * crossLane * _settings.CrossAttackLaneSpacing);
+                        approachTarget = playerPosition +
+                            (travelRight * crossSide * _settings.FormationCommitDistance) +
+                            (travelForward * crossLane * _settings.CrossAttackLaneSpacing);
+                        passTarget = playerPosition -
+                            (travelRight * crossSide * _settings.SpawnDistance * _settings.CrossAttackExitDistanceMultiplier) +
+                            (travelForward * crossLane * _settings.CrossAttackLaneSpacing);
                         break;
                     case RouteFormationType.Pursuit:
-                        spawnOffset = (-travelForward * _settings.SpawnDistance) + (travelRight * centered * _settings.FormationSpacing);
+                        spawnOffset = (-travelForward * (_settings.SpawnDistance + (wingDistance * _settings.PursuitWingDepthSpacing))) +
+                            (travelRight * centered * _settings.FormationSpacing);
+                        approachTarget = playerPosition -
+                            (travelForward * _settings.FormationCommitDistance) +
+                            (travelRight * centered * _settings.FormationSpacing * _settings.FormationApproachLateralCompression);
+                        passTarget = playerPosition +
+                            (travelForward * _settings.PursuitOvertakeDistance) +
+                            (travelRight * centered * _settings.HeadOnPassLateralSpacing);
                         break;
                     case RouteFormationType.VerticalAttack:
-                        spawnOffset = (travelForward * _settings.SpawnDistance) + (travelRight * centered * _settings.FormationSpacing * 0.7f);
+                        spawnOffset = (travelForward * _settings.SpawnDistance) +
+                            (travelRight * centered * _settings.FormationSpacing * _settings.VerticalFormationWidthMultiplier);
+                        approachTarget = playerPosition +
+                            (travelForward * _settings.FormationCommitDistance) +
+                            (travelRight * centered * _settings.HeadOnPassLateralSpacing) +
+                            (Vector3.up * (altitude * _settings.VerticalApproachHeightMultiplier));
+                        passTarget = playerPosition -
+                            (travelForward * _settings.FormationCommitDistance) +
+                            (travelRight * centered * _settings.HeadOnPassLateralSpacing);
                         break;
                     case RouteFormationType.FlyThroughAssault:
-                        spawnOffset = (travelForward * (_settings.SpawnDistance + ((i % 2) * _settings.FormationSpacing * 2f))) +
-                            (travelRight * centered * _settings.FormationSpacing * 1.3f);
+                        float flyThroughBank = i % 2;
+                        spawnOffset = (travelForward * (_settings.SpawnDistance + (flyThroughBank * _settings.FlyThroughFormationDepthSpacing))) +
+                            (travelRight * centered * _settings.FormationSpacing);
+                        approachTarget = playerPosition +
+                            (travelForward * (_settings.FormationCommitDistance + (flyThroughBank * _settings.FlyThroughFormationDepthSpacing * _settings.FormationDepthCommitContribution))) +
+                            (travelRight * centered * _settings.FormationSpacing);
+                        passTarget = playerPosition -
+                            (travelForward * _settings.FormationCommitDistance) +
+                            (travelRight * centered * _settings.HeadOnPassLateralSpacing);
                         break;
                     default:
-                        spawnOffset = (travelForward * _settings.SpawnDistance) + (travelRight * centered * _settings.FormationSpacing);
+                        float headOnDepth = (maximumWingDistance - wingDistance) * _settings.HeadOnWingDepthSpacing;
+                        spawnOffset = (travelForward * (_settings.SpawnDistance + headOnDepth)) +
+                            (travelRight * centered * _settings.FormationSpacing);
+                        approachTarget = playerPosition +
+                            (travelForward * (_settings.FormationCommitDistance + (headOnDepth * _settings.FormationDepthCommitContribution))) +
+                            (travelRight * centered * _settings.FormationSpacing * _settings.FormationApproachLateralCompression);
+                        passTarget = playerPosition -
+                            (travelForward * _settings.FormationCommitDistance) +
+                            (travelRight * centered * _settings.HeadOnPassLateralSpacing);
                         break;
                 }
                 Vector3 spawn = playerPosition + spawnOffset;
                 float terrain = _world.SampleHeightAtLocal(spawn.x, spawn.z);
-                spawn.y = Mathf.Max(playerPosition.y + altitude * 0.35f, terrain + altitude);
-                Vector3 passTarget = playerPosition - (spawnOffset.normalized * (_settings.SpawnDistance * 0.45f));
-                if (formation == RouteFormationType.CrossAttack)
+                spawn.y = Mathf.Max(
+                    playerPosition.y + (altitude * _settings.FormationPlayerAltitudeContribution),
+                    terrain + altitude);
+                if (formation != RouteFormationType.VerticalAttack)
                 {
-                    passTarget = playerPosition - (travelRight * _settings.SpawnDistance * 0.55f) + (travelForward * centered * 3f);
+                    approachTarget.y = Mathf.Lerp(spawn.y, playerPosition.y, _settings.FormationApproachAltitudeBlend);
                 }
-                Vector3 breakTarget = passTarget + ((passTarget - spawn).normalized * _settings.BreakOffDistance) + Vector3.up * (i % 2 == 0 ? 12f : -5f);
-                Vector3 reposition = playerPosition - spawnOffset + Vector3.up * 10f;
+                passTarget.y = playerPosition.y;
+                float breakVertical = i % 2 == 0
+                    ? _settings.FormationBreakVerticalSeparation
+                    : -_settings.FormationBreakVerticalSeparation * _settings.FormationLowerBreakMultiplier;
+                Vector3 breakTarget = passTarget +
+                    ((passTarget - spawn).normalized * _settings.BreakOffDistance) +
+                    (Vector3.up * breakVertical);
+                Vector3 reposition = playerPosition - spawnOffset + (Vector3.up * _settings.FormationRepositionHeight);
 
                 GameObject enemyObject = new GameObject($"{formation} Formation Enemy {_waveIndex:00}-{i + 1:00}");
                 enemyObject.transform.SetParent(transform, true);
@@ -267,6 +331,7 @@ namespace DuneVector
                     _formationMaterial,
                     _shotMaterial,
                     formation,
+                    approachTarget,
                     passTarget,
                     breakTarget,
                     reposition,
@@ -469,6 +534,7 @@ namespace DuneVector
         private DroneCharacterController _player;
         private DroneHealth _health;
         private RouteEncounterTuning _settings;
+        private Vector3 _approachTarget;
         private Vector3 _passTarget;
         private Vector3 _breakTarget;
         private Vector3 _repositionTarget;
@@ -491,6 +557,7 @@ namespace DuneVector
             Material formationMaterial,
             Material shotMaterial,
             RouteFormationType formation,
+            Vector3 approachTarget,
             Vector3 passTarget,
             Vector3 breakTarget,
             Vector3 repositionTarget,
@@ -499,6 +566,7 @@ namespace DuneVector
             _player = player;
             _health = health;
             _settings = settings;
+            _approachTarget = approachTarget;
             _passTarget = passTarget;
             _breakTarget = breakTarget;
             _repositionTarget = repositionTarget;
@@ -549,8 +617,8 @@ namespace DuneVector
             switch (State)
             {
                 case FormationEnemyState.FormationApproach:
-                    MoveTo(_passTarget, _settings.ApproachSpeed, deltaTime);
-                    if (Vector3.Distance(transform.position, _passTarget) < _settings.SpawnDistance * 0.45f)
+                    MoveTo(_approachTarget, _settings.ApproachSpeed, deltaTime);
+                    if (Vector3.Distance(transform.position, _approachTarget) <= _settings.FormationCommitRadius)
                     {
                         SetState(FormationEnemyState.AttackPass);
                     }
@@ -674,6 +742,7 @@ namespace DuneVector
         public void ApplyWorldShift(Vector3 shift)
         {
             transform.position += shift;
+            _approachTarget += shift;
             _passTarget += shift;
             _breakTarget += shift;
             _repositionTarget += shift;
