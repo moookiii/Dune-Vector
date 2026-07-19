@@ -24,6 +24,7 @@ namespace DuneVector
         private GroundExploderDamage _damage;
         private GroundExploderVisual _visual;
         private EnemyCombatTarget _combatTarget;
+        private EnemyGoldReward _goldReward;
         private DroneHealth _playerHealth;
         private float _stateTime;
 
@@ -51,6 +52,11 @@ namespace DuneVector
             enemyHealth.Initialize(settings.MaximumHealth);
             _combatTarget = gameObject.AddComponent<EnemyCombatTarget>();
             _combatTarget.Initialize(enemyHealth, settings.VisualScale);
+            _goldReward = gameObject.AddComponent<EnemyGoldReward>();
+            _goldReward.Initialize(
+                enemyHealth,
+                player != null ? player.GetComponent<DroneGoldWallet>() : null,
+                settings.GoldReward);
             BindTargets(player, playerHealth);
             SetState(GroundExploderState.Patrolling);
         }
@@ -58,6 +64,7 @@ namespace DuneVector
         public void BindTargets(DroneCharacterController player, DroneHealth playerHealth)
         {
             _playerHealth = playerHealth;
+            _goldReward?.BindWallet(player != null ? player.GetComponent<DroneGoldWallet>() : null);
             _proximity?.BindTarget(player);
             _damage?.BindTarget(player, playerHealth);
         }

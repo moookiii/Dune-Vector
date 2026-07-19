@@ -174,6 +174,7 @@ namespace DuneVector
     {
         public bool Enabled = true;
         [Min(1f)] public float MaximumHealth = 90f;
+        [Min(0)] public int GoldReward = 20;
         [Range(1, 12)] public int EnemyCount = 3;
         [Min(10f)] public float MinimumSpawnDistance = 55f;
         [Min(10f)] public float MaximumSpawnDistance = 105f;
@@ -197,6 +198,7 @@ namespace DuneVector
     {
         public bool Enabled = true;
         [Min(1f)] public float MaximumHealth = 135f;
+        [Min(0)] public int GoldReward = 50;
 
         [Header("Spawning")]
         [Range(1, 10)] public int EnemyCount = 2;
@@ -263,6 +265,7 @@ namespace DuneVector
     {
         public bool Enabled = true;
         [Min(1f)] public float MaximumHealth = 70f;
+        [Min(0)] public int GoldReward = 15;
         [Tooltip("Expected number of ground exploders generated in each streamed desert chunk.")]
         [Min(0f)] public float DensityPerChunk = 0.28f;
         [Header("Patrol")]

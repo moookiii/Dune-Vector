@@ -50,6 +50,8 @@ namespace DuneVector
             enemyHealth.Initialize(settings.MaximumHealth);
             EnemyCombatTarget combatTarget = gameObject.AddComponent<EnemyCombatTarget>();
             combatTarget.Initialize(enemyHealth, settings.VisualScale);
+            EnemyGoldReward goldReward = gameObject.AddComponent<EnemyGoldReward>();
+            goldReward.Initialize(enemyHealth, player != null ? player.GetComponent<DroneGoldWallet>() : null, settings.GoldReward);
             _hoverAnchor = transform.position;
             SetState(SkyPiercerState.IdleFloating);
             _attackCooldown = settings.AttackCooldown * Mathf.Repeat((identity * 0.37f) + 0.3f, 1f);

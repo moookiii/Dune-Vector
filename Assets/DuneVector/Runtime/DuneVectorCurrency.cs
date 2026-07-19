@@ -95,6 +95,56 @@ namespace DuneVector
     }
 
     [DisallowMultipleComponent]
+    public sealed class EnemyGoldReward : MonoBehaviour
+    {
+        private EnemyHealth _health;
+        private DroneGoldWallet _wallet;
+        private int _amount;
+        private bool _awarded;
+
+        public void Initialize(EnemyHealth health, DroneGoldWallet wallet, int amount)
+        {
+            if (_health != null)
+            {
+                _health.Died -= HandleEnemyDied;
+            }
+
+            _health = health;
+            _wallet = wallet;
+            _amount = Mathf.Max(0, amount);
+            _awarded = false;
+            if (_health != null)
+            {
+                _health.Died += HandleEnemyDied;
+            }
+        }
+
+        public void BindWallet(DroneGoldWallet wallet)
+        {
+            _wallet = wallet;
+        }
+
+        private void HandleEnemyDied()
+        {
+            if (_awarded)
+            {
+                return;
+            }
+
+            _awarded = true;
+            _wallet?.AddGold(_amount);
+        }
+
+        private void OnDestroy()
+        {
+            if (_health != null)
+            {
+                _health.Died -= HandleEnemyDied;
+            }
+        }
+    }
+
+    [DisallowMultipleComponent]
     public sealed class DuneVectorGoldHUD : MonoBehaviour
     {
         private DroneGoldWallet _wallet;
