@@ -1034,6 +1034,20 @@ namespace DuneVector
         [ColorUsage(false)] public Color MeterBackgroundColor = new Color(0.015f, 0.035f, 0.05f, 0.72f);
     }
 
+    public enum DuneVectorTaaQuality
+    {
+        Low,
+        Medium,
+        High,
+    }
+
+    public enum DuneVectorTaaSharpenMode
+    {
+        LowQuality,
+        PostSharpen,
+        ContrastAdaptiveSharpening,
+    }
+
     [System.Serializable]
     public sealed class DroneTuning
     {
@@ -1079,6 +1093,19 @@ namespace DuneVector
         [Min(0f)] public float CameraLookSensitivity = 0.085f;
         [Min(0f)] public float CameraRotationSharpness = 30f;
         [Min(0f)] public float CameraFollowSharpness = 4.2f;
+
+        [Header("Camera Temporal Anti-Aliasing (HDRP)")]
+        public bool EnableTemporalAntiAliasing = true;
+        public DuneVectorTaaQuality TemporalAntiAliasingQuality = DuneVectorTaaQuality.High;
+        public DuneVectorTaaSharpenMode TemporalSharpenMode = DuneVectorTaaSharpenMode.PostSharpen;
+        [Range(0f, 2f)] public float TemporalSharpenStrength = 0.65f;
+        [Range(0f, 1f)] public float TemporalRingingReduction = 0.35f;
+        [Range(0f, 1f)] public float TemporalHistorySharpening = 0.25f;
+        [Range(0f, 1f)] public float TemporalAntiFlicker = 0.4f;
+        [Range(0f, 1f)] public float TemporalMotionVectorRejection = 0.35f;
+        public bool TemporalAntiHistoryRinging = true;
+        [Range(0.6f, 0.95f)] public float TemporalBaseBlendFactor = 0.8f;
+        [Range(0.1f, 1f)] public float TemporalJitterScale = 0.9f;
 
         public void EnsureInitialized()
         {

@@ -394,13 +394,16 @@ namespace DuneVector
             cameraObject.tag = "MainCamera";
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.allowHDR = true;
+            camera.allowMSAA = false;
             camera.farClipPlane = 900f;
             camera.nearClipPlane = 0.08f;
             cameraObject.AddComponent<StudioListener>();
-            if (cameraObject.GetComponent<HDAdditionalCameraData>() == null)
+            HDAdditionalCameraData cameraData = cameraObject.GetComponent<HDAdditionalCameraData>();
+            if (cameraData == null)
             {
-                cameraObject.AddComponent<HDAdditionalCameraData>();
+                cameraData = cameraObject.AddComponent<HDAdditionalCameraData>();
             }
+            ConfigureCameraAntiAliasing(cameraData, PlayerTuning);
 
             DroneCamera = cameraObject.AddComponent<DroneCameraController>();
             DroneCamera.Camera = camera;
@@ -429,6 +432,38 @@ namespace DuneVector
                 DroneHealth,
                 stamina,
                 boostSpeedModifier);
+        }
+
+        private static void ConfigureCameraAntiAliasing(HDAdditionalCameraData cameraData, DroneTuning settings)
+        {
+            if (cameraData == null || settings == null)
+            {
+                return;
+            }
+
+            cameraData.antialiasing = settings.EnableTemporalAntiAliasing
+                ? HDAdditionalCameraData.AntialiasingMode.TemporalAntialiasing
+                : HDAdditionalCameraData.AntialiasingMode.None;
+            cameraData.TAAQuality = settings.TemporalAntiAliasingQuality switch
+            {
+                DuneVectorTaaQuality.Low => HDAdditionalCameraData.TAAQualityLevel.Low,
+                DuneVectorTaaQuality.Medium => HDAdditionalCameraData.TAAQualityLevel.Medium,
+                _ => HDAdditionalCameraData.TAAQualityLevel.High,
+            };
+            cameraData.taaSharpenMode = settings.TemporalSharpenMode switch
+            {
+                DuneVectorTaaSharpenMode.LowQuality => HDAdditionalCameraData.TAASharpenMode.LowQuality,
+                DuneVectorTaaSharpenMode.ContrastAdaptiveSharpening => HDAdditionalCameraData.TAASharpenMode.ContrastAdaptiveSharpening,
+                _ => HDAdditionalCameraData.TAASharpenMode.PostSharpen,
+            };
+            cameraData.taaSharpenStrength = Mathf.Clamp(settings.TemporalSharpenStrength, 0f, 2f);
+            cameraData.taaRingingReduction = Mathf.Clamp01(settings.TemporalRingingReduction);
+            cameraData.taaHistorySharpening = Mathf.Clamp01(settings.TemporalHistorySharpening);
+            cameraData.taaAntiFlicker = Mathf.Clamp01(settings.TemporalAntiFlicker);
+            cameraData.taaMotionVectorRejection = Mathf.Clamp01(settings.TemporalMotionVectorRejection);
+            cameraData.taaAntiHistoryRinging = settings.TemporalAntiHistoryRinging;
+            cameraData.taaBaseBlendFactor = Mathf.Clamp(settings.TemporalBaseBlendFactor, 0.6f, 0.95f);
+            cameraData.taaJitterScale = Mathf.Clamp(settings.TemporalJitterScale, 0.1f, 1f);
         }
 
         private void BuildAudio()
