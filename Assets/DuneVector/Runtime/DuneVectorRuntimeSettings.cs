@@ -222,26 +222,47 @@ namespace DuneVector
         public float TeleportEnergyRingRotationSpeed = 95f;
 
         [Header("Terminal UI")]
-        [Min(480f)] public float TerminalPanelWidth = 1080f;
-        [Min(320f)] public float TerminalPanelHeight = 680f;
+        [Min(480f)] public float TerminalReferenceWidth = 1600f;
+        [Min(320f)] public float TerminalReferenceHeight = 900f;
+        [Range(0.5f, 1.5f)] public float TerminalMinimumScale = 0.72f;
+        [Range(0.5f, 1.5f)] public float TerminalMaximumScale = 1.08f;
+        [Min(480f)] public float TerminalPanelWidth = 1120f;
+        [Min(320f)] public float TerminalPanelHeight = 640f;
         [Min(0f)] public float TerminalScreenMargin = 28f;
         [Min(10f)] public float TerminalPadding = 28f;
         [Min(10f)] public float ContractCardGap = 12f;
-        [Min(100f)] public float ContractCardHeight = 154f;
+        [Range(2, 3)] public int TerminalCardColumns = 3;
+        [Min(100f)] public float ContractCardHeight = 196f;
         [Min(10)] public int TerminalTitleFontSize = 30;
         [Min(9)] public int TerminalBodyFontSize = 13;
         [Min(9)] public int TerminalButtonFontSize = 13;
-        [Min(0f)] public float TerminalHeaderHeight = 92f;
+        [Min(9)] public int TerminalKickerFontSize = 11;
+        [Min(9)] public int TerminalDestinationFontSize = 17;
+        [Min(9)] public int TerminalRewardFontSize = 18;
+        [Min(9)] public int TerminalMetaFontSize = 12;
+        [Min(0f)] public float TerminalHeaderHeight = 122f;
+        [Min(0f)] public float TerminalFooterHeight = 38f;
         [Min(0f)] public float TerminalAccentBarHeight = 4f;
         [Min(0f)] public float TerminalCardAccentWidth = 5f;
         [Min(0f)] public float TerminalDifficultyPipSize = 5f;
+        [Min(0f)] public float TerminalPanelBorderThickness = 2f;
+        public Vector2 TerminalPanelShadowOffset = new Vector2(12f, 14f);
         [ColorUsage(false)] public Color HubMetalColor = new Color(0.055f, 0.09f, 0.12f, 1f);
         [ColorUsage(false, true)] public Color HubEnergyColor = new Color(0.02f, 2.2f, 3.8f, 1f);
+        [ColorUsage(false)] public Color TerminalBackdropColor = new Color(0.006f, 0.012f, 0.022f, 0.9f);
+        [ColorUsage(false)] public Color TerminalShadowColor = new Color(0f, 0f, 0f, 0.58f);
+        [ColorUsage(false)] public Color TerminalBorderColor = new Color(0.18f, 0.3f, 0.38f, 0.9f);
+        [ColorUsage(false)] public Color TerminalDividerColor = new Color(0.16f, 0.24f, 0.3f, 0.9f);
         [ColorUsage(false)] public Color TerminalPanelColor = new Color(0.018f, 0.035f, 0.055f, 0.98f);
-        [ColorUsage(false)] public Color TerminalCardColor = new Color(0.06f, 0.09f, 0.12f, 1f);
-        [ColorUsage(false)] public Color TerminalCardHoverColor = new Color(0.11f, 0.17f, 0.22f, 1f);
+        [ColorUsage(false)] public Color TerminalCardColor = new Color(0.045f, 0.072f, 0.095f, 1f);
+        [ColorUsage(false)] public Color TerminalCardHoverColor = new Color(0.085f, 0.14f, 0.18f, 1f);
         [ColorUsage(false)] public Color TerminalAccentColor = new Color(1f, 0.58f, 0.12f, 1f);
         [ColorUsage(false)] public Color TerminalTextColor = new Color(0.9f, 0.96f, 1f, 1f);
+        [ColorUsage(false)] public Color TerminalMutedTextColor = new Color(0.55f, 0.65f, 0.72f, 1f);
+        [ColorUsage(false)] public Color TerminalUnknownColor = new Color(0.72f, 0.38f, 1f, 1f);
+        [ColorUsage(false)] public Color TerminalHighValueColor = new Color(1f, 0.73f, 0.16f, 1f);
+        [ColorUsage(false)] public Color TerminalMultiDropColor = new Color(0.12f, 0.85f, 0.8f, 1f);
+        [ColorUsage(false)] public Color TerminalDangerColor = new Color(1f, 0.28f, 0.18f, 1f);
     }
 
     [System.Serializable]
@@ -995,8 +1016,6 @@ namespace DuneVector
         [Range(0f, 1f)] public float FullIdleAlpha = 0.12f;
         [Min(0f)] public float RestoredFeedbackDuration = 0.9f;
         [Range(0f, 1f)] public float LowStaminaThreshold = 0.25f;
-        [Min(0f)] public float FeedbackPulseSpeed = 7f;
-        [Range(0f, 0.5f)] public float FeedbackPulseAmount = 0.12f;
         [Min(8)] public int MeterLabelFontSize = 11;
         [Min(20f)] public float MeterLabelWidth = 90f;
         [Min(10f)] public float MeterLabelHeight = 20f;

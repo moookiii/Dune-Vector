@@ -3,6 +3,7 @@ using UnityEngine.Rendering;
 
 namespace DuneVector
 {
+    [DefaultExecutionOrder(300)]
     [DisallowMultipleComponent]
     public sealed class DroneStaminaHUD : MonoBehaviour
     {
@@ -16,6 +17,8 @@ namespace DuneVector
         private float _fullIdleTime;
         private float _restoredFeedbackRemaining;
         private Material _arcMaterial;
+        private Vector2 _screenCenter;
+        private bool _hasScreenCenter;
 
         public void Initialize(
             DroneCharacterController drone,
@@ -55,27 +58,38 @@ namespace DuneVector
                 Mathf.Max(0f, _settings.VisibilityFadeSpeed) * Time.unscaledDeltaTime);
         }
 
-        private void OnGUI()
+        private void LateUpdate()
         {
-            if (_drone == null || _camera == null || _stamina == null || _settings == null || _visibleAlpha <= 0f)
+            _hasScreenCenter = false;
+            if (_drone == null || _camera == null || _settings == null)
             {
                 return;
             }
 
-            Vector3 viewportPosition = _camera.WorldToScreenPoint(_drone.WorldCenter);
-            if (viewportPosition.z <= 0f)
+            Vector3 screenPosition = _camera.WorldToScreenPoint(_drone.WorldCenter);
+            if (screenPosition.z <= 0f)
             {
                 return;
             }
 
             float padding = Mathf.Max(0f, _settings.ScreenEdgePadding);
-            Vector2 center = new Vector2(
-                Mathf.Clamp(viewportPosition.x + _settings.MeterScreenOffset.x, padding, Screen.width - padding),
-                Mathf.Clamp(Screen.height - viewportPosition.y + _settings.MeterScreenOffset.y, padding, Screen.height - padding));
+            _screenCenter = new Vector2(
+                Mathf.Clamp(screenPosition.x + _settings.MeterScreenOffset.x, padding, Screen.width - padding),
+                Mathf.Clamp(Screen.height - screenPosition.y + _settings.MeterScreenOffset.y, padding, Screen.height - padding));
+            _hasScreenCenter = true;
+        }
+
+        private void OnGUI()
+        {
+            if (_stamina == null || _settings == null || !_hasScreenCenter || _visibleAlpha <= 0f)
+            {
+                return;
+            }
+
+            Vector2 center = _screenCenter;
 
             float stamina01 = _stamina.NormalizedStamina;
             Color meterColor = GetMeterColor(stamina01);
-            float pulse = GetPulse();
 
             if (Event.current.type == EventType.Repaint && EnsureArcMaterial())
             {
@@ -91,14 +105,13 @@ namespace DuneVector
 
                 DrawContinuousArc(
                     center,
-                    pulse,
                     _settings.MeterArcStartDegrees,
                     _settings.MeterArcDegrees,
                     backgroundColor);
                 float filledDegrees = _settings.MeterArcDegrees * stamina01;
                 float filledStartDegrees = _settings.MeterArcStartDegrees
                     + (_settings.MeterArcDegrees - filledDegrees);
-                DrawContinuousArc(center, pulse, filledStartDegrees, filledDegrees, meterColor);
+                DrawContinuousArc(center, filledStartDegrees, filledDegrees, meterColor);
             }
 
             string label = GetLabel(stamina01);
@@ -157,18 +170,6 @@ namespace DuneVector
             return string.Empty;
         }
 
-        private float GetPulse()
-        {
-            bool pulse = _stamina.State == DroneStaminaState.Exhausted
-                || _stamina.NormalizedStamina <= _settings.LowStaminaThreshold
-                || _restoredFeedbackRemaining > 0f;
-            if (!pulse)
-            {
-                return 1f;
-            }
-            return 1f + (Mathf.Sin(Time.unscaledTime * _settings.FeedbackPulseSpeed) * _settings.FeedbackPulseAmount);
-        }
-
         private void EnsureLabelStyle()
         {
             if (_labelStyle != null)
@@ -210,7 +211,6 @@ namespace DuneVector
 
         private void DrawContinuousArc(
             Vector2 center,
-            float pulse,
             float startDegrees,
             float arcDegrees,
             Color color)
@@ -222,7 +222,7 @@ namespace DuneVector
 
             int fullResolution = Mathf.Max(32, _settings.MeterArcResolution);
             int steps = Mathf.Max(1, Mathf.CeilToInt(fullResolution * (Mathf.Abs(arcDegrees) / 360f)));
-            float radius = Mathf.Max(0f, _settings.MeterRadius * pulse);
+            float radius = Mathf.Max(0f, _settings.MeterRadius);
             float halfThickness = Mathf.Max(0.5f, _settings.MeterThickness * 0.5f);
 
             _arcMaterial.SetPass(0);
