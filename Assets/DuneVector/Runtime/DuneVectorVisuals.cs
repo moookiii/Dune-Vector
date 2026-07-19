@@ -172,6 +172,7 @@ namespace DuneVector
             }
 
             Material material = new Material(shader) { name = name };
+            material.enableInstancing = true;
             if (material.HasProperty("_BaseColor"))
             {
                 material.SetColor("_BaseColor", baseColor);

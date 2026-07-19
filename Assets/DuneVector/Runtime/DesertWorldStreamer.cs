@@ -598,7 +598,22 @@ namespace DuneVector
                 return;
             }
 
-            int clusterCount = CountFromDensity(density, coordinate, worldSeed, tuning.RandomSeedOffset);
+            int regionSize = Mathf.Max(1, tuning.CompositionRegionSizeInChunks);
+            int regionX = Mathf.FloorToInt(coordinate.x / (float)regionSize);
+            int regionZ = Mathf.FloorToInt(coordinate.y / (float)regionSize);
+            float regionRoll = DuneVectorMath.Hash01(
+                regionX,
+                regionZ,
+                worldSeed,
+                tuning.RandomSeedOffset ^ 4049);
+            float densityMultiplier = regionRoll < Mathf.Clamp01(tuning.NegativeSpaceRegionChance)
+                ? Mathf.Max(0f, tuning.NegativeSpaceDensityMultiplier)
+                : Mathf.Max(0f, tuning.CloudRegionDensityMultiplier);
+            int clusterCount = CountFromDensity(
+                density * densityMultiplier,
+                coordinate,
+                worldSeed,
+                tuning.RandomSeedOffset);
             if (clusterCount <= 0)
             {
                 return;
