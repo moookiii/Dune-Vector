@@ -368,7 +368,8 @@ namespace DuneVector
         [Header("Mixer Controls")]
         [Min(40f)] public float SliderRowHeight = 76f;
         [Min(2f)] public float SliderTrackHeight = 9f;
-        [Min(8f)] public float SliderThumbSize = 20f;
+        [Min(4f)] public float SliderThumbWidth = 12f;
+        [Min(8f)] public float SliderThumbHeight = 22f;
         [Min(24f)] public float ButtonHeight = 44f;
         [Min(0f)] public float ButtonGap = 10f;
 

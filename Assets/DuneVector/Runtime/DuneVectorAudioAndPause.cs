@@ -422,15 +422,16 @@ namespace DuneVector
                 $"{Mathf.RoundToInt(value * 100f):00}%",
                 _valueStyle);
 
-            float thumbSize = _visuals.SliderThumbSize * scale;
+            float thumbWidth = _visuals.SliderThumbWidth * scale;
+            float thumbHeight = _visuals.SliderThumbHeight * scale;
             float trackHeight = Mathf.Max(1f, _visuals.SliderTrackHeight * scale);
-            float availableSliderHeight = Mathf.Max(thumbSize, area.height - labelHeight);
-            float sliderY = area.y + labelHeight + ((availableSliderHeight - thumbSize) * 0.5f);
-            Rect sliderRect = new Rect(area.x, sliderY, area.width, thumbSize);
+            float availableSliderHeight = Mathf.Max(thumbHeight, area.height - labelHeight);
+            float sliderY = area.y + labelHeight + ((availableSliderHeight - thumbHeight) * 0.5f);
+            Rect sliderRect = new Rect(area.x, sliderY, area.width, thumbHeight);
             Rect trackRect = new Rect(
-                sliderRect.x + (thumbSize * 0.5f),
+                sliderRect.x + (thumbWidth * 0.5f),
                 sliderRect.center.y - (trackHeight * 0.5f),
-                Mathf.Max(1f, sliderRect.width - thumbSize),
+                Mathf.Max(1f, sliderRect.width - thumbWidth),
                 trackHeight);
 
             DrawSolidRect(trackRect, _visuals.SliderTrackColor);
@@ -522,8 +523,8 @@ namespace DuneVector
 
             _sliderThumbStyle = new GUIStyle(GUI.skin.horizontalSliderThumb)
             {
-                fixedWidth = _visuals.SliderThumbSize * scale,
-                fixedHeight = _visuals.SliderThumbSize * scale,
+                fixedWidth = _visuals.SliderThumbWidth * scale,
+                fixedHeight = _visuals.SliderThumbHeight * scale,
                 margin = new RectOffset(),
                 padding = new RectOffset(),
             };
@@ -589,7 +590,7 @@ namespace DuneVector
             _buttonActiveTexture = CreateSolidTexture("Pause Button Active", _visuals.ButtonActiveColor);
             _dangerButtonTexture = CreateSolidTexture("Pause Danger", _visuals.DangerButtonColor);
             _dangerButtonHoverTexture = CreateSolidTexture("Pause Danger Hover", _visuals.DangerButtonHoverColor);
-            _sliderThumbTexture = CreateCircleTexture("Pause Slider Thumb", _visuals.SliderThumbColor);
+            _sliderThumbTexture = CreateSolidTexture("Pause Slider Thumb", _visuals.SliderThumbColor);
         }
 
         private static Texture2D CreateSolidTexture(string textureName, Color color)
@@ -600,35 +601,6 @@ namespace DuneVector
                 hideFlags = HideFlags.HideAndDontSave,
             };
             texture.SetPixel(0, 0, color);
-            texture.Apply(false, true);
-            return texture;
-        }
-
-        private static Texture2D CreateCircleTexture(string textureName, Color color)
-        {
-            const int textureSize = 32;
-            Texture2D texture = new Texture2D(textureSize, textureSize, TextureFormat.RGBA32, false)
-            {
-                name = textureName,
-                hideFlags = HideFlags.HideAndDontSave,
-                filterMode = FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Clamp,
-            };
-
-            float center = (textureSize - 1f) * 0.5f;
-            float radius = center - 0.5f;
-            for (int y = 0; y < textureSize; y++)
-            {
-                for (int x = 0; x < textureSize; x++)
-                {
-                    float distance = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
-                    float edgeAlpha = Mathf.Clamp01(radius - distance + 1f);
-                    Color pixel = color;
-                    pixel.a *= edgeAlpha;
-                    texture.SetPixel(x, y, pixel);
-                }
-            }
-
             texture.Apply(false, true);
             return texture;
         }
