@@ -28,9 +28,12 @@ namespace DuneVector
                 (additionalRisk * Mathf.Max(0f, settings.RiskEnemyDamageMultiplierPerTier));
             EnemyAttackRateMultiplier = 1f +
                 (additionalRisk * Mathf.Max(0f, settings.RiskEnemyAttackRateMultiplierPerTier));
-            EnemySpawnMultiplier = Mathf.Min(
-                Mathf.Max(1f, settings.RiskMaximumEnemySpawnMultiplier),
-                1f + (additionalRisk * Mathf.Max(0f, settings.RiskEnemySpawnMultiplierPerTier)));
+            EnemySpawnMultiplier = Mathf.Max(1f,
+                risk >= 3
+                    ? settings.RiskThreeEnemySpawnMultiplier
+                    : risk == 2
+                        ? settings.RiskTwoEnemySpawnMultiplier
+                        : settings.RiskOneEnemySpawnMultiplier);
         }
 
         public static void Reset()

@@ -327,8 +327,9 @@ namespace DuneVector
         [Min(0f)] public float RiskEnemySpeedMultiplierPerTier = 0.025f;
         [Min(0f)] public float RiskEnemyDamageMultiplierPerTier = 0.07f;
         [Min(0f)] public float RiskEnemyAttackRateMultiplierPerTier = 0.04f;
-        [Min(0f)] public float RiskEnemySpawnMultiplierPerTier = 0.25f;
-        [Min(1f)] public float RiskMaximumEnemySpawnMultiplier = 4f;
+        [Min(1f)] public float RiskOneEnemySpawnMultiplier = 1.5f;
+        [Min(1f)] public float RiskTwoEnemySpawnMultiplier = 2.2f;
+        [Min(1f)] public float RiskThreeEnemySpawnMultiplier = 3f;
         [Min(1)] public int RiskGroundEnemyReferenceCount = 8;
 
         [Header("Risk Falling Ruins")]
