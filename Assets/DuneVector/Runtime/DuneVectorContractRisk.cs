@@ -45,6 +45,7 @@ namespace DuneVector
         private sealed class FallingRuin
         {
             public GameObject Root;
+            public GameObject WarningMarker;
             public Vector3 Velocity;
             public Vector3 RotationAxis;
             public float CollisionRadius;
@@ -103,6 +104,10 @@ namespace DuneVector
                 {
                     Destroy(_ruins[i].Root);
                 }
+                if (_ruins[i].WarningMarker != null)
+                {
+                    Destroy(_ruins[i].WarningMarker);
+                }
             }
             _ruins.Clear();
         }
@@ -127,6 +132,10 @@ namespace DuneVector
                 FallingRuin ruin = _ruins[i];
                 if (ruin.Root == null)
                 {
+                    if (ruin.WarningMarker != null)
+                    {
+                        Destroy(ruin.WarningMarker);
+                    }
                     _ruins.RemoveAt(i);
                     continue;
                 }
@@ -139,6 +148,14 @@ namespace DuneVector
                         _ruins.RemoveAt(i);
                     }
                     continue;
+                }
+
+                if (ruin.WarningMarker != null)
+                {
+                    float pulse = 0.82f +
+                        (Mathf.Sin(Time.time * Mathf.Max(0f, _settings.FallingRuinWarningPulseSpeed)) * 0.18f);
+                    float radius = Mathf.Max(0.1f, _settings.FallingRuinWarningRadius) * pulse;
+                    ruin.WarningMarker.transform.localScale = new Vector3(radius, 0.035f, radius);
                 }
 
                 Vector3 previous = ruin.Root.transform.position;
@@ -168,6 +185,11 @@ namespace DuneVector
                     ruin.Root.transform.position = next;
                     ruin.Settled = true;
                     ruin.SettledRemaining = Mathf.Max(0f, _settings.FallingRuinSettledLifetime);
+                    if (ruin.WarningMarker != null)
+                    {
+                        Destroy(ruin.WarningMarker);
+                        ruin.WarningMarker = null;
+                    }
                 }
             }
         }
@@ -231,9 +253,22 @@ namespace DuneVector
             }
 
             Vector2 drift = RandomInsideCircle(Mathf.Max(0f, _settings.FallingRuinHorizontalDrift));
+            GameObject warningMarker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            warningMarker.name = $"Risk {_risk} Falling Ruin Impact Warning";
+            warningMarker.transform.SetParent(transform, true);
+            warningMarker.transform.position = new Vector3(target.x, terrainHeight + 0.12f, target.z);
+            float warningRadius = Mathf.Max(0.1f, _settings.FallingRuinWarningRadius);
+            warningMarker.transform.localScale = new Vector3(warningRadius, 0.035f, warningRadius);
+            warningMarker.GetComponent<Renderer>().sharedMaterial = _materials.GroundEnemyWarning;
+            Collider warningCollider = warningMarker.GetComponent<Collider>();
+            if (warningCollider != null)
+            {
+                Destroy(warningCollider);
+            }
             _ruins.Add(new FallingRuin
             {
                 Root = root,
+                WarningMarker = warningMarker,
                 Velocity = new Vector3(drift.x, 0f, drift.y),
                 RotationAxis = RandomInsideSphere(1f).normalized,
                 CollisionRadius = Mathf.Max(0.5f, maximumPieceExtent),
@@ -256,6 +291,10 @@ namespace DuneVector
                 if (_ruins[i].Root != null)
                 {
                     _ruins[i].Root.transform.position += shift;
+                }
+                if (_ruins[i].WarningMarker != null)
+                {
+                    _ruins[i].WarningMarker.transform.position += shift;
                 }
             }
         }

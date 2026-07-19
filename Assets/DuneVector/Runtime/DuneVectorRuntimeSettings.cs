@@ -330,14 +330,14 @@ namespace DuneVector
 
         [Header("Risk Falling Ruins")]
         [Min(1)] public int FallingRuinMinimumRisk = 2;
-        [Min(0f)] public float FallingRuinInitialDelay = 5f;
-        [Min(0.1f)] public float FallingRuinBaseInterval = 12f;
+        [Min(0f)] public float FallingRuinInitialDelay = 2f;
+        [Min(0.1f)] public float FallingRuinBaseInterval = 8f;
         [Min(0f)] public float FallingRuinIntervalReductionPerRisk = 0.55f;
         [Min(0.1f)] public float FallingRuinMinimumInterval = 2.5f;
         [Min(0f)] public float FallingRuinMinimumTargetOffset = 0f;
-        [Min(0f)] public float FallingRuinMaximumTargetOffset = 9f;
-        [Min(0f)] public float FallingRuinTargetPredictionTime = 1.25f;
-        [Min(1f)] public float FallingRuinSpawnHeight = 72f;
+        [Min(0f)] public float FallingRuinMaximumTargetOffset = 6f;
+        [Min(0f)] public float FallingRuinTargetPredictionTime = 1.7f;
+        [Min(1f)] public float FallingRuinSpawnHeight = 52f;
         [Min(0f)] public float FallingRuinGravity = 34f;
         [Min(0f)] public float FallingRuinHorizontalDrift = 2.5f;
         [Min(0f)] public float FallingRuinBaseDamage = 18f;
@@ -345,10 +345,12 @@ namespace DuneVector
         [Min(0.1f)] public float FallingRuinPlayerCollisionRadius = 2.2f;
         [Range(1, 12)] public int FallingRuinMinimumPieceCount = 3;
         [Range(1, 12)] public int FallingRuinMaximumPieceCount = 6;
-        [Min(0.1f)] public float FallingRuinMinimumPieceScale = 1.8f;
-        [Min(0.1f)] public float FallingRuinMaximumPieceScale = 4.8f;
+        [Min(0.1f)] public float FallingRuinMinimumPieceScale = 2.6f;
+        [Min(0.1f)] public float FallingRuinMaximumPieceScale = 6f;
         [Min(0f)] public float FallingRuinScalePerRisk = 0.035f;
         [Min(0f)] public float FallingRuinRotationSpeed = 95f;
+        [Min(0.1f)] public float FallingRuinWarningRadius = 5.5f;
+        [Min(0f)] public float FallingRuinWarningPulseSpeed = 7f;
         [Min(0f)] public float FallingRuinSettledLifetime = 4f;
         [Range(1, 24)] public int FallingRuinMaximumActive = 10;
 

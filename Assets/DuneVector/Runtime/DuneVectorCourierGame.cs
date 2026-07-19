@@ -1652,7 +1652,11 @@ namespace DuneVector
                 _fallingRuinHazard?.BeginContract(risk, ActiveContract != null ? ActiveContract.Seed : 0);
                 SetCombatSystemsActive(true);
                 _playerInput.SetInputEnabled(true);
-                ShowStatus("CONTRACT DEPLOYED — LOCATE CARGO", 3f);
+                ShowStatus(
+                    risk >= Mathf.Max(1, _settings.FallingRuinMinimumRisk)
+                        ? $"RISK {risk} // FALLING RUINS ACTIVE"
+                        : "CONTRACT DEPLOYED — LOCATE CARGO",
+                    3f);
             }
         }
 
