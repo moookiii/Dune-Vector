@@ -53,7 +53,6 @@ namespace DuneVector
         public DroneCameraController DroneCamera { get; private set; }
         public DronePlayer Player { get; private set; }
         public DuneVectorDebugHUD DebugHUD { get; private set; }
-        public DuneVectorCloudField CloudField { get; private set; }
         public DuneVectorDeliveryLoop DeliveryLoop { get; private set; }
         public DroneHealth DroneHealth { get; private set; }
         public DuneVectorEnemyDirector EnemyDirector { get; private set; }
@@ -314,6 +313,7 @@ namespace DuneVector
             World.Rings = Rings;
             World.WorldSeed = DuneGeneration.WorldSeed;
             World.Dunes = DuneGeneration;
+            World.Clouds = Clouds;
             World.ChunkResolution = DuneMeshResolution;
             World.ChunkSize = DuneChunkSize;
             World.ActiveRadius = WorldStreaming.ActiveRadius;
@@ -393,10 +393,6 @@ namespace DuneVector
             Player.Health = DroneHealth;
 
             World.BindPlayer(Drone, DroneCamera, DroneHealth);
-            if (CloudField != null)
-            {
-                CloudField.BindWorld(World);
-            }
         }
 
         private void BuildEnvironment()
@@ -460,13 +456,6 @@ namespace DuneVector
             bloom.threshold.Override(1.2f);
             bloom.scatter.Override(0.58f);
 
-            if (Clouds.Enabled)
-            {
-                GameObject cloudObject = new GameObject("Procedural Cloud Field");
-                cloudObject.transform.SetParent(transform, false);
-                CloudField = cloudObject.AddComponent<DuneVectorCloudField>();
-                CloudField.Initialize(_materials.Cloud, Clouds.ClusterCount, Clouds.Altitude, Clouds.FieldRadius, Clouds.DriftSpeed);
-            }
         }
 
         private void BuildWeather()

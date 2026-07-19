@@ -23,6 +23,9 @@ namespace DuneVector
         [Header("Dunes")]
         public DuneFieldSettings Dunes = new DuneFieldSettings();
 
+        [Header("Clouds")]
+        public CloudTuning Clouds;
+
         [Header("Spawning - expected count per chunk")]
         [Min(0f)] public float CactusDensity = 5.5f;
         [Min(0f)] public float PyramidDensity = 0.22f;
@@ -285,6 +288,8 @@ namespace DuneVector
                 ChunkResolution,
                 HeightField,
                 _materials,
+                Clouds,
+                GetCloudDensityPerChunk(),
                 _player,
                 _playerHealth,
                 WorldSeed,
@@ -302,6 +307,17 @@ namespace DuneVector
             _chunks.Add(coordinate, chunk);
             GeneratedChunkCount++;
             PeakActiveChunkCount = Mathf.Max(PeakActiveChunkCount, _chunks.Count);
+        }
+
+        private float GetCloudDensityPerChunk()
+        {
+            if (Clouds == null || !Clouds.Enabled || Clouds.ClusterCount <= 0)
+            {
+                return 0f;
+            }
+
+            int diameter = (Mathf.Max(1, PreloadRadius) * 2) + 1;
+            return Clouds.ClusterCount / (float)(diameter * diameter);
         }
 
         private Vector2Int GetPlayerLogicalChunk()
@@ -356,6 +372,8 @@ namespace DuneVector
             int resolution,
             DuneHeightField heightField,
             DuneVectorMaterials materials,
+            CloudTuning cloudTuning,
+            float cloudDensity,
             DroneCharacterController player,
             DroneHealth playerHealth,
             int worldSeed,
@@ -386,6 +404,7 @@ namespace DuneVector
             renderer.receiveShadows = true;
             MeshCollider collider = rootObject.AddComponent<MeshCollider>();
             collider.sharedMesh = _terrainMesh;
+            SpawnClouds(coordinate, chunkSize, materials.Cloud, worldSeed, cloudTuning, cloudDensity);
             SpawnContent(
                 coordinate,
                 chunkSize,
@@ -405,6 +424,36 @@ namespace DuneVector
                 aerialRingDensity,
                 ringTuning,
                 groundExploderTuning);
+        }
+
+        private void SpawnClouds(
+            Vector2Int coordinate,
+            float chunkSize,
+            Material material,
+            int worldSeed,
+            CloudTuning tuning,
+            float density)
+        {
+            if (tuning == null || !tuning.Enabled || density <= 0f)
+            {
+                return;
+            }
+
+            int clusterCount = CountFromDensity(density, coordinate, worldSeed, tuning.RandomSeedOffset);
+            if (clusterCount <= 0)
+            {
+                return;
+            }
+
+            GameObject cloudObject = new GameObject("Chunk Clouds");
+            cloudObject.transform.SetParent(Root, false);
+            DuneVectorCloudField cloudField = cloudObject.AddComponent<DuneVectorCloudField>();
+            int randomSeed = unchecked(
+                worldSeed
+                ^ tuning.RandomSeedOffset
+                ^ (coordinate.x * 73856093)
+                ^ (coordinate.y * 19349663));
+            cloudField.Initialize(material, clusterCount, chunkSize, tuning, randomSeed);
         }
 
         public void BindPlayer(DroneCharacterController player, DroneHealth playerHealth)

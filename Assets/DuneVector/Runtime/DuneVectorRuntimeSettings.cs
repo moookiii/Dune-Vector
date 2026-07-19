@@ -21,10 +21,21 @@ namespace DuneVector
     public sealed class CloudTuning
     {
         public bool Enabled = true;
+        [Tooltip("Approximate total cluster count across the preloaded chunk area.")]
         [Range(4, 30)] public int ClusterCount = 14;
         [Min(20f)] public float Altitude = 82f;
-        [Min(50f)] public float FieldRadius = 250f;
+        [Min(0f)] public float AltitudeVariation = 22f;
         [Min(0f)] public float DriftSpeed = 2.2f;
+        public Vector2 DriftDirection = new Vector2(0.82f, 0.57f);
+        public int RandomSeedOffset = 7319;
+
+        [Header("Cluster Shape")]
+        [Range(1, 12)] public int MinimumLobes = 4;
+        [Range(1, 12)] public int MaximumLobes = 7;
+        public Vector3 MinimumLobeOffset = new Vector3(-13f, -2.5f, -7f);
+        public Vector3 MaximumLobeOffset = new Vector3(13f, 4.5f, 7f);
+        public Vector3 MinimumLobeScale = new Vector3(12f, 4.5f, 8f);
+        public Vector3 MaximumLobeScale = new Vector3(24f, 8.5f, 17f);
     }
 
     [System.Serializable]
