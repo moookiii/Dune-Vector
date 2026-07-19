@@ -18,6 +18,8 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
         _SideFeather("Side Feather", Range(0.01, 1)) = 0.42
         _BottomFeather("Bottom Feather", Range(0.01, 1)) = 0.2
         _TopFeather("Top Feather", Range(0.01, 1)) = 0.34
+        _VerticalDissipationStart("Vertical Dissipation Start", Range(0, 1)) = 0.3
+        _VerticalDissipationPower("Vertical Dissipation Power", Float) = 1.4
         _Lean("Lean", Range(0, 0.5)) = 0.12
         _MinimumSpeedMultiplier("Minimum Speed Multiplier", Float) = 0.78
         _MaximumSpeedMultiplier("Maximum Speed Multiplier", Float) = 1.22
@@ -97,6 +99,8 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
                 float _SideFeather;
                 float _BottomFeather;
                 float _TopFeather;
+                float _VerticalDissipationStart;
+                float _VerticalDissipationPower;
                 float _Lean;
                 float _MinimumSpeedMultiplier;
                 float _MaximumSpeedMultiplier;
@@ -187,6 +191,10 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
                     input.random);
                 float bottomMask = smoothstep(0.0, _BottomFeather * fadeVariation, input.uv.y);
                 float topMask = smoothstep(0.0, _TopFeather * fadeVariation, 1.0 - input.uv.y);
+                float dissipationProgress = saturate(
+                    (input.uv.y - _VerticalDissipationStart) /
+                    max(1.0 - _VerticalDissipationStart, 0.001));
+                float verticalDissipation = pow(1.0 - dissipationProgress, _VerticalDissipationPower);
                 float turbulentEdge = saturate(_EdgeNoiseBase +
                     ((primary.b - 0.5) * _PrimaryEdgeNoise) +
                     ((secondary.b - 0.5) * _SecondaryEdgeNoise * detailFade));
@@ -195,7 +203,7 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
                 float sceneDepth = LinearEyeDepth(LoadCameraDepth(pixelCoord), _ZBufferParams);
                 float cardDepth = LinearEyeDepth(input.positionCS.z, _ZBufferParams);
                 float intersectionFade = saturate((sceneDepth - cardDepth) / max(_DepthFadeDistance, 0.001));
-                float mask = sideMask * cardEdgeMask * bottomMask * topMask * turbulentEdge *
+                float mask = sideMask * cardEdgeMask * bottomMask * topMask * verticalDissipation * turbulentEdge *
                     input.color.a * distanceFade * intersectionFade;
                 clip(mask - _MaskClipThreshold);
 

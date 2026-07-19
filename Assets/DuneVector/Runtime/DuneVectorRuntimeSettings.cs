@@ -1962,6 +1962,8 @@ namespace DuneVector
         [Range(0.01f, 1f)] public float HeatPlumeSideFeather = 0.42f;
         [Range(0.01f, 1f)] public float HeatPlumeBottomFeather = 0.2f;
         [Range(0.01f, 1f)] public float HeatPlumeTopFeather = 0.34f;
+        [Range(0f, 1f)] public float HeatPlumeVerticalDissipationStart = 0.3f;
+        [Min(0.01f)] public float HeatPlumeVerticalDissipationPower = 1.4f;
         [Range(0f, 0.5f)] public float HeatPlumeMaximumLean = 0.12f;
         [Min(0f)] public float HeatPlumeMinimumAnimationSpeedMultiplier = 0.78f;
         [Min(0f)] public float HeatPlumeMaximumAnimationSpeedMultiplier = 1.22f;

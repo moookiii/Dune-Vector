@@ -517,6 +517,8 @@ namespace DuneVector
             material.SetFloat("_SideFeather", _settings.HeatPlumeSideFeather);
             material.SetFloat("_BottomFeather", _settings.HeatPlumeBottomFeather);
             material.SetFloat("_TopFeather", _settings.HeatPlumeTopFeather);
+            material.SetFloat("_VerticalDissipationStart", _settings.HeatPlumeVerticalDissipationStart);
+            material.SetFloat("_VerticalDissipationPower", _settings.HeatPlumeVerticalDissipationPower);
             material.SetFloat("_Lean", _settings.HeatPlumeMaximumLean);
             material.SetFloat("_MinimumSpeedMultiplier", _settings.HeatPlumeMinimumAnimationSpeedMultiplier);
             material.SetFloat("_MaximumSpeedMultiplier", _settings.HeatPlumeMaximumAnimationSpeedMultiplier);
