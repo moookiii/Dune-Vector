@@ -335,7 +335,8 @@ namespace DuneVector
         [Min(0f)] public float FallingRuinIntervalReductionPerRisk = 0.55f;
         [Min(0.1f)] public float FallingRuinMinimumInterval = 2.5f;
         [Min(0f)] public float FallingRuinMinimumTargetOffset = 0f;
-        [Min(0f)] public float FallingRuinMaximumTargetOffset = 6f;
+        [Tooltip("Random horizontal landing offset around the predicted player position.")]
+        [Min(0f)] public float FallingRuinMaximumTargetOffset = 18f;
         [Min(0f)] public float FallingRuinTargetPredictionTime = 1.7f;
         [Min(1f)] public float FallingRuinSpawnHeight = 52f;
         [Min(0f)] public float FallingRuinGravity = 34f;
@@ -352,7 +353,7 @@ namespace DuneVector
         [Min(0.1f)] public float FallingRuinWarningRadius = 5.5f;
         [Min(0f)] public float FallingRuinWarningPulseSpeed = 7f;
         [Min(0f)] public float FallingRuinSettledLifetime = 4f;
-        [Range(1, 24)] public int FallingRuinMaximumActive = 10;
+        [Range(1, 60)] public int FallingRuinMaximumActive = 18;
 
         [Header("Cargo Modifiers")]
         [Range(0f, 100f)] public float FragileFailureIntegrity = 18f;
