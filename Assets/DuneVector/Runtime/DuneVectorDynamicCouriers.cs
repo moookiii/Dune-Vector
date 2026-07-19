@@ -58,7 +58,10 @@ namespace DuneVector
             _currentHealth = _maximumHealth * Mathf.Clamp01(startingHealthFraction);
             _hoverPhase = hoverPhase;
             _flightHeightAboveTerrain = settings.FlightHeightAboveTerrain;
-            Transform visual = DuneVectorVisuals.CreateDroneVisual(_cachedTransform, materials, faction);
+            DroneVisualTuning droneVisuals = DuneVectorBootstrap.Instance != null
+                ? DuneVectorBootstrap.Instance.DroneVisuals
+                : null;
+            Transform visual = DuneVectorVisuals.CreateDroneVisual(_cachedTransform, materials, faction, droneVisuals);
             visual.localScale = Vector3.one * settings.VisualScale;
         }
 

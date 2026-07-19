@@ -742,6 +742,71 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class DroneVisualTuning
+    {
+        [Header("Materials")]
+        [ColorUsage(false)] public Color BodyColor = new Color(0.68f, 0.72f, 0.74f);
+        [Range(0f, 1f)] public float BodySmoothness = 0.72f;
+        [Range(0f, 1f)] public float BodyMetallic = 0.7f;
+        [ColorUsage(false)] public Color FrameColor = new Color(0.018f, 0.025f, 0.033f);
+        [Range(0f, 1f)] public float FrameSmoothness = 0.64f;
+        [Range(0f, 1f)] public float FrameMetallic = 0.85f;
+        [ColorUsage(false)] public Color TrailColor = new Color(0f, 0.06f, 0.08f);
+        [ColorUsage(false, true)] public Color TrailEmission = new Color(0f, 0.8f, 1.4f);
+        [Range(0f, 1f)] public float TrailSmoothness = 0.6f;
+        [Range(0f, 1f)] public float TrailMetallic = 0.1f;
+
+        [Header("Hull")]
+        [Min(0f)] public float CourierVisualHeight = 0.92f;
+        public Vector3 LowerHullPosition = new Vector3(0f, -0.08f, -0.04f);
+        public Vector3 LowerHullScale = new Vector3(1.2f, 0.28f, 1.58f);
+        public Vector3 UpperHullPosition = new Vector3(0f, 0.04f, 0.08f);
+        public Vector3 UpperHullScale = new Vector3(1.08f, 0.34f, 1.5f);
+        public Vector3 CanopyPosition = new Vector3(0f, 0.28f, 0.28f);
+        public Vector3 CanopyScale = new Vector3(0.62f, 0.19f, 0.78f);
+        public Vector3 NoseSensorPosition = new Vector3(0f, 0.05f, 1.46f);
+        public Vector3 NoseSensorScale = new Vector3(0.28f, 0.15f, 0.14f);
+        public Vector3 TailLightPosition = new Vector3(0f, 0.08f, -1.5f);
+        public Vector3 TailLightScale = new Vector3(0.44f, 0.08f, 0.11f);
+
+        [Header("Swept Wings")]
+        [Min(0.05f)] public float WingInnerOffset = 0.38f;
+        [Min(0.05f)] public float WingSpan = 1.42f;
+        [Min(0.05f)] public float WingRootChord = 1.08f;
+        [Min(0.05f)] public float WingTipChord = 0.48f;
+        [Min(0f)] public float WingSweep = 0.5f;
+        [Min(0.01f)] public float WingThickness = 0.11f;
+        public float WingHeight = -0.015f;
+        public float WingForwardOffset = 0.04f;
+        [Min(0f)] public float WingAccentInset = 0.13f;
+        [Min(0f)] public float WingAccentLift = 0.075f;
+        [Min(0.005f)] public float WingAccentThickness = 0.014f;
+
+        [Header("Rotors")]
+        public Vector3 FrontRotorPosition = new Vector3(1.58f, 0.03f, 0.42f);
+        public Vector3 RearRotorPosition = new Vector3(1.38f, 0.03f, -0.52f);
+        public Vector3 RotorNacelleScale = new Vector3(0.52f, 0.18f, 0.52f);
+        [Min(0.05f)] public float RotorGuardRadius = 0.48f;
+        [Min(0.005f)] public float RotorGuardThickness = 0.055f;
+        [Min(0.005f)] public float RotorGlowThickness = 0.024f;
+        [Min(0f)] public float RotorGuardHeight = 0.14f;
+        public Vector3 RotorHubScale = new Vector3(0.13f, 0.09f, 0.13f);
+        [Min(0.02f)] public float RotorBladeLength = 0.72f;
+        [Min(0.005f)] public float RotorBladeWidth = 0.055f;
+        [Min(0.005f)] public float RotorBladeThickness = 0.018f;
+        [Min(0f)] public float RotorSpinSpeed = 860f;
+        [Range(0f, 0.25f)] public float RotorPulseAmount = 0.045f;
+        [Min(0f)] public float RotorPulseSpeed = 4.5f;
+
+        [Header("Trails")]
+        public Vector3 TrailPosition = new Vector3(0.5f, -0.08f, -1.2f);
+        [Min(0f)] public float TrailDuration = 0.3f;
+        [Min(0f)] public float TrailStartWidth = 0.065f;
+        [Min(0f)] public float TrailEndWidth;
+        [Min(0.001f)] public float TrailMinimumVertexDistance = 0.12f;
+    }
+
+    [System.Serializable]
     public sealed class DynamicCourierTuning
     {
         public bool Enabled;
@@ -1646,6 +1711,9 @@ namespace DuneVector
         [Tooltip("Movement, flight, boost, and camera controls for the drone.")]
         public DroneTuning PlayerTuning = new DroneTuning();
 
+        [Tooltip("Shared player, rival, and neutral drone model, materials, rotor animation, and trails.")]
+        public DroneVisualTuning DroneVisuals = new DroneVisualTuning();
+
         [Tooltip("Local camera-edge anime motion streaks driven by the player drone's real flight velocity.")]
         public FlightSwooshTuning FlightSwooshes = new FlightSwooshTuning();
 
@@ -1724,6 +1792,7 @@ namespace DuneVector
         {
             PlayerTuning ??= new DroneTuning();
             PlayerTuning.EnsureInitialized();
+            DroneVisuals ??= new DroneVisualTuning();
             FlightSwooshes ??= new FlightSwooshTuning();
             Clouds ??= new CloudTuning();
             Clouds.EnsureInitialized();

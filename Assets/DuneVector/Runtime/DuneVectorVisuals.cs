@@ -48,14 +48,20 @@ namespace DuneVector
             DeliveryTuning deliveryTuning = null,
             CloudTuning cloudTuning = null,
             DynamicCourierTuning dynamicCourierTuning = null,
-            DesertShrubTuning shrubTuning = null)
+            DesertShrubTuning shrubTuning = null,
+            DroneVisualTuning droneVisualTuning = null)
         {
             RingTuning rings = ringTuning ?? new RingTuning();
             DeliveryTuning delivery = deliveryTuning ?? new DeliveryTuning();
             CloudTuning clouds = cloudTuning ?? new CloudTuning();
             DynamicCourierTuning couriers = dynamicCourierTuning ?? new DynamicCourierTuning();
+            DroneVisualTuning droneVisuals = droneVisualTuning ?? new DroneVisualTuning();
             Sand = CreateLit("Sand - Warm Rough", new Color(0.62f, 0.36f, 0.16f), 0.14f, 0f);
-            DroneBody = CreateLit("Drone - Ivory", new Color(0.75f, 0.78f, 0.78f), 0.72f, 0.7f);
+            DroneBody = CreateLit(
+                "Drone - Ivory",
+                droneVisuals.BodyColor,
+                droneVisuals.BodySmoothness,
+                droneVisuals.BodyMetallic);
             DroneAccent = CreateLit(
                 "Drone - Player Blue Top",
                 couriers.PlayerTopColor,
@@ -74,7 +80,11 @@ namespace DuneVector
                 couriers.TopMaterialSmoothness,
                 couriers.TopMaterialMetallic,
                 couriers.NeutralTopEmission);
-            DroneDark = CreateLit("Drone - Graphite", new Color(0.018f, 0.025f, 0.033f), 0.64f, 0.85f);
+            DroneDark = CreateLit(
+                "Drone - Graphite",
+                droneVisuals.FrameColor,
+                droneVisuals.FrameSmoothness,
+                droneVisuals.FrameMetallic);
             Cactus = CreateLit("Cactus - Stylized", new Color(0.08f, 0.31f, 0.16f), 0.25f, 0f);
             if (shrubTuning != null)
             {
@@ -137,7 +147,12 @@ namespace DuneVector
             {
                 Debug.LogError("Coin rings require Assets/DuneVector/Resources/coin.glb.");
             }
-            Trail = CreateLit("Drone - Trail", new Color(0.0f, 0.06f, 0.08f), 0.6f, 0.1f, new Color(0.0f, 0.8f, 1.4f));
+            Trail = CreateLit(
+                "Drone - Trail",
+                droneVisuals.TrailColor,
+                droneVisuals.TrailSmoothness,
+                droneVisuals.TrailMetallic,
+                droneVisuals.TrailEmission);
             Cloud = CreateLit(
                 "Cloud - Sunlit",
                 clouds.SunlitColor,
@@ -272,42 +287,200 @@ namespace DuneVector
         public static Transform CreateDroneVisual(
             Transform parent,
             DuneVectorMaterials materials,
-            CourierDroneFaction faction = CourierDroneFaction.Player)
+            CourierDroneFaction faction = CourierDroneFaction.Player,
+            DroneVisualTuning tuning = null)
         {
+            DroneVisualTuning settings = tuning ?? new DroneVisualTuning();
             GameObject visualObject = new GameObject("DroneVisualRoot");
             Transform visual = visualObject.transform;
             visual.SetParent(parent, false);
-            visual.localPosition = new Vector3(0f, 0.92f, 0f);
+            visual.localPosition = Vector3.up * settings.CourierVisualHeight;
 
-            CreatePart(PrimitiveType.Sphere, "Core", visual, Vector3.zero, new Vector3(1.15f, 0.42f, 1.55f), Quaternion.identity, materials.DroneBody);
-            CreatePart(PrimitiveType.Cube, "Forward Spine", visual, new Vector3(0f, 0.02f, 0.55f), new Vector3(0.38f, 0.25f, 2.55f), Quaternion.identity, materials.DroneDark);
-            CreatePart(PrimitiveType.Cube, "Left Wing", visual, new Vector3(-1.0f, -0.02f, 0f), new Vector3(1.65f, 0.13f, 0.48f), Quaternion.Euler(0f, -8f, 0f), materials.DroneBody);
-            CreatePart(PrimitiveType.Cube, "Right Wing", visual, new Vector3(1.0f, -0.02f, 0f), new Vector3(1.65f, 0.13f, 0.48f), Quaternion.Euler(0f, 8f, 0f), materials.DroneBody);
             Material topMaterial = faction switch
             {
                 CourierDroneFaction.Rival => materials.RivalDroneTop,
                 CourierDroneFaction.Neutral => materials.NeutralDroneTop,
                 _ => materials.DroneAccent,
             };
-            CreatePart(PrimitiveType.Sphere, "Canopy", visual, new Vector3(0f, 0.27f, 0.2f), new Vector3(0.55f, 0.2f, 0.68f), Quaternion.identity, topMaterial);
+
+            CreatePart(
+                PrimitiveType.Sphere,
+                "Lower Graphite Hull",
+                visual,
+                settings.LowerHullPosition,
+                settings.LowerHullScale,
+                Quaternion.identity,
+                materials.DroneDark);
+            CreatePart(
+                PrimitiveType.Sphere,
+                "Upper Ivory Hull",
+                visual,
+                settings.UpperHullPosition,
+                settings.UpperHullScale,
+                Quaternion.identity,
+                materials.DroneBody);
+
+            CreateDroneWing(visual, false, settings, materials.DroneBody, topMaterial);
+            CreateDroneWing(visual, true, settings, materials.DroneBody, topMaterial);
+
+            CreatePart(
+                PrimitiveType.Sphere,
+                "Faction Canopy",
+                visual,
+                settings.CanopyPosition,
+                settings.CanopyScale,
+                Quaternion.identity,
+                topMaterial);
+            Transform noseSensor = CreatePart(
+                PrimitiveType.Sphere,
+                "Forward Sensor",
+                visual,
+                settings.NoseSensorPosition,
+                settings.NoseSensorScale,
+                Quaternion.identity,
+                topMaterial);
+            DisableRendererShadows(noseSensor.gameObject);
+            Transform tailLight = CreatePart(
+                PrimitiveType.Cube,
+                "Tail Light",
+                visual,
+                settings.TailLightPosition,
+                settings.TailLightScale,
+                Quaternion.identity,
+                topMaterial);
+            DisableRendererShadows(tailLight.gameObject);
 
             Vector3[] rotorPositions =
             {
-                new Vector3(-1.58f, 0.03f, 0.38f),
-                new Vector3(1.58f, 0.03f, 0.38f),
-                new Vector3(-1.35f, 0.03f, -0.48f),
-                new Vector3(1.35f, 0.03f, -0.48f),
+                new Vector3(-settings.FrontRotorPosition.x, settings.FrontRotorPosition.y, settings.FrontRotorPosition.z),
+                settings.FrontRotorPosition,
+                new Vector3(-settings.RearRotorPosition.x, settings.RearRotorPosition.y, settings.RearRotorPosition.z),
+                settings.RearRotorPosition,
             };
 
+            Transform[] bladeRotors = new Transform[rotorPositions.Length];
+            Transform[] glowRings = new Transform[rotorPositions.Length];
             for (int i = 0; i < rotorPositions.Length; i++)
             {
-                Transform rotor = CreatePart(PrimitiveType.Cylinder, $"Rotor {i + 1}", visual, rotorPositions[i], new Vector3(0.5f, 0.035f, 0.5f), Quaternion.identity, materials.DroneDark);
-                CreatePart(PrimitiveType.Cylinder, "Glow", rotor, new Vector3(0f, 0.52f, 0f), new Vector3(0.72f, 0.018f, 0.72f), Quaternion.identity, topMaterial);
+                GameObject rotorObject = new GameObject($"Protected Rotor {i + 1}");
+                Transform rotor = rotorObject.transform;
+                rotor.SetParent(visual, false);
+                rotor.localPosition = rotorPositions[i];
+
+                CreatePart(
+                    PrimitiveType.Sphere,
+                    "Nacelle",
+                    rotor,
+                    Vector3.zero,
+                    settings.RotorNacelleScale,
+                    Quaternion.identity,
+                    materials.DroneDark);
+
+                GameObject guard = CreateMeshObject(
+                    "Rotor Guard",
+                    rotor,
+                    GetTorusMesh(settings.RotorGuardRadius, settings.RotorGuardThickness, 32, 6),
+                    materials.DroneBody);
+                guard.transform.localPosition = Vector3.up * settings.RotorGuardHeight;
+                guard.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
+                GameObject glow = CreateMeshObject(
+                    "Faction Rotor Glow",
+                    rotor,
+                    GetTorusMesh(
+                        Mathf.Max(settings.RotorGlowThickness, settings.RotorGuardRadius - settings.RotorGuardThickness),
+                        settings.RotorGlowThickness,
+                        32,
+                        6),
+                    topMaterial);
+                glow.transform.localPosition = Vector3.up * (settings.RotorGuardHeight + settings.RotorGuardThickness);
+                glow.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                DisableRendererShadows(glow);
+                glowRings[i] = glow.transform;
+
+                GameObject bladeRootObject = new GameObject("Blade Rotor");
+                Transform bladeRoot = bladeRootObject.transform;
+                bladeRoot.SetParent(rotor, false);
+                bladeRoot.localPosition = Vector3.up * settings.RotorGuardHeight;
+                bladeRotors[i] = bladeRoot;
+                CreatePart(
+                    PrimitiveType.Cube,
+                    "Blade A",
+                    bladeRoot,
+                    Vector3.zero,
+                    new Vector3(settings.RotorBladeLength, settings.RotorBladeThickness, settings.RotorBladeWidth),
+                    Quaternion.identity,
+                    materials.DroneDark);
+                CreatePart(
+                    PrimitiveType.Cube,
+                    "Blade B",
+                    bladeRoot,
+                    Vector3.zero,
+                    new Vector3(settings.RotorBladeWidth, settings.RotorBladeThickness, settings.RotorBladeLength),
+                    Quaternion.identity,
+                    materials.DroneDark);
+                CreatePart(
+                    PrimitiveType.Sphere,
+                    "Rotor Hub",
+                    bladeRoot,
+                    Vector3.zero,
+                    settings.RotorHubScale,
+                    Quaternion.identity,
+                    topMaterial);
             }
 
-            CreateTrail(visual, new Vector3(-0.48f, -0.03f, -1.18f), materials.Trail);
-            CreateTrail(visual, new Vector3(0.48f, -0.03f, -1.18f), materials.Trail);
+            CreateTrail(
+                visual,
+                new Vector3(-settings.TrailPosition.x, settings.TrailPosition.y, settings.TrailPosition.z),
+                materials.Trail,
+                settings);
+            CreateTrail(visual, settings.TrailPosition, materials.Trail, settings);
+
+            DroneVisualAnimator animator = visualObject.AddComponent<DroneVisualAnimator>();
+            animator.Initialize(bladeRotors, glowRings, settings);
             return visual;
+        }
+
+        private static void CreateDroneWing(
+            Transform visual,
+            bool right,
+            DroneVisualTuning settings,
+            Material bodyMaterial,
+            Material accentMaterial)
+        {
+            GameObject wing = CreateMeshObject(
+                right ? "Right Swept Wing" : "Left Swept Wing",
+                visual,
+                GetDroneWingMesh(
+                    right,
+                    settings.WingInnerOffset,
+                    settings.WingSpan,
+                    settings.WingRootChord,
+                    settings.WingTipChord,
+                    settings.WingSweep,
+                    settings.WingThickness,
+                    settings.WingForwardOffset),
+                bodyMaterial);
+            wing.transform.localPosition = Vector3.up * settings.WingHeight;
+
+            float accentInset = Mathf.Min(
+                settings.WingAccentInset,
+                Mathf.Min(settings.WingSpan * 0.4f, settings.WingTipChord * 0.4f));
+            GameObject accent = CreateMeshObject(
+                right ? "Right Faction Wing Inlay" : "Left Faction Wing Inlay",
+                visual,
+                GetDroneWingMesh(
+                    right,
+                    settings.WingInnerOffset + accentInset,
+                    Mathf.Max(0.02f, settings.WingSpan - (accentInset * 2f)),
+                    Mathf.Max(0.02f, settings.WingRootChord - (accentInset * 2f)),
+                    Mathf.Max(0.02f, settings.WingTipChord - (accentInset * 2f)),
+                    settings.WingSweep,
+                    settings.WingAccentThickness,
+                    settings.WingForwardOffset),
+                accentMaterial);
+            accent.transform.localPosition = Vector3.up * (settings.WingHeight + settings.WingAccentLift);
+            DisableRendererShadows(accent);
         }
 
         public static Transform CreateCactus(Transform parent, Vector3 localPosition, float height, float thickness, float yaw, int arms, int seed, Material material)
@@ -1065,6 +1238,66 @@ namespace DuneVector
             return mesh;
         }
 
+        private static Mesh GetDroneWingMesh(
+            bool right,
+            float innerOffset,
+            float span,
+            float rootChord,
+            float tipChord,
+            float sweep,
+            float thickness,
+            float forwardOffset)
+        {
+            string key = $"drone-wing:{right}:{innerOffset:0.000}:{span:0.000}:{rootChord:0.000}:{tipChord:0.000}:{sweep:0.000}:{thickness:0.000}:{forwardOffset:0.000}";
+            if (MeshCache.TryGetValue(key, out Mesh cached) && cached != null)
+            {
+                return cached;
+            }
+
+            float side = right ? 1f : -1f;
+            float innerX = side * innerOffset;
+            float outerX = side * (innerOffset + span);
+            float rootLeading = forwardOffset + (rootChord * 0.5f);
+            float rootTrailing = forwardOffset - (rootChord * 0.5f);
+            float tipCenter = forwardOffset - sweep;
+            float tipLeading = tipCenter + (tipChord * 0.5f);
+            float tipTrailing = tipCenter - (tipChord * 0.5f);
+
+            Vector2 innerLeading = new Vector2(innerX, rootLeading);
+            Vector2 innerTrailing = new Vector2(innerX, rootTrailing);
+            Vector2 outerLeading = new Vector2(outerX, tipLeading);
+            Vector2 outerTrailing = new Vector2(outerX, tipTrailing);
+            Vector2[] outline = right
+                ? new[] { innerLeading, outerLeading, outerTrailing, innerTrailing }
+                : new[] { innerLeading, innerTrailing, outerTrailing, outerLeading };
+
+            float halfThickness = thickness * 0.5f;
+            Vector3[] vertices = new Vector3[8];
+            for (int i = 0; i < outline.Length; i++)
+            {
+                vertices[i] = new Vector3(outline[i].x, halfThickness, outline[i].y);
+                vertices[i + 4] = new Vector3(outline[i].x, -halfThickness, outline[i].y);
+            }
+
+            int[] triangles =
+            {
+                0, 1, 2, 0, 2, 3,
+                4, 6, 5, 4, 7, 6,
+                0, 4, 5, 0, 5, 1,
+                1, 5, 6, 1, 6, 2,
+                2, 6, 7, 2, 7, 3,
+                3, 7, 4, 3, 4, 0,
+            };
+
+            Mesh mesh = new Mesh { name = right ? "Right Swept Drone Wing" : "Left Swept Drone Wing" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            MeshCache[key] = mesh;
+            return mesh;
+        }
+
         private static Mesh GetArcTorusMesh(
             float majorRadius,
             float tubeRadius,
@@ -1274,20 +1507,73 @@ namespace DuneVector
             return part.transform;
         }
 
-        private static void CreateTrail(Transform parent, Vector3 localPosition, Material material)
+        private static void CreateTrail(
+            Transform parent,
+            Vector3 localPosition,
+            Material material,
+            DroneVisualTuning settings)
         {
             GameObject trailObject = new GameObject("Speed Trail");
             trailObject.transform.SetParent(parent, false);
             trailObject.transform.localPosition = localPosition;
             TrailRenderer trail = trailObject.AddComponent<TrailRenderer>();
             trail.sharedMaterial = material;
-            trail.time = 0.34f;
-            trail.startWidth = 0.075f;
-            trail.endWidth = 0f;
-            trail.minVertexDistance = 0.18f;
+            trail.time = settings.TrailDuration;
+            trail.startWidth = settings.TrailStartWidth;
+            trail.endWidth = settings.TrailEndWidth;
+            trail.minVertexDistance = settings.TrailMinimumVertexDistance;
             trail.emitting = true;
             trail.shadowCastingMode = ShadowCastingMode.Off;
             trail.receiveShadows = false;
+        }
+    }
+
+    [DisallowMultipleComponent]
+    public sealed class DroneVisualAnimator : MonoBehaviour
+    {
+        private Transform[] _bladeRotors;
+        private Transform[] _glowRings;
+        private Vector3[] _glowBaseScales;
+        private DroneVisualTuning _settings;
+
+        public void Initialize(Transform[] bladeRotors, Transform[] glowRings, DroneVisualTuning settings)
+        {
+            _bladeRotors = bladeRotors;
+            _glowRings = glowRings;
+            _settings = settings;
+            _glowBaseScales = new Vector3[_glowRings.Length];
+            for (int i = 0; i < _glowRings.Length; i++)
+            {
+                _glowBaseScales[i] = _glowRings[i] != null ? _glowRings[i].localScale : Vector3.one;
+            }
+        }
+
+        private void Update()
+        {
+            if (_settings == null)
+            {
+                return;
+            }
+
+            float rotationStep = _settings.RotorSpinSpeed * Time.deltaTime;
+            for (int i = 0; i < _bladeRotors.Length; i++)
+            {
+                Transform bladeRotor = _bladeRotors[i];
+                if (bladeRotor != null)
+                {
+                    float direction = (i & 1) == 0 ? 1f : -1f;
+                    bladeRotor.Rotate(Vector3.up, rotationStep * direction, Space.Self);
+                }
+            }
+
+            float pulse = 1f + (Mathf.Sin(Time.time * _settings.RotorPulseSpeed) * _settings.RotorPulseAmount);
+            for (int i = 0; i < _glowRings.Length; i++)
+            {
+                if (_glowRings[i] != null)
+                {
+                    _glowRings[i].localScale = _glowBaseScales[i] * pulse;
+                }
+            }
         }
     }
 }

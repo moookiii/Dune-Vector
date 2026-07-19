@@ -16,6 +16,7 @@ namespace DuneVector
         public DuneVectorRuntimeSettings RuntimeSettings;
 
         public DroneTuning PlayerTuning => RuntimeSettings.PlayerTuning;
+        public DroneVisualTuning DroneVisuals => RuntimeSettings.DroneVisuals;
         public FlightSwooshTuning FlightSwooshes => RuntimeSettings.FlightSwooshes;
         public CloudTuning Clouds => RuntimeSettings.Clouds;
         public DesertWeatherTuning WeatherSettings => RuntimeSettings.Weather;
@@ -308,7 +309,13 @@ namespace DuneVector
 
             QualitySettings.vSyncCount = 1;
             Application.targetFrameRate = -1;
-            _materials = new DuneVectorMaterials(Rings, Deliveries, Clouds, DynamicCourierSettings, DesertShrubs);
+            _materials = new DuneVectorMaterials(
+                Rings,
+                Deliveries,
+                Clouds,
+                DynamicCourierSettings,
+                DesertShrubs,
+                DroneVisuals);
             _materials.ConfigureStormPyramid(StormPyramids);
 
             BuildEnvironment();
@@ -387,7 +394,11 @@ namespace DuneVector
             PlayerTuning.ApplyTo(Drone);
             DroneHealth = droneObject.AddComponent<DroneHealth>();
             DroneHealth.Initialize(HealthSettings.MaximumHealth, HealthSettings.DamageInvulnerability);
-            Transform visualRoot = DuneVectorVisuals.CreateDroneVisual(droneObject.transform, _materials);
+            Transform visualRoot = DuneVectorVisuals.CreateDroneVisual(
+                droneObject.transform,
+                _materials,
+                CourierDroneFaction.Player,
+                DroneVisuals);
             visualRoot.localPosition = Vector3.up * PlayerTuning.GroundVisualHeight;
 
             GameObject cameraTargetObject = new GameObject("CameraTarget");
