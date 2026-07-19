@@ -302,21 +302,26 @@ namespace DuneVector
             if (CurrentState == StormPyramidState.TrackingPlayer)
             {
                 StormLightningTarget target = _attackSelector.SelectAttack(transform.position);
+                float chargeDuration = _lightning.GetChargeDuration(target.Type);
+                float totalWarningDuration = Mathf.Max(0.01f, _settings.TrackingDuration + chargeDuration);
                 warning = new StormPyramidThreatWarning(
                     target.Type,
                     target.Position,
-                    Mathf.Max(0f, _settings.TrackingDuration - _stateTime) + _lightning.GetChargeDuration(target.Type),
-                    0f);
+                    Mathf.Max(0f, _settings.TrackingDuration - _stateTime) + chargeDuration,
+                    Mathf.Clamp01(_stateTime / totalWarningDuration));
                 return true;
             }
 
             if (CurrentState == StormPyramidState.ChargingAttack)
             {
+                float chargeDuration = _lightning.GetChargeDuration(_lightning.TargetType);
+                float totalWarningDuration = Mathf.Max(0.01f, _settings.TrackingDuration + chargeDuration);
+                float elapsedCharge = Mathf.Max(0f, chargeDuration - _lightning.ChargeSecondsRemaining);
                 warning = new StormPyramidThreatWarning(
                     _lightning.TargetType,
                     _lightning.TargetPosition,
                     _lightning.ChargeSecondsRemaining,
-                    _lightning.ChargeNormalized);
+                    Mathf.Clamp01((_settings.TrackingDuration + elapsedCharge) / totalWarningDuration));
                 return true;
             }
 
