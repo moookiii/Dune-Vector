@@ -213,6 +213,20 @@ namespace DuneVector
             Check(courier.State == CourierRunState.Hub,
                 "Courier game starts in the safe world hub",
                 $"Initial courier state was {courier.State}.");
+            Vector3 hubSpawnOffset = bootstrap.Drone.Motor.TransientPosition - courier.HubSpawnPosition;
+            float horizontalHubSpawnError = Vector3.ProjectOnPlane(hubSpawnOffset, Vector3.up).magnitude;
+            Check(horizontalHubSpawnError < 0.5f,
+                "Drone physically starts on the hub platform",
+                $"Drone started {horizontalHubSpawnError:0.00} m horizontally from the hub spawn.");
+            bool hasEnabledHubCapsule = false;
+            CapsuleCollider[] hubCapsules = courier.GetComponentsInChildren<CapsuleCollider>(true);
+            for (int i = 0; i < hubCapsules.Length; i++)
+            {
+                hasEnabledHubCapsule |= hubCapsules[i].enabled;
+            }
+            Check(!hasEnabledHubCapsule,
+                "Hub platforms use fitted circle mesh collision",
+                "An enabled capsule collider is still lifting the drone above a hub platform.");
             Check(courier.AvailableContracts.Count >= 5 && courier.AvailableContracts.Count <= 8,
                 "Contract terminal offers five to eight modular contracts",
                 $"Contract terminal offered {courier.AvailableContracts.Count} contracts.");

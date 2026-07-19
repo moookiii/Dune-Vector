@@ -192,6 +192,7 @@ namespace DuneVector
         public bool IsContractActive => State == CourierRunState.FindPackage || State == CourierRunState.Delivering;
         public bool IsCarryingCargo => State == CourierRunState.Delivering;
         public bool IsTerminalOpen => _terminalOpen;
+        public Vector3 HubSpawnPosition => _hubSpawn;
         public static bool IsGameplayHudSuppressed
         {
             get
@@ -486,7 +487,12 @@ namespace DuneVector
 
             HubPart(PrimitiveType.Cylinder, "Main Teleport Platform", _hubRoot, Vector3.zero,
                 new Vector3(_hubSettings.PlatformRadius, _hubSettings.PlatformThickness * 0.5f, _hubSettings.PlatformRadius),
-                Quaternion.identity, _hubMetalMaterial, true);
+                Quaternion.identity, _hubMetalMaterial, false);
+            BuildCircleModelCollider(
+                _hubRoot,
+                "Main Teleport Platform Collider (circle.glb)",
+                Vector3.up * (_hubSettings.PlatformThickness * 0.5f),
+                _hubSettings.PlatformRadius * 0.5f);
             HubPart(PrimitiveType.Cylinder, "Energy Inlay", _hubRoot,
                 new Vector3(0f, (_hubSettings.PlatformThickness * 0.5f) + 0.08f, 0f),
                 new Vector3(_hubSettings.PlatformRadius * 0.72f, 0.08f, _hubSettings.PlatformRadius * 0.72f),
@@ -561,8 +567,13 @@ namespace DuneVector
             Transform upgradeArea = new GameObject("Drone Upgrade Area").transform;
             upgradeArea.SetParent(_hubRoot, false);
             upgradeArea.localPosition = Vector3.right * _hubSettings.UpgradeAreaSideOffset;
-            HubPart(PrimitiveType.Cylinder, "Upgrade Pad", upgradeArea, Vector3.up * 0.5f,
-                new Vector3(5f, 0.5f, 5f), Quaternion.identity, _hubMetalMaterial, true);
+            Transform upgradePad = HubPart(PrimitiveType.Cylinder, "Upgrade Pad", upgradeArea, Vector3.up * 0.5f,
+                new Vector3(5f, 0.5f, 5f), Quaternion.identity, _hubMetalMaterial, false);
+            BuildCircleModelCollider(
+                upgradeArea,
+                "Upgrade Pad Collider (circle.glb)",
+                Vector3.up,
+                upgradePad.localScale.x * 0.5f);
             HubPart(PrimitiveType.Cube, "Upgrade Gantry", upgradeArea, new Vector3(0f, 5f, 2.5f),
                 new Vector3(8f, 10f, 1f), Quaternion.identity, _hubMetalMaterial, true);
             _upgradeEnergyOrbit = new GameObject("Upgrade Calibration Arms").transform;
@@ -1750,6 +1761,50 @@ namespace DuneVector
             Collider partCollider = part.GetComponent<Collider>();
             if (partCollider != null) partCollider.enabled = collider;
             return part.transform;
+        }
+
+        private static void BuildCircleModelCollider(
+            Transform parent,
+            string colliderName,
+            Vector3 localPosition,
+            float radius)
+        {
+            GameObject circleModel = Resources.Load<GameObject>("circle");
+            if (circleModel == null)
+            {
+                Debug.LogError("World hub collision requires Assets/DuneVector/Resources/circle.glb.");
+                return;
+            }
+
+            GameObject colliderRoot = Instantiate(circleModel, parent, false);
+            colliderRoot.name = colliderName;
+            colliderRoot.transform.localPosition = localPosition;
+            colliderRoot.transform.localRotation = Quaternion.identity;
+            colliderRoot.transform.localScale = new Vector3(radius, 1f, radius);
+
+            Renderer[] renderers = colliderRoot.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                renderers[i].enabled = false;
+            }
+
+            Collider[] importedColliders = colliderRoot.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < importedColliders.Length; i++)
+            {
+                Destroy(importedColliders[i]);
+            }
+
+            MeshFilter[] meshFilters = colliderRoot.GetComponentsInChildren<MeshFilter>(true);
+            for (int i = 0; i < meshFilters.Length; i++)
+            {
+                if (meshFilters[i].sharedMesh == null)
+                {
+                    continue;
+                }
+
+                MeshCollider meshCollider = meshFilters[i].gameObject.AddComponent<MeshCollider>();
+                meshCollider.sharedMesh = meshFilters[i].sharedMesh;
+            }
         }
 
         private static void BuildSegmentedRing(
