@@ -142,10 +142,10 @@ namespace DuneVector
 
         [Header("Presentation")]
         [Min(0.1f)] public float VisualScale = 2.2f;
-        [ColorUsage(false)] public Color BodyColor = new Color(0.025f, 0.13f, 0.075f);
-        [ColorUsage(false, true)] public Color BodyEmission = new Color(0.08f, 0.8f, 0.36f);
-        [ColorUsage(false)] public Color CoreColor = new Color(0.025f, 0.24f, 0.13f);
-        [ColorUsage(false, true)] public Color CoreEmission = new Color(0.3f, 5.5f, 2.8f);
+        [ColorUsage(false)] public Color BodyColor = new Color(0.012f, 0.055f, 0.024f);
+        [ColorUsage(false, true)] public Color BodyEmission = new Color(0.025f, 0.22f, 0.075f);
+        [ColorUsage(false)] public Color CoreColor = new Color(0.018f, 0.11f, 0.045f);
+        [ColorUsage(false, true)] public Color CoreEmission = new Color(0.12f, 1.65f, 0.48f);
         [ColorUsage(false)] public Color LightningColor = new Color(0.55f, 0.86f, 1f);
         [ColorUsage(false, true)] public Color LightningEmission = new Color(7.5f, 12f, 18f);
         [ColorUsage(false)] public Color WarningColor = new Color(0.18f, 0.42f, 0.62f);
