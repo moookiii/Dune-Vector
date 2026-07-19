@@ -13,7 +13,6 @@ namespace DuneVector
         public Material RivalDroneTop { get; }
         public Material NeutralDroneTop { get; }
         public Material DroneDark { get; }
-        public Material DroneWingInlay { get; }
         public Material Cactus { get; }
         public IReadOnlyList<Material> Shrubs => _shrubMaterials;
         public Material Sandstone { get; }
@@ -86,12 +85,6 @@ namespace DuneVector
                 droneVisuals.FrameColor,
                 droneVisuals.FrameSmoothness,
                 droneVisuals.FrameMetallic);
-            DroneWingInlay = CreateLit(
-                "Drone - Wing Inlay",
-                droneVisuals.WingInlayColor,
-                droneVisuals.WingInlaySmoothness,
-                droneVisuals.WingInlayMetallic,
-                droneVisuals.WingInlayEmission);
             Cactus = CreateLit("Cactus - Stylized", new Color(0.08f, 0.31f, 0.16f), 0.25f, 0f);
             if (shrubTuning != null)
             {
@@ -327,8 +320,8 @@ namespace DuneVector
                 Quaternion.identity,
                 materials.DroneBody);
 
-            CreateDroneWing(visual, false, settings, materials.DroneBody, materials.DroneWingInlay);
-            CreateDroneWing(visual, true, settings, materials.DroneBody, materials.DroneWingInlay);
+            CreateDroneWing(visual, false, settings, materials.DroneBody, topMaterial);
+            CreateDroneWing(visual, true, settings, materials.DroneBody, topMaterial);
 
             CreatePart(
                 PrimitiveType.Sphere,
