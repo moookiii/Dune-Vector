@@ -158,6 +158,7 @@ namespace DuneVector
         public DesertWeatherState CurrentState { get; private set; }
         public float CurrentStateProgress { get; private set; }
         public float CurrentStormIntensity { get; private set; }
+        public Vector3 CurrentWindDirection { get; private set; }
         public float CurrentWindSpeed { get; private set; }
 
         private DesertWeatherStateMachine _stateMachine;
@@ -207,6 +208,7 @@ namespace DuneVector
             CurrentState = snapshot.State;
             CurrentStateProgress = snapshot.StateProgress;
             CurrentStormIntensity = snapshot.StormIntensity;
+            CurrentWindDirection = snapshot.WindDirection;
             CurrentWindSpeed = snapshot.WindSpeed;
             _atmosphere.Apply(snapshot);
             _wind.Apply(snapshot);

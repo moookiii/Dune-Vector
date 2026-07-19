@@ -148,6 +148,11 @@ namespace DuneVector
         [Min(20f)] public float Altitude;
         [Min(0f)] public float DriftSpeed;
         public Vector2 DriftDirection;
+        [Header("Weather Wind Response")]
+        [Tooltip("Additional cloud drift speed contributed by each metre per second of the live desert-weather wind.")]
+        [Min(0f)] public float WeatherWindSpeedMultiplier;
+        [Tooltip("How strongly cloud drift turns toward the live desert-weather wind direction.")]
+        [Range(0f, 1f)] public float WeatherWindDirectionBlend;
         public int RandomSeedOffset;
 
         [Header("Arrangement Presets")]

@@ -35,6 +35,8 @@ namespace DuneVector
 
         private float _driftSpeed;
         private Vector2 _driftDirection;
+        private float _weatherWindSpeedMultiplier;
+        private float _weatherWindDirectionBlend;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetMeshLibraries()
@@ -60,6 +62,8 @@ namespace DuneVector
             _driftDirection = tuning.DriftDirection.sqrMagnitude > 0.0001f
                 ? tuning.DriftDirection.normalized
                 : Vector2.zero;
+            _weatherWindSpeedMultiplier = Mathf.Max(0f, tuning.WeatherWindSpeedMultiplier);
+            _weatherWindDirectionBlend = Mathf.Clamp01(tuning.WeatherWindDirectionBlend);
 
             CloudMeshLibrary library = GetOrCreateMeshLibrary(tuning);
             if (library.Archetypes.Count == 0)
@@ -114,7 +118,25 @@ namespace DuneVector
 
         internal void Tick(float deltaTime)
         {
-            Vector3 drift = new Vector3(_driftDirection.x, 0f, _driftDirection.y) * (_driftSpeed * deltaTime);
+            Vector2 driftDirection = _driftDirection;
+            float driftSpeed = _driftSpeed;
+            DuneVectorWeatherController weather = DuneVectorBootstrap.Instance?.WeatherSystem;
+            if (weather != null)
+            {
+                Vector3 weatherDirection3 = weather.CurrentWindDirection;
+                Vector2 weatherDirection = new Vector2(weatherDirection3.x, weatherDirection3.z);
+                if (weatherDirection.sqrMagnitude > 0.0001f)
+                {
+                    driftDirection = Vector2.Lerp(
+                        _driftDirection,
+                        weatherDirection.normalized,
+                        _weatherWindDirectionBlend).normalized;
+                }
+
+                driftSpeed += weather.CurrentWindSpeed * _weatherWindSpeedMultiplier;
+            }
+
+            Vector3 drift = new Vector3(driftDirection.x, 0f, driftDirection.y) * (driftSpeed * deltaTime);
             transform.localPosition += drift;
         }
 
