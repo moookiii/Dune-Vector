@@ -159,7 +159,7 @@ namespace DuneVector
             float impactRadius = _settings.ImpactRadius;
             if ((_player.WorldCenter - _strikePoint).sqrMagnitude <= impactRadius * impactRadius)
             {
-                _playerHealth.TakeDamage(_settings.ImpactDamage, "Sky piercer impact");
+                _playerHealth.TakeDamage(_settings.ImpactDamage, "Sky Piecer impact");
             }
             SetState(SkyPiercerState.StuckInGround);
         }
