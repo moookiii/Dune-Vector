@@ -769,6 +769,9 @@ namespace DuneVector
         {
             float pulse01 = (Mathf.Sin(Time.unscaledTime * _settings.IndicatorPulseSpeed) + 1f) * 0.5f;
             float alpha = Mathf.Lerp(_settings.IndicatorMinimumAlpha, 1f, pulse01) * flicker;
+            _indicatorStyle.fontSize = finalPage
+                ? _settings.IndicatorFontSize
+                : Mathf.Max(1, Mathf.RoundToInt(_settings.IndicatorFontSize * _settings.ContinueIndicatorScale));
             _indicatorStyle.normal.textColor = WithAlpha(_settings.SecondaryTextColor, alpha);
             GUI.Label(
                 new Rect(

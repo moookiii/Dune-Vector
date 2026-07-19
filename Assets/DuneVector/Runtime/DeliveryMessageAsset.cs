@@ -90,6 +90,7 @@ namespace DuneVector
         [Min(0f)] public float NarrativeLineClipPadding = 8f;
         [Min(8)] public int HeaderFontSize = 10;
         [Min(8)] public int IndicatorFontSize = 18;
+        [Min(0.1f)] public float ContinueIndicatorScale = 2.2f;
         [Min(8)] public int HintFontSize = 11;
         public string TransmissionHeader = "PRIVATE COURIER CHANNEL  /  RECEIVED";
         public string ContinueIndicator = "▾";
