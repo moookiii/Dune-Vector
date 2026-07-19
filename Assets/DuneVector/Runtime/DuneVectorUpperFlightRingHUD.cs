@@ -9,6 +9,7 @@ namespace DuneVector
         private RingTuning _settings;
         private GUIStyle _titleStyle;
         private GUIStyle _statusStyle;
+        private float _unlockedAt = -1f;
 
         public void Initialize(DesertWorldStreamer world, RingTuning settings)
         {
@@ -21,6 +22,23 @@ namespace DuneVector
             if (_world == null || _settings == null || !_settings.ShowUpperFlightRingHud)
             {
                 return;
+            }
+
+            if (_world.IsUpperFlightRingUnlocked)
+            {
+                if (_unlockedAt < 0f)
+                {
+                    _unlockedAt = Time.unscaledTime;
+                }
+
+                if (Time.unscaledTime - _unlockedAt >= Mathf.Max(0f, _settings.UpperFlightRingHudUnlockedDuration))
+                {
+                    return;
+                }
+            }
+            else
+            {
+                _unlockedAt = -1f;
             }
 
             float referenceHeight = Mathf.Max(1f, _settings.UpperFlightRingHudReferenceHeight);
