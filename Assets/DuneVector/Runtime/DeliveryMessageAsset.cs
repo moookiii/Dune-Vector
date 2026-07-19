@@ -98,14 +98,6 @@ namespace DuneVector
         [Min(0f)] public float TextGlowOffset = 1f;
         [Range(0f, 1f)] public float TextGlowOpacity = 0.14f;
 
-        [Header("Newest Character Emission")]
-        [ColorUsage(false, true)] public Color NewestCharacterEmissionColor = new Color(0.72f, 1.15f, 1.08f, 1f);
-        [Min(0.01f)] public float NewestCharacterFlashDuration = 0.18f;
-        [Range(0f, 4f)] public float NewestCharacterFlashIntensity = 1.2f;
-        [Min(0f)] public float NewestCharacterGlowRadius = 2f;
-        [Range(0f, 1f)] public float NewestCharacterGlowOpacity = 0.52f;
-        [Range(4, 16)] public int NewestCharacterGlowSamples = 8;
-
         [Header("Transmission Palette")]
         [ColorUsage(false)] public Color BackdropColor = new Color(0.003f, 0.006f, 0.009f, 0.992f);
         [ColorUsage(false)] public Color ReadingAreaColor = new Color(0.035f, 0.055f, 0.062f, 0.16f);

@@ -112,9 +112,7 @@ namespace DuneVector
         private float _phaseStartedAt;
         private float _hintOpenedAt;
         private float _hintDismissedAt;
-        private float _newestCharacterRevealedAt;
         private int _openedFrame;
-        private int _emissiveVisibleCharacterCount;
         private bool _completionSent;
         private bool _hasAcknowledgedInputHint;
         private bool _showFirstUseHint;
@@ -159,8 +157,6 @@ namespace DuneVector
             _phaseStartedAt = Time.unscaledTime;
             _hintOpenedAt = Time.unscaledTime;
             _hintDismissedAt = float.PositiveInfinity;
-            _newestCharacterRevealedAt = float.NegativeInfinity;
-            _emissiveVisibleCharacterCount = -1;
             _openedFrame = Time.frameCount;
             _completionSent = false;
             _phase = PagePresentationPhase.Presenting;
@@ -222,13 +218,7 @@ namespace DuneVector
                 if (charactersToReveal > 0)
                 {
                     _characterAccumulator -= charactersToReveal;
-                    int previousVisibleCharacterCount = _visibleCharacterCount;
                     _visibleCharacterCount = Mathf.Min(CurrentPage.Length, _visibleCharacterCount + charactersToReveal);
-                    if (_visibleCharacterCount > previousVisibleCharacterCount)
-                    {
-                        _emissiveVisibleCharacterCount = _visibleCharacterCount;
-                        _newestCharacterRevealedAt = Time.unscaledTime;
-                    }
                     if (!IsTyping)
                     {
                         FinishCurrentPage();
@@ -257,8 +247,6 @@ namespace DuneVector
             _phase = PagePresentationPhase.Presenting;
             _pageFinishedAt = float.PositiveInfinity;
             _pageStartedAt = Time.unscaledTime;
-            _newestCharacterRevealedAt = float.NegativeInfinity;
-            _emissiveVisibleCharacterCount = -1;
             if (CurrentPage.Length == 0)
             {
                 FinishCurrentPage();
@@ -270,8 +258,6 @@ namespace DuneVector
         private void RevealCurrentPage()
         {
             _visibleCharacterCount = CurrentPage.Length;
-            _newestCharacterRevealedAt = float.NegativeInfinity;
-            _emissiveVisibleCharacterCount = -1;
             FinishCurrentPage();
         }
 
@@ -289,7 +275,6 @@ namespace DuneVector
                 _phase = PagePresentationPhase.EmptyBeat;
                 _phaseStartedAt = Time.unscaledTime;
                 _visibleCharacterCount = 0;
-                _emissiveVisibleCharacterCount = -1;
             }
 
             if (_phase == PagePresentationPhase.EmptyBeat &&
@@ -518,77 +503,6 @@ namespace DuneVector
 
             _narrativeStyle.normal.textColor = textColor;
             DrawTextLines(area, lines, lineAdvance, 0f, 0f);
-            DrawNewestCharacterEmission(area, lines, lineAdvance, text, textColor);
-        }
-
-        private void DrawNewestCharacterEmission(
-            Rect area,
-            IReadOnlyList<string> lines,
-            float lineAdvance,
-            string visibleText,
-            Color textColor)
-        {
-            if (string.IsNullOrEmpty(visibleText) ||
-                visibleText.Length != _emissiveVisibleCharacterCount ||
-                char.IsWhiteSpace(visibleText[visibleText.Length - 1]) ||
-                lines.Count == 0)
-            {
-                return;
-            }
-
-            float duration = Mathf.Max(0.01f, _settings.NewestCharacterFlashDuration);
-            float age01 = Mathf.Clamp01((Time.unscaledTime - _newestCharacterRevealedAt) / duration);
-            if (age01 >= 1f)
-            {
-                return;
-            }
-
-            string latestLine = lines[lines.Count - 1];
-            if (string.IsNullOrEmpty(latestLine))
-            {
-                return;
-            }
-
-            string glyph = latestLine.Substring(latestLine.Length - 1, 1);
-            string prefix = latestLine.Substring(0, latestLine.Length - 1);
-            float glyphX = area.x + _narrativeStyle.CalcSize(new GUIContent(prefix)).x;
-            float glyphY = area.y + ((lines.Count - 1) * lineAdvance);
-            float flash = (1f - age01) * Mathf.Max(0f, _settings.NewestCharacterFlashIntensity);
-            float glowAlpha = textColor.a * _settings.NewestCharacterGlowOpacity * flash;
-            float radius = Mathf.Max(0f, _settings.NewestCharacterGlowRadius);
-            int samples = Mathf.Max(4, _settings.NewestCharacterGlowSamples);
-
-            _narrativeStyle.normal.textColor = WithAlpha(
-                _settings.NewestCharacterEmissionColor,
-                glowAlpha);
-            for (int sample = 0; sample < samples; sample++)
-            {
-                float angle = (Mathf.PI * 2f * sample) / samples;
-                DrawEmissionGlyph(
-                    glyph,
-                    glyphX + (Mathf.Cos(angle) * radius),
-                    glyphY + (Mathf.Sin(angle) * radius));
-            }
-
-            Color coreColor = Color.LerpUnclamped(
-                textColor,
-                _settings.NewestCharacterEmissionColor,
-                flash);
-            coreColor.a = textColor.a;
-            _narrativeStyle.normal.textColor = coreColor;
-            DrawEmissionGlyph(glyph, glyphX, glyphY);
-        }
-
-        private void DrawEmissionGlyph(string glyph, float x, float y)
-        {
-            GUI.Label(
-                new Rect(
-                    x,
-                    y,
-                    _narrativeStyle.CalcSize(new GUIContent(glyph)).x + (_settings.NewestCharacterGlowRadius * 2f),
-                    _narrativeStyle.lineHeight + _settings.NarrativeLineClipPadding),
-                glyph,
-                _narrativeStyle);
         }
 
         private void DrawTextLines(
