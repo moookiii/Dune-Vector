@@ -1,0 +1,164 @@
+using UnityEngine;
+
+namespace DuneVector
+{
+    public enum TraversalRingType
+    {
+        GroundBoost,
+        Flight,
+    }
+
+    [DisallowMultipleComponent]
+    public sealed class TraversalRing : MonoBehaviour
+    {
+        public TraversalRingType RingType;
+        [Min(0.1f)] public float InnerRadius = 2.75f;
+        [Min(0.05f)] public float TriggerDepth = 0.65f;
+        [Min(0f)] public float ReactivationDelay = 2.5f;
+        [Min(1f)] public float BoostRingActiveScale = 1.45f;
+        [InspectorName("Flight Ring Active Scale")]
+        [Min(1f)] public float FlightModeScale = 1.45f;
+        [Min(0f)] public float FlightModeScaleSharpness = 4.5f;
+        public string ProceduralIdentity;
+
+        public bool HasActivated { get; private set; }
+        public int ActivationCount { get; private set; }
+
+        private DroneCharacterController _controller;
+        private Transform _visualRoot;
+        private Vector3 _previousWorldPosition;
+        private bool _hasPreviousWorldPosition;
+        private bool _inside;
+        private float _nextActivationTime;
+        private float _pulse;
+        private float _modeScale = 1f;
+        private float _visualSpin;
+        private Camera _billboardCamera;
+
+        public void Initialize(TraversalRingType type, DroneCharacterController controller, DuneVectorMaterials materials, float majorRadius, string identity)
+        {
+            RingType = type;
+            _controller = controller;
+            InnerRadius = majorRadius - 0.58f;
+            ProceduralIdentity = identity;
+            _visualRoot = DuneVectorVisuals.CreateRingVisual(transform, type, materials, majorRadius);
+            gameObject.name = type == TraversalRingType.GroundBoost ? "Ground Boost Ring" : "Elevated Flight Ring";
+        }
+
+        public void BindController(DroneCharacterController controller)
+        {
+            _controller = controller;
+            _inside = false;
+            _hasPreviousWorldPosition = false;
+        }
+
+        private void Update()
+        {
+            if (_controller == null)
+            {
+                return;
+            }
+
+            Vector3 worldPosition = _controller.WorldCenter;
+            float activationRadius = InnerRadius * _modeScale;
+            bool currentlyInside = Vector3.Distance(worldPosition, transform.position) <= activationRadius;
+            bool passedThrough = false;
+            if (_hasPreviousWorldPosition)
+            {
+                Vector3 segment = worldPosition - _previousWorldPosition;
+                float segmentLengthSquared = segment.sqrMagnitude;
+                if (segmentLengthSquared > 0.0001f)
+                {
+                    float interpolation = Mathf.Clamp01(
+                        Vector3.Dot(transform.position - _previousWorldPosition, segment) / segmentLengthSquared);
+                    Vector3 closestPoint = _previousWorldPosition + (segment * interpolation);
+                    passedThrough = Vector3.Distance(closestPoint, transform.position) <= activationRadius;
+                }
+            }
+
+            if ((currentlyInside && !_inside) || (passedThrough && !_inside))
+            {
+                TryActivate();
+            }
+
+            _inside = currentlyInside;
+            _previousWorldPosition = worldPosition;
+            _hasPreviousWorldPosition = true;
+
+            _pulse = Mathf.MoveTowards(_pulse, 0f, Time.deltaTime * 1.8f);
+            if (_visualRoot != null)
+            {
+                float activeScale = RingType == TraversalRingType.Flight
+                    ? FlightModeScale
+                    : BoostRingActiveScale;
+                float targetModeScale = RingType == TraversalRingType.Flight
+                    ? (_controller.CurrentMode == DroneTraversalMode.Flight ? activeScale : 1f)
+                    : Mathf.Lerp(1f, activeScale, _controller.BoostRemainingNormalized);
+                _modeScale = Mathf.Lerp(
+                    _modeScale,
+                    targetModeScale,
+                    DuneVectorMath.Sharpness(FlightModeScaleSharpness, Time.deltaTime));
+                float scale = _modeScale * (1f + (Mathf.Sin(_pulse * Mathf.PI) * 0.085f));
+                _visualRoot.localScale = Vector3.one * scale;
+                _visualSpin = Mathf.Repeat(
+                    _visualSpin + ((RingType == TraversalRingType.Flight ? 18f : 7f) * Time.deltaTime),
+                    360f);
+            }
+        }
+
+        private void LateUpdate()
+        {
+            if (_visualRoot == null)
+            {
+                return;
+            }
+
+            if (_billboardCamera == null)
+            {
+                _billboardCamera = Camera.main;
+            }
+            if (_billboardCamera == null)
+            {
+                return;
+            }
+
+            Vector3 toCamera = _billboardCamera.transform.position - _visualRoot.position;
+            if (toCamera.sqrMagnitude < 0.001f)
+            {
+                return;
+            }
+
+            _visualRoot.rotation = Quaternion.LookRotation(toCamera.normalized, Vector3.up)
+                * Quaternion.AngleAxis(_visualSpin, Vector3.forward);
+        }
+
+        private void TryActivate()
+        {
+            if (Time.time < _nextActivationTime)
+            {
+                return;
+            }
+
+            _nextActivationTime = Time.time + ReactivationDelay;
+            HasActivated = true;
+            ActivationCount++;
+            _pulse = 1f;
+
+            if (RingType == TraversalRingType.GroundBoost)
+            {
+                _controller.ActivateBoost();
+            }
+            else
+            {
+                _controller.RequestFlight(transform.forward);
+            }
+        }
+
+        private void OnDrawGizmosSelected()
+        {
+            Gizmos.color = RingType == TraversalRingType.GroundBoost ? new Color(1f, 0.5f, 0f, 0.7f) : new Color(0f, 0.8f, 1f, 0.7f);
+            Gizmos.matrix = transform.localToWorldMatrix;
+            Gizmos.DrawWireSphere(Vector3.zero, InnerRadius);
+        }
+    }
+}
