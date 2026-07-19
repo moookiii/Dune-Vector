@@ -1575,6 +1575,13 @@ namespace DuneVector
         [Range(0f, 1f)] public float ZoneEdgeFalloff = 0.35f;
         public int RandomSeedOffset = 30871;
 
+        [Header("Zone Severity")]
+        [Range(0f, 1f)] public float SevereZoneChance = 0.28f;
+        [Range(0f, 1f)] public float ExtremeZoneChance = 0.07f;
+        [Range(0f, 1f)] public float MildSeverity = 0.55f;
+        [Range(0f, 1f)] public float SevereSeverity = 0.78f;
+        [Range(0f, 1f)] public float ExtremeSeverity = 1f;
+
         [Header("Drone Temperature")]
         [Min(1f)] public float MaximumTemperature = 100f;
         [Min(0f)] public float ZoneHeatPerSecond = 8f;
@@ -1591,6 +1598,100 @@ namespace DuneVector
         [Range(0f, 1f)] public float ConsequenceTemperatureThreshold = 0.55f;
         [Min(1f)] public float MaximumBoostDrainMultiplier = 1.45f;
         [Min(1f)] public float MaximumWeaponCooldownMultiplier = 1.6f;
+
+        [Header("Visual Range & Refresh")]
+        public bool VisualsEnabled = true;
+        [Min(20f)] public float VisualRange = 540f;
+        [Range(1, 8)] public int MaximumVisibleZones = 4;
+        [Min(0.05f)] public float VisualRefreshInterval = 0.75f;
+        [Min(8)] public int CurtainSegments = 48;
+        [Min(2)] public int GroundMirageRings = 7;
+        [Min(8)] public int GroundMirageSegments = 48;
+
+        [Header("Refractive Air")]
+        [Min(1f)] public float ShimmerCurtainHeight = 62f;
+        [Range(0.1f, 1.5f)] public float ShimmerCurtainRadiusMultiplier = 1f;
+        [Min(0f)] public float GroundMirageHeightOffset = 0.16f;
+        [Range(0.05f, 1f)] public float GroundMirageRadiusMultiplier = 0.92f;
+        [Min(0f)] public float DistantDistortionStrength = 0.34f;
+        [Min(0f)] public float InteriorDistortionStrength = 0.78f;
+        [Min(0f)] public float DistortionBlurStrength = 0.18f;
+        [Min(0f)] public float DistortionTextureScale = 4.5f;
+        public Vector2 DistortionScrollVelocity = new Vector2(0.035f, 0.12f);
+        [Range(16, 256)] public int DistortionTextureResolution = 96;
+        [Min(0f)] public float MirageSurfaceOpacity = 0.09f;
+        [ColorUsage(false, true)] public Color MirageSurfaceColor = new Color(1.15f, 0.96f, 0.62f, 0.09f);
+
+        [Header("Rising Heat Columns")]
+        [Range(0, 240)] public int HeatPlumeParticleBudget = 72;
+        [Min(0f)] public float HeatPlumeEmissionRate = 7f;
+        [Min(0.1f)] public float HeatPlumeMinimumLifetime = 4.5f;
+        [Min(0.1f)] public float HeatPlumeMaximumLifetime = 8f;
+        [Min(0.01f)] public float HeatPlumeMinimumSize = 4f;
+        [Min(0.01f)] public float HeatPlumeMaximumSize = 10f;
+        [Min(0f)] public float HeatPlumeRiseSpeed = 5.5f;
+        [Min(0f)] public float HeatPlumeTurbulence = 0.45f;
+        [Min(0f)] public float HeatPlumeStretch = 1f;
+
+        [Header("Hot Wind Streaks")]
+        [Range(0, 320)] public int HeatStreakParticleBudget = 110;
+        [Min(0f)] public float HeatStreakEmissionRate = 16f;
+        [Min(0.1f)] public float HeatStreakLifetime = 2.4f;
+        [Min(0.01f)] public float HeatStreakSize = 0.07f;
+        [Min(0f)] public float HeatStreakLength = 3.2f;
+        public Vector2 HeatStreakDirection = new Vector2(1f, 0.22f);
+        [Min(0f)] public float HeatStreakSpeed = 18f;
+        [Min(0f)] public float HeatStreakHeightFraction = 0.32f;
+        [Min(0f)] public float HeatStreakVolumeRadiusMultiplier = 1.6f;
+        [Min(0f)] public float HeatStreakVolumeHeightMultiplier = 0.5f;
+        [Min(0f)] public float HeatStreakVelocityStretch = 1f;
+        [ColorUsage(false)] public Color HeatStreakColor = new Color(1f, 0.9f, 0.65f, 0.16f);
+
+        [Header("Terrain Heat Pockets")]
+        [Range(0, 24)] public int HotSpotCount = 9;
+        [Min(0f)] public float HotSpotMinimumRadius = 1.6f;
+        [Min(0f)] public float HotSpotMaximumRadius = 4.8f;
+        [Min(0f)] public float HotSpotHeightOffset = 0.08f;
+        [Min(0f)] public float HotSpotPlateThickness = 0.18f;
+        [Min(0f)] public float HotSpotGlowScale = 0.62f;
+        [Range(0f, 1f)] public float HotSpotMinimumDistanceFraction = 0.14f;
+        [Range(0f, 1f)] public float HotSpotMaximumDistanceFraction = 0.82f;
+        [Min(0f)] public float HotSpotPlateAspect = 1.45f;
+        [Min(0f)] public float HotSpotGlowHeightMultiplier = 0.6f;
+        [ColorUsage(false)] public Color HotSpotPlateColor = new Color(0.09f, 0.075f, 0.06f, 1f);
+        [ColorUsage(false, true)] public Color HotSpotGlowColor = new Color(3.2f, 1.25f, 0.18f, 1f);
+        [Range(0f, 1f)] public float HotSpotSmoothness = 0.22f;
+
+        [Header("Interior Atmosphere")]
+        public float InteriorVolumePriority = 20f;
+        [Min(0f)] public float InteriorBlendSharpness = 4f;
+        public float InteriorPostExposure = 0.28f;
+        [Range(-100f, 100f)] public float InteriorSaturation = -16f;
+        [Range(-100f, 100f)] public float InteriorContrast = 8f;
+        [ColorUsage(false)] public Color InteriorColorFilter = new Color(1f, 0.96f, 0.82f, 1f);
+        [Min(0f)] public float InteriorBloomIntensity = 0.34f;
+        [Min(0f)] public float InteriorBloomThreshold = 1.08f;
+
+        [Header("Thermal HUD")]
+        [Range(0f, 1f)] public float HudVisibilityThreshold = 0.08f;
+        [Min(100f)] public float HudWidth = 268f;
+        [Min(40f)] public float HudHeight = 68f;
+        [Min(0f)] public float HudRight = 24f;
+        [Min(0f)] public float HudTop = 118f;
+        [Min(0f)] public float HudPadding = 12f;
+        [Min(1f)] public float HudAccentWidth = 4f;
+        [Min(1f)] public float HudBarHeight = 8f;
+        [Min(8)] public int HudTitleFontSize = 12;
+        [Min(8)] public int HudStatusFontSize = 15;
+        public string HudZoneLabel = "HIGH THERMAL ZONE";
+        public string HudRisingLabel = "DRONE HEAT RISING";
+        public string HudBoostLabel = "BOOST EFFICIENCY REDUCED";
+        [ColorUsage(false)] public Color HudPanelColor = new Color(0.035f, 0.045f, 0.052f, 0.88f);
+        [ColorUsage(false)] public Color HudAccentColor = new Color(1f, 0.56f, 0.12f, 1f);
+        [ColorUsage(false)] public Color HudTrackColor = new Color(0.13f, 0.15f, 0.16f, 1f);
+        [ColorUsage(false)] public Color HudCoolColor = new Color(1f, 0.78f, 0.26f, 1f);
+        [ColorUsage(false)] public Color HudHotColor = new Color(1f, 0.19f, 0.06f, 1f);
+        [ColorUsage(false)] public Color HudTextColor = new Color(0.96f, 0.94f, 0.86f, 1f);
     }
 
     [System.Serializable]

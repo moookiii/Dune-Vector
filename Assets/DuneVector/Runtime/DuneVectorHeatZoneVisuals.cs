@@ -1,0 +1,695 @@
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.HighDefinition;
+
+namespace DuneVector
+{
+    [DefaultExecutionOrder(920)]
+    [DisallowMultipleComponent]
+    public sealed class DuneVectorHeatZoneVisualSystem : MonoBehaviour
+    {
+        private sealed class ZoneVisual
+        {
+            public Vector2Int Id;
+            public GameObject Root;
+            public Material CurtainMaterial;
+            public Material GroundMaterial;
+            public Mesh CurtainMesh;
+            public Mesh GroundMesh;
+            public ParticleSystem Plumes;
+            public ParticleSystem Streaks;
+        }
+
+        private readonly Dictionary<Vector2Int, ZoneVisual> _zoneVisuals = new Dictionary<Vector2Int, ZoneVisual>();
+        private readonly List<HeatZoneSample> _nearbyZones = new List<HeatZoneSample>();
+        private readonly HashSet<Vector2Int> _activeIds = new HashSet<Vector2Int>();
+        private readonly List<Vector2Int> _removalBuffer = new List<Vector2Int>();
+
+        private DuneVectorEnvironmentalHazardSystem _hazards;
+        private DroneCharacterController _drone;
+        private DesertWorldStreamer _world;
+        private HeatZoneTuning _settings;
+        private Texture2D _distortionTexture;
+        private Texture2D _particleTexture;
+        private Material _plumeMaterial;
+        private Material _streakMaterial;
+        private Material _hotPlateMaterial;
+        private Material _hotGlowMaterial;
+        private Volume _interiorVolume;
+        private VolumeProfile _interiorProfile;
+        private float _refreshTimer;
+        private float _interiorBlend;
+        private GUIStyle _titleStyle;
+        private GUIStyle _statusStyle;
+
+        public void Initialize(
+            DuneVectorEnvironmentalHazardSystem hazards,
+            DroneCharacterController drone,
+            DesertWorldStreamer world,
+            HeatZoneTuning settings)
+        {
+            _hazards = hazards;
+            _drone = drone;
+            _world = world;
+            _settings = settings;
+            _distortionTexture = CreateDistortionTexture(Mathf.Max(16, settings.DistortionTextureResolution));
+            _particleTexture = CreateSoftParticleTexture(Mathf.Max(16, settings.DistortionTextureResolution));
+            _plumeMaterial = CreateDistortionMaterial("Heat Plume Refraction", true, Color.clear, settings.DistantDistortionStrength);
+            _streakMaterial = CreateParticleMaterial("Hot Wind Streaks", settings.HeatStreakColor);
+            _hotPlateMaterial = CreateLitMaterial("Heat Pocket Basalt", settings.HotSpotPlateColor, Color.black);
+            _hotGlowMaterial = CreateLitMaterial("Heat Pocket Mineral Glow", Color.black, settings.HotSpotGlowColor);
+            CreateInteriorVolume();
+            _world.WorldShifted += HandleWorldShift;
+            RefreshZoneVisuals();
+        }
+
+        private void Update()
+        {
+            if (_hazards == null || _world == null || _settings == null)
+            {
+                return;
+            }
+
+            _refreshTimer -= Time.deltaTime;
+            if (_refreshTimer <= 0f)
+            {
+                RefreshZoneVisuals();
+            }
+
+            Vector2 offset = _settings.DistortionScrollVelocity * Time.time;
+            foreach (ZoneVisual visual in _zoneVisuals.Values)
+            {
+                visual.CurtainMaterial?.SetTextureOffset("_DistortionVectorMap", offset);
+                visual.GroundMaterial?.SetTextureOffset("_DistortionVectorMap", offset);
+            }
+            _plumeMaterial?.SetTextureOffset("_DistortionVectorMap", offset);
+
+            float desiredBlend = Mathf.Clamp01(
+                _hazards.HeatZoneIntensity * Mathf.Max(_settings.MildSeverity, _hazards.CurrentHeatZoneSeverity));
+            _interiorBlend = Mathf.Lerp(
+                _interiorBlend,
+                desiredBlend,
+                DuneVectorMath.Sharpness(_settings.InteriorBlendSharpness, Time.deltaTime));
+            if (_interiorVolume != null)
+            {
+                _interiorVolume.weight = _interiorBlend;
+            }
+        }
+
+        private void RefreshZoneVisuals()
+        {
+            _refreshTimer = Mathf.Max(0.05f, _settings.VisualRefreshInterval);
+            _hazards.CollectNearbyHeatZones(_nearbyZones, Mathf.Max(0f, _settings.VisualRange));
+            _activeIds.Clear();
+            int count = Mathf.Min(Mathf.Max(1, _settings.MaximumVisibleZones), _nearbyZones.Count);
+            for (int i = 0; i < count; i++)
+            {
+                HeatZoneSample sample = _nearbyZones[i];
+                _activeIds.Add(sample.Id);
+                if (!_zoneVisuals.ContainsKey(sample.Id))
+                {
+                    _zoneVisuals.Add(sample.Id, CreateZoneVisual(sample));
+                }
+            }
+
+            _removalBuffer.Clear();
+            foreach (KeyValuePair<Vector2Int, ZoneVisual> pair in _zoneVisuals)
+            {
+                if (!_activeIds.Contains(pair.Key))
+                {
+                    _removalBuffer.Add(pair.Key);
+                }
+            }
+            for (int i = 0; i < _removalBuffer.Count; i++)
+            {
+                Vector2Int id = _removalBuffer[i];
+                DestroyZoneVisual(_zoneVisuals[id]);
+                _zoneVisuals.Remove(id);
+            }
+        }
+
+        private ZoneVisual CreateZoneVisual(HeatZoneSample sample)
+        {
+            Vector3 center = _world.LogicalToLocal(sample.LogicalCenter.X, 0d, sample.LogicalCenter.Z);
+            center.y = _world.SampleHeightAtLocal(center.x, center.z);
+            GameObject root = new GameObject($"Heat Pressure Pocket [{sample.Id.x}, {sample.Id.y}]");
+            root.transform.SetParent(transform, true);
+            root.transform.position = center;
+
+            float distortion = Mathf.Lerp(
+                _settings.DistantDistortionStrength,
+                _settings.InteriorDistortionStrength,
+                sample.Severity);
+            Material curtainMaterial = CreateDistortionMaterial(
+                $"Heat Curtain [{sample.Id.x}, {sample.Id.y}]",
+                true,
+                Color.clear,
+                distortion);
+            Material groundMaterial = CreateDistortionMaterial(
+                $"Ground Mirage [{sample.Id.x}, {sample.Id.y}]",
+                false,
+                WithAlpha(_settings.MirageSurfaceColor, _settings.MirageSurfaceOpacity * sample.Severity),
+                distortion);
+
+            Mesh curtainMesh = CreateOpenCylinderMesh(
+                sample.Radius * _settings.ShimmerCurtainRadiusMultiplier,
+                _settings.ShimmerCurtainHeight,
+                Mathf.Max(8, _settings.CurtainSegments));
+            CreateMeshRenderer(
+                "Refractive Air Curtain",
+                root.transform,
+                curtainMesh,
+                curtainMaterial);
+            Mesh groundMesh = CreateGroundMirageMesh(
+                center,
+                sample.Radius * _settings.GroundMirageRadiusMultiplier,
+                Mathf.Max(2, _settings.GroundMirageRings),
+                Mathf.Max(8, _settings.GroundMirageSegments));
+            CreateMeshRenderer(
+                "Terrain-Following Ground Mirage",
+                root.transform,
+                groundMesh,
+                groundMaterial);
+
+            ParticleSystem plumes = CreateHeatPlumes(root.transform, sample);
+            ParticleSystem streaks = CreateHeatStreaks(root.transform, sample);
+            CreateHotSpots(root.transform, center, sample);
+            return new ZoneVisual
+            {
+                Id = sample.Id,
+                Root = root,
+                CurtainMaterial = curtainMaterial,
+                GroundMaterial = groundMaterial,
+                CurtainMesh = curtainMesh,
+                GroundMesh = groundMesh,
+                Plumes = plumes,
+                Streaks = streaks,
+            };
+        }
+
+        private Mesh CreateGroundMirageMesh(Vector3 center, float radius, int rings, int segments)
+        {
+            int vertexCount = 1 + (rings * segments);
+            Vector3[] vertices = new Vector3[vertexCount];
+            Vector2[] uvs = new Vector2[vertexCount];
+            int[] triangles = new int[((rings - 1) * segments * 6) + (segments * 3)];
+            vertices[0] = new Vector3(0f, _settings.GroundMirageHeightOffset, 0f);
+            uvs[0] = new Vector2(0.5f, 0.5f);
+            for (int ring = 1; ring <= rings; ring++)
+            {
+                float ringRadius = radius * ring / rings;
+                for (int segment = 0; segment < segments; segment++)
+                {
+                    float angle = (Mathf.PI * 2f * segment) / segments;
+                    float x = Mathf.Cos(angle) * ringRadius;
+                    float z = Mathf.Sin(angle) * ringRadius;
+                    float terrain = _world.SampleHeightAtLocal(center.x + x, center.z + z);
+                    int index = 1 + ((ring - 1) * segments) + segment;
+                    vertices[index] = new Vector3(x, terrain - center.y + _settings.GroundMirageHeightOffset, z);
+                    uvs[index] = new Vector2((x / (radius * 2f)) + 0.5f, (z / (radius * 2f)) + 0.5f);
+                }
+            }
+
+            int triangleIndex = 0;
+            for (int segment = 0; segment < segments; segment++)
+            {
+                int next = (segment + 1) % segments;
+                triangles[triangleIndex++] = 0;
+                triangles[triangleIndex++] = 1 + next;
+                triangles[triangleIndex++] = 1 + segment;
+            }
+            for (int ring = 1; ring < rings; ring++)
+            {
+                int innerStart = 1 + ((ring - 1) * segments);
+                int outerStart = 1 + (ring * segments);
+                for (int segment = 0; segment < segments; segment++)
+                {
+                    int next = (segment + 1) % segments;
+                    triangles[triangleIndex++] = innerStart + segment;
+                    triangles[triangleIndex++] = innerStart + next;
+                    triangles[triangleIndex++] = outerStart + segment;
+                    triangles[triangleIndex++] = outerStart + segment;
+                    triangles[triangleIndex++] = innerStart + next;
+                    triangles[triangleIndex++] = outerStart + next;
+                }
+            }
+            Mesh mesh = new Mesh { name = "Terrain-Following Heat Mirage" };
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static Mesh CreateOpenCylinderMesh(float radius, float height, int segments)
+        {
+            Vector3[] vertices = new Vector3[(segments + 1) * 2];
+            Vector2[] uvs = new Vector2[vertices.Length];
+            int[] triangles = new int[segments * 6];
+            for (int i = 0; i <= segments; i++)
+            {
+                float progress = i / (float)segments;
+                float angle = progress * Mathf.PI * 2f;
+                Vector3 radial = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+                vertices[i * 2] = radial;
+                vertices[(i * 2) + 1] = radial + (Vector3.up * height);
+                uvs[i * 2] = new Vector2(progress, 0f);
+                uvs[(i * 2) + 1] = new Vector2(progress, 1f);
+                if (i == segments)
+                {
+                    continue;
+                }
+                int vertex = i * 2;
+                int triangle = i * 6;
+                triangles[triangle] = vertex;
+                triangles[triangle + 1] = vertex + 1;
+                triangles[triangle + 2] = vertex + 2;
+                triangles[triangle + 3] = vertex + 2;
+                triangles[triangle + 4] = vertex + 1;
+                triangles[triangle + 5] = vertex + 3;
+            }
+            Mesh mesh = new Mesh { name = "Heat Shimmer Curtain" };
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private ParticleSystem CreateHeatPlumes(Transform parent, HeatZoneSample sample)
+        {
+            GameObject plumeObject = new GameObject("Sparse Rising Heat Columns");
+            plumeObject.transform.SetParent(parent, false);
+            ParticleSystem system = plumeObject.AddComponent<ParticleSystem>();
+            ParticleSystem.MainModule main = system.main;
+            main.loop = true;
+            main.playOnAwake = true;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = Mathf.Max(0, Mathf.RoundToInt(_settings.HeatPlumeParticleBudget * sample.Severity));
+            main.startLifetime = new ParticleSystem.MinMaxCurve(
+                _settings.HeatPlumeMinimumLifetime,
+                Mathf.Max(_settings.HeatPlumeMinimumLifetime, _settings.HeatPlumeMaximumLifetime));
+            main.startSize = new ParticleSystem.MinMaxCurve(
+                _settings.HeatPlumeMinimumSize,
+                Mathf.Max(_settings.HeatPlumeMinimumSize, _settings.HeatPlumeMaximumSize));
+            ParticleSystem.EmissionModule emission = system.emission;
+            emission.rateOverTime = _settings.HeatPlumeEmissionRate * sample.Severity;
+            ParticleSystem.ShapeModule shape = system.shape;
+            shape.enabled = true;
+            shape.shapeType = ParticleSystemShapeType.Circle;
+            shape.radius = sample.Radius * _settings.GroundMirageRadiusMultiplier;
+            ParticleSystem.VelocityOverLifetimeModule velocity = system.velocityOverLifetime;
+            velocity.enabled = true;
+            velocity.space = ParticleSystemSimulationSpace.World;
+            velocity.y = _settings.HeatPlumeRiseSpeed;
+            ParticleSystem.NoiseModule noise = system.noise;
+            noise.enabled = true;
+            noise.quality = ParticleSystemNoiseQuality.Medium;
+            noise.strength = _settings.HeatPlumeTurbulence;
+            ParticleSystemRenderer renderer = plumeObject.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = _plumeMaterial;
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.velocityScale = _settings.HeatPlumeStretch;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            system.Play();
+            return system;
+        }
+
+        private ParticleSystem CreateHeatStreaks(Transform parent, HeatZoneSample sample)
+        {
+            GameObject streakObject = new GameObject("Directional Hot Wind Streaks");
+            streakObject.transform.SetParent(parent, false);
+            streakObject.transform.localPosition = Vector3.up *
+                (_settings.ShimmerCurtainHeight * _settings.HeatStreakHeightFraction);
+            ParticleSystem system = streakObject.AddComponent<ParticleSystem>();
+            ParticleSystem.MainModule main = system.main;
+            main.loop = true;
+            main.playOnAwake = true;
+            main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.maxParticles = Mathf.Max(0, Mathf.RoundToInt(_settings.HeatStreakParticleBudget * sample.Severity));
+            main.startLifetime = Mathf.Max(0.1f, _settings.HeatStreakLifetime);
+            main.startSize = Mathf.Max(0.01f, _settings.HeatStreakSize);
+            ParticleSystem.EmissionModule emission = system.emission;
+            emission.rateOverTime = _settings.HeatStreakEmissionRate * sample.Severity;
+            ParticleSystem.ShapeModule shape = system.shape;
+            shape.enabled = true;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.scale = new Vector3(
+                sample.Radius * _settings.HeatStreakVolumeRadiusMultiplier,
+                _settings.ShimmerCurtainHeight * _settings.HeatStreakVolumeHeightMultiplier,
+                sample.Radius * _settings.HeatStreakVolumeRadiusMultiplier);
+            Vector2 direction = _settings.HeatStreakDirection.sqrMagnitude > 0.001f
+                ? _settings.HeatStreakDirection.normalized
+                : Vector2.right;
+            ParticleSystem.VelocityOverLifetimeModule velocity = system.velocityOverLifetime;
+            velocity.enabled = true;
+            velocity.space = ParticleSystemSimulationSpace.World;
+            velocity.x = direction.x * _settings.HeatStreakSpeed;
+            velocity.z = direction.y * _settings.HeatStreakSpeed;
+            ParticleSystem.ColorOverLifetimeModule fade = system.colorOverLifetime;
+            fade.enabled = true;
+            Gradient gradient = new Gradient();
+            gradient.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f),
+                },
+                new[]
+                {
+                    new GradientAlphaKey(0f, 0f),
+                    new GradientAlphaKey(1f, 0.2f),
+                    new GradientAlphaKey(1f, 0.8f),
+                    new GradientAlphaKey(0f, 1f),
+                });
+            fade.color = gradient;
+            ParticleSystemRenderer renderer = streakObject.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = _streakMaterial;
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.lengthScale = _settings.HeatStreakLength;
+            renderer.velocityScale = _settings.HeatStreakVelocityStretch;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            system.Play();
+            return system;
+        }
+
+        private void CreateHotSpots(Transform parent, Vector3 center, HeatZoneSample sample)
+        {
+            int count = Mathf.Max(0, Mathf.RoundToInt(_settings.HotSpotCount * sample.Severity));
+            for (int i = 0; i < count; i++)
+            {
+                float angle = DuneVectorMath.HashRange(sample.Id.x, sample.Id.y, i, _settings.RandomSeedOffset + 51, 0f, Mathf.PI * 2f);
+                float distance = DuneVectorMath.HashRange(
+                    sample.Id.x, sample.Id.y, i, _settings.RandomSeedOffset + 52,
+                    sample.Radius * _settings.HotSpotMinimumDistanceFraction,
+                    sample.Radius * Mathf.Max(
+                        _settings.HotSpotMinimumDistanceFraction,
+                        _settings.HotSpotMaximumDistanceFraction));
+                float radius = DuneVectorMath.HashRange(
+                    sample.Id.x, sample.Id.y, i, _settings.RandomSeedOffset + 53,
+                    _settings.HotSpotMinimumRadius, Mathf.Max(_settings.HotSpotMinimumRadius, _settings.HotSpotMaximumRadius));
+                Vector3 localPosition = new Vector3(Mathf.Cos(angle) * distance, 0f, Mathf.Sin(angle) * distance);
+                float terrain = _world.SampleHeightAtLocal(center.x + localPosition.x, center.z + localPosition.z);
+                localPosition.y = terrain - center.y + _settings.HotSpotHeightOffset;
+                float yaw = DuneVectorMath.HashRange(sample.Id.x, sample.Id.y, i, _settings.RandomSeedOffset + 54, 0f, 360f);
+
+                Transform plate = CreatePrimitive(
+                    PrimitiveType.Sphere,
+                    $"Sun-Baked Basalt Plate {i + 1}",
+                    parent,
+                    localPosition,
+                    new Vector3(radius * 2f, _settings.HotSpotPlateThickness, radius * _settings.HotSpotPlateAspect),
+                    Quaternion.Euler(0f, yaw, 0f),
+                    _hotPlateMaterial);
+                CreatePrimitive(
+                    PrimitiveType.Sphere,
+                    "Radiant Mineral Seam",
+                    plate,
+                    Vector3.up * (_settings.HotSpotPlateThickness * _settings.HotSpotGlowHeightMultiplier),
+                    new Vector3(_settings.HotSpotGlowScale, _settings.HotSpotGlowScale, _settings.HotSpotGlowScale),
+                    Quaternion.identity,
+                    _hotGlowMaterial);
+            }
+        }
+
+        private void CreateInteriorVolume()
+        {
+            GameObject volumeObject = new GameObject("Heat Zone Interior Atmosphere");
+            volumeObject.transform.SetParent(transform, false);
+            _interiorVolume = volumeObject.AddComponent<Volume>();
+            _interiorVolume.isGlobal = true;
+            _interiorVolume.priority = _settings.InteriorVolumePriority;
+            _interiorVolume.weight = 0f;
+            _interiorProfile = ScriptableObject.CreateInstance<VolumeProfile>();
+            _interiorProfile.name = "Runtime Heat Zone Atmosphere";
+            _interiorVolume.sharedProfile = _interiorProfile;
+            ColorAdjustments color = _interiorProfile.Add<ColorAdjustments>(true);
+            color.postExposure.Override(_settings.InteriorPostExposure);
+            color.saturation.Override(_settings.InteriorSaturation);
+            color.contrast.Override(_settings.InteriorContrast);
+            color.colorFilter.Override(_settings.InteriorColorFilter);
+            Bloom bloom = _interiorProfile.Add<Bloom>(true);
+            bloom.intensity.Override(Mathf.Max(0f, _settings.InteriorBloomIntensity));
+            bloom.threshold.Override(Mathf.Max(0f, _settings.InteriorBloomThreshold));
+        }
+
+        private Material CreateDistortionMaterial(string materialName, bool distortionOnly, Color tint, float strength)
+        {
+            Shader shader = Shader.Find("HDRP/Unlit");
+            Material material = new Material(shader) { name = materialName };
+            material.SetFloat("_SurfaceType", 1f);
+            material.SetFloat("_BlendMode", 0f);
+            material.SetFloat("_TransparentCullMode", 0f);
+            material.SetFloat("_DoubleSidedEnable", 1f);
+            material.SetFloat("_EnableFogOnTransparent", 1f);
+            material.SetColor("_UnlitColor", tint);
+            material.SetTexture("_UnlitColorMap", Texture2D.whiteTexture);
+            material.SetFloat("_DistortionEnable", 1f);
+            material.SetFloat("_DistortionOnly", distortionOnly ? 1f : 0f);
+            material.SetFloat("_DistortionDepthTest", 1f);
+            material.SetFloat("_DistortionBlendMode", 0f);
+            material.SetTexture("_DistortionVectorMap", _distortionTexture);
+            material.SetTextureScale("_DistortionVectorMap", Vector2.one * _settings.DistortionTextureScale);
+            material.SetFloat("_DistortionScale", Mathf.Max(0f, strength));
+            material.SetFloat("_DistortionVectorScale", 2f);
+            material.SetFloat("_DistortionVectorBias", -1f);
+            material.SetFloat("_DistortionBlurScale", _settings.DistortionBlurStrength);
+            HDMaterial.ValidateMaterial(material);
+            return material;
+        }
+
+        private Material CreateParticleMaterial(string materialName, Color tint)
+        {
+            Shader shader = Shader.Find("DuneVector/HDRP Weather Particle");
+            if (shader == null)
+            {
+                shader = Shader.Find("HDRP/Unlit");
+            }
+            Material material = new Material(shader) { name = materialName };
+            if (material.HasProperty("_MainTex")) material.SetTexture("_MainTex", _particleTexture);
+            if (material.HasProperty("_Tint")) material.SetColor("_Tint", tint);
+            if (material.HasProperty("_UnlitColorMap")) material.SetTexture("_UnlitColorMap", _particleTexture);
+            if (material.HasProperty("_UnlitColor")) material.SetColor("_UnlitColor", tint);
+            return material;
+        }
+
+        private Material CreateLitMaterial(string materialName, Color baseColor, Color emission)
+        {
+            Shader shader = Shader.Find("HDRP/Lit");
+            Material material = new Material(shader) { name = materialName };
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", baseColor);
+            if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", _settings.HotSpotSmoothness);
+            if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", emission);
+            if (material.HasProperty("_EmissiveExposureWeight")) material.SetFloat("_EmissiveExposureWeight", 0f);
+            return material;
+        }
+
+        private static Renderer CreateMeshRenderer(string name, Transform parent, Mesh mesh, Material material)
+        {
+            GameObject meshObject = new GameObject(name);
+            meshObject.transform.SetParent(parent, false);
+            MeshFilter filter = meshObject.AddComponent<MeshFilter>();
+            filter.sharedMesh = mesh;
+            MeshRenderer renderer = meshObject.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return renderer;
+        }
+
+        private static Transform CreatePrimitive(
+            PrimitiveType primitive,
+            string name,
+            Transform parent,
+            Vector3 localPosition,
+            Vector3 localScale,
+            Quaternion localRotation,
+            Material material)
+        {
+            GameObject part = GameObject.CreatePrimitive(primitive);
+            part.name = name;
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = localPosition;
+            part.transform.localRotation = localRotation;
+            part.transform.localScale = localScale;
+            Renderer renderer = part.GetComponent<Renderer>();
+            renderer.sharedMaterial = material;
+            Collider collider = part.GetComponent<Collider>();
+            if (collider != null) Destroy(collider);
+            return part.transform;
+        }
+
+        private static Texture2D CreateDistortionTexture(int resolution)
+        {
+            Texture2D texture = new Texture2D(resolution, resolution, TextureFormat.RGBA32, false, true)
+            {
+                name = "Runtime Heat Refraction Vectors",
+                wrapMode = TextureWrapMode.Repeat,
+                filterMode = FilterMode.Bilinear,
+            };
+            Color[] pixels = new Color[resolution * resolution];
+            for (int y = 0; y < resolution; y++)
+            {
+                float v = y / (float)(resolution - 1);
+                float verticalFade = Mathf.SmoothStep(0f, 1f, Mathf.Min(v, 1f - v) * 5f);
+                for (int x = 0; x < resolution; x++)
+                {
+                    float u = x / (float)(resolution - 1);
+                    float first = Mathf.PerlinNoise((u * 3.7f) + 11.2f, (v * 8.1f) + 4.6f) - 0.5f;
+                    float second = Mathf.PerlinNoise((u * 7.3f) - 2.4f, (v * 4.9f) + 15.8f) - 0.5f;
+                    float edgeFade = Mathf.SmoothStep(0f, 1f, Mathf.Min(u, 1f - u) * 8f) * verticalFade;
+                    pixels[(y * resolution) + x] = new Color(
+                        0.5f + (first * edgeFade),
+                        0.5f + (second * edgeFade),
+                        Mathf.Clamp01(Mathf.Abs(first) + Mathf.Abs(second)),
+                        edgeFade);
+                }
+            }
+            texture.SetPixels(pixels);
+            texture.Apply(false, true);
+            return texture;
+        }
+
+        private static Texture2D CreateSoftParticleTexture(int resolution)
+        {
+            Texture2D texture = new Texture2D(resolution, resolution, TextureFormat.RGBA32, false, true)
+            {
+                name = "Runtime Heat Streak Soft Particle",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            Color[] pixels = new Color[resolution * resolution];
+            for (int y = 0; y < resolution; y++)
+            {
+                for (int x = 0; x < resolution; x++)
+                {
+                    Vector2 point = new Vector2(x, y) / (resolution - 1f);
+                    float alpha = Mathf.Clamp01(1f - (Vector2.Distance(point, Vector2.one * 0.5f) * 2f));
+                    pixels[(y * resolution) + x] = new Color(1f, 1f, 1f, alpha * alpha);
+                }
+            }
+            texture.SetPixels(pixels);
+            texture.Apply(false, true);
+            return texture;
+        }
+
+        private void HandleWorldShift(Vector3 shift)
+        {
+            foreach (ZoneVisual visual in _zoneVisuals.Values)
+            {
+                visual.Root.transform.position += shift;
+                visual.Plumes?.Clear();
+                visual.Streaks?.Clear();
+            }
+        }
+
+        private void OnGUI()
+        {
+            if (_hazards == null || _settings == null || DuneVectorCourierGame.IsGameplayHudSuppressed)
+            {
+                return;
+            }
+            float visibility = Mathf.Max(_hazards.HeatZoneIntensity, _hazards.NormalizedTemperature);
+            if (visibility < _settings.HudVisibilityThreshold)
+            {
+                return;
+            }
+
+            _titleStyle ??= new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.UpperLeft,
+                fontStyle = FontStyle.Bold,
+                fontSize = _settings.HudTitleFontSize,
+                normal = { textColor = _settings.HudTextColor },
+            };
+            _statusStyle ??= new GUIStyle(_titleStyle)
+            {
+                alignment = TextAnchor.UpperRight,
+                fontStyle = FontStyle.Normal,
+                fontSize = _settings.HudStatusFontSize,
+            };
+
+            Rect panel = new Rect(
+                Screen.width - _settings.HudRight - _settings.HudWidth,
+                _settings.HudTop,
+                _settings.HudWidth,
+                _settings.HudHeight);
+            DrawRect(panel, _settings.HudPanelColor);
+            DrawRect(new Rect(panel.x, panel.y, _settings.HudAccentWidth, panel.height), _settings.HudAccentColor);
+            float contentX = panel.x + _settings.HudPadding;
+            float contentWidth = panel.width - (_settings.HudPadding * 2f);
+            GUI.Label(
+                new Rect(contentX, panel.y + _settings.HudPadding, contentWidth, _settings.HudTitleFontSize + 6f),
+                _settings.HudZoneLabel,
+                _titleStyle);
+            string status = _hazards.NormalizedTemperature >= _settings.ConsequenceTemperatureThreshold
+                ? _settings.HudBoostLabel
+                : _settings.HudRisingLabel;
+            GUI.Label(
+                new Rect(contentX, panel.y + _settings.HudPadding, contentWidth, _settings.HudStatusFontSize + 6f),
+                status,
+                _statusStyle);
+            Rect track = new Rect(
+                contentX,
+                panel.yMax - _settings.HudPadding - _settings.HudBarHeight,
+                contentWidth,
+                _settings.HudBarHeight);
+            DrawRect(track, _settings.HudTrackColor);
+            DrawRect(
+                new Rect(track.x, track.y, track.width * _hazards.NormalizedTemperature, track.height),
+                Color.Lerp(_settings.HudCoolColor, _settings.HudHotColor, _hazards.NormalizedTemperature));
+        }
+
+        private static void DrawRect(Rect rect, Color color)
+        {
+            Color previous = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = previous;
+        }
+
+        private static Color WithAlpha(Color color, float alpha)
+        {
+            color.a = Mathf.Clamp01(alpha);
+            return color;
+        }
+
+        private static void DestroyZoneVisual(ZoneVisual visual)
+        {
+            if (visual == null)
+            {
+                return;
+            }
+            if (visual.Root != null) Destroy(visual.Root);
+            if (visual.CurtainMaterial != null) Destroy(visual.CurtainMaterial);
+            if (visual.GroundMaterial != null) Destroy(visual.GroundMaterial);
+            if (visual.CurtainMesh != null) Destroy(visual.CurtainMesh);
+            if (visual.GroundMesh != null) Destroy(visual.GroundMesh);
+        }
+
+        private void OnDestroy()
+        {
+            if (_world != null)
+            {
+                _world.WorldShifted -= HandleWorldShift;
+            }
+            foreach (ZoneVisual visual in _zoneVisuals.Values)
+            {
+                DestroyZoneVisual(visual);
+            }
+            _zoneVisuals.Clear();
+            if (_plumeMaterial != null) Destroy(_plumeMaterial);
+            if (_streakMaterial != null) Destroy(_streakMaterial);
+            if (_hotPlateMaterial != null) Destroy(_hotPlateMaterial);
+            if (_hotGlowMaterial != null) Destroy(_hotGlowMaterial);
+            if (_distortionTexture != null) Destroy(_distortionTexture);
+            if (_particleTexture != null) Destroy(_particleTexture);
+            if (_interiorProfile != null) Destroy(_interiorProfile);
+        }
+    }
+}

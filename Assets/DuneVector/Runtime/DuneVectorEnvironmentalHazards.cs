@@ -3,6 +3,24 @@ using UnityEngine;
 
 namespace DuneVector
 {
+    public readonly struct HeatZoneSample
+    {
+        public readonly Vector2Int Id;
+        public readonly LogicalPosition LogicalCenter;
+        public readonly float Radius;
+        public readonly float Severity;
+        public readonly float Distance;
+
+        public HeatZoneSample(Vector2Int id, LogicalPosition logicalCenter, float radius, float severity, float distance)
+        {
+            Id = id;
+            LogicalCenter = logicalCenter;
+            Radius = radius;
+            Severity = severity;
+            Distance = distance;
+        }
+    }
+
     public enum ElectricalStrikePhase
     {
         Idle,
@@ -20,6 +38,7 @@ namespace DuneVector
         public bool LightningTargetsAir { get; private set; }
         public bool IsElectricalInterferenceActive { get; private set; }
         public float HeatZoneIntensity { get; private set; }
+        public float CurrentHeatZoneSeverity { get; private set; }
         public float CurrentTemperature { get; private set; }
         public float NormalizedTemperature => _heatSettings == null
             ? 0f
@@ -73,6 +92,11 @@ namespace DuneVector
                 _launcher.Fired += HandleWeaponFired;
             }
             _world.WorldShifted += HandleWorldShift;
+            if (_heatSettings.VisualsEnabled)
+            {
+                DuneVectorHeatZoneVisualSystem visuals = gameObject.AddComponent<DuneVectorHeatZoneVisualSystem>();
+                visuals.Initialize(this, _drone, _world, _heatSettings);
+            }
         }
 
         private void Update()
@@ -176,6 +200,7 @@ namespace DuneVector
             if (!_heatSettings.Enabled)
             {
                 HeatZoneIntensity = 0f;
+                CurrentHeatZoneSeverity = 0f;
                 CurrentTemperature = 0f;
                 return;
             }
@@ -207,6 +232,7 @@ namespace DuneVector
 
         private float SampleHeatZone(LogicalPosition position)
         {
+            CurrentHeatZoneSeverity = 0f;
             float cellSize = Mathf.Max(20f, _heatSettings.ZoneCellSize);
             int centerX = Mathf.FloorToInt((float)(position.X / cellSize));
             int centerZ = Mathf.FloorToInt((float)(position.Z / cellSize));
@@ -231,10 +257,70 @@ namespace DuneVector
                         ((position.Z - centerLogicalZ) * (position.Z - centerLogicalZ)));
                     float edgeStart = radius * (1f - Mathf.Clamp01(_heatSettings.ZoneEdgeFalloff));
                     float influence = 1f - Mathf.InverseLerp(edgeStart, radius, distance);
-                    strongest = Mathf.Max(strongest, influence);
+                    if (influence > strongest)
+                    {
+                        strongest = influence;
+                        CurrentHeatZoneSeverity = GetZoneSeverity(x, z);
+                    }
                 }
             }
             return strongest;
+        }
+
+        public void CollectNearbyHeatZones(System.Collections.Generic.List<HeatZoneSample> results, float range)
+        {
+            results.Clear();
+            if (_world == null || _heatSettings == null || !_heatSettings.Enabled)
+            {
+                return;
+            }
+
+            LogicalPosition player = _world.LogicalPlayerPosition;
+            float cellSize = Mathf.Max(20f, _heatSettings.ZoneCellSize);
+            int centerX = Mathf.FloorToInt((float)(player.X / cellSize));
+            int centerZ = Mathf.FloorToInt((float)(player.Z / cellSize));
+            int searchRadius = Mathf.CeilToInt((Mathf.Max(0f, range) + Mathf.Max(1f, _heatSettings.MaximumZoneRadius)) / cellSize) + 1;
+            for (int z = centerZ - searchRadius; z <= centerZ + searchRadius; z++)
+            {
+                for (int x = centerX - searchRadius; x <= centerX + searchRadius; x++)
+                {
+                    if (DuneVectorMath.Hash01(x, z, _world.WorldSeed, _heatSettings.RandomSeedOffset) > _heatSettings.ZoneChance)
+                    {
+                        continue;
+                    }
+
+                    LogicalPosition zoneCenter = new LogicalPosition(
+                        (x + DuneVectorMath.Hash01(x, z, _world.WorldSeed, _heatSettings.RandomSeedOffset + 1)) * cellSize,
+                        (z + DuneVectorMath.Hash01(x, z, _world.WorldSeed, _heatSettings.RandomSeedOffset + 2)) * cellSize);
+                    float radius = DuneVectorMath.HashRange(
+                        x, z, _world.WorldSeed, _heatSettings.RandomSeedOffset + 3,
+                        Mathf.Max(1f, _heatSettings.MinimumZoneRadius),
+                        Mathf.Max(_heatSettings.MinimumZoneRadius, _heatSettings.MaximumZoneRadius));
+                    float distance = (float)Math.Sqrt(
+                        ((player.X - zoneCenter.X) * (player.X - zoneCenter.X)) +
+                        ((player.Z - zoneCenter.Z) * (player.Z - zoneCenter.Z)));
+                    if (distance - radius <= range)
+                    {
+                        results.Add(new HeatZoneSample(
+                            new Vector2Int(x, z), zoneCenter, radius, GetZoneSeverity(x, z), distance));
+                    }
+                }
+            }
+            results.Sort((left, right) => left.Distance.CompareTo(right.Distance));
+        }
+
+        private float GetZoneSeverity(int cellX, int cellZ)
+        {
+            float roll = DuneVectorMath.Hash01(cellX, cellZ, _world.WorldSeed, _heatSettings.RandomSeedOffset + 4);
+            if (roll <= _heatSettings.ExtremeZoneChance)
+            {
+                return Mathf.Clamp01(_heatSettings.ExtremeSeverity);
+            }
+            if (roll <= _heatSettings.ExtremeZoneChance + _heatSettings.SevereZoneChance)
+            {
+                return Mathf.Clamp01(_heatSettings.SevereSeverity);
+            }
+            return Mathf.Clamp01(_heatSettings.MildSeverity);
         }
 
         private void HandleWeaponFired()
