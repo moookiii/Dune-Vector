@@ -207,6 +207,10 @@ namespace DuneVector
                 return;
             }
 
+            if (_lightning.TargetType == StormLightningAttackType.PlayerStrike)
+            {
+                _lightning.UpdatePlayerTarget(_player.WorldCenter);
+            }
             FacePosition(_lightning.TargetPosition, 9f);
             if (_lightning.TickCharge(deltaTime))
             {
@@ -607,6 +611,15 @@ namespace DuneVector
             return charge01 >= 1f;
         }
 
+        public void UpdatePlayerTarget(Vector3 targetPosition)
+        {
+            if (!_charging || _target.Type != StormLightningAttackType.PlayerStrike)
+            {
+                return;
+            }
+            _target = new StormLightningTarget(StormLightningAttackType.PlayerStrike, targetPosition);
+        }
+
         public void Fire()
         {
             _charging = false;
@@ -742,12 +755,15 @@ namespace DuneVector
             line.sharedMaterial = material;
             line.useWorldSpace = true;
             line.positionCount = 0;
+            line.alignment = LineAlignment.View;
+            line.textureMode = LineTextureMode.Stretch;
             line.startWidth = width;
             line.endWidth = width * 0.65f;
             line.numCapVertices = 4;
             line.numCornerVertices = 3;
             line.shadowCastingMode = ShadowCastingMode.Off;
             line.receiveShadows = false;
+            line.sortingOrder = 100;
             line.enabled = false;
             return line;
         }
@@ -806,6 +822,8 @@ namespace DuneVector
                 return;
             }
 
+            int previousDepth = GUI.depth;
+            GUI.depth = -1050;
             float scale = Mathf.Clamp(_settings.WarningHudScale, 0.6f, 2f);
             EnsureStyles(scale);
             float pulseSpeed = Mathf.Max(0f, _settings.WarningPulseSpeed);
@@ -816,6 +834,7 @@ namespace DuneVector
             DrawScreenBorder(warningColor, scale);
             DrawWarningPanel(threat, warningColor, scale);
             DrawTargetMarker(threat, warningColor, scale);
+            GUI.depth = previousDepth;
         }
 
         private bool TryGetMostUrgentThreat(out StormPyramidThreatWarning warning)
