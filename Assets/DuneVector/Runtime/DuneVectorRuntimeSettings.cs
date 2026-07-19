@@ -132,7 +132,10 @@ namespace DuneVector
         [Header("Lightning Attack")]
         [Tooltip("Delay before beginning a new attack after returning to idle.")]
         [Min(0.1f)] public float AttackInterval = 4.5f;
+        [Tooltip("Charge duration for a straight-down ground strike.")]
         [Min(0.1f)] public float ChargeTime = 1.15f;
+        [Tooltip("Charge duration for a player-targeted strike that is not straight down.")]
+        [Min(0.1f)] public float PlayerStrikeChargeTime = 0.9f;
         [Min(0f)] public float Cooldown = 2.4f;
         [Min(0f)] public float LightningDamage = 32f;
         [Min(0.1f)] public float StrikeRadius = 5.5f;
