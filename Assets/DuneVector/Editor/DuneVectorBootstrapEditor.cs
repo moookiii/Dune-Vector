@@ -110,6 +110,7 @@ namespace DuneVector.Editor
         private SerializedProperty _player;
         private SerializedProperty _droneVisuals;
         private SerializedProperty _flightSwooshes;
+        private SerializedProperty _windFields;
         private SerializedProperty _clouds;
         private SerializedProperty _weather;
         private SerializedProperty _deliveries;
@@ -137,6 +138,7 @@ namespace DuneVector.Editor
             _player = serializedObject.FindProperty("PlayerTuning");
             _droneVisuals = serializedObject.FindProperty("DroneVisuals");
             _flightSwooshes = serializedObject.FindProperty("FlightSwooshes");
+            _windFields = serializedObject.FindProperty("WindFields");
             _clouds = serializedObject.FindProperty("Clouds");
             _weather = serializedObject.FindProperty("Weather");
             _deliveries = serializedObject.FindProperty("Deliveries");
@@ -296,6 +298,10 @@ namespace DuneVector.Editor
                 "Dynamic Desert Weather",
                 "Storm frequency and progression, global wind, HDRP visibility, and recycled dust layers.",
                 _weather);
+            DuneVectorSettingsInspector.DrawSection(
+                "Wind Fields",
+                "World-space wind regions, gameplay forces, falloff, streamlines, surface sand, and distance LOD.",
+                _windFields);
             DuneVectorSettingsInspector.DrawSection(
                 "Cloud Field",
                 "Sky coverage, altitude, extent, and drift speed.",
