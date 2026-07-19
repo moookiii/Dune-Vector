@@ -33,6 +33,7 @@ namespace DuneVector
         private bool _hasMusicBus;
         private bool _hasSoundEffectsBus;
         private DroneHealth _health;
+        private DroneLockOnController _lockOnController;
         private float _masterFullVolume = 1f;
         private float _masterCurrentVolume = 1f;
         private float _masterTargetVolume = 1f;
@@ -120,19 +121,50 @@ namespace DuneVector
 
         public void PlayDroneFire(Vector3 position)
         {
-            if (_settings == null || string.IsNullOrWhiteSpace(_settings.DroneFireEvent))
+            PlayConfiguredOneShot(_settings != null ? _settings.DroneFireEvent : null, position, "drone-fire");
+        }
+
+        public void BindLockOnController(DroneLockOnController lockOnController)
+        {
+            if (_lockOnController != null)
+            {
+                _lockOnController.StateChanged -= HandleLockOnStateChanged;
+            }
+
+            _lockOnController = lockOnController;
+            if (_lockOnController != null)
+            {
+                _lockOnController.StateChanged += HandleLockOnStateChanged;
+            }
+        }
+
+        private void HandleLockOnStateChanged(DroneLockOnState state)
+        {
+            string eventPath = state switch
+            {
+                DroneLockOnState.TargetDetected => _settings.LockOnEvent,
+                DroneLockOnState.Locked => _settings.LockOnFullEvent,
+                _ => null,
+            };
+            Vector3 position = _health != null ? _health.transform.position : transform.position;
+            PlayConfiguredOneShot(eventPath, position, "lock-on");
+        }
+
+        private void PlayConfiguredOneShot(string eventPath, Vector3 position, string label)
+        {
+            if (string.IsNullOrWhiteSpace(eventPath))
             {
                 return;
             }
 
             try
             {
-                RuntimeManager.PlayOneShot(_settings.DroneFireEvent, position);
+                RuntimeManager.PlayOneShot(eventPath, position);
             }
             catch (EventNotFoundException exception)
             {
                 Debug.LogWarning(
-                    $"FMOD drone-fire event '{_settings.DroneFireEvent}' was not found. {exception.Message}",
+                    $"FMOD {label} event '{eventPath}' was not found. {exception.Message}",
                     this);
             }
         }
@@ -287,6 +319,10 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            if (_lockOnController != null)
+            {
+                _lockOnController.StateChanged -= HandleLockOnStateChanged;
+            }
             if (_health != null)
             {
                 _health.Damaged -= HandleDroneDamaged;

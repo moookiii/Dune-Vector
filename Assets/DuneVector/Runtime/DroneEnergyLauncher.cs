@@ -320,6 +320,7 @@ namespace DuneVector
     {
         public DroneLockOnState State { get; private set; }
         public EnemyCombatTarget Target { get; private set; }
+        public event Action<DroneLockOnState> StateChanged;
         public float AcquisitionProgress => State switch
         {
             DroneLockOnState.Locked => 1f,
@@ -373,6 +374,7 @@ namespace DuneVector
             State = state;
             Target = target;
             _stateTime = 0f;
+            StateChanged?.Invoke(State);
         }
     }
 
