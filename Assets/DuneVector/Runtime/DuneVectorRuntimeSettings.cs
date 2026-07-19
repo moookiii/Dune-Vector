@@ -321,6 +321,37 @@ namespace DuneVector
         [Min(1f)] public float TripleModifierRewardMultiplier = 2.4f;
         [Min(0f)] public float ContractRefreshSeconds = 240f;
 
+        [Header("Risk Scaling")]
+        [Min(0f)] public float RiskRewardMultiplierPerTier = 0.12f;
+        [Min(0f)] public float RiskEnemyHealthMultiplierPerTier = 0.08f;
+        [Min(0f)] public float RiskEnemySpeedMultiplierPerTier = 0.025f;
+        [Min(0f)] public float RiskEnemyDamageMultiplierPerTier = 0.07f;
+        [Min(0f)] public float RiskEnemyAttackRateMultiplierPerTier = 0.04f;
+
+        [Header("Risk Falling Ruins")]
+        [Min(1)] public int FallingRuinMinimumRisk = 2;
+        [Min(0f)] public float FallingRuinInitialDelay = 5f;
+        [Min(0.1f)] public float FallingRuinBaseInterval = 12f;
+        [Min(0f)] public float FallingRuinIntervalReductionPerRisk = 0.55f;
+        [Min(0.1f)] public float FallingRuinMinimumInterval = 2.5f;
+        [Min(0f)] public float FallingRuinMinimumTargetOffset = 0f;
+        [Min(0f)] public float FallingRuinMaximumTargetOffset = 9f;
+        [Min(0f)] public float FallingRuinTargetPredictionTime = 1.25f;
+        [Min(1f)] public float FallingRuinSpawnHeight = 72f;
+        [Min(0f)] public float FallingRuinGravity = 34f;
+        [Min(0f)] public float FallingRuinHorizontalDrift = 2.5f;
+        [Min(0f)] public float FallingRuinBaseDamage = 18f;
+        [Min(0f)] public float FallingRuinDamagePerRisk = 5f;
+        [Min(0.1f)] public float FallingRuinPlayerCollisionRadius = 2.2f;
+        [Range(1, 12)] public int FallingRuinMinimumPieceCount = 3;
+        [Range(1, 12)] public int FallingRuinMaximumPieceCount = 6;
+        [Min(0.1f)] public float FallingRuinMinimumPieceScale = 1.8f;
+        [Min(0.1f)] public float FallingRuinMaximumPieceScale = 4.8f;
+        [Min(0f)] public float FallingRuinScalePerRisk = 0.035f;
+        [Min(0f)] public float FallingRuinRotationSpeed = 95f;
+        [Min(0f)] public float FallingRuinSettledLifetime = 4f;
+        [Range(1, 24)] public int FallingRuinMaximumActive = 10;
+
         [Header("Cargo Modifiers")]
         [Range(0f, 100f)] public float FragileFailureIntegrity = 18f;
         [Min(0f)] public float FragileCargoDamageMultiplier = 1.45f;

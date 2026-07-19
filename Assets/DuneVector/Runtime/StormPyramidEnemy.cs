@@ -172,7 +172,8 @@ namespace DuneVector
 
         private void UpdateIdle(float deltaTime)
         {
-            _attackTimer = Mathf.Max(0f, _attackTimer - deltaTime);
+            _attackTimer = Mathf.Max(0f, _attackTimer -
+                (deltaTime * DuneVectorContractRisk.EnemyAttackRateMultiplier));
             if (_attackTimer <= 0f)
             {
                 BeginGroundStrike();
@@ -346,7 +347,8 @@ namespace DuneVector
         public void Tick(float deltaTime)
         {
             float range = Mathf.Max(0f, _settings.PatrolDriftRange);
-            float speed = Mathf.Max(0f, _settings.PatrolDriftSpeed);
+            float speed = Mathf.Max(0f, _settings.PatrolDriftSpeed) *
+                DuneVectorContractRisk.EnemySpeedMultiplier;
             if (range <= 0.001f || speed <= 0.001f)
             {
                 Vector3 stationary = transform.position;
@@ -435,7 +437,9 @@ namespace DuneVector
 
             if (Vector3.Distance(_player.WorldCenter, strikePoint) <= strikeRadius)
             {
-                _health.TakeDamage(damage, damageSource);
+                _health.TakeDamage(
+                    damage * DuneVectorContractRisk.EnemyDamageMultiplier,
+                    damageSource);
             }
         }
     }
@@ -805,7 +809,8 @@ namespace DuneVector
 
         private void UpdateIdle(float deltaTime)
         {
-            _attackTimer = Mathf.Max(0f, _attackTimer - deltaTime);
+            _attackTimer = Mathf.Max(0f, _attackTimer -
+                (deltaTime * DuneVectorContractRisk.EnemyAttackRateMultiplier));
             if (_attackTimer > 0f || !_targeting.CanTargetAirbornePlayer(transform.position))
             {
                 return;
@@ -1001,7 +1006,8 @@ namespace DuneVector
         public void Tick(float deltaTime)
         {
             float range = Mathf.Max(0f, _settings.PatrolDriftRange);
-            float speed = Mathf.Max(0f, _settings.PatrolDriftSpeed);
+            float speed = Mathf.Max(0f, _settings.PatrolDriftSpeed) *
+                DuneVectorContractRisk.EnemySpeedMultiplier;
             if (range > 0.001f && speed > 0.001f)
             {
                 _phase += (speed / Mathf.Max(1f, range)) * deltaTime;

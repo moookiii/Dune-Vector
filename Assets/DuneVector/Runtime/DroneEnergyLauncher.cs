@@ -29,6 +29,8 @@ namespace DuneVector
                 return false;
             }
 
+            damage /= Mathf.Max(0.1f, DuneVectorContractRisk.EnemyHealthMultiplier);
+
             float previousHealth = CurrentHealth;
             CurrentHealth = Mathf.Max(0f, CurrentHealth - damage);
             Damaged?.Invoke(previousHealth - CurrentHealth);

@@ -76,7 +76,10 @@ namespace DuneVector
                 return;
             }
 
-            _stateTime += deltaTime;
+            float stateRate = CurrentState == GroundExploderState.TriggeredWindUp
+                ? DuneVectorContractRisk.EnemyAttackRateMultiplier
+                : 1f;
+            _stateTime += deltaTime * stateRate;
             switch (CurrentState)
             {
                 case GroundExploderState.Patrolling:
@@ -120,7 +123,10 @@ namespace DuneVector
         private void Detonate()
         {
             SetState(GroundExploderState.Exploding);
-            _damage.Detonate(transform.position, _settings.ExplosionRadius, _settings.MaximumDamage);
+            _damage.Detonate(
+                transform.position,
+                _settings.ExplosionRadius,
+                _settings.MaximumDamage * DuneVectorContractRisk.EnemyDamageMultiplier);
         }
 
         private void SetState(GroundExploderState state)
@@ -248,7 +254,7 @@ namespace DuneVector
                     Vector2 next = Vector2.MoveTowards(
                         current,
                         _patrolTarget,
-                        _settings.MovementSpeed * fixedDeltaTime);
+                        _settings.MovementSpeed * DuneVectorContractRisk.EnemySpeedMultiplier * fixedDeltaTime);
                     Vector3 surfaceNormal = SampleNormal(next);
                     Vector3 localPosition = new Vector3(
                         next.x,

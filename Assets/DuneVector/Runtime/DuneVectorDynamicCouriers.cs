@@ -200,7 +200,8 @@ namespace DuneVector
             }
 
             float deltaTime = Time.deltaTime;
-            _shotTimer = Mathf.Max(0f, _shotTimer - deltaTime);
+            _shotTimer = Mathf.Max(0f, _shotTimer -
+                (deltaTime * DuneVectorContractRisk.EnemyAttackRateMultiplier));
             Vector3 targetPosition = _target.transform.position;
             Vector3 orbitOffset = new Vector3(
                 Mathf.Cos(_orbitPhase),
@@ -210,7 +211,7 @@ namespace DuneVector
             _cachedTransform.position = Vector3.MoveTowards(
                 _cachedTransform.position,
                 desiredPosition,
-                _settings.AttackerSpeed * deltaTime);
+                _settings.AttackerSpeed * DuneVectorContractRisk.EnemySpeedMultiplier * deltaTime);
 
             Vector3 toTarget = targetPosition - _cachedTransform.position;
             if (toTarget.sqrMagnitude > Mathf.Epsilon)
@@ -226,7 +227,8 @@ namespace DuneVector
             if (_shotTimer <= 0f && toTarget.sqrMagnitude <= shotRange * shotRange)
             {
                 _shotTimer = _settings.AttackerShotInterval;
-                _target.TakeDamage(_settings.AttackerShotDamage);
+                _target.TakeDamage(
+                    _settings.AttackerShotDamage * DuneVectorContractRisk.EnemyDamageMultiplier);
                 CreateShotVisual(_cachedTransform.position, targetPosition);
             }
         }

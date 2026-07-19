@@ -68,7 +68,8 @@ namespace DuneVector
 
             float deltaTime = Time.deltaTime;
             _stateTime += deltaTime;
-            _attackCooldown = Mathf.Max(0f, _attackCooldown - deltaTime);
+            _attackCooldown = Mathf.Max(0f, _attackCooldown -
+                (deltaTime * DuneVectorContractRisk.EnemyAttackRateMultiplier));
             Vector3 playerPosition = _player.WorldCenter;
 
             bool canReposition = CurrentState != SkyPiercerState.AttackDive
@@ -123,7 +124,10 @@ namespace DuneVector
             float terrainHeight = _world.SampleHeightAtLocal(playerPosition.x, playerPosition.z);
             Vector3 target = playerPosition;
             target.y = Mathf.Max(terrainHeight + _settings.HoverHeight, playerPosition.y + 7f);
-            _cachedTransform.position = Vector3.MoveTowards(_cachedTransform.position, target, _settings.FollowSpeed * deltaTime);
+            _cachedTransform.position = Vector3.MoveTowards(
+                _cachedTransform.position,
+                target,
+                _settings.FollowSpeed * DuneVectorContractRisk.EnemySpeedMultiplier * deltaTime);
 
             Vector2 horizontalOffset = new Vector2(
                 _cachedTransform.position.x - playerPosition.x,
@@ -146,7 +150,10 @@ namespace DuneVector
         private void UpdateDive(float deltaTime)
         {
             Vector3 position = _cachedTransform.position;
-            position.y = Mathf.MoveTowards(position.y, _strikePoint.y, _settings.AttackSpeed * deltaTime);
+            position.y = Mathf.MoveTowards(
+                position.y,
+                _strikePoint.y,
+                _settings.AttackSpeed * DuneVectorContractRisk.EnemySpeedMultiplier * deltaTime);
             _cachedTransform.position = position;
             if (Mathf.Abs(position.y - _strikePoint.y) <= 0.01f)
             {
@@ -159,7 +166,9 @@ namespace DuneVector
             float impactRadius = _settings.ImpactRadius;
             if ((_player.WorldCenter - _strikePoint).sqrMagnitude <= impactRadius * impactRadius)
             {
-                _playerHealth.TakeDamage(_settings.ImpactDamage, "Sky Piecer impact");
+                _playerHealth.TakeDamage(
+                    _settings.ImpactDamage * DuneVectorContractRisk.EnemyDamageMultiplier,
+                    "Sky Piecer impact");
             }
             SetState(SkyPiercerState.StuckInGround);
         }
@@ -180,7 +189,10 @@ namespace DuneVector
                 currentPosition.x,
                 terrainHeight + _settings.HoverHeight,
                 currentPosition.z);
-            _cachedTransform.position = Vector3.MoveTowards(currentPosition, target, _settings.ReturnSpeed * deltaTime);
+            _cachedTransform.position = Vector3.MoveTowards(
+                currentPosition,
+                target,
+                _settings.ReturnSpeed * DuneVectorContractRisk.EnemySpeedMultiplier * deltaTime);
             if ((_cachedTransform.position - target).sqrMagnitude <= 0.0025f)
             {
                 _hoverAnchor = target;

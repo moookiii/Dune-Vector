@@ -707,7 +707,9 @@ namespace DuneVector
             if (!_contactDamageApplied && playerDistance <= _settings.ContactRadius)
             {
                 _contactDamageApplied = true;
-                _health.TakeDamage(_settings.ContactDamage * _damageMultiplier, "Formation enemy collision");
+                _health.TakeDamage(
+                    _settings.ContactDamage * _damageMultiplier * DuneVectorContractRisk.EnemyDamageMultiplier,
+                    "Formation enemy collision");
             }
             if (Vector3.Distance(transform.position, _passTarget) <= 2f)
             {
@@ -749,14 +751,16 @@ namespace DuneVector
                 {
                     if (Vector3.Distance(_player.WorldCenter, _telegraphedPoint) <= _settings.ShotHitRadius)
                     {
-                        _health.TakeDamage(_settings.ShotDamage * _damageMultiplier, "Formation enemy shot");
+                        _health.TakeDamage(
+                            _settings.ShotDamage * _damageMultiplier * DuneVectorContractRisk.EnemyDamageMultiplier,
+                            "Formation enemy shot");
                     }
                     _shotTimer = _settings.ShotInterval * _shotIntervalMultiplier;
                     _shotVisualTimer = _settings.ShotVisualDuration;
                 }
                 return;
             }
-            _shotTimer -= deltaTime;
+            _shotTimer -= deltaTime * DuneVectorContractRisk.EnemyAttackRateMultiplier;
             if (_shotTimer <= 0f)
             {
                 float prediction = _settings.ShotTelegraphDuration;
@@ -775,7 +779,10 @@ namespace DuneVector
                     Quaternion.LookRotation(direction.normalized, Vector3.up),
                     DuneVectorMath.Sharpness(_settings.TurnSharpness, deltaTime));
             }
-            transform.position = Vector3.MoveTowards(transform.position, target, speed * _speedMultiplier * deltaTime);
+            transform.position = Vector3.MoveTowards(
+                transform.position,
+                target,
+                speed * _speedMultiplier * DuneVectorContractRisk.EnemySpeedMultiplier * deltaTime);
         }
 
         private void SetState(FormationEnemyState state)
