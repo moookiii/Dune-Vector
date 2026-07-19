@@ -108,22 +108,42 @@ namespace DuneVector
             float stamina01 = _stamina.NormalizedStamina;
             Color meterColor = GetMeterColor(stamina01);
 
-            if (Event.current.type == EventType.Repaint && EnsureArcMaterial())
+            if (Event.current.type == EventType.Repaint)
             {
                 Color backgroundColor = _settings.MeterBackgroundColor;
                 backgroundColor.a *= _visibleAlpha;
                 meterColor.a *= _visibleAlpha;
 
-                DrawContinuousArc(
-                    center,
-                    _settings.MeterArcStartDegrees,
-                    _settings.MeterArcDegrees,
-                    backgroundColor);
+                DrawBackgroundIcon(center, backgroundColor);
+                if (!EnsureArcMaterial())
+                {
+                    return;
+                }
+
                 float filledDegrees = _settings.MeterArcDegrees * stamina01;
                 float filledStartDegrees = _settings.MeterArcStartDegrees
                     + (_settings.MeterArcDegrees - filledDegrees);
                 DrawContinuousArc(center, filledStartDegrees, filledDegrees, meterColor);
             }
+        }
+
+        private void DrawBackgroundIcon(Vector2 center, Color tint)
+        {
+            if (_settings.MeterBackgroundIcon == null || tint.a <= 0f)
+            {
+                return;
+            }
+
+            float size = Mathf.Max(1f, _settings.MeterBackgroundIconSize);
+            Rect destination = new Rect(
+                center.x - (size * 0.5f),
+                center.y - (size * 0.5f),
+                size,
+                size);
+            Color previousColor = GUI.color;
+            GUI.color = tint;
+            GUI.DrawTexture(destination, _settings.MeterBackgroundIcon, ScaleMode.StretchToFill, true);
+            GUI.color = previousColor;
         }
 
         private Color GetMeterColor(float stamina01)
