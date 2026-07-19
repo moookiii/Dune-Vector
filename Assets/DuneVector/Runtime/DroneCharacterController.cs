@@ -490,7 +490,7 @@ namespace DuneVector
 
         private void ApplyWindFieldForce(ref Vector3 currentVelocity, float deltaTime)
         {
-            if (_windFields == null || _windFieldSettings == null)
+            if (_windFields == null || _windFieldSettings == null || _windFields.IsPlayerWindSuppressed)
             {
                 CurrentWindForce = Vector3.zero;
                 CurrentWindInfluence = 0f;
