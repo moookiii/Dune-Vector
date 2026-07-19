@@ -167,8 +167,13 @@ namespace DuneVector
                 Color groupColor = GetGroupColor(group);
                 float groupHeaderHeight = _visuals.GroupHeaderHeight * scale;
                 Rect groupHeader = new Rect(0f, y, width, groupHeaderHeight);
+                DrawSolidRect(groupHeader, _visuals.RowColor);
                 DrawSolidRect(
-                    new Rect(groupHeader.x, groupHeader.y + (groupHeader.height * 0.5f), groupHeader.width, Mathf.Max(1f, _visuals.BorderThickness * scale)),
+                    new Rect(
+                        groupHeader.x,
+                        groupHeader.yMax - Mathf.Max(1f, _visuals.BorderThickness * scale),
+                        groupHeader.width,
+                        Mathf.Max(1f, _visuals.BorderThickness * scale)),
                     WithAlpha(groupColor, _visuals.GroupLineOpacity));
                 DrawSolidRect(new Rect(groupHeader.x, groupHeader.y, _visuals.GroupAccentWidth * scale, groupHeader.height), groupColor);
                 _groupStyle.normal.textColor = groupColor;
