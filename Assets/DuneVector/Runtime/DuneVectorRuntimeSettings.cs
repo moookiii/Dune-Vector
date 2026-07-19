@@ -52,6 +52,12 @@ namespace DuneVector
         [Min(0f)] public float ObjectiveRingHeight = 3.4f;
         [Min(0.1f)] public float PackageScale = 0.8f;
 
+        [Header("Objective Ring Appearance")]
+        [ColorUsage(false, true)] public Color PickupRingBaseColor = new Color(0.32f, 0.015f, 0.48f);
+        [ColorUsage(false, true)] public Color PickupRingEmissionColor = new Color(2.8f, 0.05f, 4.2f);
+        [ColorUsage(false, true)] public Color DeliveryRingBaseColor = new Color(0.015f, 0.42f, 0.12f);
+        [ColorUsage(false, true)] public Color DeliveryRingEmissionColor = new Color(0.05f, 3.8f, 0.45f);
+
         [Header("Completion Message")]
         [ColorUsage(false)] public Color CompletionTextRed = new Color(1f, 0.55f, 0.68f);
         [ColorUsage(false)] public Color CompletionTextGreen = new Color(0.55f, 1f, 0.72f);
@@ -277,6 +283,12 @@ namespace DuneVector
         [Header("Starting Size")]
         [Min(0.75f)] public float GroundRingRadius = 3.25f;
         [Min(0.75f)] public float FlightRingRadius = 3.55f;
+
+        [Header("Boost and Flight Ring Appearance")]
+        [ColorUsage(false, true)] public Color BoostRingBaseColor = new Color(0.42f, 0.09f, 0.008f);
+        [ColorUsage(false, true)] public Color BoostRingEmissionColor = new Color(3.6f, 0.72f, 0.025f);
+        [ColorUsage(false, true)] public Color FlightRingBaseColor = new Color(0.004f, 0.19f, 0.32f);
+        [ColorUsage(false, true)] public Color FlightRingEmissionColor = new Color(0f, 2f, 3.6f);
 
         [Header("Upper Flight Ring Unlock")]
         [Tooltip("Number of distinct blue flight rings the player must cross before the upper-layer ring appears.")]

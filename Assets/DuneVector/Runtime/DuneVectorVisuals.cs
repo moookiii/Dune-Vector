@@ -37,17 +37,18 @@ namespace DuneVector
 
         private readonly List<Material> _ownedMaterials = new List<Material>();
 
-        public DuneVectorMaterials(RingTuning ringTuning = null)
+        public DuneVectorMaterials(RingTuning ringTuning = null, DeliveryTuning deliveryTuning = null)
         {
             RingTuning rings = ringTuning ?? new RingTuning();
+            DeliveryTuning delivery = deliveryTuning ?? new DeliveryTuning();
             Sand = CreateLit("Sand - Warm Rough", new Color(0.62f, 0.36f, 0.16f), 0.14f, 0f);
             DroneBody = CreateLit("Drone - Ivory", new Color(0.75f, 0.78f, 0.78f), 0.72f, 0.7f);
             DroneAccent = CreateLit("Drone - Cyan Emission", new Color(0.015f, 0.12f, 0.16f), 0.78f, 0.45f, new Color(0.0f, 1.6f, 2.8f));
             DroneDark = CreateLit("Drone - Graphite", new Color(0.018f, 0.025f, 0.033f), 0.64f, 0.85f);
             Cactus = CreateLit("Cactus - Stylized", new Color(0.08f, 0.31f, 0.16f), 0.25f, 0f);
             Sandstone = CreateLit("Pyramid - Sandstone", new Color(0.58f, 0.31f, 0.13f), 0.18f, 0f);
-            BoostRing = CreateLit("Ring - Boost Amber", new Color(0.42f, 0.09f, 0.008f), 0.65f, 0.4f, new Color(3.6f, 0.72f, 0.025f));
-            FlightRing = CreateLit("Ring - Flight Cyan", new Color(0.004f, 0.19f, 0.32f), 0.7f, 0.5f, new Color(0.0f, 2.0f, 3.6f));
+            BoostRing = CreateLit("Ring - Boost Amber", rings.BoostRingBaseColor, 0.65f, 0.4f, rings.BoostRingEmissionColor);
+            FlightRing = CreateLit("Ring - Flight Cyan", rings.FlightRingBaseColor, 0.7f, 0.5f, rings.FlightRingEmissionColor);
             HealthRing = CreateLit(
                 "Ring - Health Crimson",
                 rings.HealthRingBaseColor,
@@ -85,8 +86,8 @@ namespace DuneVector
             Trail = CreateLit("Drone - Trail", new Color(0.0f, 0.06f, 0.08f), 0.6f, 0.1f, new Color(0.0f, 0.8f, 1.4f));
             Cloud = CreateLit("Cloud - Sunlit", new Color(0.82f, 0.88f, 0.94f), 0.08f, 0f);
             Package = CreateLit("Delivery Package", new Color(0.72f, 0.24f, 0.035f), 0.34f, 0.05f, new Color(1.4f, 0.2f, 0.01f));
-            PickupRing = CreateLit("Job Ring - Pickup", new Color(0.32f, 0.015f, 0.48f), 0.72f, 0.32f, new Color(2.8f, 0.05f, 4.2f));
-            DeliveryRing = CreateLit("Job Ring - Delivery", new Color(0.015f, 0.42f, 0.12f), 0.68f, 0.28f, new Color(0.05f, 3.8f, 0.45f));
+            PickupRing = CreateLit("Job Ring - Pickup", delivery.PickupRingBaseColor, 0.72f, 0.32f, delivery.PickupRingEmissionColor);
+            DeliveryRing = CreateLit("Job Ring - Delivery", delivery.DeliveryRingBaseColor, 0.68f, 0.28f, delivery.DeliveryRingEmissionColor);
             EnemyBody = CreateLit("Sky Piercer - Body", new Color(0.13f, 0.025f, 0.035f), 0.48f, 0.72f, new Color(1.7f, 0.035f, 0.06f));
             EnemyCore = CreateLit("Sky Piercer - Core", new Color(0.008f, 0.004f, 0.012f), 0.82f, 0.18f, new Color(3.2f, 0.02f, 0.55f));
             GroundEnemyBody = CreateLit("Ground Exploder - Body", new Color(0.055f, 0.045f, 0.04f), 0.5f, 0.78f, new Color(0.16f, 0.025f, 0.005f));
