@@ -725,6 +725,10 @@ namespace DuneVector
 
         private void OnGUI()
         {
+            if (DuneVectorCourierGame.IsGameplayHudSuppressed)
+            {
+                return;
+            }
             if (Drone == null || CameraController == null || World == null)
             {
                 return;

@@ -801,6 +801,10 @@ namespace DuneVector
 
         private void OnGUI()
         {
+            if (DuneVectorCourierGame.IsGameplayHudSuppressed)
+            {
+                return;
+            }
             if (_player == null || _settings == null || _enemies == null)
             {
                 return;

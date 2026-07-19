@@ -231,7 +231,9 @@ namespace DuneVector
         [Min(0f)] public float TerminalScreenMargin = 28f;
         [Min(10f)] public float TerminalPadding = 28f;
         [Min(10f)] public float ContractCardGap = 12f;
-        [Range(2, 3)] public int TerminalCardColumns = 3;
+        [Range(2, 4)] public int TerminalCardColumns = 3;
+        [Range(3, 4)] public int TerminalExpandedGridColumns = 4;
+        [Range(5, 8)] public int TerminalExpandedGridThreshold = 6;
         [Min(100f)] public float ContractCardHeight = 196f;
         [Min(10)] public int TerminalTitleFontSize = 30;
         [Min(9)] public int TerminalBodyFontSize = 13;

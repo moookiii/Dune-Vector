@@ -108,6 +108,10 @@ namespace DuneVector
 
         private void OnGUI()
         {
+            if (DuneVectorCourierGame.IsGameplayHudSuppressed)
+            {
+                return;
+            }
             if (Health == null)
             {
                 return;

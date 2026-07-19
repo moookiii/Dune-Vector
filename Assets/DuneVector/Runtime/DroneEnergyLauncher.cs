@@ -820,6 +820,10 @@ namespace DuneVector
 
         private void OnGUI()
         {
+            if (DuneVectorCourierGame.IsGameplayHudSuppressed)
+            {
+                return;
+            }
             if (_camera == null || _lockController == null || _settings == null || !_settings.Enabled)
             {
                 return;

@@ -331,6 +331,10 @@ namespace DuneVector
 
         private void OnGUI()
         {
+            if (DuneVectorCourierGame.IsGameplayHudSuppressed)
+            {
+                return;
+            }
             if (Time.unscaledTime >= _waveAnnouncementUntil || string.IsNullOrEmpty(_waveAnnouncement))
             {
                 return;

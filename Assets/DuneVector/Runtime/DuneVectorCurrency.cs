@@ -260,6 +260,10 @@ namespace DuneVector
 
         private void OnGUI()
         {
+            if (DuneVectorCourierGame.IsGameplayHudSuppressed)
+            {
+                return;
+            }
             if (_wallet == null || _settings == null)
             {
                 return;

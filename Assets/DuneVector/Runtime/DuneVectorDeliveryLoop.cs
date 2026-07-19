@@ -293,6 +293,10 @@ namespace DuneVector
 
         private void OnGUI()
         {
+            if (DuneVectorCourierGame.IsGameplayHudSuppressed)
+            {
+                return;
+            }
             if (ActiveObjective == null || _camera == null || _player == null)
             {
                 return;

@@ -81,6 +81,10 @@ namespace DuneVector
 
         private void OnGUI()
         {
+            if (DuneVectorCourierGame.IsGameplayHudSuppressed)
+            {
+                return;
+            }
             if (_stamina == null || _settings == null || !_hasScreenCenter || _visibleAlpha <= 0f)
             {
                 return;

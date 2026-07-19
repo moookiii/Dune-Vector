@@ -192,6 +192,14 @@ namespace DuneVector
         public bool IsContractActive => State == CourierRunState.FindPackage || State == CourierRunState.Delivering;
         public bool IsCarryingCargo => State == CourierRunState.Delivering;
         public bool IsTerminalOpen => _terminalOpen;
+        public static bool IsGameplayHudSuppressed
+        {
+            get
+            {
+                DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
+                return bootstrap != null && bootstrap.CourierGame != null && bootstrap.CourierGame.IsTerminalOpen;
+            }
+        }
         public float CargoIntegrity { get; private set; } = 100f;
         public float ExpressTimeRemaining { get; private set; }
         public DuneVectorCourierProgress Progress { get; private set; }
@@ -254,6 +262,12 @@ namespace DuneVector
         private GUIStyle _terminalBodyStyle;
         private GUIStyle _terminalButtonStyle;
         private GUIStyle _terminalPanelStyle;
+        private GUIStyle _terminalSubtitleStyle;
+        private GUIStyle _terminalKickerStyle;
+        private GUIStyle _terminalDestinationStyle;
+        private GUIStyle _terminalMetaStyle;
+        private GUIStyle _terminalRewardStyle;
+        private GUIStyle _terminalActionStyle;
         private GUIStyle _hudTitleStyle;
         private GUIStyle _hudBodyStyle;
         private GUIStyle _objectiveStyle;
@@ -1313,11 +1327,18 @@ namespace DuneVector
             }
             _terminalTitleStyle = LabelStyle(_hubSettings.TerminalTitleFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _hubSettings.TerminalAccentColor);
             _terminalBodyStyle = LabelStyle(_hubSettings.TerminalBodyFontSize, FontStyle.Normal, TextAnchor.UpperLeft, _hubSettings.TerminalTextColor);
+            _terminalSubtitleStyle = LabelStyle(_hubSettings.TerminalMetaFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _hubSettings.TerminalMutedTextColor);
+            _terminalKickerStyle = LabelStyle(_hubSettings.TerminalKickerFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _hubSettings.TerminalAccentColor);
+            _terminalDestinationStyle = LabelStyle(_hubSettings.TerminalDestinationFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _hubSettings.TerminalTextColor);
+            _terminalMetaStyle = LabelStyle(_hubSettings.TerminalMetaFontSize, FontStyle.Normal, TextAnchor.MiddleLeft, _hubSettings.TerminalMutedTextColor);
+            _terminalRewardStyle = LabelStyle(_hubSettings.TerminalRewardFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _hubSettings.TerminalHighValueColor);
+            _terminalActionStyle = LabelStyle(_hubSettings.TerminalButtonFontSize, FontStyle.Bold, TextAnchor.MiddleRight, _hubSettings.TerminalAccentColor);
             _terminalPanelTexture = SolidTexture(_hubSettings.TerminalPanelColor, "Courier Terminal Panel");
             _terminalCardTexture = SolidTexture(_hubSettings.TerminalCardColor, "Courier Contract Card");
             _terminalCardHoverTexture = SolidTexture(_hubSettings.TerminalCardHoverColor, "Courier Contract Card Hover");
             _terminalPanelStyle = new GUIStyle(GUI.skin.box);
             _terminalPanelStyle.normal.background = _terminalPanelTexture;
+            _terminalPanelStyle.border = new RectOffset(0, 0, 0, 0);
             _terminalButtonStyle = new GUIStyle(GUI.skin.button)
             {
                 fontSize = _hubSettings.TerminalButtonFontSize,
@@ -1325,6 +1346,9 @@ namespace DuneVector
                 alignment = TextAnchor.MiddleCenter,
                 wordWrap = true,
             };
+            _terminalButtonStyle.border = new RectOffset(0, 0, 0, 0);
+            _terminalButtonStyle.padding = new RectOffset(0, 0, 0, 0);
+            _terminalButtonStyle.margin = new RectOffset(0, 0, 0, 0);
             _terminalButtonStyle.normal.background = _terminalCardTexture;
             _terminalButtonStyle.hover.background = _terminalCardHoverTexture;
             _terminalButtonStyle.active.background = _terminalCardHoverTexture;
@@ -1390,91 +1414,162 @@ namespace DuneVector
         {
             GUI.depth = -1100;
             Color previousBackground = GUI.backgroundColor;
-            float width = Mathf.Min(_hubSettings.TerminalPanelWidth, Screen.width - (_hubSettings.TerminalScreenMargin * 2f));
-            float height = Mathf.Min(_hubSettings.TerminalPanelHeight, Screen.height - (_hubSettings.TerminalScreenMargin * 2f));
-            Rect panel = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height);
+            Matrix4x4 previousMatrix = GUI.matrix;
+            DrawSolidRect(new Rect(0f, 0f, Screen.width, Screen.height), _hubSettings.TerminalBackdropColor);
+
+            float minimumScale = Mathf.Min(_hubSettings.TerminalMinimumScale, _hubSettings.TerminalMaximumScale);
+            float maximumScale = Mathf.Max(_hubSettings.TerminalMinimumScale, _hubSettings.TerminalMaximumScale);
+            float scale = Mathf.Clamp(
+                Mathf.Min(
+                    Screen.width / Mathf.Max(1f, _hubSettings.TerminalReferenceWidth),
+                    Screen.height / Mathf.Max(1f, _hubSettings.TerminalReferenceHeight)),
+                minimumScale,
+                maximumScale);
+            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
+            float virtualWidth = Screen.width / scale;
+            float virtualHeight = Screen.height / scale;
+            float width = Mathf.Min(_hubSettings.TerminalPanelWidth, virtualWidth - (_hubSettings.TerminalScreenMargin * 2f));
+            float height = Mathf.Min(_hubSettings.TerminalPanelHeight, virtualHeight - (_hubSettings.TerminalScreenMargin * 2f));
+            Rect panel = new Rect((virtualWidth - width) * 0.5f, (virtualHeight - height) * 0.5f, width, height);
+            Rect shadow = new Rect(
+                panel.x + _hubSettings.TerminalPanelShadowOffset.x,
+                panel.y + _hubSettings.TerminalPanelShadowOffset.y,
+                panel.width,
+                panel.height);
+            DrawSolidRect(shadow, _hubSettings.TerminalShadowColor);
             GUI.Box(panel, GUIContent.none, _terminalPanelStyle);
+            DrawBorder(panel, _hubSettings.TerminalBorderColor, _hubSettings.TerminalPanelBorderThickness);
             DrawSolidRect(
                 new Rect(panel.x, panel.y, panel.width, _hubSettings.TerminalAccentBarHeight),
                 _hubSettings.TerminalAccentColor);
-            float padding = _hubSettings.TerminalPadding;
-            GUI.Label(new Rect(panel.x + padding, panel.y + padding, panel.width - (padding * 2f), 44f), "COURIER CONTRACT TERMINAL", _terminalTitleStyle);
-            GUI.Label(new Rect(panel.x + padding, panel.y + 62f, panel.width - (padding * 2f), 26f),
-                $"COMPLETED: {Progress.CompletedDeliveries}    GOLD: {(_wallet != null ? _wallet.Gold : 0)}    " +
-                $"DUAL MODIFIERS: {(Progress.CompletedDeliveries >= _settings.DualModifierUnlockDeliveries ? "UNLOCKED" : $"{_settings.DualModifierUnlockDeliveries - Progress.CompletedDeliveries} TO GO")}",
-                _terminalBodyStyle);
 
-            float cardsTop = panel.y + _hubSettings.TerminalHeaderHeight;
+            float padding = _hubSettings.TerminalPadding;
+            float contentWidth = panel.width - (padding * 2f);
+            GUI.Label(
+                new Rect(panel.x + padding, panel.y + 15f, contentWidth, 18f),
+                "COURIER AERIE  /  CONTRACT EXCHANGE",
+                _terminalSubtitleStyle);
+            GUI.Label(
+                new Rect(panel.x + padding, panel.y + 34f, contentWidth, 40f),
+                "AVAILABLE CONTRACTS",
+                _terminalTitleStyle);
+            _terminalActionStyle.normal.textColor = _hubSettings.TerminalAccentColor;
+            GUI.Label(
+                new Rect(panel.xMax - padding - 120f, panel.y + 15f, 120f, 18f),
+                "ESC  CLOSE",
+                _terminalActionStyle);
+
+            string modifierAccess = Progress.CompletedDeliveries >= _settings.DualModifierUnlockDeliveries
+                ? "DUAL CARGO  UNLOCKED"
+                : $"DUAL CARGO  {_settings.DualModifierUnlockDeliveries - Progress.CompletedDeliveries} RUNS TO GO";
+            GUI.Label(
+                new Rect(panel.x + padding, panel.y + 78f, contentWidth, 26f),
+                $"COMPLETED  {Progress.CompletedDeliveries:000}      AVAILABLE  {_offers.Count:00}      WALLET  {(_wallet != null ? _wallet.Gold : 0):N0} GOLD      {modifierAccess}",
+                _terminalMetaStyle);
+            DrawSolidRect(
+                new Rect(panel.x + padding, panel.y + _hubSettings.TerminalHeaderHeight - 2f, contentWidth, 1f),
+                _hubSettings.TerminalDividerColor);
+
+            int columns = _offers.Count > _hubSettings.TerminalExpandedGridThreshold
+                ? _hubSettings.TerminalExpandedGridColumns
+                : _hubSettings.TerminalCardColumns;
+            columns = Mathf.Clamp(columns, 2, 4);
+            columns = Mathf.Min(columns, Mathf.Max(1, _offers.Count));
+            int rowCount = Mathf.Max(1, Mathf.CeilToInt(_offers.Count / (float)columns));
+            float cardsTop = panel.y + _hubSettings.TerminalHeaderHeight + 12f;
+            float cardsBottom = panel.yMax - _hubSettings.TerminalFooterHeight - padding;
             float gap = _hubSettings.ContractCardGap;
-            float cardWidth = (panel.width - (padding * 2f) - gap) * 0.5f;
-            int rowCount = Mathf.Max(1, Mathf.CeilToInt(_offers.Count / 2f));
+            float cardWidth = (panel.width - (padding * 2f) - (gap * (columns - 1))) / columns;
             float cardHeight = Mathf.Min(
                 _hubSettings.ContractCardHeight,
-                (panel.yMax - cardsTop - padding - (gap * (rowCount - 1))) / rowCount);
+                (cardsBottom - cardsTop - (gap * (rowCount - 1))) / rowCount);
+            CourierContract selectedOffer = null;
             for (int i = 0; i < _offers.Count; i++)
             {
-                int column = i % 2;
-                int row = i / 2;
+                int column = i % columns;
+                int row = i / columns;
                 Rect card = new Rect(panel.x + padding + (column * (cardWidth + gap)), cardsTop + (row * (cardHeight + gap)), cardWidth, cardHeight);
                 CourierContract offer = _offers[i];
                 if (DrawContractCard(card, offer))
                 {
-                    GUI.backgroundColor = previousBackground;
-                    AcceptContract(offer);
-                    return;
+                    selectedOffer = offer;
                 }
             }
+
+            DrawSolidRect(
+                new Rect(panel.x + padding, panel.yMax - _hubSettings.TerminalFooterHeight, contentWidth, 1f),
+                _hubSettings.TerminalDividerColor);
+            GUI.Label(
+                new Rect(panel.x + padding, panel.yMax - _hubSettings.TerminalFooterHeight + 7f, contentWidth, 22f),
+                "SELECT A CONTRACT TO DEPLOY  /  CONTRACTS REFRESH AUTOMATICALLY",
+                _terminalSubtitleStyle);
+
+            GUI.matrix = previousMatrix;
             GUI.backgroundColor = previousBackground;
+            if (selectedOffer != null)
+            {
+                AcceptContract(selectedOffer);
+            }
         }
 
         private bool DrawContractCard(Rect card, CourierContract offer)
         {
             bool accepted = GUI.Button(card, GUIContent.none, _terminalButtonStyle);
+            Color modifierColor = GetContractModifierColor(offer.DisplayModifiers);
             Color riskColor = Color.Lerp(
-                _hubSettings.TerminalAccentColor,
-                _settings.IntegrityCriticalColor,
+                _hubSettings.TerminalHighValueColor,
+                _hubSettings.TerminalDangerColor,
                 Mathf.Clamp01((offer.Difficulty - 1f) / 12f));
             DrawSolidRect(
                 new Rect(card.x, card.y, _hubSettings.TerminalCardAccentWidth, card.height),
-                riskColor);
+                modifierColor);
 
-            float left = card.x + _hubSettings.TerminalCardAccentWidth + 14f;
-            float right = card.xMax - 14f;
-            GUIStyle modifierStyle = new GUIStyle(_terminalBodyStyle)
-            {
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleLeft,
-                normal = { textColor = riskColor },
-            };
-            GUIStyle rewardStyle = new GUIStyle(_terminalBodyStyle)
-            {
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleRight,
-                normal = { textColor = _hubSettings.TerminalAccentColor },
-            };
-            GUIStyle destinationStyle = new GUIStyle(_terminalBodyStyle)
-            {
-                fontSize = _hubSettings.TerminalBodyFontSize + 2,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleLeft,
-            };
+            float left = card.x + _hubSettings.TerminalCardAccentWidth + 16f;
+            float right = card.xMax - 16f;
+            float contentWidth = right - left;
+            _terminalKickerStyle.normal.textColor = modifierColor;
+            GUI.Label(new Rect(left, card.y + 12f, contentWidth, 20f), offer.DisplayModifierText, _terminalKickerStyle);
 
-            GUI.Label(new Rect(left, card.y + 9f, right - left, 21f), offer.DisplayModifierText, modifierStyle);
-            GUI.Label(new Rect(left, card.y + 34f, right - left, 24f), offer.DestinationName, destinationStyle);
-            GUI.Label(new Rect(left, card.y + 63f, (right - left) * 0.58f, 22f), $"{offer.RouteDistance / 1000f:0.0} KM   /   RISK {offer.Difficulty}", _terminalBodyStyle);
-            GUI.Label(new Rect(left, card.y + 61f, right - left, 24f), $"{offer.OfferedReward:N0} GOLD", rewardStyle);
-
-            string details = offer.TimeLimit > 0f ? $"EXPRESS {FormatTime(offer.TimeLimit)}" : "OPEN DELIVERY WINDOW";
-            if (offer.StopCount > 1) details += $"   /   {offer.StopCount} STOPS";
-            GUI.Label(new Rect(left, card.yMax - 34f, right - left, 21f), details, _terminalBodyStyle);
-
-            int pips = Mathf.Clamp(Mathf.CeilToInt(offer.Difficulty / 2f), 1, 10);
+            int activePips = Mathf.Clamp(Mathf.CeilToInt(offer.Difficulty / 4f), 1, 5);
             float pipSize = _hubSettings.TerminalDifficultyPipSize;
-            for (int i = 0; i < pips; i++)
+            float pipGap = 3f;
+            float pipStart = right - ((pipSize + pipGap) * 5f) + pipGap;
+            for (int i = 0; i < 5; i++)
             {
-                DrawSolidRect(new Rect(left + (i * (pipSize + 3f)), card.yMax - 10f, pipSize, pipSize), riskColor);
+                DrawSolidRect(
+                    new Rect(pipStart + (i * (pipSize + pipGap)), card.y + 19f, pipSize, pipSize),
+                    i < activePips ? riskColor : _hubSettings.TerminalDividerColor);
             }
+
+            GUI.Label(new Rect(left, card.y + 40f, contentWidth, 27f), offer.DestinationName, _terminalDestinationStyle);
+            GUI.Label(
+                new Rect(left, card.y + 70f, contentWidth, 21f),
+                $"ROUTE  {offer.RouteDistance / 1000f:0.0} KM      RISK  {offer.Difficulty:00}",
+                _terminalMetaStyle);
+            DrawSolidRect(
+                new Rect(left, card.y + 101f, contentWidth, 1f),
+                _hubSettings.TerminalDividerColor);
+
+            _terminalKickerStyle.normal.textColor = _hubSettings.TerminalMutedTextColor;
+            GUI.Label(new Rect(left, card.y + 111f, contentWidth, 18f), "CONTRACT PAYOUT", _terminalKickerStyle);
+            GUI.Label(new Rect(left, card.y + 130f, contentWidth, 28f), $"{offer.OfferedReward:N0} GOLD", _terminalRewardStyle);
+
+            string details = offer.TimeLimit > 0f ? $"EXPRESS {FormatTime(offer.TimeLimit)}" : "OPEN WINDOW";
+            if (offer.StopCount > 1) details += $"   /   {offer.StopCount} STOPS";
+            GUI.Label(new Rect(left, card.yMax - 29f, contentWidth * 0.72f, 20f), details, _terminalMetaStyle);
+            _terminalActionStyle.normal.textColor = modifierColor;
+            GUI.Label(new Rect(left, card.yMax - 29f, contentWidth, 20f), "SELECT", _terminalActionStyle);
             return accepted;
+        }
+
+        private Color GetContractModifierColor(CourierContractModifier modifiers)
+        {
+            if ((modifiers & CourierContractModifier.Unknown) != 0) return _hubSettings.TerminalUnknownColor;
+            if ((modifiers & (CourierContractModifier.Hazardous | CourierContractModifier.Fragile)) != 0) return _hubSettings.TerminalDangerColor;
+            if ((modifiers & CourierContractModifier.HighValue) != 0) return _hubSettings.TerminalHighValueColor;
+            if ((modifiers & CourierContractModifier.MultiDrop) != 0) return _hubSettings.TerminalMultiDropColor;
+            if ((modifiers & CourierContractModifier.Express) != 0) return _hubSettings.HubEnergyColor;
+            return _hubSettings.TerminalAccentColor;
         }
 
         private static void DrawSolidRect(Rect rect, Color color)
@@ -1483,6 +1578,16 @@ namespace DuneVector
             GUI.color = color;
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = previous;
+        }
+
+        private static void DrawBorder(Rect rect, Color color, float thickness)
+        {
+            float border = Mathf.Max(0f, thickness);
+            if (border <= 0f) return;
+            DrawSolidRect(new Rect(rect.x, rect.y, rect.width, border), color);
+            DrawSolidRect(new Rect(rect.x, rect.yMax - border, rect.width, border), color);
+            DrawSolidRect(new Rect(rect.x, rect.y, border, rect.height), color);
+            DrawSolidRect(new Rect(rect.xMax - border, rect.y, border, rect.height), color);
         }
 
         private void DrawHubHUD()

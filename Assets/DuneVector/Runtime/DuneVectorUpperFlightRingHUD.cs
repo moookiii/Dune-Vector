@@ -19,6 +19,10 @@ namespace DuneVector
 
         private void OnGUI()
         {
+            if (DuneVectorCourierGame.IsGameplayHudSuppressed)
+            {
+                return;
+            }
             if (_world == null || _settings == null || !_settings.ShowUpperFlightRingHud)
             {
                 return;
