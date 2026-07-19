@@ -503,7 +503,7 @@ namespace DuneVector
             GameOverController = gameObject.AddComponent<DuneVectorGameOverController>();
             GameOverController.Initialize(DroneHealth);
             PauseMenu = gameObject.AddComponent<DuneVectorPauseMenu>();
-            PauseMenu.Initialize(Player, DroneHealth, AudioManager);
+            PauseMenu.Initialize(Player, DroneHealth, AudioManager, AudioSettings.PauseMenu);
         }
 
         private void BuildDeliveryGameplay()

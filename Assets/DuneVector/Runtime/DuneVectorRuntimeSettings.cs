@@ -351,6 +351,57 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class PauseMenuVisualTuning
+    {
+        [Header("Responsive Layout")]
+        [Min(320f)] public float ReferenceWidth = 1920f;
+        [Min(240f)] public float ReferenceHeight = 1080f;
+        [Range(0.5f, 2f)] public float MinimumScale = 0.7f;
+        [Range(0.5f, 2f)] public float MaximumScale = 1.2f;
+        [Min(280f)] public float PanelWidth = 540f;
+        [Min(340f)] public float PanelHeight = 500f;
+        [Min(8f)] public float ScreenMargin = 24f;
+        [Min(12f)] public float PanelPadding = 36f;
+        [Min(1f)] public float AccentBarHeight = 6f;
+        [Min(0f)] public float ShadowOffset = 10f;
+
+        [Header("Mixer Controls")]
+        [Min(40f)] public float SliderRowHeight = 76f;
+        [Min(2f)] public float SliderTrackHeight = 9f;
+        [Min(8f)] public float SliderThumbSize = 20f;
+        [Min(24f)] public float ButtonHeight = 44f;
+        [Min(0f)] public float ButtonGap = 10f;
+
+        [Header("Typography")]
+        [Min(12)] public int TitleFontSize = 36;
+        [Min(10)] public int SubtitleFontSize = 13;
+        [Min(10)] public int SectionFontSize = 14;
+        [Min(10)] public int MixerLabelFontSize = 16;
+        [Min(10)] public int ValueFontSize = 15;
+        [Min(10)] public int ButtonFontSize = 15;
+        [Min(9)] public int HintFontSize = 12;
+
+        [Header("Desert Palette")]
+        [ColorUsage(false)] public Color OverlayColor = new Color(0.015f, 0.025f, 0.045f, 0.86f);
+        [ColorUsage(false)] public Color ShadowColor = new Color(0f, 0f, 0f, 0.48f);
+        [ColorUsage(false)] public Color PanelColor = new Color(0.055f, 0.075f, 0.105f, 0.98f);
+        [ColorUsage(false)] public Color PanelBorderColor = new Color(0.92f, 0.5f, 0.16f, 0.82f);
+        [ColorUsage(false)] public Color AccentColor = new Color(1f, 0.61f, 0.18f, 1f);
+        [ColorUsage(false)] public Color TitleColor = new Color(1f, 0.76f, 0.3f, 1f);
+        [ColorUsage(false)] public Color PrimaryTextColor = new Color(0.92f, 0.96f, 1f, 1f);
+        [ColorUsage(false)] public Color SecondaryTextColor = new Color(0.57f, 0.67f, 0.76f, 1f);
+        [ColorUsage(false)] public Color DividerColor = new Color(0.3f, 0.37f, 0.44f, 0.75f);
+        [ColorUsage(false)] public Color SliderTrackColor = new Color(0.12f, 0.16f, 0.21f, 1f);
+        [ColorUsage(false)] public Color SliderFillColor = new Color(1f, 0.54f, 0.13f, 1f);
+        [ColorUsage(false)] public Color SliderThumbColor = new Color(1f, 0.8f, 0.42f, 1f);
+        [ColorUsage(false)] public Color ButtonColor = new Color(0.12f, 0.18f, 0.24f, 1f);
+        [ColorUsage(false)] public Color ButtonHoverColor = new Color(0.19f, 0.29f, 0.38f, 1f);
+        [ColorUsage(false)] public Color ButtonActiveColor = new Color(0.93f, 0.47f, 0.12f, 1f);
+        [ColorUsage(false)] public Color DangerButtonColor = new Color(0.31f, 0.12f, 0.1f, 1f);
+        [ColorUsage(false)] public Color DangerButtonHoverColor = new Color(0.5f, 0.17f, 0.12f, 1f);
+    }
+
+    [System.Serializable]
     public sealed class AudioTuning
     {
         [Header("FMOD Events")]
@@ -368,6 +419,14 @@ namespace DuneVector
         [Range(0f, 1f)] public float DefaultSoundEffectsVolume = 1f;
         [Tooltip("Remember pause-menu volume choices between runs.")]
         public bool PersistVolumeSettings = true;
+
+        [Header("Pause Menu Presentation")]
+        public PauseMenuVisualTuning PauseMenu = new PauseMenuVisualTuning();
+
+        public void EnsureInitialized()
+        {
+            PauseMenu ??= new PauseMenuVisualTuning();
+        }
     }
 
     [System.Serializable]
@@ -499,6 +558,7 @@ namespace DuneVector
             Weather ??= new DesertWeatherTuning();
             Weather.EnsureInitialized();
             Audio ??= new AudioTuning();
+            Audio.EnsureInitialized();
             Deliveries ??= new DeliveryTuning();
             Pyramids ??= new PyramidTuning();
             WorldStreaming ??= new WorldStreamingTuning();
