@@ -1404,7 +1404,7 @@ namespace DuneVector
             {
                 DrawTeleportFade();
             }
-            if (Time.unscaledTime < _statusMessageUntil)
+            if (!_terminalOpen && Time.unscaledTime < _statusMessageUntil)
             {
                 GUI.Label(new Rect(0f, Screen.height * 0.18f, Screen.width, 42f), _statusMessage, _statusStyle);
             }
