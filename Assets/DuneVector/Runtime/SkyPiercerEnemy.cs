@@ -168,7 +168,8 @@ namespace DuneVector
             {
                 _playerHealth.TakeDamage(
                     _settings.ImpactDamage * DuneVectorContractRisk.EnemyDamageMultiplier,
-                    "Sky Piecer impact");
+                    "Sky Piecer impact",
+                    _settings.ImpactDeathMessage);
             }
             SetState(SkyPiercerState.StuckInGround);
         }

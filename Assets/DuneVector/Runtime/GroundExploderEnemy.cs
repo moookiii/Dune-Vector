@@ -126,7 +126,8 @@ namespace DuneVector
             _damage.Detonate(
                 transform.position,
                 _settings.ExplosionRadius,
-                _settings.MaximumDamage * DuneVectorContractRisk.EnemyDamageMultiplier);
+                _settings.MaximumDamage * DuneVectorContractRisk.EnemyDamageMultiplier,
+                _settings.ExplosionDeathMessage);
         }
 
         private void SetState(GroundExploderState state)
@@ -375,7 +376,7 @@ namespace DuneVector
             _health = health;
         }
 
-        public void Detonate(Vector3 center, float radius, float maximumDamage)
+        public void Detonate(Vector3 center, float radius, float maximumDamage, string deathMessage)
         {
             if (_player == null || _health == null || _health.IsDead || radius <= 0f || maximumDamage <= 0f)
             {
@@ -390,7 +391,7 @@ namespace DuneVector
 
             float distance01 = Mathf.Clamp01(distance / radius);
             float damage = maximumDamage * (1f - distance01);
-            _health.TakeDamage(damage, "Ground exploder blast");
+            _health.TakeDamage(damage, "Ground Exploder blast", deathMessage);
         }
     }
 

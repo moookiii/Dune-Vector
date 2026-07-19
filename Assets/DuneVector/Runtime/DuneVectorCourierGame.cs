@@ -566,7 +566,10 @@ namespace DuneVector
                 if (_hazardPulseTimer <= 0f)
                 {
                     _hazardPulseTimer = _settings.HazardousPulseInterval;
-                    _health.TakeDamage(_settings.HazardousPulseDamage, "Hazardous cargo pulse");
+                    _health.TakeDamage(
+                        _settings.HazardousPulseDamage,
+                        "Hazardous Cargo pulse",
+                        _settings.HazardousPulseDeathMessage);
                     if (State != CourierRunState.Delivering)
                     {
                         return;

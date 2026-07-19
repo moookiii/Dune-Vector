@@ -186,7 +186,7 @@ namespace DuneVector
                     _health.TakeDamage(
                         damage,
                         $"Risk {_risk} falling building debris",
-                        "Crushed by falling building debris.");
+                        _settings.FallingRuinDeathMessage);
                 }
 
                 float terrainHeight = _world.SampleHeightAtLocal(next.x, next.z);

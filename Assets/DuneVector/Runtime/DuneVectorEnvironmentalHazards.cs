@@ -189,7 +189,10 @@ namespace DuneVector
                 {
                     damage *= Mathf.Max(1f, _electricalSettings.HazardousCargoDamageMultiplier);
                 }
-                _health.TakeDamage(damage, "Electrical sandstorm lightning");
+                _health.TakeDamage(
+                    damage,
+                    "Electrical Sandstorm lightning",
+                    _electricalSettings.StrikeDeathMessage);
             }
             LightningStruck?.Invoke(LightningTarget, hit);
         }

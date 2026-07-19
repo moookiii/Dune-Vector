@@ -711,7 +711,8 @@ namespace DuneVector
                 _contactDamageApplied = true;
                 _health.TakeDamage(
                     _settings.ContactDamage * _damageMultiplier * DuneVectorContractRisk.EnemyDamageMultiplier,
-                    "Formation enemy collision");
+                    "Formation Enemy collision",
+                    _settings.ContactDeathMessage);
             }
             if (Vector3.Distance(transform.position, _passTarget) <= 2f)
             {
@@ -755,7 +756,8 @@ namespace DuneVector
                     {
                         _health.TakeDamage(
                             _settings.ShotDamage * _damageMultiplier * DuneVectorContractRisk.EnemyDamageMultiplier,
-                            "Formation enemy shot");
+                            "Formation Enemy shot",
+                            _settings.ShotDeathMessage);
                     }
                     _shotTimer = _settings.ShotInterval * _shotIntervalMultiplier;
                     _shotVisualTimer = _settings.ShotVisualDuration;

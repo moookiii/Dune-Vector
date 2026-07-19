@@ -347,6 +347,7 @@ namespace DuneVector
         [Min(0f)] public float FallingRuinHorizontalDrift = 2.5f;
         [Min(0f)] public float FallingRuinBaseDamage = 18f;
         [Min(0f)] public float FallingRuinDamagePerRisk = 5f;
+        public string FallingRuinDeathMessage = "Crushed by falling building debris.";
         [Min(0.1f)] public float FallingRuinPlayerCollisionRadius = 2.2f;
         [Range(1, 12)] public int FallingRuinMinimumPieceCount = 3;
         [Range(1, 12)] public int FallingRuinMaximumPieceCount = 6;
@@ -378,6 +379,7 @@ namespace DuneVector
         [Range(0f, 100f)] public float HazardousCriticalIntegrity = 22f;
         [Min(0.1f)] public float HazardousPulseInterval = 3.2f;
         [Min(0f)] public float HazardousPulseDamage = 6f;
+        public string HazardousPulseDeathMessage = "Destroyed by a Hazardous Cargo pulse.";
         [Range(2, 5)] public int MultiDropMinimumStops = 2;
         [Range(2, 5)] public int MultiDropMaximumStops = 3;
         [Range(0f, 1f)] public float IntegrityRewardFloor = 0.25f;
@@ -687,8 +689,10 @@ namespace DuneVector
         [Min(0)] public int EnemyGoldReward = 12;
         [Min(0.1f)] public float EnemyVisualScale = 1.25f;
         [Min(0f)] public float ContactDamage = 12f;
+        public string ContactDeathMessage = "Destroyed by a Formation Enemy collision.";
         [Min(0.1f)] public float ContactRadius = 2.4f;
         [Min(0f)] public float ShotDamage = 7f;
+        public string ShotDeathMessage = "Destroyed by a Formation Enemy shot.";
         [Min(0.1f)] public float ShotInterval = 1.1f;
         [Min(0.1f)] public float ShotTelegraphDuration = 0.22f;
         [Min(0.1f)] public float ShotHitRadius = 2.2f;
@@ -1127,6 +1131,7 @@ namespace DuneVector
         [Min(0.1f)] public float AttackCooldown = 3.5f;
         [Min(0.25f)] public float AttackAlignmentDistance = 4f;
         [Min(0f)] public float ImpactDamage = 25f;
+        public string ImpactDeathMessage = "Destroyed by a Sky Piecer impact.";
         [Min(0.1f)] public float ImpactRadius = 3.4f;
         [Min(0f)] public float StuckDuration = 2.2f;
         [Min(0f)] public float ReturnSpeed = 13f;
@@ -1167,6 +1172,7 @@ namespace DuneVector
         [Min(0.1f)] public float ChargeTime = 1.15f;
         [Min(0f)] public float Cooldown = 2.4f;
         [Min(0f)] public float LightningDamage = 32f;
+        public string LightningDeathMessage = "Struck by Storm Pyramid ground lightning.";
         [Min(0.1f)] public float StrikeRadius = 5.5f;
         [Min(0.05f)] public float LightningVisualDuration = 0.28f;
         [Min(0.01f)] public float ChargeTelegraphWidth = 0.12f;
@@ -1261,6 +1267,7 @@ namespace DuneVector
         [Min(0.1f)] public float ChargeTime = 1.15f;
         [Min(0f)] public float Cooldown = 2.5f;
         [Min(0f)] public float LightningDamage = 34f;
+        public string LightningDeathMessage = "Struck by Strike Orb lightning.";
         [Min(0.1f)] public float StrikeRadius = 4.25f;
         [Min(0.05f)] public float LightningVisualDuration = 0.32f;
         [Min(0.01f)] public float ChargeTelegraphWidth = 0.14f;
@@ -1316,6 +1323,7 @@ namespace DuneVector
         [Min(0.1f)] public float WindUpDuration = 1.25f;
         [Min(0.5f)] public float ExplosionRadius = 11f;
         [Min(0f)] public float MaximumDamage = 65f;
+        public string ExplosionDeathMessage = "Destroyed by a Ground Exploder blast.";
         [Header("Presentation")]
         [Min(0.1f)] public float VisualScale = 1.15f;
     }
@@ -1885,6 +1893,7 @@ namespace DuneVector
         [Min(0f)] public float AirTargetMinimumHeight = 4f;
         [Min(0.1f)] public float StrikeRadius = 4.5f;
         [Min(0f)] public float StrikeDamage = 24f;
+        public string StrikeDeathMessage = "Struck by Electrical Sandstorm lightning.";
         [Min(1f)] public float HazardousCargoDamageMultiplier = 1.35f;
         [Range(0.1f, 1f)] public float HighValueStrikeIntervalMultiplier = 0.82f;
         [Min(1f)] public float WeaponCooldownMultiplier = 1.3f;

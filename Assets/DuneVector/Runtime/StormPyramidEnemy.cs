@@ -428,7 +428,12 @@ namespace DuneVector
             _health = health;
         }
 
-        public void ResolveStrike(Vector3 strikePoint, float strikeRadius, float damage, string damageSource)
+        public void ResolveStrike(
+            Vector3 strikePoint,
+            float strikeRadius,
+            float damage,
+            string damageSource,
+            string deathMessage)
         {
             if (_player == null || _health == null || _health.IsDead || strikeRadius <= 0f || damage <= 0f)
             {
@@ -439,7 +444,8 @@ namespace DuneVector
             {
                 _health.TakeDamage(
                     damage * DuneVectorContractRisk.EnemyDamageMultiplier,
-                    damageSource);
+                    damageSource,
+                    deathMessage);
             }
         }
     }
@@ -541,7 +547,8 @@ namespace DuneVector
                 _target.Position,
                 _settings.StrikeRadius,
                 _settings.LightningDamage,
-                "Storm Pyramid ground lightning");
+                "Storm Pyramid ground lightning",
+                _settings.LightningDeathMessage);
             UpdateLightningVisual();
         }
 
@@ -1203,7 +1210,8 @@ namespace DuneVector
                 _targetPosition,
                 _settings.StrikeRadius,
                 _settings.LightningDamage,
-                "Strike Orb lightning");
+                "Strike Orb lightning",
+                _settings.LightningDeathMessage);
             UpdateLightningVisual();
         }
 
