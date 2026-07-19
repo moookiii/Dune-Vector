@@ -1013,6 +1013,8 @@ namespace DuneVector
         [Range(90f, 360f)] public float MeterArcDegrees = 280f;
         public float MeterArcStartDegrees = 130f;
         [Min(0f)] public float ScreenEdgePadding = 38f;
+        [Tooltip("How quickly the stamina bar and its text follow the drone in screen space.")]
+        [Min(0f)] public float MeterFollowSharpness = 16f;
         [Min(0f)] public float VisibilityFadeSpeed = 7f;
         [Min(0f)] public float FullIdleFadeDelay = 1.2f;
         [Range(0f, 1f)] public float FullIdleAlpha = 0.12f;

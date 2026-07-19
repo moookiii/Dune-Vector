@@ -60,22 +60,34 @@ namespace DuneVector
 
         private void LateUpdate()
         {
-            _hasScreenCenter = false;
             if (_drone == null || _camera == null || _settings == null)
             {
+                _hasScreenCenter = false;
                 return;
             }
 
             Vector3 screenPosition = _camera.WorldToScreenPoint(_drone.WorldCenter);
             if (screenPosition.z <= 0f)
             {
+                _hasScreenCenter = false;
                 return;
             }
 
             float padding = Mathf.Max(0f, _settings.ScreenEdgePadding);
-            _screenCenter = new Vector2(
+            Vector2 targetCenter = new Vector2(
                 Mathf.Clamp(screenPosition.x + _settings.MeterScreenOffset.x, padding, Screen.width - padding),
                 Mathf.Clamp(Screen.height - screenPosition.y + _settings.MeterScreenOffset.y, padding, Screen.height - padding));
+            if (!_hasScreenCenter)
+            {
+                _screenCenter = targetCenter;
+            }
+            else
+            {
+                _screenCenter = Vector2.Lerp(
+                    _screenCenter,
+                    targetCenter,
+                    DuneVectorMath.Sharpness(_settings.MeterFollowSharpness, Time.unscaledDeltaTime));
+            }
             _hasScreenCenter = true;
         }
 
