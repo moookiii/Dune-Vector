@@ -287,6 +287,7 @@ namespace DuneVector
         private DuneVectorEnemyDirector _enemyDirector;
         private DuneVectorStormPyramidDirector _stormDirector;
         private DuneVectorRouteEncounterDirector _routeEncounterDirector;
+        private DuneVectorEnvironmentalHazardSystem _environmentalHazards;
         private DuneVectorDeliveryMessagePresenter _messagePresenter;
 
         private Transform _hubRoot;
@@ -401,6 +402,11 @@ namespace DuneVector
                 _playerInput.SetInputEnabled(false);
                 _messagePresenter.Open(pendingMessage, HandleDeliveryMessageCompleted);
             }
+        }
+
+        public void BindEnvironmentalHazardSystem(DuneVectorEnvironmentalHazardSystem environmentalHazards)
+        {
+            _environmentalHazards = environmentalHazards;
         }
 
         public void BindEncounterDirector(DuneVectorRouteEncounterDirector director)
@@ -1882,7 +1888,10 @@ namespace DuneVector
             else if (IsContractActive)
             {
                 DrawContractHUD();
-                DrawObjectiveMarker();
+                if (_environmentalHazards == null || !_environmentalHazards.IsElectricalInterferenceActive)
+                {
+                    DrawObjectiveMarker();
+                }
             }
             if (State == CourierRunState.TeleportingToDesert ||
                 State == CourierRunState.TeleportOut ||

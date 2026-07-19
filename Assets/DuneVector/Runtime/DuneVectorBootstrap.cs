@@ -799,6 +799,8 @@ namespace DuneVector
                 WeatherSystem,
                 CourierGame,
                 EnvironmentalHazardSettings);
+            CourierGame?.BindEnvironmentalHazardSystem(EnvironmentalHazardSystem);
+            DeliveryLoop?.BindEnvironmentalHazardSystem(EnvironmentalHazardSystem);
         }
 
         private void OnDestroy()
