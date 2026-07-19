@@ -1254,38 +1254,38 @@ namespace DuneVector
         [Header("Pool & Density")]
         [Range(8, 256)] public int MaximumStreakCount = 96;
         [Tooltip("Maximum streaks spawned per second at full intensity before the boost multiplier is applied.")]
-        [Min(0f)] public float Density = 34f;
-        [Min(0.01f)] public float DensityCurvePower = 1.7f;
+        [Min(0f)] public float Density = 52f;
+        [Min(0.01f)] public float DensityCurvePower = 0.8f;
         [Range(0f, 1f)] public float TimingVariation = 0.38f;
 
         [Header("Speed Response")]
-        [Min(0f)] public float SpeedThreshold = 20f;
-        [Min(0.01f)] public float MaximumIntensitySpeed = 60f;
-        [Min(0f)] public float IntensitySharpness = 5.5f;
-        [Min(0f)] public float BoostMultiplier = 1.45f;
+        [Min(0f)] public float SpeedThreshold = 12f;
+        [Min(0.01f)] public float MaximumIntensitySpeed = 38f;
+        [Min(0f)] public float IntensitySharpness = 8f;
+        [Min(0f)] public float BoostMultiplier = 1.35f;
 
         [Header("Streak Shape")]
-        public Vector2 LengthRange = new Vector2(4.5f, 17f);
-        public Vector2 WidthRange = new Vector2(0.025f, 0.085f);
-        public Vector2 LifetimeRange = new Vector2(0.2f, 0.46f);
-        public Vector2 SweepSpeedRange = new Vector2(30f, 82f);
+        public Vector2 LengthRange = new Vector2(5.5f, 18f);
+        public Vector2 WidthRange = new Vector2(0.045f, 0.14f);
+        public Vector2 LifetimeRange = new Vector2(0.28f, 0.52f);
+        public Vector2 SweepSpeedRange = new Vector2(38f, 96f);
         [Range(0f, 12f)] public float DirectionJitterDegrees = 3.2f;
         [Min(0f)] public float MovementAlignmentSharpness = 18f;
 
         [Header("Camera-Edge Spawn Area")]
         [Tooltip("Viewport-space radial band around screen center. Values near 0.5 place streaks at the outer view edges.")]
-        public Vector2 SpawnRadiusRange = new Vector2(0.38f, 0.56f);
+        public Vector2 SpawnRadiusRange = new Vector2(0.3f, 0.54f);
         [Tooltip("World-space distance in front of the player camera where streaks originate.")]
-        public Vector2 SpawnDepthRange = new Vector2(11f, 32f);
+        public Vector2 SpawnDepthRange = new Vector2(7f, 20f);
 
         [Header("Appearance")]
         [ColorUsage(false, true)] public Color Color = new Color(0.3f, 2.4f, 4.5f, 1f);
-        [Range(0f, 1f)] public float Opacity = 0.62f;
-        [Range(0f, 1f)] public float BrightnessVariation = 0.24f;
-        [Range(0.01f, 0.49f)] public float FadeInFraction = 0.14f;
-        [Range(0.01f, 0.49f)] public float FadeOutFraction = 0.38f;
-        [Range(0.01f, 0.49f)] public float EdgeSoftness = 0.28f;
-        [Range(0.01f, 0.49f)] public float TipSoftness = 0.18f;
+        [Range(0f, 1f)] public float Opacity = 0.82f;
+        [Range(0f, 1f)] public float BrightnessVariation = 0.18f;
+        [Range(0.01f, 0.49f)] public float FadeInFraction = 0.1f;
+        [Range(0.01f, 0.49f)] public float FadeOutFraction = 0.32f;
+        [Range(0.01f, 0.49f)] public float EdgeSoftness = 0.22f;
+        [Range(0.01f, 0.49f)] public float TipSoftness = 0.14f;
     }
 
     public enum DuneVectorTaaQuality
