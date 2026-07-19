@@ -546,6 +546,8 @@ namespace DuneVector
         private float _shotVisualTimer;
         private Vector3 _telegraphedPoint;
         private LineRenderer _shotLine;
+        private TrailRenderer _trail;
+        private bool _trailArmed;
         private bool _contactDamageApplied;
 
         public void Initialize(
@@ -582,13 +584,15 @@ namespace DuneVector
             markerRenderer.shadowCastingMode = ShadowCastingMode.Off;
             Collider markerCollider = formationMarker.GetComponent<Collider>();
             if (markerCollider != null) Destroy(markerCollider);
-            TrailRenderer trail = gameObject.AddComponent<TrailRenderer>();
-            trail.sharedMaterial = formationMaterial;
-            trail.time = settings.EnemyTrailDuration;
-            trail.startWidth = settings.EnemyTrailStartWidth;
-            trail.endWidth = settings.EnemyTrailEndWidth;
-            trail.minVertexDistance = settings.EnemyTrailMinimumVertexDistance;
-            trail.shadowCastingMode = ShadowCastingMode.Off;
+            _trail = gameObject.AddComponent<TrailRenderer>();
+            _trail.sharedMaterial = formationMaterial;
+            _trail.time = settings.EnemyTrailDuration;
+            _trail.startWidth = settings.EnemyTrailStartWidth;
+            _trail.endWidth = settings.EnemyTrailEndWidth;
+            _trail.minVertexDistance = settings.EnemyTrailMinimumVertexDistance;
+            _trail.shadowCastingMode = ShadowCastingMode.Off;
+            _trail.emitting = false;
+            _trail.Clear();
             EnemyHealth enemyHealth = gameObject.AddComponent<EnemyHealth>();
             enemyHealth.Initialize(settings.EnemyHealth);
             EnemyCombatTarget target = gameObject.AddComponent<EnemyCombatTarget>();
@@ -604,6 +608,18 @@ namespace DuneVector
             _shotLine.enabled = false;
             _shotTimer = settings.ShotInterval * 0.5f;
             SetState(FormationEnemyState.FormationApproach);
+        }
+
+        private void LateUpdate()
+        {
+            if (_trailArmed || _trail == null)
+            {
+                return;
+            }
+
+            _trail.Clear();
+            _trail.emitting = true;
+            _trailArmed = true;
         }
 
         private void Update()
