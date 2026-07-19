@@ -1678,6 +1678,8 @@ namespace DuneVector
         [Min(40f)] public float HudHeight = 68f;
         [Min(0f)] public float HudRight = 24f;
         [Min(0f)] public float HudTop = 118f;
+        [Tooltip("Minimum vertical gap below the upper-flight-ring HUD while both panels are visible.")]
+        [Min(0f)] public float HudUpperFlightGap = 14f;
         [Min(0f)] public float HudPadding = 12f;
         [Min(1f)] public float HudAccentWidth = 4f;
         [Min(1f)] public float HudBarHeight = 8f;

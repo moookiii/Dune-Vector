@@ -30,6 +30,7 @@ namespace DuneVector
         private DroneCharacterController _drone;
         private DesertWorldStreamer _world;
         private HeatZoneTuning _settings;
+        private DuneVectorUpperFlightRingHUD _upperFlightRingHud;
         private Texture2D _distortionTexture;
         private Texture2D _particleTexture;
         private Material _plumeMaterial;
@@ -53,6 +54,7 @@ namespace DuneVector
             _drone = drone;
             _world = world;
             _settings = settings;
+            _upperFlightRingHud = world.GetComponent<DuneVectorUpperFlightRingHUD>();
             _distortionTexture = CreateDistortionTexture(Mathf.Max(16, settings.DistortionTextureResolution));
             _particleTexture = CreateSoftParticleTexture(Mathf.Max(16, settings.DistortionTextureResolution));
             _plumeMaterial = CreateDistortionMaterial("Heat Plume Refraction", true, Color.clear, settings.DistantDistortionStrength);
@@ -614,9 +616,15 @@ namespace DuneVector
                 fontSize = _settings.HudStatusFontSize,
             };
 
+            float panelTop = _settings.HudTop;
+            if (_upperFlightRingHud != null && _upperFlightRingHud.TryGetVisiblePanelRect(out Rect upperFlightPanel))
+            {
+                panelTop = Mathf.Max(panelTop, upperFlightPanel.yMax + _settings.HudUpperFlightGap);
+            }
+
             Rect panel = new Rect(
                 Screen.width - _settings.HudRight - _settings.HudWidth,
-                _settings.HudTop,
+                panelTop,
                 _settings.HudWidth,
                 _settings.HudHeight);
             DrawRect(panel, _settings.HudPanelColor);

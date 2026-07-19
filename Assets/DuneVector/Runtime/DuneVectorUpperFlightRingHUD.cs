@@ -23,26 +23,9 @@ namespace DuneVector
             {
                 return;
             }
-            if (_world == null || _settings == null || !_settings.ShowUpperFlightRingHud)
+            if (!TryGetVisiblePanelRect(out Rect panel))
             {
                 return;
-            }
-
-            if (_world.IsUpperFlightRingUnlocked)
-            {
-                if (_unlockedAt < 0f)
-                {
-                    _unlockedAt = Time.unscaledTime;
-                }
-
-                if (Time.unscaledTime - _unlockedAt >= Mathf.Max(0f, _settings.UpperFlightRingHudUnlockedDuration))
-                {
-                    return;
-                }
-            }
-            else
-            {
-                _unlockedAt = -1f;
             }
 
             float referenceHeight = Mathf.Max(1f, _settings.UpperFlightRingHudReferenceHeight);
@@ -55,15 +38,6 @@ namespace DuneVector
             float scale = Mathf.Clamp(Screen.height / referenceHeight, minimumScale, maximumScale);
             EnsureStyles(scale);
 
-            float width = _settings.UpperFlightRingHudWidth * scale;
-            float height = _settings.UpperFlightRingHudHeight * scale;
-            float topMargin = _settings.UpperFlightRingHudTopMargin * scale;
-            float rightMargin = _settings.UpperFlightRingHudRightMargin * scale;
-            float belowGoldPanel = _settings.GoldHudTopMargin
-                + _settings.GoldHudHeight
-                + (_settings.UpperFlightRingHudGoldGap * scale);
-            topMargin = Mathf.Max(topMargin, belowGoldPanel);
-            Rect panel = new Rect(Screen.width - rightMargin - width, topMargin, width, height);
             DrawSolidRect(panel, _settings.UpperFlightRingHudPanelColor);
 
             float accentWidth = _settings.UpperFlightRingHudAccentWidth * scale;
@@ -105,6 +79,52 @@ namespace DuneVector
                 _world.IsUpperFlightRingUnlocked
                     ? _settings.UpperFlightRingHudUnlockedColor
                     : _settings.UpperFlightRingHudAccentColor);
+        }
+
+        public bool TryGetVisiblePanelRect(out Rect panel)
+        {
+            panel = default;
+            if (_world == null || _settings == null || !_settings.ShowUpperFlightRingHud)
+            {
+                return false;
+            }
+
+            if (_world.IsUpperFlightRingUnlocked)
+            {
+                if (_unlockedAt < 0f)
+                {
+                    _unlockedAt = Time.unscaledTime;
+                }
+
+                if (Time.unscaledTime - _unlockedAt >= Mathf.Max(0f, _settings.UpperFlightRingHudUnlockedDuration))
+                {
+                    return false;
+                }
+            }
+            else
+            {
+                _unlockedAt = -1f;
+            }
+
+            float referenceHeight = Mathf.Max(1f, _settings.UpperFlightRingHudReferenceHeight);
+            float minimumScale = Mathf.Min(
+                _settings.UpperFlightRingHudMinimumScale,
+                _settings.UpperFlightRingHudMaximumScale);
+            float maximumScale = Mathf.Max(
+                _settings.UpperFlightRingHudMinimumScale,
+                _settings.UpperFlightRingHudMaximumScale);
+            float scale = Mathf.Clamp(Screen.height / referenceHeight, minimumScale, maximumScale);
+
+            float width = _settings.UpperFlightRingHudWidth * scale;
+            float height = _settings.UpperFlightRingHudHeight * scale;
+            float topMargin = _settings.UpperFlightRingHudTopMargin * scale;
+            float rightMargin = _settings.UpperFlightRingHudRightMargin * scale;
+            float belowGoldPanel = _settings.GoldHudTopMargin
+                + _settings.GoldHudHeight
+                + (_settings.UpperFlightRingHudGoldGap * scale);
+            topMargin = Mathf.Max(topMargin, belowGoldPanel);
+            panel = new Rect(Screen.width - rightMargin - width, topMargin, width, height);
+            return true;
         }
 
         private void EnsureStyles(float scale)
