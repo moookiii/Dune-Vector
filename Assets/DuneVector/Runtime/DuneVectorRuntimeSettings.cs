@@ -511,6 +511,15 @@ namespace DuneVector
         [Min(0.1f)] public float MinimumEncounterInterval = 28f;
         [Min(0.1f)] public float MaximumEncounterInterval = 52f;
         [Min(0.1f)] public float HighValueIntervalMultiplier = 0.52f;
+        [Header("High-Value Contracts")]
+        [Min(0f)] public float HighValueInitialEncounterDelay = 3f;
+        [Min(0f)] public float HighValueMinimumObjectiveDistance = 60f;
+        [Range(0, 6)] public int HighValueFormationSizeBonus = 2;
+        [Min(0.1f)] public float HighValueEnemySpeedMultiplier = 1.18f;
+        [Min(0.1f)] public float HighValueEnemyHealthMultiplier = 1.25f;
+        [Min(0f)] public float HighValueDamageMultiplier = 1.35f;
+        [Min(0.1f)] public float HighValueShotIntervalMultiplier = 0.78f;
+        [Range(0f, 1f)] public float HighValueSecondPassChanceBonus = 0.25f;
         [Min(20f)] public float MinimumObjectiveDistance = 180f;
         [Min(10f)] public float EncounterVolumeRadius = 90f;
         [Range(1, 5)] public int VolumesPerRouteLeg = 2;

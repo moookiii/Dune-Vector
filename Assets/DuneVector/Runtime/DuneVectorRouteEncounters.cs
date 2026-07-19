@@ -86,7 +86,9 @@ namespace DuneVector
             _contract = contract;
             _waveIndex = 0;
             BuildRouteVolumes(contract);
-            _pursuitTimer = NextInterval(contract.Seed);
+            _pursuitTimer = contract.Has(CourierContractModifier.HighValue)
+                ? _settings.HighValueInitialEncounterDelay
+                : NextInterval(contract.Seed);
         }
 
         public void EndContract()
@@ -156,7 +158,10 @@ namespace DuneVector
             {
                 return false;
             }
-            return Vector3.Distance(_player.WorldCenter, _courierGame.ActiveObjective.position) >= _settings.MinimumObjectiveDistance;
+            float minimumObjectiveDistance = _contract != null && _contract.Has(CourierContractModifier.HighValue)
+                ? _settings.HighValueMinimumObjectiveDistance
+                : _settings.MinimumObjectiveDistance;
+            return Vector3.Distance(_player.WorldCenter, _courierGame.ActiveObjective.position) >= minimumObjectiveDistance;
         }
 
         private void BuildRouteVolumes(CourierContract contract)
@@ -192,6 +197,7 @@ namespace DuneVector
         private void SpawnFormation(RouteFormationType formation)
         {
             _waveIndex++;
+            bool highValue = _contract != null && _contract.Has(CourierContractModifier.HighValue);
             Vector3 playerPosition = _player.WorldCenter;
             Vector3 travelForward = Vector3.ProjectOnPlane(_player.Motor.BaseVelocity, Vector3.up);
             if (travelForward.sqrMagnitude < 1f)
@@ -217,7 +223,9 @@ namespace DuneVector
                 }
             }
             Vector3 travelRight = Vector3.Cross(Vector3.up, travelForward).normalized;
-            _waveAnnouncement = FormationTitle(formation);
+            _waveAnnouncement = highValue
+                ? $"HIGH-VALUE AMBUSH // {FormationTitle(formation)}"
+                : FormationTitle(formation);
             _waveAnnouncementUntil = Time.unscaledTime + _settings.WaveAnnouncementDuration;
             if (formation == RouteFormationType.FlyThroughAssault)
             {
@@ -228,6 +236,10 @@ namespace DuneVector
                     Mathf.Clamp01((_contract.EncounterIntensity - 1f) * 0.8f))),
                 _settings.MinimumFormationSize,
                 _settings.MaximumFormationSize);
+            if (highValue)
+            {
+                count += _settings.HighValueFormationSizeBonus;
+            }
 
             for (int i = 0; i < count; i++)
             {
@@ -321,7 +333,10 @@ namespace DuneVector
                 enemyObject.transform.SetParent(transform, true);
                 enemyObject.transform.position = spawn;
                 DuneVectorFormationEnemy enemy = enemyObject.AddComponent<DuneVectorFormationEnemy>();
-                bool secondPass = DuneVectorMath.Hash01(_waveIndex, i, _world.WorldSeed, 8117) <= _settings.SecondPassChance;
+                float secondPassChance = highValue
+                    ? Mathf.Clamp01(_settings.SecondPassChance + _settings.HighValueSecondPassChanceBonus)
+                    : _settings.SecondPassChance;
+                bool secondPass = DuneVectorMath.Hash01(_waveIndex, i, _world.WorldSeed, 8117) <= secondPassChance;
                 enemy.Initialize(
                     _player,
                     _health,
@@ -335,7 +350,11 @@ namespace DuneVector
                     passTarget,
                     breakTarget,
                     reposition,
-                    secondPass);
+                    secondPass,
+                    highValue ? _settings.HighValueEnemySpeedMultiplier : 1f,
+                    highValue ? _settings.HighValueEnemyHealthMultiplier : 1f,
+                    highValue ? _settings.HighValueDamageMultiplier : 1f,
+                    highValue ? _settings.HighValueShotIntervalMultiplier : 1f);
                 _enemies.Add(enemy);
             }
         }
@@ -549,6 +568,9 @@ namespace DuneVector
         private TrailRenderer _trail;
         private bool _trailArmed;
         private bool _contactDamageApplied;
+        private float _speedMultiplier = 1f;
+        private float _damageMultiplier = 1f;
+        private float _shotIntervalMultiplier = 1f;
 
         public void Initialize(
             DroneCharacterController player,
@@ -563,7 +585,11 @@ namespace DuneVector
             Vector3 passTarget,
             Vector3 breakTarget,
             Vector3 repositionTarget,
-            bool allowSecondPass)
+            bool allowSecondPass,
+            float speedMultiplier,
+            float healthMultiplier,
+            float damageMultiplier,
+            float shotIntervalMultiplier)
         {
             _player = player;
             _health = health;
@@ -573,6 +599,9 @@ namespace DuneVector
             _breakTarget = breakTarget;
             _repositionTarget = repositionTarget;
             _allowSecondPass = allowSecondPass;
+            _speedMultiplier = Mathf.Max(0.1f, speedMultiplier);
+            _damageMultiplier = Mathf.Max(0f, damageMultiplier);
+            _shotIntervalMultiplier = Mathf.Max(0.1f, shotIntervalMultiplier);
             DuneVectorVisuals.CreateFlyingEnemyVisual(transform, materials, settings.EnemyVisualScale);
             GameObject formationMarker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             formationMarker.name = "Formation Signal";
@@ -594,7 +623,7 @@ namespace DuneVector
             _trail.emitting = false;
             _trail.Clear();
             EnemyHealth enemyHealth = gameObject.AddComponent<EnemyHealth>();
-            enemyHealth.Initialize(settings.EnemyHealth);
+            enemyHealth.Initialize(settings.EnemyHealth * Mathf.Max(0.1f, healthMultiplier));
             EnemyCombatTarget target = gameObject.AddComponent<EnemyCombatTarget>();
             target.Initialize(enemyHealth, settings.EnemyVisualScale);
             EnemyGoldReward goldReward = gameObject.AddComponent<EnemyGoldReward>();
@@ -606,7 +635,7 @@ namespace DuneVector
             _shotLine.startWidth = settings.ShotStartWidth;
             _shotLine.endWidth = settings.ShotEndWidth;
             _shotLine.enabled = false;
-            _shotTimer = settings.ShotInterval * 0.5f;
+            _shotTimer = settings.ShotInterval * _shotIntervalMultiplier * 0.5f;
             SetState(FormationEnemyState.FormationApproach);
         }
 
@@ -677,7 +706,7 @@ namespace DuneVector
             if (!_contactDamageApplied && playerDistance <= _settings.ContactRadius)
             {
                 _contactDamageApplied = true;
-                _health.TakeDamage(_settings.ContactDamage, "Formation enemy collision");
+                _health.TakeDamage(_settings.ContactDamage * _damageMultiplier, "Formation enemy collision");
             }
             if (Vector3.Distance(transform.position, _passTarget) <= 2f)
             {
@@ -719,9 +748,9 @@ namespace DuneVector
                 {
                     if (Vector3.Distance(_player.WorldCenter, _telegraphedPoint) <= _settings.ShotHitRadius)
                     {
-                        _health.TakeDamage(_settings.ShotDamage, "Formation enemy shot");
+                        _health.TakeDamage(_settings.ShotDamage * _damageMultiplier, "Formation enemy shot");
                     }
-                    _shotTimer = _settings.ShotInterval;
+                    _shotTimer = _settings.ShotInterval * _shotIntervalMultiplier;
                     _shotVisualTimer = _settings.ShotVisualDuration;
                 }
                 return;
@@ -745,7 +774,7 @@ namespace DuneVector
                     Quaternion.LookRotation(direction.normalized, Vector3.up),
                     DuneVectorMath.Sharpness(_settings.TurnSharpness, deltaTime));
             }
-            transform.position = Vector3.MoveTowards(transform.position, target, speed * deltaTime);
+            transform.position = Vector3.MoveTowards(transform.position, target, speed * _speedMultiplier * deltaTime);
         }
 
         private void SetState(FormationEnemyState state)
