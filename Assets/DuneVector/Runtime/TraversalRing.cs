@@ -43,6 +43,10 @@ namespace DuneVector
         private float _visualSpin;
         private Camera _billboardCamera;
         private Vector3 _restingLocalPosition;
+        private Transform _healthRingGeometry;
+        private Transform _healthHeartVisual;
+        private Quaternion _healthRingBaseRotation = Quaternion.identity;
+        private Quaternion _healthHeartBaseRotation = Quaternion.identity;
         private DuneVectorMaterials _materials;
         private float _majorRadius;
         private float _healthHeartScale;
@@ -82,6 +86,19 @@ namespace DuneVector
                 healthHeartScale,
                 healthHeartOffset,
                 healthHeartEulerAngles);
+            if (type == TraversalRingType.Health)
+            {
+                _healthRingGeometry = _visualRoot.Find("Health Ring XZ Geometry");
+                _healthHeartVisual = _visualRoot.Find("Health Heart - heartpiece.glb");
+                if (_healthRingGeometry != null)
+                {
+                    _healthRingBaseRotation = _healthRingGeometry.localRotation;
+                }
+                if (_healthHeartVisual != null)
+                {
+                    _healthHeartBaseRotation = _healthHeartVisual.localRotation;
+                }
+            }
             gameObject.name = type switch
             {
                 TraversalRingType.GroundBoost => "Ground Boost Ring",
@@ -201,6 +218,19 @@ namespace DuneVector
                 _visualSpin = Mathf.Repeat(
                     _visualSpin - (ClockwiseRotationSpeed * Time.deltaTime),
                     360f);
+                if (RingType == TraversalRingType.Health)
+                {
+                    if (_healthRingGeometry != null)
+                    {
+                        _healthRingGeometry.localRotation = Quaternion.AngleAxis(_visualSpin, Vector3.up)
+                            * _healthRingBaseRotation;
+                    }
+                    if (_healthHeartVisual != null)
+                    {
+                        _healthHeartVisual.localRotation = Quaternion.AngleAxis(-_visualSpin, Vector3.up)
+                            * _healthHeartBaseRotation;
+                    }
+                }
             }
         }
 
@@ -228,8 +258,7 @@ namespace DuneVector
 
             if (RingType == TraversalRingType.Health)
             {
-                _visualRoot.rotation = Quaternion.FromToRotation(Vector3.up, toCamera.normalized)
-                    * Quaternion.AngleAxis(_visualSpin, Vector3.up);
+                _visualRoot.rotation = Quaternion.FromToRotation(Vector3.up, toCamera.normalized);
             }
             else
             {
