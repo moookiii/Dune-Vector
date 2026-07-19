@@ -10,6 +10,8 @@ namespace DuneVector
         public Material Sand { get; }
         public Material DroneBody { get; }
         public Material DroneAccent { get; }
+        public Material RivalDroneTop { get; }
+        public Material NeutralDroneTop { get; }
         public Material DroneDark { get; }
         public Material Cactus { get; }
         public Material Sandstone { get; }
@@ -42,14 +44,33 @@ namespace DuneVector
         public DuneVectorMaterials(
             RingTuning ringTuning = null,
             DeliveryTuning deliveryTuning = null,
-            CloudTuning cloudTuning = null)
+            CloudTuning cloudTuning = null,
+            DynamicCourierTuning dynamicCourierTuning = null)
         {
             RingTuning rings = ringTuning ?? new RingTuning();
             DeliveryTuning delivery = deliveryTuning ?? new DeliveryTuning();
             CloudTuning clouds = cloudTuning ?? new CloudTuning();
+            DynamicCourierTuning couriers = dynamicCourierTuning ?? new DynamicCourierTuning();
             Sand = CreateLit("Sand - Warm Rough", new Color(0.62f, 0.36f, 0.16f), 0.14f, 0f);
             DroneBody = CreateLit("Drone - Ivory", new Color(0.75f, 0.78f, 0.78f), 0.72f, 0.7f);
-            DroneAccent = CreateLit("Drone - Cyan Emission", new Color(0.015f, 0.12f, 0.16f), 0.78f, 0.45f, new Color(0.0f, 1.6f, 2.8f));
+            DroneAccent = CreateLit(
+                "Drone - Player Blue Top",
+                couriers.PlayerTopColor,
+                couriers.TopMaterialSmoothness,
+                couriers.TopMaterialMetallic,
+                couriers.PlayerTopEmission);
+            RivalDroneTop = CreateLit(
+                "Drone - Rival Red Top",
+                couriers.RivalTopColor,
+                couriers.TopMaterialSmoothness,
+                couriers.TopMaterialMetallic,
+                couriers.RivalTopEmission);
+            NeutralDroneTop = CreateLit(
+                "Drone - Neutral Orange Top",
+                couriers.NeutralTopColor,
+                couriers.TopMaterialSmoothness,
+                couriers.TopMaterialMetallic,
+                couriers.NeutralTopEmission);
             DroneDark = CreateLit("Drone - Graphite", new Color(0.018f, 0.025f, 0.033f), 0.64f, 0.85f);
             Cactus = CreateLit("Cactus - Stylized", new Color(0.08f, 0.31f, 0.16f), 0.25f, 0f);
             Sandstone = CreateLit("Pyramid - Sandstone", new Color(0.58f, 0.31f, 0.13f), 0.18f, 0f);
@@ -227,7 +248,10 @@ namespace DuneVector
     {
         private static readonly Dictionary<string, Mesh> MeshCache = new Dictionary<string, Mesh>();
 
-        public static Transform CreateDroneVisual(Transform parent, DuneVectorMaterials materials)
+        public static Transform CreateDroneVisual(
+            Transform parent,
+            DuneVectorMaterials materials,
+            CourierDroneFaction faction = CourierDroneFaction.Player)
         {
             GameObject visualObject = new GameObject("DroneVisualRoot");
             Transform visual = visualObject.transform;
@@ -238,7 +262,13 @@ namespace DuneVector
             CreatePart(PrimitiveType.Cube, "Forward Spine", visual, new Vector3(0f, 0.02f, 0.55f), new Vector3(0.38f, 0.25f, 2.55f), Quaternion.identity, materials.DroneDark);
             CreatePart(PrimitiveType.Cube, "Left Wing", visual, new Vector3(-1.0f, -0.02f, 0f), new Vector3(1.65f, 0.13f, 0.48f), Quaternion.Euler(0f, -8f, 0f), materials.DroneBody);
             CreatePart(PrimitiveType.Cube, "Right Wing", visual, new Vector3(1.0f, -0.02f, 0f), new Vector3(1.65f, 0.13f, 0.48f), Quaternion.Euler(0f, 8f, 0f), materials.DroneBody);
-            CreatePart(PrimitiveType.Sphere, "Canopy", visual, new Vector3(0f, 0.27f, 0.2f), new Vector3(0.55f, 0.2f, 0.68f), Quaternion.identity, materials.DroneAccent);
+            Material topMaterial = faction switch
+            {
+                CourierDroneFaction.Rival => materials.RivalDroneTop,
+                CourierDroneFaction.Neutral => materials.NeutralDroneTop,
+                _ => materials.DroneAccent,
+            };
+            CreatePart(PrimitiveType.Sphere, "Canopy", visual, new Vector3(0f, 0.27f, 0.2f), new Vector3(0.55f, 0.2f, 0.68f), Quaternion.identity, topMaterial);
 
             Vector3[] rotorPositions =
             {
@@ -251,7 +281,7 @@ namespace DuneVector
             for (int i = 0; i < rotorPositions.Length; i++)
             {
                 Transform rotor = CreatePart(PrimitiveType.Cylinder, $"Rotor {i + 1}", visual, rotorPositions[i], new Vector3(0.5f, 0.035f, 0.5f), Quaternion.identity, materials.DroneDark);
-                CreatePart(PrimitiveType.Cylinder, "Glow", rotor, new Vector3(0f, 0.52f, 0f), new Vector3(0.72f, 0.018f, 0.72f), Quaternion.identity, materials.DroneAccent);
+                CreatePart(PrimitiveType.Cylinder, "Glow", rotor, new Vector3(0f, 0.52f, 0f), new Vector3(0.72f, 0.018f, 0.72f), Quaternion.identity, topMaterial);
             }
 
             CreateTrail(visual, new Vector3(-0.48f, -0.03f, -1.18f), materials.Trail);

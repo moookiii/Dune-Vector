@@ -653,6 +653,110 @@ namespace DuneVector
         [Min(0f)] public float DamageInvulnerability = 0.45f;
     }
 
+    public enum CourierDroneFaction
+    {
+        Player,
+        Rival,
+        Neutral,
+    }
+
+    [System.Serializable]
+    public sealed class DynamicCourierTuning
+    {
+        public bool Enabled;
+
+        [Header("Event Scheduling")]
+        [Min(0f)] public float InitialEventDelay;
+        [Min(0f)] public float MinimumEventInterval;
+        [Min(0f)] public float MaximumEventInterval;
+        [Min(1f)] public float MinimumSpawnDistance;
+        [Min(1f)] public float MaximumSpawnDistance;
+        [Min(1f)] public float MinimumRouteDistance;
+        [Min(1f)] public float MaximumRouteDistance;
+        [Min(1f)] public float OfferedEventDespawnDistance;
+        [Min(0f)] public float ResultDisplayDuration;
+        [Min(0f)] public float DistressEventWeight;
+        [Min(0f)] public float RaceEventWeight;
+        [Min(0f)] public float ConvoyEventWeight;
+
+        [Header("Courier Flight")]
+        [Min(0f)] public float FlightHeightAboveTerrain;
+        [Min(0f)] public float CruiseSpeed;
+        [Min(0f)] public float RivalRaceSpeed;
+        [Min(0f)] public float TurnSharpness;
+        [Min(0.1f)] public float DestinationRadius;
+        [Min(0f)] public float HoverAmplitude;
+        [Min(0f)] public float HoverFrequency;
+        [Min(0.1f)] public float VisualScale;
+        [Min(1f)] public float MaximumCourierHealth;
+
+        [Header("Distressed Courier")]
+        [Range(0.01f, 1f)] public float DistressedStartingHealthFraction;
+        [Range(1, 8)] public int DistressAttackerCount;
+        [Min(0)] public int DistressRescueReward;
+
+        [Header("Courier Race")]
+        [Min(1f)] public float ChallengeAcceptDistance;
+        public UnityEngine.InputSystem.Key ChallengeAcceptKey;
+        [Min(0)] public int RaceWinnerReward;
+
+        [Header("Moving Convoy")]
+        [Range(0, 6)] public int ConvoyEscortCount;
+        [Range(1, 10)] public int ConvoyAttackerCount;
+        [Min(0f)] public float ConvoyEscortSpacing;
+        [Range(0f, 1f)] public float ConvoyMinimumRewardFraction;
+        [Min(0)] public int ConvoyMaximumReward;
+
+        [Header("Event Attackers")]
+        [Min(1f)] public float AttackerMaximumHealth;
+        [Min(0.1f)] public float AttackerVisualScale;
+        [Min(0f)] public float AttackerSpeed;
+        [Min(0f)] public float AttackerTurnSharpness;
+        [Min(0f)] public float AttackerOrbitRadius;
+        [Min(0f)] public float AttackerHeightOffset;
+        [Min(0.1f)] public float AttackerShotRange;
+        [Min(0.1f)] public float AttackerShotInterval;
+        [Min(0f)] public float AttackerShotDamage;
+        [Min(0.01f)] public float AttackerCollisionRadius;
+        [Min(0f)] public int AttackerGoldReward;
+        [Min(0.01f)] public float AttackerShotVisualDuration;
+        [Min(0.001f)] public float AttackerShotStartWidth;
+        [Min(0.001f)] public float AttackerShotEndWidth;
+
+        [Header("Faction Tops")]
+        [ColorUsage(false)] public Color PlayerTopColor;
+        [ColorUsage(false, true)] public Color PlayerTopEmission;
+        [ColorUsage(false)] public Color RivalTopColor;
+        [ColorUsage(false, true)] public Color RivalTopEmission;
+        [ColorUsage(false)] public Color NeutralTopColor;
+        [ColorUsage(false, true)] public Color NeutralTopEmission;
+        [Range(0f, 1f)] public float TopMaterialSmoothness;
+        [Range(0f, 1f)] public float TopMaterialMetallic;
+
+        [Header("Event HUD")]
+        [Min(100f)] public float HudWidth;
+        [Min(60f)] public float HudHeight;
+        [Min(0f)] public float HudLeft;
+        [Min(0f)] public float HudTop;
+        [Min(0f)] public float HudPadding;
+        [Min(8)] public int HudTitleFontSize;
+        [Min(8)] public int HudBodyFontSize;
+        [Min(0f)] public float HudTitleHeight;
+        [Min(0f)] public float HudLineHeight;
+        [Min(8f)] public float ObjectiveMarkerSize;
+        [Min(0f)] public float ObjectiveMarkerEdgePadding;
+        [Min(80f)] public float ObjectiveMarkerLabelWidth;
+        [Min(12f)] public float ObjectiveMarkerLabelHeight;
+        [Min(8)] public int ObjectiveMarkerFontSize;
+        [ColorUsage(false)] public Color HudPanelColor;
+        [ColorUsage(false)] public Color HudTextColor;
+        [ColorUsage(false)] public Color DistressHudColor;
+        [ColorUsage(false)] public Color RaceHudColor;
+        [ColorUsage(false)] public Color ConvoyHudColor;
+        [ColorUsage(false)] public Color SuccessHudColor;
+        [ColorUsage(false)] public Color FailureHudColor;
+    }
+
     [System.Serializable]
     public sealed class EnergyLauncherTuning
     {
@@ -1471,6 +1575,9 @@ namespace DuneVector
         [Tooltip("Route-aware open-world enemy formation choreography.")]
         public RouteEncounterTuning RouteEncounters = new RouteEncounterTuning();
 
+        [Tooltip("Ambient rival couriers, rescues, races, moving convoys, rewards, and faction presentation.")]
+        public DynamicCourierTuning DynamicCouriers = new DynamicCourierTuning();
+
         [Tooltip("Procedural pyramid density and size range.")]
         public PyramidTuning Pyramids = new PyramidTuning();
 
@@ -1529,6 +1636,7 @@ namespace DuneVector
             WorldHub ??= new WorldHubTuning();
             Landmarks ??= new LandmarkSystemTuning();
             RouteEncounters ??= new RouteEncounterTuning();
+            DynamicCouriers ??= new DynamicCourierTuning();
             Pyramids ??= new PyramidTuning();
             WorldStreaming ??= new WorldStreamingTuning();
             RendererFrustumCulling ??= new RendererFrustumCullingTuning();

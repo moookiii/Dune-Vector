@@ -25,6 +25,7 @@ namespace DuneVector
         public WorldHubTuning WorldHubSettings => RuntimeSettings.WorldHub;
         public LandmarkSystemTuning LandmarkSettings => RuntimeSettings.Landmarks;
         public RouteEncounterTuning RouteEncounterSettings => RuntimeSettings.RouteEncounters;
+        public DynamicCourierTuning DynamicCourierSettings => RuntimeSettings.DynamicCouriers;
         public PyramidTuning Pyramids => RuntimeSettings.Pyramids;
         public WorldStreamingTuning WorldStreaming => RuntimeSettings.WorldStreaming;
         public PlayerHealthTuning HealthSettings => RuntimeSettings.HealthSettings;
@@ -65,6 +66,7 @@ namespace DuneVector
         public DuneVectorLandmarkDirector LandmarkDirector { get; private set; }
         public DuneVectorCourierGame CourierGame { get; private set; }
         public DuneVectorRouteEncounterDirector RouteEncounterDirector { get; private set; }
+        public DuneVectorDynamicCourierDirector DynamicCourierDirector { get; private set; }
         public DroneHealth DroneHealth { get; private set; }
         public DroneTargetDetector TargetDetector { get; private set; }
         public DroneLockOnController LockOnController { get; private set; }
@@ -305,7 +307,7 @@ namespace DuneVector
 
             QualitySettings.vSyncCount = 1;
             Application.targetFrameRate = -1;
-            _materials = new DuneVectorMaterials(Rings, Deliveries, Clouds);
+            _materials = new DuneVectorMaterials(Rings, Deliveries, Clouds, DynamicCourierSettings);
             _materials.ConfigureStormPyramid(StormPyramids);
 
             BuildEnvironment();
@@ -316,6 +318,7 @@ namespace DuneVector
             BuildInterface();
             BuildEnemyGameplay();
             BuildDeliveryGameplay();
+            BuildDynamicCourierGameplay();
             BuildDroneWeapon();
 
             DuneVectorRendererFrustumCuller rendererCuller = gameObject.AddComponent<DuneVectorRendererFrustumCuller>();
@@ -660,6 +663,27 @@ namespace DuneVector
                 StormPyramidDirector = stormObject.AddComponent<DuneVectorStormPyramidDirector>();
                 StormPyramidDirector.Initialize(Drone, DroneHealth, World, _materials, StormPyramids);
             }
+        }
+
+        private void BuildDynamicCourierGameplay()
+        {
+            if (!DynamicCourierSettings.Enabled)
+            {
+                return;
+            }
+
+            GameObject courierWorldObject = new GameObject("Dynamic Courier Rival and Convoy Director");
+            courierWorldObject.transform.SetParent(transform, false);
+            DynamicCourierDirector = courierWorldObject.AddComponent<DuneVectorDynamicCourierDirector>();
+            DynamicCourierDirector.Initialize(
+                Drone,
+                DroneHealth,
+                World,
+                DroneCamera.Camera,
+                _materials,
+                GoldWallet,
+                DynamicCourierSettings,
+                CourierGame);
         }
 
         private void BuildDroneWeapon()

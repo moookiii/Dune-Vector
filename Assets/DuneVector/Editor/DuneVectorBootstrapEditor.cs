@@ -116,6 +116,7 @@ namespace DuneVector.Editor
         private SerializedProperty _worldHub;
         private SerializedProperty _landmarks;
         private SerializedProperty _routeEncounters;
+        private SerializedProperty _dynamicCouriers;
         private SerializedProperty _pyramids;
         private SerializedProperty _worldStreaming;
         private SerializedProperty _rendererFrustumCulling;
@@ -141,6 +142,7 @@ namespace DuneVector.Editor
             _worldHub = serializedObject.FindProperty("WorldHub");
             _landmarks = serializedObject.FindProperty("Landmarks");
             _routeEncounters = serializedObject.FindProperty("RouteEncounters");
+            _dynamicCouriers = serializedObject.FindProperty("DynamicCouriers");
             _pyramids = serializedObject.FindProperty("Pyramids");
             _worldStreaming = serializedObject.FindProperty("WorldStreaming");
             _rendererFrustumCulling = serializedObject.FindProperty("RendererFrustumCulling");
@@ -221,6 +223,10 @@ namespace DuneVector.Editor
                 "Courier Contracts",
                 "Contract offers, modifier progression, cargo consequences, rewards, and active-contract HUD.",
                 _contracts);
+            DuneVectorSettingsInspector.DrawSection(
+                "Dynamic Couriers & Convoys",
+                "Ambient rescue events, open-route races, moving convoy attacks, rewards, and faction colors.",
+                _dynamicCouriers);
             DuneVectorSettingsInspector.DrawSection(
                 "World Hub & Teleport",
                 "Safe-hub layout, terminal presentation, deployment, and return sequence.",
