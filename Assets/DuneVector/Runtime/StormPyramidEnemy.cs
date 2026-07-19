@@ -458,13 +458,6 @@ namespace DuneVector
                 && Vector3.Distance(origin, _player.WorldCenter) <= _settings.DetectionRange;
         }
 
-        public bool CanTargetPlayerStrike(Vector3 origin)
-        {
-            return _player != null
-                && !_player.IsStableGrounded
-                && CanTargetPlayer(origin);
-        }
-
         public Vector3 GetPlayerPosition()
         {
             return _player.WorldCenter;
@@ -489,7 +482,7 @@ namespace DuneVector
 
         public StormLightningTarget SelectAttack(Vector3 origin)
         {
-            if (_targeting.CanTargetPlayerStrike(origin))
+            if (_targeting.CanTargetPlayer(origin))
             {
                 return new StormLightningTarget(
                     StormLightningAttackType.PlayerStrike,
