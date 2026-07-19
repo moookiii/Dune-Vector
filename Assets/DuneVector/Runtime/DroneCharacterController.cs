@@ -165,6 +165,25 @@ namespace DuneVector
             }
         }
 
+        public void HandleWorldShift(Vector3 shift)
+        {
+            if (_trailRenderers == null)
+            {
+                return;
+            }
+
+            // Trail vertices remain in absolute world space when the KCC is
+            // teleported for a floating-origin rebase. Clear the old segment so
+            // it cannot draw a line across the entire shift distance.
+            for (int i = 0; i < _trailRenderers.Length; i++)
+            {
+                if (_trailRenderers[i] != null)
+                {
+                    _trailRenderers[i].Clear();
+                }
+            }
+        }
+
         public void SetInputs(in DroneControlInput inputs)
         {
             _rawMove = Vector2.ClampMagnitude(inputs.Move, 1f);

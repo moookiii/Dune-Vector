@@ -13,6 +13,25 @@ namespace DuneVector
         private float _fieldRadius;
         private float _driftSpeed;
         private Vector2 _driftDirection;
+        private DesertWorldStreamer _world;
+
+        public void BindWorld(DesertWorldStreamer world)
+        {
+            if (_world != null)
+            {
+                _world.WorldShifted -= ApplyWorldShift;
+            }
+            _world = world;
+            if (_world != null)
+            {
+                _world.WorldShifted += ApplyWorldShift;
+            }
+        }
+
+        private void ApplyWorldShift(Vector3 shift)
+        {
+            transform.position += shift;
+        }
 
         public void Initialize(Material material, int clusterCount, float altitude, float fieldRadius, float driftSpeed)
         {
@@ -89,6 +108,14 @@ namespace DuneVector
         private static float Range(System.Random random, float minimum, float maximum)
         {
             return Mathf.Lerp(minimum, maximum, (float)random.NextDouble());
+        }
+
+        private void OnDestroy()
+        {
+            if (_world != null)
+            {
+                _world.WorldShifted -= ApplyWorldShift;
+            }
         }
     }
 }

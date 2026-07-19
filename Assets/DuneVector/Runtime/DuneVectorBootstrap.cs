@@ -18,6 +18,7 @@ namespace DuneVector
         public CloudTuning Clouds => RuntimeSettings.Clouds;
         public DeliveryTuning Deliveries => RuntimeSettings.Deliveries;
         public PyramidTuning Pyramids => RuntimeSettings.Pyramids;
+        public WorldStreamingTuning WorldStreaming => RuntimeSettings.WorldStreaming;
         public PlayerHealthTuning HealthSettings => RuntimeSettings.HealthSettings;
         public FlyingEnemyTuning FlyingEnemies => RuntimeSettings.FlyingEnemies;
         public GroundExploderTuning GroundExploders => RuntimeSettings.GroundExploders;
@@ -306,6 +307,11 @@ namespace DuneVector
             World.Dunes = DuneGeneration;
             World.ChunkResolution = DuneMeshResolution;
             World.ChunkSize = DuneChunkSize;
+            World.ActiveRadius = WorldStreaming.ActiveRadius;
+            World.PreloadRadius = WorldStreaming.PreloadRadius;
+            World.UnloadRadius = WorldStreaming.UnloadRadius;
+            World.ChunksGeneratedPerFrame = WorldStreaming.ChunksGeneratedPerFrame;
+            World.FloatingOriginThreshold = WorldStreaming.FloatingOriginThreshold;
             World.PyramidDensity = Pyramids.DensityPerChunk;
             World.PyramidMinimumScale = Pyramids.MinimumScale;
             World.PyramidMaximumScale = Pyramids.MaximumScale;
@@ -381,6 +387,7 @@ namespace DuneVector
             if (CloudField != null)
             {
                 CloudField.FollowTarget = Drone.transform;
+                CloudField.BindWorld(World);
             }
         }
 

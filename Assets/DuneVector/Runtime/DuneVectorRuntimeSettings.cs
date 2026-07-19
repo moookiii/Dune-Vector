@@ -54,6 +54,21 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class WorldStreamingTuning
+    {
+        [Tooltip("Chunk radius kept active around the player.")]
+        [Range(1, 8)] public int ActiveRadius = 3;
+        [Tooltip("Chunk radius generated ahead of the player.")]
+        [Range(1, 9)] public int PreloadRadius = 3;
+        [Tooltip("Chunks beyond this radius are removed.")]
+        [Range(2, 12)] public int UnloadRadius = 4;
+        [Tooltip("Maximum terrain chunks generated during one frame.")]
+        [Range(1, 4)] public int ChunksGeneratedPerFrame = 1;
+        [Tooltip("Local distance at which the world recenters around the drone.")]
+        [Min(50f)] public float FloatingOriginThreshold = 520f;
+    }
+
+    [System.Serializable]
     public sealed class PlayerHealthTuning
     {
         [Min(1f)] public float MaximumHealth = 100f;
@@ -206,6 +221,9 @@ namespace DuneVector
         [Tooltip("Procedural pyramid density and size range.")]
         public PyramidTuning Pyramids = new PyramidTuning();
 
+        [Tooltip("Chunk loading, unloading, and floating-origin behavior.")]
+        public WorldStreamingTuning WorldStreaming = new WorldStreamingTuning();
+
         [Tooltip("Player hull strength and damage protection.")]
         public PlayerHealthTuning HealthSettings = new PlayerHealthTuning();
 
@@ -235,6 +253,7 @@ namespace DuneVector
             Clouds ??= new CloudTuning();
             Deliveries ??= new DeliveryTuning();
             Pyramids ??= new PyramidTuning();
+            WorldStreaming ??= new WorldStreamingTuning();
             HealthSettings ??= new PlayerHealthTuning();
             FlyingEnemies ??= new FlyingEnemyTuning();
             GroundExploders ??= new GroundExploderTuning();

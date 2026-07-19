@@ -66,6 +66,8 @@ namespace DuneVector
 
         public static readonly Vector2 StartingLogicalPosition = new Vector2(10f, 8f);
 
+        public event Action<Vector3> WorldShifted;
+
         private readonly Dictionary<Vector2Int, DesertChunk> _chunks = new Dictionary<Vector2Int, DesertChunk>();
         private readonly Queue<Vector2Int> _generationQueue = new Queue<Vector2Int>();
         private readonly HashSet<Vector2Int> _queuedCoordinates = new HashSet<Vector2Int>();
@@ -208,11 +210,14 @@ namespace DuneVector
                 chunk.Reposition(OriginOffsetX, OriginOffsetZ, ChunkSize);
             }
 
-            _motor.SetPosition(motorPosition - localShift, true);
+            Vector3 worldShift = -localShift;
+            _motor.SetPosition(motorPosition + worldShift, true);
             if (_camera != null)
             {
-                _camera.ApplyWorldShift(-localShift);
+                _camera.ApplyWorldShift(worldShift);
             }
+            _player?.HandleWorldShift(worldShift);
+            WorldShifted?.Invoke(worldShift);
             RebaseCount++;
         }
 

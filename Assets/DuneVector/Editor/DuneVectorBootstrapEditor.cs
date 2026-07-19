@@ -111,6 +111,7 @@ namespace DuneVector.Editor
         private SerializedProperty _clouds;
         private SerializedProperty _deliveries;
         private SerializedProperty _pyramids;
+        private SerializedProperty _worldStreaming;
         private SerializedProperty _health;
         private SerializedProperty _flyingEnemies;
         private SerializedProperty _groundExploders;
@@ -125,6 +126,7 @@ namespace DuneVector.Editor
             _clouds = serializedObject.FindProperty("Clouds");
             _deliveries = serializedObject.FindProperty("Deliveries");
             _pyramids = serializedObject.FindProperty("Pyramids");
+            _worldStreaming = serializedObject.FindProperty("WorldStreaming");
             _health = serializedObject.FindProperty("HealthSettings");
             _flyingEnemies = serializedObject.FindProperty("FlyingEnemies");
             _groundExploders = serializedObject.FindProperty("GroundExploders");
@@ -222,6 +224,7 @@ namespace DuneVector.Editor
                 EditorGUILayout.Space(3f);
                 EditorGUILayout.PropertyField(_chunkSize);
                 EditorGUILayout.PropertyField(_meshResolution);
+                EditorGUILayout.PropertyField(_worldStreaming, GUIContent.none, true);
             }
 
             DuneVectorSettingsInspector.DrawSection(

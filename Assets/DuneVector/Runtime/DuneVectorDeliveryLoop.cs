@@ -48,11 +48,18 @@ namespace DuneVector
             _camera = camera;
             _materials = materials;
             _settings = settings;
+            _world.WorldShifted += HandleWorldShift;
             _sessionSeed = unchecked(
                 world.WorldSeed
                 ^ settings.JobSeedOffset
                 ^ (settings.RandomizeLocationsEachPlay ? Environment.TickCount : 0));
             BeginNextJob();
+        }
+
+        private void HandleWorldShift(Vector3 shift)
+        {
+            _pickupRing?.ApplyWorldShift(shift);
+            _deliveryRing?.ApplyWorldShift(shift);
         }
 
         private void BeginNextJob()
@@ -225,6 +232,15 @@ namespace DuneVector
             ActiveObjective = null;
         }
 
+        private void OnDestroy()
+        {
+            if (_world != null)
+            {
+                _world.WorldShifted -= HandleWorldShift;
+            }
+            CleanupJobObjects();
+        }
+
         private void EnsureStyles()
         {
             if (_markerStyle != null)
@@ -346,6 +362,15 @@ namespace DuneVector
             _onCrossed = onCrossed;
             _innerRadius = Mathf.Max(0.5f, radius - 0.38f);
             _visual = DuneVectorVisuals.CreateJobRingVisual(transform, isPickup, materials, radius);
+        }
+
+        public void ApplyWorldShift(Vector3 shift)
+        {
+            transform.position += shift;
+            if (_hasPreviousPosition)
+            {
+                _previousWorldPosition += shift;
+            }
         }
 
         private void Update()
