@@ -309,6 +309,9 @@ namespace DuneVector
             World.PyramidDensity = Pyramids.DensityPerChunk;
             World.PyramidMinimumScale = Pyramids.MinimumScale;
             World.PyramidMaximumScale = Pyramids.MaximumScale;
+            World.PyramidMaximumPlacementSlope = Pyramids.MaximumPlacementSlope;
+            World.PyramidMinimumBurialDepth = Pyramids.MinimumBurialDepth;
+            World.PyramidMaximumBurialDepth = Pyramids.MaximumBurialDepth;
             World.GroundExploders = GroundExploders;
             World.Initialize(_materials);
         }

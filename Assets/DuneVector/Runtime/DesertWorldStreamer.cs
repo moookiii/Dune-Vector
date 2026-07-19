@@ -28,6 +28,9 @@ namespace DuneVector
         [Min(0f)] public float PyramidDensity = 0.22f;
         [Min(0.1f)] public float PyramidMinimumScale = 2f;
         [Min(0.1f)] public float PyramidMaximumScale = 4.4f;
+        [Range(0f, 89f)] public float PyramidMaximumPlacementSlope = 24f;
+        [Min(0f)] public float PyramidMinimumBurialDepth = 0.75f;
+        [Min(0f)] public float PyramidMaximumBurialDepth = 1.25f;
         [Range(0f, 2f)] public float GroundRingDensity = 0.48f;
         [Range(0f, 1f)] public float AerialRingDensity = 0.14f;
 
@@ -284,6 +287,9 @@ namespace DuneVector
                 PyramidDensity,
                 PyramidMinimumScale,
                 PyramidMaximumScale,
+                PyramidMaximumPlacementSlope,
+                PyramidMinimumBurialDepth,
+                PyramidMaximumBurialDepth,
                 GroundRingDensity,
                 AerialRingDensity,
                 Rings,
@@ -352,6 +358,9 @@ namespace DuneVector
             float pyramidDensity,
             float pyramidMinimumScale,
             float pyramidMaximumScale,
+            float pyramidMaximumPlacementSlope,
+            float pyramidMinimumBurialDepth,
+            float pyramidMaximumBurialDepth,
             float groundRingDensity,
             float aerialRingDensity,
             RingTuning ringTuning,
@@ -384,6 +393,9 @@ namespace DuneVector
                 pyramidDensity,
                 pyramidMinimumScale,
                 pyramidMaximumScale,
+                pyramidMaximumPlacementSlope,
+                pyramidMinimumBurialDepth,
+                pyramidMaximumBurialDepth,
                 groundRingDensity,
                 aerialRingDensity,
                 ringTuning,
@@ -492,6 +504,9 @@ namespace DuneVector
             float pyramidDensity,
             float pyramidMinimumScale,
             float pyramidMaximumScale,
+            float pyramidMaximumPlacementSlope,
+            float pyramidMinimumBurialDepth,
+            float pyramidMaximumBurialDepth,
             float groundRingDensity,
             float aerialRingDensity,
             RingTuning ringTuning,
@@ -581,7 +596,7 @@ namespace DuneVector
 
                 double logicalX = originX + local.x;
                 double logicalZ = originZ + local.y;
-                if (Vector3.Angle(heightField.SampleNormal(logicalX, logicalZ), Vector3.up) > 24f)
+                if (Vector3.Angle(heightField.SampleNormal(logicalX, logicalZ), Vector3.up) > pyramidMaximumPlacementSlope)
                 {
                     continue;
                 }
@@ -596,8 +611,22 @@ namespace DuneVector
                     minimumScale,
                     maximumScale);
                 float yaw = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 937 + (i * 17), 0f, 360f);
-                float burial = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 941 + (i * 17), 0.2f, 0.75f);
-                float y = (float)heightField.SampleHeight(logicalX, logicalZ) - burial;
+                float minimumBurial = Mathf.Max(0f, pyramidMinimumBurialDepth);
+                float maximumBurial = Mathf.Max(minimumBurial, pyramidMaximumBurialDepth);
+                float burial = DuneVectorMath.HashRange(
+                    coordinate.x,
+                    coordinate.y,
+                    worldSeed,
+                    941 + (i * 17),
+                    minimumBurial,
+                    maximumBurial);
+                float footprintFloor = SampleLowestPyramidFootprintHeight(
+                    heightField,
+                    logicalX,
+                    logicalZ,
+                    scale,
+                    yaw);
+                float y = footprintFloor - burial;
                 DuneVectorVisuals.CreatePyramid(Root, new Vector3(local.x, y, local.y), scale, yaw, materials.Sandstone);
             }
 
@@ -613,6 +642,34 @@ namespace DuneVector
                 originZ,
                 ringExclusions,
                 groundExploderTuning);
+        }
+
+        private static float SampleLowestPyramidFootprintHeight(
+            DuneHeightField heightField,
+            double centerX,
+            double centerZ,
+            float halfExtent,
+            float yaw)
+        {
+            Quaternion rotation = Quaternion.Euler(0f, yaw, 0f);
+            float lowestHeight = float.PositiveInfinity;
+
+            // A regular footprint grid catches dune troughs beneath the pyramid instead
+            // of relying only on its center, which can sit much higher than its corners.
+            const int intervals = 4;
+            for (int z = 0; z <= intervals; z++)
+            {
+                float normalizedZ = Mathf.Lerp(-1f, 1f, z / (float)intervals);
+                for (int x = 0; x <= intervals; x++)
+                {
+                    float normalizedX = Mathf.Lerp(-1f, 1f, x / (float)intervals);
+                    Vector3 offset = rotation * new Vector3(normalizedX * halfExtent, 0f, normalizedZ * halfExtent);
+                    float height = (float)heightField.SampleHeight(centerX + offset.x, centerZ + offset.z);
+                    lowestHeight = Mathf.Min(lowestHeight, height);
+                }
+            }
+
+            return lowestHeight;
         }
 
         private void SpawnGroundExploders(
