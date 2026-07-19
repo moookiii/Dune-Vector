@@ -42,10 +42,10 @@ namespace DuneVector
         [Min(0.1f)] public float PackageScale = 0.8f;
 
         [Header("Completion Message")]
-        [ColorUsage(false)] public Color CompletionTextRed = Color.red;
-        [ColorUsage(false)] public Color CompletionTextGreen = Color.green;
-        [ColorUsage(false)] public Color CompletionTextBlue = Color.blue;
-        [Min(0f)] public float CompletionTextColorCyclesPerSecond = 4f;
+        [ColorUsage(false)] public Color CompletionTextRed = new Color(1f, 0.55f, 0.68f);
+        [ColorUsage(false)] public Color CompletionTextGreen = new Color(0.55f, 1f, 0.72f);
+        [ColorUsage(false)] public Color CompletionTextBlue = new Color(0.55f, 0.78f, 1f);
+        [Min(0f)] public float CompletionTextColorCyclesPerSecond = 0.45f;
     }
 
     [System.Serializable]
