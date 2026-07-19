@@ -118,6 +118,7 @@ namespace DuneVector
         private Vector3 _lookInputWorld;
         private bool _jumpRequested;
         private bool _jumpConsumed;
+        private bool _hoverEnabled = true;
         private bool _jumpedThisUpdate;
         private float _timeSinceJumpRequested = float.PositiveInfinity;
         private float _timeSinceStableGround = float.PositiveInfinity;
@@ -672,8 +673,19 @@ namespace DuneVector
             _currentVisualPitch = Mathf.Lerp(_currentVisualPitch, targetPitch, DuneVectorMath.Sharpness(BankRecoverySharpness, deltaTime));
             DroneVisualRoot.localRotation = Quaternion.Euler(_currentVisualPitch, 0f, _currentVisualBank);
 
-            float hover = Mathf.Sin(Time.time * HoverFrequency * Mathf.PI * 2f) * HoverAmplitude;
+            float hover = _hoverEnabled
+                ? Mathf.Sin(Time.time * HoverFrequency * Mathf.PI * 2f) * HoverAmplitude
+                : 0f;
             DroneVisualRoot.localPosition = _visualBaseLocalPosition + (Vector3.up * hover);
+        }
+
+        public void SetHoverEnabled(bool enabled)
+        {
+            _hoverEnabled = enabled;
+            if (!enabled && DroneVisualRoot != null)
+            {
+                DroneVisualRoot.localPosition = _visualBaseLocalPosition;
+            }
         }
 
         private void UpdateTrailVisibility()
