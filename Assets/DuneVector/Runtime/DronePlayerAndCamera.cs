@@ -56,6 +56,7 @@ namespace DuneVector
 
         public bool AutomatedInputEnabled { get; private set; }
         public DroneRawInputFrame AutomatedInput { get; private set; }
+        public bool InputEnabled { get; private set; } = true;
 
         private void Start()
         {
@@ -72,11 +73,12 @@ namespace DuneVector
                 return;
             }
 
-            if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            if (!InputEnabled)
             {
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
+                ClearCharacterInput();
+                return;
             }
+
             if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
             {
                 Cursor.lockState = CursorLockMode.Locked;
@@ -104,7 +106,7 @@ namespace DuneVector
 
         private void LateUpdate()
         {
-            if (Health != null && Health.IsDead)
+            if (!InputEnabled || (Health != null && Health.IsDead))
             {
                 return;
             }
@@ -131,6 +133,26 @@ namespace DuneVector
         {
             AutomatedInputEnabled = false;
             AutomatedInput = default;
+        }
+
+        public void SetInputEnabled(bool enabled)
+        {
+            InputEnabled = enabled;
+            if (!enabled)
+            {
+                ClearCharacterInput();
+            }
+        }
+
+        private void ClearCharacterInput()
+        {
+            if (Character == null)
+            {
+                return;
+            }
+
+            DroneControlInput input = default;
+            Character.SetInputs(in input);
         }
     }
 

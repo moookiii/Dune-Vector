@@ -351,6 +351,26 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class AudioTuning
+    {
+        [Header("FMOD Events")]
+        [Tooltip("Looped background-music event played for the full run.")]
+        public string BackgroundMusicEvent = "event:/Shadows on the Mesa";
+
+        [Header("July Mixer Routing")]
+        [Tooltip("FMOD group bus used by background music.")]
+        public string MusicBusPath = "bus:/Music";
+        [Tooltip("FMOD group bus reserved for gameplay and interface sound effects.")]
+        public string SoundEffectsBusPath = "bus:/SFX";
+
+        [Header("Default Volumes")]
+        [Range(0f, 1f)] public float DefaultMusicVolume = 1f;
+        [Range(0f, 1f)] public float DefaultSoundEffectsVolume = 1f;
+        [Tooltip("Remember pause-menu volume choices between runs.")]
+        public bool PersistVolumeSettings = true;
+    }
+
+    [System.Serializable]
     public sealed class DroneTuning
     {
         [Header("Ground Movement")]
@@ -434,6 +454,9 @@ namespace DuneVector
         [Tooltip("Dynamic clear-weather dust, sandstorm timing, wind, HDRP atmosphere, and particle layers.")]
         public DesertWeatherTuning Weather = new DesertWeatherTuning();
 
+        [Tooltip("FMOD background music, July mixer bus routing, and pause-menu volume defaults.")]
+        public AudioTuning Audio = new AudioTuning();
+
         [Tooltip("Pickup, package, and drop-off job generation.")]
         public DeliveryTuning Deliveries = new DeliveryTuning();
 
@@ -475,6 +498,7 @@ namespace DuneVector
             Clouds ??= new CloudTuning();
             Weather ??= new DesertWeatherTuning();
             Weather.EnsureInitialized();
+            Audio ??= new AudioTuning();
             Deliveries ??= new DeliveryTuning();
             Pyramids ??= new PyramidTuning();
             WorldStreaming ??= new WorldStreamingTuning();

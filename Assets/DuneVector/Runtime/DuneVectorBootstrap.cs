@@ -1,4 +1,5 @@
 using KinematicCharacterController;
+using FMODUnity;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
@@ -17,6 +18,7 @@ namespace DuneVector
         public DroneTuning PlayerTuning => RuntimeSettings.PlayerTuning;
         public CloudTuning Clouds => RuntimeSettings.Clouds;
         public DesertWeatherTuning WeatherSettings => RuntimeSettings.Weather;
+        public AudioTuning AudioSettings => RuntimeSettings.Audio;
         public DeliveryTuning Deliveries => RuntimeSettings.Deliveries;
         public PyramidTuning Pyramids => RuntimeSettings.Pyramids;
         public WorldStreamingTuning WorldStreaming => RuntimeSettings.WorldStreaming;
@@ -59,6 +61,8 @@ namespace DuneVector
         public DuneVectorStormPyramidDirector StormPyramidDirector { get; private set; }
         public DuneVectorWeatherController WeatherSystem { get; private set; }
         public DuneVectorGameOverController GameOverController { get; private set; }
+        public DuneVectorAudioManager AudioManager { get; private set; }
+        public DuneVectorPauseMenu PauseMenu { get; private set; }
 
         private DuneVectorMaterials _materials;
         private VolumeProfile _runtimeVolumeProfile;
@@ -292,6 +296,7 @@ namespace DuneVector
             BuildEnvironment();
             BuildWorld();
             BuildDroneAndCamera();
+            BuildAudio();
             BuildWeather();
             BuildInterface();
             BuildDeliveryGameplay();
@@ -370,7 +375,7 @@ namespace DuneVector
             camera.allowHDR = true;
             camera.farClipPlane = 900f;
             camera.nearClipPlane = 0.08f;
-            cameraObject.AddComponent<AudioListener>();
+            cameraObject.AddComponent<StudioListener>();
             if (cameraObject.GetComponent<HDAdditionalCameraData>() == null)
             {
                 cameraObject.AddComponent<HDAdditionalCameraData>();
@@ -393,6 +398,14 @@ namespace DuneVector
             Player.Health = DroneHealth;
 
             World.BindPlayer(Drone, DroneCamera, DroneHealth);
+        }
+
+        private void BuildAudio()
+        {
+            GameObject audioObject = new GameObject("FMOD Audio and Background Music");
+            audioObject.transform.SetParent(transform, false);
+            AudioManager = audioObject.AddComponent<DuneVectorAudioManager>();
+            AudioManager.Initialize(AudioSettings);
         }
 
         private void BuildEnvironment()
@@ -489,6 +502,8 @@ namespace DuneVector
             healthHUD.Health = DroneHealth;
             GameOverController = gameObject.AddComponent<DuneVectorGameOverController>();
             GameOverController.Initialize(DroneHealth);
+            PauseMenu = gameObject.AddComponent<DuneVectorPauseMenu>();
+            PauseMenu.Initialize(Player, DroneHealth, AudioManager);
         }
 
         private void BuildDeliveryGameplay()
