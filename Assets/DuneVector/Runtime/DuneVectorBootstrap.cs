@@ -379,6 +379,7 @@ namespace DuneVector
             DroneHealth = droneObject.AddComponent<DroneHealth>();
             DroneHealth.Initialize(HealthSettings.MaximumHealth, HealthSettings.DamageInvulnerability);
             Transform visualRoot = DuneVectorVisuals.CreateDroneVisual(droneObject.transform, _materials);
+            visualRoot.localPosition = Vector3.up * PlayerTuning.GroundVisualHeight;
 
             GameObject cameraTargetObject = new GameObject("CameraTarget");
             cameraTargetObject.transform.SetParent(droneObject.transform, false);

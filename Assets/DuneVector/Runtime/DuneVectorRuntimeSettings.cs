@@ -1306,6 +1306,8 @@ namespace DuneVector
     public sealed class DroneTuning
     {
         [Header("Ground Movement")]
+        [Tooltip("Vertical distance between the grounded character root and the drone visual.")]
+        [Min(0f)] public float GroundVisualHeight = 0.45f;
         [Min(0f)] public float MaxGroundSpeed = 18f;
         [Min(0f)] public float GroundMovementSharpness = 8.5f;
         [Min(0f)] public float GroundBrakingSharpness = 5.5f;
