@@ -147,7 +147,7 @@ namespace DuneVector
         [Range(4, 30)] public int ClusterCount;
         [Min(20f)] public float Altitude;
         [Min(0f)] public float DriftSpeed;
-        [Tooltip("Fallback cloud drift direction used when dynamic desert weather is disabled.")]
+        [Tooltip("Cloud drift direction on the world X/Z plane. Set both components to zero to stop cloud drift.")]
         public Vector2 DriftDirection;
         [Header("Weather Wind Response")]
         [Tooltip("Additional cloud drift speed contributed by each metre per second of the live desert-weather wind.")]

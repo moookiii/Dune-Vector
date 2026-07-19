@@ -33,9 +33,7 @@ namespace DuneVector
         private static readonly Dictionary<CloudTuning, CloudMeshLibrary> MeshLibraries =
             new Dictionary<CloudTuning, CloudMeshLibrary>();
 
-        private float _driftSpeed;
-        private Vector2 _driftDirection;
-        private float _weatherWindSpeedMultiplier;
+        private CloudTuning _tuning;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetMeshLibraries()
@@ -57,11 +55,7 @@ namespace DuneVector
             int randomSeed)
         {
             tuning.EnsureInitialized();
-            _driftSpeed = Mathf.Max(0f, tuning.DriftSpeed);
-            _driftDirection = tuning.DriftDirection.sqrMagnitude > 0.0001f
-                ? tuning.DriftDirection.normalized
-                : Vector2.zero;
-            _weatherWindSpeedMultiplier = Mathf.Max(0f, tuning.WeatherWindSpeedMultiplier);
+            _tuning = tuning;
 
             CloudMeshLibrary library = GetOrCreateMeshLibrary(tuning);
             if (library.Archetypes.Count == 0)
@@ -116,19 +110,19 @@ namespace DuneVector
 
         internal void Tick(float deltaTime)
         {
-            Vector2 driftDirection = _driftDirection;
-            float driftSpeed = _driftSpeed;
+            if (_tuning == null)
+            {
+                return;
+            }
+
+            Vector2 driftDirection = _tuning.DriftDirection.sqrMagnitude > 0.0001f
+                ? _tuning.DriftDirection.normalized
+                : Vector2.zero;
+            float driftSpeed = Mathf.Max(0f, _tuning.DriftSpeed);
             DuneVectorWeatherController weather = DuneVectorBootstrap.Instance?.WeatherSystem;
             if (weather != null)
             {
-                Vector3 weatherDirection3 = weather.CurrentWindDirection;
-                Vector2 weatherDirection = new Vector2(weatherDirection3.x, weatherDirection3.z);
-                if (weatherDirection.sqrMagnitude > 0.0001f)
-                {
-                    driftDirection = weatherDirection.normalized;
-                }
-
-                driftSpeed += weather.CurrentWindSpeed * _weatherWindSpeedMultiplier;
+                driftSpeed += weather.CurrentWindSpeed * Mathf.Max(0f, _tuning.WeatherWindSpeedMultiplier);
             }
 
             Vector3 drift = new Vector3(driftDirection.x, 0f, driftDirection.y) * (driftSpeed * deltaTime);
