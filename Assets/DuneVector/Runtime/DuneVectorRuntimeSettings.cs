@@ -622,7 +622,7 @@ namespace DuneVector
     public sealed class WorldStreamingTuning
     {
         [Tooltip("Chunk radius kept active around the player.")]
-        [Range(1, 8)] public int ActiveRadius = 3;
+        [Range(1, 14)] public int ActiveRadius = 3;
         [Tooltip("Chunk radius generated ahead of the player.")]
         [Range(1, 9)] public int PreloadRadius = 3;
         [Tooltip("Chunks beyond this radius are removed.")]

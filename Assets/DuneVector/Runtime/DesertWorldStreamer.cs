@@ -21,7 +21,7 @@ namespace DuneVector
         public int WorldSeed = 19770503;
         [Min(24f)] public float ChunkSize = 80f;
         [Range(8, 96)] public int ChunkResolution = 32;
-        [Range(1, 8)] public int ActiveRadius = 3;
+        [Range(1, 14)] public int ActiveRadius = 3;
         [Range(1, 9)] public int PreloadRadius = 3;
         [Range(2, 12)] public int UnloadRadius = 4;
         [Range(1, 4)] public int ChunksGeneratedPerFrame = 1;
