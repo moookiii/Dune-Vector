@@ -634,6 +634,19 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class RendererFrustumCullingTuning
+    {
+        [Tooltip("Disable rendering for scene renderers outside the gameplay camera's padded frustum.")]
+        public bool Enabled = true;
+
+        [Tooltip("World-space distance added beyond every frustum plane so camera movement reveals objects before they enter view.")]
+        [Min(0f)] public float Padding = 30f;
+
+        [Tooltip("How often newly spawned renderers are added to the culling set. Tracked renderers are culled every frame.")]
+        [Min(0.05f)] public float RendererRefreshInterval = 0.5f;
+    }
+
+    [System.Serializable]
     public sealed class PlayerHealthTuning
     {
         [Min(1f)] public float MaximumHealth = 100f;
@@ -1464,6 +1477,9 @@ namespace DuneVector
         [Tooltip("Chunk loading, unloading, and floating-origin behavior.")]
         public WorldStreamingTuning WorldStreaming = new WorldStreamingTuning();
 
+        [Tooltip("Padded camera-frustum renderer suppression and dynamic-renderer discovery.")]
+        public RendererFrustumCullingTuning RendererFrustumCulling = new RendererFrustumCullingTuning();
+
         [Tooltip("Player hull strength and damage protection.")]
         public PlayerHealthTuning HealthSettings = new PlayerHealthTuning();
 
@@ -1515,6 +1531,7 @@ namespace DuneVector
             RouteEncounters ??= new RouteEncounterTuning();
             Pyramids ??= new PyramidTuning();
             WorldStreaming ??= new WorldStreamingTuning();
+            RendererFrustumCulling ??= new RendererFrustumCullingTuning();
             HealthSettings ??= new PlayerHealthTuning();
             EnergyLauncher ??= new EnergyLauncherTuning();
             FlyingEnemies ??= new FlyingEnemyTuning();

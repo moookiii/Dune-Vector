@@ -118,6 +118,7 @@ namespace DuneVector.Editor
         private SerializedProperty _routeEncounters;
         private SerializedProperty _pyramids;
         private SerializedProperty _worldStreaming;
+        private SerializedProperty _rendererFrustumCulling;
         private SerializedProperty _health;
         private SerializedProperty _energyLauncher;
         private SerializedProperty _flyingEnemies;
@@ -142,6 +143,7 @@ namespace DuneVector.Editor
             _routeEncounters = serializedObject.FindProperty("RouteEncounters");
             _pyramids = serializedObject.FindProperty("Pyramids");
             _worldStreaming = serializedObject.FindProperty("WorldStreaming");
+            _rendererFrustumCulling = serializedObject.FindProperty("RendererFrustumCulling");
             _health = serializedObject.FindProperty("HealthSettings");
             _energyLauncher = serializedObject.FindProperty("EnergyLauncher");
             _flyingEnemies = serializedObject.FindProperty("FlyingEnemies");
@@ -272,6 +274,11 @@ namespace DuneVector.Editor
                 EditorGUILayout.PropertyField(_meshResolution);
                 EditorGUILayout.PropertyField(_worldStreaming, GUIContent.none, true);
             }
+
+            DuneVectorSettingsInspector.DrawSection(
+                "Renderer Frustum Culling",
+                "Suppress renderers beyond a padded camera frustum and discover newly spawned renderers.",
+                _rendererFrustumCulling);
 
             DuneVectorSettingsInspector.DrawSection(
                 "Dynamic Desert Weather",

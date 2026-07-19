@@ -318,6 +318,9 @@ namespace DuneVector
             BuildDeliveryGameplay();
             BuildDroneWeapon();
 
+            DuneVectorRendererFrustumCuller rendererCuller = gameObject.AddComponent<DuneVectorRendererFrustumCuller>();
+            rendererCuller.Initialize(DroneCamera.Camera, RuntimeSettings.RendererFrustumCulling);
+
 #if UNITY_EDITOR
             if (UnityEditor.EditorPrefs.GetBool("DuneVector.ValidationRequested", false))
             {
