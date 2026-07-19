@@ -175,7 +175,10 @@ namespace DuneVector
                     ruin.DamagedPlayer = true;
                     float damage = Mathf.Max(0f, _settings.FallingRuinBaseDamage) +
                         (Mathf.Max(0, _risk - 1) * Mathf.Max(0f, _settings.FallingRuinDamagePerRisk));
-                    _health.TakeDamage(damage, $"Risk {_risk} falling building debris");
+                    _health.TakeDamage(
+                        damage,
+                        $"Risk {_risk} falling building debris",
+                        "Crushed by falling building debris.");
                 }
 
                 float terrainHeight = _world.SampleHeightAtLocal(next.x, next.z);

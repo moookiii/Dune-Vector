@@ -12,6 +12,7 @@ namespace DuneVector
         public float NormalizedHealth => MaximumHealth > 0f ? Mathf.Clamp01(CurrentHealth / MaximumHealth) : 0f;
         public bool IsDead { get; private set; }
         public string LastDamageSource { get; private set; } = "Unknown damage source";
+        public string LastDeathMessage { get; private set; } = "Destroyed by an unknown damage source.";
 
         public event Action<float, float> HealthChanged;
         public event Action<float> Damaged;
@@ -28,6 +29,7 @@ namespace DuneVector
             _damageInvulnerability = Mathf.Max(0f, damageInvulnerability);
             IsDead = false;
             LastDamageSource = "Unknown damage source";
+            LastDeathMessage = "Destroyed by an unknown damage source.";
         }
 
         public void SetMaximumHealth(float maximumHealth, bool restoreAddedCapacity)
@@ -54,6 +56,11 @@ namespace DuneVector
 
         public bool TakeDamage(float damage, string damageSource)
         {
+            return TakeDamage(damage, damageSource, null);
+        }
+
+        public bool TakeDamage(float damage, string damageSource, string deathMessage)
+        {
             if (IsDead || damage <= 0f || Time.time < _nextDamageTime)
             {
                 return false;
@@ -61,6 +68,9 @@ namespace DuneVector
 
             _nextDamageTime = Time.time + _damageInvulnerability;
             LastDamageSource = string.IsNullOrWhiteSpace(damageSource) ? "Unknown damage source" : damageSource;
+            LastDeathMessage = string.IsNullOrWhiteSpace(deathMessage)
+                ? $"Destroyed by {LastDamageSource}."
+                : deathMessage;
             float previousHealth = CurrentHealth;
             CurrentHealth = Mathf.Max(0f, CurrentHealth - damage);
             HealthChanged?.Invoke(CurrentHealth, MaximumHealth);
@@ -289,7 +299,7 @@ namespace DuneVector
             GUI.Label(new Rect(panel.x + 20f, panel.y + 84f, panel.width - 40f, 32f), "Your drone was destroyed.", _bodyStyle);
             GUI.Label(
                 new Rect(panel.x + 20f, panel.y + 114f, panel.width - 40f, 30f),
-                $"Destroyed by {_health.LastDamageSource}.",
+                _health.LastDeathMessage,
                 _bodyStyle);
 
             float buttonWidth = Mathf.Min(180f, panel.width - 48f);
