@@ -13,6 +13,7 @@ namespace DuneVector
         public bool IsDead { get; private set; }
 
         public event Action<float, float> HealthChanged;
+        public event Action<float> Damaged;
         public event Action Died;
 
         private float _damageInvulnerability;
@@ -34,8 +35,10 @@ namespace DuneVector
             }
 
             _nextDamageTime = Time.time + _damageInvulnerability;
+            float previousHealth = CurrentHealth;
             CurrentHealth = Mathf.Max(0f, CurrentHealth - damage);
             HealthChanged?.Invoke(CurrentHealth, MaximumHealth);
+            Damaged?.Invoke(previousHealth - CurrentHealth);
             if (CurrentHealth <= 0f)
             {
                 IsDead = true;

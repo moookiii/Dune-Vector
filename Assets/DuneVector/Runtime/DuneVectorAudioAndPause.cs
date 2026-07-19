@@ -30,12 +30,14 @@ namespace DuneVector
         private Bus _soundEffectsBus;
         private bool _hasMusicBus;
         private bool _hasSoundEffectsBus;
+        private DroneHealth _health;
         private string _preferencesPath;
         private bool _preferencesDirty;
 
-        public void Initialize(AudioTuning settings)
+        public void Initialize(AudioTuning settings, DroneHealth health)
         {
             _settings = settings;
+            _health = health;
             if (_settings == null)
             {
                 Debug.LogError("Dune Vector audio requires Audio Tuning in the Runtime Settings asset.", this);
@@ -50,6 +52,10 @@ namespace DuneVector
             _hasSoundEffectsBus = TryGetBus(_settings.SoundEffectsBusPath, out _soundEffectsBus);
             ApplyMixerVolumes();
             StartBackgroundMusic();
+            if (_health != null)
+            {
+                _health.Damaged += HandleDroneDamaged;
+            }
         }
 
         private void Update()
@@ -124,6 +130,16 @@ namespace DuneVector
             {
                 _soundEffectsBus.setVolume(SoundEffectsVolume);
             }
+        }
+
+        private void HandleDroneDamaged(float appliedDamage)
+        {
+            if (appliedDamage <= 0f || string.IsNullOrWhiteSpace(_settings.DroneDamageEvent))
+            {
+                return;
+            }
+
+            RuntimeManager.PlayOneShot(_settings.DroneDamageEvent, _health.transform.position);
         }
 
         private static bool TryGetBus(string path, out Bus bus)
@@ -201,6 +217,10 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            if (_health != null)
+            {
+                _health.Damaged -= HandleDroneDamaged;
+            }
             if (_musicInstance.isValid())
             {
                 _musicInstance.stop(FMOD.Studio.STOP_MODE.ALLOWFADEOUT);

@@ -407,6 +407,8 @@ namespace DuneVector
         [Header("FMOD Events")]
         [Tooltip("Looped background-music event played for the full run.")]
         public string BackgroundMusicEvent = "event:/Shadows on the Mesa";
+        [Tooltip("One-shot event played whenever the drone successfully loses health.")]
+        public string DroneDamageEvent = "event:/Drone_Damage";
 
         [Header("July Mixer Routing")]
         [Tooltip("FMOD group bus used by background music.")]
