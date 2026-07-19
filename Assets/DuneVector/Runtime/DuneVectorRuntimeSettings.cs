@@ -648,6 +648,10 @@ namespace DuneVector
         [Min(0f)] public float FlightSpeed = 27f;
         [Min(0f)] public float MaximumFlightSpeed = 38f;
         [Min(0f)] public float FlightAcceleration = 3.8f;
+        [Tooltip("Target flight speed while Space is held as an air brake.")]
+        [Min(0f)] public float FlightBrakeSpeed = 12f;
+        [Tooltip("How quickly held Space pulls flight velocity toward the brake speed.")]
+        [Min(0f)] public float FlightBrakeSharpness = 9f;
         [Min(0f)] public float FlightSteeringSharpness = 10f;
         [Min(0f)] public float FlightLevelingSharpness = 5f;
         [Min(0f)] public float FlightYawRate = 125f;
@@ -676,6 +680,8 @@ namespace DuneVector
             drone.FlightSpeed = FlightSpeed;
             drone.MaximumFlightSpeed = MaximumFlightSpeed;
             drone.FlightAcceleration = FlightAcceleration;
+            drone.FlightBrakeSpeed = FlightBrakeSpeed;
+            drone.FlightBrakeSharpness = FlightBrakeSharpness;
             drone.FlightSteeringSharpness = FlightSteeringSharpness;
             drone.FlightLevelingSharpness = FlightLevelingSharpness;
             drone.FlightYawRate = FlightYawRate;

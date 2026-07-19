@@ -58,6 +58,8 @@ namespace DuneVector
         [Min(0f)] public float FlightSpeed = 27f;
         [Min(0f)] public float MaximumFlightSpeed = 38f;
         [Min(0f)] public float FlightAcceleration = 3.8f;
+        [Min(0f)] public float FlightBrakeSpeed = 12f;
+        [Min(0f)] public float FlightBrakeSharpness = 9f;
         [Min(0f)] public float FlightSteeringSharpness = 10f;
         [Tooltip("How quickly flight removes roll inherited from grounded traversal and returns the drone's up-axis toward world-up.")]
         [Min(0f)] public float FlightLevelingSharpness = 5f;
@@ -105,6 +107,7 @@ namespace DuneVector
         public DesertWorldStreamer World { get; private set; }
 
         private Vector2 _rawMove;
+        private bool _flightBrakeHeld;
         private Vector3 _moveInputWorld;
         private Vector3 _cameraForward;
         private Vector3 _cameraRight;
@@ -186,6 +189,7 @@ namespace DuneVector
         public void SetInputs(in DroneControlInput inputs)
         {
             _rawMove = Vector2.ClampMagnitude(inputs.Move, 1f);
+            _flightBrakeHeld = inputs.JumpHeld;
 
             Vector3 planarForward = Vector3.ProjectOnPlane(inputs.CameraRotation * Vector3.forward, Motor.CharacterUp);
             if (planarForward.sqrMagnitude < 0.0001f)
@@ -393,7 +397,14 @@ namespace DuneVector
             {
                 targetSpeed = FlightSpeed;
             }
-            targetSpeed *= GetRingBurstMultiplier();
+            if (_flightBrakeHeld)
+            {
+                targetSpeed = FlightBrakeSpeed;
+            }
+            else
+            {
+                targetSpeed *= GetRingBurstMultiplier();
+            }
 
             Vector3 targetVelocity = _flightDirection * targetSpeed;
 
@@ -415,7 +426,11 @@ namespace DuneVector
                 _flightEntryLiftTimeRemaining = Mathf.Max(0f, _flightEntryLiftTimeRemaining - deltaTime);
             }
 
-            float acceleration = _ringBurstTimeRemaining > 0f ? RingBurstAcceleration : FlightAcceleration;
+            float acceleration = _flightBrakeHeld
+                ? FlightBrakeSharpness
+                : _ringBurstTimeRemaining > 0f
+                    ? RingBurstAcceleration
+                    : FlightAcceleration;
             currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, DuneVectorMath.Sharpness(acceleration, deltaTime));
         }
 

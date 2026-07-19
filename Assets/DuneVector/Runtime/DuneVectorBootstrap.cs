@@ -664,7 +664,7 @@ namespace DuneVector
                 GUI.Box(panel, GUIContent.none);
                 Rect content = new Rect(panel.x + 14f, panel.y, panel.width - 28f, panel.height);
                 GUI.Label(new Rect(content.x, panel.y + 8f, content.width, 30f), "DUNE VECTOR", _titleStyle);
-                GUI.Label(new Rect(content.x, panel.y + 42f, content.width, 24f), "WASD Move  •  Mouse Look  •  LMB Fire  •  Space Jump  •  F1 Telemetry", _hintStyle);
+                GUI.Label(new Rect(content.x, panel.y + 42f, content.width, 24f), "WASD Move  •  Mouse Look  •  LMB Fire  •  Space Jump / Air Brake  •  F1 Telemetry", _hintStyle);
                 GUI.Label(new Rect(content.x, panel.y + 69f, content.width, 22f), "Amber: Boost  •  Cyan: Flight", _hintStyle);
                 GUI.color = previous;
             }
