@@ -25,6 +25,7 @@ namespace DuneVector
         public AudioTuning AudioSettings => RuntimeSettings.Audio;
         public DeliveryTuning Deliveries => RuntimeSettings.Deliveries;
         public CourierContractTuning Contracts => RuntimeSettings.Contracts;
+        public DeliveryMessageTuning DeliveryMessages => RuntimeSettings.DeliveryMessages;
         public WorldHubTuning WorldHubSettings => RuntimeSettings.WorldHub;
         public LandmarkSystemTuning LandmarkSettings => RuntimeSettings.Landmarks;
         public RouteEncounterTuning RouteEncounterSettings => RuntimeSettings.RouteEncounters;
@@ -674,6 +675,7 @@ namespace DuneVector
                     LandmarkDirector,
                     Deliveries,
                     Contracts,
+                    DeliveryMessages,
                     WorldHubSettings,
                     EnemyDirector,
                     StormPyramidDirector);

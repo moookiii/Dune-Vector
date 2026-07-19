@@ -128,7 +128,9 @@ namespace DuneVector
         public bool IsPlayerWindSuppressed => _courierGame != null
             && (_courierGame.State == CourierRunState.Hub
                 || _courierGame.State == CourierRunState.TeleportingToDesert
-                || _courierGame.State == CourierRunState.TeleportingToHub);
+                || _courierGame.State == CourierRunState.TeleportOut
+                || _courierGame.State == CourierRunState.DeliveryMessage
+                || _courierGame.State == CourierRunState.ReturnToBase);
 
         public void BindCourierGame(DuneVectorCourierGame courierGame)
         {

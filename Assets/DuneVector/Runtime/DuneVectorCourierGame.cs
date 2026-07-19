@@ -27,9 +27,11 @@ namespace DuneVector
         TeleportingToDesert,
         FindPackage,
         Delivering,
-        ContractComplete,
+        DeliveryComplete,
+        TeleportOut,
+        DeliveryMessage,
+        ReturnToBase,
         ContractFailed,
-        TeleportingToHub,
     }
 
     [Serializable]
@@ -97,17 +99,21 @@ namespace DuneVector
         [Serializable]
         private sealed class SaveData
         {
-            public int Version = 1;
+            public int Version = 2;
             public int CompletedDeliveries;
             public int FailedDeliveries;
             public int TotalContractGold;
             public int HighestDifficulty;
+            public int NextDeliveryMessageIndex;
+            public int PendingDeliveryMessageIndex = -1;
         }
 
         public int CompletedDeliveries { get; private set; }
         public int FailedDeliveries { get; private set; }
         public int TotalContractGold { get; private set; }
         public int HighestDifficulty { get; private set; }
+        public int NextDeliveryMessageIndex { get; private set; }
+        public int PendingDeliveryMessageIndex { get; private set; } = -1;
         public event Action Changed;
 
         private string _savePath;
@@ -118,15 +124,33 @@ namespace DuneVector
             Load();
         }
 
-        public void RecordCompletion(int reward, int difficulty)
+        public void RecordCompletion(int reward, int difficulty, bool assignDeliveryMessage)
         {
             CompletedDeliveries++;
             TotalContractGold = TotalContractGold > int.MaxValue - Mathf.Max(0, reward)
                 ? int.MaxValue
                 : TotalContractGold + Mathf.Max(0, reward);
             HighestDifficulty = Mathf.Max(HighestDifficulty, difficulty);
+            if (assignDeliveryMessage && PendingDeliveryMessageIndex < 0)
+            {
+                PendingDeliveryMessageIndex = NextDeliveryMessageIndex;
+            }
             Save();
             Changed?.Invoke();
+        }
+
+        public bool CompletePendingDeliveryMessage(int completedSequenceIndex)
+        {
+            if (completedSequenceIndex < 0 || PendingDeliveryMessageIndex != completedSequenceIndex)
+            {
+                return false;
+            }
+
+            NextDeliveryMessageIndex = Mathf.Max(NextDeliveryMessageIndex, completedSequenceIndex + 1);
+            PendingDeliveryMessageIndex = -1;
+            Save();
+            Changed?.Invoke();
+            return true;
         }
 
         public void RecordFailure()
@@ -154,6 +178,17 @@ namespace DuneVector
                 FailedDeliveries = Mathf.Max(0, data.FailedDeliveries);
                 TotalContractGold = Mathf.Max(0, data.TotalContractGold);
                 HighestDifficulty = Mathf.Max(0, data.HighestDifficulty);
+                if (data.Version >= 2)
+                {
+                    NextDeliveryMessageIndex = Mathf.Max(0, data.NextDeliveryMessageIndex);
+                    PendingDeliveryMessageIndex = Mathf.Max(-1, data.PendingDeliveryMessageIndex);
+                }
+                else
+                {
+                    // Existing completions predate delivery messages and must not replay old narrative.
+                    NextDeliveryMessageIndex = CompletedDeliveries;
+                    PendingDeliveryMessageIndex = -1;
+                }
             }
             catch (Exception exception)
             {
@@ -171,6 +206,8 @@ namespace DuneVector
                     FailedDeliveries = FailedDeliveries,
                     TotalContractGold = TotalContractGold,
                     HighestDifficulty = HighestDifficulty,
+                    NextDeliveryMessageIndex = NextDeliveryMessageIndex,
+                    PendingDeliveryMessageIndex = PendingDeliveryMessageIndex,
                 };
                 File.WriteAllText(_savePath, JsonUtility.ToJson(data));
             }
@@ -198,7 +235,9 @@ namespace DuneVector
             get
             {
                 DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
-                return bootstrap != null && bootstrap.CourierGame != null && bootstrap.CourierGame.IsTerminalOpen;
+                return bootstrap != null && bootstrap.CourierGame != null &&
+                    (bootstrap.CourierGame.IsTerminalOpen ||
+                     bootstrap.CourierGame.State == CourierRunState.DeliveryMessage);
             }
         }
         public float CargoIntegrity { get; private set; } = 100f;
@@ -225,11 +264,13 @@ namespace DuneVector
         private DroneGoldWallet _wallet;
         private DuneVectorLandmarkDirector _landmarks;
         private CourierContractTuning _settings;
+        private DeliveryMessageTuning _messageSettings;
         private DeliveryTuning _deliverySettings;
         private WorldHubTuning _hubSettings;
         private DuneVectorEnemyDirector _enemyDirector;
         private DuneVectorStormPyramidDirector _stormDirector;
         private DuneVectorRouteEncounterDirector _routeEncounterDirector;
+        private DuneVectorDeliveryMessagePresenter _messagePresenter;
 
         private Transform _hubRoot;
         private Transform _terminal;
@@ -250,6 +291,8 @@ namespace DuneVector
         private float _offerRefreshTimer;
         private float _teleportTimer;
         private bool _teleportMoved;
+        private bool _returnStartsVanished;
+        private bool _deliveryCompletionInProgress;
         private bool _terminalOpen;
         private bool _unknownRevealed;
         private bool _wasGrounded;
@@ -292,6 +335,7 @@ namespace DuneVector
             DuneVectorLandmarkDirector landmarks,
             DeliveryTuning deliverySettings,
             CourierContractTuning settings,
+            DeliveryMessageTuning messageSettings,
             WorldHubTuning hubSettings,
             DuneVectorEnemyDirector enemyDirector,
             DuneVectorStormPyramidDirector stormDirector)
@@ -307,11 +351,15 @@ namespace DuneVector
             _landmarks = landmarks;
             _deliverySettings = deliverySettings;
             _settings = settings;
+            _messageSettings = messageSettings ?? new DeliveryMessageTuning();
+            _messageSettings.EnsureInitialized();
             _hubSettings = hubSettings;
             _enemyDirector = enemyDirector;
             _stormDirector = stormDirector;
             Progress = gameObject.AddComponent<DuneVectorCourierProgress>();
             Progress.Initialize();
+            _messagePresenter = gameObject.AddComponent<DuneVectorDeliveryMessagePresenter>();
+            _messagePresenter.Initialize(_messageSettings);
             _health.Damaged += HandlePlayerDamaged;
             _health.Died += HandlePlayerDied;
             _world.WorldShifted += HandleWorldShift;
@@ -321,7 +369,18 @@ namespace DuneVector
             }
             BuildHub();
             GenerateOffers();
-            EnterHubImmediate(openTerminal: true);
+            EnterHubImmediate(openTerminal: Progress.PendingDeliveryMessageIndex < 0);
+            if (Progress.PendingDeliveryMessageIndex >= 0 &&
+                _messageSettings.TryResolve(Progress.PendingDeliveryMessageIndex, out DeliveryMessageAsset pendingMessage))
+            {
+                if (_player.DroneVisualRoot != null)
+                {
+                    _player.DroneVisualRoot.localScale = Vector3.zero;
+                }
+                State = CourierRunState.DeliveryMessage;
+                _playerInput.SetInputEnabled(false);
+                _messagePresenter.Open(pendingMessage, HandleDeliveryMessageCompleted);
+            }
         }
 
         public void BindEncounterDirector(DuneVectorRouteEncounterDirector director)
@@ -335,7 +394,11 @@ namespace DuneVector
 
         public void RequestReturnToHub(bool recordAbandonment = true)
         {
-            if (State == CourierRunState.Hub || State == CourierRunState.TeleportingToHub)
+            if (State == CourierRunState.Hub ||
+                State == CourierRunState.DeliveryComplete ||
+                State == CourierRunState.TeleportOut ||
+                State == CourierRunState.DeliveryMessage ||
+                State == CourierRunState.ReturnToBase)
             {
                 return;
             }
@@ -363,9 +426,20 @@ namespace DuneVector
                 return;
             }
 
-            if (State == CourierRunState.TeleportingToDesert || State == CourierRunState.TeleportingToHub)
+            if (State == CourierRunState.TeleportingToDesert || State == CourierRunState.ReturnToBase)
             {
                 UpdateTeleport();
+                return;
+            }
+
+            if (State == CourierRunState.TeleportOut)
+            {
+                UpdateDeliveryTeleportOut();
+                return;
+            }
+
+            if (State == CourierRunState.DeliveryMessage)
+            {
                 return;
             }
 
@@ -379,12 +453,19 @@ namespace DuneVector
             {
                 UpdateActiveContract();
             }
-            else if (State == CourierRunState.ContractComplete || State == CourierRunState.ContractFailed)
+            else if (State == CourierRunState.DeliveryComplete || State == CourierRunState.ContractFailed)
             {
                 _stateTimer -= Time.deltaTime;
                 if (_stateTimer <= 0f)
                 {
-                    BeginTeleport(toHub: true);
+                    if (State == CourierRunState.DeliveryComplete && Progress.PendingDeliveryMessageIndex >= 0)
+                    {
+                        BeginDeliveryTeleportOut();
+                    }
+                    else
+                    {
+                        BeginTeleport(toHub: true);
+                    }
                 }
             }
         }
@@ -1036,7 +1117,7 @@ namespace DuneVector
 
         private void HandleDelivery()
         {
-            if (State != CourierRunState.Delivering)
+            if (State != CourierRunState.Delivering || _deliveryCompletionInProgress)
             {
                 return;
             }
@@ -1052,6 +1133,11 @@ namespace DuneVector
 
         private void CompleteContract()
         {
+            if (_deliveryCompletionInProgress || State != CourierRunState.Delivering || ActiveContract == null)
+            {
+                return;
+            }
+            _deliveryCompletionInProgress = true;
             CourierContract completed = ActiveContract;
             float integrityFactor = CargoUsesIntegrity()
                 ? Mathf.Lerp(
@@ -1061,12 +1147,16 @@ namespace DuneVector
                 : 1f;
             int reward = Mathf.RoundToInt(completed.OfferedReward * integrityFactor);
             _wallet?.AddGold(reward);
-            Progress.RecordCompletion(reward, completed.Difficulty);
+            bool hasAssignedMessage = _messageSettings.TryResolve(
+                Progress.NextDeliveryMessageIndex,
+                out _);
+            Progress.RecordCompletion(reward, completed.Difficulty, hasAssignedMessage);
             _routeEncounterDirector?.EndContract();
+            SetCombatSystemsActive(false);
             _player.SetCargoHandlingModifiers(1f, 1f, 1f);
             ReleaseDeliveredPackage();
             CleanupContractObjects();
-            State = CourierRunState.ContractComplete;
+            State = CourierRunState.DeliveryComplete;
             _stateTimer = _settings.CompletionReturnDelay;
             ShowStatus($"CONTRACT COMPLETE  +{reward} GOLD", _stateTimer);
             ContractEnded?.Invoke(completed);
@@ -1292,19 +1382,132 @@ namespace DuneVector
         private void BeginTeleport(bool toHub)
         {
             SetTerminalOpen(false);
-            State = toHub ? CourierRunState.TeleportingToHub : CourierRunState.TeleportingToDesert;
+            State = toHub ? CourierRunState.ReturnToBase : CourierRunState.TeleportingToDesert;
             _teleportTimer = 0f;
             _teleportMoved = false;
+            _returnStartsVanished = false;
             _playerInput.SetInputEnabled(false);
             CreateTeleportParticles();
         }
 
+        private void BeginDeliveryTeleportOut()
+        {
+            if (State != CourierRunState.DeliveryComplete)
+            {
+                return;
+            }
+
+            SetTerminalOpen(false);
+            State = CourierRunState.TeleportOut;
+            _teleportTimer = 0f;
+            _teleportMoved = false;
+            _returnStartsVanished = false;
+            _playerInput.SetInputEnabled(false);
+            CreateTeleportParticles();
+        }
+
+        private void UpdateDeliveryTeleportOut()
+        {
+            float build = _hubSettings.TeleportBuildDuration;
+            float fade = _hubSettings.TeleportFadeDuration;
+            float vanishAt = build + (fade * 0.5f);
+            _teleportTimer += Time.deltaTime;
+            _player.Motor.BaseVelocity = Vector3.Lerp(
+                _player.Motor.BaseVelocity,
+                Vector3.zero,
+                DuneVectorMath.Sharpness(_hubSettings.StabilizeSharpness, Time.deltaTime));
+
+            float visualScale = 1f - Mathf.Clamp01(
+                (_teleportTimer - build) / Mathf.Max(0.01f, fade * 0.5f));
+            if (_player.DroneVisualRoot != null)
+            {
+                _player.DroneVisualRoot.localScale = _droneVisualOriginalScale * visualScale;
+            }
+            AnimateTeleportParticles(vanishAt);
+
+            if (_teleportTimer < vanishAt)
+            {
+                return;
+            }
+
+            DestroyTeleportParticles();
+            State = CourierRunState.DeliveryMessage;
+            int pendingIndex = Progress.PendingDeliveryMessageIndex;
+            if (pendingIndex < 0)
+            {
+                BeginReturnToBaseAfterMessage();
+                return;
+            }
+
+            if (!_messageSettings.TryResolve(pendingIndex, out DeliveryMessageAsset message) ||
+                !_messagePresenter.Open(message, HandleDeliveryMessageCompleted))
+            {
+                Debug.LogError(
+                    $"Pending delivery message {pendingIndex} is unavailable. Its progression index remains pending.",
+                    this);
+                BeginReturnToBaseAfterMessage();
+            }
+        }
+
+        private void HandleDeliveryMessageCompleted()
+        {
+            if (State != CourierRunState.DeliveryMessage)
+            {
+                return;
+            }
+
+            int completedMessageIndex = Progress.PendingDeliveryMessageIndex;
+            if (completedMessageIndex >= 0)
+            {
+                Progress.CompletePendingDeliveryMessage(completedMessageIndex);
+            }
+
+            BeginReturnToBaseAfterMessage();
+        }
+
+        private void BeginReturnToBaseAfterMessage()
+        {
+            if (State != CourierRunState.DeliveryMessage)
+            {
+                return;
+            }
+
+            State = CourierRunState.ReturnToBase;
+            _teleportTimer = 0f;
+            _teleportMoved = true;
+            _returnStartsVanished = true;
+            _playerInput.SetInputEnabled(false);
+            _player.Motor.SetPositionAndRotation(_hubSpawn, Quaternion.identity, true);
+            _player.ResetTraversalAfterTeleport(Vector3.forward);
+            _cameraController?.SnapToTarget(Vector3.forward);
+            CreateTeleportParticles();
+            RecenterTeleportParticles(_hubSpawn);
+        }
+
         private void UpdateTeleport()
         {
-            bool toHub = State == CourierRunState.TeleportingToHub;
+            bool toHub = State == CourierRunState.ReturnToBase;
             float build = _hubSettings.TeleportBuildDuration;
             float fade = _hubSettings.TeleportFadeDuration;
             float rebuild = _hubSettings.TeleportRebuildDuration;
+            if (toHub && _returnStartsVanished)
+            {
+                _teleportTimer += Time.deltaTime;
+                float rebuildScale = Mathf.Clamp01(_teleportTimer / Mathf.Max(0.01f, rebuild));
+                if (_player.DroneVisualRoot != null)
+                {
+                    _player.DroneVisualRoot.localScale = _droneVisualOriginalScale * rebuildScale;
+                }
+                AnimateTeleportParticles(rebuild);
+                if (_teleportTimer < rebuild)
+                {
+                    return;
+                }
+
+                FinishReturnToHub();
+                return;
+            }
+
             float total = build + fade + rebuild;
             _teleportTimer += Time.deltaTime;
             if (!_teleportMoved)
@@ -1352,8 +1555,7 @@ namespace DuneVector
             }
             if (toHub)
             {
-                EnterHubImmediate(openTerminal: false);
-                ShowStatus("RETURNED TO COURIER AERIE", 2.5f);
+                FinishReturnToHub();
             }
             else
             {
@@ -1362,6 +1564,19 @@ namespace DuneVector
                 _playerInput.SetInputEnabled(true);
                 ShowStatus("CONTRACT DEPLOYED — LOCATE CARGO", 3f);
             }
+        }
+
+        private void FinishReturnToHub()
+        {
+            DestroyTeleportParticles();
+            if (_player.DroneVisualRoot != null)
+            {
+                _player.DroneVisualRoot.localScale = _droneVisualOriginalScale;
+            }
+            _returnStartsVanished = false;
+            _deliveryCompletionInProgress = false;
+            EnterHubImmediate(openTerminal: false);
+            ShowStatus("RETURNED TO COURIER AERIE", 2.5f);
         }
 
         private void SetCombatSystemsActive(bool active)
@@ -1600,7 +1815,9 @@ namespace DuneVector
                 DrawContractHUD();
                 DrawObjectiveMarker();
             }
-            if (State == CourierRunState.TeleportingToDesert || State == CourierRunState.TeleportingToHub)
+            if (State == CourierRunState.TeleportingToDesert ||
+                State == CourierRunState.TeleportOut ||
+                State == CourierRunState.ReturnToBase)
             {
                 DrawTeleportFade();
             }
@@ -1953,11 +2170,13 @@ namespace DuneVector
         {
             float build = _hubSettings.TeleportBuildDuration;
             float fade = _hubSettings.TeleportFadeDuration;
-            float alpha = _teleportTimer < build
-                ? 0f
-                : _teleportTimer < build + fade
-                    ? Mathf.Sin(Mathf.Clamp01((_teleportTimer - build) / fade) * Mathf.PI)
-                    : 0f;
+            float alpha = _returnStartsVanished
+                ? 1f - Mathf.Clamp01(_teleportTimer / Mathf.Max(0.01f, _hubSettings.TeleportRebuildDuration))
+                : _teleportTimer < build
+                    ? 0f
+                    : _teleportTimer < build + fade
+                        ? Mathf.Sin(Mathf.Clamp01((_teleportTimer - build) / fade) * Mathf.PI)
+                        : 0f;
             Color previous = GUI.color;
             GUI.color = new Color(_hubSettings.HubEnergyColor.r, _hubSettings.HubEnergyColor.g, _hubSettings.HubEnergyColor.b, alpha);
             GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);

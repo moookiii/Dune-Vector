@@ -1865,6 +1865,9 @@ namespace DuneVector
         [Tooltip("Courier contract generation, modifiers, rewards, cargo rules, and HUD.")]
         public CourierContractTuning Contracts = new CourierContractTuning();
 
+        [Tooltip("Authored post-delivery narrative sequence, typewriter timing, and FMOD typing loop.")]
+        public DeliveryMessageTuning DeliveryMessages = new DeliveryMessageTuning();
+
         [Tooltip("World hub geometry, terminal interaction, and teleport presentation.")]
         public WorldHubTuning WorldHub = new WorldHubTuning();
 
@@ -1945,6 +1948,8 @@ namespace DuneVector
             Deliveries ??= new DeliveryTuning();
             Deliveries.EnsureInitialized();
             Contracts ??= new CourierContractTuning();
+            DeliveryMessages ??= new DeliveryMessageTuning();
+            DeliveryMessages.EnsureInitialized();
             WorldHub ??= new WorldHubTuning();
             Landmarks ??= new LandmarkSystemTuning();
             Geoglyphs ??= new GeoglyphSystemTuning();

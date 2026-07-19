@@ -115,6 +115,7 @@ namespace DuneVector.Editor
         private SerializedProperty _weather;
         private SerializedProperty _deliveries;
         private SerializedProperty _contracts;
+        private SerializedProperty _deliveryMessages;
         private SerializedProperty _worldHub;
         private SerializedProperty _landmarks;
         private SerializedProperty _geoglyphs;
@@ -145,6 +146,7 @@ namespace DuneVector.Editor
             _weather = serializedObject.FindProperty("Weather");
             _deliveries = serializedObject.FindProperty("Deliveries");
             _contracts = serializedObject.FindProperty("Contracts");
+            _deliveryMessages = serializedObject.FindProperty("DeliveryMessages");
             _worldHub = serializedObject.FindProperty("WorldHub");
             _landmarks = serializedObject.FindProperty("Landmarks");
             _geoglyphs = serializedObject.FindProperty("Geoglyphs");
@@ -235,6 +237,10 @@ namespace DuneVector.Editor
                 "Courier Contracts",
                 "Contract offers, modifier progression, cargo consequences, rewards, and active-contract HUD.",
                 _contracts);
+            DuneVectorSettingsInspector.DrawSection(
+                "Delivery Messages",
+                "Authored narrative order, typewriter timing, replay policy, and FMOD typing loop.",
+                _deliveryMessages);
             DuneVectorSettingsInspector.DrawSection(
                 "Dynamic Couriers & Convoys",
                 "Ambient rescue events, open-route races, moving convoy attacks, rewards, and faction colors.",
