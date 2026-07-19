@@ -406,7 +406,10 @@ namespace DuneVector
                 fontStyle = FontStyle.Normal,
                 alignment = TextAnchor.UpperLeft,
                 wordWrap = false,
-                clipping = TextClipping.Clip,
+                // Lines are wrapped manually to the authored reading width. Overflow
+                // prevents font-specific ascenders, descenders, and glow from being
+                // cropped by IMGUI's inaccurate dynamic-font line metrics.
+                clipping = TextClipping.Overflow,
             };
             _headerStyle = new GUIStyle(_narrativeStyle)
             {
