@@ -104,7 +104,10 @@ namespace DuneVector
         public float FlightTimeRemaining { get; private set; }
         public float FlightTimeNormalized => FlightDuration > 0f ? Mathf.Clamp01(FlightTimeRemaining / FlightDuration) : 0f;
         public float FlightSpeedMultiplier => _flightSpeedMultiplier;
-        public float CurrentMaximumFlightSpeed => MaximumFlightSpeed * _flightSpeedMultiplier;
+        public float CurrentMaximumFlightSpeed => MaximumFlightSpeed * _flightSpeedMultiplier * CargoSpeedMultiplier;
+        public float CargoSpeedMultiplier { get; private set; } = 1f;
+        public float CargoAccelerationMultiplier { get; private set; } = 1f;
+        public float CargoTurningMultiplier { get; private set; } = 1f;
         public DesertWorldStreamer World { get; private set; }
 
         private Vector2 _rawMove;
@@ -176,6 +179,39 @@ namespace DuneVector
         {
             _stamina = stamina;
             _boostSpeedModifier = boostSpeedModifier;
+        }
+
+        public void SetCargoHandlingModifiers(float speedMultiplier, float accelerationMultiplier, float turningMultiplier)
+        {
+            CargoSpeedMultiplier = Mathf.Clamp(speedMultiplier, 0.1f, 1f);
+            CargoAccelerationMultiplier = Mathf.Clamp(accelerationMultiplier, 0.1f, 1f);
+            CargoTurningMultiplier = Mathf.Clamp(turningMultiplier, 0.1f, 1f);
+        }
+
+        public void ResetTraversalAfterTeleport(Vector3 forward)
+        {
+            Vector3 planarForward = Vector3.ProjectOnPlane(forward, Vector3.up);
+            if (planarForward.sqrMagnitude < 0.001f)
+            {
+                planarForward = Vector3.forward;
+            }
+            planarForward.Normalize();
+            CurrentMode = DroneTraversalMode.Normal;
+            Motor.SetGroundSolvingActivation(true);
+            Motor.BaseVelocity = Vector3.zero;
+            Motor.SetRotation(Quaternion.LookRotation(planarForward, Vector3.up));
+            _lookInputWorld = planarForward;
+            _flightDirection = planarForward;
+            _flightRequested = false;
+            _flightBurstRequested = false;
+            _flightElapsedTime = 0f;
+            FlightTimeRemaining = 0f;
+            _flightSpeedMultiplier = 1f;
+            _requestedFlightSpeedMultiplier = 1f;
+            _flightEntryLiftTimeRemaining = 0f;
+            _ringBoostTimeRemaining = 0f;
+            _ringBurstTimeRemaining = 0f;
+            _jumpRequested = false;
         }
 
         public void HandleWorldShift(Vector3 shift)
@@ -287,12 +323,12 @@ namespace DuneVector
             if (CurrentMode == DroneTraversalMode.Flight)
             {
                 Vector3 desiredForward = _flightDirection.sqrMagnitude > 0.001f ? _flightDirection : Motor.CharacterForward;
-                float maximumRadians = Mathf.Deg2Rad * FlightYawRate * deltaTime;
+                float maximumRadians = Mathf.Deg2Rad * FlightYawRate * CargoTurningMultiplier * deltaTime;
                 Vector3 rateLimited = Vector3.RotateTowards(Motor.CharacterForward, desiredForward, maximumRadians, 0f);
                 Vector3 smoothedForward = Vector3.Slerp(
                     Motor.CharacterForward,
                     rateLimited,
-                    DuneVectorMath.Sharpness(FlightSteeringSharpness, deltaTime)).normalized;
+                    DuneVectorMath.Sharpness(FlightSteeringSharpness * CargoTurningMultiplier, deltaTime)).normalized;
                 Quaternion steeredRotation = Quaternion.FromToRotation(Motor.CharacterForward, smoothedForward) * currentRotation;
                 Quaternion leveledRotation = Quaternion.LookRotation(smoothedForward, Vector3.up);
                 currentRotation = Quaternion.Slerp(
@@ -310,7 +346,7 @@ namespace DuneVector
                 Vector3 smoothedLook = Vector3.Slerp(
                     Motor.CharacterForward,
                     desiredGroundForward.normalized,
-                    DuneVectorMath.Sharpness(RotationSharpness, deltaTime)).normalized;
+                    DuneVectorMath.Sharpness(RotationSharpness * CargoTurningMultiplier, deltaTime)).normalized;
                 currentRotation = Quaternion.LookRotation(smoothedLook, Motor.CharacterUp);
             }
         }
@@ -347,14 +383,15 @@ namespace DuneVector
                 {
                     Vector3 inputRight = Vector3.Cross(_moveInputWorld, Motor.CharacterUp);
                     targetDirection = Vector3.Cross(groundNormal, inputRight).normalized;
-                    targetSpeed = MaxGroundSpeed * _moveInputWorld.magnitude;
+                    targetSpeed = MaxGroundSpeed * CargoSpeedMultiplier * _moveInputWorld.magnitude;
+                    sharpness *= CargoAccelerationMultiplier;
                 }
 
                 if (IsRingBoosting && targetDirection.sqrMagnitude > 0.001f)
                 {
                     float burstMultiplier = GetRingBurstMultiplier();
-                    targetSpeed = RingBoostMaxSpeed * burstMultiplier * _moveInputWorld.magnitude;
-                    sharpness = _ringBurstTimeRemaining > 0f ? RingBurstAcceleration : RingBoostAcceleration;
+                    targetSpeed = RingBoostMaxSpeed * CargoSpeedMultiplier * burstMultiplier * _moveInputWorld.magnitude;
+                    sharpness = (_ringBurstTimeRemaining > 0f ? RingBurstAcceleration : RingBoostAcceleration) * CargoAccelerationMultiplier;
                 }
                 if (targetDirection.sqrMagnitude > 0.001f && _boostSpeedModifier != null)
                 {
@@ -373,10 +410,10 @@ namespace DuneVector
                 Vector3 planarVelocity = Vector3.ProjectOnPlane(currentVelocity, Motor.CharacterUp);
                 if (_moveInputWorld.sqrMagnitude > 0.001f)
                 {
-                    Vector3 addedVelocity = _moveInputWorld * (AirAcceleration * deltaTime);
+                    Vector3 addedVelocity = _moveInputWorld * (AirAcceleration * CargoAccelerationMultiplier * deltaTime);
                     float maximumAirSpeed = _boostSpeedModifier != null
-                        ? _boostSpeedModifier.ModifyTargetSpeed(MaxAirSpeed)
-                        : MaxAirSpeed;
+                        ? _boostSpeedModifier.ModifyTargetSpeed(MaxAirSpeed * CargoSpeedMultiplier)
+                        : MaxAirSpeed * CargoSpeedMultiplier;
                     if (planarVelocity.magnitude < maximumAirSpeed)
                     {
                         Vector3 newPlanarVelocity = Vector3.ClampMagnitude(planarVelocity + addedVelocity, maximumAirSpeed);
@@ -418,12 +455,12 @@ namespace DuneVector
                 _flightDirection = Vector3.Slerp(
                     _flightDirection.sqrMagnitude > 0.001f ? _flightDirection : desiredDirection,
                     desiredDirection,
-                    DuneVectorMath.Sharpness(FlightSteeringSharpness, deltaTime)).normalized;
+                    DuneVectorMath.Sharpness(FlightSteeringSharpness * CargoTurningMultiplier, deltaTime)).normalized;
             }
 
             float throttle = Mathf.Clamp01((forwardInput + 1f) * 0.5f);
-            float activeFlightSpeed = FlightSpeed * _flightSpeedMultiplier;
-            float activeMaximumFlightSpeed = MaximumFlightSpeed * _flightSpeedMultiplier;
+            float activeFlightSpeed = FlightSpeed * _flightSpeedMultiplier * CargoSpeedMultiplier;
+            float activeMaximumFlightSpeed = MaximumFlightSpeed * _flightSpeedMultiplier * CargoSpeedMultiplier;
             float targetSpeed = Mathf.Lerp(activeFlightSpeed * 0.62f, activeMaximumFlightSpeed, throttle);
             if (Mathf.Abs(forwardInput) < 0.05f)
             {
@@ -469,7 +506,10 @@ namespace DuneVector
                     : _boostSpeedModifier != null
                         ? Mathf.Max(FlightAcceleration, _boostSpeedModifier.CurrentResponse)
                         : FlightAcceleration;
-            currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, DuneVectorMath.Sharpness(acceleration, deltaTime));
+            currentVelocity = Vector3.Lerp(
+                currentVelocity,
+                targetVelocity,
+                DuneVectorMath.Sharpness(acceleration * CargoAccelerationMultiplier, deltaTime));
         }
 
         public void PostGroundingUpdate(float deltaTime)

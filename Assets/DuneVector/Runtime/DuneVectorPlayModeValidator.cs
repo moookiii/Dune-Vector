@@ -86,6 +86,13 @@ namespace DuneVector
 
             CaptureScreenshot(camera.Camera, Path.Combine(_projectRoot, "Logs", "DuneVector-PlayMode.png"));
 
+            if (bootstrap.CourierGame != null)
+            {
+                yield return ValidateCourierVerticalSlice(bootstrap);
+                Finish();
+                yield break;
+            }
+
             Vector3 movementStart = motor.TransientPosition;
             bool sawBoost = false;
             bool jumpSent = false;
@@ -198,6 +205,65 @@ namespace DuneVector
             player.ClearAutomatedInput();
             yield return new WaitForSeconds(0.25f);
             Finish();
+        }
+
+        private IEnumerator ValidateCourierVerticalSlice(DuneVectorBootstrap bootstrap)
+        {
+            DuneVectorCourierGame courier = bootstrap.CourierGame;
+            Check(courier.State == CourierRunState.Hub,
+                "Courier game starts in the safe world hub",
+                $"Initial courier state was {courier.State}.");
+            Check(courier.AvailableContracts.Count >= 5 && courier.AvailableContracts.Count <= 8,
+                "Contract terminal offers five to eight modular contracts",
+                $"Contract terminal offered {courier.AvailableContracts.Count} contracts.");
+            Check(bootstrap.LandmarkDirector != null,
+                "Authored procedural landmark director is active",
+                "Landmark director was missing.");
+            Check(bootstrap.RouteEncounterDirector != null,
+                "Route encounter formation director is active",
+                "Route encounter director was missing.");
+            Check(courier.Progress != null,
+                "Courier progression loaded from its persistent data model",
+                "Courier progression component was missing.");
+            Check(File.Exists(Path.Combine(Application.persistentDataPath, "DuneVectorCourierProgress.dat")),
+                "Courier progression persists to a .dat file",
+                "DuneVectorCourierProgress.dat was not created.");
+
+            bool accepted = courier.AcceptOffer(0);
+            Check(accepted && courier.State == CourierRunState.TeleportingToDesert,
+                "Accepting a terminal contract starts the desert teleport sequence",
+                $"Accept returned {accepted} and state became {courier.State}.");
+
+            float deployTimeout = Time.realtimeSinceStartup + 8f;
+            while (Time.realtimeSinceStartup < deployTimeout && courier.State == CourierRunState.TeleportingToDesert)
+            {
+                yield return null;
+            }
+            Check(courier.State == CourierRunState.FindPackage,
+                "Teleport deploys the drone into the package-search phase",
+                $"Courier state after deployment was {courier.State}.");
+            Check(courier.ActiveContract != null && courier.ActiveObjective != null,
+                "Accepted contract owns an active package objective",
+                "Active contract or package objective was missing after deployment.");
+            Check(bootstrap.LandmarkDirector.ContractLandmarks.Count >= 2,
+                "Contract route pins authored pickup and destination landmarks",
+                $"Only {bootstrap.LandmarkDirector.ContractLandmarks.Count} route landmarks were present.");
+
+            courier.RequestReturnToHub(recordAbandonment: false);
+            float returnTimeout = Time.realtimeSinceStartup + 8f;
+            while (Time.realtimeSinceStartup < returnTimeout && courier.State != CourierRunState.Hub)
+            {
+                yield return null;
+            }
+            Check(courier.State == CourierRunState.Hub,
+                "Pause-menu return flow reconstructs the drone at the hub",
+                $"Courier state after return was {courier.State}.");
+            Check(bootstrap.Player.InputEnabled,
+                "Player control is restored after returning to the hub",
+                "Player input remained locked after return.");
+            Check(courier.ActiveObjective == null,
+                "Returning to the hub clears the abandoned route objective",
+                "An objective remained active after returning to the hub.");
         }
 
         private void SampleTelemetry(DroneCharacterController drone, DroneCameraController camera, DesertWorldStreamer world)

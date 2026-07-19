@@ -392,6 +392,7 @@ namespace DuneVector
         private DronePermanentUpgradeSystem _upgrades;
         private PauseMenuVisualTuning _visuals;
         private DuneVectorUpgradeShopView _shopView;
+        private DuneVectorCourierGame _courierGame;
         private bool _showShop;
 
         private GUIStyle _titleStyle;
@@ -439,8 +440,17 @@ namespace DuneVector
             }
         }
 
+        public void BindCourierGame(DuneVectorCourierGame courierGame)
+        {
+            _courierGame = courierGame;
+        }
+
         private void Update()
         {
+            if (_courierGame != null && _courierGame.IsTerminalOpen)
+            {
+                return;
+            }
             if ((_health == null || !_health.IsDead) &&
                 Keyboard.current != null &&
                 Keyboard.current.escapeKey.wasPressedThisFrame)
@@ -572,6 +582,16 @@ namespace DuneVector
                 _showShop = true;
                 _shopView?.Open();
             }
+            y += buttonHeight + gap;
+
+            bool previousEnabled = GUI.enabled;
+            GUI.enabled = previousEnabled && _courierGame != null && _courierGame.State != CourierRunState.Hub;
+            if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), "RETURN TO HUB", _secondaryButtonStyle))
+            {
+                SetPaused(false);
+                _courierGame?.RequestReturnToHub();
+            }
+            GUI.enabled = previousEnabled;
             y += buttonHeight + gap;
 
             float splitButtonWidth = (content.width - gap) * 0.5f;

@@ -66,6 +66,192 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class CourierContractTuning
+    {
+        [Header("Contract Board")]
+        public bool Enabled = true;
+        [Range(5, 8)] public int OfferedContractCount = 6;
+        public int ContractSeedOffset = 18431;
+        [Min(1)] public int DualModifierUnlockDeliveries = 50;
+        [Min(1)] public int TripleModifierUnlockDeliveries = 150;
+        [Range(0f, 1f)] public float DualModifierChance = 0.42f;
+        [Range(0f, 1f)] public float TripleModifierChance = 0.09f;
+        [Range(0f, 1f)] public float UnknownContractChance = 0.14f;
+        [Min(10f)] public float MinimumRouteDistance = 650f;
+        [Min(10f)] public float MaximumRouteDistance = 2600f;
+        [Min(10f)] public float MinimumPickupInsertionDistance = 75f;
+        [Min(10f)] public float MaximumPickupInsertionDistance = 135f;
+        [Min(10f)] public float MinimumRouteOriginDistance = 320f;
+        [Min(10f)] public float MaximumRouteOriginDistance = 620f;
+        [Min(0)] public int MinimumBaseReward = 260;
+        [Min(0)] public int MaximumBaseReward = 1300;
+        [Min(0f)] public float DistanceRewardPerMeter = 0.32f;
+        [Min(1f)] public float UnknownRewardMultiplier = 1.6f;
+        [Min(1f)] public float DualModifierRewardMultiplier = 1.75f;
+        [Min(1f)] public float TripleModifierRewardMultiplier = 2.4f;
+        [Min(0f)] public float ContractRefreshSeconds = 240f;
+
+        [Header("Cargo Modifiers")]
+        [Range(0f, 100f)] public float FragileFailureIntegrity = 18f;
+        [Min(0f)] public float FragileCargoDamageMultiplier = 1.45f;
+        [Min(0f)] public float StandardCargoDamageMultiplier = 0f;
+        [Min(0f)] public float HazardousCargoDamageMultiplier = 0.7f;
+        [Min(0f)] public float CargoHardImpactSpeed = 18f;
+        [Min(0f)] public float CargoHardImpactDamagePerSpeed = 1.4f;
+        [Min(0.1f)] public float ExpressExpectedSpeed = 32f;
+        [Min(0f)] public float ExpressGraceSeconds = 18f;
+        [Range(0.1f, 1f)] public float OversizedSpeedMultiplier = 0.72f;
+        [Range(0.1f, 1f)] public float OversizedAccelerationMultiplier = 0.64f;
+        [Range(0.1f, 1f)] public float OversizedTurningMultiplier = 0.62f;
+        [Min(1f)] public float OversizedVisualScale = 1.75f;
+        [Min(0f)] public float UnknownRevealDelay = 5f;
+        [Range(0f, 100f)] public float HazardousWarningIntegrity = 72f;
+        [Range(0f, 100f)] public float HazardousUnstableIntegrity = 45f;
+        [Range(0f, 100f)] public float HazardousCriticalIntegrity = 22f;
+        [Min(0.1f)] public float HazardousPulseInterval = 3.2f;
+        [Min(0f)] public float HazardousPulseDamage = 6f;
+        [Range(2, 5)] public int MultiDropMinimumStops = 2;
+        [Range(2, 5)] public int MultiDropMaximumStops = 3;
+        [Range(0f, 1f)] public float IntegrityRewardFloor = 0.25f;
+
+        [Header("Contract Runtime")]
+        [Min(0f)] public float CompletionReturnDelay = 3.5f;
+        [Min(0f)] public float FailureReturnDelay = 3f;
+        [Min(0.1f)] public float ObjectivePackageScale = 0.8f;
+        public Vector3 CarriedPackageOffset = new Vector3(0f, -0.62f, -0.28f);
+        public Vector3 OversizedPackageOffset = new Vector3(0f, -0.82f, -0.48f);
+        [Min(0f)] public float PackageSpinSpeed = 28f;
+        [Min(0f)] public float CargoWarningScale = 0.38f;
+        [Min(0f)] public float CargoWarningPulseSpeed = 8f;
+
+        [Header("Contract HUD")]
+        [Min(160f)] public float HudWidth = 330f;
+        [Min(60f)] public float HudHeight = 128f;
+        [Min(0f)] public float HudLeft = 24f;
+        [Min(0f)] public float HudTop = 24f;
+        [Min(10)] public int HudTitleFontSize = 17;
+        [Min(9)] public int HudBodyFontSize = 13;
+        [Min(9)] public int HudStatusFontSize = 14;
+        [Min(0f)] public float ObjectiveEdgePadding = 64f;
+        [ColorUsage(false)] public Color HudPanelColor = new Color(0.025f, 0.045f, 0.07f, 0.9f);
+        [ColorUsage(false)] public Color HudAccentColor = new Color(1f, 0.62f, 0.16f, 1f);
+        [ColorUsage(false)] public Color HudTextColor = new Color(0.9f, 0.96f, 1f, 1f);
+        [ColorUsage(false)] public Color IntegrityHealthyColor = new Color(0.22f, 0.95f, 0.64f, 1f);
+        [ColorUsage(false)] public Color IntegrityCriticalColor = new Color(1f, 0.16f, 0.08f, 1f);
+    }
+
+    [System.Serializable]
+    public sealed class WorldHubTuning
+    {
+        public bool Enabled = true;
+        [Min(0f)] public float PlatformHeightAboveTerrain = 24f;
+        [Min(8f)] public float PlatformRadius = 26f;
+        [Min(0.5f)] public float PlatformThickness = 2.4f;
+        [Min(0f)] public float TerminalForwardOffset = 11f;
+        [Min(1f)] public float TerminalInteractionRadius = 6f;
+        [Min(0f)] public float UpgradeAreaSideOffset = 13f;
+        [Min(0f)] public float PlayerSpawnHeight = 2.2f;
+        public bool RestoreHealthOnReturn = true;
+        [Min(0f)] public float DesertInsertionHeight = 8f;
+        [Min(0.1f)] public float TeleportBuildDuration = 1.15f;
+        [Min(0.1f)] public float TeleportFadeDuration = 0.45f;
+        [Min(0.1f)] public float TeleportRebuildDuration = 0.8f;
+        [Min(0f)] public float StabilizeSharpness = 6f;
+        [Min(0.1f)] public float TeleportEffectRadius = 4.5f;
+        [Min(4)] public int TeleportParticleCount = 28;
+        [Min(0f)] public float TeleportParticleSpinSpeed = 150f;
+        [Min(0f)] public float TeleportParticleLiftSpeed = 6f;
+
+        [Header("Terminal UI")]
+        [Min(480f)] public float TerminalPanelWidth = 1080f;
+        [Min(320f)] public float TerminalPanelHeight = 680f;
+        [Min(0f)] public float TerminalScreenMargin = 28f;
+        [Min(10f)] public float TerminalPadding = 28f;
+        [Min(10f)] public float ContractCardGap = 12f;
+        [Min(100f)] public float ContractCardHeight = 154f;
+        [Min(10)] public int TerminalTitleFontSize = 30;
+        [Min(9)] public int TerminalBodyFontSize = 13;
+        [Min(9)] public int TerminalButtonFontSize = 13;
+        [ColorUsage(false)] public Color HubMetalColor = new Color(0.055f, 0.09f, 0.12f, 1f);
+        [ColorUsage(false, true)] public Color HubEnergyColor = new Color(0.02f, 2.2f, 3.8f, 1f);
+        [ColorUsage(false)] public Color TerminalPanelColor = new Color(0.018f, 0.035f, 0.055f, 0.98f);
+        [ColorUsage(false)] public Color TerminalCardColor = new Color(0.06f, 0.09f, 0.12f, 1f);
+        [ColorUsage(false)] public Color TerminalCardHoverColor = new Color(0.11f, 0.17f, 0.22f, 1f);
+        [ColorUsage(false)] public Color TerminalAccentColor = new Color(1f, 0.58f, 0.12f, 1f);
+        [ColorUsage(false)] public Color TerminalTextColor = new Color(0.9f, 0.96f, 1f, 1f);
+    }
+
+    [System.Serializable]
+    public sealed class LandmarkSystemTuning
+    {
+        public bool Enabled = true;
+        [Min(40f)] public float PlacementCellSize = 190f;
+        [Range(1, 5)] public int ActiveCellRadius = 2;
+        [Min(0.1f)] public float RefreshInterval = 0.55f;
+        [Range(0f, 1f)] public float CommonCellChance = 0.42f;
+        [Range(0f, 1f)] public float StandardCellChance = 0.22f;
+        [Range(0f, 1f)] public float RareCellChance = 0.035f;
+        [Min(10f)] public float StandardMinimumSpacing = 310f;
+        [Min(10f)] public float RareMinimumSpacing = 950f;
+        [Min(0f)] public float HubExclusionRadius = 170f;
+        [Range(0f, 50f)] public float MaximumPlacementSlope = 19f;
+        [Min(0.1f)] public float RelayScale = 1f;
+        [Min(0.1f)] public float CarrierScale = 1.15f;
+        [Min(0.1f)] public float BeaconScale = 1f;
+        [Min(0.1f)] public float SpireScale = 1.3f;
+        [Min(0.1f)] public float ExcavationScale = 1.1f;
+        [Min(4f)] public float RelayAntennaHeight = 42f;
+        [Min(4f)] public float CarrierLength = 54f;
+        [Min(4f)] public float BeaconHeight = 38f;
+        [Min(8f)] public float SpireHeight = 96f;
+        [Min(4f)] public float ExcavationCraneHeight = 34f;
+        [Min(0f)] public float ContractSocketHeight = 5f;
+        [Min(0f)] public float EncounterSocketHeight = 22f;
+        [Min(0f)] public float FlightSocketHeight = 18f;
+    }
+
+    [System.Serializable]
+    public sealed class RouteEncounterTuning
+    {
+        public bool Enabled = true;
+        [Min(0.1f)] public float MinimumEncounterInterval = 28f;
+        [Min(0.1f)] public float MaximumEncounterInterval = 52f;
+        [Min(0.1f)] public float HighValueIntervalMultiplier = 0.52f;
+        [Min(20f)] public float MinimumObjectiveDistance = 180f;
+        [Min(10f)] public float EncounterVolumeRadius = 90f;
+        [Range(1, 5)] public int VolumesPerRouteLeg = 2;
+        [Range(2, 10)] public int MinimumFormationSize = 3;
+        [Range(2, 12)] public int MaximumFormationSize = 6;
+        [Min(10f)] public float SpawnDistance = 125f;
+        [Min(1f)] public float FormationSpacing = 16f;
+        [Min(0f)] public float LowAltitude = 9f;
+        [Min(0f)] public float MediumAltitude = 24f;
+        [Min(0f)] public float HighAltitude = 46f;
+        [Min(1f)] public float ApproachSpeed = 48f;
+        [Min(1f)] public float AttackPassSpeed = 68f;
+        [Min(1f)] public float BreakSpeed = 58f;
+        [Min(1f)] public float TurnSharpness = 5.5f;
+        [Min(1f)] public float BreakOffDistance = 210f;
+        [Min(0f)] public float RepositionDelay = 1.2f;
+        [Range(0, 3)] public int MaximumAttackPasses = 2;
+        [Min(1f)] public float EnemyHealth = 55f;
+        [Min(0)] public int EnemyGoldReward = 12;
+        [Min(0.1f)] public float EnemyVisualScale = 1.25f;
+        [Min(0f)] public float ContactDamage = 12f;
+        [Min(0.1f)] public float ContactRadius = 2.4f;
+        [Min(0f)] public float ShotDamage = 7f;
+        [Min(0.1f)] public float ShotInterval = 1.1f;
+        [Min(0.1f)] public float ShotTelegraphDuration = 0.22f;
+        [Min(0.1f)] public float ShotHitRadius = 2.2f;
+        [Min(0.05f)] public float ShotVisualDuration = 0.16f;
+        [Min(0.01f)] public float ShotStartWidth = 0.1f;
+        [Min(0.01f)] public float ShotEndWidth = 0.025f;
+        [Range(0f, 1f)] public float SecondPassChance = 0.62f;
+        [ColorUsage(false, true)] public Color FormationEmission = new Color(3.8f, 0.16f, 0.05f, 1f);
+        [ColorUsage(false, true)] public Color ShotEmission = new Color(4.5f, 0.35f, 0.06f, 1f);
+    }
+
+    [System.Serializable]
     public sealed class PyramidTuning
     {
         [Min(0f)] public float DensityPerChunk = 0.22f;
@@ -568,7 +754,7 @@ namespace DuneVector
         [Range(0.5f, 2f)] public float MinimumScale = 0.7f;
         [Range(0.5f, 2f)] public float MaximumScale = 1.2f;
         [Min(280f)] public float PanelWidth = 540f;
-        [Min(340f)] public float PanelHeight = 500f;
+        [Min(340f)] public float PanelHeight = 630f;
         [Min(8f)] public float ScreenMargin = 24f;
         [Min(12f)] public float PanelPadding = 36f;
         [Min(1f)] public float AccentBarHeight = 6f;
@@ -807,6 +993,18 @@ namespace DuneVector
         [Tooltip("Pickup, package, and drop-off job generation.")]
         public DeliveryTuning Deliveries = new DeliveryTuning();
 
+        [Tooltip("Courier contract generation, modifiers, rewards, cargo rules, and HUD.")]
+        public CourierContractTuning Contracts = new CourierContractTuning();
+
+        [Tooltip("World hub geometry, terminal interaction, and teleport presentation.")]
+        public WorldHubTuning WorldHub = new WorldHubTuning();
+
+        [Tooltip("Authored procedural landmark placement and archetype dimensions.")]
+        public LandmarkSystemTuning Landmarks = new LandmarkSystemTuning();
+
+        [Tooltip("Route-aware open-world enemy formation choreography.")]
+        public RouteEncounterTuning RouteEncounters = new RouteEncounterTuning();
+
         [Tooltip("Procedural pyramid density and size range.")]
         public PyramidTuning Pyramids = new PyramidTuning();
 
@@ -855,6 +1053,10 @@ namespace DuneVector
             Audio ??= new AudioTuning();
             Audio.EnsureInitialized();
             Deliveries ??= new DeliveryTuning();
+            Contracts ??= new CourierContractTuning();
+            WorldHub ??= new WorldHubTuning();
+            Landmarks ??= new LandmarkSystemTuning();
+            RouteEncounters ??= new RouteEncounterTuning();
             Pyramids ??= new PyramidTuning();
             WorldStreaming ??= new WorldStreamingTuning();
             HealthSettings ??= new PlayerHealthTuning();

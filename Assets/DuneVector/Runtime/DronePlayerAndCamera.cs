@@ -68,8 +68,8 @@ namespace DuneVector
 
         private void Start()
         {
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            Cursor.lockState = InputEnabled ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !InputEnabled;
         }
 
         private void Update()

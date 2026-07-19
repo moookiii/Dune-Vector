@@ -20,6 +20,10 @@ namespace DuneVector
         public DesertWeatherTuning WeatherSettings => RuntimeSettings.Weather;
         public AudioTuning AudioSettings => RuntimeSettings.Audio;
         public DeliveryTuning Deliveries => RuntimeSettings.Deliveries;
+        public CourierContractTuning Contracts => RuntimeSettings.Contracts;
+        public WorldHubTuning WorldHubSettings => RuntimeSettings.WorldHub;
+        public LandmarkSystemTuning LandmarkSettings => RuntimeSettings.Landmarks;
+        public RouteEncounterTuning RouteEncounterSettings => RuntimeSettings.RouteEncounters;
         public PyramidTuning Pyramids => RuntimeSettings.Pyramids;
         public WorldStreamingTuning WorldStreaming => RuntimeSettings.WorldStreaming;
         public PlayerHealthTuning HealthSettings => RuntimeSettings.HealthSettings;
@@ -57,6 +61,9 @@ namespace DuneVector
         public DronePlayer Player { get; private set; }
         public DuneVectorDebugHUD DebugHUD { get; private set; }
         public DuneVectorDeliveryLoop DeliveryLoop { get; private set; }
+        public DuneVectorLandmarkDirector LandmarkDirector { get; private set; }
+        public DuneVectorCourierGame CourierGame { get; private set; }
+        public DuneVectorRouteEncounterDirector RouteEncounterDirector { get; private set; }
         public DroneHealth DroneHealth { get; private set; }
         public DroneTargetDetector TargetDetector { get; private set; }
         public DroneLockOnController LockOnController { get; private set; }
@@ -306,8 +313,8 @@ namespace DuneVector
             BuildAudio();
             BuildWeather();
             BuildInterface();
-            BuildDeliveryGameplay();
             BuildEnemyGameplay();
+            BuildDeliveryGameplay();
             BuildDroneWeapon();
 
 #if UNITY_EDITOR
@@ -543,6 +550,47 @@ namespace DuneVector
         {
             if (!Deliveries.Enabled)
             {
+                return;
+            }
+
+            if (Contracts.Enabled && WorldHubSettings.Enabled)
+            {
+                GameObject landmarkObject = new GameObject("Procedural Landmark Director");
+                landmarkObject.transform.SetParent(transform, false);
+                LandmarkDirector = landmarkObject.AddComponent<DuneVectorLandmarkDirector>();
+                LandmarkDirector.Initialize(World, _materials, LandmarkSettings);
+
+                GameObject courierObject = new GameObject("Courier Hub and Contract Game");
+                courierObject.transform.SetParent(transform, false);
+                CourierGame = courierObject.AddComponent<DuneVectorCourierGame>();
+                CourierGame.Initialize(
+                    Player,
+                    Drone,
+                    DroneHealth,
+                    World,
+                    DroneCamera.Camera,
+                    _materials,
+                    GoldWallet,
+                    LandmarkDirector,
+                    Deliveries,
+                    Contracts,
+                    WorldHubSettings,
+                    EnemyDirector,
+                    StormPyramidDirector);
+
+                GameObject encounterObject = new GameObject("Route Encounter Formation Director");
+                encounterObject.transform.SetParent(transform, false);
+                RouteEncounterDirector = encounterObject.AddComponent<DuneVectorRouteEncounterDirector>();
+                RouteEncounterDirector.Initialize(
+                    Drone,
+                    DroneHealth,
+                    World,
+                    _materials,
+                    GoldWallet,
+                    RouteEncounterSettings,
+                    CourierGame);
+                CourierGame.BindEncounterDirector(RouteEncounterDirector);
+                PauseMenu?.BindCourierGame(CourierGame);
                 return;
             }
 

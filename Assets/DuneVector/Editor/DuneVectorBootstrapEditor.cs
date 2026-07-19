@@ -111,6 +111,10 @@ namespace DuneVector.Editor
         private SerializedProperty _clouds;
         private SerializedProperty _weather;
         private SerializedProperty _deliveries;
+        private SerializedProperty _contracts;
+        private SerializedProperty _worldHub;
+        private SerializedProperty _landmarks;
+        private SerializedProperty _routeEncounters;
         private SerializedProperty _pyramids;
         private SerializedProperty _worldStreaming;
         private SerializedProperty _health;
@@ -130,6 +134,10 @@ namespace DuneVector.Editor
             _clouds = serializedObject.FindProperty("Clouds");
             _weather = serializedObject.FindProperty("Weather");
             _deliveries = serializedObject.FindProperty("Deliveries");
+            _contracts = serializedObject.FindProperty("Contracts");
+            _worldHub = serializedObject.FindProperty("WorldHub");
+            _landmarks = serializedObject.FindProperty("Landmarks");
+            _routeEncounters = serializedObject.FindProperty("RouteEncounters");
             _pyramids = serializedObject.FindProperty("Pyramids");
             _worldStreaming = serializedObject.FindProperty("WorldStreaming");
             _health = serializedObject.FindProperty("HealthSettings");
@@ -202,6 +210,14 @@ namespace DuneVector.Editor
                 "Objective placement, travel ranges, package size, and job rings.",
                 _deliveries);
             DuneVectorSettingsInspector.DrawSection(
+                "Courier Contracts",
+                "Contract offers, modifier progression, cargo consequences, rewards, and active-contract HUD.",
+                _contracts);
+            DuneVectorSettingsInspector.DrawSection(
+                "World Hub & Teleport",
+                "Safe-hub layout, terminal presentation, deployment, and return sequence.",
+                _worldHub);
+            DuneVectorSettingsInspector.DrawSection(
                 "Traversal Rings",
                 "Sizes, height bands, and active enlargement for both ring types.",
                 _rings);
@@ -225,6 +241,10 @@ namespace DuneVector.Editor
                 "Ground Exploders",
                 "Patrol motion, proximity wind-up, radial damage, and presentation.",
                 _groundExploders);
+            DuneVectorSettingsInspector.DrawSection(
+                "Route Encounter Formations",
+                "Encounter volumes, five approach formations, attack passes, break-off behavior, and rewards.",
+                _routeEncounters);
         }
 
         private void DrawWorldTab()
@@ -259,6 +279,10 @@ namespace DuneVector.Editor
                 "Pyramids",
                 "Landmark density and randomized size range.",
                 _pyramids);
+            DuneVectorSettingsInspector.DrawSection(
+                "Authored Landmarks",
+                "Placement tiers, spacing, silhouettes, sockets, and the five initial landmark templates.",
+                _landmarks);
         }
 
         private void DrawDunePresetControls()

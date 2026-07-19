@@ -1003,6 +1003,7 @@ namespace DuneVector
     {
         private readonly List<StormPyramidEnemy> _enemies = new List<StormPyramidEnemy>();
         private DesertWorldStreamer _world;
+        private StormPyramidThreatHUD _warningHud;
 
         public void Initialize(
             DroneCharacterController player,
@@ -1043,8 +1044,24 @@ namespace DuneVector
                 _enemies.Add(enemy);
             }
 
-            StormPyramidThreatHUD warningHud = gameObject.AddComponent<StormPyramidThreatHUD>();
-            warningHud.Initialize(player, Camera.main, settings, _enemies);
+            _warningHud = gameObject.AddComponent<StormPyramidThreatHUD>();
+            _warningHud.Initialize(player, Camera.main, settings, _enemies);
+        }
+
+        public void SetGameplayActive(bool active)
+        {
+            enabled = active;
+            for (int i = 0; i < _enemies.Count; i++)
+            {
+                if (_enemies[i] != null)
+                {
+                    _enemies[i].enabled = active;
+                }
+            }
+            if (_warningHud != null)
+            {
+                _warningHud.enabled = active;
+            }
         }
 
         private void HandleWorldShift(Vector3 shift)
