@@ -109,12 +109,6 @@ namespace DuneVector
             if (Event.current.type == EventType.Repaint && EnsureArcMaterial())
             {
                 Color backgroundColor = _settings.MeterBackgroundColor;
-                if (_stamina.State == DroneStaminaState.Exhausted)
-                {
-                    backgroundColor.r = _settings.EmptyColor.r;
-                    backgroundColor.g = _settings.EmptyColor.g;
-                    backgroundColor.b = _settings.EmptyColor.b;
-                }
                 backgroundColor.a *= _visibleAlpha;
                 meterColor.a *= _visibleAlpha;
 
@@ -134,7 +128,7 @@ namespace DuneVector
         {
             if (_stamina.State == DroneStaminaState.Exhausted)
             {
-                return stamina01 > 0f ? _settings.RegeneratingColor : _settings.EmptyColor;
+                return _settings.EmptyColor;
             }
             if (_stamina.State == DroneStaminaState.Regenerating)
             {
