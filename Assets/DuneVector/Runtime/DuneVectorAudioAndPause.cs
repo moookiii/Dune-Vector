@@ -100,11 +100,11 @@ namespace DuneVector
             MusicVolume = Mathf.Clamp01(volume);
             if (_hasMusicBus && _musicBus.isValid())
             {
-                _musicBus.setVolume(MusicVolume);
+                ApplyBusVolumeAndMute(_musicBus, MusicVolume);
             }
             else if (_musicInstance.isValid())
             {
-                _musicInstance.setVolume(MusicVolume);
+                ApplyMusicInstanceVolumeAndMute();
             }
             _preferencesDirty = true;
         }
@@ -114,7 +114,7 @@ namespace DuneVector
             SoundEffectsVolume = Mathf.Clamp01(volume);
             if (_hasSoundEffectsBus && _soundEffectsBus.isValid())
             {
-                _soundEffectsBus.setVolume(SoundEffectsVolume);
+                ApplyBusVolumeAndMute(_soundEffectsBus, SoundEffectsVolume);
             }
             _preferencesDirty = true;
         }
@@ -152,7 +152,7 @@ namespace DuneVector
 
         private void PlayConfiguredOneShot(string eventPath, Vector3 position, string label)
         {
-            if (string.IsNullOrWhiteSpace(eventPath))
+            if (IsMuted(SoundEffectsVolume) || string.IsNullOrWhiteSpace(eventPath))
             {
                 return;
             }
@@ -184,6 +184,10 @@ namespace DuneVector
                     _musicInstance.setVolume(MusicVolume);
                 }
                 _musicInstance.start();
+                if (!_hasMusicBus && IsMuted(MusicVolume))
+                {
+                    _musicInstance.setPaused(true);
+                }
             }
             catch (EventNotFoundException exception)
             {
@@ -197,12 +201,45 @@ namespace DuneVector
         {
             if (_hasMusicBus && _musicBus.isValid())
             {
-                _musicBus.setVolume(MusicVolume);
+                ApplyBusVolumeAndMute(_musicBus, MusicVolume);
             }
             if (_hasSoundEffectsBus && _soundEffectsBus.isValid())
             {
-                _soundEffectsBus.setVolume(SoundEffectsVolume);
+                ApplyBusVolumeAndMute(_soundEffectsBus, SoundEffectsVolume);
             }
+        }
+
+        private void ApplyMusicInstanceVolumeAndMute()
+        {
+            bool muted = IsMuted(MusicVolume);
+            if (muted)
+            {
+                _musicInstance.setPaused(true);
+                _musicInstance.setVolume(0f);
+                return;
+            }
+
+            _musicInstance.setVolume(MusicVolume);
+            _musicInstance.setPaused(false);
+        }
+
+        private static void ApplyBusVolumeAndMute(Bus bus, float volume)
+        {
+            bool muted = IsMuted(volume);
+            if (muted)
+            {
+                bus.setMute(true);
+                bus.setVolume(0f);
+                return;
+            }
+
+            bus.setVolume(volume);
+            bus.setMute(false);
+        }
+
+        private static bool IsMuted(float volume)
+        {
+            return volume <= Mathf.Epsilon;
         }
 
         private void UpdatePauseDucking()
@@ -236,7 +273,9 @@ namespace DuneVector
 
         private void HandleDroneDamaged(float appliedDamage)
         {
-            if (appliedDamage <= 0f || string.IsNullOrWhiteSpace(_settings.DroneDamageEvent))
+            if (IsMuted(SoundEffectsVolume)
+                || appliedDamage <= 0f
+                || string.IsNullOrWhiteSpace(_settings.DroneDamageEvent))
             {
                 return;
             }
