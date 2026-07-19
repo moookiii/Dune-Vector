@@ -6,6 +6,7 @@ namespace DuneVector
     {
         GroundBoost,
         Flight,
+        Health,
     }
 
     [DisallowMultipleComponent]
@@ -28,6 +29,8 @@ namespace DuneVector
         public int ActivationCount { get; private set; }
 
         private DroneCharacterController _controller;
+        private DroneHealth _health;
+        private float _healthRestored;
         private Transform _visualRoot;
         private Vector3 _previousWorldPosition;
         private bool _hasPreviousWorldPosition;
@@ -39,20 +42,36 @@ namespace DuneVector
         private Camera _billboardCamera;
         private Vector3 _restingLocalPosition;
 
-        public void Initialize(TraversalRingType type, DroneCharacterController controller, DuneVectorMaterials materials, float majorRadius, string identity)
+        public void Initialize(
+            TraversalRingType type,
+            DroneCharacterController controller,
+            DroneHealth health,
+            DuneVectorMaterials materials,
+            float majorRadius,
+            float healthRestored,
+            float healthHeartScale,
+            string identity)
         {
             RingType = type;
             _controller = controller;
+            _health = health;
+            _healthRestored = healthRestored;
             InnerRadius = majorRadius - 0.58f;
             ProceduralIdentity = identity;
             _restingLocalPosition = transform.localPosition;
-            _visualRoot = DuneVectorVisuals.CreateRingVisual(transform, type, materials, majorRadius);
-            gameObject.name = type == TraversalRingType.GroundBoost ? "Ground Boost Ring" : "Elevated Flight Ring";
+            _visualRoot = DuneVectorVisuals.CreateRingVisual(transform, type, materials, majorRadius, healthHeartScale);
+            gameObject.name = type switch
+            {
+                TraversalRingType.GroundBoost => "Ground Boost Ring",
+                TraversalRingType.Flight => "Elevated Flight Ring",
+                _ => "Health Ring",
+            };
         }
 
-        public void BindController(DroneCharacterController controller)
+        public void BindTargets(DroneCharacterController controller, DroneHealth health)
         {
             _controller = controller;
+            _health = health;
             _inside = false;
             _hasPreviousWorldPosition = false;
         }
@@ -104,12 +123,17 @@ namespace DuneVector
             _pulse = Mathf.MoveTowards(_pulse, 0f, Time.deltaTime * 1.8f);
             if (_visualRoot != null)
             {
-                float activeScale = RingType == TraversalRingType.Flight
-                    ? FlightModeScale
-                    : BoostRingActiveScale;
-                float targetModeScale = RingType == TraversalRingType.Flight
-                    ? (_controller.CurrentMode == DroneTraversalMode.Flight ? activeScale : 1f)
-                    : Mathf.Lerp(1f, activeScale, _controller.BoostRemainingNormalized);
+                float targetModeScale = RingType switch
+                {
+                    TraversalRingType.Flight => _controller.CurrentMode == DroneTraversalMode.Flight
+                        ? FlightModeScale
+                        : 1f,
+                    TraversalRingType.GroundBoost => Mathf.Lerp(
+                        1f,
+                        BoostRingActiveScale,
+                        _controller.BoostRemainingNormalized),
+                    _ => 1f,
+                };
                 _modeScale = Mathf.Lerp(
                     _modeScale,
                     targetModeScale,
@@ -155,6 +179,11 @@ namespace DuneVector
                 return;
             }
 
+            if (RingType == TraversalRingType.Health && (_health == null || !_health.RestoreHealth(_healthRestored)))
+            {
+                return;
+            }
+
             _nextActivationTime = Time.time + ReactivationDelay;
             HasActivated = true;
             ActivationCount++;
@@ -166,13 +195,25 @@ namespace DuneVector
             }
             else
             {
-                _controller.RequestFlight(transform.forward);
+                if (RingType == TraversalRingType.Flight)
+                {
+                    _controller.RequestFlight(transform.forward);
+                }
+                else
+                {
+                    Destroy(gameObject);
+                }
             }
         }
 
         private void OnDrawGizmosSelected()
         {
-            Gizmos.color = RingType == TraversalRingType.GroundBoost ? new Color(1f, 0.5f, 0f, 0.7f) : new Color(0f, 0.8f, 1f, 0.7f);
+            Gizmos.color = RingType switch
+            {
+                TraversalRingType.GroundBoost => new Color(1f, 0.5f, 0f, 0.7f),
+                TraversalRingType.Flight => new Color(0f, 0.8f, 1f, 0.7f),
+                _ => new Color(1f, 0.1f, 0.25f, 0.7f),
+            };
             Gizmos.matrix = transform.localToWorldMatrix;
             Gizmos.DrawWireSphere(Vector3.zero, InnerRadius);
         }

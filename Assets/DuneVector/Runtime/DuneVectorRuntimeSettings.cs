@@ -204,6 +204,24 @@ namespace DuneVector
         [Min(0.75f)] public float GroundRingRadius = 3.25f;
         [Min(0.75f)] public float FlightRingRadius = 3.55f;
 
+        [Header("Health Rings")]
+        [Tooltip("Expected health-ring count per streamed terrain chunk. Values well below one keep pickups scarce.")]
+        [Range(0f, 1f)] public float HealthRingDensityPerChunk = 0.035f;
+        [Min(0.75f)] public float HealthRingRadius = 4.2f;
+        [Min(0f)] public float HealthRingMinimumHeight = 4f;
+        [Min(0f)] public float HealthRingMaximumHeight = 10f;
+        [Min(0f)] public float HealthRestored = 35f;
+        [Min(0.1f)] public float HealthHeartScale = 1.4f;
+        [Min(0f)] public float HealthRingRotationSpeed;
+
+        [Header("Health Ring Appearance")]
+        [ColorUsage(false, true)] public Color HealthRingBaseColor = new Color(0.48f, 0.015f, 0.055f);
+        [ColorUsage(false, true)] public Color HealthRingEmissionColor = new Color(4.8f, 0.06f, 0.24f);
+        [ColorUsage(false, true)] public Color HealthHeartBaseColor = new Color(0.8f, 0.035f, 0.09f);
+        [ColorUsage(false, true)] public Color HealthHeartEmissionColor = new Color(8f, 0.12f, 0.42f);
+        [Range(0f, 1f)] public float HealthMaterialSmoothness = 0.72f;
+        [Range(0f, 1f)] public float HealthMaterialMetallic = 0.22f;
+
         [Header("Height Above Ground")]
         [Min(0f)] public float GroundRingMinimumHeight = 1.75f;
         [Min(0f)] public float GroundRingMaximumHeight = 3.25f;

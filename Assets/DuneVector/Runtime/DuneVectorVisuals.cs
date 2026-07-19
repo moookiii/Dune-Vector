@@ -15,6 +15,8 @@ namespace DuneVector
         public Material Sandstone { get; }
         public Material BoostRing { get; }
         public Material FlightRing { get; }
+        public Material HealthRing { get; }
+        public Material HealthHeart { get; }
         public Material Trail { get; }
         public Material Cloud { get; }
         public Material Package { get; }
@@ -31,8 +33,9 @@ namespace DuneVector
 
         private readonly List<Material> _ownedMaterials = new List<Material>();
 
-        public DuneVectorMaterials()
+        public DuneVectorMaterials(RingTuning ringTuning = null)
         {
+            RingTuning rings = ringTuning ?? new RingTuning();
             Sand = CreateLit("Sand - Warm Rough", new Color(0.62f, 0.36f, 0.16f), 0.14f, 0f);
             DroneBody = CreateLit("Drone - Ivory", new Color(0.75f, 0.78f, 0.78f), 0.72f, 0.7f);
             DroneAccent = CreateLit("Drone - Cyan Emission", new Color(0.015f, 0.12f, 0.16f), 0.78f, 0.45f, new Color(0.0f, 1.6f, 2.8f));
@@ -41,6 +44,18 @@ namespace DuneVector
             Sandstone = CreateLit("Pyramid - Sandstone", new Color(0.58f, 0.31f, 0.13f), 0.18f, 0f);
             BoostRing = CreateLit("Ring - Boost Amber", new Color(0.42f, 0.09f, 0.008f), 0.65f, 0.4f, new Color(3.6f, 0.72f, 0.025f));
             FlightRing = CreateLit("Ring - Flight Cyan", new Color(0.004f, 0.19f, 0.32f), 0.7f, 0.5f, new Color(0.0f, 2.0f, 3.6f));
+            HealthRing = CreateLit(
+                "Ring - Health Crimson",
+                rings.HealthRingBaseColor,
+                rings.HealthMaterialSmoothness,
+                rings.HealthMaterialMetallic,
+                rings.HealthRingEmissionColor);
+            HealthHeart = CreateLit(
+                "Ring - Health Heart",
+                rings.HealthHeartBaseColor,
+                rings.HealthMaterialSmoothness,
+                rings.HealthMaterialMetallic,
+                rings.HealthHeartEmissionColor);
             Trail = CreateLit("Drone - Trail", new Color(0.0f, 0.06f, 0.08f), 0.6f, 0.1f, new Color(0.0f, 0.8f, 1.4f));
             Cloud = CreateLit("Cloud - Sunlit", new Color(0.82f, 0.88f, 0.94f), 0.08f, 0f);
             Package = CreateLit("Delivery Package", new Color(0.72f, 0.24f, 0.035f), 0.34f, 0.05f, new Color(1.4f, 0.2f, 0.01f));
@@ -225,9 +240,19 @@ namespace DuneVector
             return root.transform;
         }
 
-        public static Transform CreateRingVisual(Transform parent, TraversalRingType type, DuneVectorMaterials materials, float majorRadius)
+        public static Transform CreateRingVisual(
+            Transform parent,
+            TraversalRingType type,
+            DuneVectorMaterials materials,
+            float majorRadius,
+            float healthHeartScale)
         {
-            Material material = type == TraversalRingType.GroundBoost ? materials.BoostRing : materials.FlightRing;
+            Material material = type switch
+            {
+                TraversalRingType.GroundBoost => materials.BoostRing,
+                TraversalRingType.Flight => materials.FlightRing,
+                _ => materials.HealthRing,
+            };
             GameObject visualRoot = new GameObject("Ring Visual Root");
             visualRoot.transform.SetParent(parent, false);
             const float arcStart = -65f;
@@ -273,7 +298,50 @@ namespace DuneVector
                     material);
                 DisableRendererShadows(dash.gameObject);
             }
+
+            if (type == TraversalRingType.Health)
+            {
+                Transform heart = CreateHealthHeartVisual(visualRoot.transform, materials.HealthHeart, healthHeartScale);
+                heart.localPosition = Vector3.zero;
+            }
             return visualRoot.transform;
+        }
+
+        private static Transform CreateHealthHeartVisual(Transform parent, Material material, float scale)
+        {
+            GameObject heartObject = new GameObject("Health Heart");
+            Transform heart = heartObject.transform;
+            heart.SetParent(parent, false);
+            heart.localScale = Vector3.one * Mathf.Max(0.1f, scale);
+
+            Transform leftLobe = CreatePart(
+                PrimitiveType.Sphere,
+                "Heart Left Lobe",
+                heart,
+                new Vector3(-0.38f, 0.28f, 0f),
+                new Vector3(0.92f, 0.92f, 0.3f),
+                Quaternion.identity,
+                material);
+            Transform rightLobe = CreatePart(
+                PrimitiveType.Sphere,
+                "Heart Right Lobe",
+                heart,
+                new Vector3(0.38f, 0.28f, 0f),
+                new Vector3(0.92f, 0.92f, 0.3f),
+                Quaternion.identity,
+                material);
+            Transform point = CreatePart(
+                PrimitiveType.Cube,
+                "Heart Point",
+                heart,
+                new Vector3(0f, -0.25f, 0f),
+                new Vector3(1.12f, 1.12f, 0.28f),
+                Quaternion.Euler(0f, 0f, 45f),
+                material);
+            DisableRendererShadows(leftLobe.gameObject);
+            DisableRendererShadows(rightLobe.gameObject);
+            DisableRendererShadows(point.gameObject);
+            return heart;
         }
 
         public static Transform CreateJobRingVisual(Transform parent, bool isPickup, DuneVectorMaterials materials, float radius)

@@ -46,6 +46,19 @@ namespace DuneVector
             }
             return true;
         }
+
+        public bool RestoreHealth(float amount)
+        {
+            if (IsDead || amount <= 0f || CurrentHealth >= MaximumHealth)
+            {
+                return false;
+            }
+
+            float previousHealth = CurrentHealth;
+            CurrentHealth = Mathf.Min(MaximumHealth, CurrentHealth + amount);
+            HealthChanged?.Invoke(CurrentHealth, MaximumHealth);
+            return CurrentHealth > previousHealth;
+        }
     }
 
     [DisallowMultipleComponent]
