@@ -52,6 +52,9 @@ namespace DuneVector
         public int UnloadedChunkCount { get; private set; }
         public int PeakActiveChunkCount { get; private set; }
         public int RebaseCount { get; private set; }
+        public int ActivatedFlightRingCount => _activatedFlightRingIdentities.Count;
+        public int UpperFlightRingRequiredPasses => Mathf.Max(1, Rings.UpperFlightRingRequiredPasses);
+        public bool IsUpperFlightRingUnlocked => ActivatedFlightRingCount >= UpperFlightRingRequiredPasses;
         public Vector2Int CurrentLogicalChunk { get; private set; }
         public double OriginOffsetX { get; private set; }
         public double OriginOffsetZ { get; private set; }
@@ -105,6 +108,9 @@ namespace DuneVector
             GameObject root = new GameObject("Streamed Desert Chunks");
             _chunkRoot = root.transform;
             _chunkRoot.SetParent(transform, false);
+
+            DuneVectorUpperFlightRingHUD progressHud = gameObject.AddComponent<DuneVectorUpperFlightRingHUD>();
+            progressHud.Initialize(this, Rings);
 
             Vector2Int initialChunk = LogicalToChunk(StartingLogicalPosition.x, StartingLogicalPosition.y);
             for (int z = -1; z <= 1; z++)

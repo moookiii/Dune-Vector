@@ -210,6 +210,30 @@ namespace DuneVector
         [Tooltip("Vertical distance between the triggering blue ring and its unlocked upper-layer ring.")]
         [Min(0.5f)] public float UpperFlightRingVerticalSeparation = 12f;
 
+        [Header("Upper Flight Ring HUD")]
+        public bool ShowUpperFlightRingHud = true;
+        public string UpperFlightRingHudTitle = "UPPER FLIGHT LAYER";
+        public string UpperFlightRingHudProgressLabel = "BLUE RINGS";
+        public string UpperFlightRingHudUnlockedLabel = "UPPER RING UNLOCKED";
+        [Min(240f)] public float UpperFlightRingHudReferenceHeight = 1080f;
+        [Range(0.25f, 2f)] public float UpperFlightRingHudMinimumScale = 0.65f;
+        [Range(0.25f, 2f)] public float UpperFlightRingHudMaximumScale = 1.25f;
+        [Min(0f)] public float UpperFlightRingHudTopMargin = 28f;
+        [Min(0f)] public float UpperFlightRingHudRightMargin = 28f;
+        [Min(160f)] public float UpperFlightRingHudWidth = 310f;
+        [Min(60f)] public float UpperFlightRingHudHeight = 92f;
+        [Min(0f)] public float UpperFlightRingHudPadding = 14f;
+        [Min(1f)] public float UpperFlightRingHudAccentWidth = 5f;
+        [Min(1f)] public float UpperFlightRingHudProgressBarHeight = 8f;
+        [Min(8)] public int UpperFlightRingHudTitleFontSize = 13;
+        [Min(8)] public int UpperFlightRingHudStatusFontSize = 17;
+        [ColorUsage(false)] public Color UpperFlightRingHudPanelColor = new Color(0.025f, 0.07f, 0.11f, 0.9f);
+        [ColorUsage(false)] public Color UpperFlightRingHudAccentColor = new Color(0f, 0.82f, 1f, 1f);
+        [ColorUsage(false)] public Color UpperFlightRingHudTrackColor = new Color(0.12f, 0.24f, 0.3f, 1f);
+        [ColorUsage(false)] public Color UpperFlightRingHudTitleColor = new Color(0.55f, 0.78f, 0.86f, 1f);
+        [ColorUsage(false)] public Color UpperFlightRingHudStatusColor = new Color(0.88f, 0.97f, 1f, 1f);
+        [ColorUsage(false)] public Color UpperFlightRingHudUnlockedColor = new Color(0.35f, 1f, 0.7f, 1f);
+
         [Header("Health Rings")]
         [Tooltip("Expected health-ring count per streamed terrain chunk. Values well below one keep pickups scarce.")]
         [Range(0f, 1f)] public float HealthRingDensityPerChunk = 0.035f;
