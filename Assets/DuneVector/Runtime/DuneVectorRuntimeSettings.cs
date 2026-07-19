@@ -498,7 +498,6 @@ namespace DuneVector
         [Min(0f)] public float FlightLevelingSharpness = 5f;
         [Min(0f)] public float FlightYawRate = 125f;
         [Min(0.1f)] public float FlightDuration = 14f;
-        [Min(0f)] public float GroundFlightLaunchDelay = 0.5f;
         [Min(0f)] public float FlightEntryLiftDuration = 0.75f;
         [Min(0f)] public float FlightEntryLiftSpeed = 16f;
 
@@ -527,7 +526,6 @@ namespace DuneVector
             drone.FlightLevelingSharpness = FlightLevelingSharpness;
             drone.FlightYawRate = FlightYawRate;
             drone.FlightDuration = FlightDuration;
-            drone.GroundFlightLaunchDelay = GroundFlightLaunchDelay;
             drone.FlightEntryLiftDuration = FlightEntryLiftDuration;
             drone.FlightEntryLiftSpeed = FlightEntryLiftSpeed;
         }

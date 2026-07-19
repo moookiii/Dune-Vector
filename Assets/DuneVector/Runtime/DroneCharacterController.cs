@@ -63,7 +63,6 @@ namespace DuneVector
         [Min(0f)] public float FlightLevelingSharpness = 5f;
         [Min(0f)] public float FlightYawRate = 125f;
         [Min(0.1f)] public float FlightDuration = 14f;
-        [Min(0f)] public float GroundFlightLaunchDelay = 0.5f;
         [Tooltip("How long a newly started flight receives a protective upward lift. Flight-ring refreshes do not restart it.")]
         [Min(0f)] public float FlightEntryLiftDuration = 0.75f;
         [Tooltip("Minimum upward speed at the beginning of a newly started flight.")]
@@ -121,8 +120,6 @@ namespace DuneVector
 
         private bool _flightRequested;
         private bool _flightJustEntered;
-        private bool _delayedFlightRequested;
-        private float _flightLaunchDelayRemaining;
         private bool _flightBurstRequested;
         private Vector3 _requestedFlightDirection;
         private Vector3 _flightDirection;
@@ -237,37 +234,11 @@ namespace DuneVector
                 ? launchDirection.normalized
                 : Motor.CharacterForward;
             _flightBurstRequested = true;
-
-            if (_delayedFlightRequested)
-            {
-                return;
-            }
-
-            if (IsStableGrounded && GroundFlightLaunchDelay > 0f)
-            {
-                _delayedFlightRequested = true;
-                _flightLaunchDelayRemaining = GroundFlightLaunchDelay;
-                _jumpRequested = true;
-                _jumpConsumed = false;
-                _timeSinceJumpRequested = 0f;
-                return;
-            }
-
             _flightRequested = true;
         }
 
         public void BeforeCharacterUpdate(float deltaTime)
         {
-            if (_delayedFlightRequested)
-            {
-                _flightLaunchDelayRemaining = Mathf.Max(0f, _flightLaunchDelayRemaining - deltaTime);
-                if (_flightLaunchDelayRemaining <= 0f)
-                {
-                    _delayedFlightRequested = false;
-                    _flightRequested = true;
-                }
-            }
-
             if (_flightRequested)
             {
                 _flightRequested = false;
