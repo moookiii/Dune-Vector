@@ -7,6 +7,7 @@ namespace DuneVector
 {
     internal sealed class DesertShrubField : IDisposable
     {
+        private const int MaximumInstancesPerDraw = 1023;
         private static readonly Dictionary<int, Mesh> SharedMeshes = new Dictionary<int, Mesh>();
 
         private sealed class VariantBatch
@@ -72,16 +73,22 @@ namespace DuneVector
                     continue;
                 }
 
-                Matrix4x4[] localMatrices = matricesByVariant[i].ToArray();
-                _batches.Add(new VariantBatch
+                List<Matrix4x4> variantMatrices = matricesByVariant[i];
+                for (int start = 0; start < variantMatrices.Count; start += MaximumInstancesPerDraw)
                 {
-                    HighMesh = GetShrubMesh(variant, false),
-                    LowMesh = GetShrubMesh(variant, true),
-                    Material = materials[i],
-                    LocalMatrices = localMatrices,
-                    WorldMatrices = new Matrix4x4[localMatrices.Length],
-                });
-                InstanceCount += localMatrices.Length;
+                    int count = Mathf.Min(MaximumInstancesPerDraw, variantMatrices.Count - start);
+                    Matrix4x4[] localMatrices = new Matrix4x4[count];
+                    variantMatrices.CopyTo(start, localMatrices, 0, count);
+                    _batches.Add(new VariantBatch
+                    {
+                        HighMesh = GetShrubMesh(variant, false),
+                        LowMesh = GetShrubMesh(variant, true),
+                        Material = materials[i],
+                        LocalMatrices = localMatrices,
+                        WorldMatrices = new Matrix4x4[count],
+                    });
+                    InstanceCount += count;
+                }
             }
             RebuildWorldMatrices();
         }
