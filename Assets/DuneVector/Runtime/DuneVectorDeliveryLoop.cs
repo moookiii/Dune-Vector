@@ -138,7 +138,17 @@ namespace DuneVector
 
             CompletedDeliveries++;
             _completionMessageTime = 2.2f;
+            ReleaseDeliveredPackage();
             BeginNextJob();
+        }
+
+        private void ReleaseDeliveredPackage()
+        {
+            Vector3 carrierVelocity = _player != null && _player.Motor != null
+                ? _player.Motor.Velocity
+                : Vector3.zero;
+            DroppedDeliveryPackage.Release(_package, transform, _world, _settings, carrierVelocity);
+            _package = null;
         }
 
         private JobTraversalRing CreateJobRing(

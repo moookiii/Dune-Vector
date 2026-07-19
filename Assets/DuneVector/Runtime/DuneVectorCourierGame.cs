@@ -949,12 +949,29 @@ namespace DuneVector
             Progress.RecordCompletion(reward, completed.Difficulty);
             _routeEncounterDirector?.EndContract();
             _player.SetCargoHandlingModifiers(1f, 1f, 1f);
+            ReleaseDeliveredPackage();
             CleanupContractObjects();
             State = CourierRunState.ContractComplete;
             _stateTimer = _settings.CompletionReturnDelay;
             ShowStatus($"CONTRACT COMPLETE  +{reward} GOLD", _stateTimer);
             ContractEnded?.Invoke(completed);
             GenerateOffers();
+        }
+
+        private void ReleaseDeliveredPackage()
+        {
+            if (_package == null)
+            {
+                return;
+            }
+
+            Vector3 carrierVelocity = _player != null && _player.Motor != null
+                ? _player.Motor.Velocity
+                : Vector3.zero;
+            DroppedDeliveryPackage.Release(_package, transform, _world, _deliverySettings, carrierVelocity);
+            _package = null;
+            _cargoWarning = null;
+            _cargoSparks = null;
         }
 
         private void FailContract(string reason, bool recordFailure, bool beginReturn)

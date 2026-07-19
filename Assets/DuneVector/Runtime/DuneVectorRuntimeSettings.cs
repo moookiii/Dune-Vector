@@ -176,6 +176,13 @@ namespace DuneVector
         [Min(0f)] public float ObjectiveRingHeight = 3.4f;
         [Min(0.1f)] public float PackageScale = 0.8f;
 
+        [Header("Package Drop")]
+        [Min(0.01f)] public float PackageDropMass = 1f;
+        [Range(0f, 1f)] public float PackageDropInheritedVelocityMultiplier = 1f;
+        public Vector3 PackageDropAngularVelocity = new Vector3(0.7f, 1.5f, 0.4f);
+        public Vector3 PackageDropColliderSize = new Vector3(1.2f, 0.82f, 1f);
+        [Min(0f)] public float PackageDropGroundContactOffset = 0.03f;
+
         [Header("Objective Ring Appearance")]
         [ColorUsage(false, true)] public Color PickupRingBaseColor = new Color(0.32f, 0.015f, 0.48f);
         [ColorUsage(false, true)] public Color PickupRingEmissionColor = new Color(2.8f, 0.05f, 4.2f);
