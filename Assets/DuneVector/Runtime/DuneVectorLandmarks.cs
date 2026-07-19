@@ -442,14 +442,37 @@ namespace DuneVector
             float scale = _settings.RelayScale;
             Part(PrimitiveType.Cube, "Relay Platform", root, new Vector3(0f, 0.6f, 0f), new Vector3(22f, 1.2f, 16f) * scale, Quaternion.identity, _materials.DroneDark);
             Part(PrimitiveType.Cube, "Relay Building", root, new Vector3(0f, 3.5f, 0f), new Vector3(11f, 5.8f, 8f) * scale, Quaternion.identity, _materials.Sandstone);
+            Part(PrimitiveType.Cube, "Relay Roof Cap", root, new Vector3(0f, 6.65f, 0f) * scale,
+                new Vector3(12.5f, 0.55f, 9.5f) * scale, Quaternion.identity, _materials.DroneBody);
+            int relayWindowCount = Mathf.Max(2, _settings.RelayWindowCount);
+            float relayWindowStart = -((relayWindowCount - 1) * _settings.RelayWindowSpacing * 0.5f);
+            for (int i = 0; i < relayWindowCount; i++)
+            {
+                Part(PrimitiveType.Cube, $"Relay Navigation Window {i + 1}", root,
+                    new Vector3(relayWindowStart + (i * _settings.RelayWindowSpacing), 4.25f, -4.08f) * scale,
+                    new Vector3(_settings.RelayWindowSize, _settings.RelayWindowSize * 0.72f, 0.12f) * scale,
+                    Quaternion.identity, _materials.DroneAccent, false);
+            }
             Part(PrimitiveType.Cylinder, "Long Range Antenna", root, new Vector3(0f, _settings.RelayAntennaHeight * 0.5f, 0f), new Vector3(0.62f, _settings.RelayAntennaHeight * 0.5f, 0.62f) * scale, Quaternion.identity, _materials.DroneDark);
             Transform beacon = Part(PrimitiveType.Sphere, "Antenna Beacon", root, new Vector3(0f, _settings.RelayAntennaHeight, 0f) * scale, Vector3.one * 1.3f * scale, Quaternion.identity, _materials.DroneAccent);
             Transform dishPivot = new GameObject("Dish Tracking Pivot").transform;
             dishPivot.SetParent(root, false);
             dishPivot.localPosition = new Vector3(0f, _settings.RelayAntennaHeight * 0.62f, 0f) * scale;
             Part(PrimitiveType.Sphere, "Dish", dishPivot, Vector3.zero, new Vector3(6f, 0.8f, 6f) * scale, Quaternion.Euler(18f, 0f, 0f), _materials.DroneBody);
+            Transform dishRim = new GameObject("Dish Illuminated Rim").transform;
+            dishRim.SetParent(dishPivot, false);
+            dishRim.localRotation = Quaternion.Euler(18f, 0f, 0f);
+            SegmentedRing(dishRim, _settings.RelayDishRimSegments, 3f * scale, 0.18f * scale, _materials.DroneAccent, "Dish Rim");
             animator.RegisterSpin(dishPivot, Vector3.up, _settings.DishRotationSpeed);
             animator.RegisterPulse(beacon, _settings.BeaconPulseAmount, _settings.BeaconPulseSpeed);
+            int braceCount = Mathf.Max(3, _settings.RelayMastBraceCount);
+            for (int i = 0; i < braceCount; i++)
+            {
+                float angle = (360f / braceCount) * i;
+                Vector3 anchor = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * (_settings.RelayMastBraceRadius * scale);
+                BeamBetween(root, $"Antenna Brace {i + 1}", anchor, Vector3.up * (_settings.RelayMastBraceHeight * scale),
+                    _settings.RelayMastBraceThickness * scale, _materials.DroneBody, false);
+            }
             Part(PrimitiveType.Cylinder, "Fuel Tank A", root, new Vector3(-7f, 2f, 5f) * scale, new Vector3(1.6f, 2.4f, 1.6f) * scale, Quaternion.Euler(0f, 0f, 90f), _materials.DroneDark);
             Part(PrimitiveType.Cylinder, "Fuel Tank B", root, new Vector3(7f, 2f, 5f) * scale, new Vector3(1.6f, 2.4f, 1.6f) * scale, Quaternion.Euler(0f, 0f, 90f), _materials.DroneDark);
             if ((seed & 1) == 0)
@@ -488,9 +511,40 @@ namespace DuneVector
                 new Vector3(8f, 3.8f, length * 0.16f) * scale, Quaternion.Euler(12f, 0f, 0f), _materials.DroneBody);
             Part(PrimitiveType.Cube, "Carrier Tail Spine", root, new Vector3(0f, 7f, -length * 0.44f) * scale,
                 new Vector3(2.2f, 8f, length * 0.18f) * scale, Quaternion.Euler(-8f, 0f, 0f), _materials.DroneDark);
+            Part(PrimitiveType.Sphere, "Fractured Cockpit Canopy", root, new Vector3(0f, 6.2f, length * 0.42f) * scale,
+                new Vector3(5.8f, 2.2f, 7.2f) * scale * _settings.CarrierCockpitScale,
+                Quaternion.Euler(9f, 0f, 0f), _materials.DroneAccent, false);
+            int engineCount = Mathf.Max(1, _settings.CarrierEngineCount);
+            float engineStart = -((engineCount - 1) * _settings.CarrierEngineRadius * 1.35f);
+            for (int i = 0; i < engineCount; i++)
+            {
+                float engineX = engineStart + (i * _settings.CarrierEngineRadius * 2.7f);
+                Vector3 enginePosition = new Vector3(engineX, 4.1f, -length * 0.53f) * scale;
+                Part(PrimitiveType.Cylinder, $"Carrier Engine Housing {i + 1}", root, enginePosition,
+                    new Vector3(_settings.CarrierEngineRadius, _settings.CarrierEngineDepth * 0.5f, _settings.CarrierEngineRadius) * scale,
+                    Quaternion.Euler(90f, 0f, 0f), _materials.DroneBody);
+                Part(PrimitiveType.Cylinder, $"Carrier Engine Core {i + 1}", root,
+                    enginePosition + (Vector3.back * (_settings.CarrierEngineDepth * 0.54f * scale)),
+                    new Vector3(_settings.CarrierEngineRadius * 0.58f, 0.12f, _settings.CarrierEngineRadius * 0.58f) * scale,
+                    Quaternion.Euler(90f, 0f, 0f), _materials.DroneAccent, false);
+            }
+            int hullRibCount = Mathf.Max(3, _settings.CarrierHullRibCount);
+            for (int i = 0; i < hullRibCount; i++)
+            {
+                float alongHull = Mathf.Lerp(-length * 0.34f, length * 0.34f, i / (float)(hullRibCount - 1));
+                Part(PrimitiveType.Cube, $"Carrier Hull Rib {i + 1}", root,
+                    new Vector3(0f, 7.05f, alongHull) * scale,
+                    new Vector3(12.8f, _settings.CarrierHullRibThickness, 0.48f) * scale,
+                    Quaternion.Euler(0f, 0f, i % 2 == 0 ? 2f : -2f), _materials.DroneBody, false);
+            }
+            Transform exposedCore = Part(PrimitiveType.Sphere, "Exposed Carrier Power Core", root,
+                new Vector3(-5.4f, 4.8f, -length * 0.05f) * scale,
+                Vector3.one * (1.65f * scale), Quaternion.identity, _materials.EnemyCore, false);
+            animator.RegisterPulse(exposedCore, _settings.BeaconPulseAmount, _settings.BeaconPulseSpeed);
             Part(PrimitiveType.Cube, "Broken Left Wing", root, new Vector3(-16f, 5f, 3f) * scale, new Vector3(24f, 1.6f, 10f) * scale, Quaternion.Euler(0f, -12f, 7f), _materials.Sandstone);
             Part(PrimitiveType.Cube, "Broken Right Wing", root, new Vector3(14f, 3f, -8f) * scale, new Vector3(17f, 1.4f, 8f) * scale, Quaternion.Euler(0f, 18f, -11f), _materials.Sandstone);
-            for (int i = 0; i < 5; i++)
+            int wreckageCount = Mathf.Max(2, _settings.CarrierWreckageCount);
+            for (int i = 0; i < wreckageCount; i++)
             {
                 float side = (i % 2 == 0) ? -1f : 1f;
                 Part(PrimitiveType.Cube, $"Scattered Cargo {i + 1}", root, new Vector3(side * (10f + (i * 2f)), 1.2f, -18f + (i * 8f)) * scale, new Vector3(3.6f, 2.4f, 3f) * scale, Quaternion.Euler(0f, seed + (i * 31f), 0f), _materials.Package);
@@ -510,10 +564,40 @@ namespace DuneVector
         {
             float scale = _settings.BeaconScale;
             float height = _settings.BeaconHeight;
+            int foundationArmCount = Mathf.Max(3, _settings.BeaconFoundationArmCount);
+            for (int i = 0; i < foundationArmCount; i++)
+            {
+                float angle = (360f / foundationArmCount) * i;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                Part(PrimitiveType.Cube, $"Beacon Foundation Arm {i + 1}", root,
+                    (direction * 6f + Vector3.up * 0.65f) * scale,
+                    new Vector3(2.2f, 1.3f, 12f) * scale,
+                    Quaternion.Euler(0f, angle, 0f), _materials.EnemyBody);
+            }
             Part(PrimitiveType.Cylinder, "Beacon Tower", root, new Vector3(0f, height * 0.5f, 0f) * scale, new Vector3(2.2f, height * 0.5f, 2.2f) * scale, Quaternion.identity, _materials.EnemyBody);
+            int towerFinCount = Mathf.Max(3, _settings.BeaconTowerFinCount);
+            for (int i = 0; i < towerFinCount; i++)
+            {
+                float angle = (360f / towerFinCount) * i;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                Part(PrimitiveType.Cube, $"Beacon Tower Fin {i + 1}", root,
+                    (direction * 2.25f + Vector3.up * (height * 0.43f)) * scale,
+                    new Vector3(0.32f, height * 0.56f, 3.4f) * scale,
+                    Quaternion.Euler(0f, angle, 0f), _materials.DroneDark, false);
+            }
             Transform beaconEnergy = Part(PrimitiveType.Sphere, "Beacon Energy", root, new Vector3(0f, height, 0f) * scale, Vector3.one * 4.8f * scale, Quaternion.identity, _materials.EnemyCore);
             Transform orbit = new GameObject("Raider Signal Orbit").transform;
             orbit.SetParent(root, false);
+            Transform signalRing = new GameObject("Raider Signal Ring").transform;
+            signalRing.SetParent(orbit, false);
+            signalRing.localPosition = Vector3.up * (height * 0.72f * scale);
+            SegmentedRing(
+                signalRing,
+                _settings.BeaconSignalRingSegments,
+                _settings.BeaconSignalRingRadius * scale,
+                _settings.BeaconSignalRingThickness * scale,
+                _materials.EnemyCore,
+                "Signal Ring");
             for (int i = 0; i < 3; i++)
             {
                 float angle = (i * 120f) + Mathf.Repeat(seed * 0.1f, 50f);
@@ -539,11 +623,34 @@ namespace DuneVector
         {
             float scale = _settings.SpireScale;
             float height = _settings.SpireHeight;
-            for (int i = 0; i < 7; i++)
+            Transform baseRing = new GameObject("Ancient Spire Ground Circuit").transform;
+            baseRing.SetParent(root, false);
+            baseRing.localPosition = Vector3.up * (0.18f * scale);
+            SegmentedRing(
+                baseRing,
+                _settings.SpireBaseRingSegments,
+                _settings.SpireBaseRingRadius * scale,
+                _settings.SpireBaseRingThickness * scale,
+                _materials.DroneAccent,
+                "Ground Circuit");
+            int layerCount = Mathf.Max(5, _settings.SpireLayerCount);
+            float layerHeight = height / layerCount;
+            for (int i = 0; i < layerCount; i++)
             {
-                float layer01 = i / 7f;
+                float layer01 = i / (float)layerCount;
                 float width = Mathf.Lerp(18f, 3f, layer01);
-                Part(PrimitiveType.Cube, $"Spire Layer {i + 1}", root, new Vector3(0f, ((i + 0.5f) * height / 7f), 0f) * scale, new Vector3(width, (height / 7f) * 0.94f, width) * scale, Quaternion.Euler(0f, i * 13f, 0f), _materials.Sandstone);
+                Part(PrimitiveType.Cube, $"Spire Layer {i + 1}", root,
+                    new Vector3(0f, (i + 0.5f) * layerHeight, 0f) * scale,
+                    new Vector3(width, layerHeight * 0.92f, width) * scale,
+                    Quaternion.Euler(0f, i * 13f, 0f), _materials.Sandstone);
+                if (i < layerCount - 1)
+                {
+                    float nextWidth = Mathf.Lerp(18f, 3f, (i + 1f) / layerCount);
+                    Part(PrimitiveType.Cube, $"Spire Energy Seam {i + 1}", root,
+                        new Vector3(0f, (i + 1f) * layerHeight, 0f) * scale,
+                        new Vector3(nextWidth * 0.86f, _settings.SpireSeamHeight, nextWidth * 0.86f) * scale,
+                        Quaternion.Euler(0f, (i + 1f) * 13f, 0f), _materials.DroneAccent, false);
+                }
             }
             Transform relic = Part(PrimitiveType.Sphere, "Floating Spire Relic", root, new Vector3(0f, height + 12f, 0f) * scale, Vector3.one * 5f * scale, Quaternion.identity, _materials.DroneAccent, false);
             animator.RegisterSpin(relic, Vector3.up, _settings.SpireRelicRotationSpeed);
@@ -562,9 +669,10 @@ namespace DuneVector
                     Quaternion.Euler(i * 17f, angle, i * 31f), _materials.DroneDark, false);
             }
             animator.RegisterSpin(shardOrbit, Vector3.up, -_settings.SpireRelicRotationSpeed);
-            for (int i = 0; i < 4; i++)
+            int monolithCount = Mathf.Max(3, _settings.SpireMonolithCount);
+            for (int i = 0; i < monolithCount; i++)
             {
-                float angle = i * 90f;
+                float angle = (360f / monolithCount) * i;
                 Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(0f, height * 0.58f, 15f);
                 Part(PrimitiveType.Cylinder, $"Flight Monolith {i + 1}", root, offset * scale, new Vector3(1.2f, 8f, 1.2f) * scale, Quaternion.identity, _materials.DroneDark);
             }
@@ -584,13 +692,53 @@ namespace DuneVector
         {
             float scale = _settings.ExcavationScale;
             float craneHeight = _settings.ExcavationCraneHeight;
+            int terraceCount = Mathf.Max(1, _settings.ExcavationPitTerraceCount);
+            for (int i = 0; i < terraceCount; i++)
+            {
+                float inset = i * _settings.ExcavationTerraceStep;
+                float terraceWidth = Mathf.Max(4f, _settings.ExcavationPitWidth - (inset * 2f));
+                float terraceLength = Mathf.Max(4f, _settings.ExcavationPitLength - (inset * 2f));
+                RectangularFrame(
+                    root,
+                    $"Excavation Terrace {i + 1}",
+                    new Vector3(0f, 0.3f - (i * 0.42f), 0f) * scale,
+                    terraceWidth * scale,
+                    terraceLength * scale,
+                    Mathf.Max(0.2f, _settings.ExcavationTerraceStep * 0.34f) * scale,
+                    0.55f * scale,
+                    i == 0 ? _materials.DroneDark : _materials.Sandstone);
+            }
             Part(PrimitiveType.Cube, "Buried Structure", root, new Vector3(0f, -1.5f, 0f) * scale, new Vector3(28f, 8f, 24f) * scale, Quaternion.Euler(0f, 12f, 6f), _materials.Sandstone);
             Part(PrimitiveType.Cube, "Crane Mast", root, new Vector3(-15f, craneHeight * 0.5f, -8f) * scale, new Vector3(2f, craneHeight, 2f) * scale, Quaternion.identity, _materials.DroneDark);
             Part(PrimitiveType.Cube, "Crane Boom", root, new Vector3(-3f, craneHeight, -8f) * scale, new Vector3(26f, 1.5f, 1.5f) * scale, Quaternion.Euler(0f, 0f, -5f), _materials.DroneDark);
-            Part(PrimitiveType.Cylinder, "Crane Cable", root, new Vector3(8f, craneHeight * 0.65f, -8f) * scale, new Vector3(0.18f, craneHeight * 0.35f, 0.18f) * scale, Quaternion.identity, _materials.DroneDark, false);
-            for (int i = 0; i < 4; i++)
+            int trussCount = Mathf.Max(2, _settings.ExcavationCraneTrussCount);
+            for (int i = 0; i < trussCount; i++)
             {
-                Part(PrimitiveType.Cube, $"Scaffold {i + 1}", root, new Vector3(-10f + (i * 7f), 5f + (i % 2) * 3f, 12f) * scale, new Vector3(5f, 0.8f, 10f) * scale, Quaternion.identity, _materials.DroneBody);
+                float t = trussCount == 1 ? 0.5f : i / (float)(trussCount - 1);
+                float x = Mathf.Lerp(-15f, 9f, t);
+                Part(PrimitiveType.Cube, $"Crane Truss Upright {i + 1}", root,
+                    new Vector3(x, craneHeight - 1.45f, -8f) * scale,
+                    new Vector3(0.28f, 3.2f, 1.9f) * scale,
+                    Quaternion.Euler(0f, 0f, -5f), _materials.DroneBody, false);
+            }
+            Part(PrimitiveType.Cylinder, "Crane Cable", root, new Vector3(8f, craneHeight * 0.65f, -8f) * scale, new Vector3(0.18f, craneHeight * 0.35f, 0.18f) * scale, Quaternion.identity, _materials.DroneDark, false);
+            int scaffoldCount = Mathf.Max(2, _settings.ExcavationScaffoldCount);
+            for (int i = 0; i < scaffoldCount; i++)
+            {
+                float scaffoldX = Mathf.Lerp(-10f, 11f, scaffoldCount == 1 ? 0.5f : i / (float)(scaffoldCount - 1));
+                Part(PrimitiveType.Cube, $"Scaffold {i + 1}", root,
+                    new Vector3(scaffoldX, 5f + (i % 2) * 3f, 12f) * scale,
+                    new Vector3(5f, 0.8f, 10f) * scale, Quaternion.identity, _materials.DroneBody);
+            }
+            int cargoStackCount = Mathf.Max(1, _settings.ExcavationCargoStackCount);
+            for (int i = 0; i < cargoStackCount; i++)
+            {
+                float row = i / 3;
+                float column = i % 3;
+                Part(PrimitiveType.Cube, $"Excavation Supply Crate {i + 1}", root,
+                    new Vector3(10f + (column * 2.5f), 1.1f + ((i % 2) * 0.45f), -3f + (row * 3f)) * scale,
+                    new Vector3(2.1f, 2.2f, 2.1f) * scale,
+                    Quaternion.Euler(0f, seed + (i * 23f), 0f), _materials.Package);
             }
             int lightCount = Mathf.Max(2, _settings.ExcavationWorkLightCount);
             for (int i = 0; i < lightCount; i++)
@@ -614,6 +762,84 @@ namespace DuneVector
                     new Vector3(15f, 0.8f, 0.8f) * scale,
                     Quaternion.Euler(0f, 25f, 4f), _materials.DroneDark);
             }
+        }
+
+        private void SegmentedRing(
+            Transform parent,
+            int segmentCount,
+            float radius,
+            float thickness,
+            Material material,
+            string partName)
+        {
+            int count = Mathf.Max(3, segmentCount);
+            float segmentLength = ((Mathf.PI * 2f * Mathf.Max(0.01f, radius)) / count) * _settings.LandmarkRingSegmentFill;
+            for (int i = 0; i < count; i++)
+            {
+                float angle = (360f / count) * i;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                Part(
+                    PrimitiveType.Cube,
+                    $"{partName} {i + 1:00}",
+                    parent,
+                    direction * radius,
+                    new Vector3(thickness, thickness, segmentLength),
+                    Quaternion.Euler(0f, angle + 90f, 0f),
+                    material,
+                    false);
+            }
+        }
+
+        private static Transform BeamBetween(
+            Transform parent,
+            string partName,
+            Vector3 start,
+            Vector3 end,
+            float thickness,
+            Material material,
+            bool collider)
+        {
+            Vector3 delta = end - start;
+            float length = delta.magnitude;
+            if (length <= 0.001f)
+            {
+                return null;
+            }
+            return Part(
+                PrimitiveType.Cube,
+                partName,
+                parent,
+                (start + end) * 0.5f,
+                new Vector3(thickness, length, thickness),
+                Quaternion.FromToRotation(Vector3.up, delta / length),
+                material,
+                collider);
+        }
+
+        private static void RectangularFrame(
+            Transform parent,
+            string partName,
+            Vector3 center,
+            float width,
+            float length,
+            float beamWidth,
+            float beamHeight,
+            Material material)
+        {
+            float halfWidth = width * 0.5f;
+            float halfLength = length * 0.5f;
+            Part(PrimitiveType.Cube, $"{partName} North", parent,
+                center + (Vector3.forward * halfLength), new Vector3(width, beamHeight, beamWidth),
+                Quaternion.identity, material);
+            Part(PrimitiveType.Cube, $"{partName} South", parent,
+                center + (Vector3.back * halfLength), new Vector3(width, beamHeight, beamWidth),
+                Quaternion.identity, material);
+            Part(PrimitiveType.Cube, $"{partName} East", parent,
+                center + (Vector3.right * halfWidth), new Vector3(beamWidth, beamHeight, length),
+                Quaternion.identity, material);
+            Part(PrimitiveType.Cube, $"{partName} West", parent,
+                center + (Vector3.left * halfWidth), new Vector3(beamWidth, beamHeight, length),
+                Quaternion.identity, material);
         }
 
         private int PositiveVariant(int seed)

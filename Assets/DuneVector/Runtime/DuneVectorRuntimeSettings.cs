@@ -313,6 +313,50 @@ namespace DuneVector
         [Range(2, 8)] public int SpireShardCount = 5;
         [Range(2, 8)] public int ExcavationWorkLightCount = 4;
         [Min(0f)] public float ExcavationWorkLightPulseSpeed = 3.2f;
+        [Range(0.2f, 1f)] public float LandmarkRingSegmentFill = 0.72f;
+
+        [Header("Relay Station Detail")]
+        [Range(6, 24)] public int RelayDishRimSegments = 12;
+        [Range(2, 9)] public int RelayWindowCount = 5;
+        [Min(0f)] public float RelayWindowSpacing = 1.65f;
+        [Min(0.05f)] public float RelayWindowSize = 0.58f;
+        [Range(3, 8)] public int RelayMastBraceCount = 4;
+        [Min(0.1f)] public float RelayMastBraceRadius = 4.2f;
+        [Min(0.1f)] public float RelayMastBraceHeight = 13f;
+        [Min(0.05f)] public float RelayMastBraceThickness = 0.22f;
+
+        [Header("Crashed Carrier Detail")]
+        [Range(1, 6)] public int CarrierEngineCount = 3;
+        [Min(0.1f)] public float CarrierEngineRadius = 1.85f;
+        [Min(0.1f)] public float CarrierEngineDepth = 3.6f;
+        [Range(3, 12)] public int CarrierHullRibCount = 7;
+        [Min(0.05f)] public float CarrierHullRibThickness = 0.32f;
+        [Range(2, 10)] public int CarrierWreckageCount = 5;
+        [Min(0.1f)] public float CarrierCockpitScale = 1f;
+
+        [Header("Raider Beacon Detail")]
+        [Range(3, 8)] public int BeaconFoundationArmCount = 3;
+        [Range(6, 24)] public int BeaconSignalRingSegments = 14;
+        [Min(0.1f)] public float BeaconSignalRingRadius = 7.2f;
+        [Min(0.05f)] public float BeaconSignalRingThickness = 0.28f;
+        [Range(3, 12)] public int BeaconTowerFinCount = 6;
+
+        [Header("Ancient Spire Detail")]
+        [Range(5, 14)] public int SpireLayerCount = 9;
+        [Min(0.02f)] public float SpireSeamHeight = 0.16f;
+        [Range(3, 8)] public int SpireMonolithCount = 4;
+        [Range(6, 24)] public int SpireBaseRingSegments = 12;
+        [Min(1f)] public float SpireBaseRingRadius = 18f;
+        [Min(0.05f)] public float SpireBaseRingThickness = 0.38f;
+
+        [Header("Excavation Detail")]
+        [Range(2, 8)] public int ExcavationScaffoldCount = 4;
+        [Range(1, 5)] public int ExcavationPitTerraceCount = 3;
+        [Min(4f)] public float ExcavationPitWidth = 32f;
+        [Min(4f)] public float ExcavationPitLength = 27f;
+        [Min(0.1f)] public float ExcavationTerraceStep = 2.4f;
+        [Range(2, 12)] public int ExcavationCraneTrussCount = 7;
+        [Range(1, 10)] public int ExcavationCargoStackCount = 5;
     }
 
     [System.Serializable]
