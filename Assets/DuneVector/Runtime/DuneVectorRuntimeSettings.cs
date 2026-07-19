@@ -332,6 +332,17 @@ namespace DuneVector
         [Min(0f)] public float UpgradeAreaSideOffset = 13f;
         [Min(0f)] public float PlayerSpawnHeight = 2.2f;
         public bool RestoreHealthOnReturn = true;
+
+        [Header("Hub Containment")]
+        public bool ContainmentEnabled = true;
+        [Tooltip("Distance from the platform edge to the outside of the invisible containment wall.")]
+        [Min(0f)] public float ContainmentInset = 0.5f;
+        [Min(0.5f)] public float ContainmentWallHeight = 8f;
+        [Min(0.1f)] public float ContainmentWallThickness = 0.8f;
+        [Range(8, 64)] public int ContainmentWallSegments = 32;
+        [Tooltip("Extra horizontal clearance kept between the drone capsule and the containment wall.")]
+        [Min(0f)] public float ContainmentSafetyPadding = 0.15f;
+
         [Min(0f)] public float DesertInsertionHeight = 8f;
         [Min(0.1f)] public float TeleportBuildDuration = 1.15f;
         [Min(0.1f)] public float TeleportFadeDuration = 0.45f;

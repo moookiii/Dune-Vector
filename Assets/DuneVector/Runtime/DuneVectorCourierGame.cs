@@ -391,6 +391,7 @@ namespace DuneVector
 
         private void UpdateHub()
         {
+            EnforceHubContainment();
             AnimateHubPresentation();
             _offerRefreshTimer -= Time.unscaledDeltaTime;
             if (_offerRefreshTimer <= 0f)
@@ -498,6 +499,7 @@ namespace DuneVector
                 "Main Teleport Platform Collider (circle.glb)",
                 Vector3.up * (_hubSettings.PlatformThickness * 0.5f),
                 _hubSettings.PlatformRadius * 0.5f);
+            BuildHubContainment();
             HubPart(PrimitiveType.Cylinder, "Energy Inlay", _hubRoot,
                 new Vector3(0f, (_hubSettings.PlatformThickness * 0.5f) + 0.08f, 0f),
                 new Vector3(_hubSettings.PlatformRadius * 0.72f, 0.08f, _hubSettings.PlatformRadius * 0.72f),
@@ -597,6 +599,89 @@ namespace DuneVector
 
             _teleportPlatform = _hubRoot;
             _hubSpawn = _hubRoot.position + Vector3.up * (_hubSettings.PlayerSpawnHeight + (_hubSettings.PlatformThickness * 0.5f));
+        }
+
+        private void BuildHubContainment()
+        {
+            if (!_hubSettings.ContainmentEnabled)
+            {
+                return;
+            }
+
+            int segmentCount = Mathf.Max(3, _hubSettings.ContainmentWallSegments);
+            float wallThickness = Mathf.Max(0.01f, _hubSettings.ContainmentWallThickness);
+            float innerRadius = Mathf.Max(
+                wallThickness,
+                _hubSettings.PlatformRadius - _hubSettings.ContainmentInset - wallThickness);
+            float wallCenterRadius = innerRadius + (wallThickness * 0.5f);
+            float wallHeight = Mathf.Max(0.01f, _hubSettings.ContainmentWallHeight);
+            float segmentLength = (2f * wallCenterRadius * Mathf.Tan(Mathf.PI / segmentCount)) + wallThickness;
+
+            Transform boundaryRoot = new GameObject("Invisible Hub Containment Boundary").transform;
+            boundaryRoot.SetParent(_hubRoot, false);
+            boundaryRoot.localPosition = Vector3.up * (
+                (_hubSettings.PlatformThickness * 0.5f) + (wallHeight * 0.5f));
+
+            for (int i = 0; i < segmentCount; i++)
+            {
+                float angle = (360f / segmentCount) * i;
+                Vector3 outward = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                GameObject segment = new GameObject($"Containment Wall {i + 1:00}");
+                segment.transform.SetParent(boundaryRoot, false);
+                segment.transform.localPosition = outward * wallCenterRadius;
+                segment.transform.localRotation = Quaternion.LookRotation(outward, Vector3.up);
+                BoxCollider wallCollider = segment.AddComponent<BoxCollider>();
+                wallCollider.size = new Vector3(segmentLength, wallHeight, wallThickness);
+                _cameraController?.IgnoredColliders.Add(wallCollider);
+            }
+        }
+
+        private void EnforceHubContainment()
+        {
+            if (!_hubSettings.ContainmentEnabled || _hubRoot == null || _player?.Motor == null)
+            {
+                return;
+            }
+
+            KinematicCharacterMotor motor = _player.Motor;
+            float wallInnerRadius = Mathf.Max(
+                0f,
+                _hubSettings.PlatformRadius - _hubSettings.ContainmentInset - _hubSettings.ContainmentWallThickness);
+            float safeRadius = Mathf.Max(
+                0f,
+                wallInnerRadius - motor.Capsule.radius - _hubSettings.ContainmentSafetyPadding);
+            Vector3 position = motor.TransientPosition;
+            Vector3 hubOffset = position - _hubRoot.position;
+            Vector3 planarOffset = Vector3.ProjectOnPlane(hubOffset, Vector3.up);
+            bool positionChanged = false;
+
+            if (planarOffset.sqrMagnitude > safeRadius * safeRadius)
+            {
+                Vector3 outward = planarOffset.sqrMagnitude > 0f ? planarOffset.normalized : Vector3.forward;
+                position = _hubRoot.position + (outward * safeRadius) + (Vector3.up * hubOffset.y);
+                float outwardSpeed = Vector3.Dot(motor.BaseVelocity, outward);
+                if (outwardSpeed > 0f)
+                {
+                    motor.BaseVelocity -= outward * outwardSpeed;
+                }
+                positionChanged = true;
+            }
+
+            float platformSurfaceY = _hubRoot.position.y + (_hubSettings.PlatformThickness * 0.5f);
+            if (position.y < platformSurfaceY)
+            {
+                position.y = platformSurfaceY;
+                if (motor.BaseVelocity.y < 0f)
+                {
+                    motor.BaseVelocity = Vector3.ProjectOnPlane(motor.BaseVelocity, Vector3.up);
+                }
+                positionChanged = true;
+            }
+
+            if (positionChanged)
+            {
+                motor.SetPosition(position, true);
+            }
         }
 
         private void AnimateHubPresentation()
