@@ -110,7 +110,7 @@ namespace DuneVector
                 damage,
                 identity);
 
-            _attackTimer = settings.AttackInterval * Mathf.Lerp(
+            _attackTimer = settings.PlayerStrikeAttackInterval * Mathf.Lerp(
                 0.35f,
                 1f,
                 Mathf.Repeat((identity * 0.417f) + 0.21f, 1f));
@@ -214,7 +214,7 @@ namespace DuneVector
         {
             if (_stateTime >= _settings.Cooldown)
             {
-                _attackTimer = _settings.AttackInterval;
+                _attackTimer = GetAttackInterval(_lightning.TargetType);
                 SetState(StormPyramidState.IdleHovering);
             }
         }
@@ -252,8 +252,16 @@ namespace DuneVector
         {
             _lightning.CancelAttack();
             _movement.RepositionNearPlayer();
-            _attackTimer = _settings.AttackInterval;
+            _attackTimer = _settings.PlayerStrikeAttackInterval;
             SetState(StormPyramidState.IdleHovering);
+        }
+
+        private float GetAttackInterval(StormLightningAttackType attackType)
+        {
+            float configuredInterval = attackType == StormLightningAttackType.PlayerStrike
+                ? _settings.PlayerStrikeAttackInterval
+                : _settings.AttackInterval;
+            return Mathf.Max(0.1f, configuredInterval);
         }
 
         private void SetState(StormPyramidState state)
