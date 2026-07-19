@@ -99,13 +99,14 @@ namespace DuneVector
         [Serializable]
         private sealed class SaveData
         {
-            public int Version = 2;
+            public int Version = 3;
             public int CompletedDeliveries;
             public int FailedDeliveries;
             public int TotalContractGold;
             public int HighestDifficulty;
             public int NextDeliveryMessageIndex;
             public int PendingDeliveryMessageIndex = -1;
+            public bool DeliveryMessageInputHintAcknowledged;
         }
 
         public int CompletedDeliveries { get; private set; }
@@ -114,6 +115,7 @@ namespace DuneVector
         public int HighestDifficulty { get; private set; }
         public int NextDeliveryMessageIndex { get; private set; }
         public int PendingDeliveryMessageIndex { get; private set; } = -1;
+        public bool DeliveryMessageInputHintAcknowledged { get; private set; }
         public event Action Changed;
 
         private string _savePath;
@@ -153,6 +155,18 @@ namespace DuneVector
             return true;
         }
 
+        public void AcknowledgeDeliveryMessageInputHint()
+        {
+            if (DeliveryMessageInputHintAcknowledged)
+            {
+                return;
+            }
+
+            DeliveryMessageInputHintAcknowledged = true;
+            Save();
+            Changed?.Invoke();
+        }
+
         public void RecordFailure()
         {
             FailedDeliveries++;
@@ -189,6 +203,8 @@ namespace DuneVector
                     NextDeliveryMessageIndex = CompletedDeliveries;
                     PendingDeliveryMessageIndex = -1;
                 }
+                DeliveryMessageInputHintAcknowledged =
+                    data.Version >= 3 && data.DeliveryMessageInputHintAcknowledged;
             }
             catch (Exception exception)
             {
@@ -208,6 +224,7 @@ namespace DuneVector
                     HighestDifficulty = HighestDifficulty,
                     NextDeliveryMessageIndex = NextDeliveryMessageIndex,
                     PendingDeliveryMessageIndex = PendingDeliveryMessageIndex,
+                    DeliveryMessageInputHintAcknowledged = DeliveryMessageInputHintAcknowledged,
                 };
                 File.WriteAllText(_savePath, JsonUtility.ToJson(data));
             }
@@ -359,7 +376,10 @@ namespace DuneVector
             Progress = gameObject.AddComponent<DuneVectorCourierProgress>();
             Progress.Initialize();
             _messagePresenter = gameObject.AddComponent<DuneVectorDeliveryMessagePresenter>();
-            _messagePresenter.Initialize(_messageSettings);
+            _messagePresenter.Initialize(
+                _messageSettings,
+                Progress.DeliveryMessageInputHintAcknowledged,
+                Progress.AcknowledgeDeliveryMessageInputHint);
             _health.Damaged += HandlePlayerDamaged;
             _health.Died += HandlePlayerDied;
             _world.WorldShifted += HandleWorldShift;
