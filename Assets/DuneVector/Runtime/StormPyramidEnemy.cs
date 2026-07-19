@@ -176,7 +176,7 @@ namespace DuneVector
         private void UpdateIdle(float deltaTime)
         {
             _attackTimer = Mathf.Max(0f, _attackTimer - deltaTime);
-            if (_attackTimer <= 0f && CanBeginAttack())
+            if (_attackTimer <= 0f && CanChargePlayer())
             {
                 SetState(StormPyramidState.TrackingPlayer);
             }
@@ -184,7 +184,7 @@ namespace DuneVector
 
         private void UpdateTracking()
         {
-            if (!CanBeginAttack())
+            if (!CanChargePlayer())
             {
                 _attackTimer = GetAttackInterval(StormLightningAttackType.PlayerStrike);
                 SetState(StormPyramidState.IdleHovering);
@@ -197,16 +197,14 @@ namespace DuneVector
                 return;
             }
 
-            StormLightningTarget target = _attackSelector.SelectAttack(
-                transform.position,
-                CanChargePlayer());
+            StormLightningTarget target = _attackSelector.SelectAttack(transform.position);
             _lightning.BeginCharge(target);
             SetState(StormPyramidState.ChargingAttack);
         }
 
         private void UpdateCharging(float deltaTime)
         {
-            if (_lightning.TargetType == StormLightningAttackType.PlayerStrike && !CanChargePlayer())
+            if (!CanChargePlayer())
             {
                 _lightning.CancelAttack();
                 _attackTimer = GetAttackInterval(StormLightningAttackType.PlayerStrike);
@@ -297,11 +295,6 @@ namespace DuneVector
                 && _targeting.CanTargetPlayer(transform.position);
         }
 
-        private bool CanBeginAttack()
-        {
-            return _player.IsStableGrounded || CanChargePlayer();
-        }
-
         private void SetState(StormPyramidState state)
         {
             CurrentState = state;
@@ -324,9 +317,7 @@ namespace DuneVector
 
             if (CurrentState == StormPyramidState.TrackingPlayer)
             {
-                StormLightningTarget target = _attackSelector.SelectAttack(
-                    transform.position,
-                    CanChargePlayer());
+                StormLightningTarget target = _attackSelector.SelectAttack(transform.position);
                 float chargeDuration = _lightning.GetChargeDuration(target.Type);
                 float totalWarningDuration = Mathf.Max(0.01f, _settings.TrackingDuration + chargeDuration);
                 warning = new StormPyramidThreatWarning(
@@ -501,9 +492,9 @@ namespace DuneVector
             _targeting = targeting;
         }
 
-        public StormLightningTarget SelectAttack(Vector3 origin, bool canTargetPlayer)
+        public StormLightningTarget SelectAttack(Vector3 origin)
         {
-            if (canTargetPlayer)
+            if (_targeting.CanTargetPlayer(origin))
             {
                 return new StormLightningTarget(
                     StormLightningAttackType.PlayerStrike,
