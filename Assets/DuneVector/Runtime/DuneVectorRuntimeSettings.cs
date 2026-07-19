@@ -1542,6 +1542,71 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class ElectricalSandstormTuning
+    {
+        public bool Enabled = true;
+        [Range(0f, 1f)] public float MinimumStormIntensity = 0.7f;
+        [Min(0f)] public float InitialStrikeDelay = 4f;
+        [Min(0.1f)] public float ElectricalBuildupDuration = 1.4f;
+        [Min(0.1f)] public float TargetTelegraphDuration = 1.8f;
+        [Min(0.1f)] public float MinimumStrikeInterval = 5.5f;
+        [Min(0.1f)] public float MaximumStrikeInterval = 8.5f;
+        [Min(0f)] public float TargetPredictionTime = 0.65f;
+        [Min(0f)] public float MaximumPredictionDistance = 28f;
+        [Min(0f)] public float AirTargetMinimumHeight = 4f;
+        [Min(0.1f)] public float StrikeRadius = 4.5f;
+        [Min(0f)] public float StrikeDamage = 24f;
+        [Min(1f)] public float HazardousCargoDamageMultiplier = 1.35f;
+        [Range(0.1f, 1f)] public float HighValueStrikeIntervalMultiplier = 0.82f;
+        [Min(1f)] public float WeaponCooldownMultiplier = 1.3f;
+        public int RandomSeedOffset = 22483;
+    }
+
+    [System.Serializable]
+    public sealed class HeatZoneTuning
+    {
+        public bool Enabled = true;
+
+        [Header("Regional Heat Zones")]
+        [Min(20f)] public float ZoneCellSize = 260f;
+        [Range(0f, 1f)] public float ZoneChance = 0.32f;
+        [Min(1f)] public float MinimumZoneRadius = 70f;
+        [Min(1f)] public float MaximumZoneRadius = 125f;
+        [Range(0f, 1f)] public float ZoneEdgeFalloff = 0.35f;
+        public int RandomSeedOffset = 30871;
+
+        [Header("Drone Temperature")]
+        [Min(1f)] public float MaximumTemperature = 100f;
+        [Min(0f)] public float ZoneHeatPerSecond = 8f;
+        [Min(0f)] public float BoostHeatPerSecond = 5f;
+        [Min(0f)] public float WeaponHeatPerShot = 8f;
+        [Min(0f)] public float PassiveCoolingPerSecond = 7f;
+        [Min(0f)] public float CoolingAltitudeStart = 18f;
+        [Min(0f)] public float CoolingAltitudeFull = 65f;
+        [Min(1f)] public float HighAltitudeCoolingMultiplier = 2.4f;
+        [Min(1f)] public float HotZoneBoostHeatMultiplier = 1.6f;
+        [Min(1f)] public float HotZoneWeaponHeatMultiplier = 1.5f;
+
+        [Header("Mechanical Consequences")]
+        [Range(0f, 1f)] public float ConsequenceTemperatureThreshold = 0.55f;
+        [Min(1f)] public float MaximumBoostDrainMultiplier = 1.45f;
+        [Min(1f)] public float MaximumWeaponCooldownMultiplier = 1.6f;
+    }
+
+    [System.Serializable]
+    public sealed class EnvironmentalHazardTuning
+    {
+        public ElectricalSandstormTuning ElectricalSandstorms = new ElectricalSandstormTuning();
+        public HeatZoneTuning HeatZones = new HeatZoneTuning();
+
+        public void EnsureInitialized()
+        {
+            ElectricalSandstorms ??= new ElectricalSandstormTuning();
+            HeatZones ??= new HeatZoneTuning();
+        }
+    }
+
+    [System.Serializable]
     public sealed class PauseMenuVisualTuning
     {
         [Header("Responsive Layout")]
@@ -1860,6 +1925,9 @@ namespace DuneVector
         [Tooltip("Dynamic clear-weather dust, sandstorm timing, wind, HDRP atmosphere, and particle layers.")]
         public DesertWeatherTuning Weather = new DesertWeatherTuning();
 
+        [Tooltip("Electrical sandstorm strikes, regional heat, temperature, cooling, and gameplay consequences.")]
+        public EnvironmentalHazardTuning EnvironmentalHazards = new EnvironmentalHazardTuning();
+
         [Tooltip("FMOD background music, July mixer bus routing, and pause-menu volume defaults.")]
         public AudioTuning Audio = new AudioTuning();
 
@@ -1947,6 +2015,8 @@ namespace DuneVector
             Clouds.EnsureInitialized();
             Weather ??= new DesertWeatherTuning();
             Weather.EnsureInitialized();
+            EnvironmentalHazards ??= new EnvironmentalHazardTuning();
+            EnvironmentalHazards.EnsureInitialized();
             Audio ??= new AudioTuning();
             Audio.EnsureInitialized();
             Deliveries ??= new DeliveryTuning();

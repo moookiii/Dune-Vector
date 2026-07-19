@@ -22,6 +22,7 @@ namespace DuneVector
         public DustDevilTuning DustDevilSettings => RuntimeSettings.DustDevils;
         public CloudTuning Clouds => RuntimeSettings.Clouds;
         public DesertWeatherTuning WeatherSettings => RuntimeSettings.Weather;
+        public EnvironmentalHazardTuning EnvironmentalHazardSettings => RuntimeSettings.EnvironmentalHazards;
         public AudioTuning AudioSettings => RuntimeSettings.Audio;
         public DeliveryTuning Deliveries => RuntimeSettings.Deliveries;
         public CourierContractTuning Contracts => RuntimeSettings.Contracts;
@@ -81,6 +82,7 @@ namespace DuneVector
         public DuneVectorEnemyDirector EnemyDirector { get; private set; }
         public DuneVectorStormPyramidDirector StormPyramidDirector { get; private set; }
         public DuneVectorWeatherController WeatherSystem { get; private set; }
+        public DuneVectorEnvironmentalHazardSystem EnvironmentalHazardSystem { get; private set; }
         public DuneVectorWindFieldSystem WindFieldSystem { get; private set; }
         public DuneVectorDustDevilSystem DustDevilSystem { get; private set; }
         public DuneVectorGameOverController GameOverController { get; private set; }
@@ -338,6 +340,7 @@ namespace DuneVector
             BuildDustDevils();
             BuildDynamicCourierGameplay();
             BuildDroneWeapon();
+            BuildEnvironmentalHazards();
 
             DuneVectorRendererFrustumCuller rendererCuller = gameObject.AddComponent<DuneVectorRendererFrustumCuller>();
             rendererCuller.Initialize(DroneCamera.Camera, RuntimeSettings.RendererFrustumCulling);
@@ -776,6 +779,27 @@ namespace DuneVector
             LockOnHUD = weaponObject.AddComponent<DroneLockOnHUD>();
             LockOnHUD.Initialize(DroneCamera.Camera, LockOnController, EnergyLauncherSettings);
             Player.EnergyLauncher = EnergyLauncher;
+        }
+
+        private void BuildEnvironmentalHazards()
+        {
+            if (EnvironmentalHazardSettings == null)
+            {
+                return;
+            }
+
+            GameObject hazardObject = new GameObject("Environmental Hazard Simulation");
+            hazardObject.transform.SetParent(transform, false);
+            EnvironmentalHazardSystem = hazardObject.AddComponent<DuneVectorEnvironmentalHazardSystem>();
+            EnvironmentalHazardSystem.Initialize(
+                Drone,
+                DroneHealth,
+                Player.Stamina,
+                EnergyLauncher,
+                World,
+                WeatherSystem,
+                CourierGame,
+                EnvironmentalHazardSettings);
         }
 
         private void OnDestroy()

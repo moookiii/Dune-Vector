@@ -24,6 +24,7 @@ namespace DuneVector
 
         private StaminaBoostTuning _settings;
         private float _regenDelayRemaining;
+        private float _environmentalDrainMultiplier = 1f;
 
         public void Initialize(StaminaBoostTuning settings)
         {
@@ -50,6 +51,11 @@ namespace DuneVector
                 : Mathf.Min(CurrentStamina, MaximumStamina);
         }
 
+        public void SetEnvironmentalDrainMultiplier(float multiplier)
+        {
+            _environmentalDrainMultiplier = Mathf.Max(1f, multiplier);
+        }
+
         public void Tick(bool boostHeld, float deltaTime)
         {
             if (_settings == null)
@@ -70,7 +76,9 @@ namespace DuneVector
             {
                 State = DroneStaminaState.Boosting;
                 _regenDelayRemaining = Mathf.Max(0f, _settings.RegenDelay);
-                CurrentStamina = Mathf.Max(0f, CurrentStamina - (Mathf.Max(0f, _settings.DrainRate) * elapsed));
+                CurrentStamina = Mathf.Max(
+                    0f,
+                    CurrentStamina - (Mathf.Max(0f, _settings.DrainRate) * _environmentalDrainMultiplier * elapsed));
                 if (CurrentStamina <= 0f)
                 {
                     CurrentStamina = 0f;

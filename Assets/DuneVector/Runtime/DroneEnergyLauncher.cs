@@ -397,6 +397,7 @@ namespace DuneVector
     public sealed class DroneEnergyLauncher : MonoBehaviour
     {
         public bool CanFire => _cooldownRemaining <= 0f;
+        public event System.Action Fired;
 
         private DroneCharacterController _drone;
         private Camera _camera;
@@ -408,6 +409,7 @@ namespace DuneVector
         private Material _energyMaterial;
         private float _cooldownRemaining;
         private bool _fireRequested;
+        private float _environmentalCooldownMultiplier = 1f;
 
         public void Initialize(
             DroneCharacterController drone,
@@ -435,6 +437,11 @@ namespace DuneVector
         public void RequestFire()
         {
             _fireRequested = true;
+        }
+
+        public void SetEnvironmentalCooldownMultiplier(float multiplier)
+        {
+            _environmentalCooldownMultiplier = Mathf.Max(1f, multiplier);
         }
 
         private void LateUpdate()
@@ -491,6 +498,7 @@ namespace DuneVector
                 "Energy Launch Flash");
             _audioManager?.PlayDroneFire(muzzlePosition);
             _cooldownRemaining = GetCurrentCooldown();
+            Fired?.Invoke();
             return true;
         }
 
@@ -503,9 +511,10 @@ namespace DuneVector
 
         private float GetCurrentCooldown()
         {
-            return _upgrades != null
+            float baseCooldown = _upgrades != null
                 ? _upgrades.GetCurrentValue(DroneUpgradeId.EnergyShotCooldown)
                 : _settings.FireCooldown;
+            return baseCooldown * _environmentalCooldownMultiplier;
         }
 
         private void HandleUpgradePurchased(DroneUpgradeId id, int purchasedTier, int goldCost)
