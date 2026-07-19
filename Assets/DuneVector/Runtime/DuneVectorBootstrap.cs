@@ -94,6 +94,8 @@ namespace DuneVector
         private DuneVectorMaterials _materials;
         private VolumeProfile _runtimeVolumeProfile;
         private Fog _environmentFog;
+        private GradientSky _environmentSky;
+        private Exposure _environmentExposure;
         private bool _ownsRuntimeSettings;
 
         public void ApplyDunePreset(DuneGenerationPreset preset)
@@ -544,7 +546,22 @@ namespace DuneVector
             _runtimeVolumeProfile.name = "Runtime Desert HDRP Profile";
             volume.sharedProfile = _runtimeVolumeProfile;
 
+            VisualEnvironment environment = _runtimeVolumeProfile.Add<VisualEnvironment>(true);
+            environment.skyType.Override((int)SkyType.Gradient);
+            environment.skyAmbientMode.Override(SkyAmbientMode.Dynamic);
+
             DesertWeatherAtmosphereTuning atmosphere = WeatherSettings.Atmosphere;
+            _environmentSky = _runtimeVolumeProfile.Add<GradientSky>(true);
+            _environmentSky.top.Override(atmosphere.ClearSkyTop);
+            _environmentSky.middle.Override(atmosphere.ClearSkyMiddle);
+            _environmentSky.bottom.Override(atmosphere.ClearSkyBottom);
+            _environmentSky.gradientDiffusion.Override(atmosphere.SkyGradientDiffusion);
+            _environmentSky.multiplier.Override(atmosphere.SkyMultiplier);
+
+            _environmentExposure = _runtimeVolumeProfile.Add<Exposure>(true);
+            _environmentExposure.mode.Override(ExposureMode.Fixed);
+            _environmentExposure.fixedExposure.Override(atmosphere.ClearExposure);
+
             _environmentFog = _runtimeVolumeProfile.Add<Fog>(true);
             _environmentFog.enabled.Override(true);
             _environmentFog.colorMode.Override(FogColorMode.SkyColor);
@@ -576,6 +593,8 @@ namespace DuneVector
                 DroneCamera.Camera,
                 World,
                 _environmentFog,
+                _environmentSky,
+                _environmentExposure,
                 WeatherSettings);
         }
 

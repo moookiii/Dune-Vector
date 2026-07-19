@@ -171,6 +171,8 @@ namespace DuneVector
             Camera viewCamera,
             DesertWorldStreamer world,
             Fog fog,
+            GradientSky sky,
+            Exposure exposure,
             DesertWeatherTuning settings)
         {
             settings.EnsureInitialized();
@@ -179,7 +181,7 @@ namespace DuneVector
             GameObject atmosphereObject = new GameObject("HDRP Weather Atmosphere");
             atmosphereObject.transform.SetParent(transform, false);
             _atmosphere = atmosphereObject.AddComponent<DuneVectorWeatherAtmosphere>();
-            _atmosphere.Initialize(fog, settings.Atmosphere);
+            _atmosphere.Initialize(fog, sky, exposure, settings.Atmosphere);
 
             GameObject windObject = new GameObject("Global Desert Wind");
             windObject.transform.SetParent(transform, false);
@@ -220,13 +222,19 @@ namespace DuneVector
     public sealed class DuneVectorWeatherAtmosphere : MonoBehaviour
     {
         private Fog _fog;
+        private GradientSky _sky;
+        private Exposure _exposure;
         private DesertWeatherAtmosphereTuning _settings;
 
         public void Initialize(
             Fog fog,
+            GradientSky sky,
+            Exposure exposure,
             DesertWeatherAtmosphereTuning settings)
         {
             _fog = fog;
+            _sky = sky;
+            _exposure = exposure;
             _settings = settings;
         }
 
@@ -254,6 +262,21 @@ namespace DuneVector
                     Mathf.Max(1f, _settings.StormFogHeight),
                     intensity);
                 _fog.enableVolumetricFog.value = intensity >= _settings.VolumetricFogThreshold;
+            }
+
+            if (_sky != null)
+            {
+                _sky.top.value = Color.Lerp(_settings.ClearSkyTop, _settings.StormSkyTop, intensity);
+                _sky.middle.value = Color.Lerp(_settings.ClearSkyMiddle, _settings.StormSkyMiddle, intensity);
+                _sky.bottom.value = Color.Lerp(_settings.ClearSkyBottom, _settings.StormSkyBottom, intensity);
+            }
+
+            if (_exposure != null)
+            {
+                _exposure.fixedExposure.value = Mathf.Lerp(
+                    _settings.ClearExposure,
+                    _settings.StormExposure,
+                    intensity);
             }
 
         }
