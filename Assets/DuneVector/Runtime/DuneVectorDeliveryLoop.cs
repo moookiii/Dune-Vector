@@ -184,7 +184,10 @@ namespace DuneVector
 
             if (Phase == DeliveryJobPhase.FindPackage && _package != null)
             {
-                _package.position = _world.LogicalToLocal(_packageLogicalPosition.X, _packageHeight + 0.62, _packageLogicalPosition.Z);
+                _package.position = _world.LogicalToLocal(
+                    _packageLogicalPosition.X,
+                    _packageHeight + _settings.ObjectiveRingHeight,
+                    _packageLogicalPosition.Z);
                 _package.Rotate(0f, 28f * Time.deltaTime, 0f, Space.World);
             }
             if (_pickupRing != null)
