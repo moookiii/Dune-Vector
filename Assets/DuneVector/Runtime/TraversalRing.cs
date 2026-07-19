@@ -133,13 +133,25 @@ namespace DuneVector
                 _ringTuning,
                 $"{ProceduralIdentity}:upper");
             upperRing.gameObject.name = "Upper Flight Ring";
-            upperRing.FlightModeScale = FlightModeScale;
-            upperRing.FlightModeScaleSharpness = FlightModeScaleSharpness;
-            upperRing.ClockwiseRotationSpeed = ClockwiseRotationSpeed;
-            upperRing.FlightModeHeightOffset = FlightModeHeightOffset;
-            upperRing.FlightModeHeightSharpness = FlightModeHeightSharpness;
+            upperRing.CopyFlightSettingsFrom(this);
             upperRing.transform.localPosition = transform.localPosition + (Vector3.up * separation);
             _upperLayerRing = upperRing;
+        }
+
+        private void CopyFlightSettingsFrom(TraversalRing source)
+        {
+            InnerRadius = source.InnerRadius;
+            TriggerDepth = source.TriggerDepth;
+            ReactivationDelay = source.ReactivationDelay;
+            BoostRingActiveScale = source.BoostRingActiveScale;
+            FlightModeScale = source.FlightModeScale;
+            FlightModeScaleSharpness = source.FlightModeScaleSharpness;
+            ClockwiseRotationSpeed = source.ClockwiseRotationSpeed;
+            FlightModeHeightOffset = source.FlightModeHeightOffset;
+            FlightModeHeightSharpness = source.FlightModeHeightSharpness;
+            _modeScale = source._modeScale;
+            _visualSpin = source._visualSpin;
+            _pulse = source._pulse;
         }
 
         private void Update()
