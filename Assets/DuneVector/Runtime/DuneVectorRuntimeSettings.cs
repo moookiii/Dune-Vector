@@ -342,6 +342,12 @@ namespace DuneVector
         [Range(0f, 1f)] public float HealthMaterialSmoothness = 0.72f;
         [Range(0f, 1f)] public float HealthMaterialMetallic = 0.22f;
 
+        [Header("Health Pickup Feedback")]
+        [Min(0.1f)] public float HealthPickupFeedbackDuration = 1.4f;
+        [Min(8)] public int HealthPickupFeedbackFontSize = 28;
+        [Min(0f)] public float HealthPickupFeedbackTop = 170f;
+        [Min(24f)] public float HealthPickupFeedbackHeight = 48f;
+        [ColorUsage(false)] public Color HealthPickupFeedbackColor = new Color(1f, 0.32f, 0.5f, 1f);
         [Header("Coin Rings")]
         [Tooltip("Expected coin-ring count per streamed terrain chunk.")]
         [Range(0f, 1f)] public float CoinRingDensityPerChunk = 0.12f;

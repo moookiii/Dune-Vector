@@ -14,6 +14,7 @@ namespace DuneVector
 
         public event Action<float, float> HealthChanged;
         public event Action<float> Damaged;
+        public event Action<float> Healed;
         public event Action Died;
 
         private float _damageInvulnerability;
@@ -57,7 +58,14 @@ namespace DuneVector
             float previousHealth = CurrentHealth;
             CurrentHealth = Mathf.Min(MaximumHealth, CurrentHealth + amount);
             HealthChanged?.Invoke(CurrentHealth, MaximumHealth);
-            return CurrentHealth > previousHealth;
+            float restored = CurrentHealth - previousHealth;
+            if (restored <= 0f)
+            {
+                return false;
+            }
+
+            Healed?.Invoke(restored);
+            return true;
         }
     }
 
@@ -68,6 +76,18 @@ namespace DuneVector
 
         private GUIStyle _labelStyle;
         private GUIStyle _valueStyle;
+        private GUIStyle _pickupStyle;
+        private DroneHealth _observedHealth;
+        private float _healthRestored;
+        private float _feedbackUntil;
+
+        private void OnDestroy()
+        {
+            if (_observedHealth != null)
+            {
+                _observedHealth.Healed -= HandleHealed;
+            }
+        }
 
         private void OnGUI()
         {
@@ -75,6 +95,8 @@ namespace DuneVector
             {
                 return;
             }
+
+            ObserveHealth();
 
             _labelStyle ??= new GUIStyle(GUI.skin.label)
             {
@@ -110,6 +132,58 @@ namespace DuneVector
                 new Rect(bar.x + 1f, bar.y + 1f, (bar.width - 2f) * Health.NormalizedHealth, bar.height - 2f),
                 Texture2D.whiteTexture);
             GUI.color = oldColor;
+
+            RingTuning ringSettings = DuneVectorBootstrap.Instance != null
+                ? DuneVectorBootstrap.Instance.Rings
+                : null;
+            if (ringSettings == null || Time.unscaledTime >= _feedbackUntil)
+            {
+                return;
+            }
+
+            _pickupStyle ??= new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+            };
+            _pickupStyle.fontSize = ringSettings.HealthPickupFeedbackFontSize;
+            float duration = Mathf.Max(0.1f, ringSettings.HealthPickupFeedbackDuration);
+            Color pickupColor = ringSettings.HealthPickupFeedbackColor;
+            pickupColor.a *= Mathf.Clamp01((_feedbackUntil - Time.unscaledTime) / duration);
+            _pickupStyle.normal.textColor = pickupColor;
+            GUI.Label(
+                new Rect(0f, ringSettings.HealthPickupFeedbackTop, Screen.width, ringSettings.HealthPickupFeedbackHeight),
+                $"+{Mathf.CeilToInt(_healthRestored)} HEALTH",
+                _pickupStyle);
+        }
+
+        private void ObserveHealth()
+        {
+            if (_observedHealth == Health)
+            {
+                return;
+            }
+
+            if (_observedHealth != null)
+            {
+                _observedHealth.Healed -= HandleHealed;
+            }
+            _observedHealth = Health;
+            _observedHealth.Healed += HandleHealed;
+        }
+
+        private void HandleHealed(float amount)
+        {
+            RingTuning ringSettings = DuneVectorBootstrap.Instance != null
+                ? DuneVectorBootstrap.Instance.Rings
+                : null;
+            if (ringSettings == null)
+            {
+                return;
+            }
+
+            _healthRestored = amount;
+            _feedbackUntil = Time.unscaledTime + Mathf.Max(0.1f, ringSettings.HealthPickupFeedbackDuration);
         }
     }
 
