@@ -36,7 +36,6 @@ namespace DuneVector
         private float _driftSpeed;
         private Vector2 _driftDirection;
         private float _weatherWindSpeedMultiplier;
-        private float _weatherWindDirectionBlend;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetMeshLibraries()
@@ -63,7 +62,6 @@ namespace DuneVector
                 ? tuning.DriftDirection.normalized
                 : Vector2.zero;
             _weatherWindSpeedMultiplier = Mathf.Max(0f, tuning.WeatherWindSpeedMultiplier);
-            _weatherWindDirectionBlend = Mathf.Clamp01(tuning.WeatherWindDirectionBlend);
 
             CloudMeshLibrary library = GetOrCreateMeshLibrary(tuning);
             if (library.Archetypes.Count == 0)
@@ -127,10 +125,7 @@ namespace DuneVector
                 Vector2 weatherDirection = new Vector2(weatherDirection3.x, weatherDirection3.z);
                 if (weatherDirection.sqrMagnitude > 0.0001f)
                 {
-                    driftDirection = Vector2.Lerp(
-                        _driftDirection,
-                        weatherDirection.normalized,
-                        _weatherWindDirectionBlend).normalized;
+                    driftDirection = weatherDirection.normalized;
                 }
 
                 driftSpeed += weather.CurrentWindSpeed * _weatherWindSpeedMultiplier;
