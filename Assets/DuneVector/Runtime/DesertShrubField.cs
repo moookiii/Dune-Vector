@@ -419,21 +419,50 @@ namespace DuneVector
             float height = Mathf.Max(0.1f, variant.Height);
             float width = Mathf.Max(0.1f, variant.Width);
             int branchCount = lowDetail ? Mathf.Min(3, variant.BranchCount) : variant.BranchCount;
-            int sides = lowDetail ? 3 : 5;
-            AddTaperedBranch(vertices, triangles, Vector3.zero, Vector3.up * height, width * 0.09f, width * 0.045f, sides);
-            AddDiamondTuft(vertices, triangles, Vector3.up * height, width * 0.24f, height * 0.24f, sides);
+            int sides = lowDetail ? 4 : 6;
+            AddTaperedBranch(
+                vertices,
+                triangles,
+                Vector3.zero,
+                Vector3.up * (height * 0.82f),
+                width * 0.045f,
+                width * 0.022f,
+                sides);
+            AddFacetedClump(
+                vertices,
+                triangles,
+                Vector3.up * (height * 0.82f),
+                new Vector3(width * 0.18f, height * 0.16f, width * 0.16f),
+                sides);
 
             for (int i = 0; i < branchCount; i++)
             {
                 float normalized = (i + 0.5f) / Mathf.Max(1, branchCount);
                 float angle = (normalized * Mathf.PI * 2f) + (i * 0.37f);
-                float startHeight = height * Mathf.Lerp(variant.BranchStartHeight, 0.68f, normalized * 0.55f);
+                float startHeight = height * Mathf.Lerp(variant.BranchStartHeight, 0.6f, normalized * 0.48f);
                 Vector3 radial = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
                 Vector3 start = Vector3.up * startHeight;
-                Vector3 end = start + (radial * width * Mathf.Lerp(0.38f, 0.58f, normalized)) +
-                    (Vector3.up * height * variant.BranchUpwardBias * Mathf.Lerp(0.45f, 0.8f, normalized));
-                AddTaperedBranch(vertices, triangles, start, end, width * 0.065f, width * 0.025f, sides);
-                AddDiamondTuft(vertices, triangles, end, width * (lowDetail ? 0.19f : 0.23f), height * 0.2f, sides);
+                Vector3 end = start + (radial * width * Mathf.Lerp(0.34f, 0.5f, normalized)) +
+                    (Vector3.up * height * variant.BranchUpwardBias * Mathf.Lerp(0.38f, 0.7f, normalized));
+                AddTaperedBranch(vertices, triangles, start, end, width * 0.038f, width * 0.014f, sides);
+                AddFacetedClump(
+                    vertices,
+                    triangles,
+                    end,
+                    new Vector3(width * 0.145f, height * 0.13f, width * 0.12f),
+                    sides);
+                if (!lowDetail)
+                {
+                    Vector3 sideClump = Vector3.Lerp(start, end, 0.72f) +
+                        (Vector3.up * height * 0.035f) -
+                        (radial * width * 0.025f);
+                    AddFacetedClump(
+                        vertices,
+                        triangles,
+                        sideClump,
+                        new Vector3(width * 0.1f, height * 0.085f, width * 0.09f),
+                        sides);
+                }
             }
 
             Mesh mesh = new Mesh { name = $"Desert Shrub {variant.Name} {(lowDetail ? "LOD1" : "LOD0")}" };
@@ -471,41 +500,71 @@ namespace DuneVector
                 int a = baseIndex + (i * 2);
                 int b = baseIndex + (next * 2);
                 triangles.Add(a);
-                triangles.Add(a + 1);
-                triangles.Add(b);
                 triangles.Add(b);
                 triangles.Add(a + 1);
+                triangles.Add(b);
                 triangles.Add(b + 1);
+                triangles.Add(a + 1);
             }
         }
 
-        private static void AddDiamondTuft(
+        private static void AddFacetedClump(
             List<Vector3> vertices,
             List<int> triangles,
             Vector3 center,
-            float radius,
-            float height,
+            Vector3 radius,
             int sides)
         {
             int top = vertices.Count;
-            vertices.Add(center + (Vector3.up * height));
+            vertices.Add(center + (Vector3.up * radius.y));
             int bottom = vertices.Count;
-            vertices.Add(center - (Vector3.up * height * 0.55f));
-            int ring = vertices.Count;
+            vertices.Add(center - (Vector3.up * radius.y));
+            int firstRing = vertices.Count;
+            float[] ringHeights = { -0.42f, 0f, 0.42f };
+            float[] ringWidths = { 0.7f, 1f, 0.76f };
+            for (int ring = 0; ring < ringHeights.Length; ring++)
+            {
+                for (int i = 0; i < sides; i++)
+                {
+                    float angle = i * Mathf.PI * 2f / sides;
+                    vertices.Add(center + new Vector3(
+                        Mathf.Cos(angle) * radius.x * ringWidths[ring],
+                        radius.y * ringHeights[ring],
+                        Mathf.Sin(angle) * radius.z * ringWidths[ring]));
+                }
+            }
+
             for (int i = 0; i < sides; i++)
             {
-                float angle = i * Mathf.PI * 2f / sides;
-                vertices.Add(center + new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius));
+                int next = (i + 1) % sides;
+                triangles.Add(bottom);
+                triangles.Add(firstRing + i);
+                triangles.Add(firstRing + next);
             }
+
+            for (int ring = 0; ring < ringHeights.Length - 1; ring++)
+            {
+                int lower = firstRing + (ring * sides);
+                int upper = lower + sides;
+                for (int i = 0; i < sides; i++)
+                {
+                    int next = (i + 1) % sides;
+                    triangles.Add(lower + i);
+                    triangles.Add(lower + next);
+                    triangles.Add(upper + i);
+                    triangles.Add(lower + next);
+                    triangles.Add(upper + next);
+                    triangles.Add(upper + i);
+                }
+            }
+
+            int topRing = firstRing + ((ringHeights.Length - 1) * sides);
             for (int i = 0; i < sides; i++)
             {
                 int next = (i + 1) % sides;
                 triangles.Add(top);
-                triangles.Add(ring + i);
-                triangles.Add(ring + next);
-                triangles.Add(bottom);
-                triangles.Add(ring + next);
-                triangles.Add(ring + i);
+                triangles.Add(topRing + next);
+                triangles.Add(topRing + i);
             }
         }
     }
