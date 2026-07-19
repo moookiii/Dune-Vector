@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace DuneVector
@@ -27,6 +28,7 @@ namespace DuneVector
 
         public bool HasActivated { get; private set; }
         public int ActivationCount { get; private set; }
+        public event Action<TraversalRing> Activated;
 
         private DroneCharacterController _controller;
         private DroneHealth _health;
@@ -41,6 +43,10 @@ namespace DuneVector
         private float _visualSpin;
         private Camera _billboardCamera;
         private Vector3 _restingLocalPosition;
+        private DuneVectorMaterials _materials;
+        private float _majorRadius;
+        private float _healthHeartScale;
+        private TraversalRing _upperLayerRing;
 
         public void Initialize(
             TraversalRingType type,
@@ -56,6 +62,9 @@ namespace DuneVector
             _controller = controller;
             _health = health;
             _healthRestored = healthRestored;
+            _materials = materials;
+            _majorRadius = majorRadius;
+            _healthHeartScale = healthHeartScale;
             InnerRadius = majorRadius - 0.58f;
             ProceduralIdentity = identity;
             _restingLocalPosition = transform.localPosition;
@@ -74,6 +83,40 @@ namespace DuneVector
             _health = health;
             _inside = false;
             _hasPreviousWorldPosition = false;
+            _upperLayerRing?.BindTargets(controller, health);
+        }
+
+        public void SpawnUpperFlightLayer(float verticalSeparation)
+        {
+            if (RingType != TraversalRingType.Flight || _upperLayerRing != null || _materials == null)
+            {
+                return;
+            }
+
+            float separation = Mathf.Max(0.5f, verticalSeparation);
+            GameObject upperObject = new GameObject("Upper Flight Ring");
+            upperObject.transform.SetParent(transform.parent, false);
+            upperObject.transform.localPosition = _restingLocalPosition + (Vector3.up * separation);
+            upperObject.transform.localRotation = transform.localRotation;
+
+            TraversalRing upperRing = upperObject.AddComponent<TraversalRing>();
+            upperRing.Initialize(
+                TraversalRingType.Flight,
+                _controller,
+                _health,
+                _materials,
+                _majorRadius,
+                _healthRestored,
+                _healthHeartScale,
+                $"{ProceduralIdentity}:upper");
+            upperRing.gameObject.name = "Upper Flight Ring";
+            upperRing.FlightModeScale = FlightModeScale;
+            upperRing.FlightModeScaleSharpness = FlightModeScaleSharpness;
+            upperRing.ClockwiseRotationSpeed = ClockwiseRotationSpeed;
+            upperRing.FlightModeHeightOffset = FlightModeHeightOffset;
+            upperRing.FlightModeHeightSharpness = FlightModeHeightSharpness;
+            upperRing.transform.localPosition = transform.localPosition + (Vector3.up * separation);
+            _upperLayerRing = upperRing;
         }
 
         private void Update()
@@ -204,6 +247,8 @@ namespace DuneVector
                     Destroy(gameObject);
                 }
             }
+
+            Activated?.Invoke(this);
         }
 
         private void OnDrawGizmosSelected()

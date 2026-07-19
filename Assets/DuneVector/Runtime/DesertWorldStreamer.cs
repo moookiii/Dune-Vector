@@ -76,6 +76,7 @@ namespace DuneVector
         private readonly HashSet<Vector2Int> _queuedCoordinates = new HashSet<Vector2Int>();
         private readonly List<Vector2Int> _candidateCoordinates = new List<Vector2Int>();
         private readonly List<Vector2Int> _removalBuffer = new List<Vector2Int>();
+        private readonly HashSet<string> _activatedFlightRingIdentities = new HashSet<string>();
 
         private DuneVectorMaterials _materials;
         private Transform _chunkRoot;
@@ -303,7 +304,8 @@ namespace DuneVector
                 GroundRingDensity,
                 AerialRingDensity,
                 Rings,
-                GroundExploders);
+                GroundExploders,
+                HandleTraversalRingActivated);
             _chunks.Add(coordinate, chunk);
             GeneratedChunkCount++;
             PeakActiveChunkCount = Mathf.Max(PeakActiveChunkCount, _chunks.Count);
@@ -318,6 +320,23 @@ namespace DuneVector
 
             int diameter = (Mathf.Max(1, PreloadRadius) * 2) + 1;
             return Clouds.ClusterCount / (float)(diameter * diameter);
+        }
+
+        private void HandleTraversalRingActivated(TraversalRing ring)
+        {
+            if (ring == null
+                || ring.RingType != TraversalRingType.Flight
+                || string.IsNullOrEmpty(ring.ProceduralIdentity)
+                || !_activatedFlightRingIdentities.Add(ring.ProceduralIdentity))
+            {
+                return;
+            }
+
+            int requiredPasses = Mathf.Max(1, Rings.UpperFlightRingRequiredPasses);
+            if (_activatedFlightRingIdentities.Count == requiredPasses)
+            {
+                ring.SpawnUpperFlightLayer(Rings.UpperFlightRingVerticalSeparation);
+            }
         }
 
         private Vector2Int GetPlayerLogicalChunk()
@@ -387,7 +406,8 @@ namespace DuneVector
             float groundRingDensity,
             float aerialRingDensity,
             RingTuning ringTuning,
-            GroundExploderTuning groundExploderTuning)
+            GroundExploderTuning groundExploderTuning,
+            Action<TraversalRing> ringActivated)
         {
             Coordinate = coordinate;
             GameObject rootObject = new GameObject($"Desert Chunk [{coordinate.x}, {coordinate.y}]");
@@ -423,7 +443,8 @@ namespace DuneVector
                 groundRingDensity,
                 aerialRingDensity,
                 ringTuning,
-                groundExploderTuning);
+                groundExploderTuning,
+                ringActivated);
         }
 
         private void SpawnClouds(
@@ -567,7 +588,8 @@ namespace DuneVector
             float groundRingDensity,
             float aerialRingDensity,
             RingTuning ringTuning,
-            GroundExploderTuning groundExploderTuning)
+            GroundExploderTuning groundExploderTuning,
+            Action<TraversalRing> ringActivated)
         {
             List<Vector2> ringExclusions = new List<Vector2>();
             double originX = coordinate.x * (double)chunkSize;
@@ -575,8 +597,8 @@ namespace DuneVector
 
             if (coordinate == Vector2Int.zero)
             {
-                CreateRing(new Vector2(10f, 29f), Vector3.forward, TraversalRingType.GroundBoost, ringTuning.GroundRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "starter-boost");
-                CreateRing(new Vector2(10f, 57f), Vector3.forward, TraversalRingType.Flight, ringTuning.FlightRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "starter-flight");
+                CreateRing(new Vector2(10f, 29f), Vector3.forward, TraversalRingType.GroundBoost, ringTuning.GroundRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "starter-boost", ringActivated);
+                CreateRing(new Vector2(10f, 57f), Vector3.forward, TraversalRingType.Flight, ringTuning.FlightRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "starter-flight", ringActivated);
             }
             else
             {
@@ -591,8 +613,8 @@ namespace DuneVector
                     Vector2 forward2 = new Vector2(forward.x, forward.z);
                     Vector2 boostPosition = center - (forward2 * 11f);
                     Vector2 flightPosition = center + (forward2 * 11f);
-                    CreateRing(boostPosition, forward, TraversalRingType.GroundBoost, ringTuning.GroundRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "route-boost");
-                    CreateRing(flightPosition, forward, TraversalRingType.Flight, ringTuning.FlightRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "route-flight");
+                    CreateRing(boostPosition, forward, TraversalRingType.GroundBoost, ringTuning.GroundRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "route-boost", ringActivated);
+                    CreateRing(flightPosition, forward, TraversalRingType.Flight, ringTuning.FlightRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "route-flight", ringActivated);
                 }
                 else if (DuneVectorMath.Hash01(coordinate.x, coordinate.y, worldSeed, 733) < groundRingDensity)
                 {
@@ -601,7 +623,7 @@ namespace DuneVector
                     Vector2 position = new Vector2(
                         DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 743, 16f, chunkSize - 16f),
                         DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 751, 16f, chunkSize - 16f));
-                    CreateRing(position, forward, TraversalRingType.GroundBoost, ringTuning.GroundRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "boost");
+                    CreateRing(position, forward, TraversalRingType.GroundBoost, ringTuning.GroundRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "boost", ringActivated);
                 }
             }
 
@@ -629,7 +651,8 @@ namespace DuneVector
                         ringExclusions,
                         worldSeed,
                         ringTuning,
-                        "health");
+                        "health",
+                        ringActivated);
                 }
             }
 
@@ -841,7 +864,8 @@ namespace DuneVector
             List<Vector2> exclusions,
             int worldSeed,
             RingTuning ringTuning,
-            string identitySuffix)
+            string identitySuffix,
+            Action<TraversalRing> ringActivated)
         {
             double logicalX = originX + local.x;
             double logicalZ = originZ + local.y;
@@ -894,6 +918,10 @@ namespace DuneVector
             ring.ClockwiseRotationSpeed = type == TraversalRingType.Health
                 ? ringTuning.HealthRingRotationSpeed
                 : ringTuning.ClockwiseRotationSpeed;
+            if (ringActivated != null)
+            {
+                ring.Activated += ringActivated;
+            }
             if (type == TraversalRingType.Flight)
             {
                 float minimumLift = Mathf.Max(0f, ringTuning.FlightModeMinimumHeightOffset);

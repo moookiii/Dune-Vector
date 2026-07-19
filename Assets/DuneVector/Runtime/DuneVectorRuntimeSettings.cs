@@ -204,6 +204,12 @@ namespace DuneVector
         [Min(0.75f)] public float GroundRingRadius = 3.25f;
         [Min(0.75f)] public float FlightRingRadius = 3.55f;
 
+        [Header("Upper Flight Ring Unlock")]
+        [Tooltip("Number of distinct blue flight rings the player must cross before the upper-layer ring appears.")]
+        [Min(1)] public int UpperFlightRingRequiredPasses = 5;
+        [Tooltip("Vertical distance between the triggering blue ring and its unlocked upper-layer ring.")]
+        [Min(0.5f)] public float UpperFlightRingVerticalSeparation = 12f;
+
         [Header("Health Rings")]
         [Tooltip("Expected health-ring count per streamed terrain chunk. Values well below one keep pickups scarce.")]
         [Range(0f, 1f)] public float HealthRingDensityPerChunk = 0.035f;
