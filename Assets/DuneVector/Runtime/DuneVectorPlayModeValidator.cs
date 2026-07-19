@@ -218,6 +218,9 @@ namespace DuneVector
             Check(horizontalHubSpawnError < 0.5f,
                 "Drone physically starts on the hub platform",
                 $"Drone started {horizontalHubSpawnError:0.00} m horizontally from the hub spawn.");
+            Check(bootstrap.DroneCamera.FollowingError < 0.05f,
+                "Camera starts with the drone at the hub",
+                $"Camera follow point remained {bootstrap.DroneCamera.FollowingError:0.00} m from the hub drone while the terminal was open.");
             bool hasEnabledHubCapsule = false;
             CapsuleCollider[] hubCapsules = courier.GetComponentsInChildren<CapsuleCollider>(true);
             for (int i = 0; i < hubCapsules.Length; i++)

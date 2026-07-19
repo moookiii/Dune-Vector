@@ -220,6 +220,7 @@ namespace DuneVector
         private DroneHealth _health;
         private DesertWorldStreamer _world;
         private Camera _camera;
+        private DroneCameraController _cameraController;
         private DuneVectorMaterials _materials;
         private DroneGoldWallet _wallet;
         private DuneVectorLandmarkDirector _landmarks;
@@ -297,6 +298,7 @@ namespace DuneVector
             _health = health;
             _world = world;
             _camera = camera;
+            _cameraController = camera != null ? camera.GetComponent<DroneCameraController>() : null;
             _materials = materials;
             _wallet = wallet;
             _landmarks = landmarks;
@@ -628,6 +630,7 @@ namespace DuneVector
             }
             _player.Motor.SetPositionAndRotation(_hubSpawn, Quaternion.identity, true);
             _player.ResetTraversalAfterTeleport(Vector3.forward);
+            _cameraController?.SnapToTarget();
             SetCombatSystemsActive(false);
             State = CourierRunState.Hub;
             _playerInput.SetInputEnabled(!openTerminal);
@@ -1138,6 +1141,7 @@ namespace DuneVector
                 Quaternion rotation = toHub ? Quaternion.identity : _desertRotation;
                 _player.Motor.SetPositionAndRotation(position, rotation, true);
                 _player.ResetTraversalAfterTeleport(rotation * Vector3.forward);
+                _cameraController?.SnapToTarget();
                 RecenterTeleportParticles(position);
             }
 
