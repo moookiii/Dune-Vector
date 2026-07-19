@@ -1709,6 +1709,9 @@ namespace DuneVector
         [Min(1f)] public float HudAccentWidth = 4f;
         [Min(8)] public int HudTitleFontSize = 12;
         [Min(8)] public int HudStatusFontSize = 15;
+        [Min(8f)] public float HudTitleRowHeight = 18f;
+        [Min(8f)] public float HudStatusRowHeight = 21f;
+        [Min(0f)] public float HudTextRowGap = 2f;
         public string HudStormLabel = "ELECTRICAL STORM REGION";
         public string HudIonizationLabel = "IONIZATION SPIKE DETECTED";
         public string HudInterferenceLabel = "DRONE SYSTEM INTERFERENCE";
@@ -1863,7 +1866,7 @@ namespace DuneVector
         [Header("Thermal HUD")]
         [Range(0f, 1f)] public float HudVisibilityThreshold = 0.08f;
         [Min(100f)] public float HudWidth = 268f;
-        [Min(40f)] public float HudHeight = 68f;
+        [Min(40f)] public float HudHeight = 82f;
         [Min(0f)] public float HudRight = 24f;
         [Min(0f)] public float HudTop = 118f;
         [Tooltip("Minimum vertical gap below the upper-flight-ring HUD while both panels are visible.")]
@@ -1873,6 +1876,9 @@ namespace DuneVector
         [Min(1f)] public float HudBarHeight = 8f;
         [Min(8)] public int HudTitleFontSize = 12;
         [Min(8)] public int HudStatusFontSize = 15;
+        [Min(8f)] public float HudTitleRowHeight = 18f;
+        [Min(8f)] public float HudStatusRowHeight = 21f;
+        [Min(0f)] public float HudTextRowGap = 2f;
         public string HudZoneLabel = "HIGH THERMAL ZONE";
         public string HudRisingLabel = "DRONE HEAT RISING";
         public string HudBoostLabel = "BOOST EFFICIENCY REDUCED";

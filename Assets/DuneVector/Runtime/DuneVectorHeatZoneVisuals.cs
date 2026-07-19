@@ -631,15 +631,20 @@ namespace DuneVector
             DrawRect(new Rect(panel.x, panel.y, _settings.HudAccentWidth, panel.height), _settings.HudAccentColor);
             float contentX = panel.x + _settings.HudPadding;
             float contentWidth = panel.width - (_settings.HudPadding * 2f);
+            float titleY = panel.y + _settings.HudPadding;
             GUI.Label(
-                new Rect(contentX, panel.y + _settings.HudPadding, contentWidth, _settings.HudTitleFontSize + 6f),
+                new Rect(contentX, titleY, contentWidth, _settings.HudTitleRowHeight),
                 _settings.HudZoneLabel,
                 _titleStyle);
             string status = _hazards.NormalizedTemperature >= _settings.ConsequenceTemperatureThreshold
                 ? _settings.HudBoostLabel
                 : _settings.HudRisingLabel;
             GUI.Label(
-                new Rect(contentX, panel.y + _settings.HudPadding, contentWidth, _settings.HudStatusFontSize + 6f),
+                new Rect(
+                    contentX,
+                    titleY + _settings.HudTitleRowHeight + _settings.HudTextRowGap,
+                    contentWidth,
+                    _settings.HudStatusRowHeight),
                 status,
                 _statusStyle);
             Rect track = new Rect(

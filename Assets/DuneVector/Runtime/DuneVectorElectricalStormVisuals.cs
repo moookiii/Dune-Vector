@@ -1064,8 +1064,9 @@ namespace DuneVector
                 WithAlpha(_settings.HudAccentColor, _visualBlend));
             float contentX = panel.x + _settings.HudPadding;
             float contentWidth = panel.width - (_settings.HudPadding * 2f);
+            float titleY = panel.y + _settings.HudPadding;
             GUI.Label(
-                new Rect(contentX, panel.y + _settings.HudPadding, contentWidth, _settings.HudTitleFontSize + 8f),
+                new Rect(contentX, titleY, contentWidth, _settings.HudTitleRowHeight),
                 _settings.HudStormLabel,
                 _hudTitleStyle);
             string status = _hazards.StrikePhase == ElectricalStrikePhase.Buildup ||
@@ -1073,7 +1074,11 @@ namespace DuneVector
                     ? _settings.HudIonizationLabel
                     : _settings.HudInterferenceLabel;
             GUI.Label(
-                new Rect(contentX, panel.y + _settings.HudPadding, contentWidth, _settings.HudStatusFontSize + 8f),
+                new Rect(
+                    contentX,
+                    titleY + _settings.HudTitleRowHeight + _settings.HudTextRowGap,
+                    contentWidth,
+                    _settings.HudStatusRowHeight),
                 status,
                 _hudStatusStyle);
             float staticStrength = _hazards.IsElectricalInterferenceActive
