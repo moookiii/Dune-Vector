@@ -796,11 +796,23 @@ namespace DuneVector
                     ChooseLandmarkType(random), contract.DeliveryPositions[i], contract.Seed + i + 1));
             }
 
-            Vector3 routeForward = new Vector3((float)Math.Cos(routeAngle), 0f, (float)Math.Sin(routeAngle));
+            Vector3 pickupForward = new Vector3(
+                (float)(contract.PickupPosition.X - routeOrigin.X),
+                0f,
+                (float)(contract.PickupPosition.Z - routeOrigin.Z)).normalized;
+            if (pickupForward.sqrMagnitude < 0.001f)
+            {
+                pickupForward = new Vector3((float)Math.Cos(routeAngle), 0f, (float)Math.Sin(routeAngle));
+            }
             float insertionHeight = (float)_world.HeightField.SampleHeight(routeOrigin.X, routeOrigin.Z) + _hubSettings.DesertInsertionHeight;
             _desertSpawn = _world.LogicalToLocal(routeOrigin.X, insertionHeight, routeOrigin.Z);
-            _desertRotation = Quaternion.LookRotation(routeForward, Vector3.up);
+            _desertRotation = Quaternion.LookRotation(pickupForward, Vector3.up);
             BuildPickupObjective();
+            Vector3 actualPickupForward = Vector3.ProjectOnPlane(_package.position - _desertSpawn, Vector3.up);
+            if (actualPickupForward.sqrMagnitude > 0.001f)
+            {
+                _desertRotation = Quaternion.LookRotation(actualPickupForward.normalized, Vector3.up);
+            }
         }
 
         private void BuildPickupObjective()
@@ -1149,7 +1161,7 @@ namespace DuneVector
                 Quaternion rotation = toHub ? Quaternion.identity : _desertRotation;
                 _player.Motor.SetPositionAndRotation(position, rotation, true);
                 _player.ResetTraversalAfterTeleport(rotation * Vector3.forward);
-                _cameraController?.SnapToTarget();
+                _cameraController?.SnapToTarget(rotation * Vector3.forward);
                 RecenterTeleportParticles(position);
             }
 

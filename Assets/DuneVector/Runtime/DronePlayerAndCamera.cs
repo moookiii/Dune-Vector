@@ -390,5 +390,15 @@ namespace DuneVector
             Vector3 castDirection = -(transform.rotation * Vector3.forward);
             transform.position = _currentFollowPosition + (castDirection * _currentDistance) + (transform.up * FollowPointFraming.y);
         }
+
+        public void SnapToTarget(Vector3 forward)
+        {
+            Vector3 planarForward = Vector3.ProjectOnPlane(forward, Vector3.up);
+            if (planarForward.sqrMagnitude > 0.001f)
+            {
+                PlanarDirection = planarForward.normalized;
+            }
+            SnapToTarget();
+        }
     }
 }

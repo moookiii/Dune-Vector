@@ -262,6 +262,15 @@ namespace DuneVector
             Check(courier.ActiveContract != null && courier.ActiveObjective != null,
                 "Accepted contract owns an active package objective",
                 "Active contract or package objective was missing after deployment.");
+            Vector3 pickupDirection = Vector3.ProjectOnPlane(
+                courier.ActiveObjective.position - bootstrap.Drone.Motor.TransientPosition,
+                Vector3.up).normalized;
+            Check(Vector3.Dot(bootstrap.Drone.Motor.CharacterForward, pickupDirection) > 0.98f,
+                "Contract deployment faces the drone toward the pickup",
+                "Drone insertion yaw did not face the active pickup objective.");
+            Check(Vector3.Dot(bootstrap.DroneCamera.PlanarDirection, pickupDirection) > 0.98f,
+                "Contract deployment faces the camera toward the pickup",
+                "Camera insertion yaw did not face the active pickup objective.");
             Check(bootstrap.LandmarkDirector.ContractLandmarks.Count >= 2,
                 "Contract route pins authored pickup and destination landmarks",
                 $"Only {bootstrap.LandmarkDirector.ContractLandmarks.Count} route landmarks were present.");
