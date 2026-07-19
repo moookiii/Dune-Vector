@@ -276,7 +276,7 @@ namespace DuneVector
                 warning = new StormPyramidThreatWarning(
                     target.Type,
                     target.Position,
-                    Mathf.Max(0f, _settings.TrackingDuration - _stateTime) + _settings.ChargeTime,
+                    Mathf.Max(0f, _settings.TrackingDuration - _stateTime) + _lightning.GetChargeDuration(target.Type),
                     0f);
                 return true;
             }
@@ -490,10 +490,10 @@ namespace DuneVector
         public Vector3 TargetPosition => _target.Position;
         public StormLightningAttackType TargetType => _target.Type;
         public float ChargeNormalized => _charging
-            ? Mathf.Clamp01(_timer / Mathf.Max(0.01f, _settings.ChargeTime))
+            ? Mathf.Clamp01(_timer / Mathf.Max(0.01f, _chargeDuration))
             : 0f;
         public float ChargeSecondsRemaining => _charging
-            ? Mathf.Max(0f, _settings.ChargeTime - _timer)
+            ? Mathf.Max(0f, _chargeDuration - _timer)
             : 0f;
 
         private const int LightningSegments = 11;
@@ -510,6 +510,7 @@ namespace DuneVector
         private StormPyramidLightningDamage _damage;
         private StormLightningTarget _target;
         private float _timer;
+        private float _chargeDuration;
         private int _identity;
         private bool _charging;
         private bool _firing;
@@ -542,6 +543,7 @@ namespace DuneVector
         {
             _target = target;
             _timer = 0f;
+            _chargeDuration = GetChargeDuration(target.Type);
             _charging = true;
             _firing = false;
             _marker.gameObject.SetActive(true);
@@ -563,7 +565,7 @@ namespace DuneVector
                 return false;
             }
             _timer += deltaTime;
-            float charge01 = Mathf.Clamp01(_timer / Mathf.Max(0.01f, _settings.ChargeTime));
+            float charge01 = Mathf.Clamp01(_timer / Mathf.Max(0.01f, _chargeDuration));
             UpdateChargeVisual(charge01);
             return charge01 >= 1f;
         }
@@ -623,13 +625,21 @@ namespace DuneVector
             }
             if (_charging)
             {
-                float charge01 = Mathf.Clamp01(_timer / Mathf.Max(0.01f, _settings.ChargeTime));
+                float charge01 = Mathf.Clamp01(_timer / Mathf.Max(0.01f, _chargeDuration));
                 UpdateChargeVisual(charge01);
             }
             else if (_firing)
             {
                 UpdateLightningVisual();
             }
+        }
+
+        public float GetChargeDuration(StormLightningAttackType targetType)
+        {
+            float configuredDuration = targetType == StormLightningAttackType.PlayerStrike
+                ? _settings.PlayerStrikeChargeTime
+                : _settings.ChargeTime;
+            return Mathf.Max(0.01f, configuredDuration);
         }
 
         private void UpdateChargeVisual(float charge01)
