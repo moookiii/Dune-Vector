@@ -189,6 +189,11 @@ namespace DuneVector
         [InspectorName("Flight Ring Active Scale")]
         [Min(1f)] public float FlightModeScale = 1.45f;
         [Min(0f)] public float ScaleSharpness = 4.5f;
+
+        [Header("Flight Mode Height Offset")]
+        [Min(0f)] public float FlightModeMinimumHeightOffset;
+        [Min(0f)] public float FlightModeMaximumHeightOffset;
+        [Min(0f)] public float FlightModeHeightSharpness;
     }
 
     [System.Serializable]

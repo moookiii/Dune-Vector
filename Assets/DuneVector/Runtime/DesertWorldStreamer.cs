@@ -796,11 +796,10 @@ namespace DuneVector
             ring.BoostRingActiveScale = ringTuning.BoostRingActiveScale;
             ring.FlightModeScale = ringTuning.FlightModeScale;
             ring.FlightModeScaleSharpness = ringTuning.ScaleSharpness;
-            if (type == TraversalRingType.Flight && FlightRingMotionSettings.Instance != null)
+            if (type == TraversalRingType.Flight)
             {
-                FlightRingMotionSettings motion = FlightRingMotionSettings.Instance;
-                float minimumLift = Mathf.Max(0f, motion.MinimumHeightOffset);
-                float maximumLift = Mathf.Max(minimumLift, motion.MaximumHeightOffset);
+                float minimumLift = Mathf.Max(0f, ringTuning.FlightModeMinimumHeightOffset);
+                float maximumLift = Mathf.Max(minimumLift, ringTuning.FlightModeMaximumHeightOffset);
                 ring.FlightModeHeightOffset = DuneVectorMath.HashRange(
                     Coordinate.x,
                     Coordinate.y,
@@ -808,7 +807,7 @@ namespace DuneVector
                     heightSalt ^ 486187739,
                     minimumLift,
                     maximumLift);
-                ring.FlightModeHeightSharpness = motion.HeightSharpness;
+                ring.FlightModeHeightSharpness = ringTuning.FlightModeHeightSharpness;
             }
             _rings.Add(ring);
             exclusions.Add(local);
