@@ -40,6 +40,12 @@ namespace DuneVector
         [Min(1f)] public float ObjectiveRingRadius = 3.2f;
         [Min(0f)] public float ObjectiveRingHeight = 3.4f;
         [Min(0.1f)] public float PackageScale = 0.8f;
+
+        [Header("Completion Message")]
+        [ColorUsage(false)] public Color CompletionTextRed = Color.red;
+        [ColorUsage(false)] public Color CompletionTextGreen = Color.green;
+        [ColorUsage(false)] public Color CompletionTextBlue = Color.blue;
+        [Min(0f)] public float CompletionTextColorCyclesPerSecond = 4f;
     }
 
     [System.Serializable]

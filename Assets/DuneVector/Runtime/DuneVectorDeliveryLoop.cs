@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using UnityEngine;
 
 namespace DuneVector
@@ -35,6 +36,7 @@ namespace DuneVector
         private GUIStyle _markerStyle;
         private GUIStyle _arrowStyle;
         private GUIStyle _statusStyle;
+        private readonly StringBuilder _completionTextBuilder = new StringBuilder(512);
 
         public void Initialize(
             DroneCharacterController player,
@@ -265,8 +267,42 @@ namespace DuneVector
                 alignment = TextAnchor.MiddleCenter,
                 wordWrap = false,
                 clipping = TextClipping.Clip,
-                normal = { textColor = new Color(1f, 0.84f, 0.25f) },
+                richText = true,
+                normal = { textColor = Color.white },
             };
+        }
+
+        private string BuildRgbCompletionText()
+        {
+            string message = $"DELIVERY COMPLETE  •  {CompletedDeliveries} TOTAL";
+            Color[] colors =
+            {
+                _settings.CompletionTextRed,
+                _settings.CompletionTextGreen,
+                _settings.CompletionTextBlue,
+            };
+            int colorOffset = Mathf.FloorToInt(
+                Time.unscaledTime * Mathf.Max(0f, _settings.CompletionTextColorCyclesPerSecond));
+
+            _completionTextBuilder.Clear();
+            for (int i = 0; i < message.Length; i++)
+            {
+                char character = message[i];
+                if (char.IsWhiteSpace(character))
+                {
+                    _completionTextBuilder.Append(character);
+                    continue;
+                }
+
+                Color color = colors[(i + colorOffset) % colors.Length];
+                _completionTextBuilder.Append("<color=#");
+                _completionTextBuilder.Append(ColorUtility.ToHtmlStringRGBA(color));
+                _completionTextBuilder.Append('>');
+                _completionTextBuilder.Append(character);
+                _completionTextBuilder.Append("</color>");
+            }
+
+            return _completionTextBuilder.ToString();
         }
 
         private void OnGUI()
@@ -326,7 +362,7 @@ namespace DuneVector
             {
                 GUI.Label(
                     new Rect(24f, 158f, Mathf.Max(1f, Screen.width - 48f), 30f),
-                    $"DELIVERY COMPLETE  •  {CompletedDeliveries} TOTAL",
+                    BuildRgbCompletionText(),
                     _statusStyle);
             }
         }
