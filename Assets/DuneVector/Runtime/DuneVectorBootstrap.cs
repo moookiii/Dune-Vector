@@ -857,7 +857,7 @@ namespace DuneVector
                 GUI.color = previous;
             }
 
-            float speed01 = Mathf.Clamp01(Drone.Speed / Mathf.Max(1f, Drone.CurrentMaximumFlightSpeed));
+            float speed01 = Mathf.Clamp01(Drone.Speed / Mathf.Max(1f, Drone.CurrentSpeedometerMaximum));
             Rect speedPanel = new Rect(24f, Screen.height - 82f, 310f, 48f);
             GUI.Box(speedPanel, GUIContent.none);
             GUI.Label(new Rect(speedPanel.x + 12f, speedPanel.y + 5f, 150f, 20f), $"{Drone.CurrentMode.ToString().ToUpperInvariant()}  {Drone.Speed:0.0} m/s", _bodyStyle);

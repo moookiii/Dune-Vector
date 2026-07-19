@@ -105,6 +105,30 @@ namespace DuneVector
         public float FlightTimeNormalized => FlightDuration > 0f ? Mathf.Clamp01(FlightTimeRemaining / FlightDuration) : 0f;
         public float FlightSpeedMultiplier => _flightSpeedMultiplier;
         public float CurrentMaximumFlightSpeed => MaximumFlightSpeed * _flightSpeedMultiplier * CargoSpeedMultiplier;
+        public float CurrentSpeedometerMaximum
+        {
+            get
+            {
+                float maximumSpeed;
+                if (CurrentMode == DroneTraversalMode.Flight)
+                {
+                    maximumSpeed = CurrentMaximumFlightSpeed * GetRingBurstMultiplier();
+                }
+                else if (IsRingBoosting)
+                {
+                    maximumSpeed = RingBoostMaxSpeed * CargoSpeedMultiplier * GetRingBurstMultiplier();
+                }
+                else
+                {
+                    bool isGrounded = Motor != null && Motor.GroundingStatus.IsStableOnGround;
+                    maximumSpeed = (isGrounded ? MaxGroundSpeed : MaxAirSpeed) * CargoSpeedMultiplier;
+                }
+
+                return _boostSpeedModifier != null
+                    ? _boostSpeedModifier.ModifyTargetSpeed(maximumSpeed)
+                    : maximumSpeed;
+            }
+        }
         public float CargoSpeedMultiplier { get; private set; } = 1f;
         public float CargoAccelerationMultiplier { get; private set; } = 1f;
         public float CargoTurningMultiplier { get; private set; } = 1f;
