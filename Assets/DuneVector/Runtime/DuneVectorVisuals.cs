@@ -41,6 +41,8 @@ namespace DuneVector
         public Material GroundEnemyWarning { get; }
         public Material StormPyramidBody { get; }
         public Material StormPyramidCore { get; }
+        public Material PlayerStrikeOrbBody { get; }
+        public Material PlayerStrikeOrbCore { get; }
         public Material Lightning { get; }
         public Material LightningWarning { get; }
 
@@ -184,6 +186,8 @@ namespace DuneVector
             GroundEnemyWarning = CreateLit("Ground Exploder - Warning", new Color(0.46f, 0.055f, 0.008f), 0.62f, 0.3f, new Color(5.2f, 0.32f, 0.015f));
             StormPyramidBody = CreateLit("Storm Pyramid - Body", new Color(0.025f, 0.035f, 0.09f), 0.58f, 0.82f, new Color(0.08f, 0.12f, 0.55f));
             StormPyramidCore = CreateLit("Storm Pyramid - Core", new Color(0.01f, 0.08f, 0.14f), 0.76f, 0.22f, new Color(0.15f, 3.6f, 6.5f));
+            PlayerStrikeOrbBody = CreateLit("Player Strike Orb - Body", new Color(0.018f, 0.028f, 0.07f), 0.64f, 0.76f, new Color(0.08f, 0.18f, 0.8f));
+            PlayerStrikeOrbCore = CreateLit("Player Strike Orb - Satellites", new Color(0.08f, 0.3f, 0.48f), 0.78f, 0.28f, new Color(0.35f, 3.5f, 6.8f));
             Lightning = CreateUnlit("Storm Pyramid - Lightning", new Color(0.55f, 0.86f, 1f), new Color(7.5f, 12f, 18f));
             LightningWarning = CreateUnlit("Storm Pyramid - Warning", new Color(0.18f, 0.42f, 0.62f), new Color(0.45f, 2.8f, 5.8f));
         }
@@ -246,6 +250,17 @@ namespace DuneVector
                 settings.LightningColor,
                 settings.LightningEmission * settings.LightningBloomIntensity);
             ConfigureLitColors(LightningWarning, settings.WarningColor, settings.WarningEmission);
+        }
+
+        public void ConfigurePlayerStrikeOrb(PlayerStrikeOrbTuning settings)
+        {
+            if (settings == null)
+            {
+                return;
+            }
+
+            ConfigureLitColors(PlayerStrikeOrbBody, settings.BodyColor, settings.BodyEmission);
+            ConfigureLitColors(PlayerStrikeOrbCore, settings.OrbColor, settings.OrbEmission);
         }
 
         private static void ConfigureLitColors(Material material, Color baseColor, Color emission)
@@ -1082,6 +1097,93 @@ namespace DuneVector
                 -bodyHeight - settings.LightningOriginTipOffset,
                 0f);
             return root;
+        }
+
+        public static Transform CreatePlayerStrikeOrbVisual(
+            Transform parent,
+            DuneVectorMaterials materials,
+            PlayerStrikeOrbTuning settings)
+        {
+            GameObject rootObject = new GameObject("Player Strike Orb Visual");
+            Transform root = rootObject.transform;
+            root.SetParent(parent, false);
+            root.localScale = Vector3.one * settings.VisualScale;
+
+            GameObject ring = CreateMeshObject(
+                "Central Energy Ring",
+                root,
+                GetTorusMesh(settings.RingRadius, settings.RingThickness, 52, 8),
+                materials.PlayerStrikeOrbBody);
+            DisableRendererShadows(ring);
+
+            GameObject innerRing = CreateMeshObject(
+                "Inner Energy Ring",
+                root,
+                GetTorusMesh(
+                    Mathf.Max(0.1f, settings.RingRadius - (settings.RingThickness * 1.7f)),
+                    settings.InnerRingThickness,
+                    48,
+                    6),
+                materials.PlayerStrikeOrbCore);
+            innerRing.transform.localPosition = new Vector3(0f, 0f, 0.015f);
+            DisableRendererShadows(innerRing);
+
+            CreateOrbitingOrb(
+                root,
+                "First Orb Pivot",
+                "First Orbiting Orb",
+                settings.FirstOrbOrbitTilt,
+                settings.FirstOrbStartAngle,
+                settings.OrbitRadius,
+                settings.OrbitingOrbRadius,
+                materials.PlayerStrikeOrbCore);
+            CreateOrbitingOrb(
+                root,
+                "Second Orb Pivot",
+                "Second Orbiting Orb",
+                settings.SecondOrbOrbitTilt,
+                settings.SecondOrbStartAngle,
+                settings.OrbitRadius,
+                settings.OrbitingOrbRadius,
+                materials.PlayerStrikeOrbCore);
+
+            GameObject halo = CreateMeshObject(
+                "Charge Halo",
+                root,
+                GetTorusMesh(settings.ChargeHaloRadius, settings.ChargeHaloThickness, 48, 6),
+                materials.LightningWarning);
+            halo.transform.localPosition = new Vector3(0f, 0f, 0.025f);
+            halo.transform.localScale = Vector3.zero;
+            DisableRendererShadows(halo);
+
+            GameObject originObject = new GameObject("Lightning Origin");
+            originObject.transform.SetParent(root, false);
+            return root;
+        }
+
+        private static void CreateOrbitingOrb(
+            Transform parent,
+            string pivotName,
+            string orbName,
+            float tilt,
+            float startAngle,
+            float orbitRadius,
+            float orbRadius,
+            Material material)
+        {
+            GameObject pivotObject = new GameObject(pivotName);
+            Transform pivot = pivotObject.transform;
+            pivot.SetParent(parent, false);
+            pivot.localRotation = Quaternion.Euler(tilt, 0f, startAngle);
+            Transform orb = CreatePart(
+                PrimitiveType.Sphere,
+                orbName,
+                pivot,
+                Vector3.right * orbitRadius,
+                Vector3.one * orbRadius,
+                Quaternion.identity,
+                material);
+            DisableRendererShadows(orb.gameObject);
         }
 
         private static void CreateStormPyramidEnergyBand(

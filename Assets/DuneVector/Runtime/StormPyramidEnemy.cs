@@ -61,7 +61,6 @@ namespace DuneVector
         private StormPyramidTuning _settings;
         private StormPyramidMovement _movement;
         private StormPyramidTargeting _targeting;
-        private StormPyramidAttackSelector _attackSelector;
         private StormPyramidLightningAttack _lightning;
         private Transform _visual;
         private Transform _core;
@@ -101,10 +100,7 @@ namespace DuneVector
             _movement.Initialize(player, world, settings, identity);
 
             _targeting = gameObject.AddComponent<StormPyramidTargeting>();
-            _targeting.Initialize(player, world, settings);
-
-            _attackSelector = gameObject.AddComponent<StormPyramidAttackSelector>();
-            _attackSelector.Initialize(_targeting);
+            _targeting.Initialize(world);
 
             StormPyramidLightningDamage damage = gameObject.AddComponent<StormPyramidLightningDamage>();
             damage.Initialize(player, playerHealth);
@@ -120,7 +116,7 @@ namespace DuneVector
                 damage,
                 identity);
 
-            _attackTimer = settings.PlayerStrikeAttackInterval * Mathf.Lerp(
+            _attackTimer = settings.AttackInterval * Mathf.Lerp(
                 0.35f,
                 1f,
                 Mathf.Repeat((identity * 0.417f) + 0.21f, 1f));
@@ -158,7 +154,7 @@ namespace DuneVector
                     UpdateIdle(deltaTime);
                     break;
                 case StormPyramidState.TrackingPlayer:
-                    UpdateTracking();
+                    BeginGroundStrike();
                     break;
                 case StormPyramidState.ChargingAttack:
                     UpdateCharging(deltaTime);
@@ -179,38 +175,21 @@ namespace DuneVector
             _attackTimer = Mathf.Max(0f, _attackTimer - deltaTime);
             if (_attackTimer <= 0f)
             {
-                _trackedTarget = _attackSelector.SelectAttack(transform.position);
-                SetState(StormPyramidState.TrackingPlayer);
+                BeginGroundStrike();
             }
         }
 
-        private void UpdateTracking()
+        private void BeginGroundStrike()
         {
-            FacePosition(_player.WorldCenter, 6f);
-            if (_stateTime < _settings.TrackingDuration)
-            {
-                return;
-            }
-
+            _trackedTarget = new StormLightningTarget(
+                StormLightningAttackType.GroundStrike,
+                _targeting.GetGroundPointBelow(transform.position));
             _lightning.BeginCharge(_trackedTarget);
             SetState(StormPyramidState.ChargingAttack);
         }
 
         private void UpdateCharging(float deltaTime)
         {
-            if (_lightning.TargetType == StormLightningAttackType.PlayerStrike
-                && !_targeting.CanTargetPlayer(transform.position))
-            {
-                _lightning.CancelAttack();
-                _attackTimer = GetAttackInterval(StormLightningAttackType.PlayerStrike);
-                SetState(StormPyramidState.IdleHovering);
-                return;
-            }
-
-            if (_lightning.TargetType == StormLightningAttackType.PlayerStrike)
-            {
-                _lightning.UpdatePlayerTarget(_player.WorldCenter);
-            }
             FacePosition(_lightning.TargetPosition, 9f);
             if (_lightning.TickCharge(deltaTime))
             {
@@ -231,7 +210,7 @@ namespace DuneVector
         {
             if (_stateTime >= _settings.Cooldown)
             {
-                _attackTimer = GetAttackInterval(_lightning.TargetType);
+                _attackTimer = Mathf.Max(0.1f, _settings.AttackInterval);
                 SetState(StormPyramidState.IdleHovering);
             }
         }
@@ -276,16 +255,8 @@ namespace DuneVector
         {
             _lightning.CancelAttack();
             _movement.RepositionNearPlayer();
-            _attackTimer = _settings.PlayerStrikeAttackInterval;
+            _attackTimer = _settings.AttackInterval;
             SetState(StormPyramidState.IdleHovering);
-        }
-
-        private float GetAttackInterval(StormLightningAttackType attackType)
-        {
-            float configuredInterval = attackType == StormLightningAttackType.PlayerStrike
-                ? _settings.PlayerStrikeAttackInterval
-                : _settings.AttackInterval;
-            return Mathf.Max(0.1f, configuredInterval);
         }
 
         private void SetState(StormPyramidState state)
@@ -308,28 +279,15 @@ namespace DuneVector
                 return false;
             }
 
-            if (CurrentState == StormPyramidState.TrackingPlayer)
-            {
-                float chargeDuration = _lightning.GetChargeDuration(_trackedTarget.Type);
-                float totalWarningDuration = Mathf.Max(0.01f, _settings.TrackingDuration + chargeDuration);
-                warning = new StormPyramidThreatWarning(
-                    _trackedTarget.Type,
-                    _trackedTarget.Position,
-                    Mathf.Max(0f, _settings.TrackingDuration - _stateTime) + chargeDuration,
-                    Mathf.Clamp01(_stateTime / totalWarningDuration));
-                return true;
-            }
-
             if (CurrentState == StormPyramidState.ChargingAttack)
             {
                 float chargeDuration = _lightning.GetChargeDuration(_lightning.TargetType);
-                float totalWarningDuration = Mathf.Max(0.01f, _settings.TrackingDuration + chargeDuration);
                 float elapsedCharge = Mathf.Max(0f, chargeDuration - _lightning.ChargeSecondsRemaining);
                 warning = new StormPyramidThreatWarning(
                     _lightning.TargetType,
                     _lightning.TargetPosition,
                     _lightning.ChargeSecondsRemaining,
-                    Mathf.Clamp01((_settings.TrackingDuration + elapsedCharge) / totalWarningDuration));
+                    Mathf.Clamp01(elapsedCharge / Mathf.Max(0.01f, chargeDuration)));
                 return true;
             }
 
@@ -442,60 +400,17 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class StormPyramidTargeting : MonoBehaviour
     {
-        private DroneCharacterController _player;
         private DesertWorldStreamer _world;
-        private StormPyramidTuning _settings;
 
-        public void Initialize(
-            DroneCharacterController player,
-            DesertWorldStreamer world,
-            StormPyramidTuning settings)
+        public void Initialize(DesertWorldStreamer world)
         {
-            _player = player;
             _world = world;
-            _settings = settings;
-        }
-
-        public bool CanTargetPlayer(Vector3 origin)
-        {
-            return _player != null
-                && Vector3.Distance(origin, _player.WorldCenter) <= _settings.DetectionRange;
-        }
-
-        public Vector3 GetPlayerPosition()
-        {
-            return _player.WorldCenter;
         }
 
         public Vector3 GetGroundPointBelow(Vector3 origin)
         {
             float groundHeight = _world.SampleHeightAtLocal(origin.x, origin.z);
             return new Vector3(origin.x, groundHeight + 0.08f, origin.z);
-        }
-    }
-
-    [DisallowMultipleComponent]
-    public sealed class StormPyramidAttackSelector : MonoBehaviour
-    {
-        private StormPyramidTargeting _targeting;
-
-        public void Initialize(StormPyramidTargeting targeting)
-        {
-            _targeting = targeting;
-        }
-
-        public StormLightningTarget SelectAttack(Vector3 origin)
-        {
-            if (_targeting.CanTargetPlayer(origin))
-            {
-                return new StormLightningTarget(
-                    StormLightningAttackType.PlayerStrike,
-                    _targeting.GetPlayerPosition());
-            }
-
-            return new StormLightningTarget(
-                StormLightningAttackType.GroundStrike,
-                _targeting.GetGroundPointBelow(origin));
         }
     }
 
@@ -511,16 +426,16 @@ namespace DuneVector
             _health = health;
         }
 
-        public void ResolvePlayerStrike(Vector3 attackOrigin, float attackRange, float damage)
+        public void ResolveStrike(Vector3 strikePoint, float strikeRadius, float damage, string damageSource)
         {
-            if (_player == null || _health == null || _health.IsDead || attackRange <= 0f || damage <= 0f)
+            if (_player == null || _health == null || _health.IsDead || strikeRadius <= 0f || damage <= 0f)
             {
                 return;
             }
 
-            if (Vector3.Distance(_player.WorldCenter, attackOrigin) <= attackRange)
+            if (Vector3.Distance(_player.WorldCenter, strikePoint) <= strikeRadius)
             {
-                _health.TakeDamage(damage, "Storm Pyramid lightning");
+                _health.TakeDamage(damage, damageSource);
             }
         }
     }
@@ -611,15 +526,6 @@ namespace DuneVector
             return charge01 >= 1f;
         }
 
-        public void UpdatePlayerTarget(Vector3 targetPosition)
-        {
-            if (!_charging || _target.Type != StormLightningAttackType.PlayerStrike)
-            {
-                return;
-            }
-            _target = new StormLightningTarget(StormLightningAttackType.PlayerStrike, targetPosition);
-        }
-
         public void Fire()
         {
             _charging = false;
@@ -627,7 +533,11 @@ namespace DuneVector
             _timer = 0f;
             _chargeLine.enabled = false;
             _lightningLine.enabled = true;
-            _damage.ResolvePlayerStrike(_owner.position, _settings.DetectionRange, _settings.LightningDamage);
+            _damage.ResolveStrike(
+                _target.Position,
+                _settings.StrikeRadius,
+                _settings.LightningDamage,
+                "Storm Pyramid ground lightning");
             UpdateLightningVisual();
         }
 
@@ -686,10 +596,7 @@ namespace DuneVector
 
         public float GetChargeDuration(StormLightningAttackType targetType)
         {
-            float configuredDuration = targetType == StormLightningAttackType.PlayerStrike
-                ? _settings.PlayerStrikeChargeTime
-                : _settings.ChargeTime;
-            return Mathf.Max(0.01f, configuredDuration);
+            return Mathf.Max(0.01f, _settings.ChargeTime);
         }
 
         private void UpdateChargeVisual(float charge01)
@@ -777,6 +684,668 @@ namespace DuneVector
         }
     }
 
+    [DisallowMultipleComponent]
+    public sealed class PlayerStrikeOrbEnemy : MonoBehaviour
+    {
+        public StormPyramidState CurrentState { get; private set; }
+
+        private DroneCharacterController _player;
+        private DroneHealth _playerHealth;
+        private PlayerStrikeOrbTuning _settings;
+        private PlayerStrikeOrbMovement _movement;
+        private PlayerStrikeOrbTargeting _targeting;
+        private PlayerStrikeOrbLightningAttack _lightning;
+        private Transform _visual;
+        private Transform _firstOrbPivot;
+        private Transform _secondOrbPivot;
+        private Vector3 _trackedTarget;
+        private float _stateTime;
+        private float _attackTimer;
+        private int _identity;
+
+        public void Initialize(
+            DroneCharacterController player,
+            DroneHealth playerHealth,
+            DesertWorldStreamer world,
+            DuneVectorMaterials materials,
+            PlayerStrikeOrbTuning settings,
+            int identity)
+        {
+            _player = player;
+            _playerHealth = playerHealth;
+            _settings = settings;
+            _identity = identity;
+
+            _visual = DuneVectorVisuals.CreatePlayerStrikeOrbVisual(transform, materials, settings);
+            _firstOrbPivot = _visual.Find("First Orb Pivot");
+            _secondOrbPivot = _visual.Find("Second Orb Pivot");
+            Transform halo = _visual.Find("Charge Halo");
+            Transform lightningOrigin = _visual.Find("Lightning Origin");
+
+            EnemyHealth enemyHealth = gameObject.AddComponent<EnemyHealth>();
+            enemyHealth.Initialize(settings.MaximumHealth);
+            EnemyCombatTarget combatTarget = gameObject.AddComponent<EnemyCombatTarget>();
+            combatTarget.Initialize(enemyHealth, settings.VisualScale * settings.RingRadius);
+            EnemyGoldReward goldReward = gameObject.AddComponent<EnemyGoldReward>();
+            goldReward.Initialize(
+                enemyHealth,
+                player != null ? player.GetComponent<DroneGoldWallet>() : null,
+                settings.GoldReward);
+
+            _movement = gameObject.AddComponent<PlayerStrikeOrbMovement>();
+            _movement.Initialize(player, world, settings, identity);
+            _targeting = gameObject.AddComponent<PlayerStrikeOrbTargeting>();
+            _targeting.Initialize(player, world, settings);
+
+            StormPyramidLightningDamage damage = gameObject.AddComponent<StormPyramidLightningDamage>();
+            damage.Initialize(player, playerHealth);
+            _lightning = gameObject.AddComponent<PlayerStrikeOrbLightningAttack>();
+            _lightning.Initialize(
+                transform,
+                lightningOrigin,
+                halo,
+                materials,
+                settings,
+                damage,
+                identity);
+
+            _attackTimer = settings.AttackInterval * Mathf.Lerp(
+                settings.MinimumInitialAttackDelayMultiplier,
+                1f,
+                Mathf.Repeat((identity * 0.371f) + 0.18f, 1f));
+            SetState(StormPyramidState.IdleHovering);
+        }
+
+        private void Update()
+        {
+            if (_player == null || _playerHealth == null || _playerHealth.IsDead)
+            {
+                _lightning?.CancelAttack();
+                return;
+            }
+
+            float deltaTime = Time.deltaTime;
+            _stateTime += deltaTime;
+            bool mayDrift = CurrentState == StormPyramidState.IdleHovering
+                || CurrentState == StormPyramidState.TrackingPlayer
+                || CurrentState == StormPyramidState.Cooldown;
+            if (mayDrift)
+            {
+                _movement.Tick(deltaTime);
+            }
+
+            bool mayReposition = CurrentState != StormPyramidState.ChargingAttack
+                && CurrentState != StormPyramidState.FiringLightning;
+            if (mayReposition && _movement.DistanceFromPlayer > _settings.RepositionDistance)
+            {
+                RepositionNearPlayer();
+            }
+
+            switch (CurrentState)
+            {
+                case StormPyramidState.IdleHovering:
+                    UpdateIdle(deltaTime);
+                    break;
+                case StormPyramidState.TrackingPlayer:
+                    UpdateTracking();
+                    break;
+                case StormPyramidState.ChargingAttack:
+                    UpdateCharging(deltaTime);
+                    break;
+                case StormPyramidState.FiringLightning:
+                    UpdateFiring(deltaTime);
+                    break;
+                case StormPyramidState.Cooldown:
+                    UpdateCooldown();
+                    break;
+            }
+
+            UpdatePresentation(deltaTime);
+        }
+
+        private void UpdateIdle(float deltaTime)
+        {
+            _attackTimer = Mathf.Max(0f, _attackTimer - deltaTime);
+            if (_attackTimer > 0f || !_targeting.CanTargetAirbornePlayer(transform.position))
+            {
+                return;
+            }
+
+            _trackedTarget = _targeting.GetPredictedPlayerPosition(_settings.ChargeTime);
+            SetState(StormPyramidState.TrackingPlayer);
+        }
+
+        private void UpdateTracking()
+        {
+            if (!_targeting.CanTargetAirbornePlayer(transform.position))
+            {
+                AbortAttack();
+                return;
+            }
+
+            _trackedTarget = _targeting.GetPredictedPlayerPosition(_settings.ChargeTime);
+            FacePosition(_trackedTarget);
+            if (_stateTime < _settings.TrackingDuration)
+            {
+                return;
+            }
+
+            _lightning.BeginCharge(_trackedTarget);
+            SetState(StormPyramidState.ChargingAttack);
+        }
+
+        private void UpdateCharging(float deltaTime)
+        {
+            if (!_targeting.IsPlayerAirborne())
+            {
+                AbortAttack();
+                return;
+            }
+
+            _lightning.UpdateTarget(_targeting.GetPredictedPlayerPosition(_lightning.ChargeSecondsRemaining));
+            FacePosition(_lightning.TargetPosition);
+            if (_lightning.TickCharge(deltaTime))
+            {
+                _lightning.UpdateTarget(_targeting.GetPredictedPlayerPosition(0f));
+                _lightning.Fire();
+                SetState(StormPyramidState.FiringLightning);
+            }
+        }
+
+        private void UpdateFiring(float deltaTime)
+        {
+            if (_lightning.TickFiring(deltaTime))
+            {
+                SetState(StormPyramidState.Cooldown);
+            }
+        }
+
+        private void UpdateCooldown()
+        {
+            if (_stateTime < _settings.Cooldown)
+            {
+                return;
+            }
+
+            _attackTimer = Mathf.Max(0.1f, _settings.AttackInterval);
+            SetState(StormPyramidState.IdleHovering);
+        }
+
+        private void AbortAttack()
+        {
+            _lightning.CancelAttack();
+            _attackTimer = Mathf.Max(0.1f, _settings.AttackInterval);
+            SetState(StormPyramidState.IdleHovering);
+        }
+
+        private void UpdatePresentation(float deltaTime)
+        {
+            FacePosition(_player.WorldCenter);
+            if (_visual != null)
+            {
+                _visual.Rotate(0f, 0f, _settings.RingRotationSpeed * deltaTime, Space.Self);
+            }
+            if (_firstOrbPivot != null)
+            {
+                _firstOrbPivot.Rotate(0f, 0f, _settings.FirstOrbOrbitSpeed * deltaTime, Space.Self);
+            }
+            if (_secondOrbPivot != null)
+            {
+                _secondOrbPivot.Rotate(0f, 0f, _settings.SecondOrbOrbitSpeed * deltaTime, Space.Self);
+            }
+        }
+
+        private void FacePosition(Vector3 target)
+        {
+            Vector3 direction = target - transform.position;
+            if (direction.sqrMagnitude < 0.001f)
+            {
+                return;
+            }
+            Quaternion targetRotation = Quaternion.LookRotation(direction.normalized, Vector3.up);
+            transform.rotation = Quaternion.Slerp(
+                transform.rotation,
+                targetRotation,
+                DuneVectorMath.Sharpness(_settings.FacingSharpness, Time.deltaTime));
+        }
+
+        private void RepositionNearPlayer()
+        {
+            _lightning.CancelAttack();
+            _movement.RepositionNearPlayer();
+            _attackTimer = Mathf.Max(0.1f, _settings.AttackInterval);
+            SetState(StormPyramidState.IdleHovering);
+        }
+
+        private void SetState(StormPyramidState state)
+        {
+            CurrentState = state;
+            _stateTime = 0f;
+        }
+
+        public bool TryGetThreatWarning(out StormPyramidThreatWarning warning)
+        {
+            if (_player == null || _playerHealth == null || _playerHealth.IsDead)
+            {
+                warning = default;
+                return false;
+            }
+
+            if (CurrentState == StormPyramidState.TrackingPlayer)
+            {
+                float chargeDuration = Mathf.Max(0.01f, _settings.ChargeTime);
+                float totalDuration = Mathf.Max(0.01f, _settings.TrackingDuration + chargeDuration);
+                warning = new StormPyramidThreatWarning(
+                    StormLightningAttackType.PlayerStrike,
+                    _trackedTarget,
+                    Mathf.Max(0f, _settings.TrackingDuration - _stateTime) + chargeDuration,
+                    Mathf.Clamp01(_stateTime / totalDuration));
+                return true;
+            }
+
+            if (CurrentState == StormPyramidState.ChargingAttack)
+            {
+                float totalDuration = Mathf.Max(0.01f, _settings.TrackingDuration + _settings.ChargeTime);
+                float elapsedCharge = Mathf.Max(0f, _settings.ChargeTime - _lightning.ChargeSecondsRemaining);
+                warning = new StormPyramidThreatWarning(
+                    StormLightningAttackType.PlayerStrike,
+                    _lightning.TargetPosition,
+                    _lightning.ChargeSecondsRemaining,
+                    Mathf.Clamp01((_settings.TrackingDuration + elapsedCharge) / totalDuration));
+                return true;
+            }
+
+            warning = default;
+            return false;
+        }
+
+        public void ApplyWorldShift(Vector3 shift)
+        {
+            _movement.ApplyWorldShift(shift);
+            _trackedTarget += shift;
+            _lightning.ApplyWorldShift(shift);
+        }
+    }
+
+    [DisallowMultipleComponent]
+    public sealed class PlayerStrikeOrbMovement : MonoBehaviour
+    {
+        public float DistanceFromPlayer => _player != null
+            ? Vector3.Distance(transform.position, _player.WorldCenter)
+            : 0f;
+
+        private DroneCharacterController _player;
+        private DesertWorldStreamer _world;
+        private PlayerStrikeOrbTuning _settings;
+        private Vector3 _patrolCenter;
+        private float _fixedAltitude;
+        private float _phase;
+        private int _identity;
+        private int _repositionCount;
+
+        public void Initialize(
+            DroneCharacterController player,
+            DesertWorldStreamer world,
+            PlayerStrikeOrbTuning settings,
+            int identity)
+        {
+            _player = player;
+            _world = world;
+            _settings = settings;
+            _identity = identity;
+            _phase = identity * 1.421f;
+            _patrolCenter = transform.position;
+            _fixedAltitude = transform.position.y;
+        }
+
+        public void Tick(float deltaTime)
+        {
+            float range = Mathf.Max(0f, _settings.PatrolDriftRange);
+            float speed = Mathf.Max(0f, _settings.PatrolDriftSpeed);
+            if (range > 0.001f && speed > 0.001f)
+            {
+                _phase += (speed / Mathf.Max(1f, range)) * deltaTime;
+                Vector3 target = _patrolCenter + new Vector3(
+                    Mathf.Sin(_phase) * range,
+                    0f,
+                    Mathf.Sin((_phase * 0.67f) + (_identity * 0.83f)) * range * 0.76f);
+                target.y = _fixedAltitude;
+                transform.position = Vector3.MoveTowards(transform.position, target, speed * deltaTime);
+            }
+
+            Vector3 levelPosition = transform.position;
+            levelPosition.y = _fixedAltitude;
+            transform.position = levelPosition;
+        }
+
+        public void RepositionNearPlayer()
+        {
+            _repositionCount++;
+            float angle = ((_identity * 149.3f) + (_repositionCount * 79.1f)) * Mathf.Deg2Rad;
+            float distance01 = Mathf.Repeat((_identity * 0.397f) + (_repositionCount * 0.283f), 1f);
+            float distance = Mathf.Lerp(
+                _settings.MinimumSpawnDistance,
+                Mathf.Max(_settings.MinimumSpawnDistance, _settings.MaximumSpawnDistance),
+                distance01);
+            Vector3 position = _player.WorldCenter + new Vector3(
+                Mathf.Cos(angle) * distance,
+                0f,
+                Mathf.Sin(angle) * distance);
+            float heightVariation = Mathf.Lerp(
+                -_settings.HoverHeightVariance,
+                _settings.HoverHeightVariance,
+                Mathf.Repeat((_identity * 0.593f) + (_repositionCount * 0.331f), 1f));
+            position.y = _world.SampleHeightAtLocal(position.x, position.z)
+                + _settings.HoverHeight
+                + heightVariation;
+            transform.position = position;
+            _patrolCenter = position;
+            _fixedAltitude = position.y;
+        }
+
+        public void ApplyWorldShift(Vector3 shift)
+        {
+            transform.position += shift;
+            _patrolCenter += shift;
+        }
+    }
+
+    [DisallowMultipleComponent]
+    public sealed class PlayerStrikeOrbTargeting : MonoBehaviour
+    {
+        private DroneCharacterController _player;
+        private DesertWorldStreamer _world;
+        private PlayerStrikeOrbTuning _settings;
+
+        public void Initialize(
+            DroneCharacterController player,
+            DesertWorldStreamer world,
+            PlayerStrikeOrbTuning settings)
+        {
+            _player = player;
+            _world = world;
+            _settings = settings;
+        }
+
+        public bool CanTargetAirbornePlayer(Vector3 origin)
+        {
+            return IsPlayerAirborne()
+                && Vector3.Distance(origin, _player.WorldCenter) <= _settings.DetectionRange;
+        }
+
+        public bool IsPlayerAirborne()
+        {
+            if (_player == null || _player.IsStableGrounded)
+            {
+                return false;
+            }
+
+            float groundHeight = _world.SampleHeightAtLocal(_player.WorldCenter.x, _player.WorldCenter.z);
+            return _player.WorldCenter.y - groundHeight >= _settings.MinimumTargetHeightAboveGround;
+        }
+
+        public Vector3 GetPredictedPlayerPosition(float secondsUntilImpact)
+        {
+            Vector3 velocity = _player != null && _player.Motor != null
+                ? _player.Motor.Velocity
+                : Vector3.zero;
+            float predictionTime = Mathf.Max(0f, secondsUntilImpact)
+                * Mathf.Max(0f, _settings.PredictionTimeMultiplier);
+            Vector3 prediction = velocity * predictionTime;
+            prediction = Vector3.ClampMagnitude(
+                prediction,
+                Mathf.Max(0f, _settings.MaximumPredictionDistance));
+            return _player.WorldCenter + prediction;
+        }
+    }
+
+    [DisallowMultipleComponent]
+    public sealed class PlayerStrikeOrbLightningAttack : MonoBehaviour
+    {
+        public Vector3 TargetPosition => _targetPosition;
+        public float ChargeSecondsRemaining => _charging
+            ? Mathf.Max(0f, _settings.ChargeTime - _timer)
+            : 0f;
+
+        private const int LightningSegments = 11;
+        private readonly Vector3[] _lightningPositions = new Vector3[LightningSegments];
+        private Transform _owner;
+        private Transform _origin;
+        private Transform _halo;
+        private Transform _marker;
+        private Transform _impactFlash;
+        private LineRenderer _chargeLine;
+        private LineRenderer _lightningLine;
+        private PlayerStrikeOrbTuning _settings;
+        private StormPyramidLightningDamage _damage;
+        private Vector3 _targetPosition;
+        private float _timer;
+        private int _identity;
+        private bool _charging;
+        private bool _firing;
+
+        public void Initialize(
+            Transform owner,
+            Transform origin,
+            Transform halo,
+            DuneVectorMaterials materials,
+            PlayerStrikeOrbTuning settings,
+            StormPyramidLightningDamage damage,
+            int identity)
+        {
+            _owner = owner;
+            _origin = origin != null ? origin : owner;
+            _halo = halo;
+            _settings = settings;
+            _damage = damage;
+            _identity = identity;
+            _marker = DuneVectorVisuals.CreateStormStrikeMarker(owner.parent, materials, settings.StrikeRadius);
+            _impactFlash = _marker.Find("Strike Impact Flash");
+            _chargeLine = CreateLine("Player Strike Charge Telegraph", materials.LightningWarning, settings.ChargeTelegraphWidth);
+            _lightningLine = CreateLine("Player Strike Lightning Bolt", materials.Lightning, settings.LightningWidth);
+            CancelAttack();
+        }
+
+        public void BeginCharge(Vector3 targetPosition)
+        {
+            _targetPosition = targetPosition;
+            _timer = 0f;
+            _charging = true;
+            _firing = false;
+            _marker.gameObject.SetActive(true);
+            _marker.position = targetPosition;
+            _marker.localScale = Vector3.one * _settings.ChargeMarkerStartScale;
+            if (_impactFlash != null)
+            {
+                _impactFlash.localScale = Vector3.zero;
+            }
+            _chargeLine.enabled = true;
+            _lightningLine.enabled = false;
+            UpdateChargeVisual(0f);
+        }
+
+        public void UpdateTarget(Vector3 targetPosition)
+        {
+            if (!_charging)
+            {
+                return;
+            }
+
+            _targetPosition = targetPosition;
+        }
+
+        public bool TickCharge(float deltaTime)
+        {
+            if (!_charging)
+            {
+                return false;
+            }
+            _timer += deltaTime;
+            float charge01 = Mathf.Clamp01(_timer / Mathf.Max(0.01f, _settings.ChargeTime));
+            UpdateChargeVisual(charge01);
+            return charge01 >= 1f;
+        }
+
+        public void Fire()
+        {
+            _charging = false;
+            _firing = true;
+            _timer = 0f;
+            _chargeLine.enabled = false;
+            _lightningLine.enabled = true;
+            _damage.ResolveStrike(
+                _targetPosition,
+                _settings.StrikeRadius,
+                _settings.LightningDamage,
+                "Player Strike Orb lightning");
+            UpdateLightningVisual();
+        }
+
+        public bool TickFiring(float deltaTime)
+        {
+            if (!_firing)
+            {
+                return false;
+            }
+            _timer += deltaTime;
+            UpdateLightningVisual();
+            float life01 = Mathf.Clamp01(_timer / Mathf.Max(0.01f, _settings.LightningVisualDuration));
+            if (_impactFlash != null)
+            {
+                float flash = Mathf.Sin(life01 * Mathf.PI)
+                    * _settings.StrikeRadius
+                    * _settings.ImpactFlashScaleMultiplier;
+                _impactFlash.localScale = Vector3.one * flash;
+            }
+            if (life01 < 1f)
+            {
+                return false;
+            }
+            CancelAttack();
+            return true;
+        }
+
+        public void CancelAttack()
+        {
+            _charging = false;
+            _firing = false;
+            if (_chargeLine != null) _chargeLine.enabled = false;
+            if (_lightningLine != null) _lightningLine.enabled = false;
+            if (_marker != null) _marker.gameObject.SetActive(false);
+            if (_halo != null) _halo.localScale = Vector3.zero;
+        }
+
+        public void ApplyWorldShift(Vector3 shift)
+        {
+            _targetPosition += shift;
+            if (_marker != null)
+            {
+                _marker.position += shift;
+            }
+            if (_charging)
+            {
+                float charge01 = Mathf.Clamp01(_timer / Mathf.Max(0.01f, _settings.ChargeTime));
+                UpdateChargeVisual(charge01);
+            }
+            else if (_firing)
+            {
+                UpdateLightningVisual();
+            }
+        }
+
+        private void UpdateChargeVisual(float charge01)
+        {
+            float pulse = 1f + (Mathf.Sin((Time.time * _settings.ChargePulseSpeed) + _identity)
+                * _settings.ChargePulseAmount);
+            _marker.position = _targetPosition;
+            OrientMarkerTowardOrigin();
+            _marker.localScale = Vector3.one
+                * Mathf.Lerp(_settings.ChargeMarkerStartScale, 1f, charge01)
+                * pulse;
+            if (_halo != null)
+            {
+                _halo.localScale = Vector3.one
+                    * Mathf.Lerp(_settings.ChargeHaloStartScale, _settings.ChargeHaloEndScale, charge01)
+                    * pulse;
+            }
+            _chargeLine.positionCount = 2;
+            _chargeLine.SetPosition(0, _origin.position);
+            _chargeLine.SetPosition(1, _targetPosition);
+            _chargeLine.startWidth = Mathf.Lerp(
+                _settings.ChargeTelegraphWidth * 0.25f,
+                _settings.ChargeTelegraphWidth,
+                charge01) * pulse;
+            _chargeLine.endWidth = _chargeLine.startWidth;
+        }
+
+        private void OrientMarkerTowardOrigin()
+        {
+            Vector3 direction = _origin.position - _targetPosition;
+            if (direction.sqrMagnitude > 0.001f)
+            {
+                _marker.rotation = Quaternion.FromToRotation(Vector3.up, direction.normalized);
+            }
+        }
+
+        private void UpdateLightningVisual()
+        {
+            Vector3 start = _origin.position;
+            Vector3 direction = _targetPosition - start;
+            Vector3 axis = direction.sqrMagnitude > 0.001f ? direction.normalized : Vector3.down;
+            Vector3 reference = Mathf.Abs(Vector3.Dot(axis, Vector3.up)) > 0.92f ? Vector3.right : Vector3.up;
+            Vector3 side = Vector3.Cross(axis, reference).normalized;
+            Vector3 secondSide = Vector3.Cross(axis, side).normalized;
+            float amplitude = Mathf.Min(
+                _settings.MaximumLightningJitter,
+                Mathf.Max(
+                    _settings.MinimumLightningJitter,
+                    direction.magnitude * _settings.LightningJitterPerMeter));
+            for (int i = 0; i < LightningSegments; i++)
+            {
+                float along = i / (float)(LightningSegments - 1);
+                Vector3 point = Vector3.Lerp(start, _targetPosition, along);
+                if (i > 0 && i < LightningSegments - 1)
+                {
+                    float envelope = Mathf.Sin(along * Mathf.PI);
+                    float noiseA = Mathf.Sin((Time.time * 73f) + (_identity * 4.7f) + (i * 12.31f));
+                    float noiseB = Mathf.Sin((Time.time * 91f) + (_identity * 7.1f) + (i * 8.17f));
+                    point += ((side * noiseA) + (secondSide * noiseB)) * amplitude * envelope;
+                }
+                _lightningPositions[i] = point;
+            }
+            _lightningLine.positionCount = LightningSegments;
+            _lightningLine.SetPositions(_lightningPositions);
+        }
+
+        private LineRenderer CreateLine(string objectName, Material material, float width)
+        {
+            GameObject lineObject = new GameObject(objectName);
+            lineObject.transform.SetParent(_owner, false);
+            LineRenderer line = lineObject.AddComponent<LineRenderer>();
+            line.sharedMaterial = material;
+            line.useWorldSpace = true;
+            line.alignment = LineAlignment.View;
+            line.textureMode = LineTextureMode.Stretch;
+            line.startWidth = width;
+            line.endWidth = width * _settings.LightningEndWidthMultiplier;
+            line.numCapVertices = 4;
+            line.numCornerVertices = 3;
+            line.shadowCastingMode = ShadowCastingMode.Off;
+            line.receiveShadows = false;
+            line.sortingOrder = 100;
+            line.enabled = false;
+            return line;
+        }
+
+        private void OnDestroy()
+        {
+            if (_marker != null)
+            {
+                Destroy(_marker.gameObject);
+            }
+        }
+    }
+
     [DefaultExecutionOrder(1340)]
     [DisallowMultipleComponent]
     public sealed class StormPyramidThreatHUD : MonoBehaviour
@@ -785,6 +1354,7 @@ namespace DuneVector
         private Camera _camera;
         private StormPyramidTuning _settings;
         private List<StormPyramidEnemy> _enemies;
+        private List<PlayerStrikeOrbEnemy> _orbEnemies;
         private GUIStyle _titleStyle;
         private GUIStyle _detailStyle;
         private GUIStyle _markerStyle;
@@ -795,12 +1365,14 @@ namespace DuneVector
             DroneCharacterController player,
             Camera viewCamera,
             StormPyramidTuning settings,
-            List<StormPyramidEnemy> enemies)
+            List<StormPyramidEnemy> enemies,
+            List<PlayerStrikeOrbEnemy> orbEnemies)
         {
             _player = player;
             _camera = viewCamera;
             _settings = settings;
             _enemies = enemies;
+            _orbEnemies = orbEnemies;
         }
 
         private void OnGUI()
@@ -809,7 +1381,7 @@ namespace DuneVector
             {
                 return;
             }
-            if (_player == null || _settings == null || _enemies == null)
+            if (_player == null || _settings == null || _enemies == null || _orbEnemies == null)
             {
                 return;
             }
@@ -856,6 +1428,20 @@ namespace DuneVector
                 bool threatensPlayer = candidate.Type == StormLightningAttackType.PlayerStrike
                     || targetDistance <= warningRange;
                 if (!threatensPlayer || candidate.SecondsRemaining >= bestTime)
+                {
+                    continue;
+                }
+
+                warning = candidate;
+                bestTime = candidate.SecondsRemaining;
+                found = true;
+            }
+
+            for (int i = 0; i < _orbEnemies.Count; i++)
+            {
+                PlayerStrikeOrbEnemy enemy = _orbEnemies[i];
+                if (enemy == null || !enemy.TryGetThreatWarning(out StormPyramidThreatWarning candidate) ||
+                    candidate.SecondsRemaining >= bestTime)
                 {
                     continue;
                 }
@@ -1025,11 +1611,13 @@ namespace DuneVector
     {
         private readonly List<StormPyramidEnemy> _enemies = new List<StormPyramidEnemy>();
         private readonly List<StormPyramidEnemy> _contractEnemies = new List<StormPyramidEnemy>();
+        private readonly List<PlayerStrikeOrbEnemy> _orbEnemies = new List<PlayerStrikeOrbEnemy>();
         private DroneCharacterController _player;
         private DroneHealth _playerHealth;
         private DesertWorldStreamer _world;
         private DuneVectorMaterials _materials;
         private StormPyramidTuning _settings;
+        private PlayerStrikeOrbTuning _orbSettings;
         private StormPyramidThreatHUD _warningHud;
 
         public void Initialize(
@@ -1037,23 +1625,37 @@ namespace DuneVector
             DroneHealth playerHealth,
             DesertWorldStreamer world,
             DuneVectorMaterials materials,
-            StormPyramidTuning settings)
+            StormPyramidTuning settings,
+            PlayerStrikeOrbTuning orbSettings)
         {
             _player = player;
             _playerHealth = playerHealth;
             _world = world;
             _materials = materials;
             _settings = settings;
+            _orbSettings = orbSettings;
             _world.WorldShifted += HandleWorldShift;
             System.Random random = new System.Random(unchecked(world.WorldSeed ^ 0x2749a31));
-            int count = Mathf.Max(1, settings.EnemyCount);
-            for (int i = 0; i < count; i++)
+            if (settings.Enabled)
             {
-                SpawnEnemy(random, $"Storm Pyramid {i + 1:00}", i + 1);
+                int count = Mathf.Max(1, settings.EnemyCount);
+                for (int i = 0; i < count; i++)
+                {
+                    SpawnEnemy(random, $"Storm Pyramid {i + 1:00}", i + 1);
+                }
+            }
+
+            if (orbSettings.Enabled)
+            {
+                int count = Mathf.Max(1, orbSettings.EnemyCount);
+                for (int i = 0; i < count; i++)
+                {
+                    SpawnOrbEnemy(random, $"Player Strike Orb {i + 1:00}", 10000 + i + 1);
+                }
             }
 
             _warningHud = gameObject.AddComponent<StormPyramidThreatHUD>();
-            _warningHud.Initialize(player, Camera.main, settings, _enemies);
+            _warningHud.Initialize(player, Camera.main, settings, _enemies, _orbEnemies);
         }
 
         public void SetContractBonusEnemies(int count, int seed)
@@ -1122,6 +1724,35 @@ namespace DuneVector
             return enemy;
         }
 
+        private PlayerStrikeOrbEnemy SpawnOrbEnemy(System.Random random, string objectName, int identity)
+        {
+            float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
+            float distance = Mathf.Lerp(
+                _orbSettings.MinimumSpawnDistance,
+                Mathf.Max(_orbSettings.MinimumSpawnDistance, _orbSettings.MaximumSpawnDistance),
+                (float)random.NextDouble());
+            Vector3 playerPosition = _player.WorldCenter;
+            Vector3 spawnPosition = playerPosition + new Vector3(
+                Mathf.Cos(angle) * distance,
+                0f,
+                Mathf.Sin(angle) * distance);
+            float heightVariation = Mathf.Lerp(
+                -_orbSettings.HoverHeightVariance,
+                _orbSettings.HoverHeightVariance,
+                (float)random.NextDouble());
+            spawnPosition.y = _world.SampleHeightAtLocal(spawnPosition.x, spawnPosition.z)
+                + _orbSettings.HoverHeight
+                + heightVariation;
+
+            GameObject enemyObject = new GameObject(objectName);
+            enemyObject.transform.SetParent(transform, true);
+            enemyObject.transform.position = spawnPosition;
+            PlayerStrikeOrbEnemy enemy = enemyObject.AddComponent<PlayerStrikeOrbEnemy>();
+            enemy.Initialize(_player, _playerHealth, _world, _materials, _orbSettings, identity);
+            _orbEnemies.Add(enemy);
+            return enemy;
+        }
+
         public void SetGameplayActive(bool active)
         {
             enabled = active;
@@ -1130,6 +1761,13 @@ namespace DuneVector
                 if (_enemies[i] != null)
                 {
                     _enemies[i].enabled = active;
+                }
+            }
+            for (int i = 0; i < _orbEnemies.Count; i++)
+            {
+                if (_orbEnemies[i] != null)
+                {
+                    _orbEnemies[i].enabled = active;
                 }
             }
             if (_warningHud != null)
@@ -1145,6 +1783,13 @@ namespace DuneVector
                 if (_enemies[i] != null)
                 {
                     _enemies[i].ApplyWorldShift(shift);
+                }
+            }
+            for (int i = 0; i < _orbEnemies.Count; i++)
+            {
+                if (_orbEnemies[i] != null)
+                {
+                    _orbEnemies[i].ApplyWorldShift(shift);
                 }
             }
         }

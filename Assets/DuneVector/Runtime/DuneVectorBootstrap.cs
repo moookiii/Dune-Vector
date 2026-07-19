@@ -35,6 +35,7 @@ namespace DuneVector
         public EnergyLauncherTuning EnergyLauncherSettings => RuntimeSettings.EnergyLauncher;
         public FlyingEnemyTuning FlyingEnemies => RuntimeSettings.FlyingEnemies;
         public StormPyramidTuning StormPyramids => RuntimeSettings.StormPyramids;
+        public PlayerStrikeOrbTuning PlayerStrikeOrbs => RuntimeSettings.PlayerStrikeOrbs;
         public GroundExploderTuning GroundExploders => RuntimeSettings.GroundExploders;
         public RingTuning Rings => RuntimeSettings.Rings;
         public DuneFieldSettings DuneGeneration
@@ -320,6 +321,7 @@ namespace DuneVector
                 DroneVisuals,
                 RuntimeSettings.Geoglyphs);
             _materials.ConfigureStormPyramid(StormPyramids);
+            _materials.ConfigurePlayerStrikeOrb(PlayerStrikeOrbs);
 
             BuildEnvironment();
             BuildWorld();
@@ -687,12 +689,18 @@ namespace DuneVector
                 EnemyDirector.Initialize(Drone, DroneHealth, World, _materials, FlyingEnemies);
             }
 
-            if (StormPyramids.Enabled)
+            if (StormPyramids.Enabled || PlayerStrikeOrbs.Enabled)
             {
-                GameObject stormObject = new GameObject("Storm Pyramid Director");
+                GameObject stormObject = new GameObject("Storm Lightning Enemy Director");
                 stormObject.transform.SetParent(transform, false);
                 StormPyramidDirector = stormObject.AddComponent<DuneVectorStormPyramidDirector>();
-                StormPyramidDirector.Initialize(Drone, DroneHealth, World, _materials, StormPyramids);
+                StormPyramidDirector.Initialize(
+                    Drone,
+                    DroneHealth,
+                    World,
+                    _materials,
+                    StormPyramids,
+                    PlayerStrikeOrbs);
             }
         }
 

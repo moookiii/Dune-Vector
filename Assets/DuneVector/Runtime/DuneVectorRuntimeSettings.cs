@@ -1095,20 +1095,15 @@ namespace DuneVector
         [Min(0f)] public float PatrolDriftSpeed = 3f;
 
         [Header("Targeting")]
+        [Tooltip("Ground strikes show a nearby warning when the impact point is inside this range of the drone.")]
         [Min(1f)] public float DetectionRange = 125f;
-        [Tooltip("Time spent visibly tracking before the attack point is locked.")]
-        [Min(0f)] public float TrackingDuration = 0.45f;
 
         [Header("Lightning Attack")]
         [Tooltip("Delay before beginning another straight-down ground strike after returning to idle.")]
         [Min(0.1f)] public float AttackInterval = 4.5f;
-        [Tooltip("Delay before beginning another player-targeted strike after returning to idle.")]
-        [Min(0.1f)] public float PlayerStrikeAttackInterval = 4.5f;
         [Tooltip("Charge duration for a straight-down ground strike.")]
         [InspectorName("Ground Strike Charge Time")]
         [Min(0.1f)] public float ChargeTime = 1.15f;
-        [Tooltip("Charge duration for a player-targeted strike that is not straight down.")]
-        [Min(0.1f)] public float PlayerStrikeChargeTime = 0.9f;
         [Min(0f)] public float Cooldown = 2.4f;
         [Min(0f)] public float LightningDamage = 32f;
         [Min(0.1f)] public float StrikeRadius = 5.5f;
@@ -1167,6 +1162,80 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color LightningEmission = new Color(7.5f, 12f, 18f);
         [ColorUsage(false)] public Color WarningColor = new Color(0.18f, 0.42f, 0.62f);
         [ColorUsage(false, true)] public Color WarningEmission = new Color(0.45f, 2.8f, 5.8f);
+    }
+
+    [System.Serializable]
+    public sealed class PlayerStrikeOrbTuning
+    {
+        public bool Enabled = true;
+        [Min(1f)] public float MaximumHealth = 110f;
+        [Min(0)] public int GoldReward = 55;
+
+        [Header("Spawning")]
+        [Range(1, 10)] public int EnemyCount = 2;
+        [Min(20f)] public float MinimumSpawnDistance = 120f;
+        [Min(20f)] public float MaximumSpawnDistance = 240f;
+        [Min(50f)] public float RepositionDistance = 390f;
+
+        [Header("High-Altitude Patrol")]
+        [Min(10f)] public float HoverHeight = 68f;
+        [Min(0f)] public float HoverHeightVariance = 14f;
+        [Min(0f)] public float PatrolDriftRange = 20f;
+        [Min(0f)] public float PatrolDriftSpeed = 5f;
+
+        [Header("Airborne Player Targeting")]
+        [Min(1f)] public float DetectionRange = 155f;
+        [Tooltip("The drone must be at least this far above the dune surface before this enemy can attack it.")]
+        [Min(0f)] public float MinimumTargetHeightAboveGround = 3f;
+        [Tooltip("Time spent visibly following the airborne drone before locking the predicted strike point.")]
+        [Min(0f)] public float TrackingDuration = 0.55f;
+        [Tooltip("Multiplier applied to the exact time remaining until impact when predicting the drone's future position. A value of 1 aims at a constant-velocity intercept.")]
+        [Min(0f)] public float PredictionTimeMultiplier = 1f;
+        [Tooltip("Maximum distance the predicted strike point can lead ahead of the drone.")]
+        [Min(0f)] public float MaximumPredictionDistance = 55f;
+
+        [Header("Player Lightning Strike")]
+        [Min(0.1f)] public float AttackInterval = 5.25f;
+        [Range(0f, 1f)] public float MinimumInitialAttackDelayMultiplier = 0.35f;
+        [Min(0.1f)] public float ChargeTime = 1.15f;
+        [Min(0f)] public float Cooldown = 2.5f;
+        [Min(0f)] public float LightningDamage = 34f;
+        [Min(0.1f)] public float StrikeRadius = 4.25f;
+        [Min(0.05f)] public float LightningVisualDuration = 0.32f;
+        [Min(0.01f)] public float ChargeTelegraphWidth = 0.14f;
+        [Min(0.01f)] public float LightningWidth = 0.52f;
+        [Min(0f)] public float ChargePulseSpeed = 12f;
+        [Range(0f, 0.5f)] public float ChargePulseAmount = 0.12f;
+        [Min(0.01f)] public float ChargeMarkerStartScale = 0.25f;
+        [Min(0.01f)] public float ChargeHaloStartScale = 0.35f;
+        [Min(0.01f)] public float ChargeHaloEndScale = 1.15f;
+        [Min(0f)] public float ImpactFlashScaleMultiplier = 0.34f;
+        [Min(0f)] public float MinimumLightningJitter = 0.35f;
+        [Min(0f)] public float MaximumLightningJitter = 2.2f;
+        [Min(0f)] public float LightningJitterPerMeter = 0.022f;
+        [Range(0.1f, 1f)] public float LightningEndWidthMultiplier = 0.65f;
+
+        [Header("Presentation")]
+        [Min(0.1f)] public float VisualScale = 2.35f;
+        [Min(0.1f)] public float RingRadius = 1.55f;
+        [Min(0.01f)] public float RingThickness = 0.2f;
+        [Min(0.01f)] public float InnerRingThickness = 0.055f;
+        [Min(0.05f)] public float OrbitingOrbRadius = 0.3f;
+        [Min(0.1f)] public float OrbitRadius = 2.2f;
+        public float FirstOrbOrbitSpeed = 58f;
+        public float SecondOrbOrbitSpeed = -91f;
+        [Range(0f, 360f)] public float FirstOrbStartAngle = 35f;
+        [Range(0f, 360f)] public float SecondOrbStartAngle = 215f;
+        [Range(-85f, 85f)] public float FirstOrbOrbitTilt = 24f;
+        [Range(-85f, 85f)] public float SecondOrbOrbitTilt = -38f;
+        [Min(0.1f)] public float ChargeHaloRadius = 1.9f;
+        [Min(0.01f)] public float ChargeHaloThickness = 0.075f;
+        [Min(0f)] public float RingRotationSpeed = 18f;
+        [Min(0f)] public float FacingSharpness = 9f;
+        [ColorUsage(false)] public Color BodyColor = new Color(0.018f, 0.028f, 0.07f);
+        [ColorUsage(false, true)] public Color BodyEmission = new Color(0.08f, 0.18f, 0.8f);
+        [ColorUsage(false)] public Color OrbColor = new Color(0.08f, 0.3f, 0.48f);
+        [ColorUsage(false, true)] public Color OrbEmission = new Color(0.35f, 3.5f, 6.8f);
     }
 
     [System.Serializable]
@@ -1832,6 +1901,9 @@ namespace DuneVector
         [Tooltip("High-altitude upside-down pyramid lightning turrets.")]
         public StormPyramidTuning StormPyramids = new StormPyramidTuning();
 
+        [Tooltip("High-altitude ring enemies that predict and strike only airborne players.")]
+        public PlayerStrikeOrbTuning PlayerStrikeOrbs = new PlayerStrikeOrbTuning();
+
         [Tooltip("Ground enemy spawning, patrol, and explosion behavior.")]
         public GroundExploderTuning GroundExploders = new GroundExploderTuning();
 
@@ -1884,6 +1956,7 @@ namespace DuneVector
             EnergyLauncher ??= new EnergyLauncherTuning();
             FlyingEnemies ??= new FlyingEnemyTuning();
             StormPyramids ??= new StormPyramidTuning();
+            PlayerStrikeOrbs ??= new PlayerStrikeOrbTuning();
             GroundExploders ??= new GroundExploderTuning();
             Rings ??= new RingTuning();
             PermanentUpgrades ??= new DronePermanentUpgradeTuning();
