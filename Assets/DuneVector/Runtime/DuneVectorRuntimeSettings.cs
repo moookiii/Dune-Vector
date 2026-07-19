@@ -137,8 +137,6 @@ namespace DuneVector
         [Min(1f)] public float DetectionRange = 125f;
         [Tooltip("Time spent visibly tracking before the attack point is locked.")]
         [Min(0f)] public float TrackingDuration = 0.45f;
-        [Tooltip("Seconds of player velocity used when predicting an aerial strike point.")]
-        [Min(0f)] public float PlayerPredictionTime = 0.32f;
 
         [Header("Lightning Attack")]
         [Tooltip("Delay before beginning a new attack after returning to idle.")]
