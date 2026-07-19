@@ -6,205 +6,42 @@ using UnityEngine.Rendering.HighDefinition;
 
 namespace DuneVector
 {
-    public enum DuneGenerationPreset
-    {
-        ClassicDesert,
-        GentleCinematic,
-        GrandErg,
-        SharpRidges,
-        WindCarved,
-        RoundedWindDunes,
-        WindRibbonDunes,
-        GrandWindSwells,
-        RollingSandSea,
-        FineRipples,
-        ExtremeDunes,
-    }
-
-    [System.Serializable]
-    public sealed class CloudTuning
-    {
-        public bool Enabled = true;
-        [Range(4, 30)] public int ClusterCount = 14;
-        [Min(20f)] public float Altitude = 82f;
-        [Min(50f)] public float FieldRadius = 250f;
-        [Min(0f)] public float DriftSpeed = 2.2f;
-    }
-
-    [System.Serializable]
-    public sealed class DeliveryTuning
-    {
-        public bool Enabled = true;
-        public bool RandomizeLocationsEachPlay = true;
-        public int JobSeedOffset;
-        [Min(20f)] public float MinimumPickupDistance = 75f;
-        [Min(20f)] public float MaximumPickupDistance = 145f;
-        [Min(20f)] public float MinimumDeliveryDistance = 110f;
-        [Min(20f)] public float MaximumDeliveryDistance = 210f;
-        [Min(1f)] public float ObjectiveRingRadius = 3.2f;
-        [Min(0f)] public float ObjectiveRingHeight = 3.4f;
-        [Min(0.1f)] public float PackageScale = 0.8f;
-    }
-
-    [System.Serializable]
-    public sealed class PyramidTuning
-    {
-        [Min(0f)] public float DensityPerChunk = 0.22f;
-        [Min(0.1f)] public float MinimumScale = 2f;
-        [Min(0.1f)] public float MaximumScale = 4.4f;
-    }
-
-    [System.Serializable]
-    public sealed class PlayerHealthTuning
-    {
-        [Min(1f)] public float MaximumHealth = 100f;
-        [Min(0f)] public float DamageInvulnerability = 0.45f;
-    }
-
-    [System.Serializable]
-    public sealed class FlyingEnemyTuning
-    {
-        public bool Enabled = true;
-        [Range(1, 12)] public int EnemyCount = 3;
-        [Min(10f)] public float MinimumSpawnDistance = 55f;
-        [Min(10f)] public float MaximumSpawnDistance = 105f;
-        [Min(1f)] public float DetectionRange = 125f;
-        [Min(1f)] public float HoverHeight = 20f;
-        [Min(0f)] public float HoverAmplitude = 1.1f;
-        [Min(0f)] public float FollowSpeed = 11f;
-        [Min(0f)] public float AttackSpeed = 38f;
-        [Min(0.1f)] public float AttackCooldown = 3.5f;
-        [Min(0.25f)] public float AttackAlignmentDistance = 4f;
-        [Min(0f)] public float ImpactDamage = 25f;
-        [Min(0.1f)] public float ImpactRadius = 3.4f;
-        [Min(0f)] public float StuckDuration = 2.2f;
-        [Min(0f)] public float ReturnSpeed = 13f;
-        [Min(20f)] public float RepositionDistance = 240f;
-        [Min(0.1f)] public float VisualScale = 1.35f;
-    }
-
-    [System.Serializable]
-    public sealed class RingTuning
-    {
-        [Header("Starting Size")]
-        [Min(0.75f)] public float GroundRingRadius = 3.25f;
-        [Min(0.75f)] public float FlightRingRadius = 3.55f;
-
-        [Header("Height Above Ground")]
-        [Min(0f)] public float GroundRingMinimumHeight = 1.75f;
-        [Min(0f)] public float GroundRingMaximumHeight = 3.25f;
-        [Min(0f)] public float FlightRingMinimumHeight = 5f;
-        [Min(0f)] public float FlightRingMaximumHeight = 8f;
-
-        [Header("Active Size")]
-        [Min(1f)] public float BoostRingActiveScale = 1.45f;
-        [InspectorName("Flight Ring Active Scale")]
-        [Min(1f)] public float FlightModeScale = 1.45f;
-        [Min(0f)] public float ScaleSharpness = 4.5f;
-    }
-
-    [System.Serializable]
-    public sealed class DroneTuning
-    {
-        [Header("Ground Movement")]
-        [Min(0f)] public float MaxGroundSpeed = 18f;
-        [Min(0f)] public float GroundMovementSharpness = 8.5f;
-        [Min(0f)] public float GroundBrakingSharpness = 5.5f;
-        [Tooltip("Maximum ground heading change in degrees per second. The reference motion is approximately 35 degrees per second.")]
-        [Min(0f)] public float GroundYawRate = 35f;
-        [Tooltip("How quickly the forward velocity vector follows the new heading. Keep this slightly below Ground Yaw Rate for a gentle momentum arc.")]
-        [Min(0f)] public float GroundVelocityTurnRate = 32f;
-        [Min(0f)] public float TrailMinimumSpeed = 0.35f;
-
-        [Header("Jump")]
-        [Min(0f)] public float JumpSpeed = 13f;
-
-        [Header("Boost Rings")]
-        [Min(0f)] public float BoostAcceleration = 9.5f;
-        [Min(0f)] public float BoostDuration = 2.6f;
-        [Min(0f)] public float BoostMaxSpeed = 39f;
-
-        [Header("Ring Entry Burst")]
-        [Min(1f)] public float RingBurstSpeedMultiplier = 1.45f;
-        [Min(0.05f)] public float RingBurstDuration = 0.7f;
-        [Min(0f)] public float RingBurstAcceleration = 28f;
-
-        [Header("Flight")]
-        [Min(0f)] public float FlightSpeed = 27f;
-        [Min(0f)] public float MaximumFlightSpeed = 38f;
-        [Min(0f)] public float FlightAcceleration = 3.8f;
-        [Min(0f)] public float FlightSteeringSharpness = 10f;
-        [Min(0f)] public float FlightYawRate = 125f;
-        [Min(0.1f)] public float FlightDuration = 14f;
-        [Min(0f)] public float GroundFlightLaunchDelay = 0.5f;
-
-        [Header("Camera")]
-        [Min(0f)] public float CameraLookSensitivity = 0.085f;
-        [Min(0f)] public float CameraRotationSharpness = 30f;
-        [Min(0f)] public float CameraFollowSharpness = 4.2f;
-
-        public void ApplyTo(DroneCharacterController drone)
-        {
-            drone.MaxGroundSpeed = MaxGroundSpeed;
-            drone.GroundMovementSharpness = GroundMovementSharpness;
-            drone.GroundBrakingSharpness = GroundBrakingSharpness;
-            drone.GroundYawRate = GroundYawRate;
-            drone.GroundVelocityTurnRate = GroundVelocityTurnRate;
-            drone.TrailMinimumSpeed = TrailMinimumSpeed;
-            drone.JumpSpeed = JumpSpeed;
-            drone.BoostAcceleration = BoostAcceleration;
-            drone.BoostDuration = BoostDuration;
-            drone.BoostMaxSpeed = BoostMaxSpeed;
-            drone.RingBurstSpeedMultiplier = RingBurstSpeedMultiplier;
-            drone.RingBurstDuration = RingBurstDuration;
-            drone.RingBurstAcceleration = RingBurstAcceleration;
-            drone.FlightSpeed = FlightSpeed;
-            drone.MaximumFlightSpeed = MaximumFlightSpeed;
-            drone.FlightAcceleration = FlightAcceleration;
-            drone.FlightSteeringSharpness = FlightSteeringSharpness;
-            drone.FlightYawRate = FlightYawRate;
-            drone.FlightDuration = FlightDuration;
-            drone.GroundFlightLaunchDelay = GroundFlightLaunchDelay;
-        }
-
-        public void ApplyTo(DroneCameraController camera)
-        {
-            camera.LookSensitivity = CameraLookSensitivity;
-            camera.RotationSharpness = CameraRotationSharpness;
-            camera.FollowingSharpness = CameraFollowSharpness;
-        }
-    }
-
     [DefaultExecutionOrder(-1000)]
     [DisallowMultipleComponent]
     public sealed class DuneVectorBootstrap : MonoBehaviour
     {
-        [Header("Player Tuning")]
-        public DroneTuning PlayerTuning = new DroneTuning();
+        [Header("Runtime Configuration")]
+        [Tooltip("Reusable asset containing every gameplay and world-generation tuning value.")]
+        public DuneVectorRuntimeSettings RuntimeSettings;
 
-        [Header("Clouds")]
-        public CloudTuning Clouds = new CloudTuning();
-
-        [Header("Pickup and Delivery")]
-        public DeliveryTuning Deliveries = new DeliveryTuning();
-
-        [Header("Pyramids")]
-        public PyramidTuning Pyramids = new PyramidTuning();
-
-        [Header("Player Health")]
-        public PlayerHealthTuning HealthSettings = new PlayerHealthTuning();
-
-        [Header("Flying Enemies")]
-        public FlyingEnemyTuning FlyingEnemies = new FlyingEnemyTuning();
-
-        [Header("Rings")]
-        public RingTuning Rings = new RingTuning();
-
-        [Header("Dune Generation")]
-        public DuneFieldSettings DuneGeneration = new DuneFieldSettings();
-        [Range(8, 96)] public int DuneMeshResolution = 32;
-        [Min(24f)] public float DuneChunkSize = 80f;
-        [HideInInspector] public DuneGenerationPreset SelectedDunePreset = DuneGenerationPreset.ClassicDesert;
+        public DroneTuning PlayerTuning => RuntimeSettings.PlayerTuning;
+        public CloudTuning Clouds => RuntimeSettings.Clouds;
+        public DeliveryTuning Deliveries => RuntimeSettings.Deliveries;
+        public PyramidTuning Pyramids => RuntimeSettings.Pyramids;
+        public PlayerHealthTuning HealthSettings => RuntimeSettings.HealthSettings;
+        public FlyingEnemyTuning FlyingEnemies => RuntimeSettings.FlyingEnemies;
+        public GroundExploderTuning GroundExploders => RuntimeSettings.GroundExploders;
+        public RingTuning Rings => RuntimeSettings.Rings;
+        public DuneFieldSettings DuneGeneration
+        {
+            get => RuntimeSettings.DuneGeneration;
+            private set => RuntimeSettings.DuneGeneration = value;
+        }
+        public int DuneMeshResolution
+        {
+            get => RuntimeSettings.DuneMeshResolution;
+            private set => RuntimeSettings.DuneMeshResolution = value;
+        }
+        public float DuneChunkSize
+        {
+            get => RuntimeSettings.DuneChunkSize;
+            private set => RuntimeSettings.DuneChunkSize = value;
+        }
+        public DuneGenerationPreset SelectedDunePreset
+        {
+            get => RuntimeSettings.SelectedDunePreset;
+            set => RuntimeSettings.SelectedDunePreset = value;
+        }
 
         public static DuneVectorBootstrap Instance { get; private set; }
 
@@ -221,6 +58,7 @@ namespace DuneVector
 
         private DuneVectorMaterials _materials;
         private VolumeProfile _runtimeVolumeProfile;
+        private bool _ownsRuntimeSettings;
 
         public void ApplyDunePreset(DuneGenerationPreset preset)
         {
@@ -427,38 +265,17 @@ namespace DuneVector
             }
             Instance = this;
 
-            if (PlayerTuning == null)
+            if (RuntimeSettings == null)
             {
-                PlayerTuning = new DroneTuning();
+                RuntimeSettings = ScriptableObject.CreateInstance<DuneVectorRuntimeSettings>();
+                RuntimeSettings.name = "Temporary Dune Vector Runtime Settings";
+                _ownsRuntimeSettings = true;
+                Debug.LogWarning(
+                    "Dune Vector Bootstrap has no Runtime Settings asset assigned. " +
+                    "Temporary defaults will be used for this session.",
+                    this);
             }
-            if (Clouds == null)
-            {
-                Clouds = new CloudTuning();
-            }
-            if (Deliveries == null)
-            {
-                Deliveries = new DeliveryTuning();
-            }
-            if (Pyramids == null)
-            {
-                Pyramids = new PyramidTuning();
-            }
-            if (HealthSettings == null)
-            {
-                HealthSettings = new PlayerHealthTuning();
-            }
-            if (FlyingEnemies == null)
-            {
-                FlyingEnemies = new FlyingEnemyTuning();
-            }
-            if (Rings == null)
-            {
-                Rings = new RingTuning();
-            }
-            if (DuneGeneration == null)
-            {
-                DuneGeneration = new DuneFieldSettings();
-            }
+            RuntimeSettings.EnsureInitialized();
 
             QualitySettings.vSyncCount = 1;
             Application.targetFrameRate = -1;
@@ -492,6 +309,7 @@ namespace DuneVector
             World.PyramidDensity = Pyramids.DensityPerChunk;
             World.PyramidMinimumScale = Pyramids.MinimumScale;
             World.PyramidMaximumScale = Pyramids.MaximumScale;
+            World.GroundExploders = GroundExploders;
             World.Initialize(_materials);
         }
 
@@ -556,7 +374,7 @@ namespace DuneVector
             Player.InputSource = input;
             Player.Health = DroneHealth;
 
-            World.BindPlayer(Drone, DroneCamera);
+            World.BindPlayer(Drone, DroneCamera, DroneHealth);
             if (CloudField != null)
             {
                 CloudField.FollowTarget = Drone.transform;
@@ -681,6 +499,10 @@ namespace DuneVector
             if (_runtimeVolumeProfile != null)
             {
                 Destroy(_runtimeVolumeProfile);
+            }
+            if (_ownsRuntimeSettings && RuntimeSettings != null)
+            {
+                Destroy(RuntimeSettings);
             }
         }
     }

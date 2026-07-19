@@ -22,6 +22,8 @@ namespace DuneVector
         public Material DeliveryRing { get; }
         public Material EnemyBody { get; }
         public Material EnemyCore { get; }
+        public Material GroundEnemyBody { get; }
+        public Material GroundEnemyWarning { get; }
 
         private readonly List<Material> _ownedMaterials = new List<Material>();
 
@@ -42,6 +44,8 @@ namespace DuneVector
             DeliveryRing = CreateLit("Job Ring - Delivery", new Color(0.015f, 0.42f, 0.12f), 0.68f, 0.28f, new Color(0.05f, 3.8f, 0.45f));
             EnemyBody = CreateLit("Sky Piercer - Body", new Color(0.13f, 0.025f, 0.035f), 0.48f, 0.72f, new Color(1.7f, 0.035f, 0.06f));
             EnemyCore = CreateLit("Sky Piercer - Core", new Color(0.008f, 0.004f, 0.012f), 0.82f, 0.18f, new Color(3.2f, 0.02f, 0.55f));
+            GroundEnemyBody = CreateLit("Ground Exploder - Body", new Color(0.055f, 0.045f, 0.04f), 0.5f, 0.78f, new Color(0.16f, 0.025f, 0.005f));
+            GroundEnemyWarning = CreateLit("Ground Exploder - Warning", new Color(0.46f, 0.055f, 0.008f), 0.62f, 0.3f, new Color(5.2f, 0.32f, 0.015f));
         }
 
         public void Dispose()
@@ -340,6 +344,115 @@ namespace DuneVector
                 materials.EnemyCore);
             core.gameObject.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
             return root;
+        }
+
+        public static Transform CreateGroundExploderVisual(Transform parent, DuneVectorMaterials materials, float scale)
+        {
+            GameObject rootObject = new GameObject("Kinematic Spiked Exploder Visual");
+            Transform root = rootObject.transform;
+            root.SetParent(parent, false);
+            root.localScale = Vector3.one * scale;
+
+            GameObject wheel = CreateMeshObject(
+                "Spiked Hollow Wheel",
+                root,
+                GetGroundExploderWheelMesh(),
+                materials.GroundEnemyBody);
+            wheel.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+
+            GameObject warningRing = CreateMeshObject(
+                "Warning Ring",
+                root,
+                GetTorusMesh(0.7f, 0.065f, 40, 6),
+                materials.GroundEnemyWarning);
+            warningRing.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
+            DisableRendererShadows(warningRing);
+
+            for (int i = 0; i < 2; i++)
+            {
+                GameObject ring = CreateMeshObject(
+                    $"Telegraph Ring {i + 1}",
+                    root,
+                    GetTorusMesh(1.25f + (i * 0.32f), 0.055f, 40, 6),
+                    materials.GroundEnemyWarning);
+                ring.transform.localPosition = new Vector3(0f, -1.04f + (i * 0.025f), 0f);
+                ring.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                ring.transform.localScale = Vector3.zero;
+                DisableRendererShadows(ring);
+            }
+
+            Transform flash = CreatePart(
+                PrimitiveType.Sphere,
+                "Explosion Flash",
+                root,
+                Vector3.up * 0.18f,
+                Vector3.zero,
+                Quaternion.identity,
+                materials.GroundEnemyWarning);
+            DisableRendererShadows(flash.gameObject);
+            return root;
+        }
+
+        private static Mesh GetGroundExploderWheelMesh()
+        {
+            const string key = "ground-exploder-spiked-wheel";
+            if (MeshCache.TryGetValue(key, out Mesh cached) && cached != null)
+            {
+                return cached;
+            }
+
+            const int spikeCount = 9;
+            const int segmentsPerSpike = 8;
+            const int segmentCount = spikeCount * segmentsPerSpike;
+            const float innerRadius = 0.67f;
+            const float outerRadius = 1.08f;
+            const float halfDepth = 0.16f;
+            float[] spikeLengths = { 0.48f, 0.7f, 0.42f, 0.62f, 0.5f, 0.76f, 0.45f, 0.66f, 0.54f };
+
+            Vector3[] vertices = new Vector3[segmentCount * 4];
+            int[] triangles = new int[segmentCount * 24];
+            for (int i = 0; i < segmentCount; i++)
+            {
+                int spike = i / segmentsPerSpike;
+                int withinSpike = i % segmentsPerSpike;
+                float spike01 = withinSpike / (float)segmentsPerSpike;
+                float triangularSpike = Mathf.Max(0f, 1f - Mathf.Abs(spike01 - 0.5f) / 0.22f);
+                float radius = outerRadius + (spikeLengths[spike] * triangularSpike);
+                float angle = (i / (float)segmentCount) * Mathf.PI * 2f;
+                Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                int vertex = i * 4;
+                vertices[vertex] = new Vector3(direction.x * innerRadius, direction.y * innerRadius, halfDepth);
+                vertices[vertex + 1] = new Vector3(direction.x * radius, direction.y * radius, halfDepth);
+                vertices[vertex + 2] = new Vector3(direction.x * innerRadius, direction.y * innerRadius, -halfDepth);
+                vertices[vertex + 3] = new Vector3(direction.x * radius, direction.y * radius, -halfDepth);
+            }
+
+            int triangle = 0;
+            for (int i = 0; i < segmentCount; i++)
+            {
+                int next = (i + 1) % segmentCount;
+                int a = i * 4;
+                int b = next * 4;
+                int[] faces =
+                {
+                    a, a + 1, b + 1, a, b + 1, b,
+                    a + 2, b + 3, a + 3, a + 2, b + 2, b + 3,
+                    a + 1, a + 3, b + 3, a + 1, b + 3, b + 1,
+                    a, b + 2, a + 2, a, b, b + 2,
+                };
+                for (int face = 0; face < faces.Length; face++)
+                {
+                    triangles[triangle++] = faces[face];
+                }
+            }
+
+            Mesh mesh = new Mesh { name = "Kinematic Spiked Hollow Exploder" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            MeshCache[key] = mesh;
+            return mesh;
         }
 
         private static Mesh GetEnemyBodyMesh()

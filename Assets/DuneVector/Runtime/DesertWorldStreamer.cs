@@ -34,6 +34,9 @@ namespace DuneVector
         [Header("Ring Sizes")]
         public RingTuning Rings = new RingTuning();
 
+        [Header("Ground Explosive Enemies")]
+        public GroundExploderTuning GroundExploders = new GroundExploderTuning();
+
         [Header("Debug")]
         public bool DrawChunkBounds;
 
@@ -69,6 +72,7 @@ namespace DuneVector
         private DuneVectorMaterials _materials;
         private Transform _chunkRoot;
         private DroneCharacterController _player;
+        private DroneHealth _playerHealth;
         private KinematicCharacterMotor _motor;
         private DroneCameraController _camera;
         private Vector2Int _lastScheduledChunk = new Vector2Int(int.MinValue, int.MinValue);
@@ -85,6 +89,7 @@ namespace DuneVector
             _initialized = true;
             _materials = materials ?? throw new ArgumentNullException(nameof(materials));
             Rings ??= new RingTuning();
+            GroundExploders ??= new GroundExploderTuning();
             Dunes.WorldSeed = WorldSeed;
             HeightField = new DuneHeightField(Dunes);
 
@@ -103,14 +108,15 @@ namespace DuneVector
             CurrentLogicalChunk = initialChunk;
         }
 
-        public void BindPlayer(DroneCharacterController player, DroneCameraController camera)
+        public void BindPlayer(DroneCharacterController player, DroneCameraController camera, DroneHealth playerHealth = null)
         {
             _player = player;
+            _playerHealth = playerHealth;
             _motor = player != null ? player.Motor : null;
             _camera = camera;
             foreach (DesertChunk chunk in _chunks.Values)
             {
-                chunk.BindPlayer(player);
+                chunk.BindPlayer(player, playerHealth);
             }
             ScheduleStreaming(force: true);
         }
@@ -272,6 +278,7 @@ namespace DuneVector
                 HeightField,
                 _materials,
                 _player,
+                _playerHealth,
                 WorldSeed,
                 CactusDensity,
                 PyramidDensity,
@@ -279,7 +286,8 @@ namespace DuneVector
                 PyramidMaximumScale,
                 GroundRingDensity,
                 AerialRingDensity,
-                Rings);
+                Rings,
+                GroundExploders);
             _chunks.Add(coordinate, chunk);
             GeneratedChunkCount++;
             PeakActiveChunkCount = Mathf.Max(PeakActiveChunkCount, _chunks.Count);
@@ -325,6 +333,7 @@ namespace DuneVector
         public Transform Root { get; }
 
         private readonly List<TraversalRing> _rings = new List<TraversalRing>();
+        private readonly List<GroundExploderEnemy> _groundExploders = new List<GroundExploderEnemy>();
         private readonly Mesh _terrainMesh;
 
         public DesertChunk(
@@ -337,6 +346,7 @@ namespace DuneVector
             DuneHeightField heightField,
             DuneVectorMaterials materials,
             DroneCharacterController player,
+            DroneHealth playerHealth,
             int worldSeed,
             float cactusDensity,
             float pyramidDensity,
@@ -344,7 +354,8 @@ namespace DuneVector
             float pyramidMaximumScale,
             float groundRingDensity,
             float aerialRingDensity,
-            RingTuning ringTuning)
+            RingTuning ringTuning,
+            GroundExploderTuning groundExploderTuning)
         {
             Coordinate = coordinate;
             GameObject rootObject = new GameObject($"Desert Chunk [{coordinate.x}, {coordinate.y}]");
@@ -367,6 +378,7 @@ namespace DuneVector
                 heightField,
                 materials,
                 player,
+                playerHealth,
                 worldSeed,
                 cactusDensity,
                 pyramidDensity,
@@ -374,14 +386,22 @@ namespace DuneVector
                 pyramidMaximumScale,
                 groundRingDensity,
                 aerialRingDensity,
-                ringTuning);
+                ringTuning,
+                groundExploderTuning);
         }
 
-        public void BindPlayer(DroneCharacterController player)
+        public void BindPlayer(DroneCharacterController player, DroneHealth playerHealth)
         {
             for (int i = 0; i < _rings.Count; i++)
             {
                 _rings[i].BindController(player);
+            }
+            for (int i = 0; i < _groundExploders.Count; i++)
+            {
+                if (_groundExploders[i] != null)
+                {
+                    _groundExploders[i].BindTargets(player, playerHealth);
+                }
             }
         }
 
@@ -466,6 +486,7 @@ namespace DuneVector
             DuneHeightField heightField,
             DuneVectorMaterials materials,
             DroneCharacterController player,
+            DroneHealth playerHealth,
             int worldSeed,
             float cactusDensity,
             float pyramidDensity,
@@ -473,7 +494,8 @@ namespace DuneVector
             float pyramidMaximumScale,
             float groundRingDensity,
             float aerialRingDensity,
-            RingTuning ringTuning)
+            RingTuning ringTuning,
+            GroundExploderTuning groundExploderTuning)
         {
             List<Vector2> ringExclusions = new List<Vector2>();
             double originX = coordinate.x * (double)chunkSize;
@@ -577,6 +599,89 @@ namespace DuneVector
                 float burial = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 941 + (i * 17), 0.2f, 0.75f);
                 float y = (float)heightField.SampleHeight(logicalX, logicalZ) - burial;
                 DuneVectorVisuals.CreatePyramid(Root, new Vector3(local.x, y, local.y), scale, yaw, materials.Sandstone);
+            }
+
+            SpawnGroundExploders(
+                coordinate,
+                chunkSize,
+                heightField,
+                materials,
+                player,
+                playerHealth,
+                worldSeed,
+                originX,
+                originZ,
+                ringExclusions,
+                groundExploderTuning);
+        }
+
+        private void SpawnGroundExploders(
+            Vector2Int coordinate,
+            float chunkSize,
+            DuneHeightField heightField,
+            DuneVectorMaterials materials,
+            DroneCharacterController player,
+            DroneHealth playerHealth,
+            int worldSeed,
+            double originX,
+            double originZ,
+            List<Vector2> exclusions,
+            GroundExploderTuning settings)
+        {
+            if (settings == null || !settings.Enabled || settings.DensityPerChunk <= 0f || coordinate == Vector2Int.zero)
+            {
+                return;
+            }
+
+            int count = CountFromDensity(settings.DensityPerChunk, coordinate, worldSeed, 1201);
+            for (int i = 0; i < count; i++)
+            {
+                Vector2 local = new Vector2(
+                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 1211 + (i * 23), 10f, chunkSize - 10f),
+                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 1217 + (i * 23), 10f, chunkSize - 10f));
+                if (IsNearAny(local, exclusions, Mathf.Max(10f, settings.DetectionRadius * 0.7f)))
+                {
+                    continue;
+                }
+
+                double logicalX = originX + local.x;
+                double logicalZ = originZ + local.y;
+                Vector3 normal = heightField.SampleNormal(logicalX, logicalZ);
+                if (Vector3.Angle(normal, Vector3.up) > settings.MaximumGroundSlope)
+                {
+                    continue;
+                }
+
+                float yaw = DuneVectorMath.HashRange(
+                    coordinate.x,
+                    coordinate.y,
+                    worldSeed,
+                    1223 + (i * 23),
+                    0f,
+                    360f);
+                float height = (float)heightField.SampleHeight(logicalX, logicalZ);
+                GameObject enemyObject = new GameObject($"Ground Exploder {i + 1:00}");
+                enemyObject.transform.SetParent(Root, false);
+                enemyObject.transform.localPosition = new Vector3(local.x, height, local.y);
+                enemyObject.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+
+                int identity = unchecked((int)DuneVectorMath.Hash(
+                    coordinate.x,
+                    coordinate.y,
+                    worldSeed,
+                    1231 + (i * 23)));
+                GroundExploderEnemy enemy = enemyObject.AddComponent<GroundExploderEnemy>();
+                enemy.Initialize(
+                    player,
+                    playerHealth,
+                    heightField,
+                    originX,
+                    originZ,
+                    chunkSize,
+                    materials,
+                    settings,
+                    identity);
+                _groundExploders.Add(enemy);
             }
         }
 

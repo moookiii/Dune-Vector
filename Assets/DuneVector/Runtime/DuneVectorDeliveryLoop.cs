@@ -153,7 +153,7 @@ namespace DuneVector
             ringObject.transform.rotation = Quaternion.LookRotation(planarApproach.normalized, Vector3.up);
 
             JobTraversalRing ring = ringObject.AddComponent<JobTraversalRing>();
-            ring.Initialize(_player, _materials, isPickup, _settings.ObjectiveRingRadius, callback);
+            ring.Initialize(_player, _camera, _materials, isPickup, _settings.ObjectiveRingRadius, callback);
             ring.LogicalPosition = logicalPosition;
             ring.LogicalHeight = height;
             return ring;
@@ -324,22 +324,25 @@ namespace DuneVector
         public double LogicalHeight;
 
         private DroneCharacterController _player;
+        private Camera _billboardCamera;
         private Action _onCrossed;
         private Transform _visual;
         private float _innerRadius;
-        private Vector3 _previousLocalPosition;
+        private Vector3 _previousWorldPosition;
         private bool _hasPreviousPosition;
         private bool _activated;
         private float _spin;
 
         public void Initialize(
             DroneCharacterController player,
+            Camera billboardCamera,
             DuneVectorMaterials materials,
             bool isPickup,
             float radius,
             Action onCrossed)
         {
             _player = player;
+            _billboardCamera = billboardCamera;
             _onCrossed = onCrossed;
             _innerRadius = Mathf.Max(0.5f, radius - 0.38f);
             _visual = DuneVectorVisuals.CreateJobRingVisual(transform, isPickup, materials, radius);
@@ -347,36 +350,64 @@ namespace DuneVector
 
         private void Update()
         {
+            UpdateBillboard();
             if (_activated || _player == null)
             {
                 return;
             }
 
-            Vector3 localPosition = transform.InverseTransformPoint(_player.WorldCenter);
-            if (_hasPreviousPosition && Mathf.Sign(_previousLocalPosition.z) != Mathf.Sign(localPosition.z))
+            Vector3 worldPosition = _player.WorldCenter;
+            Vector3 localPosition = transform.InverseTransformPoint(worldPosition);
+            if (_hasPreviousPosition)
             {
-                float denominator = _previousLocalPosition.z - localPosition.z;
-                if (Mathf.Abs(denominator) > 0.0001f)
+                // Convert both segment endpoints using this frame's billboard rotation.
+                // Camera movement alone therefore cannot look like a ring crossing.
+                Vector3 previousLocalPosition = transform.InverseTransformPoint(_previousWorldPosition);
+                if (Mathf.Sign(previousLocalPosition.z) != Mathf.Sign(localPosition.z))
                 {
-                    float interpolation = Mathf.Clamp01(_previousLocalPosition.z / denominator);
-                    Vector3 crossingPoint = Vector3.Lerp(_previousLocalPosition, localPosition, interpolation);
-                    float radialDistance = new Vector2(crossingPoint.x, crossingPoint.y).magnitude;
-                    if (radialDistance <= _innerRadius)
+                    float denominator = previousLocalPosition.z - localPosition.z;
+                    if (Mathf.Abs(denominator) > 0.0001f)
                     {
-                        _activated = true;
-                        _onCrossed?.Invoke();
-                        return;
+                        float interpolation = Mathf.Clamp01(previousLocalPosition.z / denominator);
+                        Vector3 crossingPoint = Vector3.Lerp(previousLocalPosition, localPosition, interpolation);
+                        float radialDistance = new Vector2(crossingPoint.x, crossingPoint.y).magnitude;
+                        if (radialDistance <= _innerRadius)
+                        {
+                            _activated = true;
+                            _onCrossed?.Invoke();
+                            return;
+                        }
                     }
                 }
             }
 
-            _previousLocalPosition = localPosition;
+            _previousWorldPosition = worldPosition;
             _hasPreviousPosition = true;
 
             if (_visual != null)
             {
                 _spin = Mathf.Repeat(_spin + (32f * Time.deltaTime), 360f);
                 _visual.localRotation = Quaternion.AngleAxis(_spin, Vector3.forward);
+            }
+        }
+
+        private void UpdateBillboard()
+        {
+            if (_billboardCamera == null)
+            {
+                _billboardCamera = Camera.main;
+            }
+            if (_billboardCamera == null)
+            {
+                return;
+            }
+
+            Vector3 toCamera = _billboardCamera.transform.position - transform.position;
+            if (toCamera.sqrMagnitude > 0.001f)
+            {
+                // The root defines both the rendered ring plane and its mathematical
+                // pass-through collider, so they always billboard together.
+                transform.rotation = Quaternion.LookRotation(toCamera.normalized, Vector3.up);
             }
         }
     }

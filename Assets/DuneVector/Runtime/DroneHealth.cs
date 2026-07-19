@@ -51,6 +51,7 @@ namespace DuneVector
         public DroneHealth Health;
 
         private GUIStyle _labelStyle;
+        private GUIStyle _valueStyle;
 
         private void OnGUI()
         {
@@ -62,17 +63,28 @@ namespace DuneVector
             _labelStyle ??= new GUIStyle(GUI.skin.label)
             {
                 alignment = TextAnchor.MiddleLeft,
-                fontSize = 15,
+                fontSize = 14,
                 fontStyle = FontStyle.Bold,
+                wordWrap = false,
+                richText = false,
+                clipping = TextClipping.Clip,
+                padding = new RectOffset(0, 0, 0, 0),
                 normal = { textColor = Color.white },
+            };
+            _valueStyle ??= new GUIStyle(_labelStyle)
+            {
+                alignment = TextAnchor.MiddleRight,
+                fontStyle = FontStyle.Normal,
             };
 
             Rect panel = new Rect(Screen.width - 244f, Screen.height - 82f, 220f, 50f);
             GUI.Box(panel, GUIContent.none);
+            Rect textRow = new Rect(panel.x + 12f, panel.y + 4f, panel.width - 24f, 21f);
+            GUI.Label(new Rect(textRow.x, textRow.y, 72f, textRow.height), "HEALTH", _labelStyle);
             GUI.Label(
-                new Rect(panel.x + 12f, panel.y + 4f, panel.width - 24f, 21f),
-                $"HULL  {Mathf.CeilToInt(Health.CurrentHealth)} / {Mathf.CeilToInt(Health.MaximumHealth)}",
-                _labelStyle);
+                new Rect(textRow.x + 76f, textRow.y, textRow.width - 76f, textRow.height),
+                $"{Mathf.CeilToInt(Health.CurrentHealth)} / {Mathf.CeilToInt(Health.MaximumHealth)}",
+                _valueStyle);
 
             Rect bar = new Rect(panel.x + 12f, panel.y + 29f, panel.width - 24f, 9f);
             GUI.Box(bar, GUIContent.none);
