@@ -18,6 +18,9 @@ namespace DuneVector
         public Material HealthRing { get; }
         public Material HealthHeart { get; }
         public GameObject HealthHeartModel { get; }
+        public Material CoinRing { get; }
+        public Material Coin { get; }
+        public GameObject CoinModel { get; }
         public Material Trail { get; }
         public Material Cloud { get; }
         public Material Package { get; }
@@ -61,6 +64,23 @@ namespace DuneVector
             if (HealthHeartModel == null)
             {
                 Debug.LogError("Health rings require Assets/DuneVector/Resources/heartpiece.glb.");
+            }
+            CoinRing = CreateLit(
+                "Ring - Coin Gold",
+                rings.CoinRingBaseColor,
+                rings.CoinMaterialSmoothness,
+                rings.CoinMaterialMetallic,
+                rings.CoinRingEmissionColor);
+            Coin = CreateLit(
+                "Ring - Coin Icon",
+                rings.CoinBaseColor,
+                rings.CoinMaterialSmoothness,
+                rings.CoinMaterialMetallic,
+                rings.CoinEmissionColor);
+            CoinModel = Resources.Load<GameObject>("coin");
+            if (CoinModel == null)
+            {
+                Debug.LogError("Coin rings require Assets/DuneVector/Resources/coin.glb.");
             }
             Trail = CreateLit("Drone - Trail", new Color(0.0f, 0.06f, 0.08f), 0.6f, 0.1f, new Color(0.0f, 0.8f, 1.4f));
             Cloud = CreateLit("Cloud - Sunlit", new Color(0.82f, 0.88f, 0.94f), 0.08f, 0f);
@@ -251,20 +271,19 @@ namespace DuneVector
             TraversalRingType type,
             DuneVectorMaterials materials,
             float majorRadius,
-            float healthHeartScale,
-            Vector3 healthHeartOffset,
-            Vector3 healthHeartEulerAngles)
+            RingTuning settings)
         {
             Material material = type switch
             {
                 TraversalRingType.GroundBoost => materials.BoostRing,
                 TraversalRingType.Flight => materials.FlightRing,
-                _ => materials.HealthRing,
+                TraversalRingType.Health => materials.HealthRing,
+                _ => materials.CoinRing,
             };
             GameObject visualRoot = new GameObject("Ring Visual Root");
             visualRoot.transform.SetParent(parent, false);
             Transform geometryParent = visualRoot.transform;
-            if (type == TraversalRingType.Health)
+            if (type == TraversalRingType.Health || type == TraversalRingType.Coin)
             {
                 GameObject geometryObject = new GameObject("Health Ring XZ Geometry");
                 geometryParent = geometryObject.transform;
@@ -317,18 +336,28 @@ namespace DuneVector
 
             if (type == TraversalRingType.Health)
             {
-                CreateHealthHeartVisual(
+                CreateCollectibleModelVisual(
                     visualRoot.transform,
                     materials.HealthHeartModel,
                     materials.HealthHeart,
-                    healthHeartScale,
-                    healthHeartOffset,
-                    healthHeartEulerAngles);
+                    settings.HealthHeartScale,
+                    settings.HealthHeartOffset,
+                    settings.HealthHeartEulerAngles);
+            }
+            else if (type == TraversalRingType.Coin)
+            {
+                CreateCollectibleModelVisual(
+                    visualRoot.transform,
+                    materials.CoinModel,
+                    materials.Coin,
+                    settings.CoinModelScale,
+                    settings.CoinModelOffset,
+                    settings.CoinModelEulerAngles);
             }
             return visualRoot.transform;
         }
 
-        private static Transform CreateHealthHeartVisual(
+        private static Transform CreateCollectibleModelVisual(
             Transform parent,
             GameObject model,
             Material material,
@@ -342,7 +371,7 @@ namespace DuneVector
             }
 
             GameObject heartObject = UnityEngine.Object.Instantiate(model, parent, false);
-            heartObject.name = "Health Heart - heartpiece.glb";
+            heartObject.name = "Collectible Icon";
             Transform heart = heartObject.transform;
             heart.localPosition = Vector3.zero;
             heart.localRotation = Quaternion.Euler(localEulerAngles);

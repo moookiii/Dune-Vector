@@ -330,6 +330,42 @@ namespace DuneVector
         [Range(0f, 1f)] public float HealthMaterialSmoothness = 0.72f;
         [Range(0f, 1f)] public float HealthMaterialMetallic = 0.22f;
 
+        [Header("Coin Rings")]
+        [Tooltip("Expected coin-ring count per streamed terrain chunk.")]
+        [Range(0f, 1f)] public float CoinRingDensityPerChunk = 0.12f;
+        [Min(0.75f)] public float CoinRingRadius = 4.2f;
+        [Min(0f)] public float CoinRingMinimumHeight = 4f;
+        [Min(0f)] public float CoinRingMaximumHeight = 10f;
+        [Min(1)] public int GoldReward = 25;
+        [Min(0)] public int StartingGold;
+        [Tooltip("Target size of the imported coin model at the center of a coin ring.")]
+        [Min(0.1f)] public float CoinModelScale = 2.4f;
+        public Vector3 CoinModelOffset;
+        public Vector3 CoinModelEulerAngles;
+        [Min(0f)] public float CoinRingRotationSpeed = 24f;
+
+        [Header("Coin Ring Appearance")]
+        [ColorUsage(false, true)] public Color CoinRingBaseColor = new Color(0.64f, 0.3f, 0.015f);
+        [ColorUsage(false, true)] public Color CoinRingEmissionColor = new Color(6.5f, 2.2f, 0.05f);
+        [ColorUsage(false, true)] public Color CoinBaseColor = new Color(0.95f, 0.58f, 0.04f);
+        [ColorUsage(false, true)] public Color CoinEmissionColor = new Color(8f, 3.2f, 0.08f);
+        [Range(0f, 1f)] public float CoinMaterialSmoothness = 0.82f;
+        [Range(0f, 1f)] public float CoinMaterialMetallic = 0.72f;
+
+        [Header("Gold HUD and Pickup Feedback")]
+        [Min(0f)] public float GoldHudRightMargin = 28f;
+        [Min(0f)] public float GoldHudTopMargin = 28f;
+        [Min(100f)] public float GoldHudWidth = 180f;
+        [Min(30f)] public float GoldHudHeight = 48f;
+        [Min(8)] public int GoldHudFontSize = 18;
+        [Min(0.1f)] public float GoldPickupFeedbackDuration = 1.4f;
+        [Min(8)] public int GoldPickupFeedbackFontSize = 28;
+        [Min(0f)] public float GoldPickupFeedbackTop = 118f;
+        [Min(24f)] public float GoldPickupFeedbackHeight = 48f;
+        [ColorUsage(false)] public Color GoldHudPanelColor = new Color(0.08f, 0.045f, 0.01f, 0.9f);
+        [ColorUsage(false)] public Color GoldHudTextColor = new Color(1f, 0.75f, 0.2f, 1f);
+        [ColorUsage(false)] public Color GoldPickupFeedbackColor = new Color(1f, 0.82f, 0.22f, 1f);
+
         [Header("Height Above Ground")]
         [Min(0f)] public float GroundRingMinimumHeight = 1.75f;
         [Min(0f)] public float GroundRingMaximumHeight = 3.25f;

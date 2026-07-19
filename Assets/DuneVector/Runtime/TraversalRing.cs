@@ -8,6 +8,7 @@ namespace DuneVector
         GroundBoost,
         Flight,
         Health,
+        Coin,
     }
 
     [DisallowMultipleComponent]
@@ -32,7 +33,7 @@ namespace DuneVector
 
         private DroneCharacterController _controller;
         private DroneHealth _health;
-        private float _healthRestored;
+        private ITraversalRingReward _collectibleReward;
         private Transform _visualRoot;
         private Vector3 _previousWorldPosition;
         private bool _hasPreviousWorldPosition;
@@ -43,13 +44,11 @@ namespace DuneVector
         private float _visualSpin;
         private Camera _billboardCamera;
         private Vector3 _restingLocalPosition;
-        private Transform _healthHeartVisual;
-        private Quaternion _healthHeartBaseRotation = Quaternion.identity;
+        private Transform _collectibleIcon;
+        private Quaternion _collectibleIconBaseRotation = Quaternion.identity;
         private DuneVectorMaterials _materials;
         private float _majorRadius;
-        private float _healthHeartScale;
-        private Vector3 _healthHeartOffset;
-        private Vector3 _healthHeartEulerAngles;
+        private RingTuning _ringTuning;
         private TraversalRing _upperLayerRing;
 
         public void Initialize(
@@ -58,21 +57,15 @@ namespace DuneVector
             DroneHealth health,
             DuneVectorMaterials materials,
             float majorRadius,
-            float healthRestored,
-            float healthHeartScale,
-            Vector3 healthHeartOffset,
-            Vector3 healthHeartEulerAngles,
+            RingTuning ringTuning,
             string identity)
         {
             RingType = type;
             _controller = controller;
             _health = health;
-            _healthRestored = healthRestored;
             _materials = materials;
             _majorRadius = majorRadius;
-            _healthHeartScale = healthHeartScale;
-            _healthHeartOffset = healthHeartOffset;
-            _healthHeartEulerAngles = healthHeartEulerAngles;
+            _ringTuning = ringTuning;
             InnerRadius = majorRadius - 0.58f;
             ProceduralIdentity = identity;
             _restingLocalPosition = transform.localPosition;
@@ -81,29 +74,37 @@ namespace DuneVector
                 type,
                 materials,
                 majorRadius,
-                healthHeartScale,
-                healthHeartOffset,
-                healthHeartEulerAngles);
-            if (type == TraversalRingType.Health)
+                ringTuning);
+            if (IsCollectible)
             {
-                _healthHeartVisual = _visualRoot.Find("Health Heart - heartpiece.glb");
-                if (_healthHeartVisual != null)
+                _collectibleIcon = _visualRoot.Find("Collectible Icon");
+                if (_collectibleIcon != null)
                 {
-                    _healthHeartBaseRotation = _healthHeartVisual.localRotation;
+                    _collectibleIconBaseRotation = _collectibleIcon.localRotation;
                 }
             }
             gameObject.name = type switch
             {
                 TraversalRingType.GroundBoost => "Ground Boost Ring",
                 TraversalRingType.Flight => "Elevated Flight Ring",
-                _ => "Health Ring",
+                TraversalRingType.Health => "Health Ring",
+                _ => "Coin Ring",
             };
+        }
+
+        private bool IsCollectible => RingType == TraversalRingType.Health || RingType == TraversalRingType.Coin;
+
+        public void SetCollectibleReward(ITraversalRingReward reward)
+        {
+            _collectibleReward = reward;
+            _collectibleReward?.BindTargets(_health, _controller != null ? _controller.GetComponent<DroneGoldWallet>() : null);
         }
 
         public void BindTargets(DroneCharacterController controller, DroneHealth health)
         {
             _controller = controller;
             _health = health;
+            _collectibleReward?.BindTargets(health, controller != null ? controller.GetComponent<DroneGoldWallet>() : null);
             _inside = false;
             _hasPreviousWorldPosition = false;
             _upperLayerRing?.BindTargets(controller, health);
@@ -129,10 +130,7 @@ namespace DuneVector
                 _health,
                 _materials,
                 _majorRadius,
-                _healthRestored,
-                _healthHeartScale,
-                _healthHeartOffset,
-                _healthHeartEulerAngles,
+                _ringTuning,
                 $"{ProceduralIdentity}:upper");
             upperRing.gameObject.name = "Upper Flight Ring";
             upperRing.FlightModeScale = FlightModeScale;
@@ -211,12 +209,12 @@ namespace DuneVector
                 _visualSpin = Mathf.Repeat(
                     _visualSpin - (ClockwiseRotationSpeed * Time.deltaTime),
                     360f);
-                if (RingType == TraversalRingType.Health)
+                if (IsCollectible)
                 {
-                    if (_healthHeartVisual != null)
+                    if (_collectibleIcon != null)
                     {
-                        _healthHeartVisual.localRotation = Quaternion.AngleAxis(-2f * _visualSpin, Vector3.up)
-                            * _healthHeartBaseRotation;
+                        _collectibleIcon.localRotation = Quaternion.AngleAxis(-2f * _visualSpin, Vector3.up)
+                            * _collectibleIconBaseRotation;
                     }
                 }
             }
@@ -244,7 +242,7 @@ namespace DuneVector
                 return;
             }
 
-            if (RingType == TraversalRingType.Health)
+            if (IsCollectible)
             {
                 _visualRoot.rotation = Quaternion.FromToRotation(Vector3.up, toCamera.normalized)
                     * Quaternion.AngleAxis(_visualSpin, Vector3.up);
@@ -263,7 +261,7 @@ namespace DuneVector
                 return;
             }
 
-            if (RingType == TraversalRingType.Health && (_health == null || !_health.RestoreHealth(_healthRestored)))
+            if (_collectibleReward != null && !_collectibleReward.TryReward())
             {
                 return;
             }
@@ -298,7 +296,8 @@ namespace DuneVector
             {
                 TraversalRingType.GroundBoost => new Color(1f, 0.5f, 0f, 0.7f),
                 TraversalRingType.Flight => new Color(0f, 0.8f, 1f, 0.7f),
-                _ => new Color(1f, 0.1f, 0.25f, 0.7f),
+                TraversalRingType.Health => new Color(1f, 0.1f, 0.25f, 0.7f),
+                _ => new Color(1f, 0.72f, 0.08f, 0.7f),
             };
             Gizmos.matrix = transform.localToWorldMatrix;
             Gizmos.DrawWireSphere(Vector3.zero, InnerRadius);

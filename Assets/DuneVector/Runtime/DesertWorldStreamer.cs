@@ -85,6 +85,8 @@ namespace DuneVector
         private Transform _chunkRoot;
         private DroneCharacterController _player;
         private DroneHealth _playerHealth;
+        private DroneGoldWallet _goldWallet;
+        private DuneVectorGoldHUD _goldHUD;
         private KinematicCharacterMotor _motor;
         private DroneCameraController _camera;
         private Vector2Int _lastScheduledChunk = new Vector2Int(int.MinValue, int.MinValue);
@@ -127,6 +129,20 @@ namespace DuneVector
         {
             _player = player;
             _playerHealth = playerHealth;
+            if (player != null)
+            {
+                _goldWallet = player.GetComponent<DroneGoldWallet>();
+                if (_goldWallet == null)
+                {
+                    _goldWallet = player.gameObject.AddComponent<DroneGoldWallet>();
+                }
+                _goldWallet.Initialize(Rings.StartingGold);
+                if (_goldHUD == null)
+                {
+                    _goldHUD = gameObject.AddComponent<DuneVectorGoldHUD>();
+                }
+                _goldHUD.Initialize(_goldWallet, Rings);
+            }
             _motor = player != null ? player.Motor : null;
             _camera = camera;
             foreach (DesertChunk chunk in _chunks.Values)
@@ -633,33 +649,55 @@ namespace DuneVector
                 }
             }
 
-            if (coordinate != Vector2Int.zero
-                && DuneVectorMath.Hash01(coordinate.x, coordinate.y, worldSeed, 757) < ringTuning.HealthRingDensityPerChunk)
+            for (int collectibleIndex = 0; coordinate != Vector2Int.zero && collectibleIndex < 2; collectibleIndex++)
             {
-                Vector2 healthPosition = new Vector2(
-                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 761, 16f, chunkSize - 16f),
-                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 769, 16f, chunkSize - 16f));
-                if (!IsNearAny(healthPosition, ringExclusions, ringTuning.HealthRingRadius * 2f))
+                TraversalRingType collectibleType = collectibleIndex == 0
+                    ? TraversalRingType.Health
+                    : TraversalRingType.Coin;
+                float density = collectibleType == TraversalRingType.Health
+                    ? ringTuning.HealthRingDensityPerChunk
+                    : ringTuning.CoinRingDensityPerChunk;
+                float radius = collectibleType == TraversalRingType.Health
+                    ? ringTuning.HealthRingRadius
+                    : ringTuning.CoinRingRadius;
+                int spawnSalt = collectibleType == TraversalRingType.Health ? 757 : 787;
+                if (DuneVectorMath.Hash01(coordinate.x, coordinate.y, worldSeed, spawnSalt) >= density)
                 {
-                    float healthAngle = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 773, 0f, 360f);
-                    Vector3 healthForward = Quaternion.Euler(0f, healthAngle, 0f) * Vector3.forward;
-                    CreateRing(
-                        healthPosition,
-                        healthForward,
-                        TraversalRingType.Health,
-                        ringTuning.HealthRingRadius,
-                        originX,
-                        originZ,
-                        heightField,
-                        materials,
-                        player,
-                        playerHealth,
-                        ringExclusions,
-                        worldSeed,
-                        ringTuning,
-                        "health",
-                        ringActivated);
+                    continue;
                 }
+
+                Vector2 collectiblePosition = new Vector2(
+                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, spawnSalt + 4, 16f, chunkSize - 16f),
+                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, spawnSalt + 12, 16f, chunkSize - 16f));
+                if (IsNearAny(collectiblePosition, ringExclusions, radius * 2f))
+                {
+                    continue;
+                }
+
+                float angle = DuneVectorMath.HashRange(
+                    coordinate.x,
+                    coordinate.y,
+                    worldSeed,
+                    spawnSalt + 16,
+                    0f,
+                    360f);
+                Vector3 collectibleForward = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                CreateRing(
+                    collectiblePosition,
+                    collectibleForward,
+                    collectibleType,
+                    radius,
+                    originX,
+                    originZ,
+                    heightField,
+                    materials,
+                    player,
+                    playerHealth,
+                    ringExclusions,
+                    worldSeed,
+                    ringTuning,
+                    collectibleType == TraversalRingType.Health ? "health" : "coin",
+                    ringActivated);
             }
 
             float regionNoise = (float)DuneVectorMath.ValueNoise((coordinate.x + 0.5) * 0.42, (coordinate.y + 0.5) * 0.42, worldSeed, 811);
@@ -880,13 +918,15 @@ namespace DuneVector
             {
                 TraversalRingType.GroundBoost => ringTuning.GroundRingMinimumHeight,
                 TraversalRingType.Flight => ringTuning.FlightRingMinimumHeight,
-                _ => ringTuning.HealthRingMinimumHeight,
+                TraversalRingType.Health => ringTuning.HealthRingMinimumHeight,
+                _ => ringTuning.CoinRingMinimumHeight,
             };
             float maximumHeight = type switch
             {
                 TraversalRingType.GroundBoost => ringTuning.GroundRingMaximumHeight,
                 TraversalRingType.Flight => ringTuning.FlightRingMaximumHeight,
-                _ => ringTuning.HealthRingMaximumHeight,
+                TraversalRingType.Health => ringTuning.HealthRingMaximumHeight,
+                _ => ringTuning.CoinRingMaximumHeight,
             };
             maximumHeight = Mathf.Max(minimumHeight, maximumHeight);
             int heightSalt = unchecked(
@@ -915,17 +955,29 @@ namespace DuneVector
                 playerHealth,
                 materials,
                 radius,
-                ringTuning.HealthRestored,
-                ringTuning.HealthHeartScale,
-                ringTuning.HealthHeartOffset,
-                ringTuning.HealthHeartEulerAngles,
+                ringTuning,
                 identity);
+            if (type == TraversalRingType.Health)
+            {
+                HealthRingReward reward = ringObject.AddComponent<HealthRingReward>();
+                reward.Initialize(playerHealth, ringTuning.HealthRestored);
+                ring.SetCollectibleReward(reward);
+            }
+            else if (type == TraversalRingType.Coin)
+            {
+                CoinRingReward reward = ringObject.AddComponent<CoinRingReward>();
+                reward.Initialize(player != null ? player.GetComponent<DroneGoldWallet>() : null, ringTuning.GoldReward);
+                ring.SetCollectibleReward(reward);
+            }
             ring.BoostRingActiveScale = ringTuning.BoostRingActiveScale;
             ring.FlightModeScale = ringTuning.FlightModeScale;
             ring.FlightModeScaleSharpness = ringTuning.ScaleSharpness;
-            ring.ClockwiseRotationSpeed = type == TraversalRingType.Health
-                ? ringTuning.HealthRingRotationSpeed
-                : ringTuning.ClockwiseRotationSpeed;
+            ring.ClockwiseRotationSpeed = type switch
+            {
+                TraversalRingType.Health => ringTuning.HealthRingRotationSpeed,
+                TraversalRingType.Coin => ringTuning.CoinRingRotationSpeed,
+                _ => ringTuning.ClockwiseRotationSpeed,
+            };
             if (ringActivated != null)
             {
                 ring.Activated += ringActivated;
