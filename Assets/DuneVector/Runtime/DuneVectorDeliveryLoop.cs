@@ -32,9 +32,8 @@ namespace DuneVector
         private int _jobIndex;
         private int _sessionSeed;
         private float _completionMessageTime;
-        private GUIStyle _markerStyle;
-        private GUIStyle _arrowStyle;
         private GUIStyle _statusStyle;
+        private readonly DuneVectorObjectiveIndicator _objectiveIndicator = new DuneVectorObjectiveIndicator();
 
         public void Initialize(
             DroneCharacterController player,
@@ -246,25 +245,15 @@ namespace DuneVector
 
         private void EnsureStyles()
         {
-            if (_markerStyle != null)
+            if (_statusStyle != null)
             {
                 return;
             }
 
-            _markerStyle = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = 15,
-                fontStyle = FontStyle.Bold,
-                normal = { textColor = Color.white },
-            };
-            _arrowStyle = new GUIStyle(_markerStyle)
-            {
-                fontSize = 28,
-            };
-            _statusStyle = new GUIStyle(_markerStyle)
+            _statusStyle = new GUIStyle(GUI.skin.label)
             {
                 fontSize = 16,
+                fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter,
                 wordWrap = false,
                 clipping = TextClipping.Clip,
@@ -303,50 +292,9 @@ namespace DuneVector
             }
             EnsureStyles();
 
-            Vector3 projected = _camera.WorldToScreenPoint(ActiveObjective.position);
-            Vector2 screenPoint = new Vector2(projected.x, Screen.height - projected.y);
-            Vector2 center = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
-            const float padding = 56f;
-            bool onScreen = projected.z > 0f
-                && screenPoint.x >= padding
-                && screenPoint.x <= Screen.width - padding
-                && screenPoint.y >= padding
-                && screenPoint.y <= Screen.height - padding;
-
-            Vector2 markerPosition = screenPoint;
-            Vector2 direction = screenPoint - center;
-            if (!onScreen)
-            {
-                if (projected.z <= 0f)
-                {
-                    direction = -direction;
-                }
-                if (direction.sqrMagnitude < 0.001f)
-                {
-                    direction = Vector2.up;
-                }
-                direction.Normalize();
-                float horizontalScale = (center.x - padding) / Mathf.Max(0.001f, Mathf.Abs(direction.x));
-                float verticalScale = (center.y - padding) / Mathf.Max(0.001f, Mathf.Abs(direction.y));
-                markerPosition = center + (direction * Mathf.Min(horizontalScale, verticalScale));
-
-                float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg + 90f;
-                Matrix4x4 oldMatrix = GUI.matrix;
-                GUIUtility.RotateAroundPivot(angle, markerPosition);
-                GUI.Label(new Rect(markerPosition.x - 20f, markerPosition.y - 20f, 40f, 40f), "▲", _arrowStyle);
-                GUI.matrix = oldMatrix;
-            }
-            else
-            {
-                GUI.Label(new Rect(markerPosition.x - 18f, markerPosition.y - 25f, 36f, 36f), "◆", _arrowStyle);
-            }
-
             float distance = Vector3.Distance(_player.WorldCenter, ActiveObjective.position);
             string objectiveLabel = Phase == DeliveryJobPhase.FindPackage ? "PICKUP" : "DELIVER";
-            GUI.Label(
-                new Rect(markerPosition.x - 90f, markerPosition.y + 16f, 180f, 24f),
-                $"{objectiveLabel}  {distance:0} m",
-                _markerStyle);
+            _objectiveIndicator.Draw(_camera, ActiveObjective, objectiveLabel, distance, _settings);
 
             if (_completionMessageTime > 0f)
             {

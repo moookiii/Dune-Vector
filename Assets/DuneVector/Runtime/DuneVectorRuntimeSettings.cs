@@ -179,6 +179,28 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color DeliveryRingBaseColor = new Color(0.015f, 0.42f, 0.12f);
         [ColorUsage(false, true)] public Color DeliveryRingEmissionColor = new Color(0.05f, 3.8f, 0.45f);
 
+        [Header("Objective Indicator HUD")]
+        [Min(240f)] public float ObjectiveIndicatorReferenceHeight = 1080f;
+        [Range(0.25f, 2f)] public float ObjectiveIndicatorMinimumScale = 0.65f;
+        [Range(0.25f, 2f)] public float ObjectiveIndicatorMaximumScale = 1.25f;
+        public Texture2D ObjectiveIndicatorHexagonIcon;
+        public Texture2D ObjectiveIndicatorArrowIcon;
+        [Min(8f)] public float ObjectiveIndicatorHexagonRadius = 27f;
+        [Min(4f)] public float ObjectiveIndicatorArrowLength = 22f;
+        [Min(4f)] public float ObjectiveIndicatorArrowWidth = 21f;
+        [Min(0f)] public float ObjectiveIndicatorArrowGap = 4f;
+        [Min(0f)] public float ObjectiveIndicatorTextGap = 13f;
+        [Min(12f)] public float ObjectiveIndicatorTextWidth = 300f;
+        [Min(12f)] public float ObjectiveIndicatorTextHeight = 44f;
+        [Min(8)] public int ObjectiveIndicatorFontSize = 30;
+        [Min(0f)] public float ObjectiveIndicatorEdgePadding = 18f;
+        [Min(0f)] public float ObjectiveIndicatorViewportHysteresis = 18f;
+        [Min(0f)] public float ObjectiveIndicatorPositionSharpness = 14f;
+        [Min(0f)] public float ObjectiveIndicatorTransitionSharpness = 18f;
+        public Vector2 ObjectiveIndicatorShadowOffset = new Vector2(2f, 3f);
+        [ColorUsage(false)] public Color ObjectiveIndicatorColor = new Color(0.96f, 0.98f, 1f, 1f);
+        [ColorUsage(false)] public Color ObjectiveIndicatorShadowColor = new Color(0f, 0f, 0f, 0.72f);
+
         [Header("Completion Message")]
         [ColorUsage(false)] public Color CompletionTextRed = new Color(1f, 0.55f, 0.68f);
         [ColorUsage(false)] public Color CompletionTextGreen = new Color(0.55f, 1f, 0.72f);

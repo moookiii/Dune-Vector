@@ -276,6 +276,7 @@ namespace DuneVector
         private GUIStyle _hudBodyStyle;
         private GUIStyle _objectiveStyle;
         private GUIStyle _statusStyle;
+        private readonly DuneVectorObjectiveIndicator _objectiveIndicator = new DuneVectorObjectiveIndicator();
         private Texture2D _terminalPanelTexture;
         private Texture2D _terminalCardTexture;
         private Texture2D _terminalCardHoverTexture;
@@ -1768,33 +1769,14 @@ namespace DuneVector
             {
                 return;
             }
-            Vector3 projected = _camera.WorldToScreenPoint(ActiveObjective.position);
-            Vector2 point = new Vector2(projected.x, Screen.height - projected.y);
-            Vector2 center = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
-            float padding = _settings.ObjectiveEdgePadding;
-            bool onScreen = projected.z > 0f && point.x >= padding && point.x <= Screen.width - padding && point.y >= padding && point.y <= Screen.height - padding;
-            Vector2 direction = point - center;
-            if (!onScreen)
-            {
-                if (projected.z <= 0f) direction = -direction;
-                if (direction.sqrMagnitude < 0.001f) direction = Vector2.up;
-                direction.Normalize();
-                float horizontal = (center.x - padding) / Mathf.Max(0.001f, Mathf.Abs(direction.x));
-                float vertical = (center.y - padding) / Mathf.Max(0.001f, Mathf.Abs(direction.y));
-                point = center + (direction * Mathf.Min(horizontal, vertical));
-                float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg + 90f;
-                Matrix4x4 previousMatrix = GUI.matrix;
-                GUIUtility.RotateAroundPivot(angle, point);
-                GUI.Label(new Rect(point.x - 20f, point.y - 20f, 40f, 40f), "▲", _objectiveStyle);
-                GUI.matrix = previousMatrix;
-            }
-            else
-            {
-                GUI.Label(new Rect(point.x - 20f, point.y - 20f, 40f, 40f), "◆", _objectiveStyle);
-            }
             float distance = Vector3.Distance(_player.WorldCenter, ActiveObjective.position);
-            GUI.Label(new Rect(point.x - 110f, point.y + 18f, 220f, 30f),
-                $"{(State == CourierRunState.FindPackage ? "PICKUP" : "DELIVER")}  {distance:0} m", _objectiveStyle);
+            string objectiveLabel = State == CourierRunState.FindPackage ? "PICKUP" : "DELIVER";
+            _objectiveIndicator.Draw(
+                _camera,
+                ActiveObjective,
+                objectiveLabel,
+                distance,
+                _deliverySettings);
         }
 
         private void DrawTeleportFade()
