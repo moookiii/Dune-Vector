@@ -16,6 +16,7 @@ namespace DuneVector
         public DuneVectorRuntimeSettings RuntimeSettings;
 
         public DroneTuning PlayerTuning => RuntimeSettings.PlayerTuning;
+        public FlightSwooshTuning FlightSwooshes => RuntimeSettings.FlightSwooshes;
         public CloudTuning Clouds => RuntimeSettings.Clouds;
         public DesertWeatherTuning WeatherSettings => RuntimeSettings.Weather;
         public AudioTuning AudioSettings => RuntimeSettings.Audio;
@@ -411,6 +412,9 @@ namespace DuneVector
             PlayerTuning.ApplyTo(DroneCamera);
             DroneCamera.IgnoredColliders.Add(motor.Capsule);
             DroneCamera.SetFollowTransform(cameraTargetObject.transform);
+
+            DroneFlightSwooshRenderer flightSwooshes = cameraObject.AddComponent<DroneFlightSwooshRenderer>();
+            flightSwooshes.Initialize(Drone, camera, FlightSwooshes);
 
             GameObject playerObject = new GameObject("Player Input and Camera Driver");
             playerObject.transform.SetParent(transform, false);

@@ -1041,6 +1041,48 @@ namespace DuneVector
         [ColorUsage(false)] public Color MeterBackgroundColor = new Color(0.015f, 0.035f, 0.05f, 0.72f);
     }
 
+    [System.Serializable]
+    public sealed class FlightSwooshTuning
+    {
+        public bool Enabled = true;
+
+        [Header("Pool & Density")]
+        [Range(8, 256)] public int MaximumStreakCount = 96;
+        [Tooltip("Maximum streaks spawned per second at full intensity before the boost multiplier is applied.")]
+        [Min(0f)] public float Density = 34f;
+        [Min(0.01f)] public float DensityCurvePower = 1.7f;
+        [Range(0f, 1f)] public float TimingVariation = 0.38f;
+
+        [Header("Speed Response")]
+        [Min(0f)] public float SpeedThreshold = 20f;
+        [Min(0.01f)] public float MaximumIntensitySpeed = 60f;
+        [Min(0f)] public float IntensitySharpness = 5.5f;
+        [Min(0f)] public float BoostMultiplier = 1.45f;
+
+        [Header("Streak Shape")]
+        public Vector2 LengthRange = new Vector2(4.5f, 17f);
+        public Vector2 WidthRange = new Vector2(0.025f, 0.085f);
+        public Vector2 LifetimeRange = new Vector2(0.2f, 0.46f);
+        public Vector2 SweepSpeedRange = new Vector2(30f, 82f);
+        [Range(0f, 12f)] public float DirectionJitterDegrees = 3.2f;
+        [Min(0f)] public float MovementAlignmentSharpness = 18f;
+
+        [Header("Camera-Edge Spawn Area")]
+        [Tooltip("Viewport-space radial band around screen center. Values near 0.5 place streaks at the outer view edges.")]
+        public Vector2 SpawnRadiusRange = new Vector2(0.38f, 0.56f);
+        [Tooltip("World-space distance in front of the player camera where streaks originate.")]
+        public Vector2 SpawnDepthRange = new Vector2(11f, 32f);
+
+        [Header("Appearance")]
+        [ColorUsage(false, true)] public Color Color = new Color(0.3f, 2.4f, 4.5f, 1f);
+        [Range(0f, 1f)] public float Opacity = 0.62f;
+        [Range(0f, 1f)] public float BrightnessVariation = 0.24f;
+        [Range(0.01f, 0.49f)] public float FadeInFraction = 0.14f;
+        [Range(0.01f, 0.49f)] public float FadeOutFraction = 0.38f;
+        [Range(0.01f, 0.49f)] public float EdgeSoftness = 0.28f;
+        [Range(0.01f, 0.49f)] public float TipSoftness = 0.18f;
+    }
+
     public enum DuneVectorTaaQuality
     {
         Low,
@@ -1160,6 +1202,9 @@ namespace DuneVector
         [Tooltip("Movement, flight, boost, and camera controls for the drone.")]
         public DroneTuning PlayerTuning = new DroneTuning();
 
+        [Tooltip("Local camera-edge anime motion streaks driven by the player drone's real flight velocity.")]
+        public FlightSwooshTuning FlightSwooshes = new FlightSwooshTuning();
+
         [Tooltip("Procedural cloud placement and motion.")]
         public CloudTuning Clouds = new CloudTuning();
 
@@ -1226,6 +1271,7 @@ namespace DuneVector
         {
             PlayerTuning ??= new DroneTuning();
             PlayerTuning.EnsureInitialized();
+            FlightSwooshes ??= new FlightSwooshTuning();
             Clouds ??= new CloudTuning();
             Weather ??= new DesertWeatherTuning();
             Weather.EnsureInitialized();
