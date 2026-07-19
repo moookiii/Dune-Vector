@@ -751,7 +751,7 @@ namespace DuneVector
         [ColorUsage(false)] public Color FrameColor = new Color(0.018f, 0.025f, 0.033f);
         [Range(0f, 1f)] public float FrameSmoothness = 0.64f;
         [Range(0f, 1f)] public float FrameMetallic = 0.85f;
-        [ColorUsage(false)] public Color WingInlayColor = new Color(0.006f, 0.009f, 0.012f);
+        [ColorUsage(false)] public Color WingInlayColor = new Color(0.015f, 0.12f, 0.16f);
         [Range(0f, 1f)] public float WingInlaySmoothness = 0.58f;
         [Range(0f, 1f)] public float WingInlayMetallic = 0.82f;
         [ColorUsage(false)] public Color TrailColor = new Color(0f, 0.06f, 0.08f);
