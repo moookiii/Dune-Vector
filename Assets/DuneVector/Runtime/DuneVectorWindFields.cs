@@ -34,6 +34,8 @@ namespace DuneVector
     public sealed class WindFieldSystemTuning
     {
         public bool Enabled = true;
+        [Tooltip("Procedural seed combined with the world seed for wind turbulence and particle variation.")]
+        public int WindSeed = 4187;
         [Range(0.05f, 0.95f)] public float CoreRadius = 0.42f;
         [Min(0f)] public float PlayerForceResponse = 1f;
         [Min(0f)] public float GroundedForceMultiplier = 0.32f;
@@ -112,6 +114,7 @@ namespace DuneVector
             public ParticleSystem SurfaceSand;
             public Vector3 Center;
             public Vector3 Direction;
+            public Vector3 TurbulenceOffset;
         }
 
         private DroneCharacterController _player;
@@ -122,6 +125,8 @@ namespace DuneVector
         private Material _particleMaterial;
         private Texture2D _particleTexture;
         private ParticleSystem _playerInteraction;
+        private int _combinedWindSeed;
+        private int _particleSeedIndex;
 
         public WindFieldSample CurrentPlayerSample { get; private set; }
 
@@ -135,6 +140,7 @@ namespace DuneVector
             _camera = viewCamera;
             _world = world;
             _settings = settings;
+            _combinedWindSeed = unchecked(world.WorldSeed ^ settings.WindSeed);
             _particleTexture = CreateSoftParticleTexture(_settings.ParticleEdgeFalloff);
             _particleMaterial = CreateParticleMaterial(_particleTexture);
 
@@ -190,9 +196,15 @@ namespace DuneVector
                     float phase = time * _settings.TurbulenceFrequency;
                     Vector2 logical = field.Definition.LogicalPosition;
                     Vector3 turbulence = new Vector3(
-                        Mathf.PerlinNoise(logical.x * 0.013f, phase) - 0.5f,
-                        Mathf.PerlinNoise(logical.y * 0.017f, phase + 19.1f) - 0.5f,
-                        Mathf.PerlinNoise(phase + 37.7f, logical.x * 0.011f) - 0.5f);
+                        Mathf.PerlinNoise(
+                            (logical.x * 0.013f) + field.TurbulenceOffset.x,
+                            phase + field.TurbulenceOffset.y) - 0.5f,
+                        Mathf.PerlinNoise(
+                            (logical.y * 0.017f) + field.TurbulenceOffset.y,
+                            phase + field.TurbulenceOffset.z) - 0.5f,
+                        Mathf.PerlinNoise(
+                            phase + field.TurbulenceOffset.z,
+                            (logical.x * 0.011f) + field.TurbulenceOffset.x) - 0.5f);
                     force += turbulence * (2f * _settings.TurbulenceForce * field.Definition.Turbulence);
                 }
                 totalForce += force * influence;
@@ -248,6 +260,7 @@ namespace DuneVector
                 Definition = definition,
                 Root = rootObject.transform,
                 Direction = direction,
+                TurbulenceOffset = CreateTurbulenceOffset(definition, _fields.Count),
             };
             field.Streamlines = CreateParticleLayer(
                 rootObject.transform,
@@ -309,6 +322,12 @@ namespace DuneVector
             GameObject layerObject = new GameObject(layerName);
             layerObject.transform.SetParent(parent, false);
             ParticleSystem system = layerObject.AddComponent<ParticleSystem>();
+            system.useAutoRandomSeed = false;
+            system.randomSeed = DuneVectorMath.Hash(
+                _combinedWindSeed,
+                _particleSeedIndex++,
+                _settings.WindSeed,
+                9157);
             ParticleSystem.MainModule main = system.main;
             main.loop = true;
             main.playOnAwake = true;
@@ -365,6 +384,16 @@ namespace DuneVector
             renderer.receiveShadows = false;
             system.Play(true);
             return system;
+        }
+
+        private Vector3 CreateTurbulenceOffset(WindFieldDefinition definition, int fieldIndex)
+        {
+            int logicalX = Mathf.RoundToInt(definition.LogicalPosition.x);
+            int logicalZ = Mathf.RoundToInt(definition.LogicalPosition.y);
+            return new Vector3(
+                DuneVectorMath.HashRange(logicalX, logicalZ, _combinedWindSeed, 9101 + fieldIndex, 0f, 256f),
+                DuneVectorMath.HashRange(logicalX, logicalZ, _combinedWindSeed, 9113 + fieldIndex, 0f, 256f),
+                DuneVectorMath.HashRange(logicalX, logicalZ, _combinedWindSeed, 9127 + fieldIndex, 0f, 256f));
         }
 
         private void UpdateLod()
