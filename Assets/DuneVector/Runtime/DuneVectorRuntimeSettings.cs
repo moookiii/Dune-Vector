@@ -679,6 +679,23 @@ namespace DuneVector
         [Min(0f)] public float RaceEventWeight;
         [Min(0f)] public float ConvoyEventWeight;
 
+        [Header("Ambient Neutral Deliveries")]
+        public bool AmbientNeutralCouriersEnabled;
+        [Range(0, 24)] public int AmbientNeutralCourierCount;
+        [Min(1f)] public float AmbientMinimumSpawnDistance;
+        [Min(1f)] public float AmbientMaximumSpawnDistance;
+        [Min(1f)] public float AmbientMinimumRouteDistance;
+        [Min(1f)] public float AmbientMaximumRouteDistance;
+        [Min(0f)] public float AmbientMinimumCruiseSpeed;
+        [Min(0f)] public float AmbientMaximumCruiseSpeed;
+        [Min(0f)] public float AmbientMinimumFlightHeight;
+        [Min(0f)] public float AmbientMaximumFlightHeight;
+        [Min(0f)] public float AmbientMinimumTurnaroundDelay;
+        [Min(0f)] public float AmbientMaximumTurnaroundDelay;
+        [Min(1f)] public float AmbientDespawnDistance;
+        [Min(0.01f)] public float AmbientPackageScale;
+        public Vector3 AmbientPackageOffset;
+
         [Header("Courier Flight")]
         [Min(0f)] public float FlightHeightAboveTerrain;
         [Min(0f)] public float CruiseSpeed;

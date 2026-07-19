@@ -39,6 +39,7 @@ namespace DuneVector
         private float _maximumHealth;
         private float _currentHealth;
         private float _hoverPhase;
+        private float _flightHeightAboveTerrain;
         private bool _paused;
 
         public void Initialize(
@@ -56,8 +57,20 @@ namespace DuneVector
             _maximumHealth = Mathf.Max(Mathf.Epsilon, settings.MaximumCourierHealth);
             _currentHealth = _maximumHealth * Mathf.Clamp01(startingHealthFraction);
             _hoverPhase = hoverPhase;
+            _flightHeightAboveTerrain = settings.FlightHeightAboveTerrain;
             Transform visual = DuneVectorVisuals.CreateDroneVisual(_cachedTransform, materials, faction);
             visual.localScale = Vector3.one * settings.VisualScale;
+        }
+
+        public void SetFlightHeightAboveTerrain(float height)
+        {
+            _flightHeightAboveTerrain = Mathf.Max(0f, height);
+        }
+
+        public void AttachPackage(DuneVectorMaterials materials, float scale, Vector3 localOffset)
+        {
+            Transform package = DuneVectorVisuals.CreatePackageVisual(_cachedTransform, materials, scale);
+            package.localPosition = localOffset;
         }
 
         public void ConfigureRoute(Vector3 destination, float speed, bool paused)
@@ -120,7 +133,7 @@ namespace DuneVector
                 ? position
                 : position + (horizontalDirection * (_speed * deltaTime));
             float hover = Mathf.Sin((Time.time * _settings.HoverFrequency) + _hoverPhase) * _settings.HoverAmplitude;
-            float targetHeight = _world.SampleHeightAtLocal(next.x, next.z) + _settings.FlightHeightAboveTerrain + hover;
+            float targetHeight = _world.SampleHeightAtLocal(next.x, next.z) + _flightHeightAboveTerrain + hover;
             next.y = Mathf.Lerp(position.y, targetHeight, DuneVectorMath.Sharpness(_settings.TurnSharpness, deltaTime));
             _cachedTransform.position = next;
 
@@ -236,10 +249,19 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorDynamicCourierDirector : MonoBehaviour
     {
+        private sealed class AmbientCourierFlight
+        {
+            public DynamicCourierAgent Courier;
+            public float CruiseSpeed;
+            public float FlightHeight;
+            public float TurnaroundRemaining;
+        }
+
         public DynamicCourierEventType ActiveEventType { get; private set; }
 
         private readonly List<DynamicCourierAgent> _couriers = new List<DynamicCourierAgent>();
         private readonly List<DynamicCourierAttacker> _attackers = new List<DynamicCourierAttacker>();
+        private readonly List<AmbientCourierFlight> _ambientCouriers = new List<AmbientCourierFlight>();
 
         private DroneCharacterController _player;
         private DroneHealth _playerHealth;
@@ -306,6 +328,7 @@ namespace DuneVector
                 if (_wasGameplayAvailable)
                 {
                     ClearEvent();
+                    ClearAmbientCouriers();
                 }
                 _wasGameplayAvailable = false;
                 return;
@@ -318,6 +341,7 @@ namespace DuneVector
             }
 
             PruneRuntimeObjects();
+            UpdateAmbientCouriers(Time.deltaTime);
             if (_phase == DynamicCourierEventPhase.Inactive)
             {
                 _eventTimer -= Time.deltaTime;
@@ -388,6 +412,123 @@ namespace DuneVector
             {
                 SpawnConvoyEvent();
             }
+        }
+
+        private void UpdateAmbientCouriers(float deltaTime)
+        {
+            if (!_settings.AmbientNeutralCouriersEnabled || _settings.AmbientNeutralCourierCount <= 0)
+            {
+                ClearAmbientCouriers();
+                return;
+            }
+
+            for (int i = _ambientCouriers.Count - 1; i >= 0; i--)
+            {
+                AmbientCourierFlight flight = _ambientCouriers[i];
+                if (flight.Courier == null)
+                {
+                    _ambientCouriers.RemoveAt(i);
+                    continue;
+                }
+
+                if (HorizontalDistance(_player.WorldCenter, flight.Courier.transform.position) > _settings.AmbientDespawnDistance)
+                {
+                    Destroy(flight.Courier.gameObject);
+                    _ambientCouriers.RemoveAt(i);
+                    continue;
+                }
+
+                if (!flight.Courier.ReachedDestination)
+                {
+                    continue;
+                }
+
+                flight.TurnaroundRemaining -= deltaTime;
+                if (flight.TurnaroundRemaining > 0f)
+                {
+                    continue;
+                }
+
+                Vector3 destination = BuildAmbientDestination(flight.Courier.transform.position, flight.FlightHeight);
+                flight.Courier.ConfigureRoute(destination, flight.CruiseSpeed, false);
+                flight.TurnaroundRemaining = RandomRange(
+                    _settings.AmbientMinimumTurnaroundDelay,
+                    _settings.AmbientMaximumTurnaroundDelay);
+            }
+
+            int desiredCount = Mathf.Max(0, _settings.AmbientNeutralCourierCount);
+            while (_ambientCouriers.Count > desiredCount)
+            {
+                int lastIndex = _ambientCouriers.Count - 1;
+                AmbientCourierFlight flight = _ambientCouriers[lastIndex];
+                if (flight.Courier != null)
+                {
+                    Destroy(flight.Courier.gameObject);
+                }
+                _ambientCouriers.RemoveAt(lastIndex);
+            }
+            while (_ambientCouriers.Count < desiredCount)
+            {
+                SpawnAmbientCourier(_ambientCouriers.Count);
+            }
+        }
+
+        private void SpawnAmbientCourier(int index)
+        {
+            Vector3 playerPosition = _player.WorldCenter;
+            float angle = Random.value * Mathf.PI * 2f;
+            float distance = RandomRange(
+                _settings.AmbientMinimumSpawnDistance,
+                _settings.AmbientMaximumSpawnDistance);
+            float flightHeight = RandomRange(
+                _settings.AmbientMinimumFlightHeight,
+                _settings.AmbientMaximumFlightHeight);
+            Vector3 start = playerPosition + (new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * distance);
+            start.y = _world.SampleHeightAtLocal(start.x, start.z) + flightHeight;
+            Vector3 destination = BuildAmbientDestination(start, flightHeight);
+            float cruiseSpeed = RandomRange(
+                _settings.AmbientMinimumCruiseSpeed,
+                _settings.AmbientMaximumCruiseSpeed);
+
+            GameObject courierObject = new GameObject($"Ambient Neutral Delivery Courier {index + 1:00}");
+            courierObject.transform.SetParent(transform, true);
+            courierObject.transform.position = start;
+            DynamicCourierAgent courier = courierObject.AddComponent<DynamicCourierAgent>();
+            courier.Initialize(
+                CourierDroneFaction.Neutral,
+                _world,
+                _materials,
+                _settings,
+                1f,
+                Random.value * Mathf.PI * 2f);
+            courier.SetFlightHeightAboveTerrain(flightHeight);
+            courier.AttachPackage(_materials, _settings.AmbientPackageScale, _settings.AmbientPackageOffset);
+            courier.ConfigureRoute(destination, cruiseSpeed, false);
+            _ambientCouriers.Add(new AmbientCourierFlight
+            {
+                Courier = courier,
+                CruiseSpeed = cruiseSpeed,
+                FlightHeight = flightHeight,
+                TurnaroundRemaining = RandomRange(
+                    _settings.AmbientMinimumTurnaroundDelay,
+                    _settings.AmbientMaximumTurnaroundDelay),
+            });
+        }
+
+        private Vector3 BuildAmbientDestination(Vector3 start, float flightHeight)
+        {
+            float angle = Random.value * Mathf.PI * 2f;
+            float distance = RandomRange(
+                _settings.AmbientMinimumRouteDistance,
+                _settings.AmbientMaximumRouteDistance);
+            Vector3 destination = start + (new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * distance);
+            destination.y = _world.SampleHeightAtLocal(destination.x, destination.z) + flightHeight;
+            return destination;
+        }
+
+        private static float RandomRange(float a, float b)
+        {
+            return Random.Range(Mathf.Min(a, b), Mathf.Max(a, b));
         }
 
         private void SpawnDistressEvent()
@@ -692,6 +833,18 @@ namespace DuneVector
             _eventStatus = string.Empty;
         }
 
+        private void ClearAmbientCouriers()
+        {
+            for (int i = 0; i < _ambientCouriers.Count; i++)
+            {
+                if (_ambientCouriers[i].Courier != null)
+                {
+                    Destroy(_ambientCouriers[i].Courier.gameObject);
+                }
+            }
+            _ambientCouriers.Clear();
+        }
+
         private void HandleWorldShift(Vector3 worldShift)
         {
             _eventDestination += worldShift;
@@ -702,6 +855,10 @@ namespace DuneVector
             for (int i = 0; i < _attackers.Count; i++)
             {
                 _attackers[i]?.HandleWorldShift(worldShift);
+            }
+            for (int i = 0; i < _ambientCouriers.Count; i++)
+            {
+                _ambientCouriers[i].Courier?.HandleWorldShift(worldShift);
             }
         }
 
