@@ -198,8 +198,11 @@ namespace DuneVector
                 lobeScale.x = Mathf.Lerp(lobeScale.x, broadestHorizontalAxis, roundedAmount);
                 lobeScale.z = Mathf.Lerp(lobeScale.z, broadestHorizontalAxis, roundedAmount);
                 Vector3 lobePosition = lobe.Position;
-                float depthPhase = (i + 1f) * 2.399963f;
-                lobePosition.z += Mathf.Sin(depthPhase) * maximumLateralOffset * depthAmount;
+                float normalizedLateralPosition = maximumLateralOffset > 0.001f
+                    ? Mathf.Clamp(lobePosition.x / maximumLateralOffset, -1f, 1f)
+                    : 0f;
+                float coherentDepthCurve = Mathf.Sin(normalizedLateralPosition * Mathf.PI * 0.5f);
+                lobePosition.z += coherentDepthCurve * maximumLateralOffset * depthAmount;
                 instances[i] = new CombineInstance
                 {
                     mesh = sourceMesh,

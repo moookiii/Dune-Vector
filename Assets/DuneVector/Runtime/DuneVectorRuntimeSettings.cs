@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace DuneVector
@@ -616,6 +617,75 @@ namespace DuneVector
         [Range(0f, 89f)] public float MaximumPlacementSlope = 24f;
         [Min(0f)] public float MinimumBurialDepth = 0.75f;
         [Min(0f)] public float MaximumBurialDepth = 1.25f;
+    }
+
+    [System.Serializable]
+    public sealed class DesertShrubVariantTuning
+    {
+        [Tooltip("Designer label used to identify this procedural shrub silhouette.")]
+        public string Name = "Shrub";
+        [Min(0f)] public float SelectionWeight = 1f;
+        [Min(0.1f)] public float Height = 1.15f;
+        [Min(0.1f)] public float Width = 1.7f;
+        [Range(2, 9)] public int BranchCount = 5;
+        [Range(0.1f, 1f)] public float BranchStartHeight = 0.28f;
+        [Range(0f, 1f)] public float BranchUpwardBias = 0.38f;
+        [ColorUsage(false)] public Color Color = new Color(0.25f, 0.28f, 0.105f, 1f);
+        [Range(0f, 1f)] public float Smoothness = 0.12f;
+    }
+
+    [System.Serializable]
+    public sealed class DesertShrubTuning
+    {
+        public bool Enabled = true;
+
+        [Header("Distribution")]
+        [Tooltip("Target population before slope, spacing, biome, and exclusion rejection.")]
+        [Min(0f)] public float DensityPerChunk = 10f;
+        [Min(8f)] public float ClusterCellSize = 62f;
+        [Range(0f, 1f)] public float ClusterChance = 0.48f;
+        [Range(1, 32)] public int MinimumClusterSize = 5;
+        [Range(1, 48)] public int MaximumClusterSize = 15;
+        [Min(0.1f)] public float ClusterRadius = 15f;
+        [Min(0f)] public float MinimumSpacing = 1.7f;
+
+        [Header("Biome Weighting")]
+        [Min(1f)] public float BiomeNoiseScale = 230f;
+        [Range(-1f, 1f)] public float MinimumBiomeNoise = -0.18f;
+        [Range(-1f, 1f)] public float FullDensityBiomeNoise = 0.38f;
+        [Range(0.1f, 5f)] public float BiomeWeightPower = 1.65f;
+        [Range(0f, 1f)] public float MinimumRegionWeight = 0.08f;
+
+        [Header("Surface Placement")]
+        [Range(0f, 89f)] public float MaximumSlope = 27f;
+        [Min(0.05f)] public float MinimumScale = 0.72f;
+        [Min(0.05f)] public float MaximumScale = 1.35f;
+        [Min(0f)] public float MinimumBurialDepth = 0.05f;
+        [Min(0f)] public float MaximumBurialDepth = 0.18f;
+        [Range(0f, 1f)] public float SurfaceAlignment = 0.42f;
+
+        [Header("Exclusions")]
+        [Min(0f)] public float GameplayExclusionRadius = 10f;
+        [Min(0f)] public float HubExclusionRadius = 38f;
+        [Min(0f)] public float LandmarkExclusionRadius = 42f;
+        [Min(0f)] public float SceneryExclusionRadius = 4f;
+
+        [Header("Rendering")]
+        [Min(1f)] public float LodDistance = 105f;
+        [Min(1f)] public float CullDistance = 215f;
+        public bool CastShadows = true;
+        public bool ReceiveShadows = true;
+
+        [Header("Variants")]
+        public List<DesertShrubVariantTuning> Variants = new List<DesertShrubVariantTuning>
+        {
+            new DesertShrubVariantTuning(),
+        };
+
+        public void EnsureInitialized()
+        {
+            Variants ??= new List<DesertShrubVariantTuning>();
+        }
     }
 
     [System.Serializable]
@@ -1598,6 +1668,9 @@ namespace DuneVector
         [Tooltip("Procedural pyramid density and size range.")]
         public PyramidTuning Pyramids = new PyramidTuning();
 
+        [Tooltip("Clustered, biome-weighted, instanced desert shrub generation and silhouettes.")]
+        public DesertShrubTuning DesertShrubs = new DesertShrubTuning();
+
         [Tooltip("Chunk loading, unloading, and floating-origin behavior.")]
         public WorldStreamingTuning WorldStreaming = new WorldStreamingTuning();
 
@@ -1655,6 +1728,8 @@ namespace DuneVector
             RouteEncounters ??= new RouteEncounterTuning();
             DynamicCouriers ??= new DynamicCourierTuning();
             Pyramids ??= new PyramidTuning();
+            DesertShrubs ??= new DesertShrubTuning();
+            DesertShrubs.EnsureInitialized();
             WorldStreaming ??= new WorldStreamingTuning();
             RendererFrustumCulling ??= new RendererFrustumCullingTuning();
             HealthSettings ??= new PlayerHealthTuning();

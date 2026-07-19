@@ -27,6 +27,7 @@ namespace DuneVector
         public RouteEncounterTuning RouteEncounterSettings => RuntimeSettings.RouteEncounters;
         public DynamicCourierTuning DynamicCourierSettings => RuntimeSettings.DynamicCouriers;
         public PyramidTuning Pyramids => RuntimeSettings.Pyramids;
+        public DesertShrubTuning DesertShrubs => RuntimeSettings.DesertShrubs;
         public WorldStreamingTuning WorldStreaming => RuntimeSettings.WorldStreaming;
         public PlayerHealthTuning HealthSettings => RuntimeSettings.HealthSettings;
         public EnergyLauncherTuning EnergyLauncherSettings => RuntimeSettings.EnergyLauncher;
@@ -307,7 +308,7 @@ namespace DuneVector
 
             QualitySettings.vSyncCount = 1;
             Application.targetFrameRate = -1;
-            _materials = new DuneVectorMaterials(Rings, Deliveries, Clouds, DynamicCourierSettings);
+            _materials = new DuneVectorMaterials(Rings, Deliveries, Clouds, DynamicCourierSettings, DesertShrubs);
             _materials.ConfigureStormPyramid(StormPyramids);
 
             BuildEnvironment();
@@ -354,6 +355,8 @@ namespace DuneVector
             World.PyramidMaximumPlacementSlope = Pyramids.MaximumPlacementSlope;
             World.PyramidMinimumBurialDepth = Pyramids.MinimumBurialDepth;
             World.PyramidMaximumBurialDepth = Pyramids.MaximumBurialDepth;
+            World.Shrubs = DesertShrubs;
+            World.Landmarks = Contracts.Enabled && WorldHubSettings.Enabled ? LandmarkSettings : null;
             World.GroundExploders = GroundExploders;
             World.Initialize(_materials);
         }

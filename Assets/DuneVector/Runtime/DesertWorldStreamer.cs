@@ -33,6 +33,10 @@ namespace DuneVector
         [Header("Clouds")]
         public CloudTuning Clouds;
 
+        [Header("Desert Shrubs")]
+        public DesertShrubTuning Shrubs;
+        public LandmarkSystemTuning Landmarks;
+
         [Header("Spawning - expected count per chunk")]
         [Min(0f)] public float CactusDensity = 5.5f;
         [Min(0f)] public float PyramidDensity = 0.22f;
@@ -518,6 +522,8 @@ namespace DuneVector
                 AerialRingDensity,
                 Rings,
                 GroundExploders,
+                Shrubs,
+                Landmarks,
                 HandleTraversalRingActivated);
             _chunks.Add(coordinate, chunk);
             if (IsUpperFlightRingUnlocked)
@@ -649,6 +655,7 @@ namespace DuneVector
         private readonly int _worldSeed;
         private readonly RingTuning _ringTuning;
         private DuneVectorCloudField _cloudField;
+        private DesertShrubField _shrubs;
 
         public DesertChunk(
             Vector2Int coordinate,
@@ -676,6 +683,8 @@ namespace DuneVector
             float aerialRingDensity,
             RingTuning ringTuning,
             GroundExploderTuning groundExploderTuning,
+            DesertShrubTuning shrubTuning,
+            LandmarkSystemTuning landmarkTuning,
             Action<TraversalRing> ringActivated)
         {
             Coordinate = coordinate;
@@ -725,6 +734,8 @@ namespace DuneVector
                 aerialRingDensity,
                 ringTuning,
                 groundExploderTuning,
+                shrubTuning,
+                landmarkTuning,
                 ringActivated);
         }
 
@@ -833,6 +844,7 @@ namespace DuneVector
         public void LateTick(float deltaTime, Camera viewCamera)
         {
             _cloudField?.Tick(deltaTime);
+            _shrubs?.Draw(viewCamera);
             for (int i = 0; i < _rings.Count; i++)
             {
                 if (_rings[i] != null)
@@ -909,10 +921,13 @@ namespace DuneVector
             double logicalX = Coordinate.x * (double)chunkSize;
             double logicalZ = Coordinate.y * (double)chunkSize;
             Root.localPosition = new Vector3((float)(logicalX - originOffsetX), 0f, (float)(logicalZ - originOffsetZ));
+            _shrubs?.RebuildWorldMatrices();
         }
 
         public void Dispose()
         {
+            _shrubs?.Dispose();
+            _shrubs = null;
             if (Root != null)
             {
                 UnityEngine.Object.Destroy(Root.gameObject);
@@ -1018,9 +1033,12 @@ namespace DuneVector
             float aerialRingDensity,
             RingTuning ringTuning,
             GroundExploderTuning groundExploderTuning,
+            DesertShrubTuning shrubTuning,
+            LandmarkSystemTuning landmarkTuning,
             Action<TraversalRing> ringActivated)
         {
             List<Vector2> ringExclusions = new List<Vector2>();
+            List<Vector2> sceneryExclusions = new List<Vector2>();
             double originX = coordinate.x * (double)chunkSize;
             double originZ = coordinate.y * (double)chunkSize;
 
@@ -1143,6 +1161,7 @@ namespace DuneVector
                 float y = (float)heightField.SampleHeight(logicalX, logicalZ) - 0.18f;
                 int instanceSeed = unchecked((coordinate.x * 73856093) ^ (coordinate.y * 19349663) ^ (i * 83492791) ^ worldSeed);
                 DuneVectorVisuals.CreateCactus(Root, new Vector3(local.x, y, local.y), height, thickness, yaw, arms, instanceSeed, materials.Cactus);
+                sceneryExclusions.Add(local);
             }
 
             int pyramidCount = CountFromDensity(pyramidDensity, coordinate, worldSeed, 907);
@@ -1190,6 +1209,7 @@ namespace DuneVector
                     yaw);
                 float y = footprintFloor - burial;
                 DuneVectorVisuals.CreatePyramid(Root, new Vector3(local.x, y, local.y), scale, yaw, materials.Sandstone);
+                sceneryExclusions.Add(local);
             }
 
             SpawnGroundExploders(
@@ -1203,7 +1223,20 @@ namespace DuneVector
                 originX,
                 originZ,
                 ringExclusions,
+                sceneryExclusions,
                 groundExploderTuning);
+
+            _shrubs = new DesertShrubField(
+                coordinate,
+                Root,
+                chunkSize,
+                heightField,
+                worldSeed,
+                shrubTuning,
+                landmarkTuning,
+                materials.Shrubs,
+                ringExclusions,
+                sceneryExclusions);
         }
 
         private static float SampleLowestPyramidFootprintHeight(
@@ -1245,6 +1278,7 @@ namespace DuneVector
             double originX,
             double originZ,
             List<Vector2> exclusions,
+            List<Vector2> sceneryExclusions,
             GroundExploderTuning settings)
         {
             if (settings == null || !settings.Enabled || settings.DensityPerChunk <= 0f || coordinate == Vector2Int.zero)
@@ -1301,6 +1335,7 @@ namespace DuneVector
                     settings,
                     identity);
                 _groundExploders.Add(enemy);
+                sceneryExclusions.Add(local);
             }
         }
 

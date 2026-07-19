@@ -14,6 +14,7 @@ namespace DuneVector
         public Material NeutralDroneTop { get; }
         public Material DroneDark { get; }
         public Material Cactus { get; }
+        public IReadOnlyList<Material> Shrubs => _shrubMaterials;
         public Material Sandstone { get; }
         public Material BoostRing { get; }
         public Material FlightRing { get; }
@@ -40,12 +41,14 @@ namespace DuneVector
         public Material LightningWarning { get; }
 
         private readonly List<Material> _ownedMaterials = new List<Material>();
+        private readonly List<Material> _shrubMaterials = new List<Material>();
 
         public DuneVectorMaterials(
             RingTuning ringTuning = null,
             DeliveryTuning deliveryTuning = null,
             CloudTuning cloudTuning = null,
-            DynamicCourierTuning dynamicCourierTuning = null)
+            DynamicCourierTuning dynamicCourierTuning = null,
+            DesertShrubTuning shrubTuning = null)
         {
             RingTuning rings = ringTuning ?? new RingTuning();
             DeliveryTuning delivery = deliveryTuning ?? new DeliveryTuning();
@@ -73,6 +76,24 @@ namespace DuneVector
                 couriers.NeutralTopEmission);
             DroneDark = CreateLit("Drone - Graphite", new Color(0.018f, 0.025f, 0.033f), 0.64f, 0.85f);
             Cactus = CreateLit("Cactus - Stylized", new Color(0.08f, 0.31f, 0.16f), 0.25f, 0f);
+            if (shrubTuning != null)
+            {
+                shrubTuning.EnsureInitialized();
+                for (int i = 0; i < shrubTuning.Variants.Count; i++)
+                {
+                    DesertShrubVariantTuning variant = shrubTuning.Variants[i];
+                    if (variant == null)
+                    {
+                        _shrubMaterials.Add(null);
+                        continue;
+                    }
+                    _shrubMaterials.Add(CreateLit(
+                        $"Desert Shrub - {variant.Name}",
+                        variant.Color,
+                        variant.Smoothness,
+                        0f));
+                }
+            }
             Sandstone = CreateLit("Pyramid - Sandstone", new Color(0.58f, 0.31f, 0.13f), 0.18f, 0f);
             BoostRing = CreateLit("Ring - Boost Amber", rings.BoostRingBaseColor, 0.65f, 0.4f, rings.BoostRingEmissionColor);
             FlightRing = CreateLit("Ring - Flight Cyan", rings.FlightRingBaseColor, 0.7f, 0.5f, rings.FlightRingEmissionColor);
