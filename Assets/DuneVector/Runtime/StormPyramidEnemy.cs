@@ -31,6 +31,26 @@ namespace DuneVector
         }
     }
 
+    public readonly struct StormPyramidThreatWarning
+    {
+        public readonly StormLightningAttackType Type;
+        public readonly Vector3 TargetPosition;
+        public readonly float SecondsRemaining;
+        public readonly float ChargeNormalized;
+
+        public StormPyramidThreatWarning(
+            StormLightningAttackType type,
+            Vector3 targetPosition,
+            float secondsRemaining,
+            float chargeNormalized)
+        {
+            Type = type;
+            TargetPosition = targetPosition;
+            SecondsRemaining = secondsRemaining;
+            ChargeNormalized = chargeNormalized;
+        }
+    }
+
     [DisallowMultipleComponent]
     public sealed class StormPyramidEnemy : MonoBehaviour
     {
@@ -242,6 +262,39 @@ namespace DuneVector
             _lightning.ApplyWorldShift(shift);
         }
 
+        public bool TryGetThreatWarning(out StormPyramidThreatWarning warning)
+        {
+            if (_player == null || _playerHealth == null || _playerHealth.IsDead)
+            {
+                warning = default;
+                return false;
+            }
+
+            if (CurrentState == StormPyramidState.TrackingPlayer)
+            {
+                StormLightningTarget target = _attackSelector.SelectAttack(transform.position);
+                warning = new StormPyramidThreatWarning(
+                    target.Type,
+                    target.Position,
+                    Mathf.Max(0f, _settings.TrackingDuration - _stateTime) + _settings.ChargeTime,
+                    0f);
+                return true;
+            }
+
+            if (CurrentState == StormPyramidState.ChargingAttack)
+            {
+                warning = new StormPyramidThreatWarning(
+                    _lightning.TargetType,
+                    _lightning.TargetPosition,
+                    _lightning.ChargeSecondsRemaining,
+                    _lightning.ChargeNormalized);
+                return true;
+            }
+
+            warning = default;
+            return false;
+        }
+
         private void OnDrawGizmosSelected()
         {
             if (_settings == null)
@@ -435,6 +488,13 @@ namespace DuneVector
     public sealed class StormPyramidLightningAttack : MonoBehaviour
     {
         public Vector3 TargetPosition => _target.Position;
+        public StormLightningAttackType TargetType => _target.Type;
+        public float ChargeNormalized => _charging
+            ? Mathf.Clamp01(_timer / Mathf.Max(0.01f, _settings.ChargeTime))
+            : 0f;
+        public float ChargeSecondsRemaining => _charging
+            ? Mathf.Max(0f, _settings.ChargeTime - _timer)
+            : 0f;
 
         private const int LightningSegments = 11;
         private readonly Vector3[] _lightningPositions = new Vector3[LightningSegments];
@@ -652,6 +712,241 @@ namespace DuneVector
         }
     }
 
+    [DefaultExecutionOrder(1340)]
+    [DisallowMultipleComponent]
+    public sealed class StormPyramidThreatHUD : MonoBehaviour
+    {
+        private DroneCharacterController _player;
+        private Camera _camera;
+        private StormPyramidTuning _settings;
+        private List<StormPyramidEnemy> _enemies;
+        private GUIStyle _titleStyle;
+        private GUIStyle _detailStyle;
+        private GUIStyle _markerStyle;
+        private GUIStyle _arrowStyle;
+        private float _styledScale = -1f;
+
+        public void Initialize(
+            DroneCharacterController player,
+            Camera viewCamera,
+            StormPyramidTuning settings,
+            List<StormPyramidEnemy> enemies)
+        {
+            _player = player;
+            _camera = viewCamera;
+            _settings = settings;
+            _enemies = enemies;
+        }
+
+        private void OnGUI()
+        {
+            if (_player == null || _settings == null || _enemies == null)
+            {
+                return;
+            }
+            if (_camera == null)
+            {
+                _camera = Camera.main;
+            }
+            if (_camera == null || !TryGetMostUrgentThreat(out StormPyramidThreatWarning threat))
+            {
+                return;
+            }
+
+            float scale = Mathf.Clamp(_settings.WarningHudScale, 0.6f, 2f);
+            EnsureStyles(scale);
+            float pulseSpeed = Mathf.Max(0f, _settings.WarningPulseSpeed);
+            float pulse = 0.72f + (Mathf.Sin(Time.unscaledTime * pulseSpeed) * 0.18f);
+            Color warningColor = _settings.WarningColor;
+            warningColor.a = Mathf.Clamp01(pulse);
+
+            DrawScreenBorder(warningColor, scale);
+            DrawWarningPanel(threat, warningColor, scale);
+            DrawTargetMarker(threat, warningColor, scale);
+        }
+
+        private bool TryGetMostUrgentThreat(out StormPyramidThreatWarning warning)
+        {
+            warning = default;
+            float bestTime = float.MaxValue;
+            float warningRange = Mathf.Max(1f, _settings.NearbyWarningRange);
+            bool found = false;
+
+            for (int i = 0; i < _enemies.Count; i++)
+            {
+                StormPyramidEnemy enemy = _enemies[i];
+                if (enemy == null || !enemy.TryGetThreatWarning(out StormPyramidThreatWarning candidate))
+                {
+                    continue;
+                }
+
+                float targetDistance = Vector3.Distance(_player.WorldCenter, candidate.TargetPosition);
+                bool threatensPlayer = candidate.Type == StormLightningAttackType.PlayerStrike
+                    || targetDistance <= warningRange;
+                if (!threatensPlayer || candidate.SecondsRemaining >= bestTime)
+                {
+                    continue;
+                }
+
+                warning = candidate;
+                bestTime = candidate.SecondsRemaining;
+                found = true;
+            }
+
+            return found;
+        }
+
+        private void EnsureStyles(float scale)
+        {
+            if (_titleStyle != null && Mathf.Approximately(_styledScale, scale))
+            {
+                return;
+            }
+
+            _styledScale = scale;
+            _titleStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = Mathf.RoundToInt(22f * scale),
+                fontStyle = FontStyle.Bold,
+                richText = false,
+                wordWrap = false,
+                clipping = TextClipping.Clip,
+                normal = { textColor = Color.white },
+            };
+            _detailStyle = new GUIStyle(_titleStyle)
+            {
+                fontSize = Mathf.RoundToInt(14f * scale),
+                fontStyle = FontStyle.Normal,
+            };
+            _markerStyle = new GUIStyle(_titleStyle)
+            {
+                fontSize = Mathf.RoundToInt(16f * scale),
+            };
+            _arrowStyle = new GUIStyle(_titleStyle)
+            {
+                fontSize = Mathf.RoundToInt(30f * scale),
+            };
+        }
+
+        private void DrawScreenBorder(Color warningColor, float scale)
+        {
+            float thickness = Mathf.Max(3f, 7f * scale);
+            Color previousColor = GUI.color;
+            GUI.color = warningColor;
+            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, thickness), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(0f, Screen.height - thickness, Screen.width, thickness), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(0f, 0f, thickness, Screen.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(Screen.width - thickness, 0f, thickness, Screen.height), Texture2D.whiteTexture);
+            GUI.color = previousColor;
+        }
+
+        private void DrawWarningPanel(StormPyramidThreatWarning threat, Color warningColor, float scale)
+        {
+            float panelWidth = 360f * scale;
+            float panelHeight = 76f * scale;
+            Rect panel = new Rect(
+                (Screen.width - panelWidth) * 0.5f,
+                152f * scale,
+                panelWidth,
+                panelHeight);
+            Color previousColor = GUI.color;
+            GUI.color = new Color(0.015f, 0.035f, 0.055f, 0.9f);
+            GUI.DrawTexture(panel, Texture2D.whiteTexture);
+            GUI.color = warningColor;
+            GUI.DrawTexture(new Rect(panel.x, panel.y, panel.width, 4f * scale), Texture2D.whiteTexture);
+            GUI.color = previousColor;
+
+            string attackLabel = threat.Type == StormLightningAttackType.PlayerStrike
+                ? "LIGHTNING LOCK"
+                : "GROUND STRIKE NEARBY";
+            GUI.Label(
+                new Rect(panel.x, panel.y + (5f * scale), panel.width, 31f * scale),
+                attackLabel,
+                _titleStyle);
+            GUI.Label(
+                new Rect(panel.x, panel.y + (34f * scale), panel.width, 19f * scale),
+                $"IMPACT IN {threat.SecondsRemaining:0.0} s",
+                _detailStyle);
+
+            Rect bar = new Rect(
+                panel.x + (20f * scale),
+                panel.yMax - (15f * scale),
+                panel.width - (40f * scale),
+                6f * scale);
+            GUI.color = new Color(0f, 0f, 0f, 0.75f);
+            GUI.DrawTexture(bar, Texture2D.whiteTexture);
+            GUI.color = warningColor;
+            GUI.DrawTexture(
+                new Rect(bar.x, bar.y, bar.width * Mathf.Clamp01(threat.ChargeNormalized), bar.height),
+                Texture2D.whiteTexture);
+            GUI.color = previousColor;
+        }
+
+        private void DrawTargetMarker(StormPyramidThreatWarning threat, Color warningColor, float scale)
+        {
+            Vector3 projected = _camera.WorldToScreenPoint(threat.TargetPosition);
+            Vector2 screenPoint = new Vector2(projected.x, Screen.height - projected.y);
+            Vector2 screenCenter = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+            float padding = Mathf.Max(12f, _settings.WarningEdgePadding) * scale;
+            bool onScreen = projected.z > 0f
+                && screenPoint.x >= padding
+                && screenPoint.x <= Screen.width - padding
+                && screenPoint.y >= padding
+                && screenPoint.y <= Screen.height - padding;
+            Vector2 direction = screenPoint - screenCenter;
+            Vector2 markerPosition = screenPoint;
+
+            if (!onScreen)
+            {
+                if (projected.z <= 0f)
+                {
+                    direction = -direction;
+                }
+                if (direction.sqrMagnitude < 0.001f)
+                {
+                    direction = Vector2.up;
+                }
+                direction.Normalize();
+                float horizontalScale = (screenCenter.x - padding) / Mathf.Max(0.001f, Mathf.Abs(direction.x));
+                float verticalScale = (screenCenter.y - padding) / Mathf.Max(0.001f, Mathf.Abs(direction.y));
+                markerPosition = screenCenter + (direction * Mathf.Min(horizontalScale, verticalScale));
+
+                float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg + 90f;
+                Matrix4x4 previousMatrix = GUI.matrix;
+                GUIUtility.RotateAroundPivot(angle, markerPosition);
+                _arrowStyle.normal.textColor = warningColor;
+                GUI.Label(
+                    new Rect(markerPosition.x - (24f * scale), markerPosition.y - (24f * scale), 48f * scale, 48f * scale),
+                    "▲",
+                    _arrowStyle);
+                GUI.matrix = previousMatrix;
+            }
+
+            float markerPulse = 1f + (Mathf.Sin(Time.unscaledTime * Mathf.Max(0f, _settings.WarningPulseSpeed)) * 0.12f);
+            float markerSize = 42f * scale * markerPulse;
+            Color previousColor = GUI.color;
+            GUI.color = warningColor;
+            Rect marker = new Rect(
+                markerPosition.x - (markerSize * 0.5f),
+                markerPosition.y - (markerSize * 0.5f),
+                markerSize,
+                markerSize);
+            GUI.DrawTexture(new Rect(marker.x, marker.y, marker.width, 3f * scale), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(marker.x, marker.yMax - (3f * scale), marker.width, 3f * scale), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(marker.x, marker.y, 3f * scale, marker.height), Texture2D.whiteTexture);
+            GUI.DrawTexture(new Rect(marker.xMax - (3f * scale), marker.y, 3f * scale, marker.height), Texture2D.whiteTexture);
+            GUI.color = previousColor;
+
+            float distance = Vector3.Distance(_player.WorldCenter, threat.TargetPosition);
+            _markerStyle.normal.textColor = warningColor;
+            GUI.Label(
+                new Rect(markerPosition.x - (75f * scale), markerPosition.y + (24f * scale), 150f * scale, 24f * scale),
+                $"STRIKE  {distance:0} m",
+                _markerStyle);
+        }
+    }
+
     [DefaultExecutionOrder(1350)]
     [DisallowMultipleComponent]
     public sealed class DuneVectorStormPyramidDirector : MonoBehaviour
@@ -697,6 +992,9 @@ namespace DuneVector
                 enemy.Initialize(player, playerHealth, world, materials, settings, i + 1);
                 _enemies.Add(enemy);
             }
+
+            StormPyramidThreatHUD warningHud = gameObject.AddComponent<StormPyramidThreatHUD>();
+            warningHud.Initialize(player, Camera.main, settings, _enemies);
         }
 
         private void HandleWorldShift(Vector3 shift)

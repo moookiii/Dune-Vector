@@ -142,6 +142,16 @@ namespace DuneVector
         [Tooltip("Multiplies only the lightning bolt emission, creating a stronger HDR bloom halo.")]
         [Min(0f)] public float LightningBloomIntensity = 4f;
 
+        [Header("Attack Warning HUD")]
+        [Tooltip("Ground strikes show the attack warning when their impact point is within this distance of the drone. Player-targeted strikes always warn.")]
+        [Min(1f)] public float NearbyWarningRange = 55f;
+        [Tooltip("Speed of the warning border and marker pulse.")]
+        [Min(0f)] public float WarningPulseSpeed = 9f;
+        [Tooltip("Scales the warning panel, text, target marker, and screen border together.")]
+        [Range(0.6f, 2f)] public float WarningHudScale = 1f;
+        [Tooltip("Distance in pixels that the directional strike marker stays inside the screen edge before HUD scaling.")]
+        [Min(12f)] public float WarningEdgePadding = 64f;
+
         [Header("Presentation")]
         [Min(0.1f)] public float VisualScale = 2.2f;
         [ColorUsage(false)] public Color BodyColor = new Color(0.012f, 0.055f, 0.024f);
