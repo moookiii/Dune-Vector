@@ -19,6 +19,7 @@ namespace DuneVector
         [InspectorName("Flight Ring Active Scale")]
         [Min(1f)] public float FlightModeScale = 1.45f;
         [Min(0f)] public float FlightModeScaleSharpness = 4.5f;
+        [Min(0f)] public float ClockwiseRotationSpeed = 32f;
         [Min(0f)] public float FlightModeHeightOffset;
         [Min(0f)] public float FlightModeHeightSharpness;
         public string ProceduralIdentity;
@@ -115,7 +116,9 @@ namespace DuneVector
                     DuneVectorMath.Sharpness(FlightModeScaleSharpness, Time.deltaTime));
                 float scale = _modeScale * (1f + (Mathf.Sin(_pulse * Mathf.PI) * 0.085f));
                 _visualRoot.localScale = Vector3.one * scale;
-                _visualSpin = 0f;
+                _visualSpin = Mathf.Repeat(
+                    _visualSpin - (ClockwiseRotationSpeed * Time.deltaTime),
+                    360f);
             }
         }
 

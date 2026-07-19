@@ -202,6 +202,10 @@ namespace DuneVector
         [Min(1f)] public float FlightModeScale = 1.45f;
         [Min(0f)] public float ScaleSharpness = 4.5f;
 
+        [Header("Rotation")]
+        [Tooltip("Clockwise visual rotation speed for both yellow boost rings and blue flight rings, in degrees per second.")]
+        [Min(0f)] public float ClockwiseRotationSpeed = 32f;
+
         [Header("Flight Mode Height Offset")]
         [Min(0f)] public float FlightModeMinimumHeightOffset;
         [Min(0f)] public float FlightModeMaximumHeightOffset;

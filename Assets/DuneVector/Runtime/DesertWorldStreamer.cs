@@ -796,6 +796,7 @@ namespace DuneVector
             ring.BoostRingActiveScale = ringTuning.BoostRingActiveScale;
             ring.FlightModeScale = ringTuning.FlightModeScale;
             ring.FlightModeScaleSharpness = ringTuning.ScaleSharpness;
+            ring.ClockwiseRotationSpeed = ringTuning.ClockwiseRotationSpeed;
             if (type == TraversalRingType.Flight)
             {
                 float minimumLift = Mathf.Max(0f, ringTuning.FlightModeMinimumHeightOffset);
