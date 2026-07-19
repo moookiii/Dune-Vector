@@ -80,6 +80,7 @@ namespace DuneVector
         private readonly List<Vector2Int> _candidateCoordinates = new List<Vector2Int>();
         private readonly List<Vector2Int> _removalBuffer = new List<Vector2Int>();
         private readonly HashSet<string> _activatedFlightRingIdentities = new HashSet<string>();
+        private Vector2Int _candidateSortCenter;
 
         private DuneVectorMaterials _materials;
         private Transform _chunkRoot;
@@ -110,6 +111,8 @@ namespace DuneVector
             GameObject root = new GameObject("Streamed Desert Chunks");
             _chunkRoot = root.transform;
             _chunkRoot.SetParent(transform, false);
+            DuneVectorStreamedSimulation simulation = gameObject.AddComponent<DuneVectorStreamedSimulation>();
+            simulation.Initialize(this);
 
             DuneVectorUpperFlightRingHUD progressHud = gameObject.AddComponent<DuneVectorUpperFlightRingHUD>();
             progressHud.Initialize(this, Rings);
@@ -174,7 +177,8 @@ namespace DuneVector
                 return;
             }
 
-            _streamingRefreshTimer -= Time.deltaTime;
+            float deltaTime = Time.deltaTime;
+            _streamingRefreshTimer -= deltaTime;
             Vector2Int playerChunk = GetPlayerLogicalChunk();
             if (_streamingRefreshTimer <= 0f || playerChunk != _lastScheduledChunk)
             {
@@ -187,7 +191,7 @@ namespace DuneVector
             {
                 Vector2Int coordinate = _generationQueue.Dequeue();
                 _queuedCoordinates.Remove(coordinate);
-                int distance = ChebyshevDistance(coordinate, GetPlayerLogicalChunk());
+                int distance = ChebyshevDistance(coordinate, playerChunk);
                 if (_chunks.ContainsKey(coordinate) || distance > PreloadRadius + 1)
                 {
                     continue;
@@ -195,6 +199,46 @@ namespace DuneVector
 
                 GenerateChunkImmediate(coordinate);
                 generated++;
+            }
+        }
+
+        internal void TickStreamedObjects(float deltaTime)
+        {
+            if (!_initialized)
+            {
+                return;
+            }
+
+            foreach (DesertChunk chunk in _chunks.Values)
+            {
+                chunk.Tick(deltaTime);
+            }
+        }
+
+        internal void FixedTickStreamedObjects(float fixedDeltaTime)
+        {
+            if (!_initialized)
+            {
+                return;
+            }
+
+            foreach (DesertChunk chunk in _chunks.Values)
+            {
+                chunk.FixedTick(fixedDeltaTime);
+            }
+        }
+
+        internal void LateTickStreamedObjects(float deltaTime)
+        {
+            if (!_initialized)
+            {
+                return;
+            }
+
+            Camera viewCamera = _camera != null ? _camera.Camera : null;
+            foreach (DesertChunk chunk in _chunks.Values)
+            {
+                chunk.LateTick(deltaTime, viewCamera);
             }
         }
 
@@ -257,8 +301,16 @@ namespace DuneVector
             }
             _lastScheduledChunk = playerChunk;
 
+            if (force)
+            {
+                _generationQueue.Clear();
+                _queuedCoordinates.Clear();
+            }
+
             _candidateCoordinates.Clear();
-            int radius = Mathf.Max(ActiveRadius, PreloadRadius);
+            int radius = Mathf.Min(
+                Mathf.Max(ActiveRadius, PreloadRadius),
+                Mathf.Max(1, PreloadRadius) + 1);
             for (int z = -radius; z <= radius; z++)
             {
                 for (int x = -radius; x <= radius; x++)
@@ -270,8 +322,8 @@ namespace DuneVector
                     }
                 }
             }
-            _candidateCoordinates.Sort((left, right) =>
-                ChebyshevDistance(left, playerChunk).CompareTo(ChebyshevDistance(right, playerChunk)));
+            _candidateSortCenter = playerChunk;
+            _candidateCoordinates.Sort(CompareCandidateCoordinates);
             for (int i = 0; i < _candidateCoordinates.Count; i++)
             {
                 _generationQueue.Enqueue(_candidateCoordinates[i]);
@@ -391,6 +443,12 @@ namespace DuneVector
             return Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y));
         }
 
+        private int CompareCandidateCoordinates(Vector2Int left, Vector2Int right)
+        {
+            return ChebyshevDistance(left, _candidateSortCenter)
+                .CompareTo(ChebyshevDistance(right, _candidateSortCenter));
+        }
+
         private void OnDrawGizmos()
         {
             if (!DrawChunkBounds || _chunks == null)
@@ -407,8 +465,37 @@ namespace DuneVector
         }
     }
 
+    [DefaultExecutionOrder(0)]
+    [DisallowMultipleComponent]
+    internal sealed class DuneVectorStreamedSimulation : MonoBehaviour
+    {
+        private DesertWorldStreamer _world;
+
+        public void Initialize(DesertWorldStreamer world)
+        {
+            _world = world;
+        }
+
+        private void Update()
+        {
+            _world?.TickStreamedObjects(Time.deltaTime);
+        }
+
+        private void FixedUpdate()
+        {
+            _world?.FixedTickStreamedObjects(Time.fixedDeltaTime);
+        }
+
+        private void LateUpdate()
+        {
+            _world?.LateTickStreamedObjects(Time.deltaTime);
+        }
+    }
+
     internal sealed class DesertChunk : IDisposable
     {
+        private static readonly Dictionary<int, int[]> TriangleIndicesByResolution = new Dictionary<int, int[]>();
+
         public Vector2Int Coordinate { get; }
         public Transform Root { get; }
 
@@ -419,6 +506,7 @@ namespace DuneVector
         private readonly DuneHeightField _heightField;
         private readonly int _worldSeed;
         private readonly RingTuning _ringTuning;
+        private DuneVectorCloudField _cloudField;
 
         public DesertChunk(
             Vector2Int coordinate,
@@ -518,13 +606,13 @@ namespace DuneVector
 
             GameObject cloudObject = new GameObject("Chunk Clouds");
             cloudObject.transform.SetParent(Root, false);
-            DuneVectorCloudField cloudField = cloudObject.AddComponent<DuneVectorCloudField>();
+            _cloudField = cloudObject.AddComponent<DuneVectorCloudField>();
             int randomSeed = unchecked(
                 worldSeed
                 ^ tuning.RandomSeedOffset
                 ^ (coordinate.x * 73856093)
                 ^ (coordinate.y * 19349663));
-            cloudField.Initialize(
+            _cloudField.Initialize(
                 sunlitMaterial,
                 underbellyMaterial,
                 clusterCount,
@@ -547,6 +635,47 @@ namespace DuneVector
                 if (_groundExploders[i] != null)
                 {
                     _groundExploders[i].BindTargets(player, playerHealth);
+                }
+            }
+        }
+
+        public void Tick(float deltaTime)
+        {
+            for (int i = 0; i < _rings.Count; i++)
+            {
+                if (_rings[i] != null)
+                {
+                    _rings[i].Tick(deltaTime);
+                }
+            }
+            for (int i = 0; i < _groundExploders.Count; i++)
+            {
+                if (_groundExploders[i] != null)
+                {
+                    _groundExploders[i].Tick(deltaTime);
+                }
+            }
+        }
+
+        public void FixedTick(float fixedDeltaTime)
+        {
+            for (int i = 0; i < _groundExploders.Count; i++)
+            {
+                if (_groundExploders[i] != null)
+                {
+                    _groundExploders[i].FixedTick(fixedDeltaTime);
+                }
+            }
+        }
+
+        public void LateTick(float deltaTime, Camera viewCamera)
+        {
+            _cloudField?.Tick(deltaTime);
+            for (int i = 0; i < _rings.Count; i++)
+            {
+                if (_rings[i] != null)
+                {
+                    _rings[i].LateTick(viewCamera);
                 }
             }
         }
@@ -640,10 +769,12 @@ namespace DuneVector
             Vector3[] vertices = new Vector3[vertexCount];
             Vector3[] normals = new Vector3[vertexCount];
             Vector2[] uvs = new Vector2[vertexCount];
-            int[] triangles = new int[resolution * resolution * 6];
+            int[] triangles = GetTriangleIndices(resolution);
             double logicalOriginX = coordinate.x * (double)chunkSize;
             double logicalOriginZ = coordinate.y * (double)chunkSize;
             float step = chunkSize / resolution;
+            float minimumHeight = float.PositiveInfinity;
+            float maximumHeight = float.NegativeInfinity;
 
             int vertex = 0;
             for (int z = 0; z <= resolution; z++)
@@ -652,13 +783,40 @@ namespace DuneVector
                 {
                     double logicalX = logicalOriginX + (x * step);
                     double logicalZ = logicalOriginZ + (z * step);
-                    vertices[vertex] = new Vector3(x * step, (float)heightField.SampleHeight(logicalX, logicalZ), z * step);
+                    float height = (float)heightField.SampleHeight(logicalX, logicalZ);
+                    vertices[vertex] = new Vector3(x * step, height, z * step);
                     normals[vertex] = heightField.SampleNormal(logicalX, logicalZ);
                     uvs[vertex] = new Vector2((float)(logicalX / 18.0), (float)(logicalZ / 18.0));
+                    minimumHeight = Mathf.Min(minimumHeight, height);
+                    maximumHeight = Mathf.Max(maximumHeight, height);
                     vertex++;
                 }
             }
 
+            Mesh mesh = new Mesh { name = $"Dune Terrain [{coordinate.x}, {coordinate.y}]" };
+            if (vertexCount > 65535)
+            {
+                mesh.indexFormat = IndexFormat.UInt32;
+            }
+            mesh.vertices = vertices;
+            mesh.normals = normals;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.bounds = new Bounds(
+                new Vector3(chunkSize * 0.5f, (minimumHeight + maximumHeight) * 0.5f, chunkSize * 0.5f),
+                new Vector3(chunkSize, maximumHeight - minimumHeight, chunkSize));
+            return mesh;
+        }
+
+        private static int[] GetTriangleIndices(int resolution)
+        {
+            if (TriangleIndicesByResolution.TryGetValue(resolution, out int[] triangles))
+            {
+                return triangles;
+            }
+
+            int row = resolution + 1;
+            triangles = new int[resolution * resolution * 6];
             int triangle = 0;
             for (int z = 0; z < resolution; z++)
             {
@@ -674,18 +832,8 @@ namespace DuneVector
                     triangles[triangle++] = b + 1;
                 }
             }
-
-            Mesh mesh = new Mesh { name = $"Dune Terrain [{coordinate.x}, {coordinate.y}]" };
-            if (vertexCount > 65535)
-            {
-                mesh.indexFormat = IndexFormat.UInt32;
-            }
-            mesh.vertices = vertices;
-            mesh.normals = normals;
-            mesh.uv = uvs;
-            mesh.triangles = triangles;
-            mesh.RecalculateBounds();
-            return mesh;
+            TriangleIndicesByResolution.Add(resolution, triangles);
+            return triangles;
         }
 
         private void SpawnContent(

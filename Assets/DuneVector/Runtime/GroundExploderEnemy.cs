@@ -69,14 +69,13 @@ namespace DuneVector
             _damage?.BindTarget(player, playerHealth);
         }
 
-        private void Update()
+        internal void Tick(float deltaTime)
         {
             if (_settings == null || (_playerHealth != null && _playerHealth.IsDead))
             {
                 return;
             }
 
-            float deltaTime = Time.deltaTime;
             _stateTime += deltaTime;
             switch (CurrentState)
             {
@@ -111,6 +110,11 @@ namespace DuneVector
                 case GroundExploderState.Dead:
                     break;
             }
+        }
+
+        internal void FixedTick(float fixedDeltaTime)
+        {
+            _movement?.FixedTick(fixedDeltaTime);
         }
 
         private void Detonate()
@@ -215,7 +219,7 @@ namespace DuneVector
             MeasureDistance(deltaTime);
         }
 
-        private void FixedUpdate()
+        internal void FixedTick(float fixedDeltaTime)
         {
             if (_body == null || _settings == null)
             {
@@ -225,7 +229,7 @@ namespace DuneVector
             Vector2 current = new Vector2(transform.localPosition.x, transform.localPosition.z);
             if (_patrolRequested && _settings.MovementSpeed > 0f)
             {
-                if (!_hasTarget || Vector2.Distance(current, _patrolTarget) <= 1.1f)
+                if (!_hasTarget || (current - _patrolTarget).sqrMagnitude <= 1.21f)
                 {
                     ChoosePatrolTarget();
                 }
@@ -244,7 +248,7 @@ namespace DuneVector
                     Vector2 next = Vector2.MoveTowards(
                         current,
                         _patrolTarget,
-                        _settings.MovementSpeed * Time.fixedDeltaTime);
+                        _settings.MovementSpeed * fixedDeltaTime);
                     Vector3 surfaceNormal = SampleNormal(next);
                     Vector3 localPosition = new Vector3(
                         next.x,

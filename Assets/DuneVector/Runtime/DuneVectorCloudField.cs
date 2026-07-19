@@ -7,7 +7,6 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorCloudField : MonoBehaviour
     {
-        private readonly List<Transform> _clusters = new List<Transform>();
         private readonly List<Mesh> _generatedMeshes = new List<Mesh>();
         private static Mesh _sphereMesh;
         private float _driftSpeed;
@@ -88,7 +87,6 @@ namespace DuneVector
                 CreateLayer("Cloud Underbelly", cluster, underbellyLobes, underbellyMaterial);
                 CreateLayer("Cloud Sunlit Layer", cluster, sunlitLobes, sunlitMaterial);
 
-                _clusters.Add(cluster);
             }
         }
 
@@ -154,14 +152,10 @@ namespace DuneVector
             _generatedMeshes.Clear();
         }
 
-        private void LateUpdate()
+        internal void Tick(float deltaTime)
         {
-            Vector3 drift = new Vector3(_driftDirection.x, 0f, _driftDirection.y) * (_driftSpeed * Time.deltaTime);
-            for (int i = 0; i < _clusters.Count; i++)
-            {
-                Transform cluster = _clusters[i];
-                cluster.localPosition += drift;
-            }
+            Vector3 drift = new Vector3(_driftDirection.x, 0f, _driftDirection.y) * (_driftSpeed * deltaTime);
+            transform.localPosition += drift;
         }
 
         private static float Range(System.Random random, float minimum, float maximum)

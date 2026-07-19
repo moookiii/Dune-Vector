@@ -156,6 +156,7 @@ namespace DuneVector
         private void Update()
         {
             float deltaTime = Time.deltaTime;
+            float time = Time.time;
             for (int i = 0; i < _spins.Count; i++)
             {
                 SpinBinding binding = _spins[i];
@@ -170,7 +171,7 @@ namespace DuneVector
                 if (binding.Target != null)
                 {
                     binding.Target.localPosition = binding.BasePosition +
-                        (Vector3.up * (Mathf.Sin((Time.time * binding.Speed) + binding.Phase) * binding.Amplitude));
+                        (Vector3.up * (Mathf.Sin((time * binding.Speed) + binding.Phase) * binding.Amplitude));
                 }
             }
             for (int i = 0; i < _pulses.Count; i++)
@@ -178,7 +179,7 @@ namespace DuneVector
                 PulseBinding binding = _pulses[i];
                 if (binding.Target != null)
                 {
-                    float scale = 1f + (Mathf.Sin((Time.time * binding.Speed) + binding.Phase) * binding.Amount);
+                    float scale = 1f + (Mathf.Sin((time * binding.Speed) + binding.Phase) * binding.Amount);
                     binding.Target.localScale = binding.BaseScale * scale;
                 }
             }

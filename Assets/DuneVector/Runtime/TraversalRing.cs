@@ -50,6 +50,7 @@ namespace DuneVector
         private DuneVectorMaterials _materials;
         private RingTuning _ringTuning;
         private TraversalRing _upperLayerRing;
+        private Transform _cachedTransform;
 
         public void Initialize(
             TraversalRingType type,
@@ -65,11 +66,12 @@ namespace DuneVector
             _health = health;
             _materials = materials;
             _ringTuning = ringTuning;
+            _cachedTransform = transform;
             InnerRadius = majorRadius - 0.58f;
             ProceduralIdentity = identity;
-            _restingLocalPosition = transform.localPosition;
+            _restingLocalPosition = _cachedTransform.localPosition;
             _visualRoot = DuneVectorVisuals.CreateRingVisual(
-                transform,
+                _cachedTransform,
                 type,
                 materials,
                 majorRadius,
@@ -150,7 +152,13 @@ namespace DuneVector
 
         private bool IsFlightRing => RingType == TraversalRingType.Flight || RingType == TraversalRingType.UpperFlight;
 
-        private void Update()
+        internal void Tick(float deltaTime)
+        {
+            TickSelf(deltaTime);
+            _upperLayerRing?.Tick(deltaTime);
+        }
+
+        private void TickSelf(float deltaTime)
         {
             if (_controller == null)
             {
@@ -162,15 +170,17 @@ namespace DuneVector
                 bool isFlying = _controller.CurrentMode == DroneTraversalMode.Flight;
                 Vector3 targetPosition = _restingLocalPosition
                     + (Vector3.up * (isFlying ? FlightModeHeightOffset : 0f));
-                transform.localPosition = Vector3.Lerp(
-                    transform.localPosition,
+                _cachedTransform.localPosition = Vector3.Lerp(
+                    _cachedTransform.localPosition,
                     targetPosition,
-                    DuneVectorMath.Sharpness(FlightModeHeightSharpness, Time.deltaTime));
+                    DuneVectorMath.Sharpness(FlightModeHeightSharpness, deltaTime));
             }
 
             Vector3 worldPosition = _controller.WorldCenter;
             float activationRadius = InnerRadius * _modeScale;
-            bool currentlyInside = Vector3.Distance(worldPosition, transform.position) <= activationRadius;
+            float activationRadiusSquared = activationRadius * activationRadius;
+            Vector3 ringPosition = _cachedTransform.position;
+            bool currentlyInside = (worldPosition - ringPosition).sqrMagnitude <= activationRadiusSquared;
             bool passedThrough = false;
             if (_hasPreviousWorldPosition)
             {
@@ -179,9 +189,9 @@ namespace DuneVector
                 if (segmentLengthSquared > 0.0001f)
                 {
                     float interpolation = Mathf.Clamp01(
-                        Vector3.Dot(transform.position - _previousWorldPosition, segment) / segmentLengthSquared);
+                        Vector3.Dot(ringPosition - _previousWorldPosition, segment) / segmentLengthSquared);
                     Vector3 closestPoint = _previousWorldPosition + (segment * interpolation);
-                    passedThrough = Vector3.Distance(closestPoint, transform.position) <= activationRadius;
+                    passedThrough = (closestPoint - ringPosition).sqrMagnitude <= activationRadiusSquared;
                 }
             }
 
@@ -194,7 +204,7 @@ namespace DuneVector
             _previousWorldPosition = worldPosition;
             _hasPreviousWorldPosition = true;
 
-            _pulse = Mathf.MoveTowards(_pulse, 0f, Time.deltaTime * 1.8f);
+            _pulse = Mathf.MoveTowards(_pulse, 0f, deltaTime * 1.8f);
             if (_visualRoot != null)
             {
                 float targetModeScale = RingType switch
@@ -211,11 +221,11 @@ namespace DuneVector
                 _modeScale = Mathf.Lerp(
                     _modeScale,
                     targetModeScale,
-                    DuneVectorMath.Sharpness(FlightModeScaleSharpness, Time.deltaTime));
+                    DuneVectorMath.Sharpness(FlightModeScaleSharpness, deltaTime));
                 float scale = _modeScale * (1f + (Mathf.Sin(_pulse * Mathf.PI) * 0.085f));
                 _visualRoot.localScale = Vector3.one * scale;
                 _visualSpin = Mathf.Repeat(
-                    _visualSpin - (ClockwiseRotationSpeed * Time.deltaTime),
+                    _visualSpin - (ClockwiseRotationSpeed * deltaTime),
                     360f);
                 if (IsCollectible)
                 {
@@ -228,14 +238,24 @@ namespace DuneVector
             }
         }
 
-        private void LateUpdate()
+        internal void LateTick(Camera viewCamera)
+        {
+            LateTickSelf(viewCamera);
+            _upperLayerRing?.LateTick(viewCamera);
+        }
+
+        private void LateTickSelf(Camera viewCamera)
         {
             if (_visualRoot == null)
             {
                 return;
             }
 
-            if (_billboardCamera == null)
+            if (viewCamera != null)
+            {
+                _billboardCamera = viewCamera;
+            }
+            else if (_billboardCamera == null)
             {
                 _billboardCamera = Camera.main;
             }

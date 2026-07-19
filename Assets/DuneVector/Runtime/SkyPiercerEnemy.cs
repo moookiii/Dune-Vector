@@ -29,6 +29,7 @@ namespace DuneVector
         private float _attackCooldown;
         private float _hoverPhase;
         private int _identity;
+        private Transform _cachedTransform;
 
         public void Initialize(
             DroneCharacterController player,
@@ -43,8 +44,9 @@ namespace DuneVector
             _world = world;
             _settings = settings;
             _identity = identity;
+            _cachedTransform = transform;
             _hoverPhase = identity * 1.73f;
-            _visual = DuneVectorVisuals.CreateFlyingEnemyVisual(transform, materials, settings.VisualScale);
+            _visual = DuneVectorVisuals.CreateFlyingEnemyVisual(_cachedTransform, materials, settings.VisualScale);
             _core = _visual.Find("Recessed Core");
             EnemyHealth enemyHealth = gameObject.AddComponent<EnemyHealth>();
             enemyHealth.Initialize(settings.MaximumHealth);
@@ -52,7 +54,7 @@ namespace DuneVector
             combatTarget.Initialize(enemyHealth, settings.VisualScale);
             EnemyGoldReward goldReward = gameObject.AddComponent<EnemyGoldReward>();
             goldReward.Initialize(enemyHealth, player != null ? player.GetComponent<DroneGoldWallet>() : null, settings.GoldReward);
-            _hoverAnchor = transform.position;
+            _hoverAnchor = _cachedTransform.position;
             SetState(SkyPiercerState.IdleFloating);
             _attackCooldown = settings.AttackCooldown * Mathf.Repeat((identity * 0.37f) + 0.3f, 1f);
         }
@@ -67,21 +69,24 @@ namespace DuneVector
             float deltaTime = Time.deltaTime;
             _stateTime += deltaTime;
             _attackCooldown = Mathf.Max(0f, _attackCooldown - deltaTime);
+            Vector3 playerPosition = _player.WorldCenter;
 
             bool canReposition = CurrentState != SkyPiercerState.AttackDive
                 && CurrentState != SkyPiercerState.StuckInGround;
-            if (canReposition && Vector3.Distance(transform.position, _player.WorldCenter) > _settings.RepositionDistance)
+            float repositionDistance = _settings.RepositionDistance;
+            if (canReposition
+                && (_cachedTransform.position - playerPosition).sqrMagnitude > repositionDistance * repositionDistance)
             {
-                RepositionNearPlayer();
+                RepositionNearPlayer(playerPosition);
             }
 
             switch (CurrentState)
             {
                 case SkyPiercerState.IdleFloating:
-                    UpdateIdle(deltaTime);
+                    UpdateIdle(deltaTime, playerPosition);
                     break;
                 case SkyPiercerState.ChasingPlayer:
-                    UpdateChase(deltaTime);
+                    UpdateChase(deltaTime, playerPosition);
                     break;
                 case SkyPiercerState.AttackDive:
                     UpdateDive(deltaTime);
@@ -90,40 +95,41 @@ namespace DuneVector
                     UpdateStuck();
                     break;
                 case SkyPiercerState.ReturnToSky:
-                    UpdateReturn(deltaTime);
+                    UpdateReturn(deltaTime, playerPosition);
                     break;
             }
 
-            UpdatePresentation(deltaTime);
+            UpdatePresentation(deltaTime, playerPosition);
         }
 
-        private void UpdateIdle(float deltaTime)
+        private void UpdateIdle(float deltaTime, Vector3 playerPosition)
         {
             Vector3 target = _hoverAnchor;
             target.y += Mathf.Sin((Time.time * 1.15f) + _hoverPhase) * _settings.HoverAmplitude;
-            transform.position = Vector3.Lerp(
-                transform.position,
+            _cachedTransform.position = Vector3.Lerp(
+                _cachedTransform.position,
                 target,
                 DuneVectorMath.Sharpness(2.4f, deltaTime));
 
-            if (Vector3.Distance(transform.position, _player.WorldCenter) <= _settings.DetectionRange)
+            float detectionRange = _settings.DetectionRange;
+            if ((_cachedTransform.position - playerPosition).sqrMagnitude <= detectionRange * detectionRange)
             {
                 SetState(SkyPiercerState.ChasingPlayer);
             }
         }
 
-        private void UpdateChase(float deltaTime)
+        private void UpdateChase(float deltaTime, Vector3 playerPosition)
         {
-            Vector3 playerPosition = _player.WorldCenter;
             float terrainHeight = _world.SampleHeightAtLocal(playerPosition.x, playerPosition.z);
             Vector3 target = playerPosition;
             target.y = Mathf.Max(terrainHeight + _settings.HoverHeight, playerPosition.y + 7f);
-            transform.position = Vector3.MoveTowards(transform.position, target, _settings.FollowSpeed * deltaTime);
+            _cachedTransform.position = Vector3.MoveTowards(_cachedTransform.position, target, _settings.FollowSpeed * deltaTime);
 
             Vector2 horizontalOffset = new Vector2(
-                transform.position.x - playerPosition.x,
-                transform.position.z - playerPosition.z);
-            if (_attackCooldown <= 0f && horizontalOffset.magnitude <= _settings.AttackAlignmentDistance)
+                _cachedTransform.position.x - playerPosition.x,
+                _cachedTransform.position.z - playerPosition.z);
+            float alignmentDistance = _settings.AttackAlignmentDistance;
+            if (_attackCooldown <= 0f && horizontalOffset.sqrMagnitude <= alignmentDistance * alignmentDistance)
             {
                 BeginDive(playerPosition);
             }
@@ -133,15 +139,15 @@ namespace DuneVector
         {
             float terrainHeight = _world.SampleHeightAtLocal(playerPosition.x, playerPosition.z);
             float stuckCenterHeight = terrainHeight + (_settings.VisualScale * 1.05f);
-            _strikePoint = new Vector3(transform.position.x, stuckCenterHeight, transform.position.z);
+            _strikePoint = new Vector3(_cachedTransform.position.x, stuckCenterHeight, _cachedTransform.position.z);
             SetState(SkyPiercerState.AttackDive);
         }
 
         private void UpdateDive(float deltaTime)
         {
-            Vector3 position = transform.position;
+            Vector3 position = _cachedTransform.position;
             position.y = Mathf.MoveTowards(position.y, _strikePoint.y, _settings.AttackSpeed * deltaTime);
-            transform.position = position;
+            _cachedTransform.position = position;
             if (Mathf.Abs(position.y - _strikePoint.y) <= 0.01f)
             {
                 ResolveImpact();
@@ -150,7 +156,8 @@ namespace DuneVector
 
         private void ResolveImpact()
         {
-            if (Vector3.Distance(_player.WorldCenter, _strikePoint) <= _settings.ImpactRadius)
+            float impactRadius = _settings.ImpactRadius;
+            if ((_player.WorldCenter - _strikePoint).sqrMagnitude <= impactRadius * impactRadius)
             {
                 _playerHealth.TakeDamage(_settings.ImpactDamage);
             }
@@ -165,32 +172,34 @@ namespace DuneVector
             }
         }
 
-        private void UpdateReturn(float deltaTime)
+        private void UpdateReturn(float deltaTime, Vector3 playerPosition)
         {
-            float terrainHeight = _world.SampleHeightAtLocal(transform.position.x, transform.position.z);
+            Vector3 currentPosition = _cachedTransform.position;
+            float terrainHeight = _world.SampleHeightAtLocal(currentPosition.x, currentPosition.z);
             Vector3 target = new Vector3(
-                transform.position.x,
+                currentPosition.x,
                 terrainHeight + _settings.HoverHeight,
-                transform.position.z);
-            transform.position = Vector3.MoveTowards(transform.position, target, _settings.ReturnSpeed * deltaTime);
-            if (Vector3.Distance(transform.position, target) <= 0.05f)
+                currentPosition.z);
+            _cachedTransform.position = Vector3.MoveTowards(currentPosition, target, _settings.ReturnSpeed * deltaTime);
+            if ((_cachedTransform.position - target).sqrMagnitude <= 0.0025f)
             {
                 _hoverAnchor = target;
                 _attackCooldown = _settings.AttackCooldown;
-                SetState(Vector3.Distance(transform.position, _player.WorldCenter) <= _settings.DetectionRange
+                float detectionRange = _settings.DetectionRange;
+                SetState((_cachedTransform.position - playerPosition).sqrMagnitude <= detectionRange * detectionRange
                     ? SkyPiercerState.ChasingPlayer
                     : SkyPiercerState.IdleFloating);
             }
         }
 
-        private void UpdatePresentation(float deltaTime)
+        private void UpdatePresentation(float deltaTime, Vector3 playerPosition)
         {
-            Vector3 toPlayer = Vector3.ProjectOnPlane(_player.WorldCenter - transform.position, Vector3.up);
+            Vector3 toPlayer = Vector3.ProjectOnPlane(playerPosition - _cachedTransform.position, Vector3.up);
             if (toPlayer.sqrMagnitude > 0.001f)
             {
                 Quaternion targetRotation = Quaternion.LookRotation(toPlayer.normalized, Vector3.up);
-                transform.rotation = Quaternion.Slerp(
-                    transform.rotation,
+                _cachedTransform.rotation = Quaternion.Slerp(
+                    _cachedTransform.rotation,
                     targetRotation,
                     DuneVectorMath.Sharpness(7f, deltaTime));
             }
@@ -219,17 +228,16 @@ namespace DuneVector
             _stateTime = 0f;
         }
 
-        private void RepositionNearPlayer()
+        private void RepositionNearPlayer(Vector3 playerPosition)
         {
             float angle = ((_identity * 137.5f) + (Time.time * 9f)) * Mathf.Deg2Rad;
             float distance = Mathf.Lerp(
                 _settings.MinimumSpawnDistance,
                 Mathf.Max(_settings.MinimumSpawnDistance, _settings.MaximumSpawnDistance),
                 Mathf.Repeat((_identity * 0.413f) + 0.27f, 1f));
-            Vector3 playerPosition = _player.WorldCenter;
             Vector3 position = playerPosition + new Vector3(Mathf.Cos(angle) * distance, 0f, Mathf.Sin(angle) * distance);
             position.y = _world.SampleHeightAtLocal(position.x, position.z) + _settings.HoverHeight;
-            transform.position = position;
+            _cachedTransform.position = position;
             _hoverAnchor = position;
             _attackCooldown = _settings.AttackCooldown;
             SetState(SkyPiercerState.IdleFloating);
@@ -237,7 +245,7 @@ namespace DuneVector
 
         public void ApplyWorldShift(Vector3 shift)
         {
-            transform.position += shift;
+            _cachedTransform.position += shift;
             _hoverAnchor += shift;
             _strikePoint += shift;
         }
@@ -262,8 +270,6 @@ namespace DuneVector
         private DesertWorldStreamer _world;
         private DuneVectorMaterials _materials;
         private FlyingEnemyTuning _settings;
-        private double _lastOriginX;
-        private double _lastOriginZ;
 
         public void Initialize(
             DroneCharacterController player,
@@ -276,8 +282,7 @@ namespace DuneVector
             _world = world;
             _materials = materials;
             _settings = settings;
-            _lastOriginX = world.OriginOffsetX;
-            _lastOriginZ = world.OriginOffsetZ;
+            _world.WorldShifted += HandleWorldShift;
 
             System.Random random = new System.Random(unchecked(world.WorldSeed ^ 0x51f2a9d));
             int count = Mathf.Max(1, settings.EnemyCount);
@@ -313,28 +318,23 @@ namespace DuneVector
             }
         }
 
-        private void LateUpdate()
+        private void HandleWorldShift(Vector3 shift)
         {
-            if (_world == null)
+            for (int i = 0; i < _enemies.Count; i++)
             {
-                return;
-            }
-
-            double shiftX = _world.OriginOffsetX - _lastOriginX;
-            double shiftZ = _world.OriginOffsetZ - _lastOriginZ;
-            if (System.Math.Abs(shiftX) > 0.001 || System.Math.Abs(shiftZ) > 0.001)
-            {
-                Vector3 shift = new Vector3((float)-shiftX, 0f, (float)-shiftZ);
-                for (int i = 0; i < _enemies.Count; i++)
+                if (_enemies[i] != null)
                 {
-                    if (_enemies[i] != null)
-                    {
-                        _enemies[i].ApplyWorldShift(shift);
-                    }
+                    _enemies[i].ApplyWorldShift(shift);
                 }
             }
-            _lastOriginX = _world.OriginOffsetX;
-            _lastOriginZ = _world.OriginOffsetZ;
+        }
+
+        private void OnDestroy()
+        {
+            if (_world != null)
+            {
+                _world.WorldShifted -= HandleWorldShift;
+            }
         }
     }
 }
