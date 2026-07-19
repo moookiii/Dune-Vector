@@ -108,6 +108,7 @@ namespace DuneVector.Editor
 
         private int _selectedTab;
         private SerializedProperty _player;
+        private SerializedProperty _droneVisuals;
         private SerializedProperty _flightSwooshes;
         private SerializedProperty _clouds;
         private SerializedProperty _weather;
@@ -134,6 +135,7 @@ namespace DuneVector.Editor
         private void OnEnable()
         {
             _player = serializedObject.FindProperty("PlayerTuning");
+            _droneVisuals = serializedObject.FindProperty("DroneVisuals");
             _flightSwooshes = serializedObject.FindProperty("FlightSwooshes");
             _clouds = serializedObject.FindProperty("Clouds");
             _weather = serializedObject.FindProperty("Weather");
@@ -199,6 +201,10 @@ namespace DuneVector.Editor
                 "Drone Movement & Camera",
                 "Ground handling, boosts, flight controls, and camera response.",
                 _player);
+            DuneVectorSettingsInspector.DrawSection(
+                "Drone Visuals",
+                "Hull, wing inlays, rotor geometry, materials, animation, and trails.",
+                _droneVisuals);
             DuneVectorSettingsInspector.DrawSection(
                 "Flight Speed Swooshes",
                 "Local camera-edge motion streak density, speed response, shape, spawn area, and fade.",
