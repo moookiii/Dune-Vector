@@ -520,7 +520,7 @@ namespace DuneVector
 
             if (Vector3.Distance(_player.WorldCenter, attackOrigin) <= attackRange)
             {
-                _health.TakeDamage(damage, "Storm pyramid lightning");
+                _health.TakeDamage(damage, "Storm Pyramid lightning");
             }
         }
     }
