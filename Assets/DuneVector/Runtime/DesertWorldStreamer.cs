@@ -92,6 +92,7 @@ namespace DuneVector
         private DroneCameraController _camera;
         private Vector2Int _lastScheduledChunk = new Vector2Int(int.MinValue, int.MinValue);
         private float _streamingRefreshTimer;
+        private int _coinRingSeed;
         private bool _initialized;
 
         public void Initialize(DuneVectorMaterials materials)
@@ -103,6 +104,7 @@ namespace DuneVector
 
             _initialized = true;
             _materials = materials ?? throw new ArgumentNullException(nameof(materials));
+            _coinRingSeed = Guid.NewGuid().GetHashCode();
             Rings ??= new RingTuning();
             GroundExploders ??= new GroundExploderTuning();
             Dunes.WorldSeed = WorldSeed;
@@ -368,6 +370,7 @@ namespace DuneVector
                 _player,
                 _playerHealth,
                 WorldSeed,
+                _coinRingSeed,
                 CactusDensity,
                 PyramidDensity,
                 PyramidMinimumScale,
@@ -525,6 +528,7 @@ namespace DuneVector
             DroneCharacterController player,
             DroneHealth playerHealth,
             int worldSeed,
+            int coinRingSeed,
             float cactusDensity,
             float pyramidDensity,
             float pyramidMinimumScale,
@@ -573,6 +577,7 @@ namespace DuneVector
                 player,
                 playerHealth,
                 worldSeed,
+                coinRingSeed,
                 cactusDensity,
                 pyramidDensity,
                 pyramidMinimumScale,
@@ -865,6 +870,7 @@ namespace DuneVector
             DroneCharacterController player,
             DroneHealth playerHealth,
             int worldSeed,
+            int coinRingSeed,
             float cactusDensity,
             float pyramidDensity,
             float pyramidMinimumScale,
@@ -926,14 +932,17 @@ namespace DuneVector
                     ? ringTuning.HealthRingRadius
                     : ringTuning.CoinRingRadius;
                 int spawnSalt = collectibleType == TraversalRingType.Health ? 757 : 787;
-                if (DuneVectorMath.Hash01(coordinate.x, coordinate.y, worldSeed, spawnSalt) >= density)
+                int collectibleSeed = collectibleType == TraversalRingType.Coin
+                    ? coinRingSeed
+                    : worldSeed;
+                if (DuneVectorMath.Hash01(coordinate.x, coordinate.y, collectibleSeed, spawnSalt) >= density)
                 {
                     continue;
                 }
 
                 Vector2 collectiblePosition = new Vector2(
-                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, spawnSalt + 4, 16f, chunkSize - 16f),
-                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, spawnSalt + 12, 16f, chunkSize - 16f));
+                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, collectibleSeed, spawnSalt + 4, 16f, chunkSize - 16f),
+                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, collectibleSeed, spawnSalt + 12, 16f, chunkSize - 16f));
                 if (IsNearAny(collectiblePosition, ringExclusions, radius * 2f))
                 {
                     continue;
@@ -942,7 +951,7 @@ namespace DuneVector
                 float angle = DuneVectorMath.HashRange(
                     coordinate.x,
                     coordinate.y,
-                    worldSeed,
+                    collectibleSeed,
                     spawnSalt + 16,
                     0f,
                     360f);
@@ -959,7 +968,7 @@ namespace DuneVector
                     player,
                     playerHealth,
                     ringExclusions,
-                    worldSeed,
+                    collectibleSeed,
                     ringTuning,
                     collectibleType == TraversalRingType.Health ? "health" : "coin",
                     ringActivated);
