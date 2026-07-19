@@ -58,6 +58,7 @@ namespace DuneVector
         private Material _shotMaterial;
 
         public IReadOnlyList<DuneVectorEncounterVolume> ActiveVolumes => _volumes;
+        public RouteEncounterTuning Settings => _settings;
 
         public void Initialize(
             DroneCharacterController player,

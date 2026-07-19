@@ -520,6 +520,11 @@ namespace DuneVector
         [Min(0f)] public float HighValueDamageMultiplier = 1.35f;
         [Min(0.1f)] public float HighValueShotIntervalMultiplier = 0.78f;
         [Range(0f, 1f)] public float HighValueSecondPassChanceBonus = 0.25f;
+        [Header("High-Value World Threats")]
+        [Range(0, 12)] public int HighValueGroundEnemyBonus = 4;
+        [Min(0f)] public float HighValueGroundEnemyMinimumSpawnDistance = 35f;
+        [Min(0f)] public float HighValueGroundEnemyMaximumSpawnDistance = 80f;
+        [Range(0, 8)] public int HighValueStormPyramidBonus = 2;
         [Min(20f)] public float MinimumObjectiveDistance = 180f;
         [Min(10f)] public float EncounterVolumeRadius = 90f;
         [Range(1, 5)] public int VolumesPerRouteLeg = 2;

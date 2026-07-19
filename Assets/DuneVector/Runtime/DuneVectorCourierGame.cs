@@ -904,7 +904,27 @@ namespace DuneVector
             BuildDeliveryObjective();
             ContractStarted?.Invoke(ActiveContract);
             _routeEncounterDirector?.BeginContract(ActiveContract);
+            ConfigureHighValueWorldThreats();
             ShowStatus("CARGO SECURED — PROCEED TO DESTINATION", 3f);
+        }
+
+        private void ConfigureHighValueWorldThreats()
+        {
+            bool highValue = ActiveContract != null && ActiveContract.Has(CourierContractModifier.HighValue);
+            if (highValue)
+            {
+                _world.SetContractGroundExploders(
+                    _routeEncounterDirector != null ? _routeEncounterDirector.Settings.HighValueGroundEnemyBonus : 0,
+                    _routeEncounterDirector != null ? _routeEncounterDirector.Settings.HighValueGroundEnemyMinimumSpawnDistance : 0f,
+                    _routeEncounterDirector != null ? _routeEncounterDirector.Settings.HighValueGroundEnemyMaximumSpawnDistance : 0f,
+                    ActiveContract.Seed);
+                _stormDirector?.SetContractBonusEnemies(
+                    _routeEncounterDirector != null ? _routeEncounterDirector.Settings.HighValueStormPyramidBonus : 0,
+                    ActiveContract.Seed);
+                return;
+            }
+            _world.ClearContractGroundExploders();
+            _stormDirector?.ClearContractBonusEnemies();
         }
 
         private void BuildDeliveryObjective()
@@ -1252,6 +1272,8 @@ namespace DuneVector
 
         private void CleanupContractObjects()
         {
+            _world?.ClearContractGroundExploders();
+            _stormDirector?.ClearContractBonusEnemies();
             if (_objectiveRing != null) Destroy(_objectiveRing.gameObject);
             if (_package != null) Destroy(_package.gameObject);
             _objectiveRing = null;

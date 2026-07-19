@@ -1024,7 +1024,12 @@ namespace DuneVector
     public sealed class DuneVectorStormPyramidDirector : MonoBehaviour
     {
         private readonly List<StormPyramidEnemy> _enemies = new List<StormPyramidEnemy>();
+        private readonly List<StormPyramidEnemy> _contractEnemies = new List<StormPyramidEnemy>();
+        private DroneCharacterController _player;
+        private DroneHealth _playerHealth;
         private DesertWorldStreamer _world;
+        private DuneVectorMaterials _materials;
+        private StormPyramidTuning _settings;
         private StormPyramidThreatHUD _warningHud;
 
         public void Initialize(
@@ -1034,40 +1039,87 @@ namespace DuneVector
             DuneVectorMaterials materials,
             StormPyramidTuning settings)
         {
+            _player = player;
+            _playerHealth = playerHealth;
             _world = world;
+            _materials = materials;
+            _settings = settings;
             _world.WorldShifted += HandleWorldShift;
             System.Random random = new System.Random(unchecked(world.WorldSeed ^ 0x2749a31));
             int count = Mathf.Max(1, settings.EnemyCount);
             for (int i = 0; i < count; i++)
             {
-                float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
-                float distance = Mathf.Lerp(
-                    settings.MinimumSpawnDistance,
-                    Mathf.Max(settings.MinimumSpawnDistance, settings.MaximumSpawnDistance),
-                    (float)random.NextDouble());
-                Vector3 playerPosition = player.WorldCenter;
-                Vector3 spawnPosition = playerPosition + new Vector3(
-                    Mathf.Cos(angle) * distance,
-                    0f,
-                    Mathf.Sin(angle) * distance);
-                float heightVariation = Mathf.Lerp(
-                    -settings.HoverHeightVariance,
-                    settings.HoverHeightVariance,
-                    (float)random.NextDouble());
-                spawnPosition.y = world.SampleHeightAtLocal(spawnPosition.x, spawnPosition.z)
-                    + settings.HoverHeight
-                    + heightVariation;
-
-                GameObject enemyObject = new GameObject($"Storm Pyramid {i + 1:00}");
-                enemyObject.transform.SetParent(transform, true);
-                enemyObject.transform.position = spawnPosition;
-                StormPyramidEnemy enemy = enemyObject.AddComponent<StormPyramidEnemy>();
-                enemy.Initialize(player, playerHealth, world, materials, settings, i + 1);
-                _enemies.Add(enemy);
+                SpawnEnemy(random, $"Storm Pyramid {i + 1:00}", i + 1);
             }
 
             _warningHud = gameObject.AddComponent<StormPyramidThreatHUD>();
             _warningHud.Initialize(player, Camera.main, settings, _enemies);
+        }
+
+        public void SetContractBonusEnemies(int count, int seed)
+        {
+            ClearContractBonusEnemies();
+            if (count <= 0 || _player == null || _playerHealth == null || _world == null ||
+                _materials == null || _settings == null)
+            {
+                return;
+            }
+            System.Random random = new System.Random(unchecked(seed ^ _world.WorldSeed ^ 0x6f18d2b));
+            for (int i = 0; i < count; i++)
+            {
+                StormPyramidEnemy enemy = SpawnEnemy(
+                    random,
+                    $"High-Value Storm Pyramid {i + 1:00}",
+                    unchecked(seed + 1000 + i));
+                if (enemy != null)
+                {
+                    enemy.enabled = enabled;
+                    _contractEnemies.Add(enemy);
+                }
+            }
+        }
+
+        public void ClearContractBonusEnemies()
+        {
+            for (int i = 0; i < _contractEnemies.Count; i++)
+            {
+                StormPyramidEnemy enemy = _contractEnemies[i];
+                _enemies.Remove(enemy);
+                if (enemy != null)
+                {
+                    Destroy(enemy.gameObject);
+                }
+            }
+            _contractEnemies.Clear();
+        }
+
+        private StormPyramidEnemy SpawnEnemy(System.Random random, string objectName, int identity)
+        {
+            float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
+            float distance = Mathf.Lerp(
+                _settings.MinimumSpawnDistance,
+                Mathf.Max(_settings.MinimumSpawnDistance, _settings.MaximumSpawnDistance),
+                (float)random.NextDouble());
+            Vector3 playerPosition = _player.WorldCenter;
+            Vector3 spawnPosition = playerPosition + new Vector3(
+                Mathf.Cos(angle) * distance,
+                0f,
+                Mathf.Sin(angle) * distance);
+            float heightVariation = Mathf.Lerp(
+                -_settings.HoverHeightVariance,
+                _settings.HoverHeightVariance,
+                (float)random.NextDouble());
+            spawnPosition.y = _world.SampleHeightAtLocal(spawnPosition.x, spawnPosition.z)
+                + _settings.HoverHeight
+                + heightVariation;
+
+            GameObject enemyObject = new GameObject(objectName);
+            enemyObject.transform.SetParent(transform, true);
+            enemyObject.transform.position = spawnPosition;
+            StormPyramidEnemy enemy = enemyObject.AddComponent<StormPyramidEnemy>();
+            enemy.Initialize(_player, _playerHealth, _world, _materials, _settings, identity);
+            _enemies.Add(enemy);
+            return enemy;
         }
 
         public void SetGameplayActive(bool active)

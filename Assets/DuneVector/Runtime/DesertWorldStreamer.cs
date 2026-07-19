@@ -10,6 +10,13 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DesertWorldStreamer : MonoBehaviour
     {
+        private sealed class ContractGroundExploderSpawn
+        {
+            public Vector2Int ChunkCoordinate;
+            public Transform Root;
+            public GroundExploderEnemy Enemy;
+        }
+
         [Header("World")]
         public int WorldSeed = 19770503;
         [Min(24f)] public float ChunkSize = 80f;
@@ -80,6 +87,7 @@ namespace DuneVector
         private readonly List<Vector2Int> _candidateCoordinates = new List<Vector2Int>();
         private readonly List<Vector2Int> _removalBuffer = new List<Vector2Int>();
         private readonly HashSet<string> _activatedFlightRingIdentities = new HashSet<string>();
+        private readonly List<ContractGroundExploderSpawn> _contractGroundExploders = new List<ContractGroundExploderSpawn>();
         private Vector2Int _candidateSortCenter;
 
         private DuneVectorMaterials _materials;
@@ -172,6 +180,89 @@ namespace DuneVector
             return new Vector3((float)(logicalX - OriginOffsetX), (float)height, (float)(logicalZ - OriginOffsetZ));
         }
 
+        public void SetContractGroundExploders(int count, float minimumDistance, float maximumDistance, int seed)
+        {
+            ClearContractGroundExploders();
+            if (count <= 0 || GroundExploders == null || !GroundExploders.Enabled ||
+                _player == null || _playerHealth == null || HeightField == null || _chunkRoot == null)
+            {
+                return;
+            }
+
+            float minimum = Mathf.Max(GroundExploders.DetectionRadius + GroundExploders.ExplosionRadius, minimumDistance);
+            float maximum = Mathf.Max(minimum, maximumDistance);
+            LogicalPosition playerLogical = LogicalPlayerPosition;
+            int spawned = 0;
+            int attempts = Mathf.Max(count * 12, count);
+            for (int attempt = 0; attempt < attempts && spawned < count; attempt++)
+            {
+                float angle = DuneVectorMath.HashRange(seed, attempt, WorldSeed, 1249, 0f, Mathf.PI * 2f);
+                float distance = DuneVectorMath.HashRange(seed, attempt, WorldSeed, 1259, minimum, maximum);
+                double logicalX = playerLogical.X + (Math.Cos(angle) * distance);
+                double logicalZ = playerLogical.Z + (Math.Sin(angle) * distance);
+                Vector2Int coordinate = LogicalToChunk(logicalX, logicalZ);
+                double chunkLogicalX = coordinate.x * (double)ChunkSize;
+                double chunkLogicalZ = coordinate.y * (double)ChunkSize;
+                Vector2 local = new Vector2(
+                    (float)(logicalX - chunkLogicalX),
+                    (float)(logicalZ - chunkLogicalZ));
+                if (local.x < 5f || local.x > ChunkSize - 5f || local.y < 5f || local.y > ChunkSize - 5f)
+                {
+                    continue;
+                }
+                Vector3 normal = HeightField.SampleNormal(logicalX, logicalZ);
+                if (Vector3.Angle(normal, Vector3.up) > GroundExploders.MaximumGroundSlope)
+                {
+                    continue;
+                }
+
+                GameObject rootObject = new GameObject($"High-Value Ground Threat [{coordinate.x}, {coordinate.y}]");
+                Transform root = rootObject.transform;
+                root.SetParent(_chunkRoot, false);
+                RepositionContractGroundRoot(root, coordinate);
+
+                GameObject enemyObject = new GameObject($"High-Value Ground Exploder {spawned + 1:00}");
+                enemyObject.transform.SetParent(root, false);
+                enemyObject.transform.localPosition = new Vector3(
+                    local.x,
+                    (float)HeightField.SampleHeight(logicalX, logicalZ),
+                    local.y);
+                float yaw = DuneVectorMath.HashRange(seed, attempt, WorldSeed, 1277, 0f, 360f);
+                enemyObject.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+                GroundExploderEnemy enemy = enemyObject.AddComponent<GroundExploderEnemy>();
+                enemy.Initialize(
+                    _player,
+                    _playerHealth,
+                    HeightField,
+                    chunkLogicalX,
+                    chunkLogicalZ,
+                    ChunkSize,
+                    _materials,
+                    GroundExploders,
+                    unchecked((int)DuneVectorMath.Hash(seed, attempt, WorldSeed, 1289)));
+                _contractGroundExploders.Add(new ContractGroundExploderSpawn
+                {
+                    ChunkCoordinate = coordinate,
+                    Root = root,
+                    Enemy = enemy,
+                });
+                spawned++;
+            }
+        }
+
+        public void ClearContractGroundExploders()
+        {
+            for (int i = 0; i < _contractGroundExploders.Count; i++)
+            {
+                ContractGroundExploderSpawn spawn = _contractGroundExploders[i];
+                if (spawn.Root != null)
+                {
+                    Destroy(spawn.Root.gameObject);
+                }
+            }
+            _contractGroundExploders.Clear();
+        }
+
         private void Update()
         {
             if (!_initialized || _motor == null)
@@ -215,6 +306,11 @@ namespace DuneVector
             {
                 chunk.Tick(deltaTime);
             }
+            PruneContractGroundExploders();
+            for (int i = 0; i < _contractGroundExploders.Count; i++)
+            {
+                _contractGroundExploders[i].Enemy.Tick(deltaTime);
+            }
         }
 
         internal void FixedTickStreamedObjects(float fixedDeltaTime)
@@ -227,6 +323,11 @@ namespace DuneVector
             foreach (DesertChunk chunk in _chunks.Values)
             {
                 chunk.FixedTick(fixedDeltaTime);
+            }
+            PruneContractGroundExploders();
+            for (int i = 0; i < _contractGroundExploders.Count; i++)
+            {
+                _contractGroundExploders[i].Enemy.FixedTick(fixedDeltaTime);
             }
         }
 
@@ -281,6 +382,14 @@ namespace DuneVector
             {
                 chunk.Reposition(OriginOffsetX, OriginOffsetZ, ChunkSize);
             }
+            for (int i = 0; i < _contractGroundExploders.Count; i++)
+            {
+                ContractGroundExploderSpawn spawn = _contractGroundExploders[i];
+                if (spawn.Root != null)
+                {
+                    RepositionContractGroundRoot(spawn.Root, spawn.ChunkCoordinate);
+                }
+            }
 
             Vector3 worldShift = -localShift;
             _motor.SetPosition(motorPosition + worldShift, true);
@@ -291,6 +400,33 @@ namespace DuneVector
             _player?.HandleWorldShift(worldShift);
             WorldShifted?.Invoke(worldShift);
             RebaseCount++;
+        }
+
+        private void RepositionContractGroundRoot(Transform root, Vector2Int coordinate)
+        {
+            double logicalX = coordinate.x * (double)ChunkSize;
+            double logicalZ = coordinate.y * (double)ChunkSize;
+            root.localPosition = new Vector3(
+                (float)(logicalX - OriginOffsetX),
+                0f,
+                (float)(logicalZ - OriginOffsetZ));
+        }
+
+        private void PruneContractGroundExploders()
+        {
+            for (int i = _contractGroundExploders.Count - 1; i >= 0; i--)
+            {
+                ContractGroundExploderSpawn spawn = _contractGroundExploders[i];
+                if (spawn.Enemy != null)
+                {
+                    continue;
+                }
+                if (spawn.Root != null)
+                {
+                    Destroy(spawn.Root.gameObject);
+                }
+                _contractGroundExploders.RemoveAt(i);
+            }
         }
 
         private void ScheduleStreaming(bool force)
