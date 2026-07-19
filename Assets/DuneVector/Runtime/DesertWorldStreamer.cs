@@ -355,7 +355,7 @@ namespace DuneVector
             }
 
             int requiredPasses = Mathf.Max(1, Rings.UpperFlightRingRequiredPasses);
-            if (_activatedFlightRingIdentities.Count == requiredPasses)
+            if (_activatedFlightRingIdentities.Count >= requiredPasses)
             {
                 ring.SpawnUpperFlightLayer(Rings.UpperFlightRingVerticalSeparation);
             }

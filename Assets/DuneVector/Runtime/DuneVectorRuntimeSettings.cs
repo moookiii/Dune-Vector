@@ -295,7 +295,7 @@ namespace DuneVector
         [Tooltip("Number of distinct blue flight rings the player must cross before the upper-layer ring appears.")]
         [Min(1)] public int UpperFlightRingRequiredPasses = 5;
         [Tooltip("Vertical distance between the triggering blue ring and its unlocked upper-layer ring.")]
-        [Min(0.5f)] public float UpperFlightRingVerticalSeparation = 12f;
+        [Min(0.5f)] public float UpperFlightRingVerticalSeparation = 36f;
 
         [Header("Upper Flight Ring HUD")]
         public bool ShowUpperFlightRingHud = true;
@@ -307,6 +307,8 @@ namespace DuneVector
         [Range(0.25f, 2f)] public float UpperFlightRingHudMaximumScale = 1.25f;
         [Min(0f)] public float UpperFlightRingHudTopMargin = 28f;
         [Min(0f)] public float UpperFlightRingHudRightMargin = 28f;
+        [Tooltip("Minimum vertical gap between the gold panel and the upper-flight-layer tracker.")]
+        [Min(0f)] public float UpperFlightRingHudGoldGap = 14f;
         [Min(160f)] public float UpperFlightRingHudWidth = 310f;
         [Min(60f)] public float UpperFlightRingHudHeight = 92f;
         [Min(0f)] public float UpperFlightRingHudPadding = 14f;

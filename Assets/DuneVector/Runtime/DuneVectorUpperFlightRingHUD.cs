@@ -37,6 +37,10 @@ namespace DuneVector
             float height = _settings.UpperFlightRingHudHeight * scale;
             float topMargin = _settings.UpperFlightRingHudTopMargin * scale;
             float rightMargin = _settings.UpperFlightRingHudRightMargin * scale;
+            float belowGoldPanel = _settings.GoldHudTopMargin
+                + _settings.GoldHudHeight
+                + (_settings.UpperFlightRingHudGoldGap * scale);
+            topMargin = Mathf.Max(topMargin, belowGoldPanel);
             Rect panel = new Rect(Screen.width - rightMargin - width, topMargin, width, height);
             DrawSolidRect(panel, _settings.UpperFlightRingHudPanelColor);
 
