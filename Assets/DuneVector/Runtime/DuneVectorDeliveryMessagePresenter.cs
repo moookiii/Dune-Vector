@@ -517,7 +517,7 @@ namespace DuneVector
                         area.x + offsetX,
                         y,
                         area.width,
-                        _narrativeStyle.lineHeight + _settings.TextGlowOffset),
+                        _narrativeStyle.lineHeight + _settings.NarrativeLineClipPadding),
                     lines[index],
                     _narrativeStyle);
                 y += lineAdvance;

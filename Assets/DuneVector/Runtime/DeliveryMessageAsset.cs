@@ -86,6 +86,8 @@ namespace DuneVector
         public string PreferredFontName = "Segoe UI";
         [Min(10)] public int NarrativeFontSize = 28;
         [Min(0f)] public float NarrativeLineSpacing = 12f;
+        [Tooltip("Extra vertical room reserved for font ascenders and descenders so glyphs are never clipped.")]
+        [Min(0f)] public float NarrativeLineClipPadding = 8f;
         [Min(8)] public int HeaderFontSize = 10;
         [Min(8)] public int IndicatorFontSize = 18;
         [Min(8)] public int HintFontSize = 11;
