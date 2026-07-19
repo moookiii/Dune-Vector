@@ -230,18 +230,30 @@ namespace DuneVector
 
             _propertyBlock.Clear();
             _propertyBlock.SetVectorArray(SwooshColorId, _colors);
-            Graphics.DrawMeshInstanced(
+            Bounds worldBounds = DuneVectorSpatialInstancing.TransformBounds(_matrices[0], _mesh.bounds);
+            for (int i = 1; i < _activeCount; i++)
+            {
+                worldBounds.Encapsulate(DuneVectorSpatialInstancing.TransformBounds(_matrices[i], _mesh.bounds));
+            }
+            RenderParams renderParams = new RenderParams(_material)
+            {
+                camera = _camera,
+                layer = gameObject.layer,
+                worldBounds = worldBounds,
+                matProps = _propertyBlock,
+                shadowCastingMode = ShadowCastingMode.Off,
+                receiveShadows = false,
+                motionVectorMode = MotionVectorGenerationMode.ForceNoMotion,
+                lightProbeUsage = LightProbeUsage.Off,
+                reflectionProbeUsage = ReflectionProbeUsage.Off,
+            };
+            Graphics.RenderMeshInstanced(
+                renderParams,
                 _mesh,
                 0,
-                _material,
                 _matrices,
                 _activeCount,
-                _propertyBlock,
-                ShadowCastingMode.Off,
-                false,
-                gameObject.layer,
-                _camera,
-                LightProbeUsage.Off);
+                0);
         }
 
         private void CreateRenderResources()

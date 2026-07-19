@@ -328,6 +328,9 @@ namespace DuneVector
             _materials.ConfigureStormPyramid(StormPyramids);
             _materials.ConfigurePlayerStrikeOrb(PlayerStrikeOrbs);
 
+            DuneVectorSpatialInstancing spatialInstancing = gameObject.AddComponent<DuneVectorSpatialInstancing>();
+            spatialInstancing.Initialize(RuntimeSettings.SpatialGpuInstancing);
+
             BuildEnvironment();
             BuildWorld();
             BuildDroneAndCamera();

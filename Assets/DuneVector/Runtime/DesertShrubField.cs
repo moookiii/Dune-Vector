@@ -7,7 +7,6 @@ namespace DuneVector
 {
     internal sealed class DesertShrubField : IDisposable
     {
-        private const int MaximumInstancesPerDraw = 1023;
         private static readonly Dictionary<int, Mesh> SharedMeshes = new Dictionary<int, Mesh>();
 
         private sealed class VariantBatch
@@ -17,6 +16,7 @@ namespace DuneVector
             public Material Material;
             public Matrix4x4[] LocalMatrices;
             public Matrix4x4[] WorldMatrices;
+            public Bounds WorldBounds;
         }
 
         private readonly Transform _root;
@@ -74,9 +74,11 @@ namespace DuneVector
                 }
 
                 List<Matrix4x4> variantMatrices = matricesByVariant[i];
-                for (int start = 0; start < variantMatrices.Count; start += MaximumInstancesPerDraw)
+                materials[i].enableInstancing = true;
+                int maximumInstancesPerDraw = DuneVectorSpatialInstancing.MaximumInstancesPerDraw;
+                for (int start = 0; start < variantMatrices.Count; start += maximumInstancesPerDraw)
                 {
-                    int count = Mathf.Min(MaximumInstancesPerDraw, variantMatrices.Count - start);
+                    int count = Mathf.Min(maximumInstancesPerDraw, variantMatrices.Count - start);
                     Matrix4x4[] localMatrices = new Matrix4x4[count];
                     variantMatrices.CopyTo(start, localMatrices, 0, count);
                     _batches.Add(new VariantBatch
@@ -103,9 +105,26 @@ namespace DuneVector
             for (int batchIndex = 0; batchIndex < _batches.Count; batchIndex++)
             {
                 VariantBatch batch = _batches[batchIndex];
+                bool hasBounds = false;
                 for (int i = 0; i < batch.LocalMatrices.Length; i++)
                 {
                     batch.WorldMatrices[i] = rootMatrix * batch.LocalMatrices[i];
+                    Bounds highBounds = DuneVectorSpatialInstancing.TransformBounds(
+                        batch.WorldMatrices[i],
+                        batch.HighMesh.bounds);
+                    Bounds lowBounds = DuneVectorSpatialInstancing.TransformBounds(
+                        batch.WorldMatrices[i],
+                        batch.LowMesh.bounds);
+                    highBounds.Encapsulate(lowBounds);
+                    if (hasBounds)
+                    {
+                        batch.WorldBounds.Encapsulate(highBounds);
+                    }
+                    else
+                    {
+                        batch.WorldBounds = highBounds;
+                        hasBounds = true;
+                    }
                 }
             }
         }
@@ -130,17 +149,23 @@ namespace DuneVector
             for (int i = 0; i < _batches.Count; i++)
             {
                 VariantBatch batch = _batches[i];
-                Graphics.DrawMeshInstanced(
+                RenderParams renderParams = new RenderParams(batch.Material)
+                {
+                    camera = viewCamera,
+                    layer = _root.gameObject.layer,
+                    worldBounds = batch.WorldBounds,
+                    shadowCastingMode = shadows,
+                    receiveShadows = _settings.ReceiveShadows,
+                    lightProbeUsage = LightProbeUsage.Off,
+                    reflectionProbeUsage = ReflectionProbeUsage.Off,
+                };
+                Graphics.RenderMeshInstanced(
+                    renderParams,
                     useLowLod ? batch.LowMesh : batch.HighMesh,
                     0,
-                    batch.Material,
                     batch.WorldMatrices,
                     batch.WorldMatrices.Length,
-                    null,
-                    shadows,
-                    _settings.ReceiveShadows,
-                    _root.gameObject.layer,
-                    viewCamera);
+                    0);
             }
         }
 

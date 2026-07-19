@@ -292,6 +292,8 @@ namespace DuneVector
                 light.shadows = LightShadows.None;
                 _internalLights.Add(light);
             }
+
+            DuneVectorSpatialInstancing.Capture(_stormRoot, true);
         }
 
         private void UpdateStormfront()

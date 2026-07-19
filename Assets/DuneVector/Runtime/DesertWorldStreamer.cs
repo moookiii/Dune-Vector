@@ -404,6 +404,7 @@ namespace DuneVector
                 _camera.ApplyWorldShift(worldShift);
             }
             _player?.HandleWorldShift(worldShift);
+            DuneVectorSpatialInstancing.NotifyAllTransformsChanged();
             WorldShifted?.Invoke(worldShift);
             RebaseCount++;
         }

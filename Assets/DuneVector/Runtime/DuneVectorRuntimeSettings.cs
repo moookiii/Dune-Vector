@@ -824,6 +824,25 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class SpatialGpuInstancingTuning
+    {
+        [Tooltip("Use spatially bounded Graphics.RenderMeshInstanced batches for supported procedural visuals.")]
+        public bool Enabled = true;
+
+        [Tooltip("World-space width and depth of an instance culling cell.")]
+        [Min(8f)] public float CellSizeMeters = 32f;
+
+        [Tooltip("Maximum instances submitted by one RenderMeshInstanced call. Kept below Unity's theoretical limit for reliable custom instance data.")]
+        [Range(1, 1023)] public int MaximumInstancesPerDraw = 500;
+
+        [Tooltip("Keep one captured source renderer visible and offset its instanced copy for visual transform comparison.")]
+        public bool EnableDebugComparison;
+
+        [Tooltip("World-space offset applied to the instanced side of the optional source-versus-instance comparison.")]
+        public Vector3 DebugComparisonOffset = new Vector3(2f, 0f, 0f);
+    }
+
+    [System.Serializable]
     public sealed class PlayerHealthTuning
     {
         [Min(1f)] public float MaximumHealth = 100f;
@@ -2433,6 +2452,9 @@ namespace DuneVector
         [Tooltip("Padded camera-frustum renderer suppression and dynamic-renderer discovery.")]
         public RendererFrustumCullingTuning RendererFrustumCulling = new RendererFrustumCullingTuning();
 
+        [Tooltip("Spatial RenderMeshInstanced batching shared by high-volume procedural visuals.")]
+        public SpatialGpuInstancingTuning SpatialGpuInstancing = new SpatialGpuInstancingTuning();
+
         [Tooltip("Player hull strength and damage protection.")]
         public PlayerHealthTuning HealthSettings = new PlayerHealthTuning();
 
@@ -2501,6 +2523,7 @@ namespace DuneVector
             DesertShrubs.EnsureInitialized();
             WorldStreaming ??= new WorldStreamingTuning();
             RendererFrustumCulling ??= new RendererFrustumCullingTuning();
+            SpatialGpuInstancing ??= new SpatialGpuInstancingTuning();
             HealthSettings ??= new PlayerHealthTuning();
             EnergyLauncher ??= new EnergyLauncherTuning();
             FlyingEnemies ??= new FlyingEnemyTuning();

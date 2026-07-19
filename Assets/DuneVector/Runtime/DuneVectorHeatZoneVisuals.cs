@@ -414,6 +414,8 @@ namespace DuneVector
 
         private void CreateHotSpots(Transform parent, Vector3 center, HeatZoneSample sample)
         {
+            GameObject hotSpotRoot = new GameObject("Instanced Heat Hot Spots");
+            hotSpotRoot.transform.SetParent(parent, false);
             int count = Mathf.Max(0, Mathf.RoundToInt(_settings.HotSpotCount * sample.Severity));
             for (int i = 0; i < count; i++)
             {
@@ -435,7 +437,7 @@ namespace DuneVector
                 Transform plate = CreatePrimitive(
                     PrimitiveType.Sphere,
                     $"Sun-Baked Basalt Plate {i + 1}",
-                    parent,
+                    hotSpotRoot.transform,
                     localPosition,
                     new Vector3(radius * 2f, _settings.HotSpotPlateThickness, radius * _settings.HotSpotPlateAspect),
                     Quaternion.Euler(0f, yaw, 0f),
@@ -449,6 +451,7 @@ namespace DuneVector
                     Quaternion.identity,
                     _hotGlowMaterial);
             }
+            DuneVectorSpatialInstancing.Capture(hotSpotRoot, false);
         }
 
         private void CreateInteriorVolume()
@@ -559,7 +562,7 @@ namespace DuneVector
         private Material CreateLitMaterial(string materialName, Color baseColor, Color emission)
         {
             Shader shader = Shader.Find("HDRP/Lit");
-            Material material = new Material(shader) { name = materialName };
+            Material material = new Material(shader) { name = materialName, enableInstancing = true };
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", baseColor);
             if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", _settings.HotSpotSmoothness);
             if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", emission);
