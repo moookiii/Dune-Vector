@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using UnityEngine;
 
 namespace DuneVector
@@ -58,10 +59,20 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DroneGoldWallet : MonoBehaviour
     {
+        private const string GoldSaveFileName = "DuneVectorGold.dat";
+
+        [Serializable]
+        private sealed class GoldSaveData
+        {
+            public int Version = 1;
+            public int Gold;
+        }
+
         public int Gold { get; private set; }
         public event Action<int, int> GoldChanged;
 
         private bool _initialized;
+        private string _savePath;
 
         public void Initialize(int startingGold)
         {
@@ -71,7 +82,9 @@ namespace DuneVector
             }
 
             _initialized = true;
-            Gold = Mathf.Max(0, startingGold);
+            _savePath = Path.Combine(Application.persistentDataPath, GoldSaveFileName);
+            Gold = LoadGold(Mathf.Max(0, startingGold));
+            SaveGold();
         }
 
         public bool AddGold(int amount)
@@ -89,8 +102,41 @@ namespace DuneVector
                 return false;
             }
 
+            SaveGold();
             GoldChanged?.Invoke(Gold, gained);
             return true;
+        }
+
+        private int LoadGold(int fallbackGold)
+        {
+            if (!File.Exists(_savePath))
+            {
+                return fallbackGold;
+            }
+
+            try
+            {
+                GoldSaveData stored = JsonUtility.FromJson<GoldSaveData>(File.ReadAllText(_savePath));
+                return stored != null ? Mathf.Max(0, stored.Gold) : fallbackGold;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"Could not load saved gold from '{_savePath}': {exception.Message}", this);
+                return fallbackGold;
+            }
+        }
+
+        private void SaveGold()
+        {
+            try
+            {
+                GoldSaveData stored = new GoldSaveData { Gold = Gold };
+                File.WriteAllText(_savePath, JsonUtility.ToJson(stored));
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"Could not save gold to '{_savePath}': {exception.Message}", this);
+            }
         }
     }
 
