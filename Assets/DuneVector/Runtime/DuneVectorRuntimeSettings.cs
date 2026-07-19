@@ -410,6 +410,8 @@ namespace DuneVector
         public string DroneDamageEvent = "event:/Drone_Damage";
 
         [Header("July Mixer Routing")]
+        [Tooltip("FMOD master bus used for pause-menu volume ducking.")]
+        public string MasterBusPath = "bus:/";
         [Tooltip("FMOD group bus used by background music.")]
         public string MusicBusPath = "bus:/Music";
         [Tooltip("FMOD group bus reserved for gameplay and interface sound effects.")]
@@ -420,6 +422,12 @@ namespace DuneVector
         [Range(0f, 1f)] public float DefaultSoundEffectsVolume = 1f;
         [Tooltip("Remember pause-menu volume choices between runs.")]
         public bool PersistVolumeSettings = true;
+
+        [Header("Pause Audio Ducking")]
+        [Tooltip("Master volume multiplier used while the game is paused.")]
+        [Range(0f, 1f)] public float PausedVolumeMultiplier = 0.333333f;
+        [Tooltip("Seconds used to fade between full and paused FMOD volume.")]
+        [Min(0f)] public float PauseFadeDuration = 0.35f;
 
         [Header("Pause Menu Presentation")]
         public PauseMenuVisualTuning PauseMenu = new PauseMenuVisualTuning();

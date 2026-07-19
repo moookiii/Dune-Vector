@@ -26,11 +26,16 @@ namespace DuneVector
 
         private AudioTuning _settings;
         private EventInstance _musicInstance;
+        private Bus _masterBus;
         private Bus _musicBus;
         private Bus _soundEffectsBus;
+        private bool _hasMasterBus;
         private bool _hasMusicBus;
         private bool _hasSoundEffectsBus;
         private DroneHealth _health;
+        private float _masterFullVolume = 1f;
+        private float _masterCurrentVolume = 1f;
+        private float _masterTargetVolume = 1f;
         private string _preferencesPath;
         private bool _preferencesDirty;
 
@@ -48,6 +53,12 @@ namespace DuneVector
             _preferencesPath = Path.Combine(Application.persistentDataPath, AudioPreferencesFileName);
             LoadStoredVolumes();
 
+            _hasMasterBus = TryGetBus(_settings.MasterBusPath, out _masterBus);
+            if (_hasMasterBus && _masterBus.getVolume(out _masterFullVolume) == FMOD.RESULT.OK)
+            {
+                _masterCurrentVolume = _masterFullVolume;
+                _masterTargetVolume = _masterFullVolume;
+            }
             _hasMusicBus = TryGetBus(_settings.MusicBusPath, out _musicBus);
             _hasSoundEffectsBus = TryGetBus(_settings.SoundEffectsBusPath, out _soundEffectsBus);
             ApplyMixerVolumes();
@@ -60,6 +71,7 @@ namespace DuneVector
 
         private void Update()
         {
+            UpdatePauseDucking();
             if (!_musicInstance.isValid())
             {
                 return;
@@ -69,6 +81,16 @@ namespace DuneVector
                 playbackState == PLAYBACK_STATE.STOPPED)
             {
                 _musicInstance.start();
+            }
+        }
+
+        public void SetPausedDucking(bool paused)
+        {
+            float pausedMultiplier = Mathf.Clamp01(_settings.PausedVolumeMultiplier);
+            _masterTargetVolume = _masterFullVolume * (paused ? pausedMultiplier : 1f);
+            if (_settings.PauseFadeDuration <= 0f)
+            {
+                ApplyMasterVolume(_masterTargetVolume);
             }
         }
 
@@ -129,6 +151,35 @@ namespace DuneVector
             if (_hasSoundEffectsBus && _soundEffectsBus.isValid())
             {
                 _soundEffectsBus.setVolume(SoundEffectsVolume);
+            }
+        }
+
+        private void UpdatePauseDucking()
+        {
+            if (!_hasMasterBus || !_masterBus.isValid() || Mathf.Approximately(_masterCurrentVolume, _masterTargetVolume))
+            {
+                return;
+            }
+
+            float duration = Mathf.Max(0f, _settings.PauseFadeDuration);
+            if (duration <= 0f)
+            {
+                ApplyMasterVolume(_masterTargetVolume);
+                return;
+            }
+
+            float pausedVolume = _masterFullVolume * Mathf.Clamp01(_settings.PausedVolumeMultiplier);
+            float fullFadeDistance = Mathf.Abs(_masterFullVolume - pausedVolume);
+            float maximumDelta = fullFadeDistance * (Time.unscaledDeltaTime / duration);
+            ApplyMasterVolume(Mathf.MoveTowards(_masterCurrentVolume, _masterTargetVolume, maximumDelta));
+        }
+
+        private void ApplyMasterVolume(float volume)
+        {
+            _masterCurrentVolume = volume;
+            if (_hasMasterBus && _masterBus.isValid())
+            {
+                _masterBus.setVolume(_masterCurrentVolume);
             }
         }
 
@@ -227,6 +278,10 @@ namespace DuneVector
                 _musicInstance.release();
                 _musicInstance.clearHandle();
             }
+            if (_hasMasterBus && _masterBus.isValid())
+            {
+                _masterBus.setVolume(_masterFullVolume);
+            }
             FlushPreferences();
         }
     }
@@ -302,6 +357,7 @@ namespace DuneVector
             _player?.SetInputEnabled(!paused);
             Cursor.lockState = paused ? CursorLockMode.None : CursorLockMode.Locked;
             Cursor.visible = paused;
+            _audio?.SetPausedDucking(paused);
             if (!paused)
             {
                 _audio?.FlushPreferences();
@@ -311,6 +367,7 @@ namespace DuneVector
         private void HandleDeath()
         {
             IsPaused = false;
+            _audio?.SetPausedDucking(false);
             _player?.SetInputEnabled(false);
         }
 
@@ -623,6 +680,7 @@ namespace DuneVector
 
         private void RestartRun()
         {
+            _audio?.SetPausedDucking(false);
             _audio?.FlushPreferences();
             Time.timeScale = 1f;
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
@@ -630,6 +688,7 @@ namespace DuneVector
 
         private void QuitGame()
         {
+            _audio?.SetPausedDucking(false);
             _audio?.FlushPreferences();
             Time.timeScale = 1f;
 #if UNITY_EDITOR
@@ -647,6 +706,7 @@ namespace DuneVector
             }
             if (IsPaused && (_health == null || !_health.IsDead))
             {
+                _audio?.SetPausedDucking(false);
                 Time.timeScale = 1f;
             }
 
