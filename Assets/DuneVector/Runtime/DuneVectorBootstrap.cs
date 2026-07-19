@@ -375,6 +375,12 @@ namespace DuneVector
             cameraTargetObject.transform.localPosition = new Vector3(0f, 1.35f, 0f);
             Drone.ConfigurePresentation(visualRoot, cameraTargetObject.transform, World);
 
+            DroneStaminaSystem stamina = droneObject.AddComponent<DroneStaminaSystem>();
+            stamina.Initialize(PlayerTuning.StaminaBoost);
+            DroneBoostSpeedModifier boostSpeedModifier = droneObject.AddComponent<DroneBoostSpeedModifier>();
+            boostSpeedModifier.Initialize(PlayerTuning.StaminaBoost);
+            Drone.BindStaminaBoost(stamina, boostSpeedModifier);
+
             GameObject cameraObject = new GameObject("Dune Vector Camera");
             cameraObject.tag = "MainCamera";
             Camera camera = cameraObject.AddComponent<Camera>();
@@ -402,6 +408,7 @@ namespace DuneVector
             Player.CharacterCamera = DroneCamera;
             Player.InputSource = input;
             Player.Health = DroneHealth;
+            Player.Stamina = stamina;
 
             World.BindPlayer(Drone, DroneCamera, DroneHealth);
         }
@@ -506,6 +513,8 @@ namespace DuneVector
 
             DroneHealthHUD healthHUD = gameObject.AddComponent<DroneHealthHUD>();
             healthHUD.Health = DroneHealth;
+            DroneStaminaHUD staminaHUD = gameObject.AddComponent<DroneStaminaHUD>();
+            staminaHUD.Initialize(Drone, DroneCamera.Camera, Player.Stamina, PlayerTuning.StaminaBoost);
             GameOverController = gameObject.AddComponent<DuneVectorGameOverController>();
             GameOverController.Initialize(DroneHealth);
             PauseMenu = gameObject.AddComponent<DuneVectorPauseMenu>();
@@ -666,8 +675,8 @@ namespace DuneVector
                 GUI.Box(panel, GUIContent.none);
                 Rect content = new Rect(panel.x + 14f, panel.y, panel.width - 28f, panel.height);
                 GUI.Label(new Rect(content.x, panel.y + 8f, content.width, 30f), "DUNE VECTOR", _titleStyle);
-                GUI.Label(new Rect(content.x, panel.y + 42f, content.width, 24f), "WASD Move  •  Mouse Look  •  LMB Fire  •  Space Jump / Air Brake  •  F1 Telemetry", _hintStyle);
-                GUI.Label(new Rect(content.x, panel.y + 69f, content.width, 22f), "Amber: Boost  •  Cyan: Flight", _hintStyle);
+                GUI.Label(new Rect(content.x, panel.y + 42f, content.width, 24f), "WASD Move  •  Shift Boost  •  Space Jump / Air Brake  •  Mouse Look", _hintStyle);
+                GUI.Label(new Rect(content.x, panel.y + 69f, content.width, 22f), "LMB Fire  •  F1 Telemetry  •  Amber: Ring Boost  •  Cyan: Flight", _hintStyle);
                 GUI.color = previous;
             }
 

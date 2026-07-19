@@ -634,6 +634,53 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class StaminaBoostTuning
+    {
+        [Header("Stamina")]
+        [Min(0.01f)] public float MaxStamina = 100f;
+        [Min(0f)] public float DrainRate = 25f;
+        [Min(0f)] public float RegenDelay = 0.8f;
+        [Min(0f)] public float RegenRate = 30f;
+
+        [Header("Speed Boost")]
+        [Min(0f)] public float BoostAcceleration = 2.4f;
+        [Min(0f)] public float BoostDeceleration = 3.2f;
+        [Min(1f)] public float BoostSpeedMultiplier = 1.5f;
+        [Tooltip("Absolute target-speed ceiling while boosting. Set to 0 for no additional ceiling.")]
+        [Min(0f)] public float BoostMaximumSpeed = 150f;
+
+        [Header("World-Following Meter")]
+        public Vector2 MeterScreenOffset = new Vector2(62f, 4f);
+        [Min(8f)] public float MeterRadius = 28f;
+        [Min(1f)] public float MeterThickness = 5f;
+        [Range(8, 64)] public int MeterSegments = 28;
+        [Range(90f, 360f)] public float MeterArcDegrees = 280f;
+        public float MeterArcStartDegrees = 130f;
+        [Min(0f)] public float ScreenEdgePadding = 38f;
+        [Min(0f)] public float VisibilityFadeSpeed = 7f;
+        [Min(0f)] public float FullIdleFadeDelay = 1.2f;
+        [Range(0f, 1f)] public float FullIdleAlpha = 0.12f;
+        [Min(0f)] public float RestoredFeedbackDuration = 0.9f;
+        [Range(0f, 1f)] public float LowStaminaThreshold = 0.25f;
+        [Min(0f)] public float FeedbackPulseSpeed = 7f;
+        [Range(0f, 0.5f)] public float FeedbackPulseAmount = 0.12f;
+        [Min(8)] public int MeterLabelFontSize = 11;
+        [Min(20f)] public float MeterLabelWidth = 90f;
+        [Min(10f)] public float MeterLabelHeight = 20f;
+        public Vector2 MeterLabelOffset = new Vector2(-45f, 32f);
+        public string LowLabel = "LOW";
+        public string EmptyLabel = "EMPTY";
+        public string RegeneratingLabel = "RECHARGING";
+        public string RestoredLabel = "READY";
+        [ColorUsage(false)] public Color ReadyColor = new Color(0.35f, 1f, 0.72f, 1f);
+        [ColorUsage(false)] public Color BoostingColor = new Color(0.2f, 0.95f, 1f, 1f);
+        [ColorUsage(false)] public Color LowColor = new Color(1f, 0.7f, 0.12f, 1f);
+        [ColorUsage(false)] public Color EmptyColor = new Color(1f, 0.16f, 0.08f, 1f);
+        [ColorUsage(false)] public Color RegeneratingColor = new Color(0.38f, 0.72f, 1f, 1f);
+        [ColorUsage(false)] public Color MeterBackgroundColor = new Color(0.015f, 0.035f, 0.05f, 0.72f);
+    }
+
+    [System.Serializable]
     public sealed class DroneTuning
     {
         [Header("Ground Movement")]
@@ -646,9 +693,12 @@ namespace DuneVector
         [Min(0f)] public float JumpSpeed = 13f;
 
         [Header("Boost Rings")]
-        [Min(0f)] public float BoostAcceleration = 9.5f;
+        [Min(0f)] public float RingBoostAcceleration = 9.5f;
         [Min(0f)] public float BoostDuration = 2.6f;
         [Min(0f)] public float BoostMaxSpeed = 39f;
+
+        [Header("Shift Stamina Boost")]
+        public StaminaBoostTuning StaminaBoost = new StaminaBoostTuning();
 
         [Header("Ring Entry Burst")]
         [Min(1f)] public float RingBurstSpeedMultiplier = 1.45f;
@@ -675,6 +725,11 @@ namespace DuneVector
         [Min(0f)] public float CameraRotationSharpness = 30f;
         [Min(0f)] public float CameraFollowSharpness = 4.2f;
 
+        public void EnsureInitialized()
+        {
+            StaminaBoost ??= new StaminaBoostTuning();
+        }
+
         public void ApplyTo(DroneCharacterController drone)
         {
             drone.MaxGroundSpeed = MaxGroundSpeed;
@@ -682,9 +737,9 @@ namespace DuneVector
             drone.GroundBrakingSharpness = GroundBrakingSharpness;
             drone.TrailMinimumSpeed = TrailMinimumSpeed;
             drone.JumpSpeed = JumpSpeed;
-            drone.BoostAcceleration = BoostAcceleration;
-            drone.BoostDuration = BoostDuration;
-            drone.BoostMaxSpeed = BoostMaxSpeed;
+            drone.RingBoostAcceleration = RingBoostAcceleration;
+            drone.RingBoostDuration = BoostDuration;
+            drone.RingBoostMaxSpeed = BoostMaxSpeed;
             drone.RingBurstSpeedMultiplier = RingBurstSpeedMultiplier;
             drone.RingBurstDuration = RingBurstDuration;
             drone.RingBurstAcceleration = RingBurstAcceleration;
@@ -765,6 +820,7 @@ namespace DuneVector
         public void EnsureInitialized()
         {
             PlayerTuning ??= new DroneTuning();
+            PlayerTuning.EnsureInitialized();
             Clouds ??= new CloudTuning();
             Weather ??= new DesertWeatherTuning();
             Weather.EnsureInitialized();

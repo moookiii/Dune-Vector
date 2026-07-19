@@ -42,12 +42,10 @@ namespace DuneVector
         [Min(0f)] public float JumpBufferTime = 0.16f;
         [Min(0f)] public float CoyoteTime = 0.12f;
 
-        [Header("Boost")]
-        [Min(0f)] public float BoostAcceleration = 9.5f;
-        [Min(0f)] public float BoostDuration = 2.6f;
-        [Min(0f)] public float BoostMaxSpeed = 39f;
-        [Range(0f, 1f)] public float BoostSteeringInfluence = 0.24f;
-        public bool BoostRetriggers = true;
+        [Header("Boost Rings")]
+        [Min(0f)] public float RingBoostAcceleration = 9.5f;
+        [Min(0f)] public float RingBoostDuration = 2.6f;
+        [Min(0f)] public float RingBoostMaxSpeed = 39f;
 
         [Header("Ring Entry Burst")]
         [Min(1f)] public float RingBurstSpeedMultiplier = 1.45f;
@@ -92,9 +90,10 @@ namespace DuneVector
         public List<Collider> IgnoredColliders = new List<Collider>();
 
         public DroneTraversalMode CurrentMode { get; private set; } = DroneTraversalMode.Normal;
-        public bool IsBoosting => _boostTimeRemaining > 0f;
-        public float BoostRemainingNormalized => BoostDuration > 0f
-            ? Mathf.Clamp01(_boostTimeRemaining / BoostDuration)
+        public bool IsBoosting => _stamina != null && _stamina.IsBoosting;
+        public bool IsRingBoosting => _ringBoostTimeRemaining > 0f;
+        public float RingBoostRemainingNormalized => RingBoostDuration > 0f
+            ? Mathf.Clamp01(_ringBoostTimeRemaining / RingBoostDuration)
             : 0f;
         public bool IsStableGrounded => Motor != null && Motor.GroundingStatus.IsStableOnGround;
         public float Speed => Motor != null ? Motor.Velocity.magnitude : 0f;
@@ -118,8 +117,10 @@ namespace DuneVector
         private float _timeSinceJumpRequested = float.PositiveInfinity;
         private float _timeSinceStableGround = float.PositiveInfinity;
 
-        private float _boostTimeRemaining;
+        private float _ringBoostTimeRemaining;
         private float _ringBurstTimeRemaining;
+        private DroneStaminaSystem _stamina;
+        private DroneBoostSpeedModifier _boostSpeedModifier;
 
         private bool _flightRequested;
         private bool _flightJustEntered;
@@ -165,6 +166,12 @@ namespace DuneVector
                 _visualBaseLocalPosition = DroneVisualRoot.localPosition;
                 _trailRenderers = DroneVisualRoot.GetComponentsInChildren<TrailRenderer>(true);
             }
+        }
+
+        public void BindStaminaBoost(DroneStaminaSystem stamina, DroneBoostSpeedModifier boostSpeedModifier)
+        {
+            _stamina = stamina;
+            _boostSpeedModifier = boostSpeedModifier;
         }
 
         public void HandleWorldShift(Vector3 shift)
@@ -216,12 +223,7 @@ namespace DuneVector
 
         public void ActivateBoost()
         {
-            if (IsBoosting && !BoostRetriggers)
-            {
-                return;
-            }
-
-            _boostTimeRemaining = BoostDuration;
+            _ringBoostTimeRemaining = RingBoostDuration;
             StartRingBurst();
         }
 
@@ -299,6 +301,7 @@ namespace DuneVector
 
         public void UpdateVelocity(ref Vector3 currentVelocity, float deltaTime)
         {
+            _boostSpeedModifier?.Tick(IsBoosting, deltaTime);
             if (CurrentMode == DroneTraversalMode.Flight)
             {
                 UpdateFlightVelocity(ref currentVelocity, deltaTime);
@@ -331,11 +334,19 @@ namespace DuneVector
                     targetSpeed = MaxGroundSpeed * _moveInputWorld.magnitude;
                 }
 
-                if (IsBoosting && targetDirection.sqrMagnitude > 0.001f)
+                if (IsRingBoosting && targetDirection.sqrMagnitude > 0.001f)
                 {
                     float burstMultiplier = GetRingBurstMultiplier();
-                    targetSpeed = BoostMaxSpeed * burstMultiplier * _moveInputWorld.magnitude;
-                    sharpness = _ringBurstTimeRemaining > 0f ? RingBurstAcceleration : BoostAcceleration;
+                    targetSpeed = RingBoostMaxSpeed * burstMultiplier * _moveInputWorld.magnitude;
+                    sharpness = _ringBurstTimeRemaining > 0f ? RingBurstAcceleration : RingBoostAcceleration;
+                }
+                if (targetDirection.sqrMagnitude > 0.001f && _boostSpeedModifier != null)
+                {
+                    targetSpeed = _boostSpeedModifier.ModifyTargetSpeed(targetSpeed);
+                    if (_boostSpeedModifier.BoostBlend > 0f)
+                    {
+                        sharpness = Mathf.Max(sharpness, _boostSpeedModifier.CurrentResponse);
+                    }
                 }
 
                 Vector3 targetVelocity = targetDirection * targetSpeed;
@@ -347,9 +358,12 @@ namespace DuneVector
                 if (_moveInputWorld.sqrMagnitude > 0.001f)
                 {
                     Vector3 addedVelocity = _moveInputWorld * (AirAcceleration * deltaTime);
-                    if (planarVelocity.magnitude < MaxAirSpeed)
+                    float maximumAirSpeed = _boostSpeedModifier != null
+                        ? _boostSpeedModifier.ModifyTargetSpeed(MaxAirSpeed)
+                        : MaxAirSpeed;
+                    if (planarVelocity.magnitude < maximumAirSpeed)
                     {
-                        Vector3 newPlanarVelocity = Vector3.ClampMagnitude(planarVelocity + addedVelocity, MaxAirSpeed);
+                        Vector3 newPlanarVelocity = Vector3.ClampMagnitude(planarVelocity + addedVelocity, maximumAirSpeed);
                         currentVelocity += newPlanarVelocity - planarVelocity;
                     }
                     else if (Vector3.Dot(planarVelocity, addedVelocity) <= 0f)
@@ -404,6 +418,10 @@ namespace DuneVector
             else
             {
                 targetSpeed *= GetRingBurstMultiplier();
+                if (_boostSpeedModifier != null)
+                {
+                    targetSpeed = _boostSpeedModifier.ModifyTargetSpeed(targetSpeed);
+                }
             }
 
             Vector3 targetVelocity = _flightDirection * targetSpeed;
@@ -430,7 +448,9 @@ namespace DuneVector
                 ? FlightBrakeSharpness
                 : _ringBurstTimeRemaining > 0f
                     ? RingBurstAcceleration
-                    : FlightAcceleration;
+                    : _boostSpeedModifier != null
+                        ? Mathf.Max(FlightAcceleration, _boostSpeedModifier.CurrentResponse)
+                        : FlightAcceleration;
             currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, DuneVectorMath.Sharpness(acceleration, deltaTime));
         }
 
@@ -451,9 +471,9 @@ namespace DuneVector
 
         public void AfterCharacterUpdate(float deltaTime)
         {
-            if (_boostTimeRemaining > 0f)
+            if (_ringBoostTimeRemaining > 0f)
             {
-                _boostTimeRemaining = Mathf.Max(0f, _boostTimeRemaining - deltaTime);
+                _ringBoostTimeRemaining = Mathf.Max(0f, _ringBoostTimeRemaining - deltaTime);
             }
             if (_ringBurstTimeRemaining > 0f)
             {

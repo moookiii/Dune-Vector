@@ -11,6 +11,7 @@ namespace DuneVector
         public float Scroll;
         public bool JumpPressed;
         public bool JumpHeld;
+        public bool BoostHeld;
         public bool FirePressed;
     }
 
@@ -27,12 +28,14 @@ namespace DuneVector
             Vector2 move = Vector2.zero;
             bool jumpPressed = false;
             bool jumpHeld = false;
+            bool boostHeld = false;
             if (keyboard != null)
             {
                 move.x = (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f);
                 move.y = (keyboard.wKey.isPressed ? 1f : 0f) - (keyboard.sKey.isPressed ? 1f : 0f);
                 jumpPressed = keyboard.spaceKey.wasPressedThisFrame;
                 jumpHeld = keyboard.spaceKey.isPressed;
+                boostHeld = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
             }
 
             Current = new DroneRawInputFrame
@@ -42,6 +45,7 @@ namespace DuneVector
                 Scroll = mouse != null ? mouse.scroll.ReadValue().y / 120f : 0f,
                 JumpPressed = jumpPressed,
                 JumpHeld = jumpHeld,
+                BoostHeld = boostHeld,
                 FirePressed = mouse != null && mouse.leftButton.wasPressedThisFrame,
             };
         }
@@ -56,6 +60,7 @@ namespace DuneVector
         public DroneInput InputSource;
         public DroneHealth Health;
         public DroneEnergyLauncher EnergyLauncher;
+        public DroneStaminaSystem Stamina;
 
         public bool AutomatedInputEnabled { get; private set; }
         public DroneRawInputFrame AutomatedInput { get; private set; }
@@ -91,6 +96,7 @@ namespace DuneVector
 
             InputSource.Capture();
             DroneRawInputFrame raw = AutomatedInputEnabled ? AutomatedInput : InputSource.Current;
+            Stamina?.Tick(raw.BoostHeld, Time.deltaTime);
             DroneControlInput characterInput = new DroneControlInput
             {
                 Move = raw.Move,
@@ -162,6 +168,7 @@ namespace DuneVector
             }
 
             DroneControlInput input = default;
+            Stamina?.Tick(false, Time.deltaTime);
             Character.SetInputs(in input);
         }
     }

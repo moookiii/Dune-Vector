@@ -209,7 +209,7 @@ namespace DuneVector
                     TraversalRingType.GroundBoost => Mathf.Lerp(
                         1f,
                         BoostRingActiveScale,
-                        _controller.BoostRemainingNormalized),
+                        _controller.RingBoostRemainingNormalized),
                     _ => 1f,
                 };
                 _modeScale = Mathf.Lerp(
