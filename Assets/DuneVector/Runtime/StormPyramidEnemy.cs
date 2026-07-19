@@ -167,7 +167,7 @@ namespace DuneVector
         private void UpdateIdle(float deltaTime)
         {
             _attackTimer = Mathf.Max(0f, _attackTimer - deltaTime);
-            if (_attackTimer <= 0f && _targeting.CanTargetPlayer(transform.position))
+            if (_attackTimer <= 0f && CanChargePlayer())
             {
                 SetState(StormPyramidState.TrackingPlayer);
             }
@@ -175,8 +175,9 @@ namespace DuneVector
 
         private void UpdateTracking()
         {
-            if (!_targeting.CanTargetPlayer(transform.position))
+            if (!CanChargePlayer())
             {
+                _attackTimer = GetAttackInterval(StormLightningAttackType.PlayerStrike);
                 SetState(StormPyramidState.IdleHovering);
                 return;
             }
@@ -194,6 +195,14 @@ namespace DuneVector
 
         private void UpdateCharging(float deltaTime)
         {
+            if (!CanChargePlayer())
+            {
+                _lightning.CancelAttack();
+                _attackTimer = GetAttackInterval(StormLightningAttackType.PlayerStrike);
+                SetState(StormPyramidState.IdleHovering);
+                return;
+            }
+
             FacePosition(_lightning.TargetPosition, 9f);
             if (_lightning.TickCharge(deltaTime))
             {
@@ -262,6 +271,12 @@ namespace DuneVector
                 ? _settings.PlayerStrikeAttackInterval
                 : _settings.AttackInterval;
             return Mathf.Max(0.1f, configuredInterval);
+        }
+
+        private bool CanChargePlayer()
+        {
+            return !_player.IsStableGrounded
+                && _targeting.CanTargetPlayer(transform.position);
         }
 
         private void SetState(StormPyramidState state)
