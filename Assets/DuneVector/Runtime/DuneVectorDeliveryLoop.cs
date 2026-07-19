@@ -327,6 +327,7 @@ namespace DuneVector
         private DroneCharacterController _player;
         private Camera _billboardCamera;
         private Action _onCrossed;
+        private Func<bool> _canActivate;
         private Transform _visual;
         private float _innerRadius;
         private Vector3 _previousWorldPosition;
@@ -340,11 +341,13 @@ namespace DuneVector
             DuneVectorMaterials materials,
             bool isPickup,
             float radius,
-            Action onCrossed)
+            Action onCrossed,
+            Func<bool> canActivate = null)
         {
             _player = player;
             _billboardCamera = billboardCamera;
             _onCrossed = onCrossed;
+            _canActivate = canActivate;
             _innerRadius = Mathf.Max(0.5f, radius - 0.38f);
             _visual = DuneVectorVisuals.CreateJobRingVisual(transform, isPickup, materials, radius);
         }
@@ -363,6 +366,13 @@ namespace DuneVector
             UpdateBillboard();
             if (_activated || _player == null)
             {
+                return;
+            }
+            if (_canActivate != null && !_canActivate())
+            {
+                // Ignore teleport and setup movement entirely. Starting with a fresh
+                // sample prevents that movement segment from consuming the ring.
+                _hasPreviousPosition = false;
                 return;
             }
 

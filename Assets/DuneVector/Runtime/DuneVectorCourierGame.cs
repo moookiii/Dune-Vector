@@ -844,7 +844,17 @@ namespace DuneVector
             GameObject ringObject = new GameObject(objectName);
             ringObject.transform.SetParent(transform, false);
             JobTraversalRing ring = ringObject.AddComponent<JobTraversalRing>();
-            ring.Initialize(_player, _camera, _materials, pickup, Mathf.Max(1f, _deliverySettings.ObjectiveRingRadius), crossed);
+            Func<bool> canActivate = pickup
+                ? () => State == CourierRunState.FindPackage && _package != null
+                : () => State == CourierRunState.Delivering && IsCarryingCargo;
+            ring.Initialize(
+                _player,
+                _camera,
+                _materials,
+                pickup,
+                Mathf.Max(1f, _deliverySettings.ObjectiveRingRadius),
+                crossed,
+                canActivate);
             ring.LogicalPosition = logical;
             ring.LogicalHeight = height;
             ring.transform.position = _world.LogicalToLocal(logical.X, height, logical.Z);
