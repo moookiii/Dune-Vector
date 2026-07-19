@@ -385,6 +385,7 @@ namespace DuneVector
         private DroneCharacterController _drone;
         private Camera _camera;
         private DesertWorldStreamer _world;
+        private DuneVectorAudioManager _audioManager;
         private DroneLockOnController _lockController;
         private EnergyLauncherTuning _settings;
         private Material _energyMaterial;
@@ -395,12 +396,14 @@ namespace DuneVector
             DroneCharacterController drone,
             Camera camera,
             DesertWorldStreamer world,
+            DuneVectorAudioManager audioManager,
             DroneLockOnController lockController,
             EnergyLauncherTuning settings)
         {
             _drone = drone;
             _camera = camera;
             _world = world;
+            _audioManager = audioManager;
             _lockController = lockController;
             _settings = settings;
             _energyMaterial = CreateEnergyMaterial(settings);
@@ -462,6 +465,7 @@ namespace DuneVector
                 _settings.LaunchFlashScale,
                 _settings.LaunchFlashDuration,
                 "Energy Launch Flash");
+            _audioManager?.PlayDroneFire(muzzlePosition);
             _cooldownRemaining = _settings.FireCooldown;
             return true;
         }

@@ -592,6 +592,8 @@ namespace DuneVector
         public string BackgroundMusicEvent = "event:/Shadows on the Mesa";
         [Tooltip("One-shot event played whenever the drone successfully loses health.")]
         public string DroneDamageEvent = "event:/Drone_Damage";
+        [Tooltip("One-shot event played when the drone successfully launches an energy shot.")]
+        public string DroneFireEvent = "event:/Drone_Fire";
 
         [Header("July Mixer Routing")]
         [Tooltip("FMOD master bus used for pause-menu volume ducking.")]

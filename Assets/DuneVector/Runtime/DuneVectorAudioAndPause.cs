@@ -118,6 +118,25 @@ namespace DuneVector
             _preferencesDirty = true;
         }
 
+        public void PlayDroneFire(Vector3 position)
+        {
+            if (_settings == null || string.IsNullOrWhiteSpace(_settings.DroneFireEvent))
+            {
+                return;
+            }
+
+            try
+            {
+                RuntimeManager.PlayOneShot(_settings.DroneFireEvent, position);
+            }
+            catch (EventNotFoundException exception)
+            {
+                Debug.LogWarning(
+                    $"FMOD drone-fire event '{_settings.DroneFireEvent}' was not found. {exception.Message}",
+                    this);
+            }
+        }
+
         private void StartBackgroundMusic()
         {
             if (string.IsNullOrWhiteSpace(_settings.BackgroundMusicEvent))

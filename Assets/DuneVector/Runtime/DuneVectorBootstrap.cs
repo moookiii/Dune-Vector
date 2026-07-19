@@ -563,6 +563,7 @@ namespace DuneVector
                 Drone,
                 DroneCamera.Camera,
                 World,
+                AudioManager,
                 LockOnController,
                 EnergyLauncherSettings);
             LockOnHUD = weaponObject.AddComponent<DroneLockOnHUD>();
