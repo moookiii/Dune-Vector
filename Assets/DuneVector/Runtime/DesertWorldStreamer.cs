@@ -116,6 +116,7 @@ namespace DuneVector
 
             _initialized = true;
             _materials = materials ?? throw new ArgumentNullException(nameof(materials));
+            _materials.SetGeoglyphLogicalOrigin(OriginOffsetX, OriginOffsetZ);
             _coinRingSeed = Guid.NewGuid().GetHashCode();
             Rings ??= new RingTuning();
             GroundExploders ??= new GroundExploderTuning();
@@ -381,6 +382,7 @@ namespace DuneVector
             Vector3 motorPosition = _motor.TransientPosition;
             OriginOffsetX += localShift.x;
             OriginOffsetZ += localShift.z;
+            _materials.SetGeoglyphLogicalOrigin(OriginOffsetX, OriginOffsetZ);
 
             foreach (DesertChunk chunk in _chunks.Values)
             {
@@ -701,7 +703,7 @@ namespace DuneVector
             MeshFilter filter = rootObject.AddComponent<MeshFilter>();
             filter.sharedMesh = _terrainMesh;
             MeshRenderer renderer = rootObject.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = materials.Sand;
+            renderer.sharedMaterials = materials.GetTerrainMaterials(coordinate, chunkSize);
             renderer.shadowCastingMode = ShadowCastingMode.On;
             renderer.receiveShadows = true;
             MeshCollider collider = rootObject.AddComponent<MeshCollider>();

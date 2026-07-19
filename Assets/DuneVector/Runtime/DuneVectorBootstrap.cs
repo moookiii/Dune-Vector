@@ -317,7 +317,8 @@ namespace DuneVector
                 Clouds,
                 DynamicCourierSettings,
                 DesertShrubs,
-                DroneVisuals);
+                DroneVisuals,
+                RuntimeSettings.Geoglyphs);
             _materials.ConfigureStormPyramid(StormPyramids);
 
             BuildEnvironment();

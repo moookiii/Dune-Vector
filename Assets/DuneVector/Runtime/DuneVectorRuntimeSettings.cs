@@ -28,6 +28,64 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class GeoglyphArtworkPlacement
+    {
+        [Tooltip("Unique black-and-white artwork mask. White pixels become linework; black pixels remain transparent.")]
+        public Texture2D Mask;
+
+        [Tooltip("Authoritative center in the desert's persistent logical X/Z world coordinates.")]
+        public Vector2 WorldCenter;
+
+        [Tooltip("Width and length of the artwork footprint in world metres.")]
+        public Vector2 WorldSize = new Vector2(640f, 426.67f);
+
+        [Tooltip("Rotation of the artwork footprint around its world-space center.")]
+        public float RotationDegrees;
+
+        [Range(0f, 1f)]
+        [Tooltip("Opacity of the artwork linework over the lit sand surface.")]
+        public float BlendStrength = 0.9f;
+
+        [ColorUsage(false)]
+        [Tooltip("Ground pigment shown wherever the mask contains linework.")]
+        public Color LineColor = new Color(0.12f, 0.055f, 0.018f, 1f);
+
+        [Header("Mask Definition")]
+        [Range(0f, 1f)] public float MaskThreshold = 0.48f;
+        [Range(0.0001f, 0.25f)] public float EdgeSoftness = 0.025f;
+
+        [Header("Optional Slope Correction")]
+        [Range(0f, 1f)]
+        [Tooltip("Blends toward slope-corrected sampling only on sufficiently steep terrain. Zero preserves pure overhead X/Z projection.")]
+        public float SlopeCorrectionStrength = 0.16f;
+
+        [Range(0f, 89f)]
+        [Tooltip("Terrain slope angle where correction begins to blend in.")]
+        public float SlopeCorrectionStartAngle = 42f;
+
+        [Min(0f)]
+        [Tooltip("Maximum world-space sampling offset allowed on steep dune faces.")]
+        public float MaximumSlopeCorrection = 3f;
+
+        [Tooltip("World height used as the gentle slope-projection reference plane.")]
+        public float SlopeReferenceHeight;
+    }
+
+    [System.Serializable]
+    public sealed class GeoglyphSystemTuning
+    {
+        public bool Enabled = true;
+
+        [Tooltip("Unique persistent geoglyph landmarks. Entries are never spawned, tiled, randomized, or repeated by chunks.")]
+        public List<GeoglyphArtworkPlacement> Placements = new List<GeoglyphArtworkPlacement>();
+
+        public void EnsureInitialized()
+        {
+            Placements ??= new List<GeoglyphArtworkPlacement>();
+        }
+    }
+
+    [System.Serializable]
     public sealed class CloudLobeTuning
     {
         public Vector3 Position;
@@ -1741,6 +1799,9 @@ namespace DuneVector
         [Tooltip("Authored procedural landmark placement and archetype dimensions.")]
         public LandmarkSystemTuning Landmarks = new LandmarkSystemTuning();
 
+        [Tooltip("Unique mask-authored ground artworks placed in persistent logical world coordinates.")]
+        public GeoglyphSystemTuning Geoglyphs = new GeoglyphSystemTuning();
+
         [Tooltip("Route-aware open-world enemy formation choreography.")]
         public RouteEncounterTuning RouteEncounters = new RouteEncounterTuning();
 
@@ -1810,6 +1871,8 @@ namespace DuneVector
             Contracts ??= new CourierContractTuning();
             WorldHub ??= new WorldHubTuning();
             Landmarks ??= new LandmarkSystemTuning();
+            Geoglyphs ??= new GeoglyphSystemTuning();
+            Geoglyphs.EnsureInitialized();
             RouteEncounters ??= new RouteEncounterTuning();
             DynamicCouriers ??= new DynamicCourierTuning();
             Pyramids ??= new PyramidTuning();

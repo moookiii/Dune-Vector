@@ -117,6 +117,7 @@ namespace DuneVector.Editor
         private SerializedProperty _contracts;
         private SerializedProperty _worldHub;
         private SerializedProperty _landmarks;
+        private SerializedProperty _geoglyphs;
         private SerializedProperty _routeEncounters;
         private SerializedProperty _dynamicCouriers;
         private SerializedProperty _pyramids;
@@ -145,6 +146,7 @@ namespace DuneVector.Editor
             _contracts = serializedObject.FindProperty("Contracts");
             _worldHub = serializedObject.FindProperty("WorldHub");
             _landmarks = serializedObject.FindProperty("Landmarks");
+            _geoglyphs = serializedObject.FindProperty("Geoglyphs");
             _routeEncounters = serializedObject.FindProperty("RouteEncounters");
             _dynamicCouriers = serializedObject.FindProperty("DynamicCouriers");
             _pyramids = serializedObject.FindProperty("Pyramids");
@@ -314,6 +316,10 @@ namespace DuneVector.Editor
                 "Authored Landmarks",
                 "Placement tiers, spacing, silhouettes, sockets, and the five initial landmark templates.",
                 _landmarks);
+            DuneVectorSettingsInspector.DrawSection(
+                "World Geoglyph Artwork",
+                "Unique mask landmarks projected once in persistent logical world coordinates across streamed dunes.",
+                _geoglyphs);
         }
 
         private void DrawDunePresetControls()

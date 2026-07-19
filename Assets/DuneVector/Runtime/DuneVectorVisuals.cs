@@ -7,7 +7,11 @@ namespace DuneVector
 {
     public sealed class DuneVectorMaterials : IDisposable
     {
+        private const int MaximumGeoglyphPlacements = 8;
+
         public Material Sand { get; }
+        public Material GeoglyphOverlay { get; }
+        public Material[] TerrainMaterials { get; }
         public Material DroneBody { get; }
         public Material DroneAccent { get; }
         public Material RivalDroneTop { get; }
@@ -42,6 +46,8 @@ namespace DuneVector
 
         private readonly List<Material> _ownedMaterials = new List<Material>();
         private readonly List<Material> _shrubMaterials = new List<Material>();
+        private readonly List<Rect> _geoglyphWorldBounds = new List<Rect>();
+        private readonly Material[] _sandOnlyTerrainMaterials;
 
         public DuneVectorMaterials(
             RingTuning ringTuning = null,
@@ -49,7 +55,8 @@ namespace DuneVector
             CloudTuning cloudTuning = null,
             DynamicCourierTuning dynamicCourierTuning = null,
             DesertShrubTuning shrubTuning = null,
-            DroneVisualTuning droneVisualTuning = null)
+            DroneVisualTuning droneVisualTuning = null,
+            GeoglyphSystemTuning geoglyphTuning = null)
         {
             RingTuning rings = ringTuning ?? new RingTuning();
             DeliveryTuning delivery = deliveryTuning ?? new DeliveryTuning();
@@ -57,6 +64,11 @@ namespace DuneVector
             DynamicCourierTuning couriers = dynamicCourierTuning ?? new DynamicCourierTuning();
             DroneVisualTuning droneVisuals = droneVisualTuning ?? new DroneVisualTuning();
             Sand = CreateLit("Sand - Warm Rough", new Color(0.62f, 0.36f, 0.16f), 0.14f, 0f);
+            _sandOnlyTerrainMaterials = new[] { Sand };
+            GeoglyphOverlay = CreateGeoglyphOverlay(geoglyphTuning);
+            TerrainMaterials = GeoglyphOverlay != null
+                ? new[] { Sand, GeoglyphOverlay }
+                : _sandOnlyTerrainMaterials;
             DroneBody = CreateLit(
                 "Drone - Ivory",
                 droneVisuals.BodyColor,
@@ -176,6 +188,38 @@ namespace DuneVector
             LightningWarning = CreateUnlit("Storm Pyramid - Warning", new Color(0.18f, 0.42f, 0.62f), new Color(0.45f, 2.8f, 5.8f));
         }
 
+        public void SetGeoglyphLogicalOrigin(double originOffsetX, double originOffsetZ)
+        {
+            if (GeoglyphOverlay != null)
+            {
+                GeoglyphOverlay.SetVector(
+                    "_DVGeoglyphOriginOffset",
+                    new Vector4((float)originOffsetX, (float)originOffsetZ, 0f, 0f));
+            }
+        }
+
+        public Material[] GetTerrainMaterials(Vector2Int chunkCoordinate, float chunkSize)
+        {
+            if (GeoglyphOverlay == null)
+            {
+                return TerrainMaterials;
+            }
+
+            Rect chunkBounds = new Rect(
+                chunkCoordinate.x * chunkSize,
+                chunkCoordinate.y * chunkSize,
+                chunkSize,
+                chunkSize);
+            for (int i = 0; i < _geoglyphWorldBounds.Count; i++)
+            {
+                if (_geoglyphWorldBounds[i].Overlaps(chunkBounds, true))
+                {
+                    return TerrainMaterials;
+                }
+            }
+            return _sandOnlyTerrainMaterials;
+        }
+
         public void Dispose()
         {
             for (int i = 0; i < _ownedMaterials.Count; i++)
@@ -275,6 +319,102 @@ namespace DuneVector
             {
                 material.SetFloat("_EmissiveExposureWeight", 0f);
             }
+            _ownedMaterials.Add(material);
+            return material;
+        }
+
+        private Material CreateGeoglyphOverlay(GeoglyphSystemTuning tuning)
+        {
+            if (tuning == null || !tuning.Enabled || tuning.Placements == null)
+            {
+                return null;
+            }
+
+            List<GeoglyphArtworkPlacement> placements = new List<GeoglyphArtworkPlacement>();
+            for (int i = 0; i < tuning.Placements.Count; i++)
+            {
+                GeoglyphArtworkPlacement placement = tuning.Placements[i];
+                if (placement != null && placement.Mask != null && placement.BlendStrength > 0f &&
+                    placement.WorldSize.x > 0.01f && placement.WorldSize.y > 0.01f)
+                {
+                    placements.Add(placement);
+                }
+            }
+
+            if (placements.Count == 0)
+            {
+                return null;
+            }
+
+            Shader shader = Shader.Find("DuneVector/HDRP World Geoglyph Overlay");
+            if (shader == null)
+            {
+                Debug.LogError("Geoglyph artwork requires Assets/DuneVector/Runtime/DuneVectorGeoglyphOverlay.shader.");
+                return null;
+            }
+
+            if (placements.Count > MaximumGeoglyphPlacements)
+            {
+                Debug.LogWarning(
+                    $"The geoglyph shader supports {MaximumGeoglyphPlacements} unique placements per material. " +
+                    $"Only the first {MaximumGeoglyphPlacements} valid entries will render.");
+            }
+
+            int count = Mathf.Min(placements.Count, MaximumGeoglyphPlacements);
+            Vector4[] transforms = new Vector4[MaximumGeoglyphPlacements];
+            Vector4[] rotations = new Vector4[MaximumGeoglyphPlacements];
+            Vector4[] masks = new Vector4[MaximumGeoglyphPlacements];
+            Vector4[] slopes = new Vector4[MaximumGeoglyphPlacements];
+            Vector4[] colors = new Vector4[MaximumGeoglyphPlacements];
+            Material material = new Material(shader) { name = "Terrain - Persistent World Geoglyphs" };
+            material.enableInstancing = true;
+
+            for (int i = 0; i < count; i++)
+            {
+                GeoglyphArtworkPlacement placement = placements[i];
+                float radians = placement.RotationDegrees * Mathf.Deg2Rad;
+                transforms[i] = new Vector4(
+                    placement.WorldCenter.x,
+                    placement.WorldCenter.y,
+                    1f / Mathf.Max(0.01f, placement.WorldSize.x),
+                    1f / Mathf.Max(0.01f, placement.WorldSize.y));
+                rotations[i] = new Vector4(
+                    Mathf.Cos(radians),
+                    Mathf.Sin(radians),
+                    Mathf.Clamp01(placement.BlendStrength),
+                    0f);
+                masks[i] = new Vector4(
+                    Mathf.Clamp01(placement.MaskThreshold),
+                    Mathf.Max(0.0001f, placement.EdgeSoftness),
+                    0f,
+                    0f);
+                slopes[i] = new Vector4(
+                    Mathf.Clamp01(placement.SlopeCorrectionStrength),
+                    Mathf.Cos(Mathf.Clamp(placement.SlopeCorrectionStartAngle, 0f, 89f) * Mathf.Deg2Rad),
+                    Mathf.Max(0f, placement.MaximumSlopeCorrection),
+                    placement.SlopeReferenceHeight);
+                colors[i] = placement.LineColor;
+                material.SetTexture($"_DVGeoglyphMask{i}", placement.Mask);
+
+                Vector2 halfSize = placement.WorldSize * 0.5f;
+                float absoluteCosine = Mathf.Abs(Mathf.Cos(radians));
+                float absoluteSine = Mathf.Abs(Mathf.Sin(radians));
+                Vector2 boundsHalfSize = new Vector2(
+                    (absoluteCosine * halfSize.x) + (absoluteSine * halfSize.y),
+                    (absoluteSine * halfSize.x) + (absoluteCosine * halfSize.y));
+                boundsHalfSize += Vector2.one * Mathf.Max(0f, placement.MaximumSlopeCorrection);
+                _geoglyphWorldBounds.Add(new Rect(
+                    placement.WorldCenter - boundsHalfSize,
+                    boundsHalfSize * 2f));
+            }
+
+            material.SetInt("_DVGeoglyphCount", count);
+            material.SetVectorArray("_DVGeoglyphTransform", transforms);
+            material.SetVectorArray("_DVGeoglyphRotation", rotations);
+            material.SetVectorArray("_DVGeoglyphMaskSettings", masks);
+            material.SetVectorArray("_DVGeoglyphSlope", slopes);
+            material.SetVectorArray("_DVGeoglyphLineColor", colors);
+            material.SetVector("_DVGeoglyphOriginOffset", Vector4.zero);
             _ownedMaterials.Add(material);
             return material;
         }
