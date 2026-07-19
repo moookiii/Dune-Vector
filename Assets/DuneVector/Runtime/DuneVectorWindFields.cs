@@ -115,7 +115,6 @@ namespace DuneVector
         }
 
         private DroneCharacterController _player;
-        private DuneVectorCourierGame _courierGame;
         private Camera _camera;
         private DesertWorldStreamer _world;
         private WindFieldSystemTuning _settings;
@@ -125,17 +124,6 @@ namespace DuneVector
         private ParticleSystem _playerInteraction;
 
         public WindFieldSample CurrentPlayerSample { get; private set; }
-        public bool IsPlayerWindSuppressed => _courierGame != null
-            && (_courierGame.State == CourierRunState.Hub
-                || _courierGame.State == CourierRunState.TeleportingToDesert
-                || _courierGame.State == CourierRunState.TeleportOut
-                || _courierGame.State == CourierRunState.DeliveryMessage
-                || _courierGame.State == CourierRunState.ReturnToBase);
-
-        public void BindCourierGame(DuneVectorCourierGame courierGame)
-        {
-            _courierGame = courierGame;
-        }
 
         public void Initialize(
             DroneCharacterController player,

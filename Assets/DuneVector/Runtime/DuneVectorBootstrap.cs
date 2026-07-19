@@ -682,7 +682,6 @@ namespace DuneVector
                     WorldHubSettings,
                     EnemyDirector,
                     StormPyramidDirector);
-                WindFieldSystem?.BindCourierGame(CourierGame);
 
                 GameObject encounterObject = new GameObject("Route Encounter Formation Director");
                 encounterObject.transform.SetParent(transform, false);
