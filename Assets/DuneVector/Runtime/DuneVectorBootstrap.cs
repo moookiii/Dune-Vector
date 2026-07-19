@@ -55,6 +55,35 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class PlayerHealthTuning
+    {
+        [Min(1f)] public float MaximumHealth = 100f;
+        [Min(0f)] public float DamageInvulnerability = 0.45f;
+    }
+
+    [System.Serializable]
+    public sealed class FlyingEnemyTuning
+    {
+        public bool Enabled = true;
+        [Range(1, 12)] public int EnemyCount = 3;
+        [Min(10f)] public float MinimumSpawnDistance = 55f;
+        [Min(10f)] public float MaximumSpawnDistance = 105f;
+        [Min(1f)] public float DetectionRange = 125f;
+        [Min(1f)] public float HoverHeight = 20f;
+        [Min(0f)] public float HoverAmplitude = 1.1f;
+        [Min(0f)] public float FollowSpeed = 11f;
+        [Min(0f)] public float AttackSpeed = 38f;
+        [Min(0.1f)] public float AttackCooldown = 3.5f;
+        [Min(0.25f)] public float AttackAlignmentDistance = 4f;
+        [Min(0f)] public float ImpactDamage = 25f;
+        [Min(0.1f)] public float ImpactRadius = 3.4f;
+        [Min(0f)] public float StuckDuration = 2.2f;
+        [Min(0f)] public float ReturnSpeed = 13f;
+        [Min(20f)] public float RepositionDistance = 240f;
+        [Min(0.1f)] public float VisualScale = 1.35f;
+    }
+
+    [System.Serializable]
     public sealed class RingTuning
     {
         [Header("Starting Size")]
@@ -81,6 +110,10 @@ namespace DuneVector
         [Min(0f)] public float MaxGroundSpeed = 18f;
         [Min(0f)] public float GroundMovementSharpness = 8.5f;
         [Min(0f)] public float GroundBrakingSharpness = 5.5f;
+        [Tooltip("Maximum ground heading change in degrees per second. The reference motion is approximately 35 degrees per second.")]
+        [Min(0f)] public float GroundYawRate = 35f;
+        [Tooltip("How quickly the forward velocity vector follows the new heading. Keep this slightly below Ground Yaw Rate for a gentle momentum arc.")]
+        [Min(0f)] public float GroundVelocityTurnRate = 32f;
         [Min(0f)] public float TrailMinimumSpeed = 0.35f;
 
         [Header("Jump")]
@@ -115,6 +148,8 @@ namespace DuneVector
             drone.MaxGroundSpeed = MaxGroundSpeed;
             drone.GroundMovementSharpness = GroundMovementSharpness;
             drone.GroundBrakingSharpness = GroundBrakingSharpness;
+            drone.GroundYawRate = GroundYawRate;
+            drone.GroundVelocityTurnRate = GroundVelocityTurnRate;
             drone.TrailMinimumSpeed = TrailMinimumSpeed;
             drone.JumpSpeed = JumpSpeed;
             drone.BoostAcceleration = BoostAcceleration;
@@ -156,6 +191,12 @@ namespace DuneVector
         [Header("Pyramids")]
         public PyramidTuning Pyramids = new PyramidTuning();
 
+        [Header("Player Health")]
+        public PlayerHealthTuning HealthSettings = new PlayerHealthTuning();
+
+        [Header("Flying Enemies")]
+        public FlyingEnemyTuning FlyingEnemies = new FlyingEnemyTuning();
+
         [Header("Rings")]
         public RingTuning Rings = new RingTuning();
 
@@ -174,6 +215,9 @@ namespace DuneVector
         public DuneVectorDebugHUD DebugHUD { get; private set; }
         public DuneVectorCloudField CloudField { get; private set; }
         public DuneVectorDeliveryLoop DeliveryLoop { get; private set; }
+        public DroneHealth DroneHealth { get; private set; }
+        public DuneVectorEnemyDirector EnemyDirector { get; private set; }
+        public DuneVectorGameOverController GameOverController { get; private set; }
 
         private DuneVectorMaterials _materials;
         private VolumeProfile _runtimeVolumeProfile;
@@ -399,6 +443,14 @@ namespace DuneVector
             {
                 Pyramids = new PyramidTuning();
             }
+            if (HealthSettings == null)
+            {
+                HealthSettings = new PlayerHealthTuning();
+            }
+            if (FlyingEnemies == null)
+            {
+                FlyingEnemies = new FlyingEnemyTuning();
+            }
             if (Rings == null)
             {
                 Rings = new RingTuning();
@@ -417,6 +469,7 @@ namespace DuneVector
             BuildDroneAndCamera();
             BuildInterface();
             BuildDeliveryGameplay();
+            BuildEnemyGameplay();
 
 #if UNITY_EDITOR
             if (UnityEditor.EditorPrefs.GetBool("DuneVector.ValidationRequested", false))
@@ -466,6 +519,8 @@ namespace DuneVector
             Drone = droneObject.AddComponent<DroneCharacterController>();
             Drone.Motor = motor;
             PlayerTuning.ApplyTo(Drone);
+            DroneHealth = droneObject.AddComponent<DroneHealth>();
+            DroneHealth.Initialize(HealthSettings.MaximumHealth, HealthSettings.DamageInvulnerability);
             Transform visualRoot = DuneVectorVisuals.CreateDroneVisual(droneObject.transform, _materials);
 
             GameObject cameraTargetObject = new GameObject("CameraTarget");
@@ -499,6 +554,7 @@ namespace DuneVector
             Player.Character = Drone;
             Player.CharacterCamera = DroneCamera;
             Player.InputSource = input;
+            Player.Health = DroneHealth;
 
             World.BindPlayer(Drone, DroneCamera);
             if (CloudField != null)
@@ -582,6 +638,11 @@ namespace DuneVector
             DebugHUD.Drone = Drone;
             DebugHUD.CameraController = DroneCamera;
             DebugHUD.World = World;
+
+            DroneHealthHUD healthHUD = gameObject.AddComponent<DroneHealthHUD>();
+            healthHUD.Health = DroneHealth;
+            GameOverController = gameObject.AddComponent<DuneVectorGameOverController>();
+            GameOverController.Initialize(DroneHealth);
         }
 
         private void BuildDeliveryGameplay()
@@ -595,6 +656,19 @@ namespace DuneVector
             deliveryObject.transform.SetParent(transform, false);
             DeliveryLoop = deliveryObject.AddComponent<DuneVectorDeliveryLoop>();
             DeliveryLoop.Initialize(Player.Character, World, DroneCamera.Camera, _materials, Deliveries);
+        }
+
+        private void BuildEnemyGameplay()
+        {
+            if (!FlyingEnemies.Enabled)
+            {
+                return;
+            }
+
+            GameObject enemyObject = new GameObject("Flying Enemy Director");
+            enemyObject.transform.SetParent(transform, false);
+            EnemyDirector = enemyObject.AddComponent<DuneVectorEnemyDirector>();
+            EnemyDirector.Initialize(Drone, DroneHealth, World, _materials, FlyingEnemies);
         }
 
         private void OnDestroy()

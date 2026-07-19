@@ -100,9 +100,7 @@ namespace DuneVector
                     DuneVectorMath.Sharpness(FlightModeScaleSharpness, Time.deltaTime));
                 float scale = _modeScale * (1f + (Mathf.Sin(_pulse * Mathf.PI) * 0.085f));
                 _visualRoot.localScale = Vector3.one * scale;
-                _visualSpin = Mathf.Repeat(
-                    _visualSpin + ((RingType == TraversalRingType.Flight ? 18f : 7f) * Time.deltaTime),
-                    360f);
+                _visualSpin = 0f;
             }
         }
 

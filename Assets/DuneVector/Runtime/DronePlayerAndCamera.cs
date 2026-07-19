@@ -52,6 +52,7 @@ namespace DuneVector
         public DroneCharacterController Character;
         public DroneCameraController CharacterCamera;
         public DroneInput InputSource;
+        public DroneHealth Health;
 
         public bool AutomatedInputEnabled { get; private set; }
         public DroneRawInputFrame AutomatedInput { get; private set; }
@@ -64,6 +65,13 @@ namespace DuneVector
 
         private void Update()
         {
+            if (Health != null && Health.IsDead)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+                return;
+            }
+
             if (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
             {
                 Cursor.lockState = CursorLockMode.None;
@@ -96,6 +104,11 @@ namespace DuneVector
 
         private void LateUpdate()
         {
+            if (Health != null && Health.IsDead)
+            {
+                return;
+            }
+
             DroneRawInputFrame raw = AutomatedInputEnabled ? AutomatedInput : InputSource.Current;
             Vector2 look = Cursor.lockState == CursorLockMode.Locked || AutomatedInputEnabled ? raw.LookDelta : Vector2.zero;
             CharacterCamera.UpdateWithInput(Time.deltaTime, look, raw.Scroll);

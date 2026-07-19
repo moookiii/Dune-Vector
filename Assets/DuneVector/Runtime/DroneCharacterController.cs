@@ -31,6 +31,10 @@ namespace DuneVector
         [Min(0f)] public float MaxGroundSpeed = 18f;
         [Min(0f)] public float GroundMovementSharpness = 8.5f;
         [Min(0f)] public float GroundBrakingSharpness = 5.5f;
+        [Tooltip("Maximum rate at which the drone's ground heading can turn toward movement input.")]
+        [Min(0f)] public float GroundYawRate = 35f;
+        [Tooltip("Maximum rate at which ground momentum bends toward the drone's heading. A slightly lower value than Ground Yaw Rate creates the broad drifting arcs seen in the reference.")]
+        [Min(0f)] public float GroundVelocityTurnRate = 32f;
         [Min(0f)] public float RotationSharpness = 11f;
         [Min(0f)] public float AirAcceleration = 17f;
         [Min(0f)] public float MaxAirSpeed = 22f;
@@ -282,11 +286,16 @@ namespace DuneVector
                 : Vector3.ProjectOnPlane(currentRotation * Vector3.forward, Motor.CharacterUp);
             if (desiredGroundForward.sqrMagnitude > 0.001f)
             {
-                Vector3 smoothedLook = Vector3.Slerp(
+                Vector3 easedTarget = Vector3.Slerp(
                     Motor.CharacterForward,
                     desiredGroundForward.normalized,
                     DuneVectorMath.Sharpness(RotationSharpness, deltaTime)).normalized;
-                currentRotation = Quaternion.LookRotation(smoothedLook, Motor.CharacterUp);
+                Vector3 rateLimitedLook = Vector3.RotateTowards(
+                    Motor.CharacterForward,
+                    easedTarget,
+                    Mathf.Deg2Rad * GroundYawRate * deltaTime,
+                    0f).normalized;
+                currentRotation = Quaternion.LookRotation(rateLimitedLook, Motor.CharacterUp);
             }
         }
 
@@ -313,14 +322,19 @@ namespace DuneVector
                     currentVelocity = Motor.GetDirectionTangentToSurface(currentVelocity, groundNormal) * currentMagnitude;
                 }
 
-                Vector3 targetDirection = Vector3.zero;
+                Vector3 targetDirection = currentMagnitude > 0.001f
+                    ? currentVelocity.normalized
+                    : Vector3.zero;
                 float targetSpeed = 0f;
                 float sharpness = _rawMove.sqrMagnitude > 0.001f ? GroundMovementSharpness : GroundBrakingSharpness;
 
                 if (_moveInputWorld.sqrMagnitude > 0.001f)
                 {
-                    Vector3 inputRight = Vector3.Cross(_moveInputWorld, Motor.CharacterUp);
-                    targetDirection = Vector3.Cross(groundNormal, inputRight).normalized;
+                    // Movement follows the drone's rate-limited heading. Speed is handled
+                    // separately below so changing direction bends momentum without
+                    // artificially scrubbing speed from the turn.
+                    Vector3 headingRight = Vector3.Cross(Motor.CharacterForward, Motor.CharacterUp);
+                    targetDirection = Vector3.Cross(groundNormal, headingRight).normalized;
                     targetSpeed = MaxGroundSpeed * _moveInputWorld.magnitude;
                 }
 
@@ -331,8 +345,27 @@ namespace DuneVector
                     sharpness = _ringBurstTimeRemaining > 0f ? RingBurstAcceleration : BoostAcceleration;
                 }
 
-                Vector3 targetVelocity = targetDirection * targetSpeed;
-                currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, DuneVectorMath.Sharpness(sharpness, deltaTime));
+                float newSpeed = Mathf.Lerp(
+                    currentMagnitude,
+                    targetSpeed,
+                    DuneVectorMath.Sharpness(sharpness, deltaTime));
+
+                if (newSpeed <= 0.001f || targetDirection.sqrMagnitude <= 0.001f)
+                {
+                    currentVelocity = Vector3.zero;
+                }
+                else
+                {
+                    Vector3 currentDirection = currentMagnitude > 0.001f
+                        ? currentVelocity / currentMagnitude
+                        : targetDirection;
+                    Vector3 steeredDirection = Vector3.RotateTowards(
+                        currentDirection,
+                        targetDirection,
+                        Mathf.Deg2Rad * GroundVelocityTurnRate * deltaTime,
+                        0f).normalized;
+                    currentVelocity = steeredDirection * newSpeed;
+                }
             }
             else
             {

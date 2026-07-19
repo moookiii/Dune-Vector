@@ -20,6 +20,8 @@ namespace DuneVector
         public Material Package { get; }
         public Material PickupRing { get; }
         public Material DeliveryRing { get; }
+        public Material EnemyBody { get; }
+        public Material EnemyCore { get; }
 
         private readonly List<Material> _ownedMaterials = new List<Material>();
 
@@ -38,6 +40,8 @@ namespace DuneVector
             Package = CreateLit("Delivery Package", new Color(0.72f, 0.24f, 0.035f), 0.34f, 0.05f, new Color(1.4f, 0.2f, 0.01f));
             PickupRing = CreateLit("Job Ring - Pickup", new Color(0.32f, 0.015f, 0.48f), 0.72f, 0.32f, new Color(2.8f, 0.05f, 4.2f));
             DeliveryRing = CreateLit("Job Ring - Delivery", new Color(0.015f, 0.42f, 0.12f), 0.68f, 0.28f, new Color(0.05f, 3.8f, 0.45f));
+            EnemyBody = CreateLit("Sky Piercer - Body", new Color(0.13f, 0.025f, 0.035f), 0.48f, 0.72f, new Color(1.7f, 0.035f, 0.06f));
+            EnemyCore = CreateLit("Sky Piercer - Core", new Color(0.008f, 0.004f, 0.012f), 0.82f, 0.18f, new Color(3.2f, 0.02f, 0.55f));
         }
 
         public void Dispose()
@@ -187,24 +191,48 @@ namespace DuneVector
             Material material = type == TraversalRingType.GroundBoost ? materials.BoostRing : materials.FlightRing;
             GameObject visualRoot = new GameObject("Ring Visual Root");
             visualRoot.transform.SetParent(parent, false);
-            GameObject primary = CreateMeshObject("Ring Visual", visualRoot.transform, GetTorusMesh(majorRadius, 0.22f, 40, 8), material);
+            const float arcStart = -65f;
+            const float arcSweep = 310f;
+            const float tubeRadius = 0.31f;
+            GameObject primary = CreateMeshObject(
+                "Open Outer Arc",
+                visualRoot.transform,
+                GetArcTorusMesh(majorRadius, tubeRadius, 46, 8, arcStart, arcSweep),
+                material);
             DisableRendererShadows(primary);
-            if (type == TraversalRingType.Flight)
+
+            float[] endpointAngles = { arcStart, arcStart + arcSweep };
+            for (int i = 0; i < endpointAngles.Length; i++)
             {
-                GameObject secondary = CreateMeshObject("Flight Ring Inner", visualRoot.transform, GetTorusMesh(majorRadius - 0.48f, 0.09f, 40, 6), material);
-                secondary.transform.localRotation = Quaternion.Euler(0f, 0f, 9f);
-                DisableRendererShadows(secondary);
+                float angle = endpointAngles[i] * Mathf.Deg2Rad;
+                Transform cap = CreatePart(
+                    PrimitiveType.Sphere,
+                    $"Rounded Arc End {i + 1}",
+                    visualRoot.transform,
+                    new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * majorRadius,
+                    Vector3.one * (tubeRadius * 2f),
+                    Quaternion.identity,
+                    material);
+                DisableRendererShadows(cap.gameObject);
             }
-            else
+
+            float dashRadius = Mathf.Max(0.5f, majorRadius - 0.62f);
+            const int dashCount = 7;
+            for (int i = 0; i < dashCount; i++)
             {
-                GameObject chevron = CreatePart(PrimitiveType.Cube, "Boost Chevron", visualRoot.transform, new Vector3(0f, -majorRadius - 0.16f, 0f), new Vector3(1.4f, 0.13f, 0.22f), Quaternion.Euler(0f, 0f, 0f), material).gameObject;
-                chevron.transform.localRotation = Quaternion.Euler(0f, 0f, 0f);
-                DisableRendererShadows(chevron);
-                Collider chevronCollider = chevron.GetComponent<Collider>();
-                if (chevronCollider != null)
-                {
-                    chevronCollider.enabled = false;
-                }
+                float t = (i + 0.7f) / (dashCount + 0.4f);
+                float angleDegrees = arcStart + (arcSweep * t);
+                float angle = angleDegrees * Mathf.Deg2Rad;
+                Vector3 dashPosition = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * dashRadius;
+                Transform dash = CreatePart(
+                    PrimitiveType.Cube,
+                    $"Inner Dash {i + 1}",
+                    visualRoot.transform,
+                    dashPosition,
+                    new Vector3(0.58f, 0.1f, 0.15f),
+                    Quaternion.Euler(0f, 0f, angleDegrees + 90f),
+                    material);
+                DisableRendererShadows(dash.gameObject);
             }
             return visualRoot.transform;
         }
@@ -215,8 +243,30 @@ namespace DuneVector
             GameObject visualRoot = new GameObject(isPickup ? "Pickup Ring Visual" : "Delivery Ring Visual");
             visualRoot.transform.SetParent(parent, false);
 
-            GameObject primary = CreateMeshObject("Outer Ring", visualRoot.transform, GetTorusMesh(radius, 0.26f, 48, 8), material);
+            const float jobArcStart = -65f;
+            const float jobArcSweep = 310f;
+            const float jobTubeRadius = 0.26f;
+            GameObject primary = CreateMeshObject(
+                "Open Outer Ring",
+                visualRoot.transform,
+                GetArcTorusMesh(radius, jobTubeRadius, 46, 8, jobArcStart, jobArcSweep),
+                material);
             DisableRendererShadows(primary);
+
+            float[] jobEndpointAngles = { jobArcStart, jobArcStart + jobArcSweep };
+            for (int i = 0; i < jobEndpointAngles.Length; i++)
+            {
+                float endpointAngle = jobEndpointAngles[i] * Mathf.Deg2Rad;
+                Transform cap = CreatePart(
+                    PrimitiveType.Sphere,
+                    $"Rounded Job Arc End {i + 1}",
+                    visualRoot.transform,
+                    new Vector3(Mathf.Cos(endpointAngle), Mathf.Sin(endpointAngle), 0f) * radius,
+                    Vector3.one * (jobTubeRadius * 2f),
+                    Quaternion.identity,
+                    material);
+                DisableRendererShadows(cap.gameObject);
+            }
 
             if (isPickup)
             {
@@ -256,6 +306,79 @@ namespace DuneVector
             CreatePart(PrimitiveType.Cube, "Package Strap A", root, new Vector3(0f, 0.43f, 0f), new Vector3(0.18f, 0.05f, 1.04f), Quaternion.identity, materials.DroneDark);
             CreatePart(PrimitiveType.Cube, "Package Strap B", root, new Vector3(0f, 0.43f, 0f), new Vector3(1.24f, 0.05f, 0.18f), Quaternion.identity, materials.DroneDark);
             return root;
+        }
+
+        public static Transform CreateFlyingEnemyVisual(Transform parent, DuneVectorMaterials materials, float scale)
+        {
+            GameObject rootObject = new GameObject("Sky Piercer Visual");
+            Transform root = rootObject.transform;
+            root.SetParent(parent, false);
+            root.localScale = Vector3.one * scale;
+
+            GameObject body = CreateMeshObject("Pointed Body", root, GetEnemyBodyMesh(), materials.EnemyBody);
+            body.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.On;
+
+            GameObject crown = CreateMeshObject("Circular Crown", root, GetTorusMesh(0.66f, 0.13f, 36, 7), materials.EnemyBody);
+            crown.transform.localPosition = new Vector3(0f, 1.48f, 0f);
+
+            CreatePart(
+                PrimitiveType.Sphere,
+                "Crown Neck",
+                root,
+                new Vector3(0f, 0.92f, 0f),
+                new Vector3(0.25f, 0.42f, 0.22f),
+                Quaternion.identity,
+                materials.EnemyBody);
+
+            Transform core = CreatePart(
+                PrimitiveType.Sphere,
+                "Recessed Core",
+                root,
+                new Vector3(0f, -0.12f, 0.24f),
+                new Vector3(0.36f, 0.42f, 0.1f),
+                Quaternion.identity,
+                materials.EnemyCore);
+            core.gameObject.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+            return root;
+        }
+
+        private static Mesh GetEnemyBodyMesh()
+        {
+            const string key = "sky-piercer-body";
+            if (MeshCache.TryGetValue(key, out Mesh cached) && cached != null)
+            {
+                return cached;
+            }
+
+            const float depth = 0.2f;
+            Vector3[] vertices =
+            {
+                new Vector3(0f, 0.88f, depth),
+                new Vector3(-1f, 0.28f, depth),
+                new Vector3(0f, -1.9f, depth),
+                new Vector3(1f, 0.28f, depth),
+                new Vector3(0f, 0.88f, -depth),
+                new Vector3(-1f, 0.28f, -depth),
+                new Vector3(0f, -1.9f, -depth),
+                new Vector3(1f, 0.28f, -depth),
+            };
+            int[] triangles =
+            {
+                0, 1, 3, 1, 2, 3,
+                4, 7, 5, 5, 7, 6,
+                0, 4, 5, 0, 5, 1,
+                1, 5, 6, 1, 6, 2,
+                2, 6, 7, 2, 7, 3,
+                3, 7, 4, 3, 4, 0,
+            };
+
+            Mesh mesh = new Mesh { name = "Sky Piercer Pointed Body" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            MeshCache[key] = mesh;
+            return mesh;
         }
 
         private static void DisableRendererShadows(GameObject gameObject)
@@ -315,6 +438,73 @@ namespace DuneVector
             mesh.uv = uvs;
             mesh.triangles = triangles;
             mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static Mesh GetArcTorusMesh(
+            float majorRadius,
+            float tubeRadius,
+            int majorSegments,
+            int tubeSegments,
+            float startDegrees,
+            float sweepDegrees)
+        {
+            string key = $"arc-torus:{majorRadius:0.000}:{tubeRadius:0.000}:{majorSegments}:{tubeSegments}:{startDegrees:0.0}:{sweepDegrees:0.0}";
+            if (MeshCache.TryGetValue(key, out Mesh cached) && cached != null)
+            {
+                return cached;
+            }
+
+            int vertexCount = (majorSegments + 1) * (tubeSegments + 1);
+            Vector3[] vertices = new Vector3[vertexCount];
+            Vector3[] normals = new Vector3[vertexCount];
+            Vector2[] uvs = new Vector2[vertexCount];
+            int[] triangles = new int[majorSegments * tubeSegments * 6];
+
+            int vertex = 0;
+            for (int major = 0; major <= majorSegments; major++)
+            {
+                float majorDegrees = startDegrees + ((major / (float)majorSegments) * sweepDegrees);
+                float majorAngle = majorDegrees * Mathf.Deg2Rad;
+                Vector3 radial = new Vector3(Mathf.Cos(majorAngle), Mathf.Sin(majorAngle), 0f);
+                for (int tube = 0; tube <= tubeSegments; tube++)
+                {
+                    float tubeAngle = (tube / (float)tubeSegments) * Mathf.PI * 2f;
+                    Vector3 normal = new Vector3(
+                        radial.x * Mathf.Cos(tubeAngle),
+                        radial.y * Mathf.Cos(tubeAngle),
+                        Mathf.Sin(tubeAngle));
+                    vertices[vertex] = (radial * majorRadius) + (normal * tubeRadius);
+                    normals[vertex] = normal.normalized;
+                    uvs[vertex] = new Vector2(major / (float)majorSegments, tube / (float)tubeSegments);
+                    vertex++;
+                }
+            }
+
+            int triangle = 0;
+            int row = tubeSegments + 1;
+            for (int major = 0; major < majorSegments; major++)
+            {
+                for (int tube = 0; tube < tubeSegments; tube++)
+                {
+                    int a = (major * row) + tube;
+                    int b = a + row;
+                    triangles[triangle++] = a;
+                    triangles[triangle++] = b;
+                    triangles[triangle++] = a + 1;
+                    triangles[triangle++] = a + 1;
+                    triangles[triangle++] = b;
+                    triangles[triangle++] = b + 1;
+                }
+            }
+
+            Mesh mesh = new Mesh { name = "Open Arc Torus" };
+            mesh.vertices = vertices;
+            mesh.normals = normals;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateBounds();
+            MeshCache[key] = mesh;
             return mesh;
         }
 

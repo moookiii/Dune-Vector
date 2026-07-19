@@ -1,0 +1,1 @@
+Always commit after work. Say the commit in output always.
