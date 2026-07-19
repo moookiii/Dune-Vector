@@ -24,6 +24,10 @@ namespace DuneVector
         public Material EnemyCore { get; }
         public Material GroundEnemyBody { get; }
         public Material GroundEnemyWarning { get; }
+        public Material StormPyramidBody { get; }
+        public Material StormPyramidCore { get; }
+        public Material Lightning { get; }
+        public Material LightningWarning { get; }
 
         private readonly List<Material> _ownedMaterials = new List<Material>();
 
@@ -46,6 +50,10 @@ namespace DuneVector
             EnemyCore = CreateLit("Sky Piercer - Core", new Color(0.008f, 0.004f, 0.012f), 0.82f, 0.18f, new Color(3.2f, 0.02f, 0.55f));
             GroundEnemyBody = CreateLit("Ground Exploder - Body", new Color(0.055f, 0.045f, 0.04f), 0.5f, 0.78f, new Color(0.16f, 0.025f, 0.005f));
             GroundEnemyWarning = CreateLit("Ground Exploder - Warning", new Color(0.46f, 0.055f, 0.008f), 0.62f, 0.3f, new Color(5.2f, 0.32f, 0.015f));
+            StormPyramidBody = CreateLit("Storm Pyramid - Body", new Color(0.025f, 0.035f, 0.09f), 0.58f, 0.82f, new Color(0.08f, 0.12f, 0.55f));
+            StormPyramidCore = CreateLit("Storm Pyramid - Core", new Color(0.01f, 0.08f, 0.14f), 0.76f, 0.22f, new Color(0.15f, 3.6f, 6.5f));
+            Lightning = CreateLit("Storm Pyramid - Lightning", new Color(0.55f, 0.86f, 1f), 0.92f, 0f, new Color(7.5f, 12f, 18f));
+            LightningWarning = CreateLit("Storm Pyramid - Warning", new Color(0.18f, 0.42f, 0.62f), 0.7f, 0f, new Color(0.45f, 2.8f, 5.8f));
         }
 
         public void Dispose()
@@ -343,6 +351,95 @@ namespace DuneVector
                 Quaternion.identity,
                 materials.EnemyCore);
             core.gameObject.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+            return root;
+        }
+
+        public static Transform CreateStormPyramidVisual(Transform parent, DuneVectorMaterials materials, float scale)
+        {
+            GameObject rootObject = new GameObject("Storm Pyramid Visual");
+            Transform root = rootObject.transform;
+            root.SetParent(parent, false);
+            root.localScale = Vector3.one * scale;
+
+            GameObject body = CreateMeshObject("Inverted Pyramid Body", root, GetPyramidMesh(), materials.StormPyramidBody);
+            body.transform.localRotation = Quaternion.Euler(180f, 0f, 0f);
+            body.transform.localScale = new Vector3(2.4f, 2.8f, 2.4f);
+
+            float[] bandHeights = { -0.5f, -1.35f, -2.2f };
+            float[] bandWidths = { 4.15f, 3.05f, 1.95f };
+            for (int i = 0; i < bandHeights.Length; i++)
+            {
+                Transform band = CreatePart(
+                    PrimitiveType.Cube,
+                    $"Electrical Band {i + 1}",
+                    root,
+                    new Vector3(0f, bandHeights[i], 0f),
+                    new Vector3(bandWidths[i], 0.065f, bandWidths[i]),
+                    Quaternion.identity,
+                    materials.StormPyramidCore);
+                DisableRendererShadows(band.gameObject);
+            }
+
+            Transform core = CreatePart(
+                PrimitiveType.Sphere,
+                "Storm Core",
+                root,
+                new Vector3(0f, 0.12f, 0f),
+                new Vector3(0.72f, 0.22f, 0.72f),
+                Quaternion.identity,
+                materials.StormPyramidCore);
+            DisableRendererShadows(core.gameObject);
+
+            GameObject halo = CreateMeshObject(
+                "Charge Halo",
+                root,
+                GetTorusMesh(1.65f, 0.075f, 44, 6),
+                materials.LightningWarning);
+            halo.transform.localPosition = new Vector3(0f, 0.42f, 0f);
+            halo.transform.localScale = Vector3.zero;
+            DisableRendererShadows(halo);
+
+            GameObject originObject = new GameObject("Lightning Origin");
+            originObject.transform.SetParent(root, false);
+            originObject.transform.localPosition = new Vector3(0f, -3.82f, 0f);
+            return root;
+        }
+
+        public static Transform CreateStormStrikeMarker(
+            Transform parent,
+            DuneVectorMaterials materials,
+            float radius)
+        {
+            GameObject rootObject = new GameObject("Lightning Strike Marker");
+            Transform root = rootObject.transform;
+            root.SetParent(parent, true);
+
+            GameObject outerRing = CreateMeshObject(
+                "Outer Warning Ring",
+                root,
+                GetTorusMesh(Mathf.Max(0.2f, radius), 0.09f, 48, 6),
+                materials.LightningWarning);
+            outerRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            DisableRendererShadows(outerRing);
+
+            GameObject innerRing = CreateMeshObject(
+                "Inner Warning Ring",
+                root,
+                GetTorusMesh(Mathf.Max(0.12f, radius * 0.58f), 0.055f, 42, 6),
+                materials.LightningWarning);
+            innerRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            DisableRendererShadows(innerRing);
+
+            Transform impactFlash = CreatePart(
+                PrimitiveType.Sphere,
+                "Strike Impact Flash",
+                root,
+                Vector3.zero,
+                Vector3.zero,
+                Quaternion.identity,
+                materials.Lightning);
+            DisableRendererShadows(impactFlash.gameObject);
+            rootObject.SetActive(false);
             return root;
         }
 

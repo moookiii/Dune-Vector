@@ -21,6 +21,7 @@ namespace DuneVector
         public WorldStreamingTuning WorldStreaming => RuntimeSettings.WorldStreaming;
         public PlayerHealthTuning HealthSettings => RuntimeSettings.HealthSettings;
         public FlyingEnemyTuning FlyingEnemies => RuntimeSettings.FlyingEnemies;
+        public StormPyramidTuning StormPyramids => RuntimeSettings.StormPyramids;
         public GroundExploderTuning GroundExploders => RuntimeSettings.GroundExploders;
         public RingTuning Rings => RuntimeSettings.Rings;
         public DuneFieldSettings DuneGeneration
@@ -55,6 +56,7 @@ namespace DuneVector
         public DuneVectorDeliveryLoop DeliveryLoop { get; private set; }
         public DroneHealth DroneHealth { get; private set; }
         public DuneVectorEnemyDirector EnemyDirector { get; private set; }
+        public DuneVectorStormPyramidDirector StormPyramidDirector { get; private set; }
         public DuneVectorGameOverController GameOverController { get; private set; }
 
         private DuneVectorMaterials _materials;
@@ -488,15 +490,21 @@ namespace DuneVector
 
         private void BuildEnemyGameplay()
         {
-            if (!FlyingEnemies.Enabled)
+            if (FlyingEnemies.Enabled)
             {
-                return;
+                GameObject enemyObject = new GameObject("Flying Enemy Director");
+                enemyObject.transform.SetParent(transform, false);
+                EnemyDirector = enemyObject.AddComponent<DuneVectorEnemyDirector>();
+                EnemyDirector.Initialize(Drone, DroneHealth, World, _materials, FlyingEnemies);
             }
 
-            GameObject enemyObject = new GameObject("Flying Enemy Director");
-            enemyObject.transform.SetParent(transform, false);
-            EnemyDirector = enemyObject.AddComponent<DuneVectorEnemyDirector>();
-            EnemyDirector.Initialize(Drone, DroneHealth, World, _materials, FlyingEnemies);
+            if (StormPyramids.Enabled)
+            {
+                GameObject stormObject = new GameObject("Storm Pyramid Director");
+                stormObject.transform.SetParent(transform, false);
+                StormPyramidDirector = stormObject.AddComponent<DuneVectorStormPyramidDirector>();
+                StormPyramidDirector.Initialize(Drone, DroneHealth, World, _materials, StormPyramids);
+            }
         }
 
         private void OnDestroy()

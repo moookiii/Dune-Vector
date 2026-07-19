@@ -114,6 +114,7 @@ namespace DuneVector.Editor
         private SerializedProperty _worldStreaming;
         private SerializedProperty _health;
         private SerializedProperty _flyingEnemies;
+        private SerializedProperty _stormPyramids;
         private SerializedProperty _groundExploders;
         private SerializedProperty _rings;
         private SerializedProperty _dunes;
@@ -129,6 +130,7 @@ namespace DuneVector.Editor
             _worldStreaming = serializedObject.FindProperty("WorldStreaming");
             _health = serializedObject.FindProperty("HealthSettings");
             _flyingEnemies = serializedObject.FindProperty("FlyingEnemies");
+            _stormPyramids = serializedObject.FindProperty("StormPyramids");
             _groundExploders = serializedObject.FindProperty("GroundExploders");
             _rings = serializedObject.FindProperty("Rings");
             _dunes = serializedObject.FindProperty("DuneGeneration");
@@ -201,6 +203,10 @@ namespace DuneVector.Editor
                 "Flying Enemies",
                 "Spawning, pursuit, dive attacks, damage, and recovery.",
                 _flyingEnemies);
+            DuneVectorSettingsInspector.DrawSection(
+                "Storm Pyramids",
+                "High-altitude patrol, target prediction, and telegraphed lightning attacks.",
+                _stormPyramids);
             DuneVectorSettingsInspector.DrawSection(
                 "Ground Exploders",
                 "Patrol motion, proximity wind-up, radial damage, and presentation.",

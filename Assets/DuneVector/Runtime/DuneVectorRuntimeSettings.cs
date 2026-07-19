@@ -104,6 +104,45 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class StormPyramidTuning
+    {
+        public bool Enabled = true;
+
+        [Header("Spawning")]
+        [Range(1, 10)] public int EnemyCount = 2;
+        [Min(20f)] public float MinimumSpawnDistance = 90f;
+        [Min(20f)] public float MaximumSpawnDistance = 180f;
+        [Min(50f)] public float RepositionDistance = 360f;
+
+        [Header("High-Altitude Patrol")]
+        [Tooltip("Height above the terrain used as the center of this enemy's altitude range.")]
+        [Min(10f)] public float HoverHeight = 72f;
+        [Tooltip("Random amount added above or below Hover Height when each enemy spawns.")]
+        [Min(0f)] public float HoverHeightVariance = 16f;
+        [Min(0f)] public float PatrolDriftRange = 16f;
+        [Min(0f)] public float PatrolDriftSpeed = 3f;
+
+        [Header("Targeting")]
+        [Min(1f)] public float DetectionRange = 125f;
+        [Tooltip("Time spent visibly tracking before the attack point is locked.")]
+        [Min(0f)] public float TrackingDuration = 0.45f;
+        [Tooltip("Seconds of player velocity used when predicting an aerial strike point.")]
+        [Min(0f)] public float PlayerPredictionTime = 0.32f;
+
+        [Header("Lightning Attack")]
+        [Tooltip("Delay before beginning a new attack after returning to idle.")]
+        [Min(0.1f)] public float AttackInterval = 4.5f;
+        [Min(0.1f)] public float ChargeTime = 1.15f;
+        [Min(0f)] public float Cooldown = 2.4f;
+        [Min(0f)] public float LightningDamage = 32f;
+        [Min(0.1f)] public float StrikeRadius = 5.5f;
+        [Min(0.05f)] public float LightningVisualDuration = 0.28f;
+
+        [Header("Presentation")]
+        [Min(0.1f)] public float VisualScale = 2.2f;
+    }
+
+    [System.Serializable]
     public sealed class GroundExploderTuning
     {
         public bool Enabled = true;
@@ -238,6 +277,9 @@ namespace DuneVector
         [Tooltip("Airborne enemy spawning and combat behavior.")]
         public FlyingEnemyTuning FlyingEnemies = new FlyingEnemyTuning();
 
+        [Tooltip("High-altitude upside-down pyramid lightning turrets.")]
+        public StormPyramidTuning StormPyramids = new StormPyramidTuning();
+
         [Tooltip("Ground enemy spawning, patrol, and explosion behavior.")]
         public GroundExploderTuning GroundExploders = new GroundExploderTuning();
 
@@ -264,6 +306,7 @@ namespace DuneVector
             WorldStreaming ??= new WorldStreamingTuning();
             HealthSettings ??= new PlayerHealthTuning();
             FlyingEnemies ??= new FlyingEnemyTuning();
+            StormPyramids ??= new StormPyramidTuning();
             GroundExploders ??= new GroundExploderTuning();
             Rings ??= new RingTuning();
             DuneGeneration ??= new DuneFieldSettings();
