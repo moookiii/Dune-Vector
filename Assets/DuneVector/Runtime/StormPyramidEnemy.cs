@@ -483,13 +483,20 @@ namespace DuneVector
             _health = health;
         }
 
-        public void ResolveStrike(Vector3 strikePoint, float radius, float damage)
+        public void ResolveStrike(Vector3 strikeOrigin, Vector3 strikePoint, float radius, float damage)
         {
             if (_player == null || _health == null || _health.IsDead || radius <= 0f || damage <= 0f)
             {
                 return;
             }
-            if (Vector3.Distance(_player.WorldCenter, strikePoint) <= radius)
+
+            Vector3 strikeSegment = strikePoint - strikeOrigin;
+            float segmentLengthSquared = strikeSegment.sqrMagnitude;
+            float interpolation = segmentLengthSquared > 0.0001f
+                ? Mathf.Clamp01(Vector3.Dot(_player.WorldCenter - strikeOrigin, strikeSegment) / segmentLengthSquared)
+                : 0f;
+            Vector3 closestPoint = strikeOrigin + (strikeSegment * interpolation);
+            if (Vector3.Distance(_player.WorldCenter, closestPoint) <= radius)
             {
                 _health.TakeDamage(damage);
             }
@@ -589,7 +596,7 @@ namespace DuneVector
             _timer = 0f;
             _chargeLine.enabled = false;
             _lightningLine.enabled = true;
-            _damage.ResolveStrike(_target.Position, _settings.StrikeRadius, _settings.LightningDamage);
+            _damage.ResolveStrike(_origin.position, _target.Position, _settings.StrikeRadius, _settings.LightningDamage);
             UpdateLightningVisual();
         }
 
