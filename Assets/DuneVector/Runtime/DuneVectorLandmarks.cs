@@ -83,6 +83,108 @@ namespace DuneVector
         }
     }
 
+    [DisallowMultipleComponent]
+    public sealed class DuneVectorLandmarkAnimator : MonoBehaviour
+    {
+        private sealed class SpinBinding
+        {
+            public Transform Target;
+            public Vector3 Axis;
+            public float DegreesPerSecond;
+        }
+
+        private sealed class BobBinding
+        {
+            public Transform Target;
+            public Vector3 BasePosition;
+            public float Amplitude;
+            public float Speed;
+            public float Phase;
+        }
+
+        private sealed class PulseBinding
+        {
+            public Transform Target;
+            public Vector3 BaseScale;
+            public float Amount;
+            public float Speed;
+            public float Phase;
+        }
+
+        private readonly List<SpinBinding> _spins = new List<SpinBinding>();
+        private readonly List<BobBinding> _bobs = new List<BobBinding>();
+        private readonly List<PulseBinding> _pulses = new List<PulseBinding>();
+        private float _seedPhase;
+
+        public void Initialize(int seed)
+        {
+            _seedPhase = Mathf.Repeat(seed * 0.0137f, Mathf.PI * 2f);
+        }
+
+        public void RegisterSpin(Transform target, Vector3 axis, float degreesPerSecond)
+        {
+            if (target == null || Mathf.Approximately(degreesPerSecond, 0f)) return;
+            _spins.Add(new SpinBinding { Target = target, Axis = axis.normalized, DegreesPerSecond = degreesPerSecond });
+        }
+
+        public void RegisterBob(Transform target, float amplitude, float speed, float phaseOffset = 0f)
+        {
+            if (target == null || amplitude <= 0f || speed <= 0f) return;
+            _bobs.Add(new BobBinding
+            {
+                Target = target,
+                BasePosition = target.localPosition,
+                Amplitude = amplitude,
+                Speed = speed,
+                Phase = _seedPhase + phaseOffset,
+            });
+        }
+
+        public void RegisterPulse(Transform target, float amount, float speed, float phaseOffset = 0f)
+        {
+            if (target == null || amount <= 0f || speed <= 0f) return;
+            _pulses.Add(new PulseBinding
+            {
+                Target = target,
+                BaseScale = target.localScale,
+                Amount = amount,
+                Speed = speed,
+                Phase = _seedPhase + phaseOffset,
+            });
+        }
+
+        private void Update()
+        {
+            float deltaTime = Time.deltaTime;
+            for (int i = 0; i < _spins.Count; i++)
+            {
+                SpinBinding binding = _spins[i];
+                if (binding.Target != null)
+                {
+                    binding.Target.Rotate(binding.Axis, binding.DegreesPerSecond * deltaTime, Space.Self);
+                }
+            }
+            for (int i = 0; i < _bobs.Count; i++)
+            {
+                BobBinding binding = _bobs[i];
+                if (binding.Target != null)
+                {
+                    binding.Target.localPosition = binding.BasePosition +
+                        (Vector3.up * (Mathf.Sin((Time.time * binding.Speed) + binding.Phase) * binding.Amplitude));
+                }
+            }
+            for (int i = 0; i < _pulses.Count; i++)
+            {
+                PulseBinding binding = _pulses[i];
+                if (binding.Target != null)
+                {
+                    float scale = 1f + (Mathf.Sin((Time.time * binding.Speed) + binding.Phase) * binding.Amount);
+                    binding.Target.localScale = binding.BaseScale * scale;
+                }
+            }
+        }
+    }
+
     [DefaultExecutionOrder(1040)]
     [DisallowMultipleComponent]
     public sealed class DuneVectorLandmarkDirector : MonoBehaviour
@@ -311,49 +413,80 @@ namespace DuneVector
 
             DuneVectorLandmarkInstance instance = landmarkObject.AddComponent<DuneVectorLandmarkInstance>();
             instance.Initialize(type, rarity, logical, pinned, _settings);
+            DuneVectorLandmarkAnimator animator = landmarkObject.AddComponent<DuneVectorLandmarkAnimator>();
+            animator.Initialize(variantSeed);
             switch (type)
             {
                 case DuneLandmarkType.DesertRelayStation:
-                    BuildRelay(landmarkObject.transform, variantSeed);
+                    BuildRelay(landmarkObject.transform, variantSeed, animator);
                     break;
                 case DuneLandmarkType.CrashedCarrier:
-                    BuildCarrier(landmarkObject.transform, variantSeed);
+                    BuildCarrier(landmarkObject.transform, variantSeed, animator);
                     break;
                 case DuneLandmarkType.RaiderBeacon:
-                    BuildBeacon(landmarkObject.transform, variantSeed);
+                    BuildBeacon(landmarkObject.transform, variantSeed, animator);
                     break;
                 case DuneLandmarkType.AncientSpire:
-                    BuildSpire(landmarkObject.transform, variantSeed);
+                    BuildSpire(landmarkObject.transform, variantSeed, animator);
                     break;
                 case DuneLandmarkType.SandExcavationSite:
-                    BuildExcavation(landmarkObject.transform, variantSeed);
+                    BuildExcavation(landmarkObject.transform, variantSeed, animator);
                     break;
             }
             return instance;
         }
 
-        private void BuildRelay(Transform root, int seed)
+        private void BuildRelay(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
             float scale = _settings.RelayScale;
             Part(PrimitiveType.Cube, "Relay Platform", root, new Vector3(0f, 0.6f, 0f), new Vector3(22f, 1.2f, 16f) * scale, Quaternion.identity, _materials.DroneDark);
             Part(PrimitiveType.Cube, "Relay Building", root, new Vector3(0f, 3.5f, 0f), new Vector3(11f, 5.8f, 8f) * scale, Quaternion.identity, _materials.Sandstone);
             Part(PrimitiveType.Cylinder, "Long Range Antenna", root, new Vector3(0f, _settings.RelayAntennaHeight * 0.5f, 0f), new Vector3(0.62f, _settings.RelayAntennaHeight * 0.5f, 0.62f) * scale, Quaternion.identity, _materials.DroneDark);
-            Part(PrimitiveType.Sphere, "Antenna Beacon", root, new Vector3(0f, _settings.RelayAntennaHeight, 0f) * scale, Vector3.one * 1.3f * scale, Quaternion.identity, _materials.DroneAccent);
-            Part(PrimitiveType.Sphere, "Dish", root, new Vector3(0f, _settings.RelayAntennaHeight * 0.62f, 0f) * scale, new Vector3(6f, 0.8f, 6f) * scale, Quaternion.Euler(18f, 0f, 0f), _materials.DroneBody);
+            Transform beacon = Part(PrimitiveType.Sphere, "Antenna Beacon", root, new Vector3(0f, _settings.RelayAntennaHeight, 0f) * scale, Vector3.one * 1.3f * scale, Quaternion.identity, _materials.DroneAccent);
+            Transform dishPivot = new GameObject("Dish Tracking Pivot").transform;
+            dishPivot.SetParent(root, false);
+            dishPivot.localPosition = new Vector3(0f, _settings.RelayAntennaHeight * 0.62f, 0f) * scale;
+            Part(PrimitiveType.Sphere, "Dish", dishPivot, Vector3.zero, new Vector3(6f, 0.8f, 6f) * scale, Quaternion.Euler(18f, 0f, 0f), _materials.DroneBody);
+            animator.RegisterSpin(dishPivot, Vector3.up, _settings.DishRotationSpeed);
+            animator.RegisterPulse(beacon, _settings.BeaconPulseAmount, _settings.BeaconPulseSpeed);
             Part(PrimitiveType.Cylinder, "Fuel Tank A", root, new Vector3(-7f, 2f, 5f) * scale, new Vector3(1.6f, 2.4f, 1.6f) * scale, Quaternion.Euler(0f, 0f, 90f), _materials.DroneDark);
             Part(PrimitiveType.Cylinder, "Fuel Tank B", root, new Vector3(7f, 2f, 5f) * scale, new Vector3(1.6f, 2.4f, 1.6f) * scale, Quaternion.Euler(0f, 0f, 90f), _materials.DroneDark);
             if ((seed & 1) == 0)
             {
                 Part(PrimitiveType.Cylinder, "Secondary Antenna", root, new Vector3(6f, 11f, -3f) * scale, new Vector3(0.35f, 11f, 0.35f) * scale, Quaternion.identity, _materials.DroneDark);
             }
+            int variant = PositiveVariant(seed);
+            if (variant == 1 || variant == 3)
+            {
+                Part(PrimitiveType.Cube, "Solar Wing Left", root, new Vector3(-12f, 2.4f, -2f) * scale,
+                    new Vector3(10f, 0.25f, 6f) * scale, Quaternion.Euler(0f, 8f, -9f), _materials.DroneAccent, false);
+                Part(PrimitiveType.Cube, "Solar Wing Right", root, new Vector3(12f, 2.4f, -2f) * scale,
+                    new Vector3(10f, 0.25f, 6f) * scale, Quaternion.Euler(0f, -8f, 9f), _materials.DroneAccent, false);
+            }
+            if (variant >= 2)
+            {
+                for (int i = 0; i < variant; i++)
+                {
+                    float angle = (360f / variant) * i;
+                    Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                    Part(PrimitiveType.Cylinder, $"Relay Marker {i + 1}", root,
+                        (direction * 15f + Vector3.up * 2.5f) * scale,
+                        new Vector3(0.22f, 2.5f, 0.22f) * scale,
+                        Quaternion.identity, _materials.DroneAccent, false);
+                }
+            }
         }
 
-        private void BuildCarrier(Transform root, int seed)
+        private void BuildCarrier(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
             float scale = _settings.CarrierScale;
             float length = _settings.CarrierLength;
             root.localRotation *= Quaternion.Euler(8f, 0f, -13f);
             Part(PrimitiveType.Cube, "Carrier Hull", root, new Vector3(0f, 4f, 0f), new Vector3(12f, 6f, length) * scale, Quaternion.identity, _materials.DroneDark);
+            Part(PrimitiveType.Cube, "Carrier Nose", root, new Vector3(0f, 3.8f, length * 0.54f) * scale,
+                new Vector3(8f, 3.8f, length * 0.16f) * scale, Quaternion.Euler(12f, 0f, 0f), _materials.DroneBody);
+            Part(PrimitiveType.Cube, "Carrier Tail Spine", root, new Vector3(0f, 7f, -length * 0.44f) * scale,
+                new Vector3(2.2f, 8f, length * 0.18f) * scale, Quaternion.Euler(-8f, 0f, 0f), _materials.DroneDark);
             Part(PrimitiveType.Cube, "Broken Left Wing", root, new Vector3(-16f, 5f, 3f) * scale, new Vector3(24f, 1.6f, 10f) * scale, Quaternion.Euler(0f, -12f, 7f), _materials.Sandstone);
             Part(PrimitiveType.Cube, "Broken Right Wing", root, new Vector3(14f, 3f, -8f) * scale, new Vector3(17f, 1.4f, 8f) * scale, Quaternion.Euler(0f, 18f, -11f), _materials.Sandstone);
             for (int i = 0; i < 5; i++)
@@ -361,24 +494,47 @@ namespace DuneVector
                 float side = (i % 2 == 0) ? -1f : 1f;
                 Part(PrimitiveType.Cube, $"Scattered Cargo {i + 1}", root, new Vector3(side * (10f + (i * 2f)), 1.2f, -18f + (i * 8f)) * scale, new Vector3(3.6f, 2.4f, 3f) * scale, Quaternion.Euler(0f, seed + (i * 31f), 0f), _materials.Package);
             }
+            int variant = PositiveVariant(seed);
+            for (int i = 0; i < variant; i++)
+            {
+                float side = i % 2 == 0 ? -1f : 1f;
+                Part(PrimitiveType.Cube, $"Detached Hull Rib {i + 1}", root,
+                    new Vector3(side * (20f + (i * 2f)), 2f + i, -10f + (i * 11f)) * scale,
+                    new Vector3(1.2f, 6f, 12f) * scale,
+                    Quaternion.Euler(5f * i, seed + (i * 37f), 18f * side), _materials.DroneBody);
+            }
         }
 
-        private void BuildBeacon(Transform root, int seed)
+        private void BuildBeacon(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
             float scale = _settings.BeaconScale;
             float height = _settings.BeaconHeight;
             Part(PrimitiveType.Cylinder, "Beacon Tower", root, new Vector3(0f, height * 0.5f, 0f) * scale, new Vector3(2.2f, height * 0.5f, 2.2f) * scale, Quaternion.identity, _materials.EnemyBody);
-            Part(PrimitiveType.Sphere, "Beacon Energy", root, new Vector3(0f, height, 0f) * scale, Vector3.one * 4.8f * scale, Quaternion.identity, _materials.EnemyCore);
+            Transform beaconEnergy = Part(PrimitiveType.Sphere, "Beacon Energy", root, new Vector3(0f, height, 0f) * scale, Vector3.one * 4.8f * scale, Quaternion.identity, _materials.EnemyCore);
+            Transform orbit = new GameObject("Raider Signal Orbit").transform;
+            orbit.SetParent(root, false);
             for (int i = 0; i < 3; i++)
             {
                 float angle = (i * 120f) + Mathf.Repeat(seed * 0.1f, 50f);
                 Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
                 Part(PrimitiveType.Cube, $"Generator {i + 1}", root, (direction * 10f + Vector3.up * 1.6f) * scale, new Vector3(4.5f, 3.2f, 3.4f) * scale, Quaternion.Euler(0f, angle, 0f), _materials.DroneDark);
-                Part(PrimitiveType.Cylinder, $"Floating Antenna {i + 1}", root, (direction * 7f + Vector3.up * (height * 0.62f)) * scale, new Vector3(0.5f, 4f, 0.5f) * scale, Quaternion.Euler(90f, angle, 0f), _materials.EnemyCore, false);
+                Part(PrimitiveType.Cylinder, $"Floating Antenna {i + 1}", orbit, (direction * 7f + Vector3.up * (height * 0.62f)) * scale, new Vector3(0.5f, 4f, 0.5f) * scale, Quaternion.Euler(90f, angle, 0f), _materials.EnemyCore, false);
+            }
+            animator.RegisterSpin(orbit, Vector3.up, _settings.BeaconOrbitSpeed);
+            animator.RegisterPulse(beaconEnergy, _settings.BeaconPulseAmount, _settings.BeaconPulseSpeed);
+            int variant = PositiveVariant(seed);
+            for (int i = 0; i < variant + 2; i++)
+            {
+                float angle = (360f / (variant + 2f)) * i;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                Part(PrimitiveType.Cube, $"Beacon Crown Blade {i + 1}", orbit,
+                    (direction * 5.5f + Vector3.up * height) * scale,
+                    new Vector3(0.35f, 0.35f, 5f) * scale,
+                    Quaternion.Euler(0f, angle, 0f), _materials.EnemyBody, false);
             }
         }
 
-        private void BuildSpire(Transform root, int seed)
+        private void BuildSpire(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
             float scale = _settings.SpireScale;
             float height = _settings.SpireHeight;
@@ -388,16 +544,42 @@ namespace DuneVector
                 float width = Mathf.Lerp(18f, 3f, layer01);
                 Part(PrimitiveType.Cube, $"Spire Layer {i + 1}", root, new Vector3(0f, ((i + 0.5f) * height / 7f), 0f) * scale, new Vector3(width, (height / 7f) * 0.94f, width) * scale, Quaternion.Euler(0f, i * 13f, 0f), _materials.Sandstone);
             }
-            Part(PrimitiveType.Sphere, "Floating Spire Relic", root, new Vector3(0f, height + 12f, 0f) * scale, Vector3.one * 5f * scale, Quaternion.identity, _materials.DroneAccent, false);
+            Transform relic = Part(PrimitiveType.Sphere, "Floating Spire Relic", root, new Vector3(0f, height + 12f, 0f) * scale, Vector3.one * 5f * scale, Quaternion.identity, _materials.DroneAccent, false);
+            animator.RegisterSpin(relic, Vector3.up, _settings.SpireRelicRotationSpeed);
+            animator.RegisterBob(relic, _settings.SpireRelicFloatAmplitude * scale, _settings.SpireRelicFloatSpeed);
+            animator.RegisterPulse(relic, _settings.BeaconPulseAmount, _settings.BeaconPulseSpeed);
+            Transform shardOrbit = new GameObject("Spire Relic Shards").transform;
+            shardOrbit.SetParent(root, false);
+            int shardCount = Mathf.Max(2, _settings.SpireShardCount);
+            for (int i = 0; i < shardCount; i++)
+            {
+                float angle = (360f / shardCount) * i;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                Part(PrimitiveType.Cube, $"Relic Shard {i + 1}", shardOrbit,
+                    (direction * (8f + ((i % 2) * 2f)) + Vector3.up * (height + 12f + ((i % 3) - 1f) * 2f)) * scale,
+                    new Vector3(0.8f, 3.8f, 1.1f) * scale,
+                    Quaternion.Euler(i * 17f, angle, i * 31f), _materials.DroneDark, false);
+            }
+            animator.RegisterSpin(shardOrbit, Vector3.up, -_settings.SpireRelicRotationSpeed);
             for (int i = 0; i < 4; i++)
             {
                 float angle = i * 90f;
                 Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(0f, height * 0.58f, 15f);
                 Part(PrimitiveType.Cylinder, $"Flight Monolith {i + 1}", root, offset * scale, new Vector3(1.2f, 8f, 1.2f) * scale, Quaternion.identity, _materials.DroneDark);
             }
+            int variant = PositiveVariant(seed);
+            for (int i = 0; i < variant; i++)
+            {
+                float angle = (360f / Mathf.Max(1, variant)) * i + 45f;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                Part(PrimitiveType.Cube, $"Buried Spire Fin {i + 1}", root,
+                    (direction * (16f + (i * 3f)) + Vector3.up * 2f) * scale,
+                    new Vector3(2f, 9f, 7f) * scale,
+                    Quaternion.Euler(0f, angle, 18f), _materials.Sandstone);
+            }
         }
 
-        private void BuildExcavation(Transform root, int seed)
+        private void BuildExcavation(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
             float scale = _settings.ExcavationScale;
             float craneHeight = _settings.ExcavationCraneHeight;
@@ -409,6 +591,34 @@ namespace DuneVector
             {
                 Part(PrimitiveType.Cube, $"Scaffold {i + 1}", root, new Vector3(-10f + (i * 7f), 5f + (i % 2) * 3f, 12f) * scale, new Vector3(5f, 0.8f, 10f) * scale, Quaternion.identity, _materials.DroneBody);
             }
+            int lightCount = Mathf.Max(2, _settings.ExcavationWorkLightCount);
+            for (int i = 0; i < lightCount; i++)
+            {
+                float angle = (360f / lightCount) * i;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                Transform workLight = Part(PrimitiveType.Sphere, $"Excavation Work Light {i + 1}", root,
+                    (direction * 13f + Vector3.up * (3f + (i % 2) * 3f)) * scale,
+                    Vector3.one * 0.7f * scale, Quaternion.identity, _materials.DroneAccent, false);
+                animator.RegisterPulse(workLight, _settings.BeaconPulseAmount, _settings.ExcavationWorkLightPulseSpeed, i);
+            }
+            int variant = PositiveVariant(seed);
+            if (variant >= 2)
+            {
+                Part(PrimitiveType.Cube, "Secondary Crane Mast", root,
+                    new Vector3(14f, craneHeight * 0.34f, 9f) * scale,
+                    new Vector3(1.2f, craneHeight * 0.68f, 1.2f) * scale,
+                    Quaternion.Euler(0f, 25f, 0f), _materials.DroneDark);
+                Part(PrimitiveType.Cube, "Secondary Crane Boom", root,
+                    new Vector3(7f, craneHeight * 0.68f, 9f) * scale,
+                    new Vector3(15f, 0.8f, 0.8f) * scale,
+                    Quaternion.Euler(0f, 25f, 4f), _materials.DroneDark);
+            }
+        }
+
+        private int PositiveVariant(int seed)
+        {
+            int count = Mathf.Max(1, _settings.VisualVariantCount);
+            return (int)((uint)seed % (uint)count);
         }
 
         private static Transform Part(

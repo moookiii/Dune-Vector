@@ -203,6 +203,8 @@ namespace DuneVector
         private readonly List<CourierContract> _offers = new List<CourierContract>();
         private readonly List<DuneVectorLandmarkInstance> _routeLandmarks = new List<DuneVectorLandmarkInstance>();
         private readonly List<Transform> _teleportParticles = new List<Transform>();
+        private readonly List<Transform> _teleportEnergyRings = new List<Transform>();
+        private readonly List<Transform> _hubBeacons = new List<Transform>();
 
         private DronePlayer _playerInput;
         private DroneCharacterController _player;
@@ -222,11 +224,14 @@ namespace DuneVector
         private Transform _hubRoot;
         private Transform _terminal;
         private Transform _teleportPlatform;
+        private Transform _hubEnergyOrbit;
+        private Transform _upgradeEnergyOrbit;
         private Vector3 _hubSpawn;
         private Vector3 _desertSpawn;
         private Quaternion _desertRotation;
         private Transform _package;
         private Transform _cargoWarning;
+        private ParticleSystem _cargoSparks;
         private JobTraversalRing _objectiveRing;
         private int _deliveryIndex;
         private float _stateTimer;
@@ -248,10 +253,14 @@ namespace DuneVector
         private GUIStyle _terminalTitleStyle;
         private GUIStyle _terminalBodyStyle;
         private GUIStyle _terminalButtonStyle;
+        private GUIStyle _terminalPanelStyle;
         private GUIStyle _hudTitleStyle;
         private GUIStyle _hudBodyStyle;
         private GUIStyle _objectiveStyle;
         private GUIStyle _statusStyle;
+        private Texture2D _terminalPanelTexture;
+        private Texture2D _terminalCardTexture;
+        private Texture2D _terminalCardHoverTexture;
 
         public void Initialize(
             DronePlayer playerInput,
@@ -362,6 +371,7 @@ namespace DuneVector
 
         private void UpdateHub()
         {
+            AnimateHubPresentation();
             _offerRefreshTimer -= Time.unscaledDeltaTime;
             if (_offerRefreshTimer <= 0f)
             {
@@ -467,6 +477,20 @@ namespace DuneVector
                 new Vector3(0f, (_hubSettings.PlatformThickness * 0.5f) + 0.08f, 0f),
                 new Vector3(_hubSettings.PlatformRadius * 0.72f, 0.08f, _hubSettings.PlatformRadius * 0.72f),
                 Quaternion.identity, _hubEnergyMaterial, false);
+
+            _hubEnergyOrbit = new GameObject("Rotating Platform Energy Lanes").transform;
+            _hubEnergyOrbit.SetParent(_hubRoot, false);
+            _hubEnergyOrbit.localPosition = Vector3.up * ((_hubSettings.PlatformThickness * 0.5f) + 0.18f);
+            BuildSegmentedRing(
+                _hubEnergyOrbit,
+                _hubSettings.PlatformEnergySegmentCount,
+                _hubSettings.PlatformEnergyRingRadius,
+                _hubSettings.PlatformEnergySegmentLength,
+                _hubSettings.PlatformEnergySegmentWidth,
+                _hubSettings.PlatformEnergySegmentHeight,
+                _hubEnergyMaterial,
+                "Platform Energy Lane");
+
             for (int i = 0; i < 6; i++)
             {
                 float angle = i * 60f;
@@ -477,6 +501,32 @@ namespace DuneVector
                     Quaternion.Euler(0f, angle, 0f), _hubMetalMaterial, true);
             }
 
+            int pylonCount = Mathf.Max(3, _hubSettings.HubPylonCount);
+            for (int i = 0; i < pylonCount; i++)
+            {
+                float angle = (360f / pylonCount) * i;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                HubPart(
+                    PrimitiveType.Cube,
+                    $"Courier Aerie Pylon {i + 1}",
+                    _hubRoot,
+                    (direction * _hubSettings.HubPylonRadius) + (Vector3.up * (_hubSettings.HubPylonHeight * 0.5f)),
+                    new Vector3(_hubSettings.HubPylonWidth, _hubSettings.HubPylonHeight, _hubSettings.HubPylonWidth),
+                    Quaternion.Euler(_hubSettings.HubPylonLean, angle, 0f),
+                    _hubMetalMaterial,
+                    true);
+                Transform beacon = HubPart(
+                    PrimitiveType.Sphere,
+                    "Navigation Beacon",
+                    _hubRoot,
+                    (direction * _hubSettings.HubPylonRadius) + (Vector3.up * _hubSettings.HubPylonHeight),
+                    Vector3.one * (_hubSettings.HubPylonWidth * 1.45f),
+                    Quaternion.identity,
+                    _hubEnergyMaterial,
+                    false);
+                _hubBeacons.Add(beacon);
+            }
+
             GameObject terminalObject = new GameObject("Physical Contract Terminal");
             _terminal = terminalObject.transform;
             _terminal.SetParent(_hubRoot, false);
@@ -485,6 +535,14 @@ namespace DuneVector
                 new Vector3(3f, 4f, 2f), Quaternion.identity, _hubMetalMaterial, true);
             HubPart(PrimitiveType.Cube, "Terminal Screen", _terminal, new Vector3(0f, 4.1f, -0.45f),
                 new Vector3(4.4f, 2.4f, 0.25f), Quaternion.Euler(-12f, 0f, 0f), _hubEnergyMaterial, false);
+            HubPart(PrimitiveType.Cube, "Terminal Header", _terminal, new Vector3(0f, 5.7f, 0f),
+                new Vector3(5.8f, 0.32f, 1.2f), Quaternion.identity, _hubMetalMaterial, false);
+            for (int i = -1; i <= 1; i += 2)
+            {
+                HubPart(PrimitiveType.Cylinder, $"Terminal Signal Mast {(i < 0 ? "Left" : "Right")}", _terminal,
+                    new Vector3(i * 2.25f, 7.4f, 0.2f), new Vector3(0.12f, 1.8f, 0.12f),
+                    Quaternion.identity, _hubEnergyMaterial, false);
+            }
 
             Transform upgradeArea = new GameObject("Drone Upgrade Area").transform;
             upgradeArea.SetParent(_hubRoot, false);
@@ -493,9 +551,43 @@ namespace DuneVector
                 new Vector3(5f, 0.5f, 5f), Quaternion.identity, _hubMetalMaterial, true);
             HubPart(PrimitiveType.Cube, "Upgrade Gantry", upgradeArea, new Vector3(0f, 5f, 2.5f),
                 new Vector3(8f, 10f, 1f), Quaternion.identity, _hubMetalMaterial, true);
+            _upgradeEnergyOrbit = new GameObject("Upgrade Calibration Arms").transform;
+            _upgradeEnergyOrbit.SetParent(upgradeArea, false);
+            _upgradeEnergyOrbit.localPosition = Vector3.up * 1.2f;
+            int armCount = Mathf.Max(1, _hubSettings.UpgradePadArmCount);
+            for (int i = 0; i < armCount; i++)
+            {
+                float angle = (360f / armCount) * i;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                HubPart(PrimitiveType.Cube, $"Calibration Arm {i + 1}", _upgradeEnergyOrbit,
+                    direction * (_hubSettings.UpgradePadArmLength * 0.5f),
+                    new Vector3(0.22f, 0.12f, _hubSettings.UpgradePadArmLength),
+                    Quaternion.Euler(0f, angle, 0f), _hubEnergyMaterial, false);
+            }
 
             _teleportPlatform = _hubRoot;
             _hubSpawn = _hubRoot.position + Vector3.up * (_hubSettings.PlayerSpawnHeight + (_hubSettings.PlatformThickness * 0.5f));
+        }
+
+        private void AnimateHubPresentation()
+        {
+            float deltaTime = Time.unscaledDeltaTime;
+            if (_hubEnergyOrbit != null)
+            {
+                _hubEnergyOrbit.Rotate(0f, _hubSettings.PlatformEnergyRotationSpeed * deltaTime, 0f, Space.Self);
+            }
+            if (_upgradeEnergyOrbit != null)
+            {
+                _upgradeEnergyOrbit.Rotate(0f, _hubSettings.UpgradePadRotationSpeed * deltaTime, 0f, Space.Self);
+            }
+            float pulse = 1f + (Mathf.Sin(Time.unscaledTime * _hubSettings.HubBeaconPulseSpeed) * _hubSettings.HubBeaconPulseAmount);
+            for (int i = 0; i < _hubBeacons.Count; i++)
+            {
+                if (_hubBeacons[i] != null)
+                {
+                    _hubBeacons[i].localScale = Vector3.one * (_hubSettings.HubPylonWidth * 1.45f * pulse);
+                }
+            }
         }
 
         private void EnterHubImmediate(bool openTerminal)
@@ -750,17 +842,9 @@ namespace DuneVector
             if (ActiveContract.Has(CourierContractModifier.Hazardous) ||
                 ActiveContract.Has(CourierContractModifier.Fragile))
             {
-                GameObject warning = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                warning.name = "Cargo Integrity Warning";
-                _cargoWarning = warning.transform;
-                _cargoWarning.SetParent(_package, false);
-                _cargoWarning.localPosition = Vector3.up * 0.62f;
-                _cargoWarning.localScale = Vector3.zero;
-                warning.GetComponent<Renderer>().sharedMaterial = ActiveContract.Has(CourierContractModifier.Hazardous)
+                CreateCargoWarningPresentation(ActiveContract.Has(CourierContractModifier.Hazardous)
                     ? _materials.EnemyCore
-                    : _materials.GroundEnemyWarning;
-                Collider warningCollider = warning.GetComponent<Collider>();
-                if (warningCollider != null) Destroy(warningCollider);
+                    : _materials.GroundEnemyWarning);
             }
             _deliveryIndex = 0;
             BuildDeliveryObjective();
@@ -927,7 +1011,7 @@ namespace DuneVector
                 return;
             }
             float critical = 1f - Mathf.Clamp01(CargoIntegrity / 100f);
-            float pulse = 1f + (Mathf.Sin(Time.time * (4f + critical * 8f)) * critical * 0.05f);
+            float pulse = 1f + (Mathf.Sin(Time.time * (4f + critical * 8f)) * critical * _settings.CargoDamagePulseAmount);
             _package.localScale = Vector3.one * _settings.ObjectivePackageScale *
                 (ActiveContract.Has(CourierContractModifier.Oversized) ? _settings.OversizedVisualScale : 1f) * pulse;
             if (_cargoWarning != null)
@@ -935,8 +1019,58 @@ namespace DuneVector
                 float warningAmount = 1f - Mathf.Clamp01(CargoIntegrity / Mathf.Max(1f, _settings.HazardousWarningIntegrity));
                 float warningPulse = 0.75f + (Mathf.Sin(Time.time * _settings.CargoWarningPulseSpeed) * 0.25f);
                 _cargoWarning.localScale = Vector3.one * (_settings.CargoWarningScale * warningAmount * warningPulse);
-                _cargoWarning.Rotate(0f, _settings.CargoWarningPulseSpeed * 12f * Time.deltaTime, 0f, Space.Self);
+                _cargoWarning.Rotate(0f, _settings.CargoWarningOrbitSpeed * Time.deltaTime, 0f, Space.Self);
             }
+            if (_cargoSparks != null)
+            {
+                ParticleSystem.EmissionModule emission = _cargoSparks.emission;
+                float severity = 1f - Mathf.Clamp01(CargoIntegrity / Mathf.Max(1f, _settings.CargoCriticalEffectsThreshold));
+                emission.rateOverTime = _settings.CargoCriticalSparkRate * severity;
+            }
+        }
+
+        private void CreateCargoWarningPresentation(Material warningMaterial)
+        {
+            GameObject warningRoot = new GameObject("Cargo Integrity Warning Array");
+            _cargoWarning = warningRoot.transform;
+            _cargoWarning.SetParent(_package, false);
+            _cargoWarning.localPosition = Vector3.up * _settings.CargoWarningHeight;
+            _cargoWarning.localScale = Vector3.zero;
+            int lightCount = Mathf.Max(1, _settings.CargoWarningLightCount);
+            for (int i = 0; i < lightCount; i++)
+            {
+                float angle = (360f / lightCount) * i;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                GameObject lightObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+                lightObject.name = $"Warning Light {i + 1}";
+                lightObject.transform.SetParent(_cargoWarning, false);
+                lightObject.transform.localPosition = direction * _settings.CargoWarningLightRadius;
+                lightObject.transform.localScale = Vector3.one;
+                Renderer renderer = lightObject.GetComponent<Renderer>();
+                renderer.sharedMaterial = warningMaterial;
+                renderer.shadowCastingMode = ShadowCastingMode.Off;
+                Collider lightCollider = lightObject.GetComponent<Collider>();
+                if (lightCollider != null) Destroy(lightCollider);
+            }
+
+            GameObject sparkObject = new GameObject("Cargo Critical Sparks");
+            sparkObject.transform.SetParent(_package, false);
+            sparkObject.transform.localPosition = Vector3.up * _settings.CargoWarningHeight;
+            _cargoSparks = sparkObject.AddComponent<ParticleSystem>();
+            ParticleSystem.MainModule main = _cargoSparks.main;
+            main.loop = true;
+            main.startLifetime = _settings.CargoCriticalSparkLifetime;
+            main.startSpeed = _settings.CargoCriticalSparkSpeed;
+            main.startSize = _settings.CargoCriticalSparkSize;
+            main.maxParticles = Mathf.Max(8, Mathf.CeilToInt(_settings.CargoCriticalSparkRate * Mathf.Max(1f, _settings.CargoCriticalSparkLifetime) * 2f));
+            ParticleSystem.EmissionModule emission = _cargoSparks.emission;
+            emission.rateOverTime = 0f;
+            ParticleSystem.ShapeModule shape = _cargoSparks.shape;
+            shape.shapeType = ParticleSystemShapeType.Sphere;
+            shape.radius = _settings.CargoWarningLightRadius;
+            ParticleSystemRenderer particleRenderer = _cargoSparks.GetComponent<ParticleSystemRenderer>();
+            particleRenderer.sharedMaterial = warningMaterial;
+            particleRenderer.shadowCastingMode = ShadowCastingMode.Off;
         }
 
         private bool CargoUsesIntegrity()
@@ -1046,6 +1180,7 @@ namespace DuneVector
             _objectiveRing = null;
             _package = null;
             _cargoWarning = null;
+            _cargoSparks = null;
             ActiveObjective = null;
         }
 
@@ -1058,13 +1193,33 @@ namespace DuneVector
                 GameObject particle = GameObject.CreatePrimitive(PrimitiveType.Sphere);
                 particle.name = $"Teleport Sand Energy {i + 1:00}";
                 particle.transform.SetParent(transform, true);
-                particle.transform.localScale = Vector3.one * Mathf.Lerp(0.05f, 0.16f, (i % 7) / 6f);
+                particle.transform.localScale = Vector3.one * Mathf.Lerp(
+                    _hubSettings.TeleportParticleMinimumSize,
+                    _hubSettings.TeleportParticleMaximumSize,
+                    (i % 7) / 6f);
                 Renderer renderer = particle.GetComponent<Renderer>();
                 renderer.sharedMaterial = _hubEnergyMaterial != null ? _hubEnergyMaterial : _materials.DroneAccent;
                 renderer.shadowCastingMode = ShadowCastingMode.Off;
                 Collider collider = particle.GetComponent<Collider>();
                 if (collider != null) Destroy(collider);
                 _teleportParticles.Add(particle.transform);
+            }
+
+            int ringCount = Mathf.Max(1, _hubSettings.TeleportEnergyRingCount);
+            for (int ringIndex = 0; ringIndex < ringCount; ringIndex++)
+            {
+                Transform ring = new GameObject($"Teleport Energy Ring {ringIndex + 1}").transform;
+                ring.SetParent(transform, true);
+                BuildSegmentedRing(
+                    ring,
+                    _hubSettings.TeleportEnergyRingSegments,
+                    _hubSettings.TeleportEffectRadius,
+                    _hubSettings.TeleportEnergyRingSegmentLength,
+                    _hubSettings.TeleportEnergyRingThickness,
+                    _hubSettings.TeleportEnergyRingThickness,
+                    _hubEnergyMaterial != null ? _hubEnergyMaterial : _materials.DroneAccent,
+                    "Teleport Arc");
+                _teleportEnergyRings.Add(ring);
             }
         }
 
@@ -1078,9 +1233,22 @@ namespace DuneVector
                 if (particle == null) continue;
                 float phase = (i / (float)_teleportParticles.Count) * Mathf.PI * 2f;
                 float angle = phase + (_teleportTimer * _hubSettings.TeleportParticleSpinSpeed * Mathf.Deg2Rad);
-                float radius = Mathf.Lerp(_hubSettings.TeleportEffectRadius, 0.25f, progress);
-                float y = Mathf.Repeat((i * 0.37f) + (_teleportTimer * _hubSettings.TeleportParticleLiftSpeed), 6f) - 2f;
+                float radius = Mathf.Lerp(_hubSettings.TeleportEffectRadius, _hubSettings.TeleportConvergenceRadius, progress);
+                float y = Mathf.Repeat(
+                    (i * 0.37f) + (_teleportTimer * _hubSettings.TeleportParticleLiftSpeed),
+                    Mathf.Max(0.01f, _hubSettings.TeleportHelixHeight)) - (_hubSettings.TeleportHelixHeight * 0.34f);
                 particle.position = center + new Vector3(Mathf.Cos(angle) * radius, y, Mathf.Sin(angle) * radius);
+            }
+            float ringScale = Mathf.Lerp(1f, 0.08f, progress);
+            float ringCenter = (_teleportEnergyRings.Count - 1) * 0.5f;
+            for (int i = 0; i < _teleportEnergyRings.Count; i++)
+            {
+                Transform ring = _teleportEnergyRings[i];
+                if (ring == null) continue;
+                ring.position = center + Vector3.up * ((i - ringCenter) * _hubSettings.TeleportEnergyRingSpacing);
+                ring.localScale = Vector3.one * ringScale;
+                float direction = i % 2 == 0 ? 1f : -1f;
+                ring.Rotate(0f, direction * _hubSettings.TeleportEnergyRingRotationSpeed * Time.deltaTime, 0f, Space.Self);
             }
         }
 
@@ -1093,6 +1261,13 @@ namespace DuneVector
                     _teleportParticles[i].position = center;
                 }
             }
+            for (int i = 0; i < _teleportEnergyRings.Count; i++)
+            {
+                if (_teleportEnergyRings[i] != null)
+                {
+                    _teleportEnergyRings[i].position = center;
+                }
+            }
         }
 
         private void DestroyTeleportParticles()
@@ -1102,6 +1277,11 @@ namespace DuneVector
                 if (_teleportParticles[i] != null) Destroy(_teleportParticles[i].gameObject);
             }
             _teleportParticles.Clear();
+            for (int i = 0; i < _teleportEnergyRings.Count; i++)
+            {
+                if (_teleportEnergyRings[i] != null) Destroy(_teleportEnergyRings[i].gameObject);
+            }
+            _teleportEnergyRings.Clear();
         }
 
         private void HandleWorldShift(Vector3 shift)
@@ -1133,6 +1313,11 @@ namespace DuneVector
             }
             _terminalTitleStyle = LabelStyle(_hubSettings.TerminalTitleFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _hubSettings.TerminalAccentColor);
             _terminalBodyStyle = LabelStyle(_hubSettings.TerminalBodyFontSize, FontStyle.Normal, TextAnchor.UpperLeft, _hubSettings.TerminalTextColor);
+            _terminalPanelTexture = SolidTexture(_hubSettings.TerminalPanelColor, "Courier Terminal Panel");
+            _terminalCardTexture = SolidTexture(_hubSettings.TerminalCardColor, "Courier Contract Card");
+            _terminalCardHoverTexture = SolidTexture(_hubSettings.TerminalCardHoverColor, "Courier Contract Card Hover");
+            _terminalPanelStyle = new GUIStyle(GUI.skin.box);
+            _terminalPanelStyle.normal.background = _terminalPanelTexture;
             _terminalButtonStyle = new GUIStyle(GUI.skin.button)
             {
                 fontSize = _hubSettings.TerminalButtonFontSize,
@@ -1140,6 +1325,11 @@ namespace DuneVector
                 alignment = TextAnchor.MiddleCenter,
                 wordWrap = true,
             };
+            _terminalButtonStyle.normal.background = _terminalCardTexture;
+            _terminalButtonStyle.hover.background = _terminalCardHoverTexture;
+            _terminalButtonStyle.active.background = _terminalCardHoverTexture;
+            _terminalButtonStyle.normal.textColor = _hubSettings.TerminalTextColor;
+            _terminalButtonStyle.hover.textColor = _hubSettings.TerminalTextColor;
             _hudTitleStyle = LabelStyle(_settings.HudTitleFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.HudAccentColor);
             _hudBodyStyle = LabelStyle(_settings.HudBodyFontSize, FontStyle.Normal, TextAnchor.UpperLeft, _settings.HudTextColor);
             _objectiveStyle = LabelStyle(_settings.HudStatusFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
@@ -1156,6 +1346,18 @@ namespace DuneVector
                 wordWrap = true,
                 normal = { textColor = color },
             };
+        }
+
+        private static Texture2D SolidTexture(Color color, string textureName)
+        {
+            Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
+            {
+                name = textureName,
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            texture.SetPixel(0, 0, color);
+            texture.Apply(false, true);
+            return texture;
         }
 
         private void OnGUI()
@@ -1191,8 +1393,10 @@ namespace DuneVector
             float width = Mathf.Min(_hubSettings.TerminalPanelWidth, Screen.width - (_hubSettings.TerminalScreenMargin * 2f));
             float height = Mathf.Min(_hubSettings.TerminalPanelHeight, Screen.height - (_hubSettings.TerminalScreenMargin * 2f));
             Rect panel = new Rect((Screen.width - width) * 0.5f, (Screen.height - height) * 0.5f, width, height);
-            GUI.backgroundColor = _hubSettings.TerminalPanelColor;
-            GUI.Box(panel, GUIContent.none);
+            GUI.Box(panel, GUIContent.none, _terminalPanelStyle);
+            DrawSolidRect(
+                new Rect(panel.x, panel.y, panel.width, _hubSettings.TerminalAccentBarHeight),
+                _hubSettings.TerminalAccentColor);
             float padding = _hubSettings.TerminalPadding;
             GUI.Label(new Rect(panel.x + padding, panel.y + padding, panel.width - (padding * 2f), 44f), "COURIER CONTRACT TERMINAL", _terminalTitleStyle);
             GUI.Label(new Rect(panel.x + padding, panel.y + 62f, panel.width - (padding * 2f), 26f),
@@ -1200,7 +1404,7 @@ namespace DuneVector
                 $"DUAL MODIFIERS: {(Progress.CompletedDeliveries >= _settings.DualModifierUnlockDeliveries ? "UNLOCKED" : $"{_settings.DualModifierUnlockDeliveries - Progress.CompletedDeliveries} TO GO")}",
                 _terminalBodyStyle);
 
-            float cardsTop = panel.y + 98f;
+            float cardsTop = panel.y + _hubSettings.TerminalHeaderHeight;
             float gap = _hubSettings.ContractCardGap;
             float cardWidth = (panel.width - (padding * 2f) - gap) * 0.5f;
             int rowCount = Mathf.Max(1, Mathf.CeilToInt(_offers.Count / 2f));
@@ -1213,11 +1417,7 @@ namespace DuneVector
                 int row = i / 2;
                 Rect card = new Rect(panel.x + padding + (column * (cardWidth + gap)), cardsTop + (row * (cardHeight + gap)), cardWidth, cardHeight);
                 CourierContract offer = _offers[i];
-                GUI.backgroundColor = _hubSettings.TerminalCardColor;
-                string time = offer.TimeLimit > 0f ? $"\nTIME: {FormatTime(offer.TimeLimit)}" : string.Empty;
-                string stops = offer.StopCount > 1 ? $"\nSTOPS: {offer.StopCount}" : string.Empty;
-                string label = $"{offer.DisplayModifierText}\n{offer.DestinationName}\n{offer.RouteDistance / 1000f:0.0} KM  •  RISK {offer.Difficulty}\n{offer.OfferedReward:N0} GOLD{time}{stops}";
-                if (GUI.Button(card, label, _terminalButtonStyle))
+                if (DrawContractCard(card, offer))
                 {
                     GUI.backgroundColor = previousBackground;
                     AcceptContract(offer);
@@ -1225,6 +1425,64 @@ namespace DuneVector
                 }
             }
             GUI.backgroundColor = previousBackground;
+        }
+
+        private bool DrawContractCard(Rect card, CourierContract offer)
+        {
+            bool accepted = GUI.Button(card, GUIContent.none, _terminalButtonStyle);
+            Color riskColor = Color.Lerp(
+                _hubSettings.TerminalAccentColor,
+                _settings.IntegrityCriticalColor,
+                Mathf.Clamp01((offer.Difficulty - 1f) / 12f));
+            DrawSolidRect(
+                new Rect(card.x, card.y, _hubSettings.TerminalCardAccentWidth, card.height),
+                riskColor);
+
+            float left = card.x + _hubSettings.TerminalCardAccentWidth + 14f;
+            float right = card.xMax - 14f;
+            GUIStyle modifierStyle = new GUIStyle(_terminalBodyStyle)
+            {
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleLeft,
+                normal = { textColor = riskColor },
+            };
+            GUIStyle rewardStyle = new GUIStyle(_terminalBodyStyle)
+            {
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleRight,
+                normal = { textColor = _hubSettings.TerminalAccentColor },
+            };
+            GUIStyle destinationStyle = new GUIStyle(_terminalBodyStyle)
+            {
+                fontSize = _hubSettings.TerminalBodyFontSize + 2,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleLeft,
+            };
+
+            GUI.Label(new Rect(left, card.y + 9f, right - left, 21f), offer.DisplayModifierText, modifierStyle);
+            GUI.Label(new Rect(left, card.y + 34f, right - left, 24f), offer.DestinationName, destinationStyle);
+            GUI.Label(new Rect(left, card.y + 63f, (right - left) * 0.58f, 22f), $"{offer.RouteDistance / 1000f:0.0} KM   /   RISK {offer.Difficulty}", _terminalBodyStyle);
+            GUI.Label(new Rect(left, card.y + 61f, right - left, 24f), $"{offer.OfferedReward:N0} GOLD", rewardStyle);
+
+            string details = offer.TimeLimit > 0f ? $"EXPRESS {FormatTime(offer.TimeLimit)}" : "OPEN DELIVERY WINDOW";
+            if (offer.StopCount > 1) details += $"   /   {offer.StopCount} STOPS";
+            GUI.Label(new Rect(left, card.yMax - 34f, right - left, 21f), details, _terminalBodyStyle);
+
+            int pips = Mathf.Clamp(Mathf.CeilToInt(offer.Difficulty / 2f), 1, 10);
+            float pipSize = _hubSettings.TerminalDifficultyPipSize;
+            for (int i = 0; i < pips; i++)
+            {
+                DrawSolidRect(new Rect(left + (i * (pipSize + 3f)), card.yMax - 10f, pipSize, pipSize), riskColor);
+            }
+            return accepted;
+        }
+
+        private static void DrawSolidRect(Rect rect, Color color)
+        {
+            Color previous = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = previous;
         }
 
         private void DrawHubHUD()
@@ -1389,6 +1647,33 @@ namespace DuneVector
             return part.transform;
         }
 
+        private static void BuildSegmentedRing(
+            Transform parent,
+            int segmentCount,
+            float radius,
+            float segmentLength,
+            float segmentWidth,
+            float segmentHeight,
+            Material material,
+            string segmentName)
+        {
+            int count = Mathf.Max(3, segmentCount);
+            for (int i = 0; i < count; i++)
+            {
+                float angle = (360f / count) * i;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                HubPart(
+                    PrimitiveType.Cube,
+                    $"{segmentName} {i + 1:00}",
+                    parent,
+                    direction * radius,
+                    new Vector3(segmentWidth, segmentHeight, segmentLength),
+                    Quaternion.Euler(0f, angle + 90f, 0f),
+                    material,
+                    false);
+            }
+        }
+
         private static Material CreateHubMaterial(
             Material source,
             string materialName,
@@ -1410,6 +1695,9 @@ namespace DuneVector
             DestroyTeleportParticles();
             if (_hubMetalMaterial != null) Destroy(_hubMetalMaterial);
             if (_hubEnergyMaterial != null) Destroy(_hubEnergyMaterial);
+            if (_terminalPanelTexture != null) Destroy(_terminalPanelTexture);
+            if (_terminalCardTexture != null) Destroy(_terminalCardTexture);
+            if (_terminalCardHoverTexture != null) Destroy(_terminalCardHoverTexture);
         }
     }
 }

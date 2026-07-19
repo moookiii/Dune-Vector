@@ -141,6 +141,18 @@ namespace DuneVector
         [Min(0f)] public float CargoWarningScale = 0.38f;
         [Min(0f)] public float CargoWarningPulseSpeed = 8f;
 
+        [Header("Cargo Presentation")]
+        [Min(0f)] public float CargoDamagePulseAmount = 0.07f;
+        [Min(0f)] public float CargoWarningHeight = 0.62f;
+        [Range(1, 8)] public int CargoWarningLightCount = 4;
+        [Min(0f)] public float CargoWarningLightRadius = 0.52f;
+        [Min(0f)] public float CargoWarningOrbitSpeed = 140f;
+        [Range(0f, 100f)] public float CargoCriticalEffectsThreshold = 32f;
+        [Min(0f)] public float CargoCriticalSparkRate = 12f;
+        [Min(0f)] public float CargoCriticalSparkLifetime = 0.45f;
+        [Min(0f)] public float CargoCriticalSparkSpeed = 1.4f;
+        [Min(0f)] public float CargoCriticalSparkSize = 0.08f;
+
         [Header("Contract HUD")]
         [Min(160f)] public float HudWidth = 330f;
         [Min(60f)] public float HudHeight = 128f;
@@ -179,6 +191,36 @@ namespace DuneVector
         [Min(0f)] public float TeleportParticleSpinSpeed = 150f;
         [Min(0f)] public float TeleportParticleLiftSpeed = 6f;
 
+        [Header("Hub Presentation")]
+        [Range(8, 48)] public int PlatformEnergySegmentCount = 24;
+        [Min(0f)] public float PlatformEnergyRingRadius = 19f;
+        [Min(0f)] public float PlatformEnergySegmentLength = 4.2f;
+        [Min(0f)] public float PlatformEnergySegmentWidth = 0.32f;
+        [Min(0f)] public float PlatformEnergySegmentHeight = 0.12f;
+        public float PlatformEnergyRotationSpeed = 7f;
+        [Range(3, 12)] public int HubPylonCount = 6;
+        [Min(0f)] public float HubPylonRadius = 22f;
+        [Min(0f)] public float HubPylonHeight = 11f;
+        [Min(0f)] public float HubPylonWidth = 1.1f;
+        [Min(0f)] public float HubPylonLean = 16f;
+        [Min(0f)] public float HubBeaconPulseSpeed = 2.8f;
+        [Min(0f)] public float HubBeaconPulseAmount = 0.16f;
+        [Range(1, 6)] public int UpgradePadArmCount = 3;
+        [Min(0f)] public float UpgradePadArmLength = 7.5f;
+        public float UpgradePadRotationSpeed = -11f;
+
+        [Header("Teleport Presentation")]
+        [Min(0f)] public float TeleportParticleMinimumSize = 0.05f;
+        [Min(0f)] public float TeleportParticleMaximumSize = 0.16f;
+        [Min(0f)] public float TeleportHelixHeight = 6f;
+        [Min(0f)] public float TeleportConvergenceRadius = 0.25f;
+        [Range(1, 6)] public int TeleportEnergyRingCount = 3;
+        [Range(8, 32)] public int TeleportEnergyRingSegments = 16;
+        [Min(0f)] public float TeleportEnergyRingSpacing = 1.7f;
+        [Min(0f)] public float TeleportEnergyRingSegmentLength = 0.75f;
+        [Min(0f)] public float TeleportEnergyRingThickness = 0.045f;
+        public float TeleportEnergyRingRotationSpeed = 95f;
+
         [Header("Terminal UI")]
         [Min(480f)] public float TerminalPanelWidth = 1080f;
         [Min(320f)] public float TerminalPanelHeight = 680f;
@@ -189,6 +231,10 @@ namespace DuneVector
         [Min(10)] public int TerminalTitleFontSize = 30;
         [Min(9)] public int TerminalBodyFontSize = 13;
         [Min(9)] public int TerminalButtonFontSize = 13;
+        [Min(0f)] public float TerminalHeaderHeight = 92f;
+        [Min(0f)] public float TerminalAccentBarHeight = 4f;
+        [Min(0f)] public float TerminalCardAccentWidth = 5f;
+        [Min(0f)] public float TerminalDifficultyPipSize = 5f;
         [ColorUsage(false)] public Color HubMetalColor = new Color(0.055f, 0.09f, 0.12f, 1f);
         [ColorUsage(false, true)] public Color HubEnergyColor = new Color(0.02f, 2.2f, 3.8f, 1f);
         [ColorUsage(false)] public Color TerminalPanelColor = new Color(0.018f, 0.035f, 0.055f, 0.98f);
@@ -225,6 +271,19 @@ namespace DuneVector
         [Min(0f)] public float ContractSocketHeight = 5f;
         [Min(0f)] public float EncounterSocketHeight = 22f;
         [Min(0f)] public float FlightSocketHeight = 18f;
+
+        [Header("Landmark Presentation")]
+        [Range(1, 6)] public int VisualVariantCount = 4;
+        [Min(0f)] public float DishRotationSpeed = 9f;
+        [Min(0f)] public float BeaconOrbitSpeed = 16f;
+        [Min(0f)] public float BeaconPulseSpeed = 2.6f;
+        [Min(0f)] public float BeaconPulseAmount = 0.14f;
+        public float SpireRelicRotationSpeed = -18f;
+        [Min(0f)] public float SpireRelicFloatAmplitude = 1.8f;
+        [Min(0f)] public float SpireRelicFloatSpeed = 1.2f;
+        [Range(2, 8)] public int SpireShardCount = 5;
+        [Range(2, 8)] public int ExcavationWorkLightCount = 4;
+        [Min(0f)] public float ExcavationWorkLightPulseSpeed = 3.2f;
     }
 
     [System.Serializable]
@@ -266,6 +325,25 @@ namespace DuneVector
         [Range(0f, 1f)] public float SecondPassChance = 0.62f;
         [ColorUsage(false, true)] public Color FormationEmission = new Color(3.8f, 0.16f, 0.05f, 1f);
         [ColorUsage(false, true)] public Color ShotEmission = new Color(4.5f, 0.35f, 0.06f, 1f);
+
+        [Header("Encounter Presentation")]
+        [Min(0f)] public float WaveAnnouncementDuration = 2.2f;
+        [Min(0f)] public float WaveAnnouncementTop = 142f;
+        [Min(10)] public int WaveAnnouncementFontSize = 18;
+        [ColorUsage(false)] public Color WaveAnnouncementColor = new Color(1f, 0.35f, 0.12f, 1f);
+        [Min(0f)] public float EnemyTrailDuration = 0.42f;
+        [Min(0f)] public float EnemyTrailStartWidth = 0.32f;
+        [Min(0f)] public float EnemyTrailEndWidth = 0.02f;
+        [Min(0f)] public float EnemyTrailMinimumVertexDistance = 0.08f;
+        [Min(0f)] public float TelegraphPulseSpeed = 18f;
+        [Min(0f)] public float TelegraphMinimumWidthMultiplier = 0.35f;
+        [Min(0f)] public float FlyThroughGuideDuration = 5.5f;
+        [Range(2, 8)] public int FlyThroughGuideGateCount = 4;
+        [Min(0f)] public float FlyThroughGuideGateSpacing = 28f;
+        [Min(0f)] public float FlyThroughGuideGateRadius = 6.5f;
+        [Min(0f)] public float FlyThroughGuideGateThickness = 0.18f;
+        [Min(0f)] public float FlyThroughGuidePulseSpeed = 3.6f;
+        [Min(0f)] public float FlyThroughGuidePulseAmount = 0.1f;
     }
 
     [System.Serializable]

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace DuneVector
 {
@@ -38,6 +39,7 @@ namespace DuneVector
     {
         private readonly List<DuneVectorEncounterVolume> _volumes = new List<DuneVectorEncounterVolume>();
         private readonly List<DuneVectorFormationEnemy> _enemies = new List<DuneVectorFormationEnemy>();
+        private readonly List<DuneVectorFlyThroughGuide> _guides = new List<DuneVectorFlyThroughGuide>();
 
         private DroneCharacterController _player;
         private DroneHealth _health;
@@ -49,6 +51,11 @@ namespace DuneVector
         private CourierContract _contract;
         private float _pursuitTimer;
         private int _waveIndex;
+        private float _waveAnnouncementUntil;
+        private string _waveAnnouncement;
+        private GUIStyle _waveStyle;
+        private Material _formationMaterial;
+        private Material _shotMaterial;
 
         public IReadOnlyList<DuneVectorEncounterVolume> ActiveVolumes => _volumes;
 
@@ -68,6 +75,8 @@ namespace DuneVector
             _wallet = wallet;
             _settings = settings;
             _courierGame = courierGame;
+            _formationMaterial = CreateEmissionMaterial(materials.EnemyCore, "Courier Formation Emission", settings.FormationEmission);
+            _shotMaterial = CreateEmissionMaterial(materials.EnemyCore, "Courier Shot Emission", settings.ShotEmission);
             _world.WorldShifted += HandleWorldShift;
         }
 
@@ -92,6 +101,15 @@ namespace DuneVector
                 }
             }
             _enemies.Clear();
+            for (int i = 0; i < _guides.Count; i++)
+            {
+                if (_guides[i] != null)
+                {
+                    Destroy(_guides[i].gameObject);
+                }
+            }
+            _guides.Clear();
+            _waveAnnouncementUntil = 0f;
         }
 
         private void Update()
@@ -102,6 +120,7 @@ namespace DuneVector
                 return;
             }
             PruneEnemies();
+            PruneGuides();
             LogicalPosition playerLogical = _world.LogicalPlayerPosition;
             for (int i = 0; i < _volumes.Count; i++)
             {
@@ -185,6 +204,12 @@ namespace DuneVector
             }
             travelForward.Normalize();
             Vector3 travelRight = Vector3.Cross(Vector3.up, travelForward).normalized;
+            _waveAnnouncement = FormationTitle(formation);
+            _waveAnnouncementUntil = Time.unscaledTime + _settings.WaveAnnouncementDuration;
+            if (formation == RouteFormationType.FlyThroughAssault)
+            {
+                SpawnFlyThroughGuide(playerPosition, travelForward);
+            }
             int count = Mathf.Clamp(
                 Mathf.RoundToInt(Mathf.Lerp(_settings.MinimumFormationSize, _settings.MaximumFormationSize,
                     Mathf.Clamp01((_contract.EncounterIntensity - 1f) * 0.8f))),
@@ -239,6 +264,8 @@ namespace DuneVector
                     _materials,
                     _wallet,
                     _settings,
+                    _formationMaterial,
+                    _shotMaterial,
                     formation,
                     passTarget,
                     breakTarget,
@@ -270,12 +297,80 @@ namespace DuneVector
             }
         }
 
+        private void PruneGuides()
+        {
+            for (int i = _guides.Count - 1; i >= 0; i--)
+            {
+                if (_guides[i] == null)
+                {
+                    _guides.RemoveAt(i);
+                }
+            }
+        }
+
+        private void SpawnFlyThroughGuide(Vector3 playerPosition, Vector3 travelForward)
+        {
+            GameObject guideObject = new GameObject("Optional Fly-Through Assault Vector");
+            guideObject.transform.SetParent(transform, true);
+            DuneVectorFlyThroughGuide guide = guideObject.AddComponent<DuneVectorFlyThroughGuide>();
+            guide.Initialize(playerPosition, travelForward, _formationMaterial, _settings);
+            _guides.Add(guide);
+        }
+
         private void HandleWorldShift(Vector3 shift)
         {
             for (int i = 0; i < _enemies.Count; i++)
             {
                 _enemies[i]?.ApplyWorldShift(shift);
             }
+            for (int i = 0; i < _guides.Count; i++)
+            {
+                _guides[i]?.ApplyWorldShift(shift);
+            }
+        }
+
+        private void OnGUI()
+        {
+            if (Time.unscaledTime >= _waveAnnouncementUntil || string.IsNullOrEmpty(_waveAnnouncement))
+            {
+                return;
+            }
+            if (_waveStyle == null)
+            {
+                _waveStyle = new GUIStyle(GUI.skin.label)
+                {
+                    alignment = TextAnchor.MiddleCenter,
+                    fontStyle = FontStyle.Bold,
+                    fontSize = _settings.WaveAnnouncementFontSize,
+                    normal = { textColor = _settings.WaveAnnouncementColor },
+                };
+            }
+            float remaining = _waveAnnouncementUntil - Time.unscaledTime;
+            float alpha = Mathf.Clamp01(remaining / Mathf.Max(0.01f, _settings.WaveAnnouncementDuration));
+            Color previous = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, Mathf.SmoothStep(0f, 1f, alpha));
+            GUI.Label(new Rect(0f, _settings.WaveAnnouncementTop, Screen.width, 34f), _waveAnnouncement, _waveStyle);
+            GUI.color = previous;
+        }
+
+        private static string FormationTitle(RouteFormationType formation)
+        {
+            switch (formation)
+            {
+                case RouteFormationType.CrossAttack: return "RAIDER CROSS-ATTACK";
+                case RouteFormationType.Pursuit: return "PURSUIT WAVE INBOUND";
+                case RouteFormationType.VerticalAttack: return "VERTICAL FORMATION INBOUND";
+                case RouteFormationType.FlyThroughAssault: return "OPTIONAL ATTACK VECTOR OPEN";
+                default: return "HEAD-ON FORMATION INBOUND";
+            }
+        }
+
+        private static Material CreateEmissionMaterial(Material source, string materialName, Color emission)
+        {
+            Material material = new Material(source) { name = materialName };
+            if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", emission);
+            if (material.HasProperty("_EmissiveExposureWeight")) material.SetFloat("_EmissiveExposureWeight", 0f);
+            return material;
         }
 
         private void OnDestroy()
@@ -284,6 +379,81 @@ namespace DuneVector
             {
                 _world.WorldShifted -= HandleWorldShift;
             }
+            if (_formationMaterial != null) Destroy(_formationMaterial);
+            if (_shotMaterial != null) Destroy(_shotMaterial);
+        }
+    }
+
+    [DisallowMultipleComponent]
+    public sealed class DuneVectorFlyThroughGuide : MonoBehaviour
+    {
+        private readonly List<Transform> _gates = new List<Transform>();
+        private RouteEncounterTuning _settings;
+        private float _remaining;
+
+        public void Initialize(Vector3 origin, Vector3 forward, Material material, RouteEncounterTuning settings)
+        {
+            _settings = settings;
+            _remaining = settings.FlyThroughGuideDuration;
+            Vector3 horizontalForward = Vector3.ProjectOnPlane(forward, Vector3.up).normalized;
+            if (horizontalForward.sqrMagnitude < 0.001f) horizontalForward = Vector3.forward;
+            transform.position = origin;
+            transform.rotation = Quaternion.LookRotation(horizontalForward, Vector3.up);
+            int gateCount = Mathf.Max(2, settings.FlyThroughGuideGateCount);
+            for (int i = 0; i < gateCount; i++)
+            {
+                Transform gate = new GameObject($"Optional Vector Gate {i + 1}").transform;
+                gate.SetParent(transform, false);
+                gate.localPosition = Vector3.forward * ((i + 1) * settings.FlyThroughGuideGateSpacing);
+                BuildGate(gate, material, settings.FlyThroughGuideGateRadius, settings.FlyThroughGuideGateThickness);
+                _gates.Add(gate);
+            }
+        }
+
+        private static void BuildGate(Transform gate, Material material, float radius, float thickness)
+        {
+            int sideCount = 8;
+            for (int i = 0; i < sideCount; i++)
+            {
+                float angle = (360f / sideCount) * i;
+                float radians = angle * Mathf.Deg2Rad;
+                Vector3 position = new Vector3(Mathf.Cos(radians), Mathf.Sin(radians), 0f) * radius;
+                GameObject segment = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                segment.name = $"Guide Segment {i + 1}";
+                segment.transform.SetParent(gate, false);
+                segment.transform.localPosition = position;
+                segment.transform.localRotation = Quaternion.Euler(0f, 0f, angle + 90f);
+                segment.transform.localScale = new Vector3(radius * 0.72f, thickness, thickness);
+                Renderer renderer = segment.GetComponent<Renderer>();
+                renderer.sharedMaterial = material;
+                renderer.shadowCastingMode = ShadowCastingMode.Off;
+                Collider collider = segment.GetComponent<Collider>();
+                if (collider != null) Destroy(collider);
+            }
+        }
+
+        private void Update()
+        {
+            _remaining -= Time.deltaTime;
+            if (_remaining <= 0f)
+            {
+                Destroy(gameObject);
+                return;
+            }
+            float lifeFade = Mathf.Clamp01(_remaining / Mathf.Max(0.01f, _settings.FlyThroughGuideDuration));
+            for (int i = 0; i < _gates.Count; i++)
+            {
+                Transform gate = _gates[i];
+                if (gate == null) continue;
+                float phase = (Time.time * _settings.FlyThroughGuidePulseSpeed) + i;
+                float pulse = 1f + (Mathf.Sin(phase) * _settings.FlyThroughGuidePulseAmount * lifeFade);
+                gate.localScale = Vector3.one * pulse;
+            }
+        }
+
+        public void ApplyWorldShift(Vector3 shift)
+        {
+            transform.position += shift;
         }
     }
 
@@ -314,6 +484,8 @@ namespace DuneVector
             DuneVectorMaterials materials,
             DroneGoldWallet wallet,
             RouteEncounterTuning settings,
+            Material formationMaterial,
+            Material shotMaterial,
             RouteFormationType formation,
             Vector3 passTarget,
             Vector3 breakTarget,
@@ -328,6 +500,23 @@ namespace DuneVector
             _repositionTarget = repositionTarget;
             _allowSecondPass = allowSecondPass;
             DuneVectorVisuals.CreateFlyingEnemyVisual(transform, materials, settings.EnemyVisualScale);
+            GameObject formationMarker = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            formationMarker.name = "Formation Signal";
+            formationMarker.transform.SetParent(transform, false);
+            formationMarker.transform.localPosition = Vector3.up * (settings.EnemyVisualScale * 1.8f);
+            formationMarker.transform.localScale = Vector3.one * (settings.EnemyVisualScale * 0.24f);
+            Renderer markerRenderer = formationMarker.GetComponent<Renderer>();
+            markerRenderer.sharedMaterial = formationMaterial;
+            markerRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            Collider markerCollider = formationMarker.GetComponent<Collider>();
+            if (markerCollider != null) Destroy(markerCollider);
+            TrailRenderer trail = gameObject.AddComponent<TrailRenderer>();
+            trail.sharedMaterial = formationMaterial;
+            trail.time = settings.EnemyTrailDuration;
+            trail.startWidth = settings.EnemyTrailStartWidth;
+            trail.endWidth = settings.EnemyTrailEndWidth;
+            trail.minVertexDistance = settings.EnemyTrailMinimumVertexDistance;
+            trail.shadowCastingMode = ShadowCastingMode.Off;
             EnemyHealth enemyHealth = gameObject.AddComponent<EnemyHealth>();
             enemyHealth.Initialize(settings.EnemyHealth);
             EnemyCombatTarget target = gameObject.AddComponent<EnemyCombatTarget>();
@@ -335,7 +524,7 @@ namespace DuneVector
             EnemyGoldReward goldReward = gameObject.AddComponent<EnemyGoldReward>();
             goldReward.Initialize(enemyHealth, wallet, settings.EnemyGoldReward);
             _shotLine = gameObject.AddComponent<LineRenderer>();
-            _shotLine.sharedMaterial = materials.EnemyCore;
+            _shotLine.sharedMaterial = shotMaterial;
             _shotLine.positionCount = 2;
             _shotLine.useWorldSpace = true;
             _shotLine.startWidth = settings.ShotStartWidth;
@@ -420,6 +609,8 @@ namespace DuneVector
             {
                 _shotVisualTimer -= deltaTime;
                 _shotLine.enabled = true;
+                _shotLine.startWidth = _settings.ShotStartWidth;
+                _shotLine.endWidth = _settings.ShotEndWidth;
                 _shotLine.SetPosition(0, transform.position);
                 _shotLine.SetPosition(1, _telegraphedPoint);
                 return;
@@ -428,6 +619,12 @@ namespace DuneVector
             {
                 _shotTelegraphTimer -= deltaTime;
                 _shotLine.enabled = true;
+                float pulse = Mathf.Lerp(
+                    _settings.TelegraphMinimumWidthMultiplier,
+                    1f,
+                    Mathf.Abs(Mathf.Sin(Time.time * _settings.TelegraphPulseSpeed)));
+                _shotLine.startWidth = _settings.ShotStartWidth * pulse;
+                _shotLine.endWidth = _settings.ShotEndWidth * pulse;
                 _shotLine.SetPosition(0, transform.position);
                 _shotLine.SetPosition(1, _telegraphedPoint);
                 if (_shotTelegraphTimer <= 0f)
