@@ -162,6 +162,9 @@ namespace DuneVector
     [System.Serializable]
     public sealed class DeliveryTuning
     {
+        private const string ObjectiveHexagonResourcePath = "UI/ObjectiveIndicatorDoubleHexagon";
+        private const string ObjectiveArrowResourcePath = "UI/ObjectiveIndicatorArrow";
+
         public bool Enabled = true;
         public bool RandomizeLocationsEachPlay = true;
         public int JobSeedOffset;
@@ -206,6 +209,12 @@ namespace DuneVector
         [ColorUsage(false)] public Color CompletionTextGreen = new Color(0.55f, 1f, 0.72f);
         [ColorUsage(false)] public Color CompletionTextBlue = new Color(0.55f, 0.78f, 1f);
         [Min(0f)] public float CompletionTextColorCyclesPerSecond = 0.45f;
+
+        public void EnsureInitialized()
+        {
+            ObjectiveIndicatorHexagonIcon ??= Resources.Load<Texture2D>(ObjectiveHexagonResourcePath);
+            ObjectiveIndicatorArrowIcon ??= Resources.Load<Texture2D>(ObjectiveArrowResourcePath);
+        }
     }
 
     [System.Serializable]
@@ -1444,6 +1453,7 @@ namespace DuneVector
             Audio ??= new AudioTuning();
             Audio.EnsureInitialized();
             Deliveries ??= new DeliveryTuning();
+            Deliveries.EnsureInitialized();
             Contracts ??= new CourierContractTuning();
             WorldHub ??= new WorldHubTuning();
             Landmarks ??= new LandmarkSystemTuning();
