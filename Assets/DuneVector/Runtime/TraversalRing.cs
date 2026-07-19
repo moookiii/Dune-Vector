@@ -19,6 +19,8 @@ namespace DuneVector
         [InspectorName("Flight Ring Active Scale")]
         [Min(1f)] public float FlightModeScale = 1.45f;
         [Min(0f)] public float FlightModeScaleSharpness = 4.5f;
+        [Min(0f)] public float FlightModeHeightOffset;
+        [Min(0f)] public float FlightModeHeightSharpness;
         public string ProceduralIdentity;
 
         public bool HasActivated { get; private set; }
@@ -34,6 +36,7 @@ namespace DuneVector
         private float _modeScale = 1f;
         private float _visualSpin;
         private Camera _billboardCamera;
+        private Vector3 _restingLocalPosition;
 
         public void Initialize(TraversalRingType type, DroneCharacterController controller, DuneVectorMaterials materials, float majorRadius, string identity)
         {
@@ -41,6 +44,7 @@ namespace DuneVector
             _controller = controller;
             InnerRadius = majorRadius - 0.58f;
             ProceduralIdentity = identity;
+            _restingLocalPosition = transform.localPosition;
             _visualRoot = DuneVectorVisuals.CreateRingVisual(transform, type, materials, majorRadius);
             gameObject.name = type == TraversalRingType.GroundBoost ? "Ground Boost Ring" : "Elevated Flight Ring";
         }
@@ -57,6 +61,17 @@ namespace DuneVector
             if (_controller == null)
             {
                 return;
+            }
+
+            if (RingType == TraversalRingType.Flight)
+            {
+                bool isFlying = _controller.CurrentMode == DroneTraversalMode.Flight;
+                Vector3 targetPosition = _restingLocalPosition
+                    + (Vector3.up * (isFlying ? FlightModeHeightOffset : 0f));
+                transform.localPosition = Vector3.Lerp(
+                    transform.localPosition,
+                    targetPosition,
+                    DuneVectorMath.Sharpness(FlightModeHeightSharpness, Time.deltaTime));
             }
 
             Vector3 worldPosition = _controller.WorldCenter;
