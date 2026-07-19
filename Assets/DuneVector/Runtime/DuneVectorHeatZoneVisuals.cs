@@ -297,11 +297,6 @@ namespace DuneVector
             main.startSize = new ParticleSystem.MinMaxCurve(
                 _settings.HeatPlumeMinimumSize,
                 Mathf.Max(_settings.HeatPlumeMinimumSize, _settings.HeatPlumeMaximumSize));
-            main.startRotation = new ParticleSystem.MinMaxCurve(0f, Mathf.PI * 2f);
-            system.randomSeed = unchecked((uint)DuneVectorMath.Hash(
-                sample.Id.x,
-                sample.Id.y,
-                _settings.RandomSeedOffset + _settings.HeatPlumeSeedOffset));
             ParticleSystem.EmissionModule emission = system.emission;
             emission.rateOverTime = _settings.HeatPlumeEmissionRate * sample.Severity;
             ParticleSystem.ShapeModule shape = system.shape;
@@ -311,48 +306,15 @@ namespace DuneVector
             ParticleSystem.VelocityOverLifetimeModule velocity = system.velocityOverLifetime;
             velocity.enabled = true;
             velocity.space = ParticleSystemSimulationSpace.World;
-            Vector2 plumeDirection = _settings.HeatPlumeDriftDirection.sqrMagnitude > 0.001f
-                ? _settings.HeatPlumeDriftDirection.normalized
-                : Vector2.right;
-            velocity.x = plumeDirection.x * _settings.HeatPlumeHorizontalSpeed;
-            velocity.y = new ParticleSystem.MinMaxCurve(
-                _settings.HeatPlumeRiseSpeed * _settings.HeatPlumeMinimumRiseSpeedMultiplier,
-                _settings.HeatPlumeRiseSpeed * _settings.HeatPlumeMaximumRiseSpeedMultiplier);
-            velocity.z = plumeDirection.y * _settings.HeatPlumeHorizontalSpeed;
+            velocity.y = _settings.HeatPlumeRiseSpeed;
             ParticleSystem.NoiseModule noise = system.noise;
             noise.enabled = true;
             noise.quality = ParticleSystemNoiseQuality.Medium;
             noise.strength = _settings.HeatPlumeTurbulence;
-            noise.frequency = _settings.HeatPlumeNoiseFrequency;
-            noise.scrollSpeed = _settings.HeatPlumeNoiseScrollSpeed;
-            ParticleSystem.SizeOverLifetimeModule size = system.sizeOverLifetime;
-            size.enabled = true;
-            AnimationCurve expansion = new AnimationCurve(
-                new Keyframe(0f, _settings.HeatPlumeInitialScale),
-                new Keyframe(_settings.HeatPlumeExpansionTime, _settings.HeatPlumeExpansionScale),
-                new Keyframe(1f, _settings.HeatPlumeEndScale));
-            size.size = new ParticleSystem.MinMaxCurve(1f, expansion);
-            ParticleSystem.ColorOverLifetimeModule fade = system.colorOverLifetime;
-            fade.enabled = true;
-            Gradient gradient = new Gradient();
-            gradient.SetKeys(
-                new[]
-                {
-                    new GradientColorKey(Color.white, 0f),
-                    new GradientColorKey(Color.white, 1f),
-                },
-                new[]
-                {
-                    new GradientAlphaKey(0f, 0f),
-                    new GradientAlphaKey(_settings.HeatPlumePeakOpacity, _settings.HeatPlumeFadeInFraction),
-                    new GradientAlphaKey(_settings.HeatPlumePeakOpacity, _settings.HeatPlumeFadeOutFraction),
-                    new GradientAlphaKey(0f, 1f),
-                });
-            fade.color = gradient;
             ParticleSystemRenderer renderer = plumeObject.GetComponent<ParticleSystemRenderer>();
             renderer.sharedMaterial = _plumeMaterial;
-            renderer.renderMode = ParticleSystemRenderMode.Billboard;
-            renderer.sortMode = ParticleSystemSortMode.Distance;
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.velocityScale = _settings.HeatPlumeStretch;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
             system.Play();

@@ -1904,21 +1904,8 @@ namespace DuneVector
         [Min(0.01f)] public float HeatPlumeMinimumSize = 4f;
         [Min(0.01f)] public float HeatPlumeMaximumSize = 10f;
         [Min(0f)] public float HeatPlumeRiseSpeed = 5.5f;
-        [Min(0f)] public float HeatPlumeMinimumRiseSpeedMultiplier = 0.65f;
-        [Min(0f)] public float HeatPlumeMaximumRiseSpeedMultiplier = 1.35f;
-        public Vector2 HeatPlumeDriftDirection = new Vector2(1f, 0.18f);
-        [Min(0f)] public float HeatPlumeHorizontalSpeed = 1.4f;
         [Min(0f)] public float HeatPlumeTurbulence = 0.45f;
-        [Min(0f)] public float HeatPlumeNoiseFrequency = 0.18f;
-        [Min(0f)] public float HeatPlumeNoiseScrollSpeed = 0.12f;
-        public int HeatPlumeSeedOffset = 6709;
-        [Min(0f)] public float HeatPlumeInitialScale = 0.35f;
-        [Range(0f, 1f)] public float HeatPlumeExpansionTime = 0.58f;
-        [Min(0f)] public float HeatPlumeExpansionScale = 1.25f;
-        [Min(0f)] public float HeatPlumeEndScale = 0.55f;
-        [Range(0f, 1f)] public float HeatPlumeFadeInFraction = 0.18f;
-        [Range(0f, 1f)] public float HeatPlumeFadeOutFraction = 0.72f;
-        [Range(0f, 1f)] public float HeatPlumePeakOpacity = 0.42f;
+        [Min(0f)] public float HeatPlumeStretch = 1f;
 
         [Header("Hot Wind Streaks")]
         [Range(0, 320)] public int HeatStreakParticleBudget = 110;
