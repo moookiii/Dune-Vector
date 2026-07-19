@@ -1293,7 +1293,10 @@ namespace DuneVector
 
         private void OnGUI()
         {
-            if (_hazards == null || _visualBlend <= 0.01f || DuneVectorCourierGame.IsGameplayHudSuppressed)
+            if (_hazards == null ||
+                !_hazards.IsElectricalInterferenceActive ||
+                _visualBlend <= 0.01f ||
+                DuneVectorCourierGame.IsGameplayHudSuppressed)
             {
                 return;
             }
