@@ -7,8 +7,6 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorCloudField : MonoBehaviour
     {
-        public Transform FollowTarget;
-
         private readonly List<Transform> _clusters = new List<Transform>();
         private float _fieldRadius;
         private float _driftSpeed;
@@ -84,14 +82,6 @@ namespace DuneVector
 
         private void LateUpdate()
         {
-            if (FollowTarget != null)
-            {
-                Vector3 position = transform.position;
-                position.x = FollowTarget.position.x;
-                position.z = FollowTarget.position.z;
-                transform.position = position;
-            }
-
             Vector3 drift = new Vector3(_driftDirection.x, 0f, _driftDirection.y) * (_driftSpeed * Time.deltaTime);
             for (int i = 0; i < _clusters.Count; i++)
             {

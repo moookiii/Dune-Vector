@@ -389,7 +389,6 @@ namespace DuneVector
             World.BindPlayer(Drone, DroneCamera, DroneHealth);
             if (CloudField != null)
             {
-                CloudField.FollowTarget = Drone.transform;
                 CloudField.BindWorld(World);
             }
         }
