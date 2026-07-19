@@ -2228,6 +2228,17 @@ namespace DuneVector
             }
         }
 
+        public bool TryGetVisibleContractPanelRect(out Rect panel)
+        {
+            if (_settings != null && IsContractActive && !IsGameplayHudSuppressed)
+            {
+                panel = new Rect(_settings.HudLeft, _settings.HudTop, _settings.HudWidth, _settings.HudHeight);
+                return true;
+            }
+            panel = default;
+            return false;
+        }
+
         private void DrawObjectiveMarker()
         {
             if (ActiveObjective == null || _camera == null)

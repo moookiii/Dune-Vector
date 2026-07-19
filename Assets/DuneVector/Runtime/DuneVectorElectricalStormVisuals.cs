@@ -59,6 +59,8 @@ namespace DuneVector
         private DesertWorldStreamer _world;
         private DuneVectorWeatherController _weather;
         private ElectricalStormVisualTuning _settings;
+        private DuneVectorCourierGame _courierGame;
+        private DuneVectorDynamicCourierDirector _dynamicCourierDirector;
         private System.Random _random;
         private GameObject _stormRoot;
         private Material _lightningMaterial;
@@ -97,6 +99,8 @@ namespace DuneVector
             _world = world;
             _weather = weather;
             _settings = settings;
+            _courierGame = Object.FindAnyObjectByType<DuneVectorCourierGame>();
+            _dynamicCourierDirector = Object.FindAnyObjectByType<DuneVectorDynamicCourierDirector>();
             _random = new System.Random(unchecked(world.WorldSeed ^ 77531));
             _softParticleTexture = CreateSoftParticleTexture(Mathf.Max(16, settings.ParticleTextureResolution));
             BuildCloudResources();
@@ -1287,9 +1291,21 @@ namespace DuneVector
                 fontStyle = FontStyle.Normal,
                 fontSize = _settings.HudStatusFontSize,
             };
+            float panelTop = _settings.HudTop;
+            if (_courierGame != null && _courierGame.TryGetVisibleContractPanelRect(out Rect contractPanel) &&
+                HorizontalRangesOverlap(_settings.HudLeft, _settings.HudWidth, contractPanel))
+            {
+                panelTop = Mathf.Max(panelTop, contractPanel.yMax + _settings.HudOtherPanelGap);
+            }
+            if (_dynamicCourierDirector != null &&
+                _dynamicCourierDirector.TryGetVisiblePanelRect(out Rect courierPanel) &&
+                HorizontalRangesOverlap(_settings.HudLeft, _settings.HudWidth, courierPanel))
+            {
+                panelTop = Mathf.Max(panelTop, courierPanel.yMax + _settings.HudOtherPanelGap);
+            }
             Rect panel = new Rect(
                 _settings.HudLeft,
-                _settings.HudTop,
+                panelTop,
                 _settings.HudWidth,
                 _settings.HudHeight);
             DrawRect(panel, WithAlpha(_settings.HudPanelColor, _settings.HudPanelColor.a * _visualBlend));
@@ -1341,6 +1357,11 @@ namespace DuneVector
             GUI.color = color;
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = previous;
+        }
+
+        private static bool HorizontalRangesOverlap(float left, float width, Rect other)
+        {
+            return left < other.xMax && left + width > other.x;
         }
 
         private static Color WithAlpha(Color color, float alpha)

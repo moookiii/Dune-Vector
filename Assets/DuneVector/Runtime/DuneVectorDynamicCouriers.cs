@@ -902,6 +902,18 @@ namespace DuneVector
             DrawObjectiveMarker();
         }
 
+        public bool TryGetVisiblePanelRect(out Rect panel)
+        {
+            if (_settings != null && _phase != DynamicCourierEventPhase.Inactive &&
+                !DuneVectorCourierGame.IsGameplayHudSuppressed)
+            {
+                panel = new Rect(_settings.HudLeft, _settings.HudTop, _settings.HudWidth, _settings.HudHeight);
+                return true;
+            }
+            panel = default;
+            return false;
+        }
+
         private void EnsureGuiStyles()
         {
             if (_titleStyle != null)
