@@ -18,6 +18,7 @@ namespace DuneVector
         public DroneTuning PlayerTuning => RuntimeSettings.PlayerTuning;
         public DroneVisualTuning DroneVisuals => RuntimeSettings.DroneVisuals;
         public FlightSwooshTuning FlightSwooshes => RuntimeSettings.FlightSwooshes;
+        public WindFieldSystemTuning WindFieldSettings => RuntimeSettings.WindFields;
         public CloudTuning Clouds => RuntimeSettings.Clouds;
         public DesertWeatherTuning WeatherSettings => RuntimeSettings.Weather;
         public AudioTuning AudioSettings => RuntimeSettings.Audio;
@@ -77,6 +78,7 @@ namespace DuneVector
         public DuneVectorEnemyDirector EnemyDirector { get; private set; }
         public DuneVectorStormPyramidDirector StormPyramidDirector { get; private set; }
         public DuneVectorWeatherController WeatherSystem { get; private set; }
+        public DuneVectorWindFieldSystem WindFieldSystem { get; private set; }
         public DuneVectorGameOverController GameOverController { get; private set; }
         public DuneVectorAudioManager AudioManager { get; private set; }
         public DuneVectorPauseMenu PauseMenu { get; private set; }
@@ -321,6 +323,7 @@ namespace DuneVector
             BuildEnvironment();
             BuildWorld();
             BuildDroneAndCamera();
+            BuildWindFields();
             BuildAudio();
             BuildWeather();
             BuildInterface();
@@ -580,6 +583,19 @@ namespace DuneVector
                 _environmentSky,
                 _environmentExposure,
                 WeatherSettings);
+        }
+
+        private void BuildWindFields()
+        {
+            if (!WindFieldSettings.Enabled || WindFieldSettings.Fields.Count == 0)
+            {
+                return;
+            }
+
+            GameObject windObject = new GameObject("World-space Wind Fields");
+            windObject.transform.SetParent(transform, false);
+            WindFieldSystem = windObject.AddComponent<DuneVectorWindFieldSystem>();
+            WindFieldSystem.Initialize(Drone, DroneCamera.Camera, World, WindFieldSettings);
         }
 
         private void BuildInterface()
@@ -874,6 +890,7 @@ namespace DuneVector
                 $"Mode: {Drone.CurrentMode}   Stable grounded: {Drone.IsStableGrounded}\n" +
                 $"Velocity: {Drone.Motor.Velocity}   Speed: {Drone.Speed:0.00}\n" +
                 $"Boost: {Drone.IsBoosting}   Flight remaining: {Drone.FlightTimeRemaining:0.0}s\n" +
+                $"Wind force: {Drone.CurrentWindForce}\n" +
                 $"Logical position: {logical}\n\n" +
                 $"CAMERA\n" +
                 $"FollowingSharpness: {CameraController.FollowingSharpness:0.00}\n" +

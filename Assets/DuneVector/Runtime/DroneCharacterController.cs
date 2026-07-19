@@ -109,6 +109,7 @@ namespace DuneVector
         public float CargoAccelerationMultiplier { get; private set; } = 1f;
         public float CargoTurningMultiplier { get; private set; } = 1f;
         public DesertWorldStreamer World { get; private set; }
+        public Vector3 CurrentWindForce { get; private set; }
 
         private Vector2 _rawMove;
         private bool _flightBrakeHeld;
@@ -127,6 +128,8 @@ namespace DuneVector
         private float _ringBurstTimeRemaining;
         private DroneStaminaSystem _stamina;
         private DroneBoostSpeedModifier _boostSpeedModifier;
+        private DuneVectorWindFieldSystem _windFields;
+        private WindFieldSystemTuning _windFieldSettings;
 
         private bool _flightRequested;
         private bool _flightJustEntered;
@@ -180,6 +183,12 @@ namespace DuneVector
         {
             _stamina = stamina;
             _boostSpeedModifier = boostSpeedModifier;
+        }
+
+        public void BindWindFields(DuneVectorWindFieldSystem windFields, WindFieldSystemTuning settings)
+        {
+            _windFields = windFields;
+            _windFieldSettings = settings;
         }
 
         public void SetCargoHandlingModifiers(float speedMultiplier, float accelerationMultiplier, float turningMultiplier)
@@ -363,6 +372,25 @@ namespace DuneVector
             {
                 UpdateNormalVelocity(ref currentVelocity, deltaTime);
             }
+            ApplyWindFieldForce(ref currentVelocity, deltaTime);
+        }
+
+        private void ApplyWindFieldForce(ref Vector3 currentVelocity, float deltaTime)
+        {
+            if (_windFields == null || _windFieldSettings == null)
+            {
+                CurrentWindForce = Vector3.zero;
+                return;
+            }
+
+            WindFieldSample sample = _windFields.Sample(WorldCenter, Time.time);
+            float traversalMultiplier = CurrentMode == DroneTraversalMode.Flight
+                ? _windFieldSettings.FlightForceMultiplier
+                : Motor.GroundingStatus.IsStableOnGround
+                    ? _windFieldSettings.GroundedForceMultiplier
+                    : _windFieldSettings.FlightForceMultiplier;
+            CurrentWindForce = sample.Force * _windFieldSettings.PlayerForceResponse * traversalMultiplier;
+            currentVelocity += CurrentWindForce * Mathf.Max(0f, deltaTime);
         }
 
         private void UpdateNormalVelocity(ref Vector3 currentVelocity, float deltaTime)

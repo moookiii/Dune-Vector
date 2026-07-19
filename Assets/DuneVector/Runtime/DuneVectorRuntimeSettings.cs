@@ -1717,6 +1717,9 @@ namespace DuneVector
         [Tooltip("Local camera-edge anime motion streaks driven by the player drone's real flight velocity.")]
         public FlightSwooshTuning FlightSwooshes = new FlightSwooshTuning();
 
+        [Tooltip("World-space wind regions, authoritative forces, placement, falloff, and streamline presentation.")]
+        public WindFieldSystemTuning WindFields = new WindFieldSystemTuning();
+
         [Tooltip("Authored stylized cloud archetypes, placement, shading, and motion.")]
         public CloudTuning Clouds = new CloudTuning();
 
@@ -1794,6 +1797,8 @@ namespace DuneVector
             PlayerTuning.EnsureInitialized();
             DroneVisuals ??= new DroneVisualTuning();
             FlightSwooshes ??= new FlightSwooshTuning();
+            WindFields ??= new WindFieldSystemTuning();
+            WindFields.EnsureInitialized();
             Clouds ??= new CloudTuning();
             Clouds.EnsureInitialized();
             Weather ??= new DesertWeatherTuning();
