@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using FMOD.Studio;
 using FMODUnity;
+using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -119,6 +120,9 @@ namespace DuneVector
         private PagePresentationPhase _phase;
         private Action _firstInteraction;
         private Font _runtimeFont;
+        private Canvas _narrativeCanvas;
+        private TextMeshProUGUI _tmpNarrativeText;
+        private RectTransform _tmpNarrativeRect;
         private GUIStyle _narrativeStyle;
         private GUIStyle _headerStyle;
         private GUIStyle _indicatorStyle;
@@ -138,6 +142,7 @@ namespace DuneVector
             _hasAcknowledgedInputHint = hasAcknowledgedInputHint;
             _firstInteraction = firstInteraction;
             CreateRuntimeFont();
+            CreateTmpNarrativeTextLayer();
         }
 
         public bool Open(DeliveryMessageAsset message, Action completed)
@@ -299,6 +304,103 @@ namespace DuneVector
             _firstInteraction?.Invoke();
         }
 
+        private void CreateTmpNarrativeTextLayer()
+        {
+            if (_settings.NarrativeFont == null)
+            {
+                return;
+            }
+
+            GameObject canvasObject = new GameObject("Delivery Message Typography", typeof(RectTransform), typeof(Canvas));
+            canvasObject.transform.SetParent(transform, false);
+            _narrativeCanvas = canvasObject.GetComponent<Canvas>();
+            _narrativeCanvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            _narrativeCanvas.sortingOrder = short.MaxValue;
+
+            GameObject textObject = new GameObject("Narrative", typeof(RectTransform), typeof(CanvasRenderer));
+            textObject.transform.SetParent(canvasObject.transform, false);
+            _tmpNarrativeRect = textObject.GetComponent<RectTransform>();
+            _tmpNarrativeRect.anchorMin = new Vector2(0f, 1f);
+            _tmpNarrativeRect.anchorMax = new Vector2(0f, 1f);
+            _tmpNarrativeRect.pivot = new Vector2(0f, 1f);
+            _tmpNarrativeText = textObject.AddComponent<TextMeshProUGUI>();
+            _tmpNarrativeText.font = _settings.NarrativeFont;
+            _tmpNarrativeText.alignment = TextAlignmentOptions.TopLeft;
+            _tmpNarrativeText.textWrappingMode = TextWrappingModes.Normal;
+            _tmpNarrativeText.overflowMode = TextOverflowModes.Truncate;
+            _tmpNarrativeText.richText = false;
+            _tmpNarrativeText.raycastTarget = false;
+            _tmpNarrativeText.extraPadding = true;
+            _tmpNarrativeText.margin = Vector4.zero;
+            canvasObject.SetActive(false);
+        }
+
+        private void LateUpdate()
+        {
+            UpdateTmpNarrativeText();
+        }
+
+        private void UpdateTmpNarrativeText()
+        {
+            if (_narrativeCanvas == null || _tmpNarrativeText == null || _tmpNarrativeRect == null)
+            {
+                return;
+            }
+
+            bool visible = IsOpen;
+            if (_narrativeCanvas.gameObject.activeSelf != visible)
+            {
+                _narrativeCanvas.gameObject.SetActive(visible);
+            }
+            if (!visible)
+            {
+                return;
+            }
+
+            GetReadingLayout(out float scale, out _, out _, out _, out Rect textRect);
+            _tmpNarrativeRect.anchoredPosition = new Vector2(textRect.x * scale, -textRect.y * scale);
+            _tmpNarrativeRect.sizeDelta = new Vector2(textRect.width * scale, textRect.height * scale);
+            _tmpNarrativeText.fontSize = _settings.NarrativeFontSize * scale;
+            _tmpNarrativeText.lineSpacing = _settings.NarrativeLineSpacing * scale;
+            _tmpNarrativeText.text = VisibleText;
+            _tmpNarrativeText.color = CurrentNarrativeColor(CurrentFlicker(), CurrentTextAlpha());
+        }
+
+        private void GetReadingLayout(
+            out float scale,
+            out float virtualWidth,
+            out float virtualHeight,
+            out Rect readingArea,
+            out Rect textRect)
+        {
+            float minimumScale = Mathf.Min(_settings.MinimumScale, _settings.MaximumScale);
+            float maximumScale = Mathf.Max(_settings.MinimumScale, _settings.MaximumScale);
+            scale = Mathf.Clamp(
+                Mathf.Min(
+                    Screen.width / Mathf.Max(1f, _settings.ReferenceWidth),
+                    Screen.height / Mathf.Max(1f, _settings.ReferenceHeight)),
+                minimumScale,
+                maximumScale);
+            virtualWidth = Screen.width / scale;
+            virtualHeight = Screen.height / scale;
+            float readingWidth = Mathf.Max(1f, Mathf.Min(
+                _settings.ReadingAreaWidth,
+                virtualWidth - (_settings.ScreenMargin * 2f)));
+            float readingHeight = Mathf.Max(1f, Mathf.Min(
+                _settings.ReadingAreaHeight,
+                virtualHeight - (_settings.ScreenMargin * 2f)));
+            readingArea = new Rect(
+                (virtualWidth - readingWidth) * 0.5f,
+                ((virtualHeight - readingHeight) * 0.5f) + _settings.ReadingAreaVerticalOffset,
+                readingWidth,
+                readingHeight);
+            textRect = new Rect(
+                readingArea.x + _settings.HorizontalPadding,
+                readingArea.y + _settings.TextTopPadding,
+                Mathf.Max(1f, readingArea.width - (_settings.HorizontalPadding * 2f)),
+                Mathf.Max(1f, readingArea.height - _settings.TextTopPadding - _settings.TextBottomPadding));
+        }
+
         private void OnGUI()
         {
             if (!IsOpen)
@@ -311,46 +413,22 @@ namespace DuneVector
             Matrix4x4 previousMatrix = GUI.matrix;
             Color previousColor = GUI.color;
 
-            float minimumScale = Mathf.Min(_settings.MinimumScale, _settings.MaximumScale);
-            float maximumScale = Mathf.Max(_settings.MinimumScale, _settings.MaximumScale);
-            float scale = Mathf.Clamp(
-                Mathf.Min(
-                    Screen.width / Mathf.Max(1f, _settings.ReferenceWidth),
-                    Screen.height / Mathf.Max(1f, _settings.ReferenceHeight)),
-                minimumScale,
-                maximumScale);
+            GetReadingLayout(out float scale, out float virtualWidth, out float virtualHeight, out Rect readingArea, out Rect textRect);
             GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
-            float virtualWidth = Screen.width / scale;
-            float virtualHeight = Screen.height / scale;
 
             DrawSolidRect(new Rect(0f, 0f, virtualWidth, virtualHeight), _settings.BackdropColor);
             DrawTransmissionArtifacts(virtualWidth, virtualHeight);
 
-            float readingWidth = Mathf.Min(
-                _settings.ReadingAreaWidth,
-                virtualWidth - (_settings.ScreenMargin * 2f));
-            float readingHeight = Mathf.Min(
-                _settings.ReadingAreaHeight,
-                virtualHeight - (_settings.ScreenMargin * 2f));
-            Rect readingArea = new Rect(
-                (virtualWidth - readingWidth) * 0.5f,
-                ((virtualHeight - readingHeight) * 0.5f) + _settings.ReadingAreaVerticalOffset,
-                readingWidth,
-                readingHeight);
-
-            float flicker = 1f - (_settings.TransmissionFlickerAmount *
-                Mathf.PerlinNoise(Time.unscaledTime * _settings.TransmissionFlickerSpeed, 0.413f));
+            float flicker = CurrentFlicker();
             DrawSolidRect(readingArea, WithAlpha(_settings.ReadingAreaColor, _settings.ReadingAreaColor.a * flicker));
             DrawReadingFrame(readingArea, flicker);
 
-            Rect textRect = new Rect(
-                readingArea.x + _settings.HorizontalPadding,
-                readingArea.y + _settings.TextTopPadding,
-                readingArea.width - (_settings.HorizontalPadding * 2f),
-                Mathf.Max(1f, readingArea.height - _settings.TextTopPadding - _settings.TextBottomPadding));
             float textAlpha = CurrentTextAlpha();
             Color textColor = CurrentNarrativeColor(flicker, textAlpha);
-            DrawNarrativeText(textRect, VisibleText, textColor);
+            if (_tmpNarrativeText == null)
+            {
+                DrawNarrativeText(textRect, VisibleText, textColor);
+            }
 
             if (_phase == PagePresentationPhase.Presenting && !IsTyping)
             {
@@ -364,11 +442,7 @@ namespace DuneVector
 
         private void CreateRuntimeFont()
         {
-            if (_settings.NarrativeFont != null)
-            {
-                return;
-            }
-            if (string.IsNullOrWhiteSpace(_settings.PreferredFontName))
+            if (_settings.NarrativeFont != null || string.IsNullOrWhiteSpace(_settings.PreferredFontName))
             {
                 return;
             }
@@ -394,9 +468,7 @@ namespace DuneVector
                 return;
             }
 
-            Font font = _settings.NarrativeFont != null
-                ? _settings.NarrativeFont
-                : _runtimeFont != null
+            Font font = _runtimeFont != null
                     ? _runtimeFont
                     : GUI.skin.font;
             _narrativeStyle = new GUIStyle(GUI.skin.label)
@@ -646,6 +718,12 @@ namespace DuneVector
             return 1f - Mathf.Clamp01(
                 (Time.unscaledTime - _phaseStartedAt) /
                 Mathf.Max(0.01f, _settings.PageFadeOutDuration));
+        }
+
+        private float CurrentFlicker()
+        {
+            return 1f - (_settings.TransmissionFlickerAmount *
+                Mathf.PerlinNoise(Time.unscaledTime * _settings.TransmissionFlickerSpeed, 0.413f));
         }
 
         private Color CurrentNarrativeColor(float flicker, float alpha)

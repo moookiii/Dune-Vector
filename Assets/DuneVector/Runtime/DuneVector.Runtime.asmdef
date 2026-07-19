@@ -5,6 +5,7 @@
         "FMODUnity",
         "KinematicCharacterController",
         "Unity.InputSystem",
+        "Unity.TextMeshPro",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.HighDefinition.Runtime"
     ],

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using FMODUnity;
+using TMPro;
 using UnityEngine;
 
 namespace DuneVector
@@ -80,8 +81,8 @@ namespace DuneVector
         [Min(8f)] public float IndicatorWidth = 60f;
 
         [Header("Typography")]
-        [Tooltip("Optional packaged narrative font. PreferredFontName is used when this is unassigned.")]
-        public Font NarrativeFont;
+        [Tooltip("Optional TextMeshPro narrative font. PreferredFontName is used when this is unassigned.")]
+        public TMP_FontAsset NarrativeFont;
         [Tooltip("Preferred installed font. The active GUI font is used if it is unavailable.")]
         public string PreferredFontName = "Segoe UI";
         [Min(10)] public int NarrativeFontSize = 28;
