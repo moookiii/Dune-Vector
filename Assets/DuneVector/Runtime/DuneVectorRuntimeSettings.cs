@@ -400,8 +400,6 @@ namespace DuneVector
         [Min(120f)] public float TerminalPromptWidth = 420f;
         [Min(16f)] public float TerminalPromptHeight = 32f;
         public float TerminalPromptVerticalOffset = -58f;
-        public Vector2 TerminalPromptShadowOffset = new Vector2(2f, 3f);
-        [ColorUsage(false)] public Color TerminalPromptShadowColor = new Color(0f, 0f, 0f, 0.82f);
         [ColorUsage(false)] public Color HubMetalColor = new Color(0.055f, 0.09f, 0.12f, 1f);
         [ColorUsage(false, true)] public Color HubEnergyColor = new Color(0.02f, 2.2f, 3.8f, 1f);
         [ColorUsage(false)] public Color TerminalBackdropColor = new Color(0.006f, 0.012f, 0.022f, 0.9f);
