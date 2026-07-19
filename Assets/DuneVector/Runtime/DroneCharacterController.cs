@@ -59,6 +59,8 @@ namespace DuneVector
         [Min(0f)] public float MaximumFlightSpeed = 38f;
         [Min(0f)] public float FlightAcceleration = 3.8f;
         [Min(0f)] public float FlightSteeringSharpness = 10f;
+        [Tooltip("How quickly flight removes roll inherited from grounded traversal and returns the drone's up-axis toward world-up.")]
+        [Min(0f)] public float FlightLevelingSharpness = 5f;
         [Min(0f)] public float FlightYawRate = 125f;
         [Min(0.1f)] public float FlightDuration = 14f;
         [Min(0f)] public float GroundFlightLaunchDelay = 0.5f;
@@ -298,7 +300,12 @@ namespace DuneVector
                     Motor.CharacterForward,
                     rateLimited,
                     DuneVectorMath.Sharpness(FlightSteeringSharpness, deltaTime)).normalized;
-                currentRotation = Quaternion.FromToRotation(Motor.CharacterForward, smoothedForward) * currentRotation;
+                Quaternion steeredRotation = Quaternion.FromToRotation(Motor.CharacterForward, smoothedForward) * currentRotation;
+                Quaternion leveledRotation = Quaternion.LookRotation(smoothedForward, Vector3.up);
+                currentRotation = Quaternion.Slerp(
+                    steeredRotation,
+                    leveledRotation,
+                    DuneVectorMath.Sharpness(FlightLevelingSharpness, deltaTime));
                 return;
             }
 
