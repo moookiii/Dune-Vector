@@ -911,6 +911,8 @@ namespace DuneVector
                 radius,
                 ringTuning.HealthRestored,
                 ringTuning.HealthHeartScale,
+                ringTuning.HealthHeartOffset,
+                ringTuning.HealthHeartEulerAngles,
                 identity);
             ring.BoostRingActiveScale = ringTuning.BoostRingActiveScale;
             ring.FlightModeScale = ringTuning.FlightModeScale;

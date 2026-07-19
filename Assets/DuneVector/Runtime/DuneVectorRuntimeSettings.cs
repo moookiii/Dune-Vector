@@ -217,8 +217,12 @@ namespace DuneVector
         [Min(0f)] public float HealthRingMinimumHeight = 4f;
         [Min(0f)] public float HealthRingMaximumHeight = 10f;
         [Min(0f)] public float HealthRestored = 35f;
-        [Min(0.1f)] public float HealthHeartScale = 1.4f;
-        [Min(0f)] public float HealthRingRotationSpeed;
+        [Tooltip("Target size of the imported heartpiece model at the center of a health ring.")]
+        [Min(0.1f)] public float HealthHeartScale = 2.4f;
+        public Vector3 HealthHeartOffset;
+        public Vector3 HealthHeartEulerAngles;
+        [Tooltip("Rotation speed around the health ring's local Y axis after its XZ plane billboards toward the camera.")]
+        [Min(0f)] public float HealthRingRotationSpeed = 24f;
 
         [Header("Health Ring Appearance")]
         [ColorUsage(false, true)] public Color HealthRingBaseColor = new Color(0.48f, 0.015f, 0.055f);

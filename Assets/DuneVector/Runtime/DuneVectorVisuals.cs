@@ -17,6 +17,7 @@ namespace DuneVector
         public Material FlightRing { get; }
         public Material HealthRing { get; }
         public Material HealthHeart { get; }
+        public GameObject HealthHeartModel { get; }
         public Material Trail { get; }
         public Material Cloud { get; }
         public Material Package { get; }
@@ -56,6 +57,11 @@ namespace DuneVector
                 rings.HealthMaterialSmoothness,
                 rings.HealthMaterialMetallic,
                 rings.HealthHeartEmissionColor);
+            HealthHeartModel = Resources.Load<GameObject>("heartpiece");
+            if (HealthHeartModel == null)
+            {
+                Debug.LogError("Health rings require Assets/DuneVector/Resources/heartpiece.glb.");
+            }
             Trail = CreateLit("Drone - Trail", new Color(0.0f, 0.06f, 0.08f), 0.6f, 0.1f, new Color(0.0f, 0.8f, 1.4f));
             Cloud = CreateLit("Cloud - Sunlit", new Color(0.82f, 0.88f, 0.94f), 0.08f, 0f);
             Package = CreateLit("Delivery Package", new Color(0.72f, 0.24f, 0.035f), 0.34f, 0.05f, new Color(1.4f, 0.2f, 0.01f));
@@ -245,7 +251,9 @@ namespace DuneVector
             TraversalRingType type,
             DuneVectorMaterials materials,
             float majorRadius,
-            float healthHeartScale)
+            float healthHeartScale,
+            Vector3 healthHeartOffset,
+            Vector3 healthHeartEulerAngles)
         {
             Material material = type switch
             {
@@ -255,12 +263,20 @@ namespace DuneVector
             };
             GameObject visualRoot = new GameObject("Ring Visual Root");
             visualRoot.transform.SetParent(parent, false);
+            Transform geometryParent = visualRoot.transform;
+            if (type == TraversalRingType.Health)
+            {
+                GameObject geometryObject = new GameObject("Health Ring XZ Geometry");
+                geometryParent = geometryObject.transform;
+                geometryParent.SetParent(visualRoot.transform, false);
+                geometryParent.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            }
             const float arcStart = -65f;
             const float arcSweep = 310f;
             const float tubeRadius = 0.31f;
             GameObject primary = CreateMeshObject(
                 "Open Outer Arc",
-                visualRoot.transform,
+                geometryParent,
                 GetArcTorusMesh(majorRadius, tubeRadius, 46, 8, arcStart, arcSweep),
                 material);
             DisableRendererShadows(primary);
@@ -272,7 +288,7 @@ namespace DuneVector
                 Transform cap = CreatePart(
                     PrimitiveType.Sphere,
                     $"Rounded Arc End {i + 1}",
-                    visualRoot.transform,
+                    geometryParent,
                     new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * majorRadius,
                     Vector3.one * (tubeRadius * 2f),
                     Quaternion.identity,
@@ -291,7 +307,7 @@ namespace DuneVector
                 Transform dash = CreatePart(
                     PrimitiveType.Cube,
                     $"Inner Dash {i + 1}",
-                    visualRoot.transform,
+                    geometryParent,
                     dashPosition,
                     new Vector3(0.58f, 0.1f, 0.15f),
                     Quaternion.Euler(0f, 0f, angleDegrees + 90f),
@@ -301,46 +317,85 @@ namespace DuneVector
 
             if (type == TraversalRingType.Health)
             {
-                Transform heart = CreateHealthHeartVisual(visualRoot.transform, materials.HealthHeart, healthHeartScale);
-                heart.localPosition = Vector3.zero;
+                CreateHealthHeartVisual(
+                    visualRoot.transform,
+                    materials.HealthHeartModel,
+                    materials.HealthHeart,
+                    healthHeartScale,
+                    healthHeartOffset,
+                    healthHeartEulerAngles);
             }
             return visualRoot.transform;
         }
 
-        private static Transform CreateHealthHeartVisual(Transform parent, Material material, float scale)
+        private static Transform CreateHealthHeartVisual(
+            Transform parent,
+            GameObject model,
+            Material material,
+            float targetSize,
+            Vector3 localOffset,
+            Vector3 localEulerAngles)
         {
-            GameObject heartObject = new GameObject("Health Heart");
-            Transform heart = heartObject.transform;
-            heart.SetParent(parent, false);
-            heart.localScale = Vector3.one * Mathf.Max(0.1f, scale);
+            if (model == null)
+            {
+                return null;
+            }
 
-            Transform leftLobe = CreatePart(
-                PrimitiveType.Sphere,
-                "Heart Left Lobe",
-                heart,
-                new Vector3(-0.38f, 0.28f, 0f),
-                new Vector3(0.92f, 0.92f, 0.3f),
-                Quaternion.identity,
-                material);
-            Transform rightLobe = CreatePart(
-                PrimitiveType.Sphere,
-                "Heart Right Lobe",
-                heart,
-                new Vector3(0.38f, 0.28f, 0f),
-                new Vector3(0.92f, 0.92f, 0.3f),
-                Quaternion.identity,
-                material);
-            Transform point = CreatePart(
-                PrimitiveType.Cube,
-                "Heart Point",
-                heart,
-                new Vector3(0f, -0.25f, 0f),
-                new Vector3(1.12f, 1.12f, 0.28f),
-                Quaternion.Euler(0f, 0f, 45f),
-                material);
-            DisableRendererShadows(leftLobe.gameObject);
-            DisableRendererShadows(rightLobe.gameObject);
-            DisableRendererShadows(point.gameObject);
+            GameObject heartObject = UnityEngine.Object.Instantiate(model, parent, false);
+            heartObject.name = "Health Heart - heartpiece.glb";
+            Transform heart = heartObject.transform;
+            heart.localPosition = Vector3.zero;
+            heart.localRotation = Quaternion.Euler(localEulerAngles);
+            heart.localScale = Vector3.one;
+
+            Renderer[] renderers = heartObject.GetComponentsInChildren<Renderer>(true);
+            Bounds bounds = default;
+            bool hasBounds = false;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer renderer = renderers[i];
+                Material[] modelMaterials = renderer.sharedMaterials;
+                for (int materialIndex = 0; materialIndex < modelMaterials.Length; materialIndex++)
+                {
+                    modelMaterials[materialIndex] = material;
+                }
+                renderer.sharedMaterials = modelMaterials;
+                renderer.shadowCastingMode = ShadowCastingMode.Off;
+                renderer.receiveShadows = false;
+                if (!hasBounds)
+                {
+                    bounds = renderer.bounds;
+                    hasBounds = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(renderer.bounds);
+                }
+            }
+
+            Collider[] colliders = heartObject.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                colliders[i].enabled = false;
+                UnityEngine.Object.Destroy(colliders[i]);
+            }
+
+            if (hasBounds)
+            {
+                float largestDimension = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
+                if (largestDimension > 0.0001f)
+                {
+                    heart.localScale = Vector3.one * (Mathf.Max(0.1f, targetSize) / largestDimension);
+
+                    Bounds scaledBounds = renderers[0].bounds;
+                    for (int i = 1; i < renderers.Length; i++)
+                    {
+                        scaledBounds.Encapsulate(renderers[i].bounds);
+                    }
+                    heart.position += parent.position - scaledBounds.center;
+                }
+            }
+            heart.localPosition += localOffset;
             return heart;
         }
 

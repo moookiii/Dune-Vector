@@ -46,6 +46,8 @@ namespace DuneVector
         private DuneVectorMaterials _materials;
         private float _majorRadius;
         private float _healthHeartScale;
+        private Vector3 _healthHeartOffset;
+        private Vector3 _healthHeartEulerAngles;
         private TraversalRing _upperLayerRing;
 
         public void Initialize(
@@ -56,6 +58,8 @@ namespace DuneVector
             float majorRadius,
             float healthRestored,
             float healthHeartScale,
+            Vector3 healthHeartOffset,
+            Vector3 healthHeartEulerAngles,
             string identity)
         {
             RingType = type;
@@ -65,10 +69,19 @@ namespace DuneVector
             _materials = materials;
             _majorRadius = majorRadius;
             _healthHeartScale = healthHeartScale;
+            _healthHeartOffset = healthHeartOffset;
+            _healthHeartEulerAngles = healthHeartEulerAngles;
             InnerRadius = majorRadius - 0.58f;
             ProceduralIdentity = identity;
             _restingLocalPosition = transform.localPosition;
-            _visualRoot = DuneVectorVisuals.CreateRingVisual(transform, type, materials, majorRadius, healthHeartScale);
+            _visualRoot = DuneVectorVisuals.CreateRingVisual(
+                transform,
+                type,
+                materials,
+                majorRadius,
+                healthHeartScale,
+                healthHeartOffset,
+                healthHeartEulerAngles);
             gameObject.name = type switch
             {
                 TraversalRingType.GroundBoost => "Ground Boost Ring",
@@ -108,6 +121,8 @@ namespace DuneVector
                 _majorRadius,
                 _healthRestored,
                 _healthHeartScale,
+                _healthHeartOffset,
+                _healthHeartEulerAngles,
                 $"{ProceduralIdentity}:upper");
             upperRing.gameObject.name = "Upper Flight Ring";
             upperRing.FlightModeScale = FlightModeScale;
@@ -211,8 +226,16 @@ namespace DuneVector
                 return;
             }
 
-            _visualRoot.rotation = Quaternion.LookRotation(toCamera.normalized, Vector3.up)
-                * Quaternion.AngleAxis(_visualSpin, Vector3.forward);
+            if (RingType == TraversalRingType.Health)
+            {
+                _visualRoot.rotation = Quaternion.FromToRotation(Vector3.up, toCamera.normalized)
+                    * Quaternion.AngleAxis(_visualSpin, Vector3.up);
+            }
+            else
+            {
+                _visualRoot.rotation = Quaternion.LookRotation(toCamera.normalized, Vector3.up)
+                    * Quaternion.AngleAxis(_visualSpin, Vector3.forward);
+            }
         }
 
         private void TryActivate()
