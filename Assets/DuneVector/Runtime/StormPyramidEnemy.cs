@@ -167,7 +167,7 @@ namespace DuneVector
         private void UpdateIdle(float deltaTime)
         {
             _attackTimer = Mathf.Max(0f, _attackTimer - deltaTime);
-            if (_attackTimer <= 0f)
+            if (_attackTimer <= 0f && _targeting.CanTargetPlayer(transform.position))
             {
                 SetState(StormPyramidState.TrackingPlayer);
             }
@@ -175,6 +175,12 @@ namespace DuneVector
 
         private void UpdateTracking()
         {
+            if (!_targeting.CanTargetPlayer(transform.position))
+            {
+                SetState(StormPyramidState.IdleHovering);
+                return;
+            }
+
             FacePosition(_player.WorldCenter, 6f);
             if (_stateTime < _settings.TrackingDuration)
             {
@@ -417,14 +423,12 @@ namespace DuneVector
         public bool CanTargetPlayer(Vector3 origin)
         {
             return _player != null
-                && _player.CurrentMode == DroneTraversalMode.Flight
                 && Vector3.Distance(origin, _player.WorldCenter) <= _settings.DetectionRange;
         }
 
-        public Vector3 GetPredictedPlayerPosition()
+        public Vector3 GetPlayerPosition()
         {
-            Vector3 velocity = _player.Motor != null ? _player.Motor.Velocity : Vector3.zero;
-            return _player.WorldCenter + (velocity * _settings.PlayerPredictionTime);
+            return _player.WorldCenter;
         }
 
         public Vector3 GetGroundPointBelow(Vector3 origin)
@@ -450,7 +454,7 @@ namespace DuneVector
             {
                 return new StormLightningTarget(
                     StormLightningAttackType.PlayerStrike,
-                    _targeting.GetPredictedPlayerPosition());
+                    _targeting.GetPlayerPosition());
             }
 
             return new StormLightningTarget(
