@@ -223,6 +223,7 @@ namespace DuneVector
         [Tooltip("Delay before beginning another player-targeted strike after returning to idle.")]
         [Min(0.1f)] public float PlayerStrikeAttackInterval = 4.5f;
         [Tooltip("Charge duration for a straight-down ground strike.")]
+        [InspectorName("Ground Strike Charge Time")]
         [Min(0.1f)] public float ChargeTime = 1.15f;
         [Tooltip("Charge duration for a player-targeted strike that is not straight down.")]
         [Min(0.1f)] public float PlayerStrikeChargeTime = 0.9f;
@@ -348,6 +349,7 @@ namespace DuneVector
         [Min(0f)] public float HealthPickupFeedbackTop = 170f;
         [Min(24f)] public float HealthPickupFeedbackHeight = 48f;
         [ColorUsage(false)] public Color HealthPickupFeedbackColor = new Color(1f, 0.32f, 0.5f, 1f);
+
         [Header("Coin Rings")]
         [Tooltip("Expected coin-ring count per streamed terrain chunk.")]
         [Range(0f, 1f)] public float CoinRingDensityPerChunk = 0.12f;
