@@ -100,7 +100,9 @@ namespace DuneVector
 
             CurrentStamina = Mathf.Min(
                 maximum,
-                CurrentStamina + (Mathf.Max(0f, _settings.RegenRate) * deltaTime));
+                CurrentStamina + (Mathf.Max(
+                    0f,
+                    exhausted ? _settings.ExhaustedRegenRate : _settings.RegenRate) * deltaTime));
             if (CurrentStamina >= maximum)
             {
                 CurrentStamina = maximum;

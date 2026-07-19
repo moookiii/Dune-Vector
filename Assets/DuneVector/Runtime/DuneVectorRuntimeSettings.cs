@@ -1046,6 +1046,8 @@ namespace DuneVector
         [Min(0f)] public float DrainRate = 25f;
         [Min(0f)] public float RegenDelay = 0.8f;
         [Min(0f)] public float RegenRate = 30f;
+        [Tooltip("Stamina restored per second after stamina has bottomed out.")]
+        [Min(0f)] public float ExhaustedRegenRate = 15f;
 
         [Header("Speed Boost")]
         [Min(0f)] public float BoostAcceleration = 2.4f;
