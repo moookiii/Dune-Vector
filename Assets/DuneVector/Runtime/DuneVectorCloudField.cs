@@ -96,8 +96,13 @@ namespace DuneVector
                     Range(random, -shape.PitchRollVariation, shape.PitchRollVariation),
                     OrderedRange(random, shape.YawRange),
                     Range(random, -shape.PitchRollVariation, shape.PitchRollVariation));
+                Vector3 clusterScale = RandomScale(random, shape.MinimumScale, shape.MaximumScale);
+                float horizontalAverage = (clusterScale.x + clusterScale.z) * 0.5f;
+                float clusterRoundness = Mathf.Clamp01(tuning.ClusterHorizontalRoundness);
+                clusterScale.x = Mathf.Lerp(clusterScale.x, horizontalAverage, clusterRoundness);
+                clusterScale.z = Mathf.Lerp(clusterScale.z, horizontalAverage, clusterRoundness);
                 cluster.localScale = Vector3.Scale(
-                    RandomScale(random, shape.MinimumScale, shape.MaximumScale),
+                    clusterScale,
                     PositiveScale(arrangement.ScaleMultiplier));
 
                 List<Renderer> renderers = new List<Renderer>(2);
@@ -131,8 +136,20 @@ namespace DuneVector
                     continue;
                 }
 
-                Mesh sunlit = BuildLayerMesh(definition.DisplayName, "Sunlit", facetedSphere, definition.SunlitLobes);
-                Mesh underbelly = BuildLayerMesh(definition.DisplayName, "Underbelly", facetedSphere, definition.UnderbellyLobes);
+                Mesh sunlit = BuildLayerMesh(
+                    definition.DisplayName,
+                    "Sunlit",
+                    facetedSphere,
+                    definition.SunlitLobes,
+                    tuning.LobeHorizontalRoundness,
+                    tuning.LobeDepthSpread);
+                Mesh underbelly = BuildLayerMesh(
+                    definition.DisplayName,
+                    "Underbelly",
+                    facetedSphere,
+                    definition.UnderbellyLobes,
+                    tuning.LobeHorizontalRoundness,
+                    tuning.LobeDepthSpread);
                 if (sunlit == null && underbelly == null)
                 {
                     continue;
@@ -156,24 +173,40 @@ namespace DuneVector
             string archetypeName,
             string layerName,
             Mesh sourceMesh,
-            CloudLobeTuning[] lobes)
+            CloudLobeTuning[] lobes,
+            float horizontalRoundness,
+            float depthSpread)
         {
             if (lobes == null || lobes.Length == 0)
             {
                 return null;
             }
 
+            float maximumLateralOffset = 0f;
+            for (int i = 0; i < lobes.Length; i++)
+            {
+                maximumLateralOffset = Mathf.Max(maximumLateralOffset, Mathf.Abs(lobes[i].Position.x));
+            }
+            float roundedAmount = Mathf.Clamp01(horizontalRoundness);
+            float depthAmount = Mathf.Clamp(depthSpread, 0f, 0.75f);
             CombineInstance[] instances = new CombineInstance[lobes.Length];
             for (int i = 0; i < lobes.Length; i++)
             {
                 CloudLobeTuning lobe = lobes[i];
+                Vector3 lobeScale = PositiveScale(lobe.Scale);
+                float broadestHorizontalAxis = Mathf.Max(lobeScale.x, lobeScale.z);
+                lobeScale.x = Mathf.Lerp(lobeScale.x, broadestHorizontalAxis, roundedAmount);
+                lobeScale.z = Mathf.Lerp(lobeScale.z, broadestHorizontalAxis, roundedAmount);
+                Vector3 lobePosition = lobe.Position;
+                float depthPhase = (i + 1f) * 2.399963f;
+                lobePosition.z += Mathf.Sin(depthPhase) * maximumLateralOffset * depthAmount;
                 instances[i] = new CombineInstance
                 {
                     mesh = sourceMesh,
                     transform = Matrix4x4.TRS(
-                        lobe.Position,
+                        lobePosition,
                         Quaternion.Euler(lobe.Rotation),
-                        PositiveScale(lobe.Scale)),
+                        lobeScale),
                 };
             }
 

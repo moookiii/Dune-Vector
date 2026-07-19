@@ -113,6 +113,14 @@ namespace DuneVector
         [Range(0, 2)] public int FacetSubdivisions;
         [Range(0.0001f, 0.1f)] public float CullScreenRelativeHeight;
 
+        [Header("Silhouette Roundness")]
+        [Tooltip("Blends each cloud cluster's horizontal X/Z scale toward an even oval footprint.")]
+        [Range(0f, 1f)] public float ClusterHorizontalRoundness = 0.65f;
+        [Tooltip("Expands the narrower horizontal axis of each cloud lobe to prevent thin sausage silhouettes.")]
+        [Range(0f, 1f)] public float LobeHorizontalRoundness = 0.72f;
+        [Tooltip("Offsets lobes through the cloud's depth so side views remain broad instead of collapsing into a line.")]
+        [Range(0f, 0.75f)] public float LobeDepthSpread = 0.28f;
+
         [Header("Authored Archetype Kit")]
         public CloudArchetypeTuning LongStretched;
         public CloudArchetypeTuning CompactPuffy;
