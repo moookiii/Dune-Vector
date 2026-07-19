@@ -278,7 +278,9 @@ namespace DuneVector
     public sealed class DuneVectorEnemyDirector : MonoBehaviour
     {
         private readonly List<SkyPiercerEnemy> _enemies = new List<SkyPiercerEnemy>();
+        private readonly List<SkyPiercerEnemy> _riskEnemies = new List<SkyPiercerEnemy>();
         private DroneCharacterController _player;
+        private DroneHealth _playerHealth;
         private DesertWorldStreamer _world;
         private DuneVectorMaterials _materials;
         private FlyingEnemyTuning _settings;
@@ -291,6 +293,7 @@ namespace DuneVector
             FlyingEnemyTuning settings)
         {
             _player = player;
+            _playerHealth = playerHealth;
             _world = world;
             _materials = materials;
             _settings = settings;
@@ -321,6 +324,14 @@ namespace DuneVector
         public void SetGameplayActive(bool active)
         {
             enabled = active;
+            if (active)
+            {
+                SpawnRiskEnemies();
+            }
+            else
+            {
+                ClearRiskEnemies();
+            }
             for (int i = 0; i < _enemies.Count; i++)
             {
                 if (_enemies[i] != null)
@@ -328,6 +339,65 @@ namespace DuneVector
                     _enemies[i].enabled = active;
                 }
             }
+        }
+
+        private void SpawnRiskEnemies()
+        {
+            ClearRiskEnemies();
+            int baseCount = Mathf.Max(1, _settings.EnemyCount);
+            int bonusCount = Mathf.CeilToInt(
+                baseCount * Mathf.Max(0f, DuneVectorContractRisk.EnemySpawnMultiplier - 1f));
+            if (bonusCount <= 0)
+            {
+                return;
+            }
+
+            int multiplierSeed = Mathf.RoundToInt(DuneVectorContractRisk.EnemySpawnMultiplier * 1000f);
+            System.Random random = new System.Random(unchecked(_world.WorldSeed ^ 0x4d31ac7 ^ multiplierSeed));
+            for (int i = 0; i < bonusCount; i++)
+            {
+                float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
+                float distance = Mathf.Lerp(
+                    _settings.MinimumSpawnDistance,
+                    Mathf.Max(_settings.MinimumSpawnDistance, _settings.MaximumSpawnDistance),
+                    (float)random.NextDouble());
+                Vector3 playerPosition = _player.WorldCenter;
+                Vector3 spawnPosition = playerPosition + new Vector3(
+                    Mathf.Cos(angle) * distance,
+                    0f,
+                    Mathf.Sin(angle) * distance);
+                spawnPosition.y = _world.SampleHeightAtLocal(spawnPosition.x, spawnPosition.z) +
+                    _settings.HoverHeight;
+
+                GameObject enemyObject = new GameObject($"Risk Sky Piercer {i + 1:00}");
+                enemyObject.transform.SetParent(transform, true);
+                enemyObject.transform.position = spawnPosition;
+                SkyPiercerEnemy enemy = enemyObject.AddComponent<SkyPiercerEnemy>();
+                enemy.Initialize(
+                    _player,
+                    _playerHealth,
+                    _world,
+                    _materials,
+                    _settings,
+                    50000 + i + 1);
+                enemy.enabled = enabled;
+                _enemies.Add(enemy);
+                _riskEnemies.Add(enemy);
+            }
+        }
+
+        private void ClearRiskEnemies()
+        {
+            for (int i = 0; i < _riskEnemies.Count; i++)
+            {
+                SkyPiercerEnemy enemy = _riskEnemies[i];
+                _enemies.Remove(enemy);
+                if (enemy != null)
+                {
+                    Destroy(enemy.gameObject);
+                }
+            }
+            _riskEnemies.Clear();
         }
 
         private void HandleWorldShift(Vector3 shift)

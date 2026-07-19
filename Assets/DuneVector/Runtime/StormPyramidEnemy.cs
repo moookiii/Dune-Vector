@@ -1617,7 +1617,9 @@ namespace DuneVector
     {
         private readonly List<StormPyramidEnemy> _enemies = new List<StormPyramidEnemy>();
         private readonly List<StormPyramidEnemy> _contractEnemies = new List<StormPyramidEnemy>();
+        private readonly List<StormPyramidEnemy> _riskEnemies = new List<StormPyramidEnemy>();
         private readonly List<PlayerStrikeOrbEnemy> _orbEnemies = new List<PlayerStrikeOrbEnemy>();
+        private readonly List<PlayerStrikeOrbEnemy> _riskOrbEnemies = new List<PlayerStrikeOrbEnemy>();
         private DroneCharacterController _player;
         private DroneHealth _playerHealth;
         private DesertWorldStreamer _world;
@@ -1762,6 +1764,14 @@ namespace DuneVector
         public void SetGameplayActive(bool active)
         {
             enabled = active;
+            if (active)
+            {
+                SpawnRiskEnemies();
+            }
+            else
+            {
+                ClearRiskEnemies();
+            }
             for (int i = 0; i < _enemies.Count; i++)
             {
                 if (_enemies[i] != null)
@@ -1780,6 +1790,67 @@ namespace DuneVector
             {
                 _warningHud.enabled = active;
             }
+        }
+
+        private void SpawnRiskEnemies()
+        {
+            ClearRiskEnemies();
+            float bonusMultiplier = Mathf.Max(0f, DuneVectorContractRisk.EnemySpawnMultiplier - 1f);
+            int multiplierSeed = Mathf.RoundToInt(DuneVectorContractRisk.EnemySpawnMultiplier * 1000f);
+            System.Random random = new System.Random(unchecked(_world.WorldSeed ^ 0x38bde17 ^ multiplierSeed));
+
+            if (_settings.Enabled)
+            {
+                int bonusCount = Mathf.CeilToInt(Mathf.Max(1, _settings.EnemyCount) * bonusMultiplier);
+                for (int i = 0; i < bonusCount; i++)
+                {
+                    StormPyramidEnemy enemy = SpawnEnemy(
+                        random,
+                        $"Risk Storm Pyramid {i + 1:00}",
+                        60000 + i + 1);
+                    enemy.enabled = enabled;
+                    _riskEnemies.Add(enemy);
+                }
+            }
+
+            if (_orbSettings.Enabled)
+            {
+                int bonusCount = Mathf.CeilToInt(Mathf.Max(1, _orbSettings.EnemyCount) * bonusMultiplier);
+                for (int i = 0; i < bonusCount; i++)
+                {
+                    PlayerStrikeOrbEnemy enemy = SpawnOrbEnemy(
+                        random,
+                        $"Risk Strike Orb {i + 1:00}",
+                        70000 + i + 1);
+                    enemy.enabled = enabled;
+                    _riskOrbEnemies.Add(enemy);
+                }
+            }
+        }
+
+        private void ClearRiskEnemies()
+        {
+            for (int i = 0; i < _riskEnemies.Count; i++)
+            {
+                StormPyramidEnemy enemy = _riskEnemies[i];
+                _enemies.Remove(enemy);
+                if (enemy != null)
+                {
+                    Destroy(enemy.gameObject);
+                }
+            }
+            _riskEnemies.Clear();
+
+            for (int i = 0; i < _riskOrbEnemies.Count; i++)
+            {
+                PlayerStrikeOrbEnemy enemy = _riskOrbEnemies[i];
+                _orbEnemies.Remove(enemy);
+                if (enemy != null)
+                {
+                    Destroy(enemy.gameObject);
+                }
+            }
+            _riskOrbEnemies.Clear();
         }
 
         private void HandleWorldShift(Vector3 shift)

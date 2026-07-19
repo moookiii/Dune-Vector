@@ -750,6 +750,8 @@ namespace DuneVector
 
         private void SpawnAttackers(DynamicCourierAgent target, int count)
         {
+            count = Mathf.Max(1, Mathf.CeilToInt(
+                count * DuneVectorContractRisk.EnemySpawnMultiplier));
             for (int i = 0; i < count; i++)
             {
                 float phase = (Mathf.PI * 2f * i) / Mathf.Max(1, count);

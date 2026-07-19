@@ -241,6 +241,8 @@ namespace DuneVector
             {
                 count += _settings.HighValueFormationSizeBonus;
             }
+            count = Mathf.Max(1, Mathf.CeilToInt(
+                count * DuneVectorContractRisk.EnemySpawnMultiplier));
 
             for (int i = 0; i < count; i++)
             {

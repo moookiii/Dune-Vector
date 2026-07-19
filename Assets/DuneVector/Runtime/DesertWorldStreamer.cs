@@ -1290,6 +1290,7 @@ namespace DuneVector
             }
 
             int count = CountFromDensity(settings.DensityPerChunk, coordinate, worldSeed, 1201);
+            count = Mathf.CeilToInt(count * DuneVectorContractRisk.EnemySpawnMultiplier);
             for (int i = 0; i < count; i++)
             {
                 Vector2 local = new Vector2(

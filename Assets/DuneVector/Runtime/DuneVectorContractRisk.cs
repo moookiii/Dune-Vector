@@ -9,6 +9,7 @@ namespace DuneVector
         public static float EnemySpeedMultiplier { get; private set; } = 1f;
         public static float EnemyDamageMultiplier { get; private set; } = 1f;
         public static float EnemyAttackRateMultiplier { get; private set; } = 1f;
+        public static float EnemySpawnMultiplier { get; private set; } = 1f;
 
         public static float GetRewardMultiplier(CourierContractTuning settings, int risk)
         {
@@ -27,6 +28,9 @@ namespace DuneVector
                 (additionalRisk * Mathf.Max(0f, settings.RiskEnemyDamageMultiplierPerTier));
             EnemyAttackRateMultiplier = 1f +
                 (additionalRisk * Mathf.Max(0f, settings.RiskEnemyAttackRateMultiplierPerTier));
+            EnemySpawnMultiplier = Mathf.Min(
+                Mathf.Max(1f, settings.RiskMaximumEnemySpawnMultiplier),
+                1f + (additionalRisk * Mathf.Max(0f, settings.RiskEnemySpawnMultiplierPerTier)));
         }
 
         public static void Reset()
@@ -35,6 +39,7 @@ namespace DuneVector
             EnemySpeedMultiplier = 1f;
             EnemyDamageMultiplier = 1f;
             EnemyAttackRateMultiplier = 1f;
+            EnemySpawnMultiplier = 1f;
         }
     }
 

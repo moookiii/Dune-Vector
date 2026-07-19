@@ -1158,20 +1158,36 @@ namespace DuneVector
         private void ConfigureHighValueWorldThreats()
         {
             bool highValue = ActiveContract != null && ActiveContract.Has(CourierContractModifier.HighValue);
-            if (highValue)
+            int riskBonusGroundEnemies = Mathf.CeilToInt(
+                Mathf.Max(0f, DuneVectorContractRisk.EnemySpawnMultiplier - 1f) *
+                Mathf.Max(1, _settings.RiskGroundEnemyReferenceCount));
+            int highValueGroundEnemies = highValue && _routeEncounterDirector != null
+                ? _routeEncounterDirector.Settings.HighValueGroundEnemyBonus
+                : 0;
+            int totalGroundEnemies = highValueGroundEnemies + riskBonusGroundEnemies;
+            if (totalGroundEnemies > 0)
             {
                 _world.SetContractGroundExploders(
-                    _routeEncounterDirector != null ? _routeEncounterDirector.Settings.HighValueGroundEnemyBonus : 0,
+                    totalGroundEnemies,
                     _routeEncounterDirector != null ? _routeEncounterDirector.Settings.HighValueGroundEnemyMinimumSpawnDistance : 0f,
                     _routeEncounterDirector != null ? _routeEncounterDirector.Settings.HighValueGroundEnemyMaximumSpawnDistance : 0f,
                     ActiveContract.Seed);
+            }
+            else
+            {
+                _world.ClearContractGroundExploders();
+            }
+
+            if (highValue)
+            {
                 _stormDirector?.SetContractBonusEnemies(
                     _routeEncounterDirector != null ? _routeEncounterDirector.Settings.HighValueStormPyramidBonus : 0,
                     ActiveContract.Seed);
-                return;
             }
-            _world.ClearContractGroundExploders();
-            _stormDirector?.ClearContractBonusEnemies();
+            else
+            {
+                _stormDirector?.ClearContractBonusEnemies();
+            }
         }
 
         private void BuildDeliveryObjective()
