@@ -162,6 +162,7 @@ namespace DuneVector
         private DuneVectorDustDevilSystem _dustDevils;
         private DustDevilTuning _dustDevilSettings;
         private int _activeDustDevilId = int.MinValue;
+        private bool _entryLaunchApplied;
         private bool _launchedByActiveDustDevil;
 
         private bool _flightRequested;
@@ -423,6 +424,7 @@ namespace DuneVector
                 CurrentDustDevilInfluence = 0f;
                 CurrentDustDevilCoreInfluence = 0f;
                 _activeDustDevilId = int.MinValue;
+                _entryLaunchApplied = false;
                 _launchedByActiveDustDevil = false;
                 return;
             }
@@ -434,6 +436,7 @@ namespace DuneVector
             if (sample.Influence <= 0f)
             {
                 _activeDustDevilId = int.MinValue;
+                _entryLaunchApplied = false;
                 _launchedByActiveDustDevil = false;
                 return;
             }
@@ -441,13 +444,18 @@ namespace DuneVector
             if (_activeDustDevilId != sample.SourceId)
             {
                 _activeDustDevilId = sample.SourceId;
+                _entryLaunchApplied = false;
                 _launchedByActiveDustDevil = false;
             }
 
-            if (Motor.GroundingStatus.IsStableOnGround
+            if (!_entryLaunchApplied
                 && sample.Influence >= _dustDevilSettings.GroundLaunchInfluenceThreshold)
             {
+                _entryLaunchApplied = true;
                 Motor.ForceUnground();
+                currentVelocity.y = Mathf.Max(
+                    currentVelocity.y,
+                    _dustDevilSettings.MinimumEntryLaunchSpeed);
             }
 
             Vector3 planarVelocity = Vector3.ProjectOnPlane(currentVelocity, Vector3.up);
