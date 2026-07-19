@@ -329,6 +329,10 @@ namespace DuneVector
                 GroundExploders,
                 HandleTraversalRingActivated);
             _chunks.Add(coordinate, chunk);
+            if (IsUpperFlightRingUnlocked)
+            {
+                chunk.SpawnUpperFlightLayers(Rings.UpperFlightRingVerticalSeparation);
+            }
             GeneratedChunkCount++;
             PeakActiveChunkCount = Mathf.Max(PeakActiveChunkCount, _chunks.Count);
         }
@@ -357,7 +361,16 @@ namespace DuneVector
             int requiredPasses = Mathf.Max(1, Rings.UpperFlightRingRequiredPasses);
             if (_activatedFlightRingIdentities.Count >= requiredPasses)
             {
-                ring.SpawnUpperFlightLayer(Rings.UpperFlightRingVerticalSeparation);
+                SpawnUpperFlightLayersForLoadedChunks();
+            }
+        }
+
+        private void SpawnUpperFlightLayersForLoadedChunks()
+        {
+            float separation = Rings.UpperFlightRingVerticalSeparation;
+            foreach (DesertChunk chunk in _chunks.Values)
+            {
+                chunk.SpawnUpperFlightLayers(separation);
             }
         }
 
@@ -513,6 +526,18 @@ namespace DuneVector
                 if (_groundExploders[i] != null)
                 {
                     _groundExploders[i].BindTargets(player, playerHealth);
+                }
+            }
+        }
+
+        public void SpawnUpperFlightLayers(float verticalSeparation)
+        {
+            for (int i = 0; i < _rings.Count; i++)
+            {
+                TraversalRing ring = _rings[i];
+                if (ring != null && ring.RingType == TraversalRingType.Flight)
+                {
+                    ring.SpawnUpperFlightLayer(verticalSeparation);
                 }
             }
         }
