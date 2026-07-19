@@ -162,19 +162,25 @@ namespace DuneVector
 
         private Camera _camera;
         private EnergyLauncherTuning _settings;
+        private DuneVectorCourierGame _courierGame;
         private float _scanTimer;
         private float _outsideTargetAreaTime;
 
-        public void Initialize(Camera camera, EnergyLauncherTuning settings)
+        public void Initialize(
+            Camera camera,
+            EnergyLauncherTuning settings,
+            DuneVectorCourierGame courierGame = null)
         {
             _camera = camera;
             _settings = settings;
+            _courierGame = courierGame;
             _scanTimer = 0f;
         }
 
         private void LateUpdate()
         {
-            if (_camera == null || _settings == null || !_settings.Enabled)
+            if (_camera == null || _settings == null || !_settings.Enabled
+                || (_courierGame != null && _courierGame.State == CourierRunState.Hub))
             {
                 SelectTarget(null);
                 return;

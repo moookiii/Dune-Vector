@@ -669,7 +669,7 @@ namespace DuneVector
             weaponObject.transform.SetParent(transform, false);
 
             TargetDetector = weaponObject.AddComponent<DroneTargetDetector>();
-            TargetDetector.Initialize(DroneCamera.Camera, EnergyLauncherSettings);
+            TargetDetector.Initialize(DroneCamera.Camera, EnergyLauncherSettings, CourierGame);
             LockOnController = weaponObject.AddComponent<DroneLockOnController>();
             LockOnController.Initialize(TargetDetector, EnergyLauncherSettings, PermanentUpgrades);
             AudioManager?.BindLockOnController(LockOnController);
