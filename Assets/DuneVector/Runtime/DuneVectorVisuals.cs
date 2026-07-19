@@ -87,10 +87,11 @@ namespace DuneVector
                 droneVisuals.FrameSmoothness,
                 droneVisuals.FrameMetallic);
             DroneWingInlay = CreateLit(
-                "Drone - Black Wing Inlay",
+                "Drone - Wing Inlay",
                 droneVisuals.WingInlayColor,
                 droneVisuals.WingInlaySmoothness,
-                droneVisuals.WingInlayMetallic);
+                droneVisuals.WingInlayMetallic,
+                droneVisuals.WingInlayEmission);
             Cactus = CreateLit("Cactus - Stylized", new Color(0.08f, 0.31f, 0.16f), 0.25f, 0f);
             if (shrubTuning != null)
             {
