@@ -77,7 +77,10 @@ namespace DuneVector
 
             ConfigureLitColors(StormPyramidBody, settings.BodyColor, settings.BodyEmission);
             ConfigureLitColors(StormPyramidCore, settings.CoreColor, settings.CoreEmission);
-            ConfigureLitColors(Lightning, settings.LightningColor, settings.LightningEmission);
+            ConfigureLitColors(
+                Lightning,
+                settings.LightningColor,
+                settings.LightningEmission * settings.LightningBloomIntensity);
             ConfigureLitColors(LightningWarning, settings.WarningColor, settings.WarningEmission);
         }
 

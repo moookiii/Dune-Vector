@@ -139,6 +139,8 @@ namespace DuneVector
         [Min(0.05f)] public float LightningVisualDuration = 0.28f;
         [Min(0.01f)] public float ChargeTelegraphWidth = 0.12f;
         [Min(0.01f)] public float LightningWidth = 0.48f;
+        [Tooltip("Multiplies only the lightning bolt emission, creating a stronger HDR bloom halo.")]
+        [Min(0f)] public float LightningBloomIntensity = 4f;
 
         [Header("Presentation")]
         [Min(0.1f)] public float VisualScale = 2.2f;
