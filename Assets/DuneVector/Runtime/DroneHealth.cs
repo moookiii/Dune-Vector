@@ -47,6 +47,11 @@ namespace DuneVector
 
         public bool TakeDamage(float damage)
         {
+            return TakeDamage(damage, "Unknown damage source");
+        }
+
+        public bool TakeDamage(float damage, string damageSource)
+        {
             if (IsDead || damage <= 0f || Time.time < _nextDamageTime)
             {
                 return false;
@@ -60,6 +65,7 @@ namespace DuneVector
             if (CurrentHealth <= 0f)
             {
                 IsDead = true;
+                Debug.Log($"Player killed by {damageSource} (final hit: {previousHealth - CurrentHealth:0.##} damage).", this);
                 Died?.Invoke();
             }
             return true;

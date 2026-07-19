@@ -384,7 +384,7 @@ namespace DuneVector
 
             float distance01 = Mathf.Clamp01(distance / radius);
             float damage = maximumDamage * (1f - distance01);
-            _health.TakeDamage(damage);
+            _health.TakeDamage(damage, "Ground exploder blast");
         }
     }
 

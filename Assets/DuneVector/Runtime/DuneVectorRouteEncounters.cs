@@ -593,7 +593,7 @@ namespace DuneVector
             if (!_contactDamageApplied && playerDistance <= _settings.ContactRadius)
             {
                 _contactDamageApplied = true;
-                _health.TakeDamage(_settings.ContactDamage);
+                _health.TakeDamage(_settings.ContactDamage, "Formation enemy collision");
             }
             if (Vector3.Distance(transform.position, _passTarget) <= 2f)
             {
@@ -635,7 +635,7 @@ namespace DuneVector
                 {
                     if (Vector3.Distance(_player.WorldCenter, _telegraphedPoint) <= _settings.ShotHitRadius)
                     {
-                        _health.TakeDamage(_settings.ShotDamage);
+                        _health.TakeDamage(_settings.ShotDamage, "Formation enemy shot");
                     }
                     _shotTimer = _settings.ShotInterval;
                     _shotVisualTimer = _settings.ShotVisualDuration;
