@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace DuneVector
 {
@@ -14,6 +15,7 @@ namespace DuneVector
         private float _visibleAlpha;
         private float _fullIdleTime;
         private float _restoredFeedbackRemaining;
+        private Material _arcMaterial;
 
         public void Initialize(
             DroneCharacterController drone,
@@ -71,39 +73,25 @@ namespace DuneVector
                 Mathf.Clamp(viewportPosition.x + _settings.MeterScreenOffset.x, padding, Screen.width - padding),
                 Mathf.Clamp(Screen.height - viewportPosition.y + _settings.MeterScreenOffset.y, padding, Screen.height - padding));
 
-            int segments = Mathf.Max(1, _settings.MeterSegments);
             float stamina01 = _stamina.NormalizedStamina;
-            float filledSegments = stamina01 * segments;
             Color meterColor = GetMeterColor(stamina01);
             float pulse = GetPulse();
 
-            Color previousColor = GUI.color;
-            Matrix4x4 previousMatrix = GUI.matrix;
-            for (int index = 0; index < segments; index++)
+            if (Event.current.type == EventType.Repaint && EnsureArcMaterial())
             {
-                float segment01 = segments > 1 ? index / (float)(segments - 1) : 0f;
-                float angle = _settings.MeterArcStartDegrees + (_settings.MeterArcDegrees * segment01);
-                float radians = angle * Mathf.Deg2Rad;
-                Vector2 radial = new Vector2(Mathf.Cos(radians), Mathf.Sin(radians));
-                Vector2 segmentCenter = center + (radial * _settings.MeterRadius * pulse);
-                float segmentLength = Mathf.Max(
-                    _settings.MeterThickness,
-                    (Mathf.Deg2Rad * _settings.MeterArcDegrees * _settings.MeterRadius / segments) * 0.72f);
-                Rect segmentRect = new Rect(
-                    segmentCenter.x - (segmentLength * 0.5f),
-                    segmentCenter.y - (_settings.MeterThickness * 0.5f),
-                    segmentLength,
-                    _settings.MeterThickness);
+                Color backgroundColor = _settings.MeterBackgroundColor;
+                if (_stamina.State == DroneStaminaState.Exhausted)
+                {
+                    backgroundColor.r = _settings.EmptyColor.r;
+                    backgroundColor.g = _settings.EmptyColor.g;
+                    backgroundColor.b = _settings.EmptyColor.b;
+                }
+                backgroundColor.a *= _visibleAlpha;
+                meterColor.a *= _visibleAlpha;
 
-                GUIUtility.RotateAroundPivot(angle + 90f, segmentCenter);
-                Color color = index < filledSegments ? meterColor : _settings.MeterBackgroundColor;
-                color.a *= _visibleAlpha;
-                GUI.color = color;
-                GUI.DrawTexture(segmentRect, Texture2D.whiteTexture);
-                GUI.matrix = previousMatrix;
+                DrawContinuousArc(center, pulse, _settings.MeterArcDegrees, backgroundColor);
+                DrawContinuousArc(center, pulse, _settings.MeterArcDegrees * stamina01, meterColor);
             }
-            GUI.color = previousColor;
-            GUI.matrix = previousMatrix;
 
             string label = GetLabel(stamina01);
             if (string.IsNullOrEmpty(label))
@@ -148,7 +136,7 @@ namespace DuneVector
             }
             if (_stamina.State == DroneStaminaState.Exhausted)
             {
-                return _settings.EmptyLabel;
+                return stamina01 > 0f ? _settings.RegeneratingLabel : _settings.EmptyLabel;
             }
             if (_stamina.State == DroneStaminaState.Regenerating)
             {
@@ -186,6 +174,71 @@ namespace DuneVector
                 fontSize = Mathf.Max(8, _settings.MeterLabelFontSize),
                 clipping = TextClipping.Overflow,
             };
+        }
+
+        private bool EnsureArcMaterial()
+        {
+            if (_arcMaterial != null)
+            {
+                return true;
+            }
+
+            Shader shader = Shader.Find("Hidden/Internal-Colored");
+            if (shader == null)
+            {
+                return false;
+            }
+
+            _arcMaterial = new Material(shader)
+            {
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            _arcMaterial.SetInt("_SrcBlend", (int)BlendMode.SrcAlpha);
+            _arcMaterial.SetInt("_DstBlend", (int)BlendMode.OneMinusSrcAlpha);
+            _arcMaterial.SetInt("_Cull", (int)CullMode.Off);
+            _arcMaterial.SetInt("_ZWrite", 0);
+            return true;
+        }
+
+        private void DrawContinuousArc(Vector2 center, float pulse, float arcDegrees, Color color)
+        {
+            if (Mathf.Abs(arcDegrees) <= 0.001f || color.a <= 0f)
+            {
+                return;
+            }
+
+            int fullResolution = Mathf.Max(32, _settings.MeterArcResolution);
+            int steps = Mathf.Max(1, Mathf.CeilToInt(fullResolution * (Mathf.Abs(arcDegrees) / 360f)));
+            float radius = Mathf.Max(0f, _settings.MeterRadius * pulse);
+            float halfThickness = Mathf.Max(0.5f, _settings.MeterThickness * 0.5f);
+
+            _arcMaterial.SetPass(0);
+            GL.PushMatrix();
+            GL.LoadPixelMatrix(0f, Screen.width, Screen.height, 0f);
+            GL.Begin(GL.QUADS);
+            GL.Color(color);
+            for (int index = 0; index < steps; index++)
+            {
+                float angle0 = (_settings.MeterArcStartDegrees + (arcDegrees * (index / (float)steps))) * Mathf.Deg2Rad;
+                float angle1 = (_settings.MeterArcStartDegrees + (arcDegrees * ((index + 1f) / steps))) * Mathf.Deg2Rad;
+                Vector2 radial0 = new Vector2(Mathf.Cos(angle0), Mathf.Sin(angle0));
+                Vector2 radial1 = new Vector2(Mathf.Cos(angle1), Mathf.Sin(angle1));
+
+                GL.Vertex(center + (radial0 * (radius - halfThickness)));
+                GL.Vertex(center + (radial0 * (radius + halfThickness)));
+                GL.Vertex(center + (radial1 * (radius + halfThickness)));
+                GL.Vertex(center + (radial1 * (radius - halfThickness)));
+            }
+            GL.End();
+            GL.PopMatrix();
+        }
+
+        private void OnDestroy()
+        {
+            if (_arcMaterial != null)
+            {
+                Destroy(_arcMaterial);
+            }
         }
     }
 }

@@ -672,7 +672,8 @@ namespace DuneVector
         public Vector2 MeterScreenOffset = new Vector2(62f, 4f);
         [Min(8f)] public float MeterRadius = 28f;
         [Min(1f)] public float MeterThickness = 5f;
-        [Range(8, 64)] public int MeterSegments = 28;
+        [Tooltip("Tessellation used to keep the continuous ring visually smooth; this does not create visible tick marks.")]
+        [Range(32, 256)] public int MeterArcResolution = 128;
         [Range(90f, 360f)] public float MeterArcDegrees = 280f;
         public float MeterArcStartDegrees = 130f;
         [Min(0f)] public float ScreenEdgePadding = 38f;
