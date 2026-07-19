@@ -542,55 +542,196 @@ namespace DuneVector
             return root;
         }
 
-        public static Transform CreateStormPyramidVisual(Transform parent, DuneVectorMaterials materials, float scale)
+        public static Transform CreateStormPyramidVisual(
+            Transform parent,
+            DuneVectorMaterials materials,
+            StormPyramidTuning settings)
         {
             GameObject rootObject = new GameObject("Storm Pyramid Visual");
             Transform root = rootObject.transform;
             root.SetParent(parent, false);
-            root.localScale = Vector3.one * scale;
+            root.localScale = Vector3.one * settings.VisualScale;
 
-            GameObject body = CreateMeshObject("Inverted Pyramid Body", root, GetPyramidMesh(), materials.StormPyramidBody);
-            body.transform.localRotation = Quaternion.Euler(180f, 0f, 0f);
-            body.transform.localScale = new Vector3(2.4f, 2.8f, 2.4f);
+            GameObject armorRotorObject = new GameObject("Armor Rotor");
+            Transform armorRotor = armorRotorObject.transform;
+            armorRotor.SetParent(root, false);
 
-            float[] bandHeights = { -0.5f, -1.35f, -2.2f };
-            float[] bandWidths = { 4.15f, 3.05f, 1.95f };
-            for (int i = 0; i < bandHeights.Length; i++)
+            float bodyWidth = Mathf.Max(0.1f, settings.BodyWidth);
+            float bodyHeight = Mathf.Max(0.1f, settings.BodyHeight);
+            float bodyHalfWidth = bodyWidth * 0.5f;
+            float cornerCut = Mathf.Clamp(settings.BodyCornerCut, 0f, bodyHalfWidth * 0.9f);
+            CreateMeshObject(
+                "Faceted Inverted Pyramid Hull",
+                armorRotor,
+                GetStormPyramidMesh(bodyWidth, bodyHeight, cornerCut),
+                materials.StormPyramidBody);
+
+            int bandCount = Mathf.Max(1, settings.EnergyBandCount);
+            float bandStart = Mathf.Clamp01(Mathf.Min(settings.EnergyBandStart, settings.EnergyBandEnd));
+            float bandEnd = Mathf.Clamp01(Mathf.Max(settings.EnergyBandStart, settings.EnergyBandEnd));
+            float bandThickness = Mathf.Max(0.005f, settings.EnergyBandThickness);
+            for (int i = 0; i < bandCount; i++)
             {
-                Transform band = CreatePart(
-                    PrimitiveType.Cube,
-                    $"Electrical Band {i + 1}",
-                    root,
-                    new Vector3(0f, bandHeights[i], 0f),
-                    new Vector3(bandWidths[i], 0.065f, bandWidths[i]),
-                    Quaternion.identity,
+                float band01 = bandCount > 1 ? i / (float)(bandCount - 1) : 0.5f;
+                float depth01 = Mathf.Lerp(bandStart, bandEnd, band01);
+                float halfWidth = bodyHalfWidth * (1f - depth01);
+                CreateStormPyramidEnergyBand(
+                    armorRotor,
+                    i,
+                    -bodyHeight * depth01,
+                    halfWidth,
+                    bandThickness,
                     materials.StormPyramidCore);
-                DisableRendererShadows(band.gameObject);
+            }
+
+            float conduitRadius = Mathf.Max(0.005f, settings.EdgeConduitRadius);
+            float conduitTop = bodyHalfWidth - (cornerCut * 0.5f);
+            Vector3 tip = new Vector3(0f, -bodyHeight, 0f);
+            for (int i = 0; i < 4; i++)
+            {
+                float x = i == 0 || i == 3 ? -conduitTop : conduitTop;
+                float z = i < 2 ? -conduitTop : conduitTop;
+                Transform conduit = CreateBeamBetween(
+                    $"Edge Conduit {i + 1}",
+                    armorRotor,
+                    new Vector3(x, 0f, z),
+                    tip,
+                    conduitRadius,
+                    materials.StormPyramidCore);
+                DisableRendererShadows(conduit.gameObject);
+            }
+
+            int finCount = Mathf.Max(3, settings.CrownFinCount);
+            for (int i = 0; i < finCount; i++)
+            {
+                float degrees = (360f * i) / finCount;
+                float radians = degrees * Mathf.Deg2Rad;
+                Vector3 radial = new Vector3(Mathf.Sin(radians), 0f, Mathf.Cos(radians));
+                CreatePart(
+                    PrimitiveType.Cube,
+                    $"Crown Fin {i + 1}",
+                    armorRotor,
+                    (radial * settings.CrownFinRadius) + (Vector3.up * settings.CrownHeight),
+                    settings.CrownFinSize,
+                    Quaternion.Euler(settings.CrownFinOutwardTilt, degrees, 0f),
+                    materials.StormPyramidBody);
             }
 
             Transform core = CreatePart(
                 PrimitiveType.Sphere,
                 "Storm Core",
                 root,
-                new Vector3(0f, 0.12f, 0f),
-                new Vector3(0.72f, 0.22f, 0.72f),
+                new Vector3(0f, settings.CoreHeight, 0f),
+                settings.CoreScale,
                 Quaternion.identity,
                 materials.StormPyramidCore);
             DisableRendererShadows(core.gameObject);
 
+            GameObject counterRotatorObject = new GameObject("Counter Rotator");
+            Transform counterRotator = counterRotatorObject.transform;
+            counterRotator.SetParent(root, false);
+
+            GameObject crownRing = CreateMeshObject(
+                "Crown Energy Ring",
+                counterRotator,
+                GetTorusMesh(settings.CrownRingRadius, settings.CrownRingThickness, 48, 6),
+                materials.StormPyramidCore);
+            crownRing.transform.localPosition = new Vector3(0f, settings.CrownHeight, 0f);
+            crownRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            DisableRendererShadows(crownRing);
+
+            GameObject coreRing = CreateMeshObject(
+                "Inner Core Ring",
+                counterRotator,
+                GetTorusMesh(settings.CoreRingRadius, settings.CoreRingThickness, 40, 6),
+                materials.LightningWarning);
+            coreRing.transform.localPosition = new Vector3(0f, settings.CoreRingHeight, 0f);
+            coreRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            DisableRendererShadows(coreRing);
+
+            float orbitNodeWidth = Mathf.Max(0.02f, settings.CoreRingThickness * 3f);
+            float orbitNodeLength = Mathf.Max(orbitNodeWidth, settings.CoreRingThickness * 7f);
+            for (int i = 0; i < finCount; i++)
+            {
+                float degrees = (360f * i) / finCount;
+                float radians = degrees * Mathf.Deg2Rad;
+                Vector3 radial = new Vector3(Mathf.Sin(radians), 0f, Mathf.Cos(radians));
+                Transform node = CreatePart(
+                    PrimitiveType.Cube,
+                    $"Core Orbit Node {i + 1}",
+                    counterRotator,
+                    (radial * settings.CoreRingRadius) + (Vector3.up * settings.CoreRingHeight),
+                    new Vector3(orbitNodeWidth, orbitNodeWidth, orbitNodeLength),
+                    Quaternion.Euler(0f, degrees, 0f),
+                    materials.LightningWarning);
+                DisableRendererShadows(node.gameObject);
+            }
+
             GameObject halo = CreateMeshObject(
                 "Charge Halo",
                 root,
-                GetTorusMesh(1.65f, 0.075f, 44, 6),
+                GetTorusMesh(settings.ChargeHaloRadius, settings.ChargeHaloThickness, 44, 6),
                 materials.LightningWarning);
-            halo.transform.localPosition = new Vector3(0f, 0.42f, 0f);
+            halo.transform.localPosition = new Vector3(0f, settings.ChargeHaloHeight, 0f);
+            halo.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             halo.transform.localScale = Vector3.zero;
             DisableRendererShadows(halo);
 
             GameObject originObject = new GameObject("Lightning Origin");
             originObject.transform.SetParent(root, false);
-            originObject.transform.localPosition = new Vector3(0f, -3.82f, 0f);
+            originObject.transform.localPosition = new Vector3(
+                0f,
+                -bodyHeight - settings.LightningOriginTipOffset,
+                0f);
             return root;
+        }
+
+        private static void CreateStormPyramidEnergyBand(
+            Transform parent,
+            int index,
+            float height,
+            float halfWidth,
+            float thickness,
+            Material material)
+        {
+            float fullWidth = Mathf.Max(thickness, halfWidth * 2f);
+            Vector3 xScale = new Vector3(fullWidth + thickness, thickness, thickness);
+            Vector3 zScale = new Vector3(thickness, thickness, fullWidth + thickness);
+            for (int side = 0; side < 4; side++)
+            {
+                bool alongX = side < 2;
+                Vector3 position = alongX
+                    ? new Vector3(0f, height, side == 0 ? -halfWidth : halfWidth)
+                    : new Vector3(side == 2 ? -halfWidth : halfWidth, height, 0f);
+                Transform rail = CreatePart(
+                    PrimitiveType.Cube,
+                    $"Energy Band {index + 1} Rail {side + 1}",
+                    parent,
+                    position,
+                    alongX ? xScale : zScale,
+                    Quaternion.identity,
+                    material);
+                DisableRendererShadows(rail.gameObject);
+            }
+        }
+
+        private static Transform CreateBeamBetween(
+            string name,
+            Transform parent,
+            Vector3 start,
+            Vector3 end,
+            float radius,
+            Material material)
+        {
+            Vector3 direction = end - start;
+            return CreatePart(
+                PrimitiveType.Cylinder,
+                name,
+                parent,
+                (start + end) * 0.5f,
+                new Vector3(radius, direction.magnitude * 0.5f, radius),
+                Quaternion.FromToRotation(Vector3.up, direction.normalized),
+                material);
         }
 
         public static Transform CreateStormStrikeMarker(
@@ -926,6 +1067,66 @@ namespace DuneVector
                 mesh = CreatePyramidMesh();
                 MeshCache[key] = mesh;
             }
+            return mesh;
+        }
+
+        private static Mesh GetStormPyramidMesh(float width, float height, float cornerCut)
+        {
+            string key = $"storm-pyramid:{width:0.000}:{height:0.000}:{cornerCut:0.000}";
+            if (!MeshCache.TryGetValue(key, out Mesh mesh) || mesh == null)
+            {
+                mesh = CreateStormPyramidMesh(width, height, cornerCut);
+                MeshCache[key] = mesh;
+            }
+            return mesh;
+        }
+
+        private static Mesh CreateStormPyramidMesh(float width, float height, float cornerCut)
+        {
+            float halfWidth = width * 0.5f;
+            Vector3[] perimeter =
+            {
+                new Vector3(-halfWidth + cornerCut, 0f, -halfWidth),
+                new Vector3(halfWidth - cornerCut, 0f, -halfWidth),
+                new Vector3(halfWidth, 0f, -halfWidth + cornerCut),
+                new Vector3(halfWidth, 0f, halfWidth - cornerCut),
+                new Vector3(halfWidth - cornerCut, 0f, halfWidth),
+                new Vector3(-halfWidth + cornerCut, 0f, halfWidth),
+                new Vector3(-halfWidth, 0f, halfWidth - cornerCut),
+                new Vector3(-halfWidth, 0f, -halfWidth + cornerCut),
+            };
+
+            List<Vector3> vertices = new List<Vector3>(perimeter.Length * 4);
+            List<int> triangles = new List<int>(perimeter.Length * 6);
+            Vector3 tip = new Vector3(0f, -height, 0f);
+            for (int i = 0; i < perimeter.Length; i++)
+            {
+                int first = vertices.Count;
+                vertices.Add(perimeter[i]);
+                vertices.Add(perimeter[(i + 1) % perimeter.Length]);
+                vertices.Add(tip);
+                triangles.Add(first);
+                triangles.Add(first + 1);
+                triangles.Add(first + 2);
+            }
+
+            Vector3 topCenter = Vector3.zero;
+            for (int i = 0; i < perimeter.Length; i++)
+            {
+                int first = vertices.Count;
+                vertices.Add(topCenter);
+                vertices.Add(perimeter[(i + 1) % perimeter.Length]);
+                vertices.Add(perimeter[i]);
+                triangles.Add(first);
+                triangles.Add(first + 1);
+                triangles.Add(first + 2);
+            }
+
+            Mesh mesh = new Mesh { name = "Faceted Storm Pyramid" };
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
             return mesh;
         }
 

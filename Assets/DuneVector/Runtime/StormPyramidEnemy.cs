@@ -65,6 +65,7 @@ namespace DuneVector
         private StormPyramidLightningAttack _lightning;
         private Transform _visual;
         private Transform _core;
+        private Transform _counterRotator;
         private float _stateTime;
         private float _attackTimer;
         private int _identity;
@@ -82,8 +83,9 @@ namespace DuneVector
             _settings = settings;
             _identity = identity;
 
-            _visual = DuneVectorVisuals.CreateStormPyramidVisual(transform, materials, settings.VisualScale);
+            _visual = DuneVectorVisuals.CreateStormPyramidVisual(transform, materials, settings);
             _core = _visual.Find("Storm Core");
+            _counterRotator = _visual.Find("Counter Rotator");
             Transform halo = _visual.Find("Charge Halo");
             Transform lightningOrigin = _visual.Find("Lightning Origin");
 
@@ -239,14 +241,21 @@ namespace DuneVector
         {
             if (_visual != null)
             {
-                float yaw = 11f * deltaTime;
+                float yaw = _settings.VisualRotationSpeed * deltaTime;
                 _visual.Rotate(0f, yaw, 0f, Space.Self);
+            }
+
+            if (_counterRotator != null)
+            {
+                float counterYaw = _settings.CounterRotationSpeed * deltaTime;
+                _counterRotator.Rotate(0f, counterYaw, 0f, Space.Self);
             }
 
             if (_core != null && CurrentState != StormPyramidState.ChargingAttack)
             {
-                float pulse = 1f + (Mathf.Sin((Time.time * 4.5f) + _identity) * 0.1f);
-                _core.localScale = new Vector3(0.72f, 0.22f, 0.72f) * pulse;
+                float pulse = 1f + (Mathf.Sin((Time.time * _settings.CorePulseSpeed) + _identity)
+                    * _settings.CorePulseAmount);
+                _core.localScale = _settings.CoreScale * pulse;
             }
         }
 
@@ -653,7 +662,7 @@ namespace DuneVector
             if (_lightningLine != null) _lightningLine.enabled = false;
             if (_marker != null) _marker.gameObject.SetActive(false);
             if (_halo != null) _halo.localScale = Vector3.zero;
-            if (_core != null) _core.localScale = new Vector3(0.72f, 0.22f, 0.72f);
+            if (_core != null) _core.localScale = _settings.CoreScale;
         }
 
         public void ApplyWorldShift(Vector3 shift)
@@ -693,7 +702,9 @@ namespace DuneVector
             }
             if (_core != null)
             {
-                _core.localScale = new Vector3(0.72f, 0.22f, 0.72f) * Mathf.Lerp(1f, 1.7f, charge01) * pulse;
+                _core.localScale = _settings.CoreScale
+                    * Mathf.Lerp(1f, _settings.CoreChargeScaleMultiplier, charge01)
+                    * pulse;
             }
 
             _chargeLine.positionCount = 2;

@@ -436,6 +436,35 @@ namespace DuneVector
 
         [Header("Presentation")]
         [Min(0.1f)] public float VisualScale = 2.2f;
+        [Min(0.1f)] public float BodyWidth = 4.8f;
+        [Min(0.1f)] public float BodyHeight = 3.8f;
+        [Min(0f)] public float BodyCornerCut = 0.38f;
+        [Range(1, 8)] public int EnergyBandCount = 3;
+        [Range(0f, 1f)] public float EnergyBandStart = 0.2f;
+        [Range(0f, 1f)] public float EnergyBandEnd = 0.72f;
+        [Min(0.005f)] public float EnergyBandThickness = 0.055f;
+        [Min(0.005f)] public float EdgeConduitRadius = 0.035f;
+        [Range(3, 8)] public int CrownFinCount = 4;
+        [Min(0f)] public float CrownFinRadius = 2.15f;
+        public Vector3 CrownFinSize = new Vector3(0.32f, 0.68f, 0.86f);
+        [Range(-60f, 60f)] public float CrownFinOutwardTilt = 18f;
+        [Min(0.1f)] public float CrownRingRadius = 1.9f;
+        [Min(0.01f)] public float CrownRingThickness = 0.1f;
+        public float CrownHeight = 0.14f;
+        public float CoreHeight = 0.18f;
+        public Vector3 CoreScale = new Vector3(0.78f, 0.24f, 0.78f);
+        [Min(0.1f)] public float CoreRingRadius = 1.28f;
+        [Min(0.01f)] public float CoreRingThickness = 0.055f;
+        public float CoreRingHeight = 0.24f;
+        [Min(0.1f)] public float ChargeHaloRadius = 1.72f;
+        [Min(0.01f)] public float ChargeHaloThickness = 0.075f;
+        public float ChargeHaloHeight = 0.46f;
+        [Min(0f)] public float LightningOriginTipOffset = 0.08f;
+        public float VisualRotationSpeed = 11f;
+        public float CounterRotationSpeed = -24f;
+        [Min(0f)] public float CorePulseSpeed = 4.5f;
+        [Range(0f, 1f)] public float CorePulseAmount = 0.1f;
+        [Min(1f)] public float CoreChargeScaleMultiplier = 1.7f;
         [ColorUsage(false)] public Color BodyColor = new Color(0.012f, 0.055f, 0.024f);
         [ColorUsage(false, true)] public Color BodyEmission = new Color(0.025f, 0.22f, 0.075f);
         [ColorUsage(false)] public Color CoreColor = new Color(0.018f, 0.11f, 0.045f);
