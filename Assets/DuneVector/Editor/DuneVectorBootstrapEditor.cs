@@ -119,6 +119,7 @@ namespace DuneVector.Editor
         private SerializedProperty _stormPyramids;
         private SerializedProperty _groundExploders;
         private SerializedProperty _rings;
+        private SerializedProperty _permanentUpgrades;
         private SerializedProperty _dunes;
         private SerializedProperty _meshResolution;
         private SerializedProperty _chunkSize;
@@ -137,6 +138,7 @@ namespace DuneVector.Editor
             _stormPyramids = serializedObject.FindProperty("StormPyramids");
             _groundExploders = serializedObject.FindProperty("GroundExploders");
             _rings = serializedObject.FindProperty("Rings");
+            _permanentUpgrades = serializedObject.FindProperty("PermanentUpgrades");
             _dunes = serializedObject.FindProperty("DuneGeneration");
             _meshResolution = serializedObject.FindProperty("DuneMeshResolution");
             _chunkSize = serializedObject.FindProperty("DuneChunkSize");
@@ -203,6 +205,10 @@ namespace DuneVector.Editor
                 "Traversal Rings",
                 "Sizes, height bands, and active enlargement for both ring types.",
                 _rings);
+            DuneVectorSettingsInspector.DrawSection(
+                "Permanent Upgrade Shop",
+                "Upgrade Tier progression curves, gold costs, and pause-shop presentation.",
+                _permanentUpgrades);
         }
 
         private void DrawEnemiesTab()

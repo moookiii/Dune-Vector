@@ -102,8 +102,31 @@ namespace DuneVector
                 return false;
             }
 
-            SaveGold();
+            if (!SaveGold())
+            {
+                Gold = previousGold;
+                return false;
+            }
             GoldChanged?.Invoke(Gold, gained);
+            return true;
+        }
+
+        public bool TrySpendGold(int amount)
+        {
+            if (amount <= 0 || Gold < amount)
+            {
+                return false;
+            }
+
+            int previousGold = Gold;
+            Gold -= amount;
+            if (!SaveGold())
+            {
+                Gold = previousGold;
+                return false;
+            }
+
+            GoldChanged?.Invoke(Gold, -amount);
             return true;
         }
 
@@ -126,16 +149,18 @@ namespace DuneVector
             }
         }
 
-        private void SaveGold()
+        private bool SaveGold()
         {
             try
             {
                 GoldSaveData stored = new GoldSaveData { Gold = Gold };
                 File.WriteAllText(_savePath, JsonUtility.ToJson(stored));
+                return true;
             }
             catch (Exception exception)
             {
                 Debug.LogWarning($"Could not save gold to '{_savePath}': {exception.Message}", this);
+                return false;
             }
         }
     }
@@ -225,6 +250,10 @@ namespace DuneVector
 
         private void HandleGoldChanged(int total, int gained)
         {
+            if (gained <= 0)
+            {
+                return;
+            }
             _lastReward = gained;
             _feedbackUntil = Time.unscaledTime + Mathf.Max(0.1f, _settings.GoldPickupFeedbackDuration);
         }

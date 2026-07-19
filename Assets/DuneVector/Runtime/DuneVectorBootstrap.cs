@@ -68,6 +68,8 @@ namespace DuneVector
         public DuneVectorGameOverController GameOverController { get; private set; }
         public DuneVectorAudioManager AudioManager { get; private set; }
         public DuneVectorPauseMenu PauseMenu { get; private set; }
+        public DroneGoldWallet GoldWallet { get; private set; }
+        public DronePermanentUpgradeSystem PermanentUpgrades { get; private set; }
 
         private DuneVectorMaterials _materials;
         private VolumeProfile _runtimeVolumeProfile;
@@ -411,6 +413,15 @@ namespace DuneVector
             Player.Stamina = stamina;
 
             World.BindPlayer(Drone, DroneCamera, DroneHealth);
+            GoldWallet = Drone.GetComponent<DroneGoldWallet>();
+            PermanentUpgrades = droneObject.AddComponent<DronePermanentUpgradeSystem>();
+            PermanentUpgrades.Initialize(
+                RuntimeSettings,
+                GoldWallet,
+                Drone,
+                DroneHealth,
+                stamina,
+                boostSpeedModifier);
         }
 
         private void BuildAudio()
@@ -518,7 +529,14 @@ namespace DuneVector
             GameOverController = gameObject.AddComponent<DuneVectorGameOverController>();
             GameOverController.Initialize(DroneHealth);
             PauseMenu = gameObject.AddComponent<DuneVectorPauseMenu>();
-            PauseMenu.Initialize(Player, DroneHealth, AudioManager, AudioSettings.PauseMenu);
+            PauseMenu.Initialize(
+                Player,
+                DroneHealth,
+                AudioManager,
+                GoldWallet,
+                PermanentUpgrades,
+                AudioSettings.PauseMenu,
+                RuntimeSettings.PermanentUpgrades.ShopVisuals);
         }
 
         private void BuildDeliveryGameplay()
@@ -566,7 +584,7 @@ namespace DuneVector
             TargetDetector = weaponObject.AddComponent<DroneTargetDetector>();
             TargetDetector.Initialize(DroneCamera.Camera, EnergyLauncherSettings);
             LockOnController = weaponObject.AddComponent<DroneLockOnController>();
-            LockOnController.Initialize(TargetDetector, EnergyLauncherSettings);
+            LockOnController.Initialize(TargetDetector, EnergyLauncherSettings, PermanentUpgrades);
             AudioManager?.BindLockOnController(LockOnController);
             EnergyLauncher = weaponObject.AddComponent<DroneEnergyLauncher>();
             EnergyLauncher.Initialize(
@@ -575,7 +593,8 @@ namespace DuneVector
                 World,
                 AudioManager,
                 LockOnController,
-                EnergyLauncherSettings);
+                EnergyLauncherSettings,
+                PermanentUpgrades);
             LockOnHUD = weaponObject.AddComponent<DroneLockOnHUD>();
             LockOnHUD.Initialize(DroneCamera.Camera, LockOnController, EnergyLauncherSettings);
             Player.EnergyLauncher = EnergyLauncher;

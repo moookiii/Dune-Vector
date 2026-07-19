@@ -324,18 +324,26 @@ namespace DuneVector
         public float AcquisitionProgress => State switch
         {
             DroneLockOnState.Locked => 1f,
-            DroneLockOnState.Locking => Mathf.Clamp01(_stateTime / Mathf.Max(Mathf.Epsilon, _settings.AcquisitionTime)),
+            DroneLockOnState.Locking => Mathf.Clamp01(_stateTime / Mathf.Max(Mathf.Epsilon, CurrentAcquisitionTime)),
             _ => 0f,
         };
 
         private DroneTargetDetector _detector;
         private EnergyLauncherTuning _settings;
+        private DronePermanentUpgradeSystem _upgrades;
         private float _stateTime;
+        private float CurrentAcquisitionTime => _upgrades != null
+            ? _upgrades.GetCurrentValue(DroneUpgradeId.LockOnSpeed)
+            : _settings != null ? _settings.AcquisitionTime : 0f;
 
-        public void Initialize(DroneTargetDetector detector, EnergyLauncherTuning settings)
+        public void Initialize(
+            DroneTargetDetector detector,
+            EnergyLauncherTuning settings,
+            DronePermanentUpgradeSystem upgrades = null)
         {
             _detector = detector;
             _settings = settings;
+            _upgrades = upgrades;
             SetState(DroneLockOnState.None, null);
         }
 
@@ -359,7 +367,7 @@ namespace DuneVector
             {
                 SetState(DroneLockOnState.Locking, Target);
             }
-            else if (State == DroneLockOnState.Locking && _stateTime >= _settings.AcquisitionTime)
+            else if (State == DroneLockOnState.Locking && _stateTime >= CurrentAcquisitionTime)
             {
                 SetState(DroneLockOnState.Locked, Target);
             }
@@ -390,6 +398,7 @@ namespace DuneVector
         private DuneVectorAudioManager _audioManager;
         private DroneLockOnController _lockController;
         private EnergyLauncherTuning _settings;
+        private DronePermanentUpgradeSystem _upgrades;
         private Material _energyMaterial;
         private float _cooldownRemaining;
         private bool _fireRequested;
@@ -400,7 +409,8 @@ namespace DuneVector
             DesertWorldStreamer world,
             DuneVectorAudioManager audioManager,
             DroneLockOnController lockController,
-            EnergyLauncherTuning settings)
+            EnergyLauncherTuning settings,
+            DronePermanentUpgradeSystem upgrades = null)
         {
             _drone = drone;
             _camera = camera;
@@ -408,7 +418,12 @@ namespace DuneVector
             _audioManager = audioManager;
             _lockController = lockController;
             _settings = settings;
+            _upgrades = upgrades;
             _energyMaterial = CreateEnergyMaterial(settings);
+            if (_upgrades != null)
+            {
+                _upgrades.UpgradePurchased += HandleUpgradePurchased;
+            }
         }
 
         public void RequestFire()
@@ -459,7 +474,8 @@ namespace DuneVector
                 _drone.transform,
                 _world,
                 _energyMaterial,
-                _settings);
+                _settings,
+                GetCurrentDamage());
 
             EnergyPulseFeedback.Spawn(
                 muzzlePosition,
@@ -468,8 +484,30 @@ namespace DuneVector
                 _settings.LaunchFlashDuration,
                 "Energy Launch Flash");
             _audioManager?.PlayDroneFire(muzzlePosition);
-            _cooldownRemaining = _settings.FireCooldown;
+            _cooldownRemaining = GetCurrentCooldown();
             return true;
+        }
+
+        private float GetCurrentDamage()
+        {
+            return _upgrades != null
+                ? _upgrades.GetCurrentValue(DroneUpgradeId.EnergyShotDamage)
+                : _settings.Damage;
+        }
+
+        private float GetCurrentCooldown()
+        {
+            return _upgrades != null
+                ? _upgrades.GetCurrentValue(DroneUpgradeId.EnergyShotCooldown)
+                : _settings.FireCooldown;
+        }
+
+        private void HandleUpgradePurchased(DroneUpgradeId id, int purchasedTier, int goldCost)
+        {
+            if (id == DroneUpgradeId.EnergyShotCooldown)
+            {
+                _cooldownRemaining = Mathf.Min(_cooldownRemaining, GetCurrentCooldown());
+            }
         }
 
         private static Material CreateEnergyMaterial(EnergyLauncherTuning settings)
@@ -494,6 +532,10 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            if (_upgrades != null)
+            {
+                _upgrades.UpgradePurchased -= HandleUpgradePurchased;
+            }
             if (_energyMaterial != null)
             {
                 Destroy(_energyMaterial);
@@ -513,6 +555,7 @@ namespace DuneVector
         private DesertWorldStreamer _world;
         private Material _material;
         private EnergyLauncherTuning _settings;
+        private float _damage;
         private TrailRenderer _trail;
         private Vector3 _velocity;
         private float _age;
@@ -523,13 +566,15 @@ namespace DuneVector
             Transform owner,
             DesertWorldStreamer world,
             Material material,
-            EnergyLauncherTuning settings)
+            EnergyLauncherTuning settings,
+            float damage)
         {
             _target = target;
             _owner = owner;
             _world = world;
             _material = material;
             _settings = settings;
+            _damage = Mathf.Max(0f, damage);
             _velocity = direction.normalized * settings.ProjectileSpeed;
             CreateVisual();
             if (_world != null)
@@ -577,7 +622,7 @@ namespace DuneVector
             Vector3 end = start + (_velocity * deltaTime);
             if (TryResolveCollision(start, end, out EnemyCombatTarget hitTarget, out Vector3 hitPoint))
             {
-                hitTarget?.ApplyDamage(_settings.Damage);
+                hitTarget?.ApplyDamage(_damage);
                 EnergyPulseFeedback.Spawn(
                     hitPoint,
                     _material,

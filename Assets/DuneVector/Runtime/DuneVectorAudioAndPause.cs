@@ -388,7 +388,11 @@ namespace DuneVector
         private DronePlayer _player;
         private DroneHealth _health;
         private DuneVectorAudioManager _audio;
+        private DroneGoldWallet _wallet;
+        private DronePermanentUpgradeSystem _upgrades;
         private PauseMenuVisualTuning _visuals;
+        private DuneVectorUpgradeShopView _shopView;
+        private bool _showShop;
 
         private GUIStyle _titleStyle;
         private GUIStyle _subtitleStyle;
@@ -417,12 +421,18 @@ namespace DuneVector
             DronePlayer player,
             DroneHealth health,
             DuneVectorAudioManager audio,
-            PauseMenuVisualTuning visuals)
+            DroneGoldWallet wallet,
+            DronePermanentUpgradeSystem upgrades,
+            PauseMenuVisualTuning visuals,
+            UpgradeShopVisualTuning shopVisuals)
         {
             _player = player;
             _health = health;
             _audio = audio;
+            _wallet = wallet;
+            _upgrades = upgrades;
             _visuals = visuals;
+            _shopView = new DuneVectorUpgradeShopView(_upgrades, _wallet, shopVisuals);
             if (_health != null)
             {
                 _health.Died += HandleDeath;
@@ -435,7 +445,14 @@ namespace DuneVector
                 Keyboard.current != null &&
                 Keyboard.current.escapeKey.wasPressedThisFrame)
             {
-                SetPaused(!IsPaused);
+                if (IsPaused && _showShop)
+                {
+                    _showShop = false;
+                }
+                else
+                {
+                    SetPaused(!IsPaused);
+                }
             }
         }
 
@@ -454,6 +471,7 @@ namespace DuneVector
             _audio?.SetPausedDucking(paused);
             if (!paused)
             {
+                _showShop = false;
                 _audio?.FlushPreferences();
             }
         }
@@ -461,6 +479,7 @@ namespace DuneVector
         private void HandleDeath()
         {
             IsPaused = false;
+            _showShop = false;
             _audio?.SetPausedDucking(false);
             _player?.SetInputEnabled(false);
         }
@@ -477,6 +496,15 @@ namespace DuneVector
             EnsureStyles(scale);
 
             DrawSolidRect(new Rect(0f, 0f, Screen.width, Screen.height), _visuals.OverlayColor);
+
+            if (_showShop)
+            {
+                if (_shopView == null || _shopView.Draw())
+                {
+                    _showShop = false;
+                }
+                return;
+            }
 
             float screenMargin = _visuals.ScreenMargin * scale;
             float panelWidth = Mathf.Min(_visuals.PanelWidth * scale, Screen.width - (screenMargin * 2f));
@@ -536,6 +564,13 @@ namespace DuneVector
             if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), "RESUME FLIGHT", _primaryButtonStyle))
             {
                 SetPaused(false);
+            }
+            y += buttonHeight + gap;
+
+            if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), "UPGRADE SHOP", _secondaryButtonStyle))
+            {
+                _showShop = true;
+                _shopView?.Open();
             }
             y += buttonHeight + gap;
 
@@ -813,6 +848,8 @@ namespace DuneVector
             DestroyTexture(ref _dangerButtonTexture);
             DestroyTexture(ref _dangerButtonHoverTexture);
             DestroyTexture(ref _sliderThumbTexture);
+            _shopView?.Dispose();
+            _shopView = null;
         }
 
         private void DestroyTexture(ref Texture2D texture)

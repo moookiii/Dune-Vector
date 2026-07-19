@@ -710,6 +710,7 @@ namespace DuneVector
         [Min(0f)] public float MaxGroundSpeed = 18f;
         [Min(0f)] public float GroundMovementSharpness = 8.5f;
         [Min(0f)] public float GroundBrakingSharpness = 5.5f;
+        [Min(0f)] public float GroundSteeringSharpness = 11f;
         [Min(0f)] public float TrailMinimumSpeed = 0.35f;
 
         [Header("Jump")]
@@ -758,6 +759,7 @@ namespace DuneVector
             drone.MaxGroundSpeed = MaxGroundSpeed;
             drone.GroundMovementSharpness = GroundMovementSharpness;
             drone.GroundBrakingSharpness = GroundBrakingSharpness;
+            drone.RotationSharpness = GroundSteeringSharpness;
             drone.TrailMinimumSpeed = TrailMinimumSpeed;
             drone.JumpSpeed = JumpSpeed;
             drone.RingBoostAcceleration = RingBoostAcceleration;
@@ -829,6 +831,9 @@ namespace DuneVector
         [Tooltip("Boost and flight ring sizes, height ranges, and animation.")]
         public RingTuning Rings = new RingTuning();
 
+        [Tooltip("Permanent drone stat definitions, tier curves, gold costs, and upgrade-shop presentation.")]
+        public DronePermanentUpgradeTuning PermanentUpgrades = new DronePermanentUpgradeTuning();
+
         [Tooltip("Layered procedural dune-shape controls.")]
         public DuneFieldSettings DuneGeneration = new DuneFieldSettings();
 
@@ -858,6 +863,8 @@ namespace DuneVector
             StormPyramids ??= new StormPyramidTuning();
             GroundExploders ??= new GroundExploderTuning();
             Rings ??= new RingTuning();
+            PermanentUpgrades ??= new DronePermanentUpgradeTuning();
+            PermanentUpgrades.EnsureInitialized();
             DuneGeneration ??= new DuneFieldSettings();
         }
 

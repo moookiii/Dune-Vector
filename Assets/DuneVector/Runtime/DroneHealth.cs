@@ -28,6 +28,23 @@ namespace DuneVector
             IsDead = false;
         }
 
+        public void SetMaximumHealth(float maximumHealth, bool restoreAddedCapacity)
+        {
+            float previousMaximum = MaximumHealth;
+            float nextMaximum = Mathf.Max(1f, maximumHealth);
+            if (Mathf.Approximately(previousMaximum, nextMaximum))
+            {
+                return;
+            }
+
+            float addedCapacity = Mathf.Max(0f, nextMaximum - previousMaximum);
+            MaximumHealth = nextMaximum;
+            CurrentHealth = restoreAddedCapacity
+                ? Mathf.Min(MaximumHealth, CurrentHealth + addedCapacity)
+                : Mathf.Min(CurrentHealth, MaximumHealth);
+            HealthChanged?.Invoke(CurrentHealth, MaximumHealth);
+        }
+
         public bool TakeDamage(float damage)
         {
             if (IsDead || damage <= 0f || Time.time < _nextDamageTime)
