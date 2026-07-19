@@ -466,7 +466,14 @@ namespace DuneVector
             renderer.receiveShadows = true;
             MeshCollider collider = rootObject.AddComponent<MeshCollider>();
             collider.sharedMesh = _terrainMesh;
-            SpawnClouds(coordinate, chunkSize, materials.Cloud, worldSeed, cloudTuning, cloudDensity);
+            SpawnClouds(
+                coordinate,
+                chunkSize,
+                materials.Cloud,
+                materials.CloudUnderbelly,
+                worldSeed,
+                cloudTuning,
+                cloudDensity);
             SpawnContent(
                 coordinate,
                 chunkSize,
@@ -492,7 +499,8 @@ namespace DuneVector
         private void SpawnClouds(
             Vector2Int coordinate,
             float chunkSize,
-            Material material,
+            Material sunlitMaterial,
+            Material underbellyMaterial,
             int worldSeed,
             CloudTuning tuning,
             float density)
@@ -516,7 +524,13 @@ namespace DuneVector
                 ^ tuning.RandomSeedOffset
                 ^ (coordinate.x * 73856093)
                 ^ (coordinate.y * 19349663));
-            cloudField.Initialize(material, clusterCount, chunkSize, tuning, randomSeed);
+            cloudField.Initialize(
+                sunlitMaterial,
+                underbellyMaterial,
+                clusterCount,
+                chunkSize,
+                tuning,
+                randomSeed);
         }
 
         public void BindPlayer(DroneCharacterController player, DroneHealth playerHealth)

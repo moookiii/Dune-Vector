@@ -29,13 +29,30 @@ namespace DuneVector
         public Vector2 DriftDirection = new Vector2(0.82f, 0.57f);
         public int RandomSeedOffset = 7319;
 
+        [Header("Appearance")]
+        [ColorUsage(false)] public Color SunlitColor = new Color(0.86f, 0.91f, 0.97f, 1f);
+        [ColorUsage(false)] public Color UnderbellyColor = new Color(0.48f, 0.57f, 0.69f, 1f);
+        [Range(0f, 1f)] public float MaterialSmoothness = 0.12f;
+        [Range(0f, 1f)] public float MaterialMetallic;
+
         [Header("Cluster Shape")]
-        [Range(1, 12)] public int MinimumLobes = 4;
-        [Range(1, 12)] public int MaximumLobes = 7;
+        [Range(1, 16)] public int MinimumLobes = 6;
+        [Range(1, 16)] public int MaximumLobes = 10;
         public Vector3 MinimumLobeOffset = new Vector3(-13f, -2.5f, -7f);
         public Vector3 MaximumLobeOffset = new Vector3(13f, 4.5f, 7f);
         public Vector3 MinimumLobeScale = new Vector3(12f, 4.5f, 8f);
         public Vector3 MaximumLobeScale = new Vector3(24f, 8.5f, 17f);
+        [Min(0.1f)] public float MinimumClusterScale = 0.82f;
+        [Min(0.1f)] public float MaximumClusterScale = 1.18f;
+        [Min(0.1f)] public float CoreLobeScaleMultiplier = 1.18f;
+        [Range(0.1f, 1f)] public float EdgeLobeScaleMultiplier = 0.68f;
+
+        [Header("Sculpting")]
+        [Range(0f, 1f)] public float CrownLobeChance = 0.42f;
+        public Vector2 CrownHeightRange = new Vector2(2.5f, 7f);
+        public Vector3 CrownScaleMultiplier = new Vector3(0.72f, 1.18f, 0.72f);
+        public Vector3 SunlitLayerScale = new Vector3(0.96f, 0.88f, 0.96f);
+        [Min(0f)] public float SunlitLayerLift = 0.85f;
     }
 
     [System.Serializable]
