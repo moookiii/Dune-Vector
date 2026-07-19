@@ -90,6 +90,18 @@ namespace DuneVector
             EmptyBeat,
         }
 
+        private readonly struct WrappedTextLine
+        {
+            public readonly int SourceStart;
+            public readonly int SourceEnd;
+
+            public WrappedTextLine(int sourceStart, int sourceEnd)
+            {
+                SourceStart = sourceStart;
+                SourceEnd = sourceEnd;
+            }
+        }
+
         public bool IsOpen { get; private set; }
         public bool IsTyping => IsOpen &&
             _phase == PagePresentationPhase.Presenting &&
@@ -365,7 +377,7 @@ namespace DuneVector
                 Mathf.Max(1f, readingArea.height - _settings.TextTopPadding - _settings.TextBottomPadding));
             float textAlpha = CurrentTextAlpha();
             Color textColor = CurrentNarrativeColor(flicker, textAlpha);
-            DrawNarrativeText(textRect, VisibleText, textColor);
+            DrawNarrativeText(textRect, CurrentPage, VisibleText, textColor);
 
             if (_phase == PagePresentationPhase.Presenting && !IsTyping)
             {
@@ -503,9 +515,15 @@ namespace DuneVector
             }
         }
 
-        private void DrawNarrativeText(Rect area, string text, Color textColor)
+        private void DrawNarrativeText(
+            Rect area,
+            string fullPageText,
+            string visibleText,
+            Color textColor)
         {
-            List<string> lines = WrapText(text ?? string.Empty, area.width, _narrativeStyle);
+            string pageText = fullPageText ?? string.Empty;
+            List<WrappedTextLine> layout = BuildWrappedLayout(pageText, area.width, _narrativeStyle);
+            List<string> lines = BuildVisibleLines(pageText, visibleText?.Length ?? 0, layout);
             float lineAdvance = Mathf.Max(1f, _narrativeStyle.lineHeight + _settings.NarrativeLineSpacing);
             float glowOffset = _settings.TextGlowOffset;
             if (_settings.TextGlowOpacity > 0f && glowOffset > 0f)
@@ -518,20 +536,27 @@ namespace DuneVector
 
             _narrativeStyle.normal.textColor = textColor;
             DrawTextLines(area, lines, lineAdvance, 0f, 0f);
-            DrawNewestCharacterEmission(area, lines, lineAdvance, text, textColor);
+            DrawNewestCharacterEmission(
+                area,
+                pageText,
+                visibleText ?? string.Empty,
+                layout,
+                lineAdvance,
+                textColor);
         }
 
         private void DrawNewestCharacterEmission(
             Rect area,
-            IReadOnlyList<string> lines,
-            float lineAdvance,
+            string fullPageText,
             string visibleText,
+            IReadOnlyList<WrappedTextLine> layout,
+            float lineAdvance,
             Color textColor)
         {
             if (string.IsNullOrEmpty(visibleText) ||
                 visibleText.Length != _emissiveVisibleCharacterCount ||
                 char.IsWhiteSpace(visibleText[visibleText.Length - 1]) ||
-                lines.Count == 0)
+                layout.Count == 0)
             {
                 return;
             }
@@ -543,16 +568,20 @@ namespace DuneVector
                 return;
             }
 
-            string latestLine = lines[lines.Count - 1];
-            if (string.IsNullOrEmpty(latestLine))
+            int sourceIndex = visibleText.Length - 1;
+            int lineIndex = FindSourceLine(layout, sourceIndex);
+            if (lineIndex < 0)
             {
                 return;
             }
 
-            string glyph = latestLine.Substring(latestLine.Length - 1, 1);
-            string prefix = latestLine.Substring(0, latestLine.Length - 1);
+            WrappedTextLine sourceLine = layout[lineIndex];
+            string glyph = fullPageText.Substring(sourceIndex, 1);
+            string prefix = fullPageText.Substring(
+                sourceLine.SourceStart,
+                sourceIndex - sourceLine.SourceStart);
             float glyphX = area.x + _narrativeStyle.CalcSize(new GUIContent(prefix)).x;
-            float glyphY = area.y + ((lines.Count - 1) * lineAdvance);
+            float glyphY = area.y + (lineIndex * lineAdvance);
             float flash = (1f - age01) * Mathf.Max(0f, _settings.NewestCharacterFlashIntensity);
             float glowAlpha = textColor.a * _settings.NewestCharacterGlowOpacity * flash;
             float radius = Mathf.Max(0f, _settings.NewestCharacterGlowRadius);
@@ -613,37 +642,127 @@ namespace DuneVector
             }
         }
 
-        private static List<string> WrapText(string text, float maximumWidth, GUIStyle style)
+        private static List<WrappedTextLine> BuildWrappedLayout(
+            string text,
+            float maximumWidth,
+            GUIStyle style)
         {
-            List<string> result = new List<string>();
-            string[] authoredLines = text.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n');
-            for (int lineIndex = 0; lineIndex < authoredLines.Length; lineIndex++)
+            List<WrappedTextLine> result = new List<WrappedTextLine>();
+            int paragraphStart = 0;
+            for (int index = 0; index <= text.Length; index++)
             {
-                string authoredLine = authoredLines[lineIndex];
-                if (authoredLine.Length == 0)
+                if (index < text.Length && text[index] != '\n')
                 {
-                    result.Add(string.Empty);
                     continue;
                 }
 
-                string[] words = authoredLine.Split(' ');
-                string current = string.Empty;
-                for (int wordIndex = 0; wordIndex < words.Length; wordIndex++)
-                {
-                    string candidate = current.Length == 0 ? words[wordIndex] : $"{current} {words[wordIndex]}";
-                    if (current.Length > 0 && style.CalcSize(new GUIContent(candidate)).x > maximumWidth)
-                    {
-                        result.Add(current);
-                        current = words[wordIndex];
-                    }
-                    else
-                    {
-                        current = candidate;
-                    }
-                }
-                result.Add(current);
+                AddWrappedParagraph(result, text, paragraphStart, index, maximumWidth, style);
+                paragraphStart = index + 1;
             }
             return result;
+        }
+
+        private static void AddWrappedParagraph(
+            List<WrappedTextLine> result,
+            string text,
+            int paragraphStart,
+            int paragraphEnd,
+            float maximumWidth,
+            GUIStyle style)
+        {
+            if (paragraphStart >= paragraphEnd)
+            {
+                result.Add(new WrappedTextLine(paragraphStart, paragraphStart));
+                return;
+            }
+
+            int cursor = paragraphStart;
+            int lineStart = paragraphStart;
+            bool lineHasWord = false;
+            while (cursor < paragraphEnd)
+            {
+                while (cursor < paragraphEnd && char.IsWhiteSpace(text[cursor]))
+                {
+                    cursor++;
+                }
+
+                if (cursor >= paragraphEnd)
+                {
+                    break;
+                }
+
+                int wordStart = cursor;
+                while (cursor < paragraphEnd && !char.IsWhiteSpace(text[cursor]))
+                {
+                    cursor++;
+                }
+                int wordEnd = cursor;
+
+                if (!lineHasWord)
+                {
+                    lineStart = wordStart;
+                    lineHasWord = true;
+                    continue;
+                }
+
+                string candidate = text.Substring(lineStart, wordEnd - lineStart);
+                if (style.CalcSize(new GUIContent(candidate)).x <= maximumWidth)
+                {
+                    continue;
+                }
+
+                int lineEnd = wordStart;
+                while (lineEnd > lineStart && char.IsWhiteSpace(text[lineEnd - 1]))
+                {
+                    lineEnd--;
+                }
+                result.Add(new WrappedTextLine(lineStart, lineEnd));
+                lineStart = wordStart;
+            }
+
+            if (!lineHasWord)
+            {
+                result.Add(new WrappedTextLine(paragraphStart, paragraphStart));
+                return;
+            }
+
+            int finalLineEnd = paragraphEnd;
+            while (finalLineEnd > lineStart && char.IsWhiteSpace(text[finalLineEnd - 1]))
+            {
+                finalLineEnd--;
+            }
+            result.Add(new WrappedTextLine(lineStart, finalLineEnd));
+        }
+
+        private static List<string> BuildVisibleLines(
+            string fullText,
+            int visibleCharacterCount,
+            IReadOnlyList<WrappedTextLine> layout)
+        {
+            List<string> result = new List<string>(layout.Count);
+            int visibleEnd = Mathf.Clamp(visibleCharacterCount, 0, fullText.Length);
+            for (int index = 0; index < layout.Count; index++)
+            {
+                WrappedTextLine line = layout[index];
+                int lineVisibleEnd = Mathf.Min(visibleEnd, line.SourceEnd);
+                result.Add(lineVisibleEnd <= line.SourceStart
+                    ? string.Empty
+                    : fullText.Substring(line.SourceStart, lineVisibleEnd - line.SourceStart));
+            }
+            return result;
+        }
+
+        private static int FindSourceLine(IReadOnlyList<WrappedTextLine> layout, int sourceIndex)
+        {
+            for (int index = 0; index < layout.Count; index++)
+            {
+                WrappedTextLine line = layout[index];
+                if (sourceIndex >= line.SourceStart && sourceIndex < line.SourceEnd)
+                {
+                    return index;
+                }
+            }
+            return -1;
         }
 
         private void DrawContinueIndicator(Rect readingArea, bool finalPage, float flicker)
