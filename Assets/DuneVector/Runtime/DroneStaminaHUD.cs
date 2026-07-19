@@ -11,7 +11,6 @@ namespace DuneVector
         private Camera _camera;
         private DroneStaminaSystem _stamina;
         private StaminaBoostTuning _settings;
-        private GUIStyle _labelStyle;
         private DroneStaminaState _previousState;
         private float _visibleAlpha;
         private float _fullIdleTime;
@@ -129,30 +128,13 @@ namespace DuneVector
                     + (_settings.MeterArcDegrees - filledDegrees);
                 DrawContinuousArc(center, filledStartDegrees, filledDegrees, meterColor);
             }
-
-            string label = GetLabel(stamina01);
-            if (string.IsNullOrEmpty(label))
-            {
-                return;
-            }
-
-            EnsureLabelStyle();
-            Color labelColor = meterColor;
-            labelColor.a *= _visibleAlpha;
-            _labelStyle.normal.textColor = labelColor;
-            Rect labelRect = new Rect(
-                center.x + _settings.MeterLabelOffset.x,
-                center.y + _settings.MeterLabelOffset.y,
-                _settings.MeterLabelWidth,
-                _settings.MeterLabelHeight);
-            GUI.Label(labelRect, label, _labelStyle);
         }
 
         private Color GetMeterColor(float stamina01)
         {
             if (_stamina.State == DroneStaminaState.Exhausted)
             {
-                return _settings.EmptyColor;
+                return stamina01 > 0f ? _settings.RegeneratingColor : _settings.EmptyColor;
             }
             if (_stamina.State == DroneStaminaState.Regenerating)
             {
@@ -163,42 +145,6 @@ namespace DuneVector
                 return _settings.LowColor;
             }
             return _stamina.State == DroneStaminaState.Boosting ? _settings.BoostingColor : _settings.ReadyColor;
-        }
-
-        private string GetLabel(float stamina01)
-        {
-            if (_restoredFeedbackRemaining > 0f)
-            {
-                return _settings.RestoredLabel;
-            }
-            if (_stamina.State == DroneStaminaState.Exhausted)
-            {
-                return stamina01 > 0f ? _settings.RegeneratingLabel : _settings.EmptyLabel;
-            }
-            if (_stamina.State == DroneStaminaState.Regenerating)
-            {
-                return _settings.RegeneratingLabel;
-            }
-            if (stamina01 <= _settings.LowStaminaThreshold)
-            {
-                return _settings.LowLabel;
-            }
-            return string.Empty;
-        }
-
-        private void EnsureLabelStyle()
-        {
-            if (_labelStyle != null)
-            {
-                return;
-            }
-            _labelStyle = new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontStyle = FontStyle.Bold,
-                fontSize = Mathf.Max(8, _settings.MeterLabelFontSize),
-                clipping = TextClipping.Overflow,
-            };
         }
 
         private bool EnsureArcMaterial()

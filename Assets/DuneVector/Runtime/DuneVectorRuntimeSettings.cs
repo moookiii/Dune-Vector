@@ -1063,21 +1063,13 @@ namespace DuneVector
         [Range(90f, 360f)] public float MeterArcDegrees = 280f;
         public float MeterArcStartDegrees = 130f;
         [Min(0f)] public float ScreenEdgePadding = 38f;
-        [Tooltip("How quickly the stamina bar and its text follow the drone in screen space.")]
+        [Tooltip("How quickly the stamina bar follows the drone in screen space.")]
         [Min(0f)] public float MeterFollowSharpness = 16f;
         [Min(0f)] public float VisibilityFadeSpeed = 7f;
         [Min(0f)] public float FullIdleFadeDelay = 1.2f;
         [Range(0f, 1f)] public float FullIdleAlpha = 0.12f;
         [Min(0f)] public float RestoredFeedbackDuration = 0.9f;
         [Range(0f, 1f)] public float LowStaminaThreshold = 0.25f;
-        [Min(8)] public int MeterLabelFontSize = 11;
-        [Min(20f)] public float MeterLabelWidth = 90f;
-        [Min(10f)] public float MeterLabelHeight = 20f;
-        public Vector2 MeterLabelOffset = new Vector2(-45f, 32f);
-        public string LowLabel = "LOW";
-        public string EmptyLabel = "EMPTY";
-        public string RegeneratingLabel = "RECHARGING";
-        public string RestoredLabel = "READY";
         [ColorUsage(false)] public Color ReadyColor = new Color(0.35f, 1f, 0.72f, 1f);
         [ColorUsage(false)] public Color BoostingColor = new Color(0.2f, 0.95f, 1f, 1f);
         [ColorUsage(false)] public Color LowColor = new Color(1f, 0.7f, 0.12f, 1f);
