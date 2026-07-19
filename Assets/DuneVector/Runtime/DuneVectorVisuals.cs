@@ -15,6 +15,7 @@ namespace DuneVector
         public Material Sandstone { get; }
         public Material BoostRing { get; }
         public Material FlightRing { get; }
+        public Material UpperFlightRing { get; }
         public Material HealthRing { get; }
         public Material HealthHeart { get; }
         public GameObject HealthHeartModel { get; }
@@ -49,6 +50,12 @@ namespace DuneVector
             Sandstone = CreateLit("Pyramid - Sandstone", new Color(0.58f, 0.31f, 0.13f), 0.18f, 0f);
             BoostRing = CreateLit("Ring - Boost Amber", rings.BoostRingBaseColor, 0.65f, 0.4f, rings.BoostRingEmissionColor);
             FlightRing = CreateLit("Ring - Flight Cyan", rings.FlightRingBaseColor, 0.7f, 0.5f, rings.FlightRingEmissionColor);
+            UpperFlightRing = CreateLit(
+                "Ring - Upper Flight Violet",
+                rings.UpperFlightRingBaseColor,
+                0.7f,
+                0.5f,
+                rings.UpperFlightRingEmissionColor);
             HealthRing = CreateLit(
                 "Ring - Health Crimson",
                 rings.HealthRingBaseColor,
@@ -278,6 +285,7 @@ namespace DuneVector
             {
                 TraversalRingType.GroundBoost => materials.BoostRing,
                 TraversalRingType.Flight => materials.FlightRing,
+                TraversalRingType.UpperFlight => materials.UpperFlightRing,
                 TraversalRingType.Health => materials.HealthRing,
                 _ => materials.CoinRing,
             };

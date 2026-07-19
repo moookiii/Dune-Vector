@@ -103,6 +103,8 @@ namespace DuneVector
         public float FlightElapsedTime => _flightElapsedTime;
         public float FlightTimeRemaining { get; private set; }
         public float FlightTimeNormalized => FlightDuration > 0f ? Mathf.Clamp01(FlightTimeRemaining / FlightDuration) : 0f;
+        public float FlightSpeedMultiplier => _flightSpeedMultiplier;
+        public float CurrentMaximumFlightSpeed => MaximumFlightSpeed * _flightSpeedMultiplier;
         public DesertWorldStreamer World { get; private set; }
 
         private Vector2 _rawMove;
@@ -126,7 +128,9 @@ namespace DuneVector
         private bool _flightJustEntered;
         private bool _flightBurstRequested;
         private Vector3 _requestedFlightDirection;
+        private float _requestedFlightSpeedMultiplier = 1f;
         private Vector3 _flightDirection;
+        private float _flightSpeedMultiplier = 1f;
         private float _flightElapsedTime;
         private float _flightEntryLiftTimeRemaining;
 
@@ -227,18 +231,29 @@ namespace DuneVector
             StartRingBurst();
         }
 
-        public void RequestFlight(Vector3 launchDirection)
+        public void RequestFlight(Vector3 launchDirection, float speedMultiplier = 1f)
         {
+            float requestedMultiplier = Mathf.Max(1f, speedMultiplier);
             if (CurrentMode == DroneTraversalMode.Flight)
             {
+                bool returningToStandardSpeed = requestedMultiplier < _flightSpeedMultiplier;
+                _flightSpeedMultiplier = requestedMultiplier;
                 FlightTimeRemaining = FlightDuration;
-                StartRingBurst();
+                if (returningToStandardSpeed)
+                {
+                    _ringBurstTimeRemaining = 0f;
+                }
+                else
+                {
+                    StartRingBurst();
+                }
                 return;
             }
 
             _requestedFlightDirection = launchDirection.sqrMagnitude > 0.001f
                 ? launchDirection.normalized
                 : Motor.CharacterForward;
+            _requestedFlightSpeedMultiplier = requestedMultiplier;
             _flightBurstRequested = true;
             _flightRequested = true;
         }
@@ -257,6 +272,7 @@ namespace DuneVector
                     _flightBurstRequested = false;
                 }
                 _flightDirection = _requestedFlightDirection.normalized;
+                _flightSpeedMultiplier = _requestedFlightSpeedMultiplier;
                 _flightJustEntered = true;
                 _flightEntryLiftTimeRemaining = FlightEntryLiftDuration;
                 _jumpRequested = false;
@@ -406,10 +422,12 @@ namespace DuneVector
             }
 
             float throttle = Mathf.Clamp01((forwardInput + 1f) * 0.5f);
-            float targetSpeed = Mathf.Lerp(FlightSpeed * 0.62f, MaximumFlightSpeed, throttle);
+            float activeFlightSpeed = FlightSpeed * _flightSpeedMultiplier;
+            float activeMaximumFlightSpeed = MaximumFlightSpeed * _flightSpeedMultiplier;
+            float targetSpeed = Mathf.Lerp(activeFlightSpeed * 0.62f, activeMaximumFlightSpeed, throttle);
             if (Mathf.Abs(forwardInput) < 0.05f)
             {
-                targetSpeed = FlightSpeed;
+                targetSpeed = activeFlightSpeed;
             }
             if (_flightBrakeHeld)
             {
@@ -429,9 +447,9 @@ namespace DuneVector
             if (_flightJustEntered)
             {
                 _flightJustEntered = false;
-                if (currentVelocity.magnitude < FlightSpeed * 0.72f)
+                if (currentVelocity.magnitude < activeFlightSpeed * 0.72f)
                 {
-                    targetVelocity = Vector3.Slerp(targetVelocity.normalized, _requestedFlightDirection, 0.32f).normalized * FlightSpeed;
+                    targetVelocity = Vector3.Slerp(targetVelocity.normalized, _requestedFlightDirection, 0.32f).normalized * activeFlightSpeed;
                 }
             }
 
@@ -545,6 +563,8 @@ namespace DuneVector
             Motor.SetGroundSolvingActivation(true);
             _flightElapsedTime = 0f;
             FlightTimeRemaining = 0f;
+            _flightSpeedMultiplier = 1f;
+            _requestedFlightSpeedMultiplier = 1f;
             _flightEntryLiftTimeRemaining = 0f;
             _timeSinceStableGround = float.PositiveInfinity;
         }
@@ -599,7 +619,7 @@ namespace DuneVector
                     ? intendedTurnIntensity
                     : actualTurnIntensity;
                 targetBank = Mathf.Clamp(turnIntensity, -1f, 1f) * MaximumBankAngle;
-                targetPitch = Mathf.Clamp(-Motor.BaseVelocity.y / Mathf.Max(1f, MaximumFlightSpeed), -1f, 1f) * 5f;
+                targetPitch = Mathf.Clamp(-Motor.BaseVelocity.y / Mathf.Max(1f, CurrentMaximumFlightSpeed), -1f, 1f) * 5f;
             }
             else
             {

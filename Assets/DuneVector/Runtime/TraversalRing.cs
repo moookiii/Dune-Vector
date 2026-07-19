@@ -9,6 +9,7 @@ namespace DuneVector
         Flight,
         Health,
         Coin,
+        UpperFlight,
     }
 
     [DisallowMultipleComponent]
@@ -47,7 +48,6 @@ namespace DuneVector
         private Transform _collectibleIcon;
         private Quaternion _collectibleIconBaseRotation = Quaternion.identity;
         private DuneVectorMaterials _materials;
-        private float _majorRadius;
         private RingTuning _ringTuning;
         private TraversalRing _upperLayerRing;
 
@@ -64,7 +64,6 @@ namespace DuneVector
             _controller = controller;
             _health = health;
             _materials = materials;
-            _majorRadius = majorRadius;
             _ringTuning = ringTuning;
             InnerRadius = majorRadius - 0.58f;
             ProceduralIdentity = identity;
@@ -87,6 +86,7 @@ namespace DuneVector
             {
                 TraversalRingType.GroundBoost => "Ground Boost Ring",
                 TraversalRingType.Flight => "Elevated Flight Ring",
+                TraversalRingType.UpperFlight => "Upper Flight Ring",
                 TraversalRingType.Health => "Health Ring",
                 _ => "Coin Ring",
             };
@@ -110,49 +110,45 @@ namespace DuneVector
             _upperLayerRing?.BindTargets(controller, health);
         }
 
-        public void SpawnUpperFlightLayer(float verticalSeparation)
+        public void SpawnUpperFlightLayer(
+            Vector3 restingLocalPosition,
+            Quaternion localRotation,
+            float flightModeHeightOffset)
         {
             if (RingType != TraversalRingType.Flight || _upperLayerRing != null || _materials == null)
             {
                 return;
             }
 
-            float separation = Mathf.Max(0.5f, verticalSeparation);
             GameObject upperObject = new GameObject("Upper Flight Ring");
             upperObject.transform.SetParent(transform.parent, false);
-            upperObject.transform.localPosition = _restingLocalPosition + (Vector3.up * separation);
-            upperObject.transform.localRotation = transform.localRotation;
+            upperObject.transform.localPosition = restingLocalPosition;
+            upperObject.transform.localRotation = localRotation;
 
             TraversalRing upperRing = upperObject.AddComponent<TraversalRing>();
             upperRing.Initialize(
-                TraversalRingType.Flight,
+                TraversalRingType.UpperFlight,
                 _controller,
                 _health,
                 _materials,
-                _majorRadius,
+                _ringTuning.UpperFlightRingRadius,
                 _ringTuning,
                 $"{ProceduralIdentity}:upper");
-            upperRing.gameObject.name = "Upper Flight Ring";
-            upperRing.CopyFlightSettingsFrom(this);
-            upperRing.transform.localPosition = transform.localPosition + (Vector3.up * separation);
+            upperRing.TriggerDepth = TriggerDepth;
+            upperRing.ReactivationDelay = ReactivationDelay;
+            upperRing.FlightModeScale = _ringTuning.UpperFlightRingActiveScale;
+            upperRing.FlightModeScaleSharpness = _ringTuning.UpperFlightRingScaleSharpness;
+            upperRing.ClockwiseRotationSpeed = _ringTuning.UpperFlightRingRotationSpeed;
+            upperRing.FlightModeHeightOffset = flightModeHeightOffset;
+            upperRing.FlightModeHeightSharpness = _ringTuning.UpperFlightModeHeightSharpness;
+            if (_controller != null && _controller.CurrentMode == DroneTraversalMode.Flight)
+            {
+                upperRing.transform.localPosition = restingLocalPosition + (Vector3.up * flightModeHeightOffset);
+            }
             _upperLayerRing = upperRing;
         }
 
-        private void CopyFlightSettingsFrom(TraversalRing source)
-        {
-            InnerRadius = source.InnerRadius;
-            TriggerDepth = source.TriggerDepth;
-            ReactivationDelay = source.ReactivationDelay;
-            BoostRingActiveScale = source.BoostRingActiveScale;
-            FlightModeScale = source.FlightModeScale;
-            FlightModeScaleSharpness = source.FlightModeScaleSharpness;
-            ClockwiseRotationSpeed = source.ClockwiseRotationSpeed;
-            FlightModeHeightOffset = source.FlightModeHeightOffset;
-            FlightModeHeightSharpness = source.FlightModeHeightSharpness;
-            _modeScale = source._modeScale;
-            _visualSpin = source._visualSpin;
-            _pulse = source._pulse;
-        }
+        private bool IsFlightRing => RingType == TraversalRingType.Flight || RingType == TraversalRingType.UpperFlight;
 
         private void Update()
         {
@@ -161,7 +157,7 @@ namespace DuneVector
                 return;
             }
 
-            if (RingType == TraversalRingType.Flight)
+            if (IsFlightRing)
             {
                 bool isFlying = _controller.CurrentMode == DroneTraversalMode.Flight;
                 Vector3 targetPosition = _restingLocalPosition
@@ -203,7 +199,7 @@ namespace DuneVector
             {
                 float targetModeScale = RingType switch
                 {
-                    TraversalRingType.Flight => _controller.CurrentMode == DroneTraversalMode.Flight
+                    TraversalRingType.Flight or TraversalRingType.UpperFlight => _controller.CurrentMode == DroneTraversalMode.Flight
                         ? FlightModeScale
                         : 1f,
                     TraversalRingType.GroundBoost => Mathf.Lerp(
@@ -289,9 +285,12 @@ namespace DuneVector
             }
             else
             {
-                if (RingType == TraversalRingType.Flight)
+                if (IsFlightRing)
                 {
-                    _controller.RequestFlight(transform.forward);
+                    float speedMultiplier = RingType == TraversalRingType.UpperFlight
+                        ? _ringTuning.UpperFlightSpeedMultiplier
+                        : 1f;
+                    _controller.RequestFlight(transform.forward, speedMultiplier);
                 }
                 else
                 {
@@ -308,6 +307,7 @@ namespace DuneVector
             {
                 TraversalRingType.GroundBoost => new Color(1f, 0.5f, 0f, 0.7f),
                 TraversalRingType.Flight => new Color(0f, 0.8f, 1f, 0.7f),
+                TraversalRingType.UpperFlight => new Color(0.75f, 0.1f, 1f, 0.7f),
                 TraversalRingType.Health => new Color(1f, 0.1f, 0.25f, 0.7f),
                 _ => new Color(1f, 0.72f, 0.08f, 0.7f),
             };

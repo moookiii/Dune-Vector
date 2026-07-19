@@ -297,8 +297,27 @@ namespace DuneVector
         [Header("Upper Flight Ring Unlock")]
         [Tooltip("Number of distinct blue flight rings the player must cross before the upper-layer ring appears.")]
         [Min(1)] public int UpperFlightRingRequiredPasses = 5;
-        [Tooltip("Vertical distance between the triggering blue ring and its unlocked upper-layer ring.")]
-        [Min(0.5f)] public float UpperFlightRingVerticalSeparation = 36f;
+
+        [Header("Upper Flight Ring Generation")]
+        [Tooltip("Independent procedural salt used for upper-layer positions, altitudes, rotations, and movement.")]
+        public int UpperFlightRingSeedOffset = 19031;
+        [Min(0.75f)] public float UpperFlightRingRadius = 5f;
+        [Min(0f)] public float UpperFlightRingMinimumHeight = 45f;
+        [Min(0f)] public float UpperFlightRingMaximumHeight = 70f;
+
+        [Header("Upper Flight Ring Appearance")]
+        [ColorUsage(false, true)] public Color UpperFlightRingBaseColor = new Color(0.24f, 0.015f, 0.42f);
+        [ColorUsage(false, true)] public Color UpperFlightRingEmissionColor = new Color(4.8f, 0.08f, 8f);
+        [Min(1f)] public float UpperFlightRingActiveScale = 3f;
+        [Min(0f)] public float UpperFlightRingScaleSharpness = 4.5f;
+        [Min(0f)] public float UpperFlightRingRotationSpeed = 56f;
+
+        [Header("Upper Flight Ring Motion and Speed")]
+        [Min(0f)] public float UpperFlightModeMinimumHeightOffset;
+        [Min(0f)] public float UpperFlightModeMaximumHeightOffset = 18f;
+        [Min(0f)] public float UpperFlightModeHeightSharpness = 3f;
+        [Tooltip("Multiplier applied to normal and maximum flight speed after crossing an upper-layer ring. A blue ring resets it to one.")]
+        [Min(1f)] public float UpperFlightSpeedMultiplier = 1.6f;
 
         [Header("Upper Flight Ring HUD")]
         public bool ShowUpperFlightRingHud = true;

@@ -331,7 +331,7 @@ namespace DuneVector
             _chunks.Add(coordinate, chunk);
             if (IsUpperFlightRingUnlocked)
             {
-                chunk.SpawnUpperFlightLayers(Rings.UpperFlightRingVerticalSeparation);
+                chunk.SpawnUpperFlightLayers();
             }
             GeneratedChunkCount++;
             PeakActiveChunkCount = Mathf.Max(PeakActiveChunkCount, _chunks.Count);
@@ -367,10 +367,9 @@ namespace DuneVector
 
         private void SpawnUpperFlightLayersForLoadedChunks()
         {
-            float separation = Rings.UpperFlightRingVerticalSeparation;
             foreach (DesertChunk chunk in _chunks.Values)
             {
-                chunk.SpawnUpperFlightLayers(separation);
+                chunk.SpawnUpperFlightLayers();
             }
         }
 
@@ -416,6 +415,10 @@ namespace DuneVector
         private readonly List<TraversalRing> _rings = new List<TraversalRing>();
         private readonly List<GroundExploderEnemy> _groundExploders = new List<GroundExploderEnemy>();
         private readonly Mesh _terrainMesh;
+        private readonly float _chunkSize;
+        private readonly DuneHeightField _heightField;
+        private readonly int _worldSeed;
+        private readonly RingTuning _ringTuning;
 
         public DesertChunk(
             Vector2Int coordinate,
@@ -445,6 +448,10 @@ namespace DuneVector
             Action<TraversalRing> ringActivated)
         {
             Coordinate = coordinate;
+            _chunkSize = chunkSize;
+            _heightField = heightField;
+            _worldSeed = worldSeed;
+            _ringTuning = ringTuning;
             GameObject rootObject = new GameObject($"Desert Chunk [{coordinate.x}, {coordinate.y}]");
             Root = rootObject.transform;
             Root.SetParent(parent, false);
@@ -530,14 +537,64 @@ namespace DuneVector
             }
         }
 
-        public void SpawnUpperFlightLayers(float verticalSeparation)
+        public void SpawnUpperFlightLayers()
         {
             for (int i = 0; i < _rings.Count; i++)
             {
                 TraversalRing ring = _rings[i];
                 if (ring != null && ring.RingType == TraversalRingType.Flight)
                 {
-                    ring.SpawnUpperFlightLayer(verticalSeparation);
+                    int seedOffset = _ringTuning.UpperFlightRingSeedOffset + (i * 53);
+                    float margin = Mathf.Min(
+                        _chunkSize * 0.5f,
+                        Mathf.Max(0f, _ringTuning.UpperFlightRingRadius));
+                    float maximumCoordinate = Mathf.Max(margin, _chunkSize - margin);
+                    float localX = DuneVectorMath.HashRange(
+                        Coordinate.x,
+                        Coordinate.y,
+                        _worldSeed,
+                        seedOffset + 1,
+                        margin,
+                        maximumCoordinate);
+                    float localZ = DuneVectorMath.HashRange(
+                        Coordinate.x,
+                        Coordinate.y,
+                        _worldSeed,
+                        seedOffset + 7,
+                        margin,
+                        maximumCoordinate);
+                    double logicalX = (Coordinate.x * (double)_chunkSize) + localX;
+                    double logicalZ = (Coordinate.y * (double)_chunkSize) + localZ;
+                    float terrainHeight = (float)_heightField.SampleHeight(logicalX, logicalZ);
+                    float minimumHeight = Mathf.Max(0f, _ringTuning.UpperFlightRingMinimumHeight);
+                    float maximumHeight = Mathf.Max(minimumHeight, _ringTuning.UpperFlightRingMaximumHeight);
+                    float height = DuneVectorMath.HashRange(
+                        Coordinate.x,
+                        Coordinate.y,
+                        _worldSeed,
+                        seedOffset + 13,
+                        minimumHeight,
+                        maximumHeight);
+                    float yaw = DuneVectorMath.HashRange(
+                        Coordinate.x,
+                        Coordinate.y,
+                        _worldSeed,
+                        seedOffset + 19,
+                        0f,
+                        360f);
+                    float minimumLift = Mathf.Max(0f, _ringTuning.UpperFlightModeMinimumHeightOffset);
+                    float maximumLift = Mathf.Max(minimumLift, _ringTuning.UpperFlightModeMaximumHeightOffset);
+                    float flightModeHeightOffset = DuneVectorMath.HashRange(
+                        Coordinate.x,
+                        Coordinate.y,
+                        _worldSeed,
+                        seedOffset + 29,
+                        minimumLift,
+                        maximumLift);
+                    ring.SpawnUpperFlightLayer(
+                        new Vector3(localX, terrainHeight + height, localZ),
+                        Quaternion.Euler(0f, yaw, 0f),
+                        flightModeHeightOffset);
                 }
             }
         }
