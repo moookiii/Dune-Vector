@@ -1197,7 +1197,7 @@ namespace DuneVector
                 _targetPosition,
                 _settings.StrikeRadius,
                 _settings.LightningDamage,
-                "Player Strike Orb lightning");
+                "Strike Orb lightning");
             UpdateLightningVisual();
         }
 
@@ -1650,7 +1650,7 @@ namespace DuneVector
                 int count = Mathf.Max(1, orbSettings.EnemyCount);
                 for (int i = 0; i < count; i++)
                 {
-                    SpawnOrbEnemy(random, $"Player Strike Orb {i + 1:00}", 10000 + i + 1);
+                    SpawnOrbEnemy(random, $"Strike Orb {i + 1:00}", 10000 + i + 1);
                 }
             }
 

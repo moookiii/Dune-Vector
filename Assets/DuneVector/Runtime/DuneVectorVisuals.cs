@@ -186,8 +186,8 @@ namespace DuneVector
             GroundEnemyWarning = CreateLit("Ground Exploder - Warning", new Color(0.46f, 0.055f, 0.008f), 0.62f, 0.3f, new Color(5.2f, 0.32f, 0.015f));
             StormPyramidBody = CreateLit("Storm Pyramid - Body", new Color(0.025f, 0.035f, 0.09f), 0.58f, 0.82f, new Color(0.08f, 0.12f, 0.55f));
             StormPyramidCore = CreateLit("Storm Pyramid - Core", new Color(0.01f, 0.08f, 0.14f), 0.76f, 0.22f, new Color(0.15f, 3.6f, 6.5f));
-            PlayerStrikeOrbBody = CreateLit("Player Strike Orb - Body", new Color(0.018f, 0.028f, 0.07f), 0.64f, 0.76f, new Color(0.08f, 0.18f, 0.8f));
-            PlayerStrikeOrbCore = CreateLit("Player Strike Orb - Satellites", new Color(0.08f, 0.3f, 0.48f), 0.78f, 0.28f, new Color(0.35f, 3.5f, 6.8f));
+            PlayerStrikeOrbBody = CreateLit("Strike Orb - Body", new Color(0.018f, 0.028f, 0.07f), 0.64f, 0.76f, new Color(0.08f, 0.18f, 0.8f));
+            PlayerStrikeOrbCore = CreateLit("Strike Orb - Satellites", new Color(0.08f, 0.3f, 0.48f), 0.78f, 0.28f, new Color(0.35f, 3.5f, 6.8f));
             Lightning = CreateUnlit("Storm Pyramid - Lightning", new Color(0.55f, 0.86f, 1f), new Color(7.5f, 12f, 18f));
             LightningWarning = CreateUnlit("Storm Pyramid - Warning", new Color(0.18f, 0.42f, 0.62f), new Color(0.45f, 2.8f, 5.8f));
         }
@@ -1104,7 +1104,7 @@ namespace DuneVector
             DuneVectorMaterials materials,
             PlayerStrikeOrbTuning settings)
         {
-            GameObject rootObject = new GameObject("Player Strike Orb Visual");
+            GameObject rootObject = new GameObject("Strike Orb Visual");
             Transform root = rootObject.transform;
             root.SetParent(parent, false);
             root.localScale = Vector3.one * settings.VisualScale;
