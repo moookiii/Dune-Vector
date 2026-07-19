@@ -92,6 +92,12 @@ namespace DuneVector
                 _launcher.Fired += HandleWeaponFired;
             }
             _world.WorldShifted += HandleWorldShift;
+            if (_electricalSettings.Enabled && _electricalSettings.Visuals.Enabled)
+            {
+                DuneVectorElectricalStormVisualSystem electricalVisuals =
+                    gameObject.AddComponent<DuneVectorElectricalStormVisualSystem>();
+                electricalVisuals.Initialize(this, _drone, _world, _weather, _electricalSettings.Visuals);
+            }
             if (_heatSettings.VisualsEnabled)
             {
                 DuneVectorHeatZoneVisualSystem visuals = gameObject.AddComponent<DuneVectorHeatZoneVisualSystem>();

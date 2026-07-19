@@ -1542,6 +1542,188 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class ElectricalStormVisualTuning
+    {
+        public bool Enabled = true;
+
+        [Header("Storm Presence & Severity")]
+        [Range(0f, 1f)] public float VisualActivationIntensity = 0.08f;
+        [Range(0f, 1f)] public float FullVisualIntensity = 0.78f;
+        [Min(0f)] public float VisualBlendSharpness = 3.5f;
+        [Range(0f, 1f)] public float SevereVisualThreshold = 0.58f;
+        [Range(0f, 1f)] public float ExtremeVisualThreshold = 0.88f;
+
+        [Header("Regional Stormfront")]
+        public Vector2 StormfrontDirection = new Vector2(-1f, 0.2f);
+        [Min(0f)] public float StormfrontFarDistance = 460f;
+        [Min(0f)] public float StormfrontNearDistance = 36f;
+        [Min(1f)] public float StormfrontWidth = 390f;
+        [Min(1f)] public float StormfrontHeight = 165f;
+        [Min(1f)] public float StormfrontDepth = 115f;
+        [Min(0f)] public float StormfrontBaseHeight = 22f;
+        [Range(4, 64)] public int StormCloudLobeCount = 34;
+        public Vector3 StormCloudMinimumScale = new Vector3(42f, 24f, 34f);
+        public Vector3 StormCloudMaximumScale = new Vector3(92f, 64f, 72f);
+        [Min(1f)] public float StormCloudAnvilScaleMultiplier = 1.45f;
+        [Min(1f)] public float StormCloudAnvilSpreadMultiplier = 1.16f;
+        [Min(0f)] public float StormCloudRollAmount = 3.5f;
+        [Min(0f)] public float StormCloudRollSpeed = 0.16f;
+        [ColorUsage(false)] public Color StormCloudColor = new Color(0.055f, 0.065f, 0.085f, 1f);
+        [ColorUsage(false, true)] public Color StormCloudFlashEmission = new Color(1.7f, 3.8f, 6.5f, 1f);
+        [Range(0f, 1f)] public float StormCloudSmoothness = 0.12f;
+
+        [Header("Internal Lightning Rhythm")]
+        [Min(0.1f)] public float InternalFlashMinimumInterval = 1.8f;
+        [Min(0.1f)] public float InternalFlashMaximumInterval = 5.5f;
+        [Min(0.01f)] public float InternalFlashDuration = 0.24f;
+        [Min(0f)] public float InternalFlashEmissionMultiplier = 2.4f;
+        [Range(0, 8)] public int InternalFlashLightCount = 3;
+        [Min(0f)] public float InternalFlashLightRange = 130f;
+        [Min(0f)] public float InternalFlashLightIntensity = 1300f;
+        [Range(0f, 1f)] public float InternalLightHorizontalSpread = 0.35f;
+        [Range(0f, 1f)] public float InternalLightMinimumHeight = 0.2f;
+        [Range(0f, 1f)] public float InternalLightMaximumHeight = 0.8f;
+        [Min(0f)] public float InternalFlashMinimumFrequencyMultiplier = 0.65f;
+        [Min(0f)] public float InternalFlashMaximumFrequencyMultiplier = 1.7f;
+        [ColorUsage(false, true)] public Color InternalFlashLightColor = new Color(0.54f, 0.82f, 1f, 1f);
+
+        [Header("Charged Dust Veil")]
+        [Range(0, 800)] public int ChargedDustParticleBudget = 360;
+        [Min(0f)] public float ChargedDustEmissionRate = 90f;
+        [Min(0.1f)] public float ChargedDustLifetime = 4.5f;
+        [Min(0.01f)] public float ChargedDustMinimumSize = 0.05f;
+        [Min(0.01f)] public float ChargedDustMaximumSize = 0.18f;
+        [Min(1f)] public float ChargedDustRadius = 72f;
+        [Min(1f)] public float ChargedDustHeight = 42f;
+        public Vector3 ChargedDustVelocity = new Vector3(10f, 0.8f, 2f);
+        [Min(0f)] public float ChargedDustTurbulence = 1.15f;
+        [Min(0f)] public float ChargedDustLengthScale = 0.45f;
+        [Min(0f)] public float ChargedDustVelocityStretch = 0.12f;
+        [ColorUsage(false)] public Color ChargedDustColor = new Color(0.48f, 0.58f, 0.66f, 0.24f);
+
+        [Header("Static Motes & Air Streaks")]
+        [Range(0, 500)] public int StaticMoteParticleBudget = 180;
+        [Min(0f)] public float StaticMoteEmissionRate = 32f;
+        [Min(0.1f)] public float StaticMoteLifetime = 1.5f;
+        [Min(0.01f)] public float StaticMoteMinimumSize = 0.025f;
+        [Min(0.01f)] public float StaticMoteMaximumSize = 0.09f;
+        [Min(0f)] public float StaticMoteSpeed = 18f;
+        [Min(0f)] public float StaticMoteLength = 2.8f;
+        [Min(0f)] public float StaticMoteVelocityStretch = 1f;
+        [Min(1f)] public float StaticMoteRadius = 42f;
+        [Min(1f)] public float StaticMoteHeight = 28f;
+        [Min(1f)] public float ChargeBuildupParticleMultiplier = 2.2f;
+        [Range(0f, 1f)] public float ParticleFadeInFraction = 0.18f;
+        [Range(0f, 1f)] public float ParticleFadeOutFraction = 0.78f;
+        [Range(16, 256)] public int ParticleTextureResolution = 64;
+        [ColorUsage(false, true)] public Color StaticMoteColor = new Color(0.45f, 1.6f, 3.2f, 0.82f);
+
+        [Header("Distant Probing Strikes")]
+        [Min(0.1f)] public float ProbeMinimumInterval = 4.5f;
+        [Min(0.1f)] public float ProbeMaximumInterval = 9f;
+        [Min(0f)] public float ProbeMinimumDistance = 85f;
+        [Min(0f)] public float ProbeMaximumDistance = 260f;
+        [Min(1f)] public float ProbeOriginHeight = 125f;
+        [Range(0f, 1f)] public float ProbeActivationIntensity = 0.12f;
+        [Min(0f)] public float ProbeWidthMultiplier = 0.7f;
+        [Min(0f)] public float ProbeMinimumFrequencyMultiplier = 0.7f;
+        [Min(0f)] public float ProbeMaximumFrequencyMultiplier = 1.6f;
+
+        [Header("Readable Strike Telegraph")]
+        [Range(8, 96)] public int TargetMarkerSegments = 40;
+        [Min(0f)] public float TargetMarkerStartRadius = 1.4f;
+        [Min(0f)] public float TargetMarkerEndRadius = 5.2f;
+        [Min(0.001f)] public float TargetMarkerWidth = 0.12f;
+        [Min(0f)] public float TargetMarkerHeightOffset = 0.14f;
+        [Min(0f)] public float AirTargetMarkerRadius = 2.8f;
+        [Min(0f)] public float TargetPulseSpeed = 12f;
+        [Range(0f, 1f)] public float TargetPulseAmount = 0.16f;
+        [Min(1f)] public float ChargeColumnHeight = 68f;
+        [Min(0.001f)] public float ChargeColumnStartWidth = 0.025f;
+        [Min(0.001f)] public float ChargeColumnEndWidth = 0.22f;
+        [Range(0f, 1f)] public float ChargeColumnTipWidthMultiplier = 0.35f;
+        [Range(0, 240)] public int ConvergingSparkBudget = 90;
+        [Min(0f)] public float ConvergingSparkEmissionRate = 48f;
+        [Min(0.1f)] public float ConvergingSparkLifetime = 0.7f;
+        [Min(0.01f)] public float ConvergingSparkSize = 0.075f;
+        [Min(0f)] public float ConvergingSparkSpeed = 8f;
+        [Range(0f, 1f)] public float ConvergingSparkInitialEmissionFraction = 0.35f;
+        [ColorUsage(false, true)] public Color TelegraphColor = new Color(0.24f, 2.8f, 6.8f, 1f);
+
+        [Header("Lightning Release")]
+        [Range(4, 32)] public int LightningSegments = 15;
+        [Min(0.001f)] public float LightningStartWidth = 0.52f;
+        [Range(0.1f, 1f)] public float LightningEndWidthMultiplier = 0.42f;
+        [Min(0f)] public float LightningMinimumJitter = 0.45f;
+        [Min(0f)] public float LightningMaximumJitter = 3.8f;
+        [Min(0f)] public float LightningJitterPerMeter = 0.026f;
+        [Min(0.01f)] public float LightningVisualDuration = 0.34f;
+        [Range(0, 8)] public int LightningBranchCount = 4;
+        [Min(0f)] public float LightningBranchLength = 9f;
+        [Min(0.001f)] public float LightningBranchWidthMultiplier = 0.46f;
+        [ColorUsage(false, true)] public Color LightningColor = new Color(5.8f, 11f, 18f, 1f);
+        [Min(0f)] public float ImpactFlashRadius = 5.8f;
+        [Min(0.01f)] public float ImpactFlashDuration = 0.38f;
+
+        [Header("Fused Sand Afterglow")]
+        [Min(0f)] public float StrikeScarRadius = 3.6f;
+        [Min(0f)] public float StrikeScarThickness = 0.09f;
+        [Min(0f)] public float StrikeScarHeightOffset = 0.06f;
+        [Min(0.1f)] public float StrikeScarLifetime = 28f;
+        [ColorUsage(false)] public Color StrikeScarColor = new Color(0.018f, 0.024f, 0.032f, 1f);
+        [ColorUsage(false, true)] public Color StrikeScarEmission = new Color(0.12f, 1.2f, 3.4f, 1f);
+        [Range(0f, 1f)] public float StrikeScarSmoothness = 0.72f;
+
+        [Header("Near-Field Arc Snaps")]
+        [Min(0.1f)] public float NearArcMinimumInterval = 1.4f;
+        [Min(0.1f)] public float NearArcMaximumInterval = 3.8f;
+        [Min(0f)] public float NearArcMinimumRadius = 2.4f;
+        [Min(0f)] public float NearArcMaximumRadius = 8f;
+        [Min(0.001f)] public float NearArcWidth = 0.055f;
+        [Min(0.01f)] public float NearArcDuration = 0.12f;
+
+        [Header("Landmark Electrical Reactions")]
+        public bool LandmarkReactionsEnabled = true;
+        [Min(0f)] public float LandmarkReactionRange = 240f;
+        [Min(0.1f)] public float LandmarkReactionMinimumInterval = 3.5f;
+        [Min(0.1f)] public float LandmarkReactionMaximumInterval = 7.5f;
+        [Min(0.001f)] public float LandmarkArcWidth = 0.11f;
+        [Min(0.01f)] public float LandmarkArcDuration = 0.2f;
+
+        [Header("Interior Storm Atmosphere")]
+        public float InteriorVolumePriority = 210f;
+        [Min(0f)] public float InteriorBlendSharpness = 5f;
+        public float InteriorPostExposure = -0.52f;
+        [Range(-100f, 100f)] public float InteriorSaturation = -28f;
+        [Range(-100f, 100f)] public float InteriorContrast = 22f;
+        [ColorUsage(false)] public Color InteriorColorFilter = new Color(0.72f, 0.82f, 0.92f, 1f);
+        [Min(0f)] public float InteriorBloomIntensity = 0.68f;
+        [Min(0f)] public float InteriorBloomThreshold = 0.82f;
+
+        [Header("Electrical HUD")]
+        [Min(100f)] public float HudWidth = 304f;
+        [Min(40f)] public float HudHeight = 72f;
+        [Min(0f)] public float HudLeft = 24f;
+        [Min(0f)] public float HudTop = 118f;
+        [Min(0f)] public float HudPadding = 12f;
+        [Min(1f)] public float HudAccentWidth = 4f;
+        [Min(8)] public int HudTitleFontSize = 12;
+        [Min(8)] public int HudStatusFontSize = 15;
+        public string HudStormLabel = "ELECTRICAL STORM REGION";
+        public string HudIonizationLabel = "IONIZATION SPIKE DETECTED";
+        public string HudInterferenceLabel = "DRONE SYSTEM INTERFERENCE";
+        [ColorUsage(false)] public Color HudPanelColor = new Color(0.018f, 0.028f, 0.052f, 0.9f);
+        [ColorUsage(false)] public Color HudAccentColor = new Color(0.18f, 0.74f, 1f, 1f);
+        [ColorUsage(false)] public Color HudTextColor = new Color(0.78f, 0.9f, 1f, 1f);
+        [ColorUsage(false)] public Color HudStaticColor = new Color(0.35f, 0.82f, 1f, 0.14f);
+        [Range(0, 16)] public int HudStaticLineCount = 5;
+        [Min(0f)] public float HudStaticLineHeight = 1f;
+        [Min(0f)] public float HudStaticJitter = 4f;
+        [Min(0f)] public float HudStaticSpeed = 18f;
+        [Range(0f, 1f)] public float HudApproachStaticMultiplier = 0.35f;
+    }
+
+    [System.Serializable]
     public sealed class ElectricalSandstormTuning
     {
         public bool Enabled = true;
@@ -1560,6 +1742,12 @@ namespace DuneVector
         [Range(0.1f, 1f)] public float HighValueStrikeIntervalMultiplier = 0.82f;
         [Min(1f)] public float WeaponCooldownMultiplier = 1.3f;
         public int RandomSeedOffset = 22483;
+        public ElectricalStormVisualTuning Visuals = new ElectricalStormVisualTuning();
+
+        public void EnsureInitialized()
+        {
+            Visuals ??= new ElectricalStormVisualTuning();
+        }
     }
 
     [System.Serializable]
@@ -1663,7 +1851,7 @@ namespace DuneVector
         [Range(0f, 1f)] public float HotSpotSmoothness = 0.22f;
 
         [Header("Interior Atmosphere")]
-        public float InteriorVolumePriority = 20f;
+        public float InteriorVolumePriority = 200f;
         [Min(0f)] public float InteriorBlendSharpness = 4f;
         public float InteriorPostExposure = 0.28f;
         [Range(-100f, 100f)] public float InteriorSaturation = -16f;
@@ -1705,6 +1893,7 @@ namespace DuneVector
         public void EnsureInitialized()
         {
             ElectricalSandstorms ??= new ElectricalSandstormTuning();
+            ElectricalSandstorms.EnsureInitialized();
             HeatZones ??= new HeatZoneTuning();
         }
     }
