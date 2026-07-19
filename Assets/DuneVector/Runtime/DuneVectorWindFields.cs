@@ -36,6 +36,22 @@ namespace DuneVector
         public bool Enabled = true;
         [Tooltip("Procedural seed combined with the world seed for wind turbulence and particle variation.")]
         public int WindSeed = 4187;
+
+        [Header("Procedural Placement")]
+        public bool ProceduralPlacementEnabled = true;
+        [Min(40f)] public float SpawnCellSize = 320f;
+        [Range(0f, 1f)] public float SpawnChancePerCell = 0.52f;
+        [Range(1, 6)] public int ActiveCellRadius = 2;
+        [Min(0.05f)] public float StreamingRefreshInterval = 0.5f;
+        [Min(0f)] public float StartingAreaExclusionRadius = 120f;
+        [Range(0f, 60f)] public float MaximumGroundSlope = 38f;
+        [Range(0f, 0.49f)] public float PositionJitterFraction = 0.38f;
+        [Min(0.1f)] public float MinimumSizeMultiplier = 0.78f;
+        [Min(0.1f)] public float MaximumSizeMultiplier = 1.24f;
+        [Min(0f)] public float HeightVariation = 14f;
+        [Range(0f, 180f)] public float DirectionYawVariation = 32f;
+        [Range(0f, 1f)] public float ForceVariation = 0.22f;
+        [Range(0f, 1f)] public float TurbulenceVariation = 0.16f;
         [Range(0.05f, 0.95f)] public float CoreRadius = 0.42f;
         [Min(0f)] public float PlayerForceResponse = 1f;
         [Min(0f)] public float GroundedForceMultiplier = 0.32f;
@@ -80,7 +96,8 @@ namespace DuneVector
         [Min(0f)] public float CullDistance = 720f;
         [Range(0f, 1f)] public float DistantEmissionMultiplier = 0.22f;
 
-        [Header("Authored Regions")]
+        [Header("Wind Field Templates")]
+        [Tooltip("Templates used for procedural type, shape, direction, force, and turbulence variation.")]
         public List<WindFieldDefinition> Fields = new List<WindFieldDefinition>();
 
         public void EnsureInitialized()
@@ -109,6 +126,8 @@ namespace DuneVector
         private sealed class RuntimeField
         {
             public WindFieldDefinition Definition;
+            public Vector2Int Cell;
+            public bool IsProcedural;
             public Transform Root;
             public ParticleSystem Streamlines;
             public ParticleSystem SurfaceSand;
@@ -122,11 +141,16 @@ namespace DuneVector
         private DesertWorldStreamer _world;
         private WindFieldSystemTuning _settings;
         private readonly List<RuntimeField> _fields = new List<RuntimeField>();
+        private readonly Dictionary<Vector2Int, RuntimeField> _proceduralFields =
+            new Dictionary<Vector2Int, RuntimeField>();
+        private readonly List<Vector2Int> _removalBuffer = new List<Vector2Int>();
         private Material _particleMaterial;
         private Texture2D _particleTexture;
         private ParticleSystem _playerInteraction;
         private int _combinedWindSeed;
         private int _particleSeedIndex;
+        private float _streamingTimer;
+        private Vector2Int _lastPlayerCell = new Vector2Int(int.MinValue, int.MinValue);
 
         public WindFieldSample CurrentPlayerSample { get; private set; }
 
@@ -144,13 +168,19 @@ namespace DuneVector
             _particleTexture = CreateSoftParticleTexture(_settings.ParticleEdgeFalloff);
             _particleMaterial = CreateParticleMaterial(_particleTexture);
 
-            foreach (WindFieldDefinition definition in settings.Fields)
+            if (_settings.ProceduralPlacementEnabled)
             {
-                if (definition == null || definition.Size.x <= 0f || definition.Size.y <= 0f || definition.Size.z <= 0f)
+                RefreshStreaming(true);
+            }
+            else
+            {
+                foreach (WindFieldDefinition definition in settings.Fields)
                 {
-                    continue;
+                    if (IsValidTemplate(definition))
+                    {
+                        CreateField(definition, default, false);
+                    }
                 }
-                CreateField(definition);
             }
 
             Vector3 interactionSize = Vector3.one * (_settings.InteractionRadius * 2f);
@@ -224,6 +254,15 @@ namespace DuneVector
             {
                 return;
             }
+            if (_settings.ProceduralPlacementEnabled)
+            {
+                _streamingTimer -= Time.deltaTime;
+                Vector2Int playerCell = LogicalToCell(_world.LogicalPlayerPosition);
+                if (_streamingTimer <= 0f || playerCell != _lastPlayerCell)
+                {
+                    RefreshStreaming(playerCell != _lastPlayerCell);
+                }
+            }
             CurrentPlayerSample = Sample(_player.WorldCenter, Time.time);
             UpdatePlayerInteraction();
             UpdateLod();
@@ -245,7 +284,158 @@ namespace DuneVector
             SetVelocity(_playerInteraction, relativeAirflow);
         }
 
-        private void CreateField(WindFieldDefinition definition)
+        private void RefreshStreaming(bool force)
+        {
+            _streamingTimer = Mathf.Max(0.05f, _settings.StreamingRefreshInterval);
+            Vector2Int playerCell = LogicalToCell(_world.LogicalPlayerPosition);
+            if (!force && playerCell == _lastPlayerCell)
+            {
+                return;
+            }
+            _lastPlayerCell = playerCell;
+
+            int radius = Mathf.Max(1, _settings.ActiveCellRadius);
+            for (int z = -radius; z <= radius; z++)
+            {
+                for (int x = -radius; x <= radius; x++)
+                {
+                    Vector2Int cell = playerCell + new Vector2Int(x, z);
+                    if (!_proceduralFields.ContainsKey(cell) && ShouldSpawn(cell))
+                    {
+                        CreateProceduralField(cell);
+                    }
+                }
+            }
+
+            _removalBuffer.Clear();
+            foreach (KeyValuePair<Vector2Int, RuntimeField> entry in _proceduralFields)
+            {
+                if (Mathf.Max(
+                    Mathf.Abs(entry.Key.x - playerCell.x),
+                    Mathf.Abs(entry.Key.y - playerCell.y)) > radius)
+                {
+                    _removalBuffer.Add(entry.Key);
+                }
+            }
+            for (int i = 0; i < _removalBuffer.Count; i++)
+            {
+                RemoveProceduralField(_removalBuffer[i]);
+            }
+        }
+
+        private bool ShouldSpawn(Vector2Int cell)
+        {
+            if (_settings.Fields == null || _settings.Fields.Count == 0 ||
+                DuneVectorMath.Hash01(cell.x, cell.y, _combinedWindSeed, 9203) >
+                _settings.SpawnChancePerCell)
+            {
+                return false;
+            }
+
+            Vector2 logical = GetProceduralLogicalPosition(cell);
+            Vector2 start = DesertWorldStreamer.StartingLogicalPosition;
+            if ((logical - start).sqrMagnitude <
+                _settings.StartingAreaExclusionRadius * _settings.StartingAreaExclusionRadius)
+            {
+                return false;
+            }
+            Vector3 normal = _world.HeightField.SampleNormal(logical.x, logical.y);
+            return Vector3.Angle(normal, Vector3.up) <= _settings.MaximumGroundSlope;
+        }
+
+        private void CreateProceduralField(Vector2Int cell)
+        {
+            List<WindFieldDefinition> templates = _settings.Fields;
+            int startIndex = Mathf.FloorToInt(
+                DuneVectorMath.Hash01(cell.x, cell.y, _combinedWindSeed, 9221) * templates.Count);
+            WindFieldDefinition template = null;
+            for (int i = 0; i < templates.Count; i++)
+            {
+                WindFieldDefinition candidate = templates[(startIndex + i) % templates.Count];
+                if (IsValidTemplate(candidate))
+                {
+                    template = candidate;
+                    break;
+                }
+            }
+            if (template == null)
+            {
+                return;
+            }
+
+            Vector2 logicalPosition = GetProceduralLogicalPosition(cell);
+            float minimumScale = Mathf.Min(_settings.MinimumSizeMultiplier, _settings.MaximumSizeMultiplier);
+            float maximumScale = Mathf.Max(_settings.MinimumSizeMultiplier, _settings.MaximumSizeMultiplier);
+            float scale = DuneVectorMath.HashRange(
+                cell.x, cell.y, _combinedWindSeed, 9239, minimumScale, maximumScale);
+            float heightOffset = DuneVectorMath.HashRange(
+                cell.x, cell.y, _combinedWindSeed, 9257,
+                -_settings.HeightVariation, _settings.HeightVariation);
+            float yaw = DuneVectorMath.HashRange(
+                cell.x, cell.y, _combinedWindSeed, 9277,
+                -_settings.DirectionYawVariation, _settings.DirectionYawVariation);
+            float forceMultiplier = DuneVectorMath.HashRange(
+                cell.x, cell.y, _combinedWindSeed, 9283,
+                1f - _settings.ForceVariation, 1f + _settings.ForceVariation);
+            float turbulenceOffset = DuneVectorMath.HashRange(
+                cell.x, cell.y, _combinedWindSeed, 9293,
+                -_settings.TurbulenceVariation, _settings.TurbulenceVariation);
+            WindFieldDefinition generated = new WindFieldDefinition
+            {
+                DisplayName = $"{template.DisplayName} [{cell.x}, {cell.y}]",
+                Type = template.Type,
+                LogicalPosition = logicalPosition,
+                HeightAboveTerrain = Mathf.Max(0f, template.HeightAboveTerrain + heightOffset),
+                Size = template.Size * scale,
+                Direction = Quaternion.Euler(0f, yaw, 0f) * template.Direction,
+                Force = Mathf.Max(0f, template.Force * forceMultiplier),
+                Turbulence = Mathf.Clamp01(template.Turbulence + turbulenceOffset),
+            };
+            RuntimeField field = CreateField(generated, cell, true);
+            _proceduralFields.Add(cell, field);
+            RepositionField(field);
+        }
+
+        private void RemoveProceduralField(Vector2Int cell)
+        {
+            if (!_proceduralFields.TryGetValue(cell, out RuntimeField field))
+            {
+                return;
+            }
+            _proceduralFields.Remove(cell);
+            _fields.Remove(field);
+            if (field.Root != null)
+            {
+                Destroy(field.Root.gameObject);
+            }
+        }
+
+        private Vector2Int LogicalToCell(LogicalPosition position)
+        {
+            float cellSize = Mathf.Max(1f, _settings.SpawnCellSize);
+            return new Vector2Int(
+                Mathf.FloorToInt((float)(position.X / cellSize)),
+                Mathf.FloorToInt((float)(position.Z / cellSize)));
+        }
+
+        private Vector2 GetProceduralLogicalPosition(Vector2Int cell)
+        {
+            float cellSize = Mathf.Max(1f, _settings.SpawnCellSize);
+            float jitter = cellSize * Mathf.Clamp(_settings.PositionJitterFraction, 0f, 0.49f);
+            return new Vector2(
+                ((cell.x + 0.5f) * cellSize) + DuneVectorMath.HashRange(
+                    cell.x, cell.y, _combinedWindSeed, 9301, -jitter, jitter),
+                ((cell.y + 0.5f) * cellSize) + DuneVectorMath.HashRange(
+                    cell.x, cell.y, _combinedWindSeed, 9311, -jitter, jitter));
+        }
+
+        private static bool IsValidTemplate(WindFieldDefinition definition)
+        {
+            return definition != null && definition.Size.x > 0f && definition.Size.y > 0f &&
+                definition.Size.z > 0f;
+        }
+
+        private RuntimeField CreateField(WindFieldDefinition definition, Vector2Int cell, bool isProcedural)
         {
             GameObject rootObject = new GameObject(string.IsNullOrWhiteSpace(definition.DisplayName)
                 ? definition.Type.ToString()
@@ -258,6 +448,8 @@ namespace DuneVector
             RuntimeField field = new RuntimeField
             {
                 Definition = definition,
+                Cell = cell,
+                IsProcedural = isProcedural,
                 Root = rootObject.transform,
                 Direction = direction,
                 TurbulenceOffset = CreateTurbulenceOffset(definition, _fields.Count),
@@ -270,6 +462,7 @@ namespace DuneVector
                 _settings.StreamlineLength,
                 _settings.StreamlineColor,
                 direction * definition.Force * _settings.AirflowVisualSpeedMultiplier);
+            ApplyFieldParticleSeed(field.Streamlines, definition, 9401);
 
             Vector3 surfaceSize = new Vector3(definition.Size.x, _settings.SurfaceLayerHeight, definition.Size.z);
             Vector3 surfaceDirection = Vector3.ProjectOnPlane(direction, Vector3.up);
@@ -285,11 +478,24 @@ namespace DuneVector
                 _settings.SurfaceStreakLength,
                 _settings.SurfaceSandColor,
                 surfaceDirection.normalized * definition.Force * _settings.SurfaceWindSpeedMultiplier);
+            ApplyFieldParticleSeed(field.SurfaceSand, definition, 9413);
             field.SurfaceSand.transform.localPosition = Vector3.down * Mathf.Max(
                 0f,
                 (definition.Size.y * 0.5f) - (_settings.SurfaceLayerHeight * 0.5f));
             ConfigureVerticalSurfaceFlow(field.SurfaceSand, definition);
             _fields.Add(field);
+            return field;
+        }
+
+        private void ApplyFieldParticleSeed(
+            ParticleSystem system,
+            WindFieldDefinition definition,
+            int salt)
+        {
+            int logicalX = Mathf.RoundToInt(definition.LogicalPosition.x);
+            int logicalZ = Mathf.RoundToInt(definition.LogicalPosition.y);
+            system.useAutoRandomSeed = false;
+            system.randomSeed = DuneVectorMath.Hash(logicalX, logicalZ, _combinedWindSeed, salt);
         }
 
         private void ConfigureVerticalSurfaceFlow(ParticleSystem system, WindFieldDefinition definition)
@@ -439,13 +645,17 @@ namespace DuneVector
         {
             for (int i = 0; i < _fields.Count; i++)
             {
-                RuntimeField field = _fields[i];
-                Vector2 logical = field.Definition.LogicalPosition;
-                Vector3 local = _world.LogicalToLocal(logical.x, 0f, logical.y);
-                float terrainHeight = _world.SampleHeightAtLocal(local.x, local.z);
-                field.Center = new Vector3(local.x, terrainHeight + field.Definition.HeightAboveTerrain, local.z);
-                field.Root.position = field.Center;
+                RepositionField(_fields[i]);
             }
+        }
+
+        private void RepositionField(RuntimeField field)
+        {
+            Vector2 logical = field.Definition.LogicalPosition;
+            Vector3 local = _world.LogicalToLocal(logical.x, 0f, logical.y);
+            float terrainHeight = _world.SampleHeightAtLocal(local.x, local.z);
+            field.Center = new Vector3(local.x, terrainHeight + field.Definition.HeightAboveTerrain, local.z);
+            field.Root.position = field.Center;
         }
 
         private void HandleWorldShift(Vector3 shift)
