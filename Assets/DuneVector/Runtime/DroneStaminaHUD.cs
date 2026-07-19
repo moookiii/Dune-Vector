@@ -8,6 +8,7 @@ namespace DuneVector
     public sealed class DroneStaminaHUD : MonoBehaviour
     {
         private DroneCharacterController _drone;
+        private DroneHealth _health;
         private Camera _camera;
         private DroneStaminaSystem _stamina;
         private StaminaBoostTuning _settings;
@@ -26,6 +27,7 @@ namespace DuneVector
             StaminaBoostTuning settings)
         {
             _drone = drone;
+            _health = drone != null ? drone.GetComponent<DroneHealth>() : null;
             _camera = worldCamera;
             _stamina = stamina;
             _settings = settings;
@@ -92,7 +94,7 @@ namespace DuneVector
 
         private void OnGUI()
         {
-            if (DuneVectorCourierGame.IsGameplayHudSuppressed)
+            if (DuneVectorCourierGame.IsGameplayHudSuppressed || (_health != null && _health.IsDead))
             {
                 return;
             }
