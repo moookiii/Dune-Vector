@@ -16,6 +16,7 @@ namespace DuneVector
 
         public DroneTuning PlayerTuning => RuntimeSettings.PlayerTuning;
         public CloudTuning Clouds => RuntimeSettings.Clouds;
+        public DesertWeatherTuning WeatherSettings => RuntimeSettings.Weather;
         public DeliveryTuning Deliveries => RuntimeSettings.Deliveries;
         public PyramidTuning Pyramids => RuntimeSettings.Pyramids;
         public WorldStreamingTuning WorldStreaming => RuntimeSettings.WorldStreaming;
@@ -57,10 +58,14 @@ namespace DuneVector
         public DroneHealth DroneHealth { get; private set; }
         public DuneVectorEnemyDirector EnemyDirector { get; private set; }
         public DuneVectorStormPyramidDirector StormPyramidDirector { get; private set; }
+        public DuneVectorWeatherController WeatherSystem { get; private set; }
         public DuneVectorGameOverController GameOverController { get; private set; }
 
         private DuneVectorMaterials _materials;
         private VolumeProfile _runtimeVolumeProfile;
+        private Fog _environmentFog;
+        private GradientSky _environmentSky;
+        private Exposure _environmentExposure;
         private bool _ownsRuntimeSettings;
 
         public void ApplyDunePreset(DuneGenerationPreset preset)
@@ -288,6 +293,7 @@ namespace DuneVector
             BuildEnvironment();
             BuildWorld();
             BuildDroneAndCamera();
+            BuildWeather();
             BuildInterface();
             BuildDeliveryGameplay();
             BuildEnemyGameplay();
@@ -428,25 +434,26 @@ namespace DuneVector
             environment.skyType.Override((int)SkyType.Gradient);
             environment.skyAmbientMode.Override(SkyAmbientMode.Dynamic);
 
-            GradientSky sky = _runtimeVolumeProfile.Add<GradientSky>(true);
-            sky.top.Override(new Color(0.03f, 0.32f, 1.7f));
-            sky.middle.Override(new Color(0.1f, 0.55f, 1.4f));
-            sky.bottom.Override(new Color(2.6f, 1.0f, 0.25f));
-            sky.gradientDiffusion.Override(1.35f);
-            sky.multiplier.Override(0.85f);
+            DesertWeatherAtmosphereTuning atmosphere = WeatherSettings.Atmosphere;
+            _environmentSky = _runtimeVolumeProfile.Add<GradientSky>(true);
+            _environmentSky.top.Override(atmosphere.ClearSkyTop);
+            _environmentSky.middle.Override(atmosphere.ClearSkyMiddle);
+            _environmentSky.bottom.Override(atmosphere.ClearSkyBottom);
+            _environmentSky.gradientDiffusion.Override(atmosphere.SkyGradientDiffusion);
+            _environmentSky.multiplier.Override(atmosphere.SkyMultiplier);
 
-            Exposure exposure = _runtimeVolumeProfile.Add<Exposure>(true);
-            exposure.mode.Override(ExposureMode.Fixed);
-            exposure.fixedExposure.Override(2f);
+            _environmentExposure = _runtimeVolumeProfile.Add<Exposure>(true);
+            _environmentExposure.mode.Override(ExposureMode.Fixed);
+            _environmentExposure.fixedExposure.Override(atmosphere.ClearExposure);
 
-            Fog fog = _runtimeVolumeProfile.Add<Fog>(true);
-            fog.enabled.Override(true);
-            fog.colorMode.Override(FogColorMode.SkyColor);
-            fog.meanFreePath.Override(330f);
-            fog.baseHeight.Override(-12f);
-            fog.maximumHeight.Override(85f);
-            fog.maxFogDistance.Override(780f);
-            fog.enableVolumetricFog.Override(false);
+            _environmentFog = _runtimeVolumeProfile.Add<Fog>(true);
+            _environmentFog.enabled.Override(true);
+            _environmentFog.colorMode.Override(FogColorMode.SkyColor);
+            _environmentFog.meanFreePath.Override(atmosphere.ClearVisibilityDistance);
+            _environmentFog.baseHeight.Override(atmosphere.FogBaseHeight);
+            _environmentFog.maximumHeight.Override(atmosphere.ClearFogHeight);
+            _environmentFog.maxFogDistance.Override(atmosphere.ClearMaximumFogDistance);
+            _environmentFog.enableVolumetricFog.Override(false);
 
             Bloom bloom = _runtimeVolumeProfile.Add<Bloom>(true);
             bloom.intensity.Override(0.12f);
@@ -460,6 +467,26 @@ namespace DuneVector
                 CloudField = cloudObject.AddComponent<DuneVectorCloudField>();
                 CloudField.Initialize(_materials.Cloud, Clouds.ClusterCount, Clouds.Altitude, Clouds.FieldRadius, Clouds.DriftSpeed);
             }
+        }
+
+        private void BuildWeather()
+        {
+            if (!WeatherSettings.Enabled)
+            {
+                return;
+            }
+
+            GameObject weatherObject = new GameObject("Dynamic Desert Weather");
+            weatherObject.transform.SetParent(transform, false);
+            WeatherSystem = weatherObject.AddComponent<DuneVectorWeatherController>();
+            WeatherSystem.Initialize(
+                Drone,
+                DroneCamera.Camera,
+                World,
+                _environmentFog,
+                _environmentSky,
+                _environmentExposure,
+                WeatherSettings);
         }
 
         private void BuildInterface()

@@ -109,6 +109,7 @@ namespace DuneVector.Editor
         private int _selectedTab;
         private SerializedProperty _player;
         private SerializedProperty _clouds;
+        private SerializedProperty _weather;
         private SerializedProperty _deliveries;
         private SerializedProperty _pyramids;
         private SerializedProperty _worldStreaming;
@@ -125,6 +126,7 @@ namespace DuneVector.Editor
         {
             _player = serializedObject.FindProperty("PlayerTuning");
             _clouds = serializedObject.FindProperty("Clouds");
+            _weather = serializedObject.FindProperty("Weather");
             _deliveries = serializedObject.FindProperty("Deliveries");
             _pyramids = serializedObject.FindProperty("Pyramids");
             _worldStreaming = serializedObject.FindProperty("WorldStreaming");
@@ -233,6 +235,10 @@ namespace DuneVector.Editor
                 EditorGUILayout.PropertyField(_worldStreaming, GUIContent.none, true);
             }
 
+            DuneVectorSettingsInspector.DrawSection(
+                "Dynamic Desert Weather",
+                "Storm frequency and progression, global wind, HDRP visibility, and recycled dust layers.",
+                _weather);
             DuneVectorSettingsInspector.DrawSection(
                 "Cloud Field",
                 "Sky coverage, altitude, extent, and drift speed.",

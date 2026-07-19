@@ -213,6 +213,130 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class DesertWeatherCycleTuning
+    {
+        [Header("Storm Frequency")]
+        [Tooltip("Clear time before the first storm begins, in seconds.")]
+        [Min(0f)] public float InitialClearDuration = 35f;
+        [Tooltip("Minimum clear interval between completed storms, in seconds.")]
+        [Min(1f)] public float MinimumClearDuration = 90f;
+        [Tooltip("Maximum clear interval between completed storms, in seconds.")]
+        [Min(1f)] public float MaximumClearDuration = 180f;
+
+        [Header("Storm Progression")]
+        [Min(0.1f)] public float DustBuildingDuration = 12f;
+        [Tooltip("Storm intensity reached at the end of the initial dust-building phase.")]
+        [Range(0f, 1f)] public float DustBuildingIntensity = 0.28f;
+        [Min(0.1f)] public float ApproachingStormDuration = 18f;
+        [Min(1f)] public float MinimumFullStormDuration = 35f;
+        [Min(1f)] public float MaximumFullStormDuration = 60f;
+        [Min(0.1f)] public float FadingDuration = 18f;
+        [Range(0f, 1f)] public float MaximumStormIntensity = 0.85f;
+        public int RandomSeedOffset = 6317;
+    }
+
+    [System.Serializable]
+    public sealed class DesertWeatherWindTuning
+    {
+        [Tooltip("Global wind direction on the world X/Z plane.")]
+        public Vector2 Direction = new Vector2(1f, 0.18f);
+        [Min(0f)] public float ClearWindSpeed = 5.5f;
+        [Min(0f)] public float StormWindSpeed = 24f;
+        [Min(0f)] public float WindZoneStrengthMultiplier = 0.08f;
+        [Min(0f)] public float ClearTurbulence = 0.12f;
+        [Min(0f)] public float StormTurbulence = 0.72f;
+        [Tooltip("How strongly the drone's velocity changes the apparent speed of nearby sand.")]
+        [Range(0f, 1.5f)] public float PlayerVelocityInfluence = 0.65f;
+    }
+
+    [System.Serializable]
+    public sealed class DesertWeatherAtmosphereTuning
+    {
+        [Header("Visibility")]
+        [Min(10f)] public float ClearVisibilityDistance = 330f;
+        [Min(10f)] public float StormVisibilityDistance = 72f;
+        [Min(20f)] public float ClearMaximumFogDistance = 780f;
+        [Min(20f)] public float StormMaximumFogDistance = 260f;
+        public float FogBaseHeight = -12f;
+        [Min(1f)] public float ClearFogHeight = 85f;
+        [Min(1f)] public float StormFogHeight = 160f;
+        [Range(0f, 1f)] public float VolumetricFogThreshold = 0.08f;
+
+        [Header("Sky & Exposure")]
+        [ColorUsage(false, true)] public Color ClearSkyTop = new Color(0.03f, 0.32f, 1.7f);
+        [ColorUsage(false, true)] public Color ClearSkyMiddle = new Color(0.1f, 0.55f, 1.4f);
+        [ColorUsage(false, true)] public Color ClearSkyBottom = new Color(2.6f, 1f, 0.25f);
+        [ColorUsage(false, true)] public Color StormSkyTop = new Color(0.24f, 0.14f, 0.065f);
+        [ColorUsage(false, true)] public Color StormSkyMiddle = new Color(0.54f, 0.29f, 0.1f);
+        [ColorUsage(false, true)] public Color StormSkyBottom = new Color(1.15f, 0.54f, 0.15f);
+        [Min(0f)] public float SkyGradientDiffusion = 1.35f;
+        [Min(0f)] public float SkyMultiplier = 0.85f;
+        public float ClearExposure = 2f;
+        public float StormExposure = 1.35f;
+    }
+
+    [System.Serializable]
+    public sealed class DesertWeatherDustTuning
+    {
+        [Header("Density & Coverage")]
+        [Range(0f, 1f)] public float AmbientDustDensity = 0.18f;
+        [Range(0f, 1.5f)] public float StormDustDensity = 0.95f;
+        [Min(10f)] public float FieldRadius = 80f;
+        [Min(1f)] public float GroundLayerHeight = 6f;
+        [Min(1f)] public float AirborneLayerHeight = 32f;
+        [Min(4f)] public float CloseLayerRadius = 22f;
+
+        [Header("Particle Shape")]
+        [Min(0.01f)] public float MinimumParticleSize = 0.05f;
+        [Min(0.01f)] public float MaximumParticleSize = 0.22f;
+        [Min(0.1f)] public float MinimumParticleLifetime = 2.2f;
+        [Min(0.1f)] public float MaximumParticleLifetime = 5.5f;
+        [Min(0f)] public float TurbulenceStrength = 1.8f;
+        [Min(0.01f)] public float TurbulenceFrequency = 0.22f;
+        [Min(0f)] public float SandStreakLength = 3.8f;
+        [Min(0f)] public float ParticleVelocityStretch = 0.06f;
+        [Min(0f)] public float CameraVelocityStretch = 0.12f;
+        [ColorUsage(false)] public Color AmbientDustColor = new Color(0.9f, 0.61f, 0.3f, 0.26f);
+        [ColorUsage(false)] public Color StormDustColor = new Color(0.88f, 0.47f, 0.16f, 0.58f);
+
+        [Header("Layer Motion & Placement")]
+        [Min(0f)] public float GroundWindResponse = 0.62f;
+        [Min(0f)] public float AirborneWindResponse = 0.9f;
+        [Min(0f)] public float CloseWindResponse = 1.12f;
+        [Min(0f)] public float ApproachingFrontStartDistance = 1.55f;
+        [Min(0f)] public float ApproachingFrontEndDistance = 0.22f;
+        [Range(0f, 1.5f)] public float FullStormFrontDensity = 0.55f;
+
+        [Header("Performance Budgets")]
+        [Range(32, 1000)] public int GroundParticleBudget = 240;
+        [Range(32, 1200)] public int AirborneParticleBudget = 420;
+        [Range(32, 1200)] public int ApproachingFrontParticleBudget = 350;
+        [Range(32, 800)] public int CloseParticleBudget = 220;
+        [Min(0f)] public float GroundEmissionRate = 50f;
+        [Min(0f)] public float AirborneEmissionRate = 110f;
+        [Min(0f)] public float ApproachingFrontEmissionRate = 90f;
+        [Min(0f)] public float CloseEmissionRate = 70f;
+    }
+
+    [System.Serializable]
+    public sealed class DesertWeatherTuning
+    {
+        public bool Enabled = true;
+        public DesertWeatherCycleTuning Cycle = new DesertWeatherCycleTuning();
+        public DesertWeatherWindTuning Wind = new DesertWeatherWindTuning();
+        public DesertWeatherAtmosphereTuning Atmosphere = new DesertWeatherAtmosphereTuning();
+        public DesertWeatherDustTuning Dust = new DesertWeatherDustTuning();
+
+        public void EnsureInitialized()
+        {
+            Cycle ??= new DesertWeatherCycleTuning();
+            Wind ??= new DesertWeatherWindTuning();
+            Atmosphere ??= new DesertWeatherAtmosphereTuning();
+            Dust ??= new DesertWeatherDustTuning();
+        }
+    }
+
+    [System.Serializable]
     public sealed class DroneTuning
     {
         [Header("Ground Movement")]
@@ -293,6 +417,9 @@ namespace DuneVector
         [Tooltip("Procedural cloud placement and motion.")]
         public CloudTuning Clouds = new CloudTuning();
 
+        [Tooltip("Dynamic clear-weather dust, sandstorm timing, wind, HDRP atmosphere, and particle layers.")]
+        public DesertWeatherTuning Weather = new DesertWeatherTuning();
+
         [Tooltip("Pickup, package, and drop-off job generation.")]
         public DeliveryTuning Deliveries = new DeliveryTuning();
 
@@ -332,6 +459,8 @@ namespace DuneVector
         {
             PlayerTuning ??= new DroneTuning();
             Clouds ??= new CloudTuning();
+            Weather ??= new DesertWeatherTuning();
+            Weather.EnsureInitialized();
             Deliveries ??= new DeliveryTuning();
             Pyramids ??= new PyramidTuning();
             WorldStreaming ??= new WorldStreamingTuning();
