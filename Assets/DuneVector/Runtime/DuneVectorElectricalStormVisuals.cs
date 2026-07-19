@@ -81,6 +81,7 @@ namespace DuneVector
         private float _cloudArcTimer;
         private bool _targetTelegraphActive;
         private bool _stormWasVisible;
+        private Vector3 _stormfrontFarCenter;
         private GUIStyle _hudTitleStyle;
         private GUIStyle _hudStatusStyle;
 
@@ -286,11 +287,16 @@ namespace DuneVector
                 ? _settings.StormfrontDirection.normalized
                 : Vector2.left;
             Vector3 direction = new Vector3(configured.x, 0f, configured.y);
+            if (!_stormWasVisible)
+            {
+                _stormfrontFarCenter = _drone.WorldCenter + (direction * _settings.StormfrontFarDistance);
+            }
             float distance = Mathf.Lerp(
                 _settings.StormfrontFarDistance,
                 _settings.StormfrontNearDistance,
                 _visualBlend);
-            Vector3 horizontalCenter = _drone.WorldCenter + (direction * distance);
+            Vector3 horizontalCenter = _stormfrontFarCenter +
+                (direction * (distance - _settings.StormfrontFarDistance));
             float terrainHeight = _world.SampleHeightAtLocal(horizontalCenter.x, horizontalCenter.z);
             Vector3 desired = new Vector3(
                 horizontalCenter.x,
@@ -1243,6 +1249,11 @@ namespace DuneVector
 
         private void HandleWorldShift(Vector3 shift)
         {
+            _stormfrontFarCenter += shift;
+            if (_stormRoot != null)
+            {
+                _stormRoot.transform.position += shift;
+            }
             _chargedDust.Clear();
             _staticMotes.Clear();
             _convergingSparks.Clear();
