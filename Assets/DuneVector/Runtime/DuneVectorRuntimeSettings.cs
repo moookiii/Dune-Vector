@@ -294,6 +294,10 @@ namespace DuneVector
     [System.Serializable]
     public sealed class CourierContractTuning
     {
+        [Header("Debug")]
+        [Tooltip("Immediately completes accepted contracts at the courier hub without awarding gold.")]
+        public bool DebugCompleteContractsInstantlyWithoutPayout;
+
         [Header("Contract Board")]
         public bool Enabled = true;
         [Range(5, 8)] public int OfferedContractCount = 6;

@@ -930,10 +930,59 @@ namespace DuneVector
             {
                 return;
             }
+            if (_settings.DebugCompleteContractsInstantlyWithoutPayout)
+            {
+                CompleteContractInstantlyWithoutPayout(contract);
+                return;
+            }
             ActiveContract = contract;
             PrepareRoute(contract);
             SetTerminalOpen(false);
             BeginTeleport(toHub: false);
+        }
+
+        private void CompleteContractInstantlyWithoutPayout(CourierContract contract)
+        {
+            SetTerminalOpen(false);
+            ActiveContract = contract;
+            bool hasAssignedMessage = _messageSettings.TryResolve(
+                Progress.NextDeliveryMessageIndex,
+                out DeliveryMessageAsset deliveryMessage);
+            Progress.RecordCompletion(0, contract.Difficulty, hasAssignedMessage);
+            ContractEnded?.Invoke(contract);
+            ActiveContract = null;
+            GenerateOffers();
+            ShowStatus("DEBUG CONTRACT COMPLETE — NO PAYOUT", _settings.CompletionReturnDelay);
+
+            if (!hasAssignedMessage)
+            {
+                return;
+            }
+
+            State = CourierRunState.DeliveryMessage;
+            _playerInput.SetInputEnabled(false);
+            if (!_messagePresenter.Open(deliveryMessage, HandleInstantContractMessageCompleted))
+            {
+                Debug.LogError(
+                    $"Debug-completed contract message {Progress.PendingDeliveryMessageIndex} could not be opened. Its progression index remains pending.",
+                    this);
+                EnterHubImmediate(openTerminal: false);
+            }
+        }
+
+        private void HandleInstantContractMessageCompleted()
+        {
+            if (State != CourierRunState.DeliveryMessage)
+            {
+                return;
+            }
+
+            int completedMessageIndex = Progress.PendingDeliveryMessageIndex;
+            if (completedMessageIndex >= 0)
+            {
+                Progress.CompletePendingDeliveryMessage(completedMessageIndex);
+            }
+            EnterHubImmediate(openTerminal: false);
         }
 
         private void PrepareRoute(CourierContract contract)
