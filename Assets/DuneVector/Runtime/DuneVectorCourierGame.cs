@@ -781,7 +781,8 @@ namespace DuneVector
             }
 
             float platformSurfaceY = _hubRoot.position.y + (_hubSettings.PlatformThickness * 0.5f);
-            if (position.y < platformSurfaceY)
+            float platformRecoveryY = platformSurfaceY - _hubSettings.PlatformThickness;
+            if (position.y < platformRecoveryY)
             {
                 position.y = platformSurfaceY;
                 if (motor.BaseVelocity.y < 0f)
