@@ -1011,6 +1011,7 @@ namespace DuneVector
             {
                 Progress.RecordFailure();
             }
+            RemoveContractOffer(failed);
             _routeEncounterDirector?.EndContract();
             _player.SetCargoHandlingModifiers(1f, 1f, 1f);
             CleanupContractObjects();
@@ -1053,12 +1054,25 @@ namespace DuneVector
             }
             CourierContract failed = ActiveContract;
             Progress.RecordFailure();
+            RemoveContractOffer(failed);
             _routeEncounterDirector?.EndContract();
             _player.SetCargoHandlingModifiers(1f, 1f, 1f);
             CleanupContractObjects();
             State = CourierRunState.ContractFailed;
             _stateTimer = float.PositiveInfinity;
             ContractEnded?.Invoke(failed);
+        }
+
+        private void RemoveContractOffer(CourierContract contract)
+        {
+            if (contract == null)
+            {
+                return;
+            }
+
+            _offers.RemoveAll(offer =>
+                ReferenceEquals(offer, contract) ||
+                (offer != null && offer.ContractId == contract.ContractId));
         }
 
         private void UpdateCargoImpactDamage()
