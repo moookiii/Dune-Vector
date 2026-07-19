@@ -230,7 +230,30 @@ namespace DuneVector
                 GL.Vertex(center + (radial1 * (radius - halfThickness)));
             }
             GL.End();
+
+            Vector2 startRadial = new Vector2(
+                Mathf.Cos(_settings.MeterArcStartDegrees * Mathf.Deg2Rad),
+                Mathf.Sin(_settings.MeterArcStartDegrees * Mathf.Deg2Rad));
+            float endAngle = (_settings.MeterArcStartDegrees + arcDegrees) * Mathf.Deg2Rad;
+            Vector2 endRadial = new Vector2(Mathf.Cos(endAngle), Mathf.Sin(endAngle));
+            int capSteps = Mathf.Max(8, fullResolution / 8);
+            GL.Begin(GL.TRIANGLES);
+            DrawRoundCap(center + (startRadial * radius), halfThickness, capSteps);
+            DrawRoundCap(center + (endRadial * radius), halfThickness, capSteps);
+            GL.End();
             GL.PopMatrix();
+        }
+
+        private static void DrawRoundCap(Vector2 center, float radius, int steps)
+        {
+            for (int index = 0; index < steps; index++)
+            {
+                float angle0 = (index / (float)steps) * Mathf.PI * 2f;
+                float angle1 = ((index + 1f) / steps) * Mathf.PI * 2f;
+                GL.Vertex(center);
+                GL.Vertex(center + new Vector2(Mathf.Cos(angle0), Mathf.Sin(angle0)) * radius);
+                GL.Vertex(center + new Vector2(Mathf.Cos(angle1), Mathf.Sin(angle1)) * radius);
+            }
         }
 
         private void OnDestroy()
