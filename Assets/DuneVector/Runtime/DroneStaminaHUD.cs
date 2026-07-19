@@ -89,8 +89,16 @@ namespace DuneVector
                 backgroundColor.a *= _visibleAlpha;
                 meterColor.a *= _visibleAlpha;
 
-                DrawContinuousArc(center, pulse, _settings.MeterArcDegrees, backgroundColor);
-                DrawContinuousArc(center, pulse, _settings.MeterArcDegrees * stamina01, meterColor);
+                DrawContinuousArc(
+                    center,
+                    pulse,
+                    _settings.MeterArcStartDegrees,
+                    _settings.MeterArcDegrees,
+                    backgroundColor);
+                float filledDegrees = _settings.MeterArcDegrees * stamina01;
+                float filledStartDegrees = _settings.MeterArcStartDegrees
+                    + (_settings.MeterArcDegrees - filledDegrees);
+                DrawContinuousArc(center, pulse, filledStartDegrees, filledDegrees, meterColor);
             }
 
             string label = GetLabel(stamina01);
@@ -200,7 +208,12 @@ namespace DuneVector
             return true;
         }
 
-        private void DrawContinuousArc(Vector2 center, float pulse, float arcDegrees, Color color)
+        private void DrawContinuousArc(
+            Vector2 center,
+            float pulse,
+            float startDegrees,
+            float arcDegrees,
+            Color color)
         {
             if (Mathf.Abs(arcDegrees) <= 0.001f || color.a <= 0f)
             {
@@ -219,8 +232,8 @@ namespace DuneVector
             GL.Color(color);
             for (int index = 0; index < steps; index++)
             {
-                float angle0 = (_settings.MeterArcStartDegrees + (arcDegrees * (index / (float)steps))) * Mathf.Deg2Rad;
-                float angle1 = (_settings.MeterArcStartDegrees + (arcDegrees * ((index + 1f) / steps))) * Mathf.Deg2Rad;
+                float angle0 = (startDegrees + (arcDegrees * (index / (float)steps))) * Mathf.Deg2Rad;
+                float angle1 = (startDegrees + (arcDegrees * ((index + 1f) / steps))) * Mathf.Deg2Rad;
                 Vector2 radial0 = new Vector2(Mathf.Cos(angle0), Mathf.Sin(angle0));
                 Vector2 radial1 = new Vector2(Mathf.Cos(angle1), Mathf.Sin(angle1));
 
@@ -232,12 +245,13 @@ namespace DuneVector
             GL.End();
 
             Vector2 startRadial = new Vector2(
-                Mathf.Cos(_settings.MeterArcStartDegrees * Mathf.Deg2Rad),
-                Mathf.Sin(_settings.MeterArcStartDegrees * Mathf.Deg2Rad));
-            float endAngle = (_settings.MeterArcStartDegrees + arcDegrees) * Mathf.Deg2Rad;
+                Mathf.Cos(startDegrees * Mathf.Deg2Rad),
+                Mathf.Sin(startDegrees * Mathf.Deg2Rad));
+            float endAngle = (startDegrees + arcDegrees) * Mathf.Deg2Rad;
             Vector2 endRadial = new Vector2(Mathf.Cos(endAngle), Mathf.Sin(endAngle));
             int capSteps = Mathf.Max(8, fullResolution / 8);
             GL.Begin(GL.TRIANGLES);
+            GL.Color(color);
             DrawRoundCap(center + (startRadial * radius), halfThickness, capSteps);
             DrawRoundCap(center + (endRadial * radius), halfThickness, capSteps);
             GL.End();
