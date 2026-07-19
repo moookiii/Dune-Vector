@@ -249,6 +249,11 @@ namespace DuneVector
         [Min(0f)] public float TerminalDifficultyPipSize = 5f;
         [Min(0f)] public float TerminalPanelBorderThickness = 2f;
         public Vector2 TerminalPanelShadowOffset = new Vector2(12f, 14f);
+        [Min(180f)] public float TerminalTooltipWidth = 360f;
+        [Min(0f)] public float TerminalTooltipPadding = 14f;
+        public Vector2 TerminalTooltipMouseOffset = new Vector2(18f, 20f);
+        [Min(9)] public int TerminalTooltipTitleFontSize = 12;
+        [Min(9)] public int TerminalTooltipBodyFontSize = 12;
         [ColorUsage(false)] public Color HubMetalColor = new Color(0.055f, 0.09f, 0.12f, 1f);
         [ColorUsage(false, true)] public Color HubEnergyColor = new Color(0.02f, 2.2f, 3.8f, 1f);
         [ColorUsage(false)] public Color TerminalBackdropColor = new Color(0.006f, 0.012f, 0.022f, 0.9f);

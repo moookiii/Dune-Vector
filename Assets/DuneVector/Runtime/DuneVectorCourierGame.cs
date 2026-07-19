@@ -270,6 +270,8 @@ namespace DuneVector
         private GUIStyle _terminalMetaStyle;
         private GUIStyle _terminalRewardStyle;
         private GUIStyle _terminalActionStyle;
+        private GUIStyle _terminalTooltipTitleStyle;
+        private GUIStyle _terminalTooltipBodyStyle;
         private GUIStyle _hudTitleStyle;
         private GUIStyle _hudBodyStyle;
         private GUIStyle _objectiveStyle;
@@ -1348,6 +1350,8 @@ namespace DuneVector
             _terminalMetaStyle = LabelStyle(_hubSettings.TerminalMetaFontSize, FontStyle.Normal, TextAnchor.MiddleLeft, _hubSettings.TerminalMutedTextColor);
             _terminalRewardStyle = LabelStyle(_hubSettings.TerminalRewardFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _hubSettings.TerminalHighValueColor);
             _terminalActionStyle = LabelStyle(_hubSettings.TerminalButtonFontSize, FontStyle.Bold, TextAnchor.MiddleRight, _hubSettings.TerminalAccentColor);
+            _terminalTooltipTitleStyle = LabelStyle(_hubSettings.TerminalTooltipTitleFontSize, FontStyle.Bold, TextAnchor.UpperLeft, _hubSettings.TerminalAccentColor);
+            _terminalTooltipBodyStyle = LabelStyle(_hubSettings.TerminalTooltipBodyFontSize, FontStyle.Normal, TextAnchor.UpperLeft, _hubSettings.TerminalTextColor);
             _terminalPanelTexture = SolidTexture(_hubSettings.TerminalPanelColor, "Courier Terminal Panel");
             _terminalCardTexture = SolidTexture(_hubSettings.TerminalCardColor, "Courier Contract Card");
             _terminalCardHoverTexture = SolidTexture(_hubSettings.TerminalCardHoverColor, "Courier Contract Card Hover");
@@ -1518,6 +1522,7 @@ namespace DuneVector
                 new Rect(panel.x + padding, panel.yMax - _hubSettings.TerminalFooterHeight + 7f, contentWidth, 22f),
                 "SELECT A CONTRACT TO DEPLOY  /  CONTRACTS REFRESH AUTOMATICALLY",
                 _terminalSubtitleStyle);
+            DrawContractTypeTooltip(panel, virtualWidth, virtualHeight, scale);
 
             GUI.matrix = previousMatrix;
             GUI.backgroundColor = previousBackground;
@@ -1543,7 +1548,10 @@ namespace DuneVector
             float right = card.xMax - 16f;
             float contentWidth = right - left;
             _terminalKickerStyle.normal.textColor = modifierColor;
-            GUI.Label(new Rect(left, card.y + 12f, contentWidth, 20f), offer.DisplayModifierText, _terminalKickerStyle);
+            GUI.Label(
+                new Rect(left, card.y + 12f, contentWidth, 20f),
+                new GUIContent(offer.DisplayModifierText, GetContractTypeTooltip(offer.DisplayModifiers)),
+                _terminalKickerStyle);
 
             int activePips = Mathf.Clamp(Mathf.CeilToInt(offer.Difficulty / 4f), 1, 5);
             float pipSize = _hubSettings.TerminalDifficultyPipSize;
@@ -1575,6 +1583,85 @@ namespace DuneVector
             _terminalActionStyle.normal.textColor = modifierColor;
             GUI.Label(new Rect(left, card.yMax - 29f, contentWidth, 20f), "SELECT", _terminalActionStyle);
             return accepted;
+        }
+
+        private void DrawContractTypeTooltip(Rect panel, float virtualWidth, float virtualHeight, float scale)
+        {
+            string tooltip = GUI.tooltip;
+            if (string.IsNullOrWhiteSpace(tooltip))
+            {
+                return;
+            }
+
+            int separator = tooltip.IndexOf('\n');
+            string title = separator >= 0 ? tooltip.Substring(0, separator) : tooltip;
+            string body = separator >= 0 ? tooltip.Substring(separator + 1) : string.Empty;
+            float padding = _hubSettings.TerminalTooltipPadding;
+            float width = Mathf.Min(_hubSettings.TerminalTooltipWidth, panel.width - (padding * 2f));
+            float textWidth = width - (padding * 2f);
+            float titleHeight = _terminalTooltipTitleStyle.CalcHeight(new GUIContent(title), textWidth);
+            float bodyHeight = _terminalTooltipBodyStyle.CalcHeight(new GUIContent(body), textWidth);
+            float height = padding + titleHeight + bodyHeight + padding;
+            Vector2 mouse = Event.current.mousePosition / Mathf.Max(0.01f, scale);
+            Vector2 offset = _hubSettings.TerminalTooltipMouseOffset;
+            float maximumX = Mathf.Min(virtualWidth, panel.xMax) - width - padding;
+            float maximumY = Mathf.Min(virtualHeight, panel.yMax) - height - padding;
+            float x = Mathf.Clamp(mouse.x + offset.x, panel.x + padding, maximumX);
+            float y = Mathf.Clamp(mouse.y + offset.y, panel.y + padding, maximumY);
+            Rect tooltipRect = new Rect(x, y, width, height);
+
+            DrawSolidRect(tooltipRect, _hubSettings.TerminalPanelColor);
+            DrawBorder(tooltipRect, _hubSettings.TerminalBorderColor, _hubSettings.TerminalPanelBorderThickness);
+            DrawSolidRect(
+                new Rect(tooltipRect.x, tooltipRect.y, tooltipRect.width, _hubSettings.TerminalAccentBarHeight),
+                _hubSettings.TerminalAccentColor);
+            GUI.Label(
+                new Rect(tooltipRect.x + padding, tooltipRect.y + padding, textWidth, titleHeight),
+                title,
+                _terminalTooltipTitleStyle);
+            GUI.Label(
+                new Rect(tooltipRect.x + padding, tooltipRect.y + padding + titleHeight, textWidth, bodyHeight),
+                body,
+                _terminalTooltipBodyStyle);
+        }
+
+        private static string GetContractTypeTooltip(CourierContractModifier modifiers)
+        {
+            if (modifiers == CourierContractModifier.None)
+            {
+                return "STANDARD\nNo special cargo conditions. Complete one pickup and one delivery at your own pace.";
+            }
+            if ((modifiers & CourierContractModifier.Unknown) != 0)
+            {
+                return "UNKNOWN\nCargo conditions stay classified until deployment. The uncertainty increases the payout.";
+            }
+
+            List<string> descriptions = new List<string>();
+            AddContractTypeDescription(descriptions, modifiers, CourierContractModifier.Fragile,
+                "FRAGILE — Hard impacts damage cargo integrity and can fail the contract.");
+            AddContractTypeDescription(descriptions, modifiers, CourierContractModifier.Express,
+                "EXPRESS — Complete the route before the delivery timer expires.");
+            AddContractTypeDescription(descriptions, modifiers, CourierContractModifier.HighValue,
+                "HIGH-VALUE — Increased payout attracts stronger and more frequent encounters.");
+            AddContractTypeDescription(descriptions, modifiers, CourierContractModifier.Oversized,
+                "OVERSIZED — Heavy cargo reduces speed, acceleration, and turning response.");
+            AddContractTypeDescription(descriptions, modifiers, CourierContractModifier.Hazardous,
+                "HAZARDOUS — Unstable cargo periodically discharges and threatens hull integrity.");
+            AddContractTypeDescription(descriptions, modifiers, CourierContractModifier.MultiDrop,
+                "MULTI-DROP — Carry the package through several delivery stops to finish the route.");
+            return $"{CourierContract.FormatModifiers(modifiers)}\n{string.Join("\n", descriptions)}";
+        }
+
+        private static void AddContractTypeDescription(
+            List<string> descriptions,
+            CourierContractModifier modifiers,
+            CourierContractModifier required,
+            string description)
+        {
+            if ((modifiers & required) != 0)
+            {
+                descriptions.Add(description);
+            }
         }
 
         private Color GetContractModifierColor(CourierContractModifier modifiers)
