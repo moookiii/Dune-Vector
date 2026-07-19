@@ -397,7 +397,10 @@ namespace DuneVector
             }
 
             int diameter = (Mathf.Max(1, PreloadRadius) * 2) + 1;
-            return Clouds.ClusterCount / (float)(diameter * diameter);
+            Clouds.EnsureInitialized();
+            CloudArrangementTuning arrangement = Clouds.GetActiveArrangement();
+            return (Clouds.ClusterCount * Mathf.Max(0f, arrangement.ClusterCountMultiplier))
+                / (diameter * diameter);
         }
 
         private void HandleTraversalRingActivated(TraversalRing ring)
@@ -598,7 +601,9 @@ namespace DuneVector
                 return;
             }
 
-            int regionSize = Mathf.Max(1, tuning.CompositionRegionSizeInChunks);
+            tuning.EnsureInitialized();
+            CloudArrangementTuning arrangement = tuning.GetActiveArrangement();
+            int regionSize = Mathf.Max(1, arrangement.CompositionRegionSizeInChunks);
             int regionX = Mathf.FloorToInt(coordinate.x / (float)regionSize);
             int regionZ = Mathf.FloorToInt(coordinate.y / (float)regionSize);
             float regionRoll = DuneVectorMath.Hash01(
@@ -606,9 +611,9 @@ namespace DuneVector
                 regionZ,
                 worldSeed,
                 tuning.RandomSeedOffset ^ 4049);
-            float densityMultiplier = regionRoll < Mathf.Clamp01(tuning.NegativeSpaceRegionChance)
-                ? Mathf.Max(0f, tuning.NegativeSpaceDensityMultiplier)
-                : Mathf.Max(0f, tuning.CloudRegionDensityMultiplier);
+            float densityMultiplier = regionRoll < Mathf.Clamp01(arrangement.NegativeSpaceRegionChance)
+                ? Mathf.Max(0f, arrangement.NegativeSpaceDensityMultiplier)
+                : Mathf.Max(0f, arrangement.CloudRegionDensityMultiplier);
             int clusterCount = CountFromDensity(
                 density * densityMultiplier,
                 coordinate,
@@ -633,6 +638,7 @@ namespace DuneVector
                 clusterCount,
                 chunkSize,
                 tuning,
+                arrangement,
                 randomSeed);
         }
 

@@ -9,6 +9,7 @@ namespace DuneVector
     {
         private sealed class ArchetypeMeshes
         {
+            public int Index;
             public CloudArchetypeTuning Tuning;
             public Mesh Sunlit;
             public Mesh Underbelly;
@@ -51,6 +52,7 @@ namespace DuneVector
             int clusterCount,
             float chunkSize,
             CloudTuning tuning,
+            CloudArrangementTuning arrangement,
             int randomSeed)
         {
             tuning.EnsureInitialized();
@@ -62,7 +64,7 @@ namespace DuneVector
             CloudMeshLibrary library = GetOrCreateMeshLibrary(tuning);
             if (library.Archetypes.Count == 0)
             {
-                Debug.LogWarning("Cloud generation requires at least one weighted archetype with authored lobes.", this);
+                Debug.LogWarning("Cloud generation requires at least one authored archetype with lobes.", this);
                 return;
             }
 
@@ -71,7 +73,7 @@ namespace DuneVector
             float inset = Mathf.Clamp(tuning.PlacementInset, 0f, chunkSize * 0.45f);
             for (int clusterIndex = 0; clusterIndex < clusterCount; clusterIndex++)
             {
-                ArchetypeMeshes archetype = SelectArchetype(library.Archetypes, random);
+                ArchetypeMeshes archetype = SelectArchetype(library.Archetypes, arrangement, random);
                 Vector2 planarPosition = FindPlacement(
                     random,
                     occupiedPositions,
@@ -88,13 +90,15 @@ namespace DuneVector
                 cluster.SetParent(transform, false);
                 cluster.localPosition = new Vector3(
                     planarPosition.x,
-                    tuning.Altitude + OrderedRange(random, shape.AltitudeOffsetRange),
+                    tuning.Altitude + arrangement.AltitudeOffset + OrderedRange(random, shape.AltitudeOffsetRange),
                     planarPosition.y);
                 cluster.localRotation = Quaternion.Euler(
                     Range(random, -shape.PitchRollVariation, shape.PitchRollVariation),
                     OrderedRange(random, shape.YawRange),
                     Range(random, -shape.PitchRollVariation, shape.PitchRollVariation));
-                cluster.localScale = RandomScale(random, shape.MinimumScale, shape.MaximumScale);
+                cluster.localScale = Vector3.Scale(
+                    RandomScale(random, shape.MinimumScale, shape.MaximumScale),
+                    PositiveScale(arrangement.ScaleMultiplier));
 
                 List<Renderer> renderers = new List<Renderer>(2);
                 AddLayer("Cool Underside", cluster, archetype.Underbelly, underbellyMaterial, renderers);
@@ -122,7 +126,7 @@ namespace DuneVector
             for (int i = 0; i < definitions.Length; i++)
             {
                 CloudArchetypeTuning definition = definitions[i];
-                if (definition == null || definition.Weight <= 0f)
+                if (definition == null)
                 {
                     continue;
                 }
@@ -136,6 +140,7 @@ namespace DuneVector
 
                 library.Archetypes.Add(new ArchetypeMeshes
                 {
+                    Index = i,
                     Tuning = definition,
                     Sunlit = sunlit,
                     Underbelly = underbelly,
@@ -324,18 +329,26 @@ namespace DuneVector
             lodGroup.RecalculateBounds();
         }
 
-        private static ArchetypeMeshes SelectArchetype(List<ArchetypeMeshes> archetypes, System.Random random)
+        private static ArchetypeMeshes SelectArchetype(
+            List<ArchetypeMeshes> archetypes,
+            CloudArrangementTuning arrangement,
+            System.Random random)
         {
             float totalWeight = 0f;
             for (int i = 0; i < archetypes.Count; i++)
             {
-                totalWeight += Mathf.Max(0f, archetypes[i].Tuning.Weight);
+                totalWeight += Mathf.Max(0f, arrangement.GetArchetypeWeight(archetypes[i].Index));
+            }
+
+            if (totalWeight <= 0f)
+            {
+                return archetypes[0];
             }
 
             float selection = Range(random, 0f, totalWeight);
             for (int i = 0; i < archetypes.Count; i++)
             {
-                selection -= Mathf.Max(0f, archetypes[i].Tuning.Weight);
+                selection -= Mathf.Max(0f, arrangement.GetArchetypeWeight(archetypes[i].Index));
                 if (selection <= 0f)
                 {
                     return archetypes[i];

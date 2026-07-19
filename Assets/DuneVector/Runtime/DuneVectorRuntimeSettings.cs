@@ -17,6 +17,15 @@ namespace DuneVector
         ExtremeDunes,
     }
 
+    public enum CloudArrangementPreset
+    {
+        BalancedDesertSky,
+        SparseCinematic,
+        MonumentalBanks,
+        DevelopingColumns,
+        HighWisps,
+    }
+
     [System.Serializable]
     public sealed class CloudLobeTuning
     {
@@ -29,7 +38,6 @@ namespace DuneVector
     public sealed class CloudArchetypeTuning
     {
         public string DisplayName;
-        [Min(0f)] public float Weight;
         public Vector2 AltitudeOffsetRange;
         public Vector3 MinimumScale;
         public Vector3 MaximumScale;
@@ -37,6 +45,39 @@ namespace DuneVector
         [Min(0f)] public float PitchRollVariation;
         public CloudLobeTuning[] SunlitLobes;
         public CloudLobeTuning[] UnderbellyLobes;
+    }
+
+    [System.Serializable]
+    public sealed class CloudArrangementTuning
+    {
+        public string DisplayName;
+        [Min(0f)] public float ClusterCountMultiplier;
+        [Range(1, 8)] public int CompositionRegionSizeInChunks;
+        [Range(0f, 1f)] public float NegativeSpaceRegionChance;
+        [Min(0f)] public float NegativeSpaceDensityMultiplier;
+        [Min(0f)] public float CloudRegionDensityMultiplier;
+        public float AltitudeOffset;
+        public Vector3 ScaleMultiplier;
+
+        [Header("Archetype Mix")]
+        [Min(0f)] public float LongStretchedWeight;
+        [Min(0f)] public float CompactPuffyWeight;
+        [Min(0f)] public float WideLayeredBankWeight;
+        [Min(0f)] public float TallDevelopingWeight;
+        [Min(0f)] public float SmallDistantWispyWeight;
+
+        public float GetArchetypeWeight(int archetypeIndex)
+        {
+            return archetypeIndex switch
+            {
+                0 => LongStretchedWeight,
+                1 => CompactPuffyWeight,
+                2 => WideLayeredBankWeight,
+                3 => TallDevelopingWeight,
+                4 => SmallDistantWispyWeight,
+                _ => 0f,
+            };
+        }
     }
 
     [System.Serializable]
@@ -50,11 +91,16 @@ namespace DuneVector
         public Vector2 DriftDirection;
         public int RandomSeedOffset;
 
-        [Header("Large-Scale Composition")]
-        [Range(1, 8)] public int CompositionRegionSizeInChunks;
-        [Range(0f, 1f)] public float NegativeSpaceRegionChance;
-        [Min(0f)] public float NegativeSpaceDensityMultiplier;
-        [Min(0f)] public float CloudRegionDensityMultiplier;
+        [Header("Arrangement Presets")]
+        [Tooltip("Selects the authored density, archetype mix, altitude, and scale arrangement used when the world starts.")]
+        public CloudArrangementPreset ActiveArrangementPreset;
+        public CloudArrangementTuning BalancedDesertSky;
+        public CloudArrangementTuning SparseCinematic;
+        public CloudArrangementTuning MonumentalBanks;
+        public CloudArrangementTuning DevelopingColumns;
+        public CloudArrangementTuning HighWisps;
+
+        [Header("Shared Placement")]
         [Min(0f)] public float PlacementInset;
         [Min(0f)] public float MinimumLocalSeparation;
         [Range(1, 16)] public int PlacementAttempts;
@@ -76,11 +122,28 @@ namespace DuneVector
 
         public void EnsureInitialized()
         {
+            BalancedDesertSky ??= new CloudArrangementTuning();
+            SparseCinematic ??= new CloudArrangementTuning();
+            MonumentalBanks ??= new CloudArrangementTuning();
+            DevelopingColumns ??= new CloudArrangementTuning();
+            HighWisps ??= new CloudArrangementTuning();
             LongStretched ??= new CloudArchetypeTuning();
             CompactPuffy ??= new CloudArchetypeTuning();
             WideLayeredBank ??= new CloudArchetypeTuning();
             TallDeveloping ??= new CloudArchetypeTuning();
             SmallDistantWispy ??= new CloudArchetypeTuning();
+        }
+
+        public CloudArrangementTuning GetActiveArrangement()
+        {
+            return ActiveArrangementPreset switch
+            {
+                CloudArrangementPreset.SparseCinematic => SparseCinematic,
+                CloudArrangementPreset.MonumentalBanks => MonumentalBanks,
+                CloudArrangementPreset.DevelopingColumns => DevelopingColumns,
+                CloudArrangementPreset.HighWisps => HighWisps,
+                _ => BalancedDesertSky,
+            };
         }
 
         public CloudArchetypeTuning[] GetArchetypes()
