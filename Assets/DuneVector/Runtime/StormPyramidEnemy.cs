@@ -176,7 +176,7 @@ namespace DuneVector
         private void UpdateIdle(float deltaTime)
         {
             _attackTimer = Mathf.Max(0f, _attackTimer - deltaTime);
-            if (_attackTimer <= 0f && CanChargePlayer())
+            if (_attackTimer <= 0f)
             {
                 SetState(StormPyramidState.TrackingPlayer);
             }
@@ -184,13 +184,6 @@ namespace DuneVector
 
         private void UpdateTracking()
         {
-            if (!CanChargePlayer())
-            {
-                _attackTimer = GetAttackInterval(StormLightningAttackType.PlayerStrike);
-                SetState(StormPyramidState.IdleHovering);
-                return;
-            }
-
             FacePosition(_player.WorldCenter, 6f);
             if (_stateTime < _settings.TrackingDuration)
             {
@@ -204,7 +197,8 @@ namespace DuneVector
 
         private void UpdateCharging(float deltaTime)
         {
-            if (!CanChargePlayer())
+            if (_lightning.TargetType == StormLightningAttackType.PlayerStrike
+                && !CanChargePlayerStrike())
             {
                 _lightning.CancelAttack();
                 _attackTimer = GetAttackInterval(StormLightningAttackType.PlayerStrike);
@@ -289,7 +283,7 @@ namespace DuneVector
             return Mathf.Max(0.1f, configuredInterval);
         }
 
-        private bool CanChargePlayer()
+        private bool CanChargePlayerStrike()
         {
             return !_player.IsStableGrounded
                 && _targeting.CanTargetPlayer(transform.position);
@@ -470,6 +464,13 @@ namespace DuneVector
                 && Vector3.Distance(origin, _player.WorldCenter) <= _settings.DetectionRange;
         }
 
+        public bool CanTargetPlayerStrike(Vector3 origin)
+        {
+            return _player != null
+                && !_player.IsStableGrounded
+                && CanTargetPlayer(origin);
+        }
+
         public Vector3 GetPlayerPosition()
         {
             return _player.WorldCenter;
@@ -494,7 +495,7 @@ namespace DuneVector
 
         public StormLightningTarget SelectAttack(Vector3 origin)
         {
-            if (_targeting.CanTargetPlayer(origin))
+            if (_targeting.CanTargetPlayerStrike(origin))
             {
                 return new StormLightningTarget(
                     StormLightningAttackType.PlayerStrike,
