@@ -246,7 +246,8 @@ namespace DuneVector
         [Min(0f)] public float TerminalFooterHeight = 38f;
         [Min(0f)] public float TerminalAccentBarHeight = 4f;
         [Min(0f)] public float TerminalCardAccentWidth = 5f;
-        [Min(0f)] public float TerminalDifficultyPipSize = 5f;
+        [Min(0f)] public float TerminalContractOrderPipSize = 5f;
+        [Min(0f)] public float TerminalContractOrderPipGap = 3f;
         [Min(0f)] public float TerminalPanelBorderThickness = 2f;
         public Vector2 TerminalPanelShadowOffset = new Vector2(12f, 14f);
         [Min(180f)] public float TerminalTooltipWidth = 360f;

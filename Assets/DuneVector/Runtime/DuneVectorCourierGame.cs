@@ -1515,7 +1515,7 @@ namespace DuneVector
                 int row = i / columns;
                 Rect card = new Rect(panel.x + padding + (column * (cardWidth + gap)), cardsTop + (row * (cardHeight + gap)), cardWidth, cardHeight);
                 CourierContract offer = _offers[i];
-                if (DrawContractCard(card, offer))
+                if (DrawContractCard(card, offer, i, _offers.Count))
                 {
                     selectedOffer = offer;
                 }
@@ -1538,14 +1538,10 @@ namespace DuneVector
             }
         }
 
-        private bool DrawContractCard(Rect card, CourierContract offer)
+        private bool DrawContractCard(Rect card, CourierContract offer, int offerIndex, int offerCount)
         {
             bool accepted = GUI.Button(card, GUIContent.none, _terminalButtonStyle);
             Color modifierColor = GetContractModifierColor(offer.DisplayModifiers);
-            Color riskColor = Color.Lerp(
-                _hubSettings.TerminalHighValueColor,
-                _hubSettings.TerminalDangerColor,
-                Mathf.Clamp01((offer.Difficulty - 1f) / 12f));
             DrawSolidRect(
                 new Rect(card.x, card.y, _hubSettings.TerminalCardAccentWidth, card.height),
                 modifierColor);
@@ -1559,15 +1555,16 @@ namespace DuneVector
                 new GUIContent(offer.DisplayModifierText, GetContractTypeTooltip(offer.DisplayModifiers)),
                 _terminalKickerStyle);
 
-            int activePips = Mathf.Clamp(Mathf.CeilToInt(offer.Difficulty / 4f), 1, 5);
-            float pipSize = _hubSettings.TerminalDifficultyPipSize;
-            float pipGap = 3f;
-            float pipStart = right - ((pipSize + pipGap) * 5f) + pipGap;
-            for (int i = 0; i < 5; i++)
+            int pipCount = Mathf.Max(1, offerCount);
+            int activePip = Mathf.Clamp(offerIndex, 0, pipCount - 1);
+            float pipSize = _hubSettings.TerminalContractOrderPipSize;
+            float pipGap = _hubSettings.TerminalContractOrderPipGap;
+            float pipStart = right - ((pipSize * pipCount) + (pipGap * (pipCount - 1)));
+            for (int i = 0; i < pipCount; i++)
             {
                 DrawSolidRect(
                     new Rect(pipStart + (i * (pipSize + pipGap)), card.y + 19f, pipSize, pipSize),
-                    i < activePips ? riskColor : _hubSettings.TerminalDividerColor);
+                    i == activePip ? _hubSettings.TerminalAccentColor : _hubSettings.TerminalDividerColor);
             }
 
             GUI.Label(new Rect(left, card.y + 40f, contentWidth, 27f), offer.DestinationName, _terminalDestinationStyle);
