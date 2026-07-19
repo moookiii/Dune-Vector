@@ -806,18 +806,19 @@ namespace DuneVector
         private void BuildPickupObjective()
         {
             DuneVectorLandmarkInstance landmark = _routeLandmarks[0];
-            double objectiveHeight = landmark.ContractSocket.position.y;
+            Vector3 objectivePosition = landmark.ContractSocket.position;
+            LogicalPosition objectiveLogical = LocalToLogical(objectivePosition);
             _package = DuneVectorVisuals.CreatePackageVisual(transform, _materials, _settings.ObjectivePackageScale);
             _package.name = $"Contract Cargo {ActiveContract.ContractId}";
-            _package.position = landmark.ContractSocket.position;
+            _package.position = objectivePosition;
             _objectiveRing = CreateObjectiveRing(
                 "Contract Pickup Ring",
-                ActiveContract.PickupPosition,
-                objectiveHeight,
+                objectiveLogical,
+                objectivePosition.y,
                 true,
                 HandlePackagePickup);
             ActiveObjective = _package;
-            ActiveObjectiveLogicalPosition = ActiveContract.PickupPosition;
+            ActiveObjectiveLogicalPosition = objectiveLogical;
         }
 
         private JobTraversalRing CreateObjectiveRing(
@@ -889,15 +890,20 @@ namespace DuneVector
             {
                 Destroy(_objectiveRing.gameObject);
             }
-            LogicalPosition logical = ActiveContract.DeliveryPositions[_deliveryIndex];
             DuneVectorLandmarkInstance landmark = _routeLandmarks[_deliveryIndex + 1];
-            double objectiveHeight = landmark.ContractSocket.position.y;
+            Vector3 objectivePosition = landmark.ContractSocket.position;
+            LogicalPosition objectiveLogical = LocalToLogical(objectivePosition);
             _objectiveRing = CreateObjectiveRing(
-                $"Delivery Ring {_deliveryIndex + 1}", logical, objectiveHeight, false, HandleDelivery);
-            _objectiveRing.transform.position = landmark.ContractSocket.position;
-            _objectiveRing.LogicalHeight = landmark.ContractSocket.position.y;
+                $"Delivery Ring {_deliveryIndex + 1}", objectiveLogical, objectivePosition.y, false, HandleDelivery);
             ActiveObjective = _objectiveRing.transform;
-            ActiveObjectiveLogicalPosition = logical;
+            ActiveObjectiveLogicalPosition = objectiveLogical;
+        }
+
+        private LogicalPosition LocalToLogical(Vector3 localPosition)
+        {
+            return new LogicalPosition(
+                _world.OriginOffsetX + localPosition.x,
+                _world.OriginOffsetZ + localPosition.z);
         }
 
         private void HandleDelivery()

@@ -423,7 +423,10 @@ namespace DuneVector
                         float interpolation = Mathf.Clamp01(previousLocalPosition.z / denominator);
                         Vector3 crossingPoint = Vector3.Lerp(previousLocalPosition, localPosition, interpolation);
                         float radialDistance = new Vector2(crossingPoint.x, crossingPoint.y).magnitude;
-                        if (radialDistance <= _innerRadius)
+                        bool crossedOpening = _player.CurrentMode == DroneTraversalMode.Normal
+                            ? Mathf.Abs(crossingPoint.x) <= _innerRadius
+                            : radialDistance <= _innerRadius;
+                        if (crossedOpening)
                         {
                             _activated = true;
                             _onCrossed?.Invoke();
