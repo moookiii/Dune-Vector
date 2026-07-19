@@ -110,6 +110,8 @@ namespace DuneVector
         public float CargoTurningMultiplier { get; private set; } = 1f;
         public DesertWorldStreamer World { get; private set; }
         public Vector3 CurrentWindForce { get; private set; }
+        public float CurrentWindInfluence { get; private set; }
+        public WindFieldType CurrentWindType { get; private set; }
 
         private Vector2 _rawMove;
         private bool _flightBrakeHeld;
@@ -380,16 +382,26 @@ namespace DuneVector
             if (_windFields == null || _windFieldSettings == null)
             {
                 CurrentWindForce = Vector3.zero;
+                CurrentWindInfluence = 0f;
                 return;
             }
 
             WindFieldSample sample = _windFields.Sample(WorldCenter, Time.time);
+            CurrentWindInfluence = sample.Influence;
+            CurrentWindType = sample.DominantType;
             float traversalMultiplier = CurrentMode == DroneTraversalMode.Flight
                 ? _windFieldSettings.FlightForceMultiplier
                 : Motor.GroundingStatus.IsStableOnGround
                     ? _windFieldSettings.GroundedForceMultiplier
                     : _windFieldSettings.FlightForceMultiplier;
             CurrentWindForce = sample.Force * _windFieldSettings.PlayerForceResponse * traversalMultiplier;
+            if (sample.DominantType == WindFieldType.Updraft
+                && sample.Influence >= _windFieldSettings.UpdraftLaunchInfluenceThreshold
+                && Motor.GroundingStatus.IsStableOnGround)
+            {
+                Motor.ForceUnground();
+                currentVelocity.y = Mathf.Max(currentVelocity.y, _windFieldSettings.UpdraftMinimumLaunchSpeed);
+            }
             currentVelocity += CurrentWindForce * Mathf.Max(0f, deltaTime);
         }
 

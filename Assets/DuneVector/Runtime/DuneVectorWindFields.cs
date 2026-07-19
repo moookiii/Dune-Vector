@@ -40,6 +40,8 @@ namespace DuneVector
         [Min(0f)] public float FlightForceMultiplier = 1f;
         [Min(0f)] public float TurbulenceForce = 4.5f;
         [Min(0f)] public float TurbulenceFrequency = 0.17f;
+        [Range(0f, 1f)] public float UpdraftLaunchInfluenceThreshold = 0.12f;
+        [Min(0f)] public float UpdraftMinimumLaunchSpeed = 8f;
 
         [Header("World-space Streamlines")]
         [Range(0, 512)] public int StreamlineParticleBudget = 180;
@@ -171,10 +173,10 @@ namespace DuneVector
                 RuntimeField field = _fields[i];
                 Vector3 halfSize = field.Definition.Size * 0.5f;
                 Vector3 offset = worldPosition - field.Center;
-                float normalizedDistance = Mathf.Sqrt(
-                    Mathf.Pow(offset.x / halfSize.x, 2f) +
-                    Mathf.Pow(offset.y / halfSize.y, 2f) +
-                    Mathf.Pow(offset.z / halfSize.z, 2f));
+                float normalizedDistance = Mathf.Max(
+                    Mathf.Abs(offset.x / halfSize.x),
+                    Mathf.Abs(offset.y / halfSize.y),
+                    Mathf.Abs(offset.z / halfSize.z));
                 if (normalizedDistance >= 1f)
                 {
                     continue;

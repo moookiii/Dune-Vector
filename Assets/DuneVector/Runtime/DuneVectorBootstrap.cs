@@ -899,7 +899,7 @@ namespace DuneVector
                 $"Mode: {Drone.CurrentMode}   Stable grounded: {Drone.IsStableGrounded}\n" +
                 $"Velocity: {Drone.Motor.Velocity}   Speed: {Drone.Speed:0.00}\n" +
                 $"Boost: {Drone.IsBoosting}   Flight remaining: {Drone.FlightTimeRemaining:0.0}s\n" +
-                $"Wind force: {Drone.CurrentWindForce}\n" +
+                $"Wind: {Drone.CurrentWindType}  influence {Drone.CurrentWindInfluence:0.00}  force {Drone.CurrentWindForce}\n" +
                 $"Logical position: {logical}\n\n" +
                 $"CAMERA\n" +
                 $"FollowingSharpness: {CameraController.FollowingSharpness:0.00}\n" +
