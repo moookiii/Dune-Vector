@@ -23,6 +23,7 @@ namespace DuneVector
         public PyramidTuning Pyramids => RuntimeSettings.Pyramids;
         public WorldStreamingTuning WorldStreaming => RuntimeSettings.WorldStreaming;
         public PlayerHealthTuning HealthSettings => RuntimeSettings.HealthSettings;
+        public EnergyLauncherTuning EnergyLauncherSettings => RuntimeSettings.EnergyLauncher;
         public FlyingEnemyTuning FlyingEnemies => RuntimeSettings.FlyingEnemies;
         public StormPyramidTuning StormPyramids => RuntimeSettings.StormPyramids;
         public GroundExploderTuning GroundExploders => RuntimeSettings.GroundExploders;
@@ -57,6 +58,10 @@ namespace DuneVector
         public DuneVectorDebugHUD DebugHUD { get; private set; }
         public DuneVectorDeliveryLoop DeliveryLoop { get; private set; }
         public DroneHealth DroneHealth { get; private set; }
+        public DroneTargetDetector TargetDetector { get; private set; }
+        public DroneLockOnController LockOnController { get; private set; }
+        public DroneEnergyLauncher EnergyLauncher { get; private set; }
+        public DroneLockOnHUD LockOnHUD { get; private set; }
         public DuneVectorEnemyDirector EnemyDirector { get; private set; }
         public DuneVectorStormPyramidDirector StormPyramidDirector { get; private set; }
         public DuneVectorWeatherController WeatherSystem { get; private set; }
@@ -301,6 +306,7 @@ namespace DuneVector
             BuildInterface();
             BuildDeliveryGameplay();
             BuildEnemyGameplay();
+            BuildDroneWeapon();
 
 #if UNITY_EDITOR
             if (UnityEditor.EditorPrefs.GetBool("DuneVector.ValidationRequested", false))
@@ -538,6 +544,32 @@ namespace DuneVector
             }
         }
 
+        private void BuildDroneWeapon()
+        {
+            if (!EnergyLauncherSettings.Enabled)
+            {
+                return;
+            }
+
+            GameObject weaponObject = new GameObject("Drone Lock-On Energy Launcher");
+            weaponObject.transform.SetParent(transform, false);
+
+            TargetDetector = weaponObject.AddComponent<DroneTargetDetector>();
+            TargetDetector.Initialize(DroneCamera.Camera, EnergyLauncherSettings);
+            LockOnController = weaponObject.AddComponent<DroneLockOnController>();
+            LockOnController.Initialize(TargetDetector, EnergyLauncherSettings);
+            EnergyLauncher = weaponObject.AddComponent<DroneEnergyLauncher>();
+            EnergyLauncher.Initialize(
+                Drone,
+                DroneCamera.Camera,
+                World,
+                LockOnController,
+                EnergyLauncherSettings);
+            LockOnHUD = weaponObject.AddComponent<DroneLockOnHUD>();
+            LockOnHUD.Initialize(DroneCamera.Camera, LockOnController, EnergyLauncherSettings);
+            Player.EnergyLauncher = EnergyLauncher;
+        }
+
         private void OnDestroy()
         {
             if (Instance == this)
@@ -632,7 +664,7 @@ namespace DuneVector
                 GUI.Box(panel, GUIContent.none);
                 Rect content = new Rect(panel.x + 14f, panel.y, panel.width - 28f, panel.height);
                 GUI.Label(new Rect(content.x, panel.y + 8f, content.width, 30f), "DUNE VECTOR", _titleStyle);
-                GUI.Label(new Rect(content.x, panel.y + 42f, content.width, 24f), "WASD Move  •  Mouse Look  •  Space Jump  •  F1 Telemetry", _hintStyle);
+                GUI.Label(new Rect(content.x, panel.y + 42f, content.width, 24f), "WASD Move  •  Mouse Look  •  LMB Fire  •  Space Jump  •  F1 Telemetry", _hintStyle);
                 GUI.Label(new Rect(content.x, panel.y + 69f, content.width, 22f), "Amber: Boost  •  Cyan: Flight", _hintStyle);
                 GUI.color = previous;
             }

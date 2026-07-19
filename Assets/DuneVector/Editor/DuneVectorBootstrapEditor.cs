@@ -114,6 +114,7 @@ namespace DuneVector.Editor
         private SerializedProperty _pyramids;
         private SerializedProperty _worldStreaming;
         private SerializedProperty _health;
+        private SerializedProperty _energyLauncher;
         private SerializedProperty _flyingEnemies;
         private SerializedProperty _stormPyramids;
         private SerializedProperty _groundExploders;
@@ -131,6 +132,7 @@ namespace DuneVector.Editor
             _pyramids = serializedObject.FindProperty("Pyramids");
             _worldStreaming = serializedObject.FindProperty("WorldStreaming");
             _health = serializedObject.FindProperty("HealthSettings");
+            _energyLauncher = serializedObject.FindProperty("EnergyLauncher");
             _flyingEnemies = serializedObject.FindProperty("FlyingEnemies");
             _stormPyramids = serializedObject.FindProperty("StormPyramids");
             _groundExploders = serializedObject.FindProperty("GroundExploders");
@@ -185,6 +187,10 @@ namespace DuneVector.Editor
                 "Player Health",
                 "Hull capacity and the grace period between damage events.",
                 _health);
+            DuneVectorSettingsInspector.DrawSection(
+                "Lock-On Energy Launcher",
+                "View-centered target acquisition, homing energy shots, feedback, and targeting HUD.",
+                _energyLauncher);
         }
 
         private void DrawGameplayTab()

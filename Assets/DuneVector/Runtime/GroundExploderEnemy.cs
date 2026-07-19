@@ -23,6 +23,7 @@ namespace DuneVector
         private GroundExploderProximity _proximity;
         private GroundExploderDamage _damage;
         private GroundExploderVisual _visual;
+        private EnemyCombatTarget _combatTarget;
         private DroneHealth _playerHealth;
         private float _stateTime;
 
@@ -46,6 +47,10 @@ namespace DuneVector
             Transform visualRoot = DuneVectorVisuals.CreateGroundExploderVisual(transform, materials, settings.VisualScale);
             _visual.Initialize(visualRoot, settings);
             _movement.Initialize(heightField, chunkLogicalX, chunkLogicalZ, chunkSize, settings, identity);
+            EnemyHealth enemyHealth = gameObject.AddComponent<EnemyHealth>();
+            enemyHealth.Initialize(settings.MaximumHealth);
+            _combatTarget = gameObject.AddComponent<EnemyCombatTarget>();
+            _combatTarget.Initialize(enemyHealth, settings.VisualScale);
             BindTargets(player, playerHealth);
             SetState(GroundExploderState.Patrolling);
         }
@@ -111,6 +116,8 @@ namespace DuneVector
         {
             CurrentState = state;
             _stateTime = 0f;
+            _combatTarget?.SetTargetable(
+                state == GroundExploderState.Patrolling || state == GroundExploderState.TriggeredWindUp);
             switch (state)
             {
                 case GroundExploderState.Patrolling:

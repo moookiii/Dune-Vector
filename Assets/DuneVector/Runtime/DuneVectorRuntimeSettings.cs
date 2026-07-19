@@ -93,9 +93,81 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class EnergyLauncherTuning
+    {
+        public bool Enabled = true;
+
+        [Header("Lock-On Targeting")]
+        [Min(1f)] public float LockRange = 180f;
+        [Tooltip("Full angle of the view-centered targeting cone. Targets behind the camera are always rejected.")]
+        [Range(1f, 179f)] public float LockConeAngle = 34f;
+        [Min(0f)] public float AcquisitionTime = 0.55f;
+        [Tooltip("Brief time that TARGET DETECTED is shown before acquisition begins.")]
+        [Min(0f)] public float TargetDetectedDuration = 0.12f;
+        [Tooltip("Grace time before an acquired target outside the cone or range is released.")]
+        [Min(0f)] public float TargetLossTolerance = 0.32f;
+        [Tooltip("Seconds between candidate scoring passes. Current-target validity is still checked every frame.")]
+        [Min(0.01f)] public float TargetScanInterval = 0.05f;
+        [Tooltip("How much better a new view-center score must be before replacing the current target.")]
+        [Range(0f, 1f)] public float TargetSwitchAdvantage = 0.12f;
+        [Tooltip("Small distance contribution to selection score; screen-center alignment remains dominant.")]
+        [Range(0f, 0.5f)] public float DistanceScoreWeight = 0.08f;
+
+        [Header("Energy Shot")]
+        [Min(1f)] public float ProjectileSpeed = 155f;
+        [Tooltip("Maximum homing direction change in degrees per second.")]
+        [Min(0f)] public float HomingTurnStrength = 430f;
+        [Min(0f)] public float Damage = 45f;
+        [Min(0f)] public float FireCooldown = 0.22f;
+        [Min(0.05f)] public float ProjectileLifetime = 3f;
+        [Min(0.01f)] public float ProjectileHitRadius = 0.32f;
+        [Tooltip("Maximum look-ahead time used to lead a moving locked target.")]
+        [Min(0f)] public float LeadPredictionTime = 0.65f;
+        [Tooltip("Caps measured target velocity used for lead prediction, filtering floating-origin shifts and spikes.")]
+        [Min(0f)] public float MaximumLeadSpeed = 140f;
+        [Tooltip("View-relative launch offset from the drone center.")]
+        public Vector3 MuzzleOffset = new Vector3(0f, -0.1f, 2.4f);
+
+        [Header("Projectile Feedback")]
+        [Min(0.01f)] public float ProjectileScale = 0.28f;
+        [Min(0.01f)] public float TrailDuration = 0.2f;
+        [Min(0.001f)] public float TrailStartWidth = 0.2f;
+        [Min(0f)] public float TrailMinimumVertexDistance = 0.08f;
+        [Min(0.01f)] public float LaunchFlashScale = 0.85f;
+        [Min(0.01f)] public float LaunchFlashDuration = 0.11f;
+        [Min(0.01f)] public float ImpactFlashScale = 2.2f;
+        [Min(0.01f)] public float ImpactFlashDuration = 0.24f;
+        [ColorUsage(false, true)] public Color ProjectileColor = new Color(0.08f, 0.72f, 1f);
+        [ColorUsage(false, true)] public Color ProjectileEmission = new Color(2f, 12f, 24f);
+
+        [Header("Targeting HUD")]
+        [Min(240f)] public float HudReferenceHeight = 1080f;
+        [Min(1f)] public float CenterReticleSize = 22f;
+        [Min(0f)] public float CenterReticleGap = 6f;
+        [Min(1f)] public float ReticleLineThickness = 2f;
+        [Min(1f)] public float TargetDetectedReticleSize = 84f;
+        [Min(1f)] public float LockedReticleSize = 44f;
+        [Min(1f)] public float TargetBracketLength = 18f;
+        [Min(0f)] public float LockedPulseAmount = 4f;
+        [Min(0f)] public float ReticlePulseSpeed = 8f;
+        [Min(1f)] public float LockedConfirmationSize = 7f;
+        [Min(0f)] public float TargetStatusOffset = 28f;
+        [Min(0f)] public float TargetDistanceOffset = 46f;
+        [Min(40f)] public float HudLabelWidth = 190f;
+        [Min(8f)] public float HudLabelHeight = 22f;
+        [Min(8)] public int TargetStatusFontSize = 14;
+        [Min(8)] public int TargetDistanceFontSize = 12;
+        [ColorUsage(false)] public Color CenterReticleColor = new Color(0.72f, 0.92f, 1f, 0.88f);
+        [ColorUsage(false)] public Color TargetDetectedColor = new Color(1f, 0.72f, 0.18f, 0.95f);
+        [ColorUsage(false)] public Color LockingColor = new Color(0.15f, 0.86f, 1f, 0.98f);
+        [ColorUsage(false)] public Color LockedColor = new Color(0.35f, 1f, 0.62f, 1f);
+    }
+
+    [System.Serializable]
     public sealed class FlyingEnemyTuning
     {
         public bool Enabled = true;
+        [Min(1f)] public float MaximumHealth = 90f;
         [Range(1, 12)] public int EnemyCount = 3;
         [Min(10f)] public float MinimumSpawnDistance = 55f;
         [Min(10f)] public float MaximumSpawnDistance = 105f;
@@ -118,6 +190,7 @@ namespace DuneVector
     public sealed class StormPyramidTuning
     {
         public bool Enabled = true;
+        [Min(1f)] public float MaximumHealth = 135f;
 
         [Header("Spawning")]
         [Range(1, 10)] public int EnemyCount = 2;
@@ -182,6 +255,7 @@ namespace DuneVector
     public sealed class GroundExploderTuning
     {
         public bool Enabled = true;
+        [Min(1f)] public float MaximumHealth = 70f;
         [Tooltip("Expected number of ground exploders generated in each streamed desert chunk.")]
         [Min(0f)] public float DensityPerChunk = 0.28f;
         [Header("Patrol")]
@@ -589,6 +663,9 @@ namespace DuneVector
         [Tooltip("Player hull strength and damage protection.")]
         public PlayerHealthTuning HealthSettings = new PlayerHealthTuning();
 
+        [Tooltip("Drone lock-on targeting, energy projectile, cooldown, feedback, and HUD presentation.")]
+        public EnergyLauncherTuning EnergyLauncher = new EnergyLauncherTuning();
+
         [Tooltip("Airborne enemy spawning and combat behavior.")]
         public FlyingEnemyTuning FlyingEnemies = new FlyingEnemyTuning();
 
@@ -624,6 +701,7 @@ namespace DuneVector
             Pyramids ??= new PyramidTuning();
             WorldStreaming ??= new WorldStreamingTuning();
             HealthSettings ??= new PlayerHealthTuning();
+            EnergyLauncher ??= new EnergyLauncherTuning();
             FlyingEnemies ??= new FlyingEnemyTuning();
             StormPyramids ??= new StormPyramidTuning();
             GroundExploders ??= new GroundExploderTuning();

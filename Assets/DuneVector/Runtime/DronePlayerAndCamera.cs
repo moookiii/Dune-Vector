@@ -11,6 +11,7 @@ namespace DuneVector
         public float Scroll;
         public bool JumpPressed;
         public bool JumpHeld;
+        public bool FirePressed;
     }
 
     [DisallowMultipleComponent]
@@ -41,6 +42,7 @@ namespace DuneVector
                 Scroll = mouse != null ? mouse.scroll.ReadValue().y / 120f : 0f,
                 JumpPressed = jumpPressed,
                 JumpHeld = jumpHeld,
+                FirePressed = mouse != null && mouse.leftButton.wasPressedThisFrame,
             };
         }
     }
@@ -53,6 +55,7 @@ namespace DuneVector
         public DroneCameraController CharacterCamera;
         public DroneInput InputSource;
         public DroneHealth Health;
+        public DroneEnergyLauncher EnergyLauncher;
 
         public bool AutomatedInputEnabled { get; private set; }
         public DroneRawInputFrame AutomatedInput { get; private set; }
@@ -79,6 +82,7 @@ namespace DuneVector
                 return;
             }
 
+            bool weaponInputAllowed = AutomatedInputEnabled || Cursor.lockState == CursorLockMode.Locked;
             if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
             {
                 Cursor.lockState = CursorLockMode.Locked;
@@ -96,10 +100,16 @@ namespace DuneVector
             };
             Character.SetInputs(in characterInput);
 
-            if (AutomatedInputEnabled && AutomatedInput.JumpPressed)
+            if (weaponInputAllowed && raw.FirePressed)
+            {
+                EnergyLauncher?.RequestFire();
+            }
+
+            if (AutomatedInputEnabled && (AutomatedInput.JumpPressed || AutomatedInput.FirePressed))
             {
                 DroneRawInputFrame consumed = AutomatedInput;
                 consumed.JumpPressed = false;
+                consumed.FirePressed = false;
                 AutomatedInput = consumed;
             }
         }

@@ -87,6 +87,11 @@ namespace DuneVector
             Transform halo = _visual.Find("Charge Halo");
             Transform lightningOrigin = _visual.Find("Lightning Origin");
 
+            EnemyHealth enemyHealth = gameObject.AddComponent<EnemyHealth>();
+            enemyHealth.Initialize(settings.MaximumHealth);
+            EnemyCombatTarget combatTarget = gameObject.AddComponent<EnemyCombatTarget>();
+            combatTarget.Initialize(enemyHealth, settings.VisualScale);
+
             _movement = gameObject.AddComponent<StormPyramidMovement>();
             _movement.Initialize(player, world, settings, identity);
 

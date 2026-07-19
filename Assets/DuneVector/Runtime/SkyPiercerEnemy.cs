@@ -46,6 +46,10 @@ namespace DuneVector
             _hoverPhase = identity * 1.73f;
             _visual = DuneVectorVisuals.CreateFlyingEnemyVisual(transform, materials, settings.VisualScale);
             _core = _visual.Find("Recessed Core");
+            EnemyHealth enemyHealth = gameObject.AddComponent<EnemyHealth>();
+            enemyHealth.Initialize(settings.MaximumHealth);
+            EnemyCombatTarget combatTarget = gameObject.AddComponent<EnemyCombatTarget>();
+            combatTarget.Initialize(enemyHealth, settings.VisualScale);
             _hoverAnchor = transform.position;
             SetState(SkyPiercerState.IdleFloating);
             _attackCooldown = settings.AttackCooldown * Mathf.Repeat((identity * 0.37f) + 0.3f, 1f);
