@@ -13,7 +13,11 @@ namespace DuneVector
         {
             public Transform Transform;
             public Vector3 BasePosition;
+            public Quaternion BaseRotation;
+            public Vector3 DriftAxis;
             public float Phase;
+            public float MotionMultiplier;
+            public float RotationSpeed;
         }
 
         private sealed class LightningVisual
@@ -42,6 +46,8 @@ namespace DuneVector
         }
 
         private readonly List<CloudLobe> _cloudLobes = new List<CloudLobe>();
+        private readonly List<Material> _cloudMaterials = new List<Material>();
+        private readonly List<Mesh> _cloudMeshes = new List<Mesh>();
         private readonly List<Light> _internalLights = new List<Light>();
         private readonly List<LineRenderer> _targetRings = new List<LineRenderer>();
         private readonly List<LightningVisual> _lightning = new List<LightningVisual>();
@@ -55,7 +61,6 @@ namespace DuneVector
         private ElectricalStormVisualTuning _settings;
         private System.Random _random;
         private GameObject _stormRoot;
-        private Material _cloudMaterial;
         private Material _lightningMaterial;
         private Material _telegraphMaterial;
         private Material _chargedDustMaterial;
@@ -73,6 +78,7 @@ namespace DuneVector
         private float _probeTimer;
         private float _nearArcTimer;
         private float _landmarkTimer;
+        private float _cloudArcTimer;
         private bool _targetTelegraphActive;
         private bool _stormWasVisible;
         private GUIStyle _hudTitleStyle;
@@ -92,7 +98,7 @@ namespace DuneVector
             _settings = settings;
             _random = new System.Random(unchecked(world.WorldSeed ^ 77531));
             _softParticleTexture = CreateSoftParticleTexture(Mathf.Max(16, settings.ParticleTextureResolution));
-            _cloudMaterial = CreateCloudMaterial();
+            BuildCloudResources();
             _lightningMaterial = CreateEnergyMaterial("Electrical Storm Lightning", settings.LightningColor);
             _telegraphMaterial = CreateEnergyMaterial("Electrical Strike Telegraph", settings.TelegraphColor);
             _chargedDustMaterial = CreateParticleMaterial("Charged Desert Dust", settings.ChargedDustColor);
@@ -107,6 +113,7 @@ namespace DuneVector
             _probeTimer = NextInterval(settings.ProbeMinimumInterval, settings.ProbeMaximumInterval);
             _nearArcTimer = NextInterval(settings.NearArcMinimumInterval, settings.NearArcMaximumInterval);
             _landmarkTimer = NextInterval(settings.LandmarkReactionMinimumInterval, settings.LandmarkReactionMaximumInterval);
+            _cloudArcTimer = NextInterval(settings.CloudArcMinimumInterval, settings.CloudArcMaximumInterval);
 
             _hazards.StrikePhaseChanged += HandleStrikePhaseChanged;
             _hazards.LightningTargetLocked += HandleLightningTargetLocked;
@@ -148,42 +155,98 @@ namespace DuneVector
 
         private void BuildStormfront()
         {
-            _stormRoot = new GameObject("Landmark-Scale Electrical Stormfront");
+            _stormRoot = new GameObject("Layered Electrical Supercell");
             _stormRoot.transform.SetParent(transform, true);
-            int lobeCount = Mathf.Max(4, _settings.StormCloudLobeCount);
-            for (int i = 0; i < lobeCount; i++)
-            {
-                float horizontal = RandomRange(-0.5f, 0.5f);
-                float vertical = RandomRange(0f, 1f);
-                float depth = RandomRange(-0.5f, 0.5f);
-                Vector3 basePosition = new Vector3(
-                    horizontal * _settings.StormfrontWidth,
-                    vertical * _settings.StormfrontHeight,
-                    depth * _settings.StormfrontDepth);
-                Vector3 scale = RandomScale(_settings.StormCloudMinimumScale, _settings.StormCloudMaximumScale);
-                if (vertical > _settings.SevereVisualThreshold)
-                {
-                    scale.x *= Mathf.Lerp(1f, _settings.StormCloudAnvilScaleMultiplier, vertical);
-                    basePosition.x *= _settings.StormCloudAnvilSpreadMultiplier;
-                }
 
-                GameObject lobe = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-                lobe.name = $"Charged Storm Cloud Lobe {i + 1}";
-                lobe.transform.SetParent(_stormRoot.transform, false);
-                lobe.transform.localPosition = basePosition;
-                lobe.transform.localScale = scale;
-                Renderer renderer = lobe.GetComponent<Renderer>();
-                renderer.sharedMaterial = _cloudMaterial;
-                renderer.shadowCastingMode = ShadowCastingMode.Off;
-                renderer.receiveShadows = false;
-                Collider collider = lobe.GetComponent<Collider>();
-                if (collider != null) Destroy(collider);
-                _cloudLobes.Add(new CloudLobe
+            int shelfCount = Mathf.Max(4, _settings.StormShelfLobeCount);
+            for (int i = 0; i < shelfCount; i++)
+            {
+                float across = shelfCount > 1 ? (i / (float)(shelfCount - 1)) - 0.5f : 0f;
+                float envelope = Mathf.Sin((across + 0.5f) * Mathf.PI);
+                Vector3 position = new Vector3(
+                    across * _settings.StormfrontWidth * _settings.StormShelfWidthFraction,
+                    _settings.StormfrontHeight * _settings.StormShelfHeightFraction +
+                        RandomRange(-_settings.StormShelfVerticalVariation, _settings.StormShelfVerticalVariation),
+                    RandomRange(-0.5f, 0.5f) * _settings.StormfrontDepth * _settings.StormShelfDepthFraction);
+                Vector3 scale = new Vector3(
+                    RandomRange(_settings.StormShelfMinimumLobeWidth, _settings.StormShelfMaximumLobeWidth) *
+                        Mathf.Lerp(_settings.StormShelfEdgeScale, 1f, envelope),
+                    RandomRange(_settings.StormShelfMinimumThickness, _settings.StormShelfMaximumThickness),
+                    RandomRange(_settings.StormShelfMinimumDepth, _settings.StormShelfMaximumDepth));
+                AddCloudLobe($"Rotating Shelf Mass {i + 1}", position, scale, 2, _settings.StormShelfMotionMultiplier, _settings.StormShelfRotationSpeed);
+            }
+
+            int towerCount = Mathf.Max(1, _settings.StormTowerCount);
+            for (int tower = 0; tower < towerCount; tower++)
+            {
+                float towerX = tower == 0
+                    ? _settings.PrimaryTowerHorizontalOffset * _settings.StormfrontWidth
+                    : RandomRange(-_settings.StormTowerHorizontalSpread, _settings.StormTowerHorizontalSpread) *
+                        _settings.StormfrontWidth;
+                float towerDepth = RandomRange(-_settings.StormTowerDepthSpread, _settings.StormTowerDepthSpread) *
+                    _settings.StormfrontDepth;
+                float towerHeight = tower == 0
+                    ? _settings.PrimaryTowerHeight
+                    : RandomRange(_settings.SecondaryTowerMinimumHeight, _settings.SecondaryTowerMaximumHeight);
+                float towerWidth = tower == 0
+                    ? _settings.PrimaryTowerWidth
+                    : RandomRange(_settings.SecondaryTowerMinimumWidth, _settings.SecondaryTowerMaximumWidth);
+                int tiers = Mathf.Max(2, _settings.StormTowerTierCount);
+                for (int tier = 0; tier < tiers; tier++)
                 {
-                    Transform = lobe.transform,
-                    BasePosition = basePosition,
-                    Phase = RandomRange(0f, Mathf.PI * 2f),
-                });
+                    float height = tier / (float)(tiers - 1);
+                    float taper = Mathf.Lerp(1f, _settings.StormTowerTopScale, height);
+                    float alternate = tier % 2 == 0 ? -1f : 1f;
+                    Vector3 position = new Vector3(
+                        towerX + (alternate * towerWidth * _settings.StormTowerTierOffset * (0.3f + height)),
+                        (_settings.StormfrontHeight * _settings.StormShelfHeightFraction) + (towerHeight * height),
+                        towerDepth + RandomRange(-1f, 1f) * towerWidth * _settings.StormTowerDepthVariation);
+                    Vector3 scale = new Vector3(
+                        towerWidth * taper * RandomRange(
+                            _settings.StormTowerMinimumScaleVariation,
+                            _settings.StormTowerMaximumScaleVariation),
+                        (towerHeight / tiers) * _settings.StormTowerVerticalOverlap,
+                        towerWidth * taper * RandomRange(
+                            _settings.StormTowerMinimumDepthScale,
+                            _settings.StormTowerMaximumDepthScale));
+                    AddCloudLobe(
+                        $"{(tower == 0 ? "Primary" : "Secondary")} Cumulonimbus Tower {tower + 1}-{tier + 1}",
+                        position,
+                        scale,
+                        height > _settings.StormUpperColorThreshold ? 0 : 1,
+                        Mathf.Lerp(
+                            _settings.StormTowerBottomMotionMultiplier,
+                            _settings.StormTowerTopMotionMultiplier,
+                            height),
+                        _settings.StormTowerRotationSpeed);
+                }
+            }
+
+            for (int i = 0; i < Mathf.Max(0, _settings.StormSupportLobeCount); i++)
+            {
+                float normalizedHeight = RandomRange(
+                    _settings.StormSupportMinimumHeight,
+                    _settings.StormSupportMaximumHeight);
+                Vector3 position = new Vector3(
+                    RandomRange(-_settings.StormSupportHorizontalSpread, _settings.StormSupportHorizontalSpread) *
+                        _settings.StormfrontWidth,
+                    normalizedHeight * _settings.StormfrontHeight,
+                    RandomRange(-_settings.StormSupportDepthSpread, _settings.StormSupportDepthSpread) *
+                        _settings.StormfrontDepth);
+                Vector3 scale = RandomScale(_settings.StormCloudMinimumScale, _settings.StormCloudMaximumScale);
+                AddCloudLobe($"Supporting Cloud Mass {i + 1}", position, scale, 1, _settings.StormSupportMotionMultiplier, _settings.StormSupportRotationSpeed);
+            }
+
+            for (int i = 0; i < Mathf.Max(0, _settings.StormScudLobeCount); i++)
+            {
+                Vector3 position = new Vector3(
+                    RandomRange(-_settings.StormScudHorizontalSpread, _settings.StormScudHorizontalSpread) *
+                        _settings.StormfrontWidth,
+                    RandomRange(_settings.StormScudMinimumHeight, _settings.StormScudMaximumHeight),
+                    RandomRange(-_settings.StormScudDepthSpread, _settings.StormScudDepthSpread) *
+                        _settings.StormfrontDepth);
+                Vector3 scale = RandomScale(_settings.StormScudMinimumScale, _settings.StormScudMaximumScale);
+                AddCloudLobe($"Turbulent Scud Fragment {i + 1}", position, scale, 3, _settings.StormScudMotionMultiplier, _settings.StormScudRotationSpeed);
             }
 
             for (int i = 0; i < Mathf.Max(0, _settings.InternalFlashLightCount); i++)
@@ -245,9 +308,13 @@ namespace DuneVector
             for (int i = 0; i < _cloudLobes.Count; i++)
             {
                 CloudLobe lobe = _cloudLobes[i];
+                float motion = Mathf.Sin((Time.time * _settings.StormCloudRollSpeed * lobe.MotionMultiplier) + lobe.Phase);
                 lobe.Transform.localPosition = lobe.BasePosition +
-                    (Vector3.up * Mathf.Sin((Time.time * _settings.StormCloudRollSpeed) + lobe.Phase) *
-                     _settings.StormCloudRollAmount);
+                    (lobe.DriftAxis * motion * _settings.StormCloudRollAmount * lobe.MotionMultiplier);
+                lobe.Transform.localRotation = lobe.BaseRotation * Quaternion.Euler(
+                    0f,
+                    Time.time * lobe.RotationSpeed,
+                    motion * _settings.StormCloudRockAngle);
             }
         }
 
@@ -286,9 +353,12 @@ namespace DuneVector
         {
             Color emission = _settings.StormCloudFlashEmission *
                 (strength * _settings.InternalFlashEmissionMultiplier);
-            if (_cloudMaterial.HasProperty("_EmissiveColor"))
+            for (int i = 0; i < _cloudMaterials.Count; i++)
             {
-                _cloudMaterial.SetColor("_EmissiveColor", emission);
+                if (_cloudMaterials[i].HasProperty("_EmissiveColor"))
+                {
+                    _cloudMaterials[i].SetColor("_EmissiveColor", emission);
+                }
             }
             for (int i = 0; i < _internalLights.Count; i++)
             {
@@ -532,6 +602,16 @@ namespace DuneVector
 
         private void UpdateAmbientElectricalEvents(float deltaTime)
         {
+            if (_visualBlend > _settings.CloudArcActivationIntensity && _cloudLobes.Count > 1)
+            {
+                _cloudArcTimer -= deltaTime;
+                if (_cloudArcTimer <= 0f)
+                {
+                    SpawnCloudToCloudArc();
+                    _cloudArcTimer = NextInterval(_settings.CloudArcMinimumInterval, _settings.CloudArcMaximumInterval);
+                }
+            }
+
             if (_visualBlend > _settings.ProbeActivationIntensity)
             {
                 _probeTimer -= deltaTime * Mathf.Lerp(
@@ -565,6 +645,34 @@ namespace DuneVector
                     }
                 }
             }
+        }
+
+        private void SpawnCloudToCloudArc()
+        {
+            CloudLobe first = _cloudLobes[_random.Next(_cloudLobes.Count)];
+            CloudLobe second = _cloudLobes[_random.Next(_cloudLobes.Count)];
+            for (int attempt = 0; attempt < _settings.CloudArcSelectionAttempts; attempt++)
+            {
+                CloudLobe candidate = _cloudLobes[_random.Next(_cloudLobes.Count)];
+                float distance = Vector3.Distance(first.Transform.position, candidate.Transform.position);
+                if (candidate != first && distance >= _settings.CloudArcMinimumLength &&
+                    distance <= _settings.CloudArcMaximumLength)
+                {
+                    second = candidate;
+                    break;
+                }
+            }
+            if (second == first)
+            {
+                return;
+            }
+            SpawnLightning(
+                first.Transform.position,
+                second.Transform.position,
+                _settings.CloudArcWidth,
+                _settings.CloudArcDuration,
+                false,
+                true);
         }
 
         private void SpawnDistantProbeStrike()
@@ -873,15 +981,130 @@ namespace DuneVector
             bloom.threshold.Override(_settings.InteriorBloomThreshold);
         }
 
-        private Material CreateCloudMaterial()
+        private void BuildCloudResources()
+        {
+            int familyCount = Mathf.Max(1, _settings.StormCloudMeshFamilyCount);
+            for (int i = 0; i < familyCount; i++)
+            {
+                _cloudMeshes.Add(CreateIrregularCloudMesh(unchecked(_world.WorldSeed + (i * 7919))));
+            }
+            _cloudMaterials.Add(CreateCloudMaterial("Cool Exposed Cloud", _settings.StormCloudTopColor));
+            _cloudMaterials.Add(CreateCloudMaterial("Charcoal Mid Cloud", _settings.StormCloudMiddleColor));
+            _cloudMaterials.Add(CreateCloudMaterial("Deep Shelf Cloud", _settings.StormCloudUndersideColor));
+            _cloudMaterials.Add(CreateCloudMaterial("Atmospheric Scud Cloud", _settings.StormCloudScudColor));
+        }
+
+        private Material CreateCloudMaterial(string materialName, Color color)
         {
             Shader shader = Shader.Find("HDRP/Lit");
-            Material material = new Material(shader) { name = "Electrical Storm Cloud Mass" };
-            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", _settings.StormCloudColor);
+            Material material = new Material(shader) { name = materialName, enableInstancing = true };
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
             if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", _settings.StormCloudSmoothness);
+            if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", 0f);
             if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", Color.black);
             if (material.HasProperty("_EmissiveExposureWeight")) material.SetFloat("_EmissiveExposureWeight", 0f);
             return material;
+        }
+
+        private void AddCloudLobe(
+            string objectName,
+            Vector3 position,
+            Vector3 scale,
+            int materialIndex,
+            float motionMultiplier,
+            float rotationSpeed)
+        {
+            GameObject lobe = new GameObject(objectName);
+            lobe.transform.SetParent(_stormRoot.transform, false);
+            Quaternion rotation = Quaternion.Euler(
+                RandomRange(-_settings.StormCloudMaximumTilt, _settings.StormCloudMaximumTilt),
+                RandomRange(0f, 360f),
+                RandomRange(-_settings.StormCloudMaximumTilt, _settings.StormCloudMaximumTilt));
+            lobe.transform.localPosition = position;
+            lobe.transform.localRotation = rotation;
+            lobe.transform.localScale = scale;
+            MeshFilter filter = lobe.AddComponent<MeshFilter>();
+            filter.sharedMesh = _cloudMeshes[_random.Next(_cloudMeshes.Count)];
+            MeshRenderer renderer = lobe.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = _cloudMaterials[Mathf.Clamp(materialIndex, 0, _cloudMaterials.Count - 1)];
+            renderer.shadowCastingMode = ShadowCastingMode.On;
+            renderer.receiveShadows = true;
+            _cloudLobes.Add(new CloudLobe
+            {
+                Transform = lobe.transform,
+                BasePosition = position,
+                BaseRotation = rotation,
+                DriftAxis = new Vector3(
+                    RandomRange(-1f, 1f),
+                    RandomRange(-_settings.StormCloudVerticalDriftRatio, _settings.StormCloudVerticalDriftRatio),
+                    RandomRange(-1f, 1f)).normalized,
+                Phase = RandomRange(0f, Mathf.PI * 2f),
+                MotionMultiplier = motionMultiplier,
+                RotationSpeed = rotationSpeed,
+            });
+        }
+
+        private Mesh CreateIrregularCloudMesh(int seed)
+        {
+            int longitude = Mathf.Max(6, _settings.StormCloudLongitudeSegments);
+            int latitude = Mathf.Max(4, _settings.StormCloudLatitudeSegments);
+            System.Random meshRandom = new System.Random(seed);
+            Vector3[,] points = new Vector3[latitude + 1, longitude];
+            for (int lat = 0; lat <= latitude; lat++)
+            {
+                float vertical = lat / (float)latitude;
+                float polar = vertical * Mathf.PI;
+                for (int lon = 0; lon < longitude; lon++)
+                {
+                    float azimuth = (lon / (float)longitude) * Mathf.PI * 2f;
+                    float randomVariation = Mathf.Lerp(
+                        -_settings.StormCloudSurfaceVariation,
+                        _settings.StormCloudSurfaceVariation,
+                        (float)meshRandom.NextDouble());
+                    float broadVariation = Mathf.Sin((azimuth * _settings.StormCloudSurfaceFrequency) +
+                        (polar * _settings.StormCloudVerticalFrequency));
+                    float radius = 0.5f * (1f + randomVariation +
+                        (broadVariation * _settings.StormCloudBroadVariation));
+                    points[lat, lon] = new Vector3(
+                        Mathf.Sin(polar) * Mathf.Cos(azimuth),
+                        Mathf.Cos(polar),
+                        Mathf.Sin(polar) * Mathf.Sin(azimuth)) * radius;
+                }
+            }
+
+            List<Vector3> vertices = new List<Vector3>(latitude * longitude * 6);
+            List<int> triangles = new List<int>(latitude * longitude * 6);
+            for (int lat = 0; lat < latitude; lat++)
+            {
+                for (int lon = 0; lon < longitude; lon++)
+                {
+                    int next = (lon + 1) % longitude;
+                    AddFlatTriangle(vertices, triangles, points[lat, lon], points[lat + 1, lon], points[lat + 1, next]);
+                    AddFlatTriangle(vertices, triangles, points[lat, lon], points[lat + 1, next], points[lat, next]);
+                }
+            }
+            Mesh mesh = new Mesh { name = $"Faceted Storm Cloud Family {seed}" };
+            mesh.SetVertices(vertices);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static void AddFlatTriangle(
+            List<Vector3> vertices,
+            List<int> triangles,
+            Vector3 first,
+            Vector3 second,
+            Vector3 third)
+        {
+            int start = vertices.Count;
+            vertices.Add(first);
+            vertices.Add(second);
+            vertices.Add(third);
+            triangles.Add(start);
+            triangles.Add(start + 1);
+            triangles.Add(start + 2);
         }
 
         private static Material CreateEnergyMaterial(string materialName, Color color)
@@ -1127,7 +1350,14 @@ namespace DuneVector
             {
                 _world.WorldShifted -= HandleWorldShift;
             }
-            if (_cloudMaterial != null) Destroy(_cloudMaterial);
+            for (int i = 0; i < _cloudMaterials.Count; i++)
+            {
+                if (_cloudMaterials[i] != null) Destroy(_cloudMaterials[i]);
+            }
+            for (int i = 0; i < _cloudMeshes.Count; i++)
+            {
+                if (_cloudMeshes[i] != null) Destroy(_cloudMeshes[i]);
+            }
             if (_lightningMaterial != null) Destroy(_lightningMaterial);
             if (_telegraphMaterial != null) Destroy(_telegraphMaterial);
             if (_chargedDustMaterial != null) Destroy(_chargedDustMaterial);

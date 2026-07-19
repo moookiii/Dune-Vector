@@ -1561,14 +1561,87 @@ namespace DuneVector
         [Min(1f)] public float StormfrontHeight = 165f;
         [Min(1f)] public float StormfrontDepth = 115f;
         [Min(0f)] public float StormfrontBaseHeight = 22f;
-        [Range(4, 64)] public int StormCloudLobeCount = 34;
+
+        [Header("Supercell Shelf")]
+        [Range(4, 48)] public int StormShelfLobeCount = 20;
+        [Range(0.1f, 1.5f)] public float StormShelfWidthFraction = 1.08f;
+        [Range(0f, 1f)] public float StormShelfHeightFraction = 0.2f;
+        [Range(0.1f, 1f)] public float StormShelfDepthFraction = 0.76f;
+        [Min(0f)] public float StormShelfVerticalVariation = 7f;
+        [Min(1f)] public float StormShelfMinimumLobeWidth = 44f;
+        [Min(1f)] public float StormShelfMaximumLobeWidth = 76f;
+        [Min(1f)] public float StormShelfMinimumThickness = 18f;
+        [Min(1f)] public float StormShelfMaximumThickness = 34f;
+        [Min(1f)] public float StormShelfMinimumDepth = 42f;
+        [Min(1f)] public float StormShelfMaximumDepth = 82f;
+        [Range(0.1f, 1f)] public float StormShelfEdgeScale = 0.62f;
+        [Min(0f)] public float StormShelfMotionMultiplier = 0.5f;
+        public float StormShelfRotationSpeed = 0.65f;
+
+        [Header("Cumulonimbus Towers")]
+        [Range(1, 8)] public int StormTowerCount = 4;
+        [Range(2, 10)] public int StormTowerTierCount = 5;
+        [Range(-0.5f, 0.5f)] public float PrimaryTowerHorizontalOffset = -0.12f;
+        [Min(1f)] public float PrimaryTowerHeight = 185f;
+        [Min(1f)] public float PrimaryTowerWidth = 92f;
+        [Min(1f)] public float SecondaryTowerMinimumHeight = 92f;
+        [Min(1f)] public float SecondaryTowerMaximumHeight = 154f;
+        [Min(1f)] public float SecondaryTowerMinimumWidth = 48f;
+        [Min(1f)] public float SecondaryTowerMaximumWidth = 76f;
+        [Range(0f, 0.5f)] public float StormTowerHorizontalSpread = 0.4f;
+        [Range(0f, 0.5f)] public float StormTowerDepthSpread = 0.28f;
+        [Range(0.1f, 1f)] public float StormTowerTopScale = 0.48f;
+        [Range(0f, 1f)] public float StormTowerTierOffset = 0.24f;
+        [Range(0f, 1f)] public float StormTowerDepthVariation = 0.38f;
+        [Min(0.1f)] public float StormTowerVerticalOverlap = 1.72f;
+        [Min(0.1f)] public float StormTowerMinimumScaleVariation = 0.82f;
+        [Min(0.1f)] public float StormTowerMaximumScaleVariation = 1.18f;
+        [Min(0.1f)] public float StormTowerMinimumDepthScale = 0.72f;
+        [Min(0.1f)] public float StormTowerMaximumDepthScale = 1.08f;
+        [Min(0f)] public float StormTowerBottomMotionMultiplier = 0.35f;
+        [Min(0f)] public float StormTowerTopMotionMultiplier = 0.75f;
+        public float StormTowerRotationSpeed = 0.18f;
+        [Range(0f, 1f)] public float StormUpperColorThreshold = 0.55f;
+
+        [Header("Supporting Masses & Scud")]
+        [Range(0, 48)] public int StormSupportLobeCount = 18;
+        [Range(0f, 1f)] public float StormSupportMinimumHeight = 0.16f;
+        [Range(0f, 1f)] public float StormSupportMaximumHeight = 0.68f;
+        [Range(0f, 0.5f)] public float StormSupportHorizontalSpread = 0.5f;
+        [Range(0f, 0.5f)] public float StormSupportDepthSpread = 0.5f;
+        [Min(0f)] public float StormSupportMotionMultiplier = 0.8f;
+        public float StormSupportRotationSpeed = -0.12f;
         public Vector3 StormCloudMinimumScale = new Vector3(42f, 24f, 34f);
         public Vector3 StormCloudMaximumScale = new Vector3(92f, 64f, 72f);
-        [Min(1f)] public float StormCloudAnvilScaleMultiplier = 1.45f;
-        [Min(1f)] public float StormCloudAnvilSpreadMultiplier = 1.16f;
+        [Range(0, 32)] public int StormScudLobeCount = 12;
+        public float StormScudMinimumHeight = -18f;
+        public float StormScudMaximumHeight = 18f;
+        [Range(0f, 0.5f)] public float StormScudHorizontalSpread = 0.46f;
+        [Range(0f, 0.5f)] public float StormScudDepthSpread = 0.5f;
+        public Vector3 StormScudMinimumScale = new Vector3(15f, 7f, 12f);
+        public Vector3 StormScudMaximumScale = new Vector3(38f, 18f, 30f);
+        [Min(0f)] public float StormScudMotionMultiplier = 1.45f;
+        public float StormScudRotationSpeed = 1.35f;
+
+        [Header("Cloud Mesh Families & Motion")]
+        [Range(1, 8)] public int StormCloudMeshFamilyCount = 4;
+        [Range(6, 24)] public int StormCloudLongitudeSegments = 10;
+        [Range(4, 16)] public int StormCloudLatitudeSegments = 7;
+        [Range(0f, 0.45f)] public float StormCloudSurfaceVariation = 0.16f;
+        [Range(0f, 0.35f)] public float StormCloudBroadVariation = 0.1f;
+        [Min(0.1f)] public float StormCloudSurfaceFrequency = 3f;
+        [Min(0.1f)] public float StormCloudVerticalFrequency = 2f;
+        [Range(0f, 45f)] public float StormCloudMaximumTilt = 18f;
+        [Range(0f, 1f)] public float StormCloudVerticalDriftRatio = 0.35f;
         [Min(0f)] public float StormCloudRollAmount = 3.5f;
         [Min(0f)] public float StormCloudRollSpeed = 0.16f;
-        [ColorUsage(false)] public Color StormCloudColor = new Color(0.055f, 0.065f, 0.085f, 1f);
+        [Min(0f)] public float StormCloudRockAngle = 1.8f;
+
+        [Header("Cloud Lighting & Value Layers")]
+        [ColorUsage(false)] public Color StormCloudTopColor = new Color(0.24f, 0.29f, 0.36f, 1f);
+        [ColorUsage(false)] public Color StormCloudMiddleColor = new Color(0.095f, 0.12f, 0.16f, 1f);
+        [ColorUsage(false)] public Color StormCloudUndersideColor = new Color(0.032f, 0.045f, 0.065f, 1f);
+        [ColorUsage(false)] public Color StormCloudScudColor = new Color(0.065f, 0.085f, 0.11f, 1f);
         [ColorUsage(false, true)] public Color StormCloudFlashEmission = new Color(1.7f, 3.8f, 6.5f, 1f);
         [Range(0f, 1f)] public float StormCloudSmoothness = 0.12f;
 
@@ -1586,6 +1659,16 @@ namespace DuneVector
         [Min(0f)] public float InternalFlashMinimumFrequencyMultiplier = 0.65f;
         [Min(0f)] public float InternalFlashMaximumFrequencyMultiplier = 1.7f;
         [ColorUsage(false, true)] public Color InternalFlashLightColor = new Color(0.54f, 0.82f, 1f, 1f);
+
+        [Header("Cloud-to-Cloud Electrical Arcs")]
+        [Range(0f, 1f)] public float CloudArcActivationIntensity = 0.22f;
+        [Min(0.1f)] public float CloudArcMinimumInterval = 2.4f;
+        [Min(0.1f)] public float CloudArcMaximumInterval = 6.8f;
+        [Min(0f)] public float CloudArcMinimumLength = 24f;
+        [Min(0f)] public float CloudArcMaximumLength = 145f;
+        [Range(1, 32)] public int CloudArcSelectionAttempts = 10;
+        [Min(0.001f)] public float CloudArcWidth = 0.2f;
+        [Min(0.01f)] public float CloudArcDuration = 0.16f;
 
         [Header("Charged Dust Veil")]
         [Range(0, 800)] public int ChargedDustParticleBudget = 360;
