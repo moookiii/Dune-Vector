@@ -1523,6 +1523,10 @@ namespace DuneVector
         [Min(0.75f)] public float GroundRingRadius = 3.25f;
         [Min(0.75f)] public float FlightRingRadius = 3.55f;
 
+        [Header("Blue Flight Ring Generation")]
+        [Tooltip("Multiplier for the expected number of procedurally generated blue flight rings. One preserves the base amount; values above one add blue rings without adding boost rings.")]
+        [Min(1f)] public float FlightRingAmountMultiplier = 1f;
+
         [Header("Boost and Flight Ring Appearance")]
         [ColorUsage(false, true)] public Color BoostRingBaseColor = new Color(0.42f, 0.09f, 0.008f);
         [ColorUsage(false, true)] public Color BoostRingEmissionColor = new Color(3.6f, 0.72f, 0.025f);

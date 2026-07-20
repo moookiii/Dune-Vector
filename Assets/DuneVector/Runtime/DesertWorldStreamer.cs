@@ -1075,6 +1075,45 @@ namespace DuneVector
                         DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 751, 16f, chunkSize - 16f));
                     CreateRing(position, forward, TraversalRingType.GroundBoost, ringTuning.GroundRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "boost", ringActivated);
                 }
+
+                float additionalFlightDensity = aerialRingDensity
+                    * Mathf.Max(0f, ringTuning.FlightRingAmountMultiplier - 1f);
+                int additionalFlightRingCount = CountFromDensity(
+                    additionalFlightDensity,
+                    coordinate,
+                    worldSeed,
+                    761);
+                for (int flightRingIndex = 0; flightRingIndex < additionalFlightRingCount; flightRingIndex++)
+                {
+                    int saltOffset = flightRingIndex * 12;
+                    float angle = DuneVectorMath.HashRange(
+                        coordinate.x,
+                        coordinate.y,
+                        worldSeed,
+                        769 + saltOffset,
+                        0f,
+                        360f);
+                    Vector3 forward = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                    Vector2 position = new Vector2(
+                        DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 773 + saltOffset, 24f, chunkSize - 24f),
+                        DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 779 + saltOffset, 24f, chunkSize - 24f));
+                    CreateRing(
+                        position,
+                        forward,
+                        TraversalRingType.Flight,
+                        ringTuning.FlightRingRadius,
+                        originX,
+                        originZ,
+                        heightField,
+                        materials,
+                        player,
+                        playerHealth,
+                        ringExclusions,
+                        worldSeed,
+                        ringTuning,
+                        $"extra-flight-{flightRingIndex}",
+                        ringActivated);
+                }
             }
 
             for (int collectibleIndex = 0; coordinate != Vector2Int.zero && collectibleIndex < 2; collectibleIndex++)
