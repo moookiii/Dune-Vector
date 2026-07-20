@@ -438,6 +438,8 @@ namespace DuneVector
 
         [Header("Risk Sand Ambusher Fracture")]
         [ColorUsage(true, true)] public Color SandAmbusherFractureColor = new Color(12f, 14f, 16f, 1f);
+        [Tooltip("Overall multiplier for the Sand Ambusher fracture's planar lengths, jitter, and widths.")]
+        [Min(0.01f)] public float SandAmbusherFractureOverallScale = 1f;
         [Min(1f)] public float SandAmbusherFractureMainLength = 38f;
         [Range(3, 48)] public int SandAmbusherFractureMainPointCount = 22;
         [Min(0f)] public float SandAmbusherFractureMainJitter = 2.2f;

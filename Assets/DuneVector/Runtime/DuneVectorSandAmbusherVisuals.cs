@@ -638,17 +638,19 @@ namespace DuneVector
         private void BuildFracture(int seed)
         {
             System.Random random = new System.Random(seed);
+            float overallScale = Mathf.Max(0.01f, _settings.SandAmbusherFractureOverallScale);
             Vector2 direction = RandomDirection(random);
             _fractureDirection = direction;
             Vector2 perpendicular = new Vector2(-direction.y, direction.x);
             List<Vector2> mainPath = BuildPath(
-                Vector2.zero - (direction * _settings.SandAmbusherFractureMainLength * 0.5f),
+                Vector2.zero - (direction * _settings.SandAmbusherFractureMainLength * overallScale * 0.5f),
                 direction,
-                _settings.SandAmbusherFractureMainLength,
+                _settings.SandAmbusherFractureMainLength * overallScale,
                 _settings.SandAmbusherFractureMainPointCount,
-                _settings.SandAmbusherFractureMainJitter,
+                _settings.SandAmbusherFractureMainJitter * overallScale,
                 random);
-            CreateBranch("Primary Dune Rupture", mainPath, _settings.SandAmbusherFractureMainWidth, 0f,
+            CreateBranch("Primary Dune Rupture", mainPath,
+                _settings.SandAmbusherFractureMainWidth * overallScale, 0f,
                 _settings.SandAmbusherFracturePrimarySpreadFraction);
 
             int branchCount = Mathf.Max(0, _settings.SandAmbusherFractureBranchCount);
@@ -663,13 +665,14 @@ namespace DuneVector
                     _settings.SandAmbusherFractureBranchForwardBias,
                     (float)random.NextDouble())).normalized;
                 float length = Mathf.Lerp(_settings.SandAmbusherFractureBranchMinimumLength,
-                    _settings.SandAmbusherFractureBranchMaximumLength, (float)random.NextDouble());
+                    _settings.SandAmbusherFractureBranchMaximumLength, (float)random.NextDouble()) * overallScale;
                 List<Vector2> branchPath = BuildPath(mainPath[originIndex], branchDirection, length,
                     _settings.SandAmbusherFractureBranchPointCount,
-                    _settings.SandAmbusherFractureBranchJitter, random);
+                    _settings.SandAmbusherFractureBranchJitter * overallScale, random);
                 CreateBranch($"Secondary Branching Fracture {i + 1}", branchPath,
                     Mathf.Lerp(_settings.SandAmbusherFractureBranchMinimumWidth,
-                        _settings.SandAmbusherFractureBranchMaximumWidth, (float)random.NextDouble()),
+                        _settings.SandAmbusherFractureBranchMaximumWidth,
+                        (float)random.NextDouble()) * overallScale,
                     Mathf.Lerp(_settings.SandAmbusherFractureBranchMinimumDelay,
                         _settings.SandAmbusherFractureBranchMaximumDelay, (float)random.NextDouble()),
                     Mathf.Lerp(_settings.SandAmbusherFractureBranchMinimumSpread,
