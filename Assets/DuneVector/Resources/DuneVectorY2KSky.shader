@@ -157,8 +157,7 @@ Shader "Hidden/DuneVector/HDRP Y2K Sky"
         float rings = SoftLine(nearestRing, _RingThickness);
         float ringBand = smoothstep(_RingAltitude - _RingSpacing, _RingAltitude, skyUp)
             * (1.0 - smoothstep(_RingAltitude + _RingSpacing * 2.6, _RingAltitude + _RingSpacing * 3.2, skyUp));
-        float ringWindow = smoothstep(0.1, 0.9, 0.5 + 0.5 * sin(azimuth * 1.5 - 0.7));
-        rings *= ringBand * ringWindow * upperHemisphere;
+        rings *= ringBand * upperHemisphere;
 
         float azimuthGrid = abs(frac(normalizedAzimuth * _GridScale + 0.5) - 0.5);
         float heightGrid = abs(frac(skyUp * _GridScale * 1.8 + 0.5) - 0.5);
