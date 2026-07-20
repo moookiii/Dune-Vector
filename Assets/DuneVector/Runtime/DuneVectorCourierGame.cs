@@ -2183,6 +2183,8 @@ namespace DuneVector
                 }
             }
             CourierContract selectedOffer = null;
+            string hoveredContractTypeTooltip = null;
+            Vector2 virtualMousePosition = Event.current.mousePosition / Mathf.Max(0.01f, scale);
             bool startFreeRoam = false;
             for (int i = 0; i < _offers.Count; i++)
             {
@@ -2190,9 +2192,18 @@ namespace DuneVector
                 int row = i / columns;
                 Rect card = new Rect(panel.x + padding + (column * (cardWidth + gap)), cardsTop + (row * (cardHeight + gap)), cardWidth, cardHeight);
                 CourierContract offer = _offers[i];
-                if (DrawContractCard(card, offer, showSecondRiskRow))
+                if (DrawContractCard(
+                    card,
+                    offer,
+                    showSecondRiskRow,
+                    virtualMousePosition,
+                    out string contractTypeTooltip))
                 {
                     selectedOffer = offer;
+                }
+                if (!string.IsNullOrEmpty(contractTypeTooltip))
+                {
+                    hoveredContractTypeTooltip = contractTypeTooltip;
                 }
             }
 
@@ -2229,7 +2240,7 @@ namespace DuneVector
                     22f),
                 "CONTRACTS REFRESH AUTOMATICALLY",
                 _terminalActionStyle);
-            DrawContractTypeTooltip(panel, virtualWidth, virtualHeight, scale);
+            DrawContractTypeTooltip(panel, virtualWidth, virtualHeight, scale, hoveredContractTypeTooltip);
 
             GUI.matrix = previousMatrix;
             GUI.backgroundColor = previousBackground;
@@ -2405,8 +2416,14 @@ namespace DuneVector
             _archiveReplayClosedFrame = Time.frameCount;
         }
 
-        private bool DrawContractCard(Rect card, CourierContract offer, bool showSecondRiskRow)
+        private bool DrawContractCard(
+            Rect card,
+            CourierContract offer,
+            bool showSecondRiskRow,
+            Vector2 mousePosition,
+            out string contractTypeTooltip)
         {
+            contractTypeTooltip = null;
             bool accepted = GUI.Button(card, GUIContent.none, _terminalButtonStyle);
             Color modifierColor = GetContractModifierColor(offer.DisplayModifiers);
             DrawSolidRect(
@@ -2417,10 +2434,12 @@ namespace DuneVector
             float right = card.xMax - 16f;
             float contentWidth = right - left;
             _terminalKickerStyle.normal.textColor = modifierColor;
-            GUI.Label(
-                new Rect(left, card.y + 12f, contentWidth, 20f),
-                new GUIContent(offer.DisplayModifierText, GetContractTypeTooltip(offer.DisplayModifiers)),
-                _terminalKickerStyle);
+            Rect modifierLabel = new Rect(left, card.y + 12f, contentWidth, 20f);
+            GUI.Label(modifierLabel, offer.DisplayModifierText, _terminalKickerStyle);
+            if (modifierLabel.Contains(mousePosition))
+            {
+                contractTypeTooltip = GetContractTypeTooltip(offer.DisplayModifiers);
+            }
 
             int maximumRisk = Mathf.Max(1, _settings.MaximumRisk);
             int filledRiskPips = Mathf.Clamp(offer.Difficulty, 0, maximumRisk);
@@ -2464,9 +2483,13 @@ namespace DuneVector
             return accepted;
         }
 
-        private void DrawContractTypeTooltip(Rect panel, float virtualWidth, float virtualHeight, float scale)
+        private void DrawContractTypeTooltip(
+            Rect panel,
+            float virtualWidth,
+            float virtualHeight,
+            float scale,
+            string tooltip)
         {
-            string tooltip = GUI.tooltip;
             if (string.IsNullOrWhiteSpace(tooltip))
             {
                 return;
