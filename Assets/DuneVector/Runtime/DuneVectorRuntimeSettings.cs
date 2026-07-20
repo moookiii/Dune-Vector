@@ -328,13 +328,8 @@ namespace DuneVector
         [Header("Risk Scaling")]
         [Range(1, 100)] public int MaximumRisk = 20;
         [Min(0f)] public float RiskRewardMultiplierPerTier = 0.12f;
-        [Min(0f)] public float RiskEnemyHealthMultiplierPerTier = 0.08f;
-        [Min(0f)] public float RiskEnemySpeedMultiplierPerTier = 0.025f;
-        [Min(0f)] public float RiskEnemyDamageMultiplierPerTier = 0.07f;
-        [Min(0f)] public float RiskEnemyAttackRateMultiplierPerTier = 0.04f;
-        [Min(1f)] public float RiskOneEnemySpawnMultiplier = 1.5f;
-        [Min(1f)] public float RiskTwoEnemySpawnMultiplier = 2.2f;
-        [Min(1f)] public float RiskThreeEnemySpawnMultiplier = 3f;
+        [Min(1f)] public float RiskEnemyMultiplierAtRankOne = 1.1f;
+        [Min(1f)] public float RiskEnemyMultiplierAtMaximumRank = 3f;
         [Min(1)] public int RiskGroundEnemyReferenceCount = 8;
 
         [Header("Risk Sand Ambusher")]

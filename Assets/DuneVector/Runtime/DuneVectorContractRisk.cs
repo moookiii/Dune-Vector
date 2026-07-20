@@ -19,21 +19,20 @@ namespace DuneVector
 
         public static void Configure(CourierContractTuning settings, int risk)
         {
-            int additionalRisk = Mathf.Max(0, risk - 1);
-            EnemyHealthMultiplier = 1f +
-                (additionalRisk * Mathf.Max(0f, settings.RiskEnemyHealthMultiplierPerTier));
-            EnemySpeedMultiplier = 1f +
-                (additionalRisk * Mathf.Max(0f, settings.RiskEnemySpeedMultiplierPerTier));
-            EnemyDamageMultiplier = 1f +
-                (additionalRisk * Mathf.Max(0f, settings.RiskEnemyDamageMultiplierPerTier));
-            EnemyAttackRateMultiplier = 1f +
-                (additionalRisk * Mathf.Max(0f, settings.RiskEnemyAttackRateMultiplierPerTier));
-            EnemySpawnMultiplier = Mathf.Max(1f,
-                risk >= 3
-                    ? settings.RiskThreeEnemySpawnMultiplier
-                    : risk == 2
-                        ? settings.RiskTwoEnemySpawnMultiplier
-                        : settings.RiskOneEnemySpawnMultiplier);
+            int maximumRisk = Mathf.Max(1, settings.MaximumRisk);
+            int clampedRisk = Mathf.Clamp(risk, 1, maximumRisk);
+            float rankProgress = maximumRisk > 1
+                ? (clampedRisk - 1f) / (maximumRisk - 1f)
+                : 0f;
+            float startMultiplier = Mathf.Max(1f, settings.RiskEnemyMultiplierAtRankOne);
+            float endMultiplier = Mathf.Max(startMultiplier, settings.RiskEnemyMultiplierAtMaximumRank);
+            float enemyMultiplier = Mathf.Lerp(startMultiplier, endMultiplier, rankProgress);
+
+            EnemyHealthMultiplier = enemyMultiplier;
+            EnemySpeedMultiplier = enemyMultiplier;
+            EnemyDamageMultiplier = enemyMultiplier;
+            EnemyAttackRateMultiplier = enemyMultiplier;
+            EnemySpawnMultiplier = enemyMultiplier;
         }
 
         public static void Reset()
