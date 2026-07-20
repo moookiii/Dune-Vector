@@ -254,6 +254,7 @@ namespace DuneVector
         public bool IsContractActive => State == CourierRunState.FindPackage || State == CourierRunState.Delivering;
         public bool IsCarryingCargo => State == CourierRunState.Delivering;
         public bool IsTerminalOpen => _hubTerminalMode != HubTerminalMode.None;
+        public bool IsDeliveryMessageOpen => _messagePresenter != null && _messagePresenter.IsOpen;
         public Vector3 HubSpawnPosition => _hubSpawn;
         public Transform ContractTerminal => _terminal;
         public Transform MessageArchiveTerminal => _messageArchiveTerminal;

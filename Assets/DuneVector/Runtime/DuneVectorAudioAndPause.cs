@@ -447,7 +447,8 @@ namespace DuneVector
 
         private void Update()
         {
-            if (_courierGame != null && _courierGame.IsTerminalOpen)
+            if (_courierGame != null &&
+                (_courierGame.IsTerminalOpen || _courierGame.IsDeliveryMessageOpen))
             {
                 return;
             }
