@@ -84,7 +84,6 @@ namespace DuneVector
                     _collectibleIconBaseRotation = _collectibleIcon.localRotation;
                 }
             }
-            DuneVectorSpatialInstancing.Capture(_visualRoot.gameObject, true);
             gameObject.name = type switch
             {
                 TraversalRingType.GroundBoost => "Ground Boost Ring",
