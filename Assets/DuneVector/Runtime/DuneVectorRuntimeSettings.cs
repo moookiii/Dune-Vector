@@ -779,6 +779,8 @@ namespace DuneVector
         [Min(8f)] public float SpireHeight = 96f;
         [Min(4f)] public float ExcavationCraneHeight = 34f;
         [Min(0f)] public float ContractSocketHeight = 5f;
+        [Tooltip("Additional horizontal distance between a landmark and its pickup package and ring.")]
+        [Min(0f)] public float PickupRingLandmarkClearance = 6f;
         [Tooltip("Vertical air gap between the landmark's highest rendered point and its delivery ring.")]
         [Min(0f)] public float DeliveryRingClearance = 8f;
         [Min(0f)] public float EncounterSocketHeight = 22f;

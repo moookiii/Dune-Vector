@@ -64,6 +64,8 @@ namespace DuneVector
                     contractOffset = new Vector3(0f, settings.ContractSocketHeight, 19f * settings.ExcavationScale);
                     break;
             }
+            Vector3 pickupDirection = Vector3.ProjectOnPlane(contractOffset, Vector3.up).normalized;
+            contractOffset += pickupDirection * settings.PickupRingLandmarkClearance;
             ContractSocket = CreateSocket("Contract Socket", contractOffset);
             DeliverySocket = CreateSocket("Airborne Delivery Socket", Vector3.zero);
             EncounterSocket = CreateSocket("Encounter Socket", Vector3.up * settings.EncounterSocketHeight);
