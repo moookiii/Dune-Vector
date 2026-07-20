@@ -2738,6 +2738,12 @@ namespace DuneVector
         [Tooltip("Layered procedural dune-shape controls.")]
         public DuneFieldSettings DuneGeneration = new DuneFieldSettings();
 
+        [Tooltip("PNG texture used by the streamed dune terrain material.")]
+        public Texture2D DuneTexture;
+
+        [Tooltip("World-space width and length, in meters, covered by one repeat of the dune texture.")]
+        [Min(0.01f)] public float DuneTextureTileSize = 18f;
+
         [Tooltip("Vertices along one edge of each generated terrain chunk. Higher values are smoother but cost more.")]
         [Range(8, 96)] public int DuneMeshResolution = 32;
 

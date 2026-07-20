@@ -966,7 +966,7 @@ namespace DuneVector
                     float height = (float)heightField.SampleHeight(logicalX, logicalZ);
                     vertices[vertex] = new Vector3(x * step, height, z * step);
                     normals[vertex] = heightField.SampleNormal(logicalX, logicalZ);
-                    uvs[vertex] = new Vector2((float)(logicalX / 18.0), (float)(logicalZ / 18.0));
+                    uvs[vertex] = new Vector2((float)logicalX, (float)logicalZ);
                     minimumHeight = Mathf.Min(minimumHeight, height);
                     maximumHeight = Mathf.Max(maximumHeight, height);
                     vertex++;

@@ -318,6 +318,8 @@ namespace DuneVector
             QualitySettings.vSyncCount = 1;
             Application.targetFrameRate = -1;
             _materials = new DuneVectorMaterials(
+                RuntimeSettings.DuneTexture,
+                RuntimeSettings.DuneTextureTileSize,
                 Rings,
                 Deliveries,
                 Clouds,

@@ -134,6 +134,8 @@ namespace DuneVector.Editor
         private SerializedProperty _rings;
         private SerializedProperty _permanentUpgrades;
         private SerializedProperty _dunes;
+        private SerializedProperty _duneTexture;
+        private SerializedProperty _duneTextureTileSize;
         private SerializedProperty _meshResolution;
         private SerializedProperty _chunkSize;
 
@@ -166,6 +168,8 @@ namespace DuneVector.Editor
             _rings = serializedObject.FindProperty("Rings");
             _permanentUpgrades = serializedObject.FindProperty("PermanentUpgrades");
             _dunes = serializedObject.FindProperty("DuneGeneration");
+            _duneTexture = serializedObject.FindProperty("DuneTexture");
+            _duneTextureTileSize = serializedObject.FindProperty("DuneTextureTileSize");
             _meshResolution = serializedObject.FindProperty("DuneMeshResolution");
             _chunkSize = serializedObject.FindProperty("DuneChunkSize");
         }
@@ -292,6 +296,17 @@ namespace DuneVector.Editor
                 "Dune Generation",
                 "Large landforms, directional ridges, secondary forms, and fine detail.",
                 _dunes);
+
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                EditorGUILayout.LabelField("Dune Surface", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField(
+                    "Terrain PNG and the world-space size of each repeated tile.",
+                    EditorStyles.wordWrappedMiniLabel);
+                EditorGUILayout.Space(3f);
+                EditorGUILayout.PropertyField(_duneTexture);
+                EditorGUILayout.PropertyField(_duneTextureTileSize);
+            }
 
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {

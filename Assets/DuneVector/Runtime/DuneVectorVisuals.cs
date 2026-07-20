@@ -52,6 +52,8 @@ namespace DuneVector
         private readonly Material[] _sandOnlyTerrainMaterials;
 
         public DuneVectorMaterials(
+            Texture2D duneTexture,
+            float duneTextureTileSize,
             RingTuning ringTuning = null,
             DeliveryTuning deliveryTuning = null,
             CloudTuning cloudTuning = null,
@@ -65,7 +67,8 @@ namespace DuneVector
             CloudTuning clouds = cloudTuning ?? new CloudTuning();
             DynamicCourierTuning couriers = dynamicCourierTuning ?? new DynamicCourierTuning();
             DroneVisualTuning droneVisuals = droneVisualTuning ?? new DroneVisualTuning();
-            Sand = CreateLit("Sand - Warm Rough", new Color(0.62f, 0.36f, 0.16f), 0.14f, 0f);
+            Sand = CreateLit("Sand - Textured Dunes", Color.white, 0.14f, 0f);
+            ConfigureDuneTexture(Sand, duneTexture, duneTextureTileSize);
             _sandOnlyTerrainMaterials = new[] { Sand };
             GeoglyphOverlay = CreateGeoglyphOverlay(geoglyphTuning);
             TerrainMaterials = GeoglyphOverlay != null
@@ -190,6 +193,31 @@ namespace DuneVector
             PlayerStrikeOrbCore = CreateLit("Strike Orb - Satellites", new Color(0.08f, 0.3f, 0.48f), 0.78f, 0.28f, new Color(0.35f, 3.5f, 6.8f));
             Lightning = CreateUnlit("Storm Pyramid - Lightning", new Color(0.55f, 0.86f, 1f), new Color(7.5f, 12f, 18f));
             LightningWarning = CreateUnlit("Storm Pyramid - Warning", new Color(0.18f, 0.42f, 0.62f), new Color(0.45f, 2.8f, 5.8f));
+        }
+
+        private static void ConfigureDuneTexture(Material material, Texture2D texture, float tileSize)
+        {
+            if (material == null || texture == null)
+            {
+                return;
+            }
+
+            Vector2 tiling = Vector2.one / Mathf.Max(0.01f, tileSize);
+            if (material.HasProperty("_BaseColorMap"))
+            {
+                material.SetTexture("_BaseColorMap", texture);
+                material.SetTextureScale("_BaseColorMap", tiling);
+            }
+            if (material.HasProperty("_UnlitColorMap"))
+            {
+                material.SetTexture("_UnlitColorMap", texture);
+                material.SetTextureScale("_UnlitColorMap", tiling);
+            }
+            if (material.HasProperty("_MainTex"))
+            {
+                material.SetTexture("_MainTex", texture);
+                material.SetTextureScale("_MainTex", tiling);
+            }
         }
 
         public void SetGeoglyphLogicalOrigin(double originOffsetX, double originOffsetZ)
