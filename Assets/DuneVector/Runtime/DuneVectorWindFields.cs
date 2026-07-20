@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.HighDefinition;
 
 namespace DuneVector
 {
@@ -492,10 +493,16 @@ namespace DuneVector
             WindFieldDefinition definition,
             int salt)
         {
+            bool resumePlayback = system.isPlaying;
+            system.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             int logicalX = Mathf.RoundToInt(definition.LogicalPosition.x);
             int logicalZ = Mathf.RoundToInt(definition.LogicalPosition.y);
             system.useAutoRandomSeed = false;
             system.randomSeed = DuneVectorMath.Hash(logicalX, logicalZ, _combinedWindSeed, salt);
+            if (resumePlayback)
+            {
+                system.Play(true);
+            }
         }
 
         private void ConfigureVerticalSurfaceFlow(ParticleSystem system, WindFieldDefinition definition)
@@ -528,6 +535,7 @@ namespace DuneVector
             GameObject layerObject = new GameObject(layerName);
             layerObject.transform.SetParent(parent, false);
             ParticleSystem system = layerObject.AddComponent<ParticleSystem>();
+            system.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             system.useAutoRandomSeed = false;
             system.randomSeed = DuneVectorMath.Hash(
                 _combinedWindSeed,
@@ -671,24 +679,17 @@ namespace DuneVector
 
         private static Material CreateParticleMaterial(Texture2D particleTexture)
         {
-            Shader shader = Shader.Find("DuneVector/HDRP Weather Particle");
-            if (shader == null)
-            {
-                shader = Shader.Find("HDRP/Unlit");
-            }
+            Shader shader = Shader.Find("HDRP/Unlit");
             Material material = new Material(shader) { name = "Wind Field Streamline Material" };
             material.renderQueue = (int)RenderQueue.Transparent;
-            if (material.HasProperty("_SurfaceType")) material.SetFloat("_SurfaceType", 1f);
-            if (material.HasProperty("_BlendMode")) material.SetFloat("_BlendMode", 0f);
-            if (material.HasProperty("_ZWrite")) material.SetFloat("_ZWrite", 0f);
-            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", Color.white);
-            if (material.HasProperty("_UnlitColor")) material.SetColor("_UnlitColor", Color.white);
-            if (material.HasProperty("_Tint")) material.SetColor("_Tint", Color.white);
-            if (material.HasProperty("_MainTex")) material.SetTexture("_MainTex", particleTexture);
-            if (material.HasProperty("_BaseColorMap")) material.SetTexture("_BaseColorMap", particleTexture);
-            if (material.HasProperty("_UnlitColorMap")) material.SetTexture("_UnlitColorMap", particleTexture);
-            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            material.EnableKeyword("_BLENDMODE_ALPHA");
+            material.SetFloat("_SurfaceType", 1f);
+            material.SetFloat("_BlendMode", 0f);
+            material.SetFloat("_TransparentCullMode", 0f);
+            material.SetFloat("_DoubleSidedEnable", 1f);
+            material.SetFloat("_EnableFogOnTransparent", 1f);
+            material.SetColor("_UnlitColor", Color.white);
+            material.SetTexture("_UnlitColorMap", particleTexture);
+            HDMaterial.ValidateMaterial(material);
             return material;
         }
 
