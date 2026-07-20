@@ -821,6 +821,7 @@ namespace DuneVector
 
         private void EnterHubImmediate(bool openTerminal)
         {
+            _health.SetDamageImmune(true);
             CleanupContractObjects();
             _landmarks?.ClearContractLandmarks();
             ActiveContract = null;
@@ -1588,6 +1589,7 @@ namespace DuneVector
             _returnStartsVanished = true;
             _playerInput.SetInputEnabled(false);
             _player.Motor.SetPositionAndRotation(_hubSpawn, Quaternion.identity, true);
+            _health.SetDamageImmune(true);
             _player.ResetTraversalAfterTeleport(Vector3.forward);
             _cameraController?.SnapToTarget(Vector3.forward);
             CreateTeleportParticles();
@@ -1634,6 +1636,7 @@ namespace DuneVector
                 Vector3 position = toHub ? _hubSpawn : _desertSpawn;
                 Quaternion rotation = toHub ? Quaternion.identity : _desertRotation;
                 _player.Motor.SetPositionAndRotation(position, rotation, true);
+                _health.SetDamageImmune(toHub);
                 _player.ResetTraversalAfterTeleport(rotation * Vector3.forward);
                 _cameraController?.SnapToTarget(rotation * Vector3.forward);
                 RecenterTeleportParticles(position);
