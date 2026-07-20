@@ -441,7 +441,7 @@ namespace DuneVector
         [Tooltip("Overall multiplier for the Sand Ambusher fracture's planar lengths, jitter, and widths.")]
         [Min(0.01f)] public float SandAmbusherFractureOverallScale = 1f;
         [Tooltip("World-space center angle of the allowed fracture direction cone. Zero points along world +X.")]
-        [Range(-180f, 180f)] public float SandAmbusherFractureRotation = 0f;
+        [Range(-180f, 180f)] public float SandAmbusherFractureRotation = 90f;
         [Tooltip("Angular size of the fracture direction cone. Zero fixes the direction; 360 allows any rotation.")]
         [Range(0f, 360f)] public float SandAmbusherFractureAllowedRotation = 360f;
         [Min(1f)] public float SandAmbusherFractureMainLength = 38f;
