@@ -252,6 +252,8 @@ namespace DuneVector
 
         [Header("Package Drop")]
         [Min(0.01f)] public float PackageDropMass = 1f;
+        [Tooltip("How much of the drone's velocity the package keeps when released. Set to 0 for an initial velocity of (0, 0, 0), or 1 to preserve all of it.")]
+        [InspectorName("Drone Velocity Preserved")]
         [Range(0f, 1f)] public float PackageDropInheritedVelocityMultiplier = 1f;
         public Vector3 PackageDropAngularVelocity = new Vector3(0.7f, 1.5f, 0.4f);
         public Vector3 PackageDropColliderSize = new Vector3(1.2f, 0.82f, 1f);
