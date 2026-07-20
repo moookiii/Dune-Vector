@@ -34,21 +34,49 @@ namespace DuneVector
     internal sealed class DeliveryMessageTypingAudio : IDisposable
     {
         private EventInstance _instance;
-        private bool _playing;
+        private bool _repeatRequested;
         private bool _restartFailureLogged;
         private EventReference _eventReference;
         private UnityEngine.Object _context;
 
         public void Start(EventReference eventReference, UnityEngine.Object context)
         {
-            Stop();
             if (eventReference.IsNull)
             {
+                Stop();
                 return;
             }
 
             try
             {
+                _eventReference = eventReference;
+                _context = context;
+                _restartFailureLogged = false;
+                _repeatRequested = true;
+
+                if (_instance.isValid())
+                {
+                    FMOD.RESULT stateResult = _instance.getPlaybackState(out PLAYBACK_STATE playbackState);
+                    if (stateResult == FMOD.RESULT.OK && playbackState != PLAYBACK_STATE.STOPPED)
+                    {
+                        return;
+                    }
+
+                    if (stateResult == FMOD.RESULT.OK)
+                    {
+                        FMOD.RESULT resumeResult = _instance.start();
+                        if (resumeResult == FMOD.RESULT.OK)
+                        {
+                            return;
+                        }
+                    }
+
+                    ReleaseWithoutStopping();
+                    _eventReference = eventReference;
+                    _context = context;
+                    _repeatRequested = true;
+                }
+
                 _instance = RuntimeManager.CreateInstance(eventReference);
                 FMOD.RESULT startResult = _instance.start();
                 if (startResult != FMOD.RESULT.OK)
@@ -61,10 +89,6 @@ namespace DuneVector
                     return;
                 }
 
-                _eventReference = eventReference;
-                _context = context;
-                _restartFailureLogged = false;
-                _playing = true;
             }
             catch (Exception exception)
             {
@@ -75,7 +99,7 @@ namespace DuneVector
 
         public void Tick()
         {
-            if (!_playing || !_instance.isValid())
+            if (!_instance.isValid())
             {
                 return;
             }
@@ -83,6 +107,12 @@ namespace DuneVector
             FMOD.RESULT stateResult = _instance.getPlaybackState(out PLAYBACK_STATE playbackState);
             if (stateResult != FMOD.RESULT.OK || playbackState != PLAYBACK_STATE.STOPPED)
             {
+                return;
+            }
+
+            if (!_repeatRequested)
+            {
+                ReleaseWithoutStopping();
                 return;
             }
 
@@ -105,24 +135,23 @@ namespace DuneVector
 
         public void Stop()
         {
-            if (!_instance.isValid())
+            _repeatRequested = false;
+        }
+
+        private void ReleaseWithoutStopping()
+        {
+            if (_instance.isValid())
             {
-                ClearState();
-                return;
+                _instance.release();
+                _instance.clearHandle();
             }
 
-            if (_playing)
-            {
-                _instance.stop(FMOD.Studio.STOP_MODE.IMMEDIATE);
-            }
-            _instance.release();
-            _instance.clearHandle();
             ClearState();
         }
 
         private void ClearState()
         {
-            _playing = false;
+            _repeatRequested = false;
             _eventReference = default;
             _context = null;
             _restartFailureLogged = false;
@@ -131,6 +160,7 @@ namespace DuneVector
         public void Dispose()
         {
             Stop();
+            ReleaseWithoutStopping();
         }
     }
 
@@ -258,14 +288,10 @@ namespace DuneVector
 
         private void Update()
         {
+            _typingAudio.Tick();
             if (!IsOpen)
             {
                 return;
-            }
-
-            if (IsTyping)
-            {
-                _typingAudio.Tick();
             }
 
             UpdatePageTransition();
