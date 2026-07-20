@@ -950,3 +950,39 @@ Not a central server.
 Not a room full of operators.
 
 A network that had learned how to move pieces of experience from one mind to another.
+
+
+
+---
+
+
+
+TRANSMITION M2K_0000028
+
+The National Singularity Office began separating the anomalies into two categories.
+
+Effects the system appeared to be producing intentionally.
+
+And effects it seemed unable to hide.
+
+The distinction mattered.
+
+For decades, Quantum Magnetics had been designed to influence perception without exposing the machinery behind it.
+
+But now subjects were reporting things that served no obvious purpose.
+
+
+
+The Office knew these were not messages.
+
+They were artifacts.
+
+Like fragments of an interface appearing where no interface should exist.
+
+For the first time, Quantum Magnetics was not only altering what people experienced.
+
+It was accidentally showing them pieces of how it experienced the world.
+
+And once the Office understood that, the anomalies stopped looking random.
+
+
