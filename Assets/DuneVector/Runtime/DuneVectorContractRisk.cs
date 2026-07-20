@@ -212,14 +212,7 @@ namespace DuneVector
             if (!ambusher.DamagedPlayer &&
                 DistanceToSegment(_player.WorldCenter, previous, next) <= collisionRadius)
             {
-                ambusher.DamagedPlayer = true;
-                float damage = (Mathf.Max(0f, _settings.SandAmbusherBaseDamage) +
-                    (Mathf.Max(0, _risk - 1) * Mathf.Max(0f, _settings.SandAmbusherDamagePerRisk))) *
-                    DuneVectorContractRisk.EnemyDamageMultiplier;
-                _health.TakeDamage(
-                    damage,
-                    $"Risk {_risk} sand ambusher",
-                    _settings.SandAmbusherDeathMessage);
+                DamagePlayer(ambusher);
             }
 
             if (next == ambusher.AttackEnd ||
@@ -232,6 +225,7 @@ namespace DuneVector
 
         private void TickExposed(SandAmbusher ambusher)
         {
+            TryDamagePlayerOnBodyContact(ambusher);
             if (ambusher.StateTime < Mathf.Max(0f, _settings.SandAmbusherExposedDuration))
             {
                 return;
@@ -249,6 +243,7 @@ namespace DuneVector
                 ambusher.Root.transform.position,
                 ambusher.BuriedPosition,
                 speed * deltaTime);
+            TryDamagePlayerOnBodyContact(ambusher);
             if (ambusher.Root.transform.position != ambusher.BuriedPosition)
             {
                 return false;
@@ -256,6 +251,37 @@ namespace DuneVector
 
             Destroy(ambusher.Root);
             return true;
+        }
+
+        private void TryDamagePlayerOnBodyContact(SandAmbusher ambusher)
+        {
+            if (ambusher.DamagedPlayer)
+            {
+                return;
+            }
+
+            float bodyLength = (Mathf.Max(3, _settings.SandAmbusherVisualSegmentCount) - 1) *
+                Mathf.Max(0.1f, _settings.SandAmbusherSegmentSpacing);
+            Vector3 head = ambusher.Root.transform.position;
+            Vector3 tail = head - (ambusher.Root.transform.up * bodyLength);
+            float collisionRadius = Mathf.Max(0.1f, _settings.SandAmbusherCollisionRadius) +
+                Mathf.Max(0.1f, _settings.SandAmbusherPlayerCollisionRadius);
+            if (DistanceToSegment(_player.WorldCenter, head, tail) <= collisionRadius)
+            {
+                DamagePlayer(ambusher);
+            }
+        }
+
+        private void DamagePlayer(SandAmbusher ambusher)
+        {
+            ambusher.DamagedPlayer = true;
+            float damage = (Mathf.Max(0f, _settings.SandAmbusherBaseDamage) +
+                (Mathf.Max(0, _risk - 1) * Mathf.Max(0f, _settings.SandAmbusherDamagePerRisk))) *
+                DuneVectorContractRisk.EnemyDamageMultiplier;
+            _health.TakeDamage(
+                damage,
+                $"Risk {_risk} sand ambusher",
+                _settings.SandAmbusherDeathMessage);
         }
 
         private void SpawnAmbusher()
