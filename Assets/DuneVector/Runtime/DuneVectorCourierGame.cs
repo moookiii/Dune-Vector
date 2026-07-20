@@ -351,6 +351,7 @@ namespace DuneVector
         private GUIStyle _archiveEntryStyle;
         private GUIStyle _archiveMetaStyle;
         private GUIStyle _archiveEmptyStyle;
+        private GUIStyle _archiveTileButtonStyle;
         private GUIStyle _hudTitleStyle;
         private GUIStyle _hudBodyStyle;
         private GUIStyle _objectiveStyle;
@@ -359,6 +360,8 @@ namespace DuneVector
         private Texture2D _terminalPanelTexture;
         private Texture2D _terminalCardTexture;
         private Texture2D _terminalCardHoverTexture;
+        private Texture2D _archiveTileTexture;
+        private Texture2D _archiveTileHoverTexture;
         private Vector2 _archiveScrollPosition;
 
         private float HubPlatformSurfaceRadius => Mathf.Max(0f, _hubSettings.PlatformRadius * 0.5f);
@@ -1995,6 +1998,18 @@ namespace DuneVector
                 FontStyle.Normal,
                 TextAnchor.MiddleCenter,
                 _messageSettings.SecondaryTextColor);
+            _archiveTileTexture = SolidTexture(_messageSettings.ArchiveTileColor, "Message Archive Tile");
+            _archiveTileHoverTexture = SolidTexture(_messageSettings.ArchiveTileHoverColor, "Message Archive Tile Hover");
+            _archiveTileButtonStyle = new GUIStyle(GUI.skin.button)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                border = new RectOffset(0, 0, 0, 0),
+                padding = new RectOffset(0, 0, 0, 0),
+                margin = new RectOffset(0, 0, 0, 0),
+            };
+            _archiveTileButtonStyle.normal.background = _archiveTileTexture;
+            _archiveTileButtonStyle.hover.background = _archiveTileHoverTexture;
+            _archiveTileButtonStyle.active.background = _archiveTileHoverTexture;
             _terminalPanelTexture = SolidTexture(_hubSettings.TerminalPanelColor, "Courier Terminal Panel");
             _terminalCardTexture = SolidTexture(_hubSettings.TerminalCardColor, "Courier Contract Card");
             _terminalCardHoverTexture = SolidTexture(_hubSettings.TerminalCardHoverColor, "Courier Contract Card Hover");
@@ -2332,7 +2347,6 @@ namespace DuneVector
                     scrollContent,
                     false,
                     needsVerticalScrollbar);
-                Vector2 mousePosition = (Event.current.mousePosition / Mathf.Max(0.01f, scale)) - listViewport.position + _archiveScrollPosition;
                 int displayedIndex = 0;
                 int completedExclusive = Mathf.Max(0, Progress.NextDeliveryMessageIndex);
                 int sequenceCount = _messageSettings.Sequence != null ? _messageSettings.Sequence.Count : 0;
@@ -2351,10 +2365,7 @@ namespace DuneVector
                         row * (tileHeight + tileGap),
                         tileWidth,
                         tileHeight);
-                    bool hovered = tile.Contains(mousePosition);
-                    DrawSolidRect(
-                        tile,
-                        hovered ? _messageSettings.ArchiveTileHoverColor : _messageSettings.ArchiveTileColor);
+                    bool clicked = GUI.Button(tile, GUIContent.none, _archiveTileButtonStyle);
                     float iconSize = Mathf.Min(
                         _messageSettings.ArchiveIconSize,
                         Mathf.Min(tile.width, tile.height));
@@ -2373,7 +2384,7 @@ namespace DuneVector
                             _messageSettings.ArchiveLabelHeight),
                         entryLabel,
                         _archiveEntryStyle);
-                    if (GUI.Button(tile, GUIContent.none, GUIStyle.none))
+                    if (clicked)
                     {
                         OpenArchivedMessage(message);
                     }
@@ -2961,6 +2972,8 @@ namespace DuneVector
             if (_terminalPanelTexture != null) Destroy(_terminalPanelTexture);
             if (_terminalCardTexture != null) Destroy(_terminalCardTexture);
             if (_terminalCardHoverTexture != null) Destroy(_terminalCardHoverTexture);
+            if (_archiveTileTexture != null) Destroy(_archiveTileTexture);
+            if (_archiveTileHoverTexture != null) Destroy(_archiveTileHoverTexture);
         }
     }
 }
