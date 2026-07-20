@@ -97,7 +97,9 @@ The Directorate that emerged around the system did not think of itself as preser
 
 It believed the old state had failed.
 
-The Soviet Union, in its view, had not collapsed because it lacked weapons, police, or territory. It had collapsed because enough people had stopped believing that its permanence was everlasting.
+The Soviet Union, in its view, had not collapsed because it lacked weapons, police, or territory.
+
+It had collapsed because enough people had stopped believing that its permanence was everlasting.
 
 That conclusion shaped everything that followed.
 
