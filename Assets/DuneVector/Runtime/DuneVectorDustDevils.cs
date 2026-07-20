@@ -27,6 +27,14 @@ namespace DuneVector
         [Min(0.1f)] public float CoreRadius = 4.5f;
         [Min(0f)] public float VerticalInteractionPadding = 3f;
 
+        [Header("Travel")]
+        [Tooltip("Ground speed of each dust devil across the desert. Set to zero to keep funnels stationary.")]
+        [Min(0f)] public float TravelSpeed = 8f;
+        [Tooltip("Maximum rate at which a dust devil's travel heading wanders from side to side.")]
+        [Min(0f)] public float TravelTurnSpeed = 9f;
+        [Tooltip("Cycles per second of the smooth heading wander used while travelling.")]
+        [Min(0f)] public float TravelWanderFrequency = 0.08f;
+
         [Header("Traversal Forces")]
         [Min(0f)] public float OuterUpwardAcceleration = 20f;
         [Min(0f)] public float CoreUpwardAcceleration = 72f;
@@ -135,6 +143,9 @@ namespace DuneVector
             public ParticleSystem GroundParticles;
             public Mesh RibbonMesh;
             public Vector3 Center;
+            public float TravelHeading;
+            public float TravelAge;
+            public float TravelPhase;
         }
 
         private readonly Dictionary<Vector2Int, RuntimeDustDevil> _instances =
@@ -259,9 +270,37 @@ namespace DuneVector
                 RefreshStreaming(playerCell != _lastPlayerCell);
             }
 
+            TickTravel(Time.deltaTime);
             CurrentPlayerSample = Sample(_player.WorldCenter);
             TickCargoHazard(Time.deltaTime);
             TickVisuals(Time.deltaTime);
+        }
+
+        private void TickTravel(float deltaTime)
+        {
+            float speed = Mathf.Max(0f, _settings.TravelSpeed);
+            float step = Mathf.Max(0f, deltaTime);
+            if (speed <= 0f || step <= 0f)
+            {
+                return;
+            }
+
+            float wanderFrequency = Mathf.Max(0f, _settings.TravelWanderFrequency);
+            float turnSpeed = Mathf.Max(0f, _settings.TravelTurnSpeed);
+            foreach (RuntimeDustDevil devil in _instances.Values)
+            {
+                devil.TravelAge += step;
+                float wander = Mathf.Sin(
+                    devil.TravelPhase + (devil.TravelAge * wanderFrequency * Mathf.PI * 2f));
+                devil.TravelHeading += wander * turnSpeed * step;
+
+                float headingRadians = devil.TravelHeading * Mathf.Deg2Rad;
+                double distance = speed * step;
+                devil.LogicalPosition = new LogicalPosition(
+                    devil.LogicalPosition.X + (Math.Cos(headingRadians) * distance),
+                    devil.LogicalPosition.Z + (Math.Sin(headingRadians) * distance));
+                Reposition(devil, false);
+            }
         }
 
         private void TickCargoHazard(float deltaTime)
@@ -412,6 +451,20 @@ namespace DuneVector
                 Root = rootObject.transform,
                 Funnel = funnelObject.transform,
                 RibbonMesh = ribbonMesh,
+                TravelHeading = DuneVectorMath.HashRange(
+                    cell.x,
+                    cell.y,
+                    _world.WorldSeed,
+                    _settings.RandomSeedOffset + 6,
+                    0f,
+                    360f),
+                TravelPhase = DuneVectorMath.HashRange(
+                    cell.x,
+                    cell.y,
+                    _world.WorldSeed,
+                    _settings.RandomSeedOffset + 7,
+                    0f,
+                    Mathf.PI * 2f),
             };
             devil.ColumnParticles = CreateColumnParticles(rootObject.transform, spinSign);
             devil.GroundParticles = CreateGroundParticles(rootObject.transform, spinSign);
