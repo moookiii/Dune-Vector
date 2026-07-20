@@ -95,17 +95,32 @@ namespace DuneVector
         private sealed class Cell
         {
             public readonly List<int> SourceHandles = new List<int>(128);
-            public readonly Dictionary<RenderKey, List<InstanceData>> Buckets =
-                new Dictionary<RenderKey, List<InstanceData>>();
+            public readonly Dictionary<RenderKey, Batch> BatchesByKey =
+                new Dictionary<RenderKey, Batch>();
+            public readonly List<Batch> ActiveBatches = new List<Batch>();
             public Bounds WorldBounds;
             public bool HasBounds;
-            public bool Dirty = true;
+            public bool Dirty;
+        }
+
+        private sealed class Batch
+        {
+            public readonly RenderKey Key;
+            public readonly List<InstanceData> Instances = new List<InstanceData>(128);
+            public RenderParams RenderParams;
+
+            public Batch(RenderKey key)
+            {
+                Key = key;
+            }
         }
 
         private static class Markers
         {
             public static readonly ProfilerMarker BuildSources =
                 new ProfilerMarker("DuneVectorSpatialInstancing.BuildSources");
+            public static readonly ProfilerMarker RefreshTransforms =
+                new ProfilerMarker("DuneVectorSpatialInstancing.RefreshTransforms");
             public static readonly ProfilerMarker RebuildDirtyCells =
                 new ProfilerMarker("DuneVectorSpatialInstancing.RebuildDirtyCells");
             public static readonly ProfilerMarker SubmitBatches =
@@ -114,6 +129,7 @@ namespace DuneVector
 
         private readonly Dictionary<int, Source> _sources = new Dictionary<int, Source>();
         private readonly Dictionary<Vector2Int, Cell> _cells = new Dictionary<Vector2Int, Cell>();
+        private readonly List<Cell> _dirtyCells = new List<Cell>();
         private SpatialGpuInstancingTuning _settings;
         private int _nextHandle = 1;
         private bool _forceTransformRefresh;
@@ -263,7 +279,7 @@ namespace DuneVector
                 if (_cells.TryGetValue(source.CellKey, out Cell cell))
                 {
                     cell.SourceHandles.Remove(handle);
-                    cell.Dirty = true;
+                    MarkCellDirty(cell);
                     if (cell.SourceHandles.Count == 0)
                     {
                         _cells.Remove(source.CellKey);
@@ -291,50 +307,53 @@ namespace DuneVector
 
         private void RefreshTransforms()
         {
-            bool refreshAll = _forceTransformRefresh;
-            _forceTransformRefresh = false;
-            foreach (Source source in _sources.Values)
+            using (Markers.RefreshTransforms.Auto())
             {
-                if (!refreshAll && !source.Dynamic)
+                bool refreshAll = _forceTransformRefresh;
+                _forceTransformRefresh = false;
+                foreach (Source source in _sources.Values)
                 {
-                    continue;
-                }
-
-                bool active = source.Transform != null && source.Transform.gameObject.activeInHierarchy;
-                Matrix4x4 matrix = active ? source.Transform.localToWorldMatrix : source.ObjectToWorld;
-                if (active && source.DebugOffset != Vector3.zero)
-                {
-                    matrix = Matrix4x4.Translate(source.DebugOffset) * matrix;
-                }
-                if (active == source.Active && (!active || matrix == source.ObjectToWorld))
-                {
-                    continue;
-                }
-
-                Vector2Int oldCellKey = source.CellKey;
-                source.Active = active;
-                source.ObjectToWorld = matrix;
-                if (active)
-                {
-                    source.CellKey = WorldToCell(matrix.MultiplyPoint3x4(source.LocalBounds.center));
-                }
-
-                if (source.CellKey != oldCellKey)
-                {
-                    if (_cells.TryGetValue(oldCellKey, out Cell oldCell))
+                    if (!refreshAll && !source.Dynamic)
                     {
-                        oldCell.SourceHandles.Remove(source.Handle);
-                        oldCell.Dirty = true;
-                        if (oldCell.SourceHandles.Count == 0)
-                        {
-                            _cells.Remove(oldCellKey);
-                        }
+                        continue;
                     }
-                    GetOrCreateCell(source.CellKey).SourceHandles.Add(source.Handle);
-                }
-                else if (_cells.TryGetValue(source.CellKey, out Cell cell))
-                {
-                    cell.Dirty = true;
+
+                    bool active = source.Transform != null && source.Transform.gameObject.activeInHierarchy;
+                    Matrix4x4 matrix = active ? source.Transform.localToWorldMatrix : source.ObjectToWorld;
+                    if (active && source.DebugOffset != Vector3.zero)
+                    {
+                        matrix = Matrix4x4.Translate(source.DebugOffset) * matrix;
+                    }
+                    if (active == source.Active && (!active || matrix == source.ObjectToWorld))
+                    {
+                        continue;
+                    }
+
+                    Vector2Int oldCellKey = source.CellKey;
+                    source.Active = active;
+                    source.ObjectToWorld = matrix;
+                    if (active)
+                    {
+                        source.CellKey = WorldToCell(matrix.MultiplyPoint3x4(source.LocalBounds.center));
+                    }
+
+                    if (source.CellKey != oldCellKey)
+                    {
+                        if (_cells.TryGetValue(oldCellKey, out Cell oldCell))
+                        {
+                            oldCell.SourceHandles.Remove(source.Handle);
+                            MarkCellDirty(oldCell);
+                            if (oldCell.SourceHandles.Count == 0)
+                            {
+                                _cells.Remove(oldCellKey);
+                            }
+                        }
+                        GetOrCreateCell(source.CellKey).SourceHandles.Add(source.Handle);
+                    }
+                    else if (_cells.TryGetValue(source.CellKey, out Cell cell))
+                    {
+                        MarkCellDirty(cell);
+                    }
                 }
             }
         }
@@ -343,17 +362,15 @@ namespace DuneVector
         {
             using (Markers.RebuildDirtyCells.Auto())
             {
-                foreach (Cell cell in _cells.Values)
+                for (int dirtyIndex = 0; dirtyIndex < _dirtyCells.Count; dirtyIndex++)
                 {
-                    if (!cell.Dirty)
-                    {
-                        continue;
-                    }
+                    Cell cell = _dirtyCells[dirtyIndex];
 
-                    foreach (List<InstanceData> instances in cell.Buckets.Values)
+                    for (int i = 0; i < cell.ActiveBatches.Count; i++)
                     {
-                        instances.Clear();
+                        cell.ActiveBatches[i].Instances.Clear();
                     }
+                    cell.ActiveBatches.Clear();
                     cell.HasBounds = false;
 
                     for (int i = 0; i < cell.SourceHandles.Count; i++)
@@ -363,12 +380,16 @@ namespace DuneVector
                             continue;
                         }
 
-                        if (!cell.Buckets.TryGetValue(source.Key, out List<InstanceData> instances))
+                        if (!cell.BatchesByKey.TryGetValue(source.Key, out Batch batch))
                         {
-                            instances = new List<InstanceData>(128);
-                            cell.Buckets.Add(source.Key, instances);
+                            batch = new Batch(source.Key);
+                            cell.BatchesByKey.Add(source.Key, batch);
                         }
-                        instances.Add(new InstanceData
+                        if (batch.Instances.Count == 0)
+                        {
+                            cell.ActiveBatches.Add(batch);
+                        }
+                        batch.Instances.Add(new InstanceData
                         {
                             objectToWorld = source.ObjectToWorld,
                             renderingLayerMask = source.Key.RenderingLayerMask,
@@ -385,8 +406,14 @@ namespace DuneVector
                             cell.HasBounds = true;
                         }
                     }
+                    for (int i = 0; i < cell.ActiveBatches.Count; i++)
+                    {
+                        Batch batch = cell.ActiveBatches[i];
+                        batch.RenderParams = CreateRenderParams(batch.Key, cell.WorldBounds);
+                    }
                     cell.Dirty = false;
                 }
+                _dirtyCells.Clear();
             }
         }
 
@@ -402,36 +429,18 @@ namespace DuneVector
                         continue;
                     }
 
-                    foreach (KeyValuePair<RenderKey, List<InstanceData>> pair in cell.Buckets)
+                    for (int batchIndex = 0; batchIndex < cell.ActiveBatches.Count; batchIndex++)
                     {
-                        RenderKey key = pair.Key;
-                        List<InstanceData> instances = pair.Value;
-                        if (instances.Count == 0)
-                        {
-                            continue;
-                        }
-
-                        RenderParams renderParams = new RenderParams(key.Material)
-                        {
-                            camera = null,
-                            layer = key.Layer,
-                            renderingLayerMask = key.RenderingLayerMask,
-                            shadowCastingMode = key.ShadowCastingMode,
-                            receiveShadows = key.ReceiveShadows,
-                            motionVectorMode = key.MotionVectorMode,
-                            rendererPriority = key.RendererPriority,
-                            worldBounds = cell.WorldBounds,
-                            lightProbeUsage = LightProbeUsage.Off,
-                            reflectionProbeUsage = ReflectionProbeUsage.Off,
-                        };
+                        Batch batch = cell.ActiveBatches[batchIndex];
+                        List<InstanceData> instances = batch.Instances;
 
                         for (int start = 0; start < instances.Count; start += maximum)
                         {
                             int count = Mathf.Min(maximum, instances.Count - start);
                             Graphics.RenderMeshInstanced(
-                                renderParams,
-                                key.Mesh,
-                                key.SubmeshIndex,
+                                batch.RenderParams,
+                                batch.Key.Mesh,
+                                batch.Key.SubmeshIndex,
                                 instances,
                                 count,
                                 start);
@@ -441,6 +450,23 @@ namespace DuneVector
             }
         }
 
+        private static RenderParams CreateRenderParams(RenderKey key, Bounds worldBounds)
+        {
+            return new RenderParams(key.Material)
+            {
+                camera = null,
+                layer = key.Layer,
+                renderingLayerMask = key.RenderingLayerMask,
+                shadowCastingMode = key.ShadowCastingMode,
+                receiveShadows = key.ReceiveShadows,
+                motionVectorMode = key.MotionVectorMode,
+                rendererPriority = key.RendererPriority,
+                worldBounds = worldBounds,
+                lightProbeUsage = LightProbeUsage.Off,
+                reflectionProbeUsage = ReflectionProbeUsage.Off,
+            };
+        }
+
         private Cell GetOrCreateCell(Vector2Int key)
         {
             if (!_cells.TryGetValue(key, out Cell cell))
@@ -448,8 +474,18 @@ namespace DuneVector
                 cell = new Cell();
                 _cells.Add(key, cell);
             }
-            cell.Dirty = true;
+            MarkCellDirty(cell);
             return cell;
+        }
+
+        private void MarkCellDirty(Cell cell)
+        {
+            if (cell == null || cell.Dirty)
+            {
+                return;
+            }
+            cell.Dirty = true;
+            _dirtyCells.Add(cell);
         }
 
         private Vector2Int WorldToCell(Vector3 position)
@@ -483,6 +519,7 @@ namespace DuneVector
             }
             _sources.Clear();
             _cells.Clear();
+            _dirtyCells.Clear();
             if (Instance == this)
             {
                 Instance = null;
