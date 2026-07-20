@@ -243,7 +243,10 @@ namespace DuneVector
         [Min(20f)] public float MaximumPickupDistance = 145f;
         [Min(20f)] public float MinimumDeliveryDistance = 110f;
         [Min(20f)] public float MaximumDeliveryDistance = 210f;
+        [Tooltip("Radius used by pickup objective rings.")]
         [Min(1f)] public float ObjectiveRingRadius = 3.2f;
+        [Tooltip("Radius used by delivery objective rings.")]
+        [Min(1f)] public float DeliveryRingRadius = 15f;
         [Min(0f)] public float ObjectiveRingHeight = 3.4f;
         [Min(0.1f)] public float PackageScale = 0.8f;
 

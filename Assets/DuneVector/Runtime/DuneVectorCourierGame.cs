@@ -1194,7 +1194,9 @@ namespace DuneVector
                 _camera,
                 _materials,
                 pickup,
-                Mathf.Max(1f, _deliverySettings.ObjectiveRingRadius),
+                Mathf.Max(1f, pickup
+                    ? _deliverySettings.ObjectiveRingRadius
+                    : _deliverySettings.DeliveryRingRadius),
                 crossed,
                 canActivate);
             ring.LogicalPosition = logical;

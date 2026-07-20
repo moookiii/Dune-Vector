@@ -175,7 +175,8 @@ namespace DuneVector
             ringObject.transform.rotation = Quaternion.LookRotation(planarApproach.normalized, Vector3.up);
 
             JobTraversalRing ring = ringObject.AddComponent<JobTraversalRing>();
-            ring.Initialize(_player, _camera, _materials, isPickup, _settings.ObjectiveRingRadius, callback);
+            float ringRadius = isPickup ? _settings.ObjectiveRingRadius : _settings.DeliveryRingRadius;
+            ring.Initialize(_player, _camera, _materials, isPickup, ringRadius, callback);
             ring.LogicalPosition = logicalPosition;
             ring.LogicalHeight = height;
             return ring;
