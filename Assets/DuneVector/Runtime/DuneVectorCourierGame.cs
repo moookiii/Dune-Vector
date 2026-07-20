@@ -343,6 +343,8 @@ namespace DuneVector
         private Texture2D _terminalCardTexture;
         private Texture2D _terminalCardHoverTexture;
 
+        private float HubPlatformSurfaceRadius => Mathf.Max(0f, _hubSettings.PlatformRadius * 0.5f);
+
         public void Initialize(
             DronePlayer playerInput,
             DroneCharacterController player,
@@ -611,7 +613,7 @@ namespace DuneVector
                 _hubRoot,
                 "Main Teleport Platform Collider (circle.glb)",
                 Vector3.up * (_hubSettings.PlatformThickness * 0.5f),
-                _hubSettings.PlatformRadius * 0.5f);
+                HubPlatformSurfaceRadius);
             BuildHubContainment();
             HubPart(PrimitiveType.Cylinder, "Energy Inlay", _hubRoot,
                 new Vector3(0f, (_hubSettings.PlatformThickness * 0.5f) + 0.08f, 0f),
@@ -725,7 +727,7 @@ namespace DuneVector
             float wallThickness = Mathf.Max(0.01f, _hubSettings.ContainmentWallThickness);
             float innerRadius = Mathf.Max(
                 wallThickness,
-                _hubSettings.PlatformRadius - _hubSettings.ContainmentInset - wallThickness);
+                HubPlatformSurfaceRadius - wallThickness);
             float wallCenterRadius = innerRadius + (wallThickness * 0.5f);
             float wallHeight = Mathf.Max(0.01f, _hubSettings.ContainmentWallHeight);
             float segmentLength = (2f * wallCenterRadius * Mathf.Tan(Mathf.PI / segmentCount)) + wallThickness;
@@ -759,7 +761,7 @@ namespace DuneVector
             KinematicCharacterMotor motor = _player.Motor;
             float wallInnerRadius = Mathf.Max(
                 0f,
-                _hubSettings.PlatformRadius - _hubSettings.ContainmentInset - _hubSettings.ContainmentWallThickness);
+                HubPlatformSurfaceRadius - _hubSettings.ContainmentWallThickness);
             float safeRadius = Mathf.Max(
                 0f,
                 wallInnerRadius - motor.Capsule.radius - _hubSettings.ContainmentSafetyPadding);

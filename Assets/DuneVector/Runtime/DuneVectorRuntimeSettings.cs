@@ -619,8 +619,6 @@ namespace DuneVector
 
         [Header("Hub Containment")]
         public bool ContainmentEnabled = true;
-        [Tooltip("Distance from the platform edge to the outside of the invisible containment wall.")]
-        [Min(0f)] public float ContainmentInset = 0.5f;
         [Min(0.5f)] public float ContainmentWallHeight = 8f;
         [Min(0.1f)] public float ContainmentWallThickness = 0.8f;
         [Range(8, 64)] public int ContainmentWallSegments = 32;
