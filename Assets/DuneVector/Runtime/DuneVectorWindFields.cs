@@ -672,15 +672,9 @@ namespace DuneVector
         private static Material CreateParticleMaterial(Texture2D particleTexture)
         {
             Shader shader = Shader.Find("DuneVector/HDRP Weather Particle");
-            if (shader == null || !shader.isSupported)
+            if (shader == null)
             {
-                Debug.LogWarning(
-                    "Wind field particle shader is unavailable on the active graphics device. Using an HDRP fallback shader.");
                 shader = Shader.Find("HDRP/Unlit");
-            }
-            if (shader == null || !shader.isSupported)
-            {
-                shader = Shader.Find("HDRP/Lit");
             }
             Material material = new Material(shader) { name = "Wind Field Streamline Material" };
             material.renderQueue = (int)RenderQueue.Transparent;
