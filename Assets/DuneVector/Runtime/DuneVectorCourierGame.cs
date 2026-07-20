@@ -289,7 +289,7 @@ namespace DuneVector
         private DuneVectorRouteEncounterDirector _routeEncounterDirector;
         private DuneVectorEnvironmentalHazardSystem _environmentalHazards;
         private DuneVectorDeliveryMessagePresenter _messagePresenter;
-        private DuneVectorFallingRuinHazard _fallingRuinHazard;
+        private DuneVectorSandAmbusherSystem _sandAmbusherSystem;
 
         private Transform _hubRoot;
         private Transform _terminal;
@@ -382,8 +382,8 @@ namespace DuneVector
                 _messageSettings,
                 Progress.DeliveryMessageInputHintAcknowledged,
                 Progress.AcknowledgeDeliveryMessageInputHint);
-            _fallingRuinHazard = gameObject.AddComponent<DuneVectorFallingRuinHazard>();
-            _fallingRuinHazard.Initialize(_player, _health, _world, _materials, _settings);
+            _sandAmbusherSystem = gameObject.AddComponent<DuneVectorSandAmbusherSystem>();
+            _sandAmbusherSystem.Initialize(_player, _health, _world, _materials, _settings);
             _health.Damaged += HandlePlayerDamaged;
             _health.Died += HandlePlayerDied;
             _world.WorldShifted += HandleWorldShift;
@@ -834,7 +834,7 @@ namespace DuneVector
             _player.ResetTraversalAfterTeleport(Vector3.forward);
             _cameraController?.SnapToTarget();
             SetCombatSystemsActive(false);
-            _fallingRuinHazard?.EndContract();
+            _sandAmbusherSystem?.EndContract();
             DuneVectorContractRisk.Reset();
             State = CourierRunState.Hub;
             _playerInput.SetInputEnabled(!openTerminal);
@@ -1256,7 +1256,7 @@ namespace DuneVector
                 out _);
             Progress.RecordCompletion(reward, completed.Difficulty, hasAssignedMessage);
             _routeEncounterDirector?.EndContract();
-            _fallingRuinHazard?.EndContract();
+            _sandAmbusherSystem?.EndContract();
             DuneVectorContractRisk.Reset();
             SetCombatSystemsActive(false);
             _player.SetCargoHandlingModifiers(1f, 1f, 1f);
@@ -1294,7 +1294,7 @@ namespace DuneVector
             }
             RemoveContractOffer(failed);
             _routeEncounterDirector?.EndContract();
-            _fallingRuinHazard?.EndContract();
+            _sandAmbusherSystem?.EndContract();
             DuneVectorContractRisk.Reset();
             _player.SetCargoHandlingModifiers(1f, 1f, 1f);
             CleanupContractObjects();
@@ -1353,7 +1353,7 @@ namespace DuneVector
             Progress.RecordFailure();
             RemoveContractOffer(failed);
             _routeEncounterDirector?.EndContract();
-            _fallingRuinHazard?.EndContract();
+            _sandAmbusherSystem?.EndContract();
             DuneVectorContractRisk.Reset();
             _player.SetCargoHandlingModifiers(1f, 1f, 1f);
             CleanupContractObjects();
@@ -1672,12 +1672,12 @@ namespace DuneVector
                 State = CourierRunState.FindPackage;
                 int risk = ActiveContract != null ? ActiveContract.Difficulty : 1;
                 DuneVectorContractRisk.Configure(_settings, risk);
-                _fallingRuinHazard?.BeginContract(risk, ActiveContract != null ? ActiveContract.Seed : 0);
+                _sandAmbusherSystem?.BeginContract(risk, ActiveContract != null ? ActiveContract.Seed : 0);
                 SetCombatSystemsActive(true);
                 _playerInput.SetInputEnabled(true);
                 ShowStatus(
-                    risk >= Mathf.Max(1, _settings.FallingRuinMinimumRisk)
-                        ? $"RISK {risk} // FALLING RUINS ACTIVE"
+                    risk >= Mathf.Max(1, _settings.SandAmbusherMinimumRisk)
+                        ? $"RISK {risk} // SAND AMBUSHERS ACTIVE"
                         : "CONTRACT DEPLOYED — LOCATE CARGO",
                     3f);
             }

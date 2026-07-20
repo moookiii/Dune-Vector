@@ -337,33 +337,33 @@ namespace DuneVector
         [Min(1f)] public float RiskThreeEnemySpawnMultiplier = 3f;
         [Min(1)] public int RiskGroundEnemyReferenceCount = 8;
 
-        [Header("Risk Falling Ruins")]
-        [Min(1)] public int FallingRuinMinimumRisk = 2;
-        [Min(0f)] public float FallingRuinInitialDelay = 2f;
-        [Min(0.1f)] public float FallingRuinBaseInterval = 8f;
-        [Min(0f)] public float FallingRuinIntervalReductionPerRisk = 0.55f;
-        [Min(0.1f)] public float FallingRuinMinimumInterval = 2.5f;
-        [Min(0f)] public float FallingRuinMinimumTargetOffset = 0f;
-        [Tooltip("Random horizontal landing offset around the predicted player position.")]
-        [Min(0f)] public float FallingRuinMaximumTargetOffset = 18f;
-        [Min(0f)] public float FallingRuinTargetPredictionTime = 1.7f;
-        [Min(1f)] public float FallingRuinSpawnHeight = 52f;
-        [Min(0f)] public float FallingRuinGravity = 34f;
-        [Min(0f)] public float FallingRuinHorizontalDrift = 2.5f;
-        [Min(0f)] public float FallingRuinBaseDamage = 18f;
-        [Min(0f)] public float FallingRuinDamagePerRisk = 5f;
-        public string FallingRuinDeathMessage = "Crushed by falling building debris.";
-        [Min(0.1f)] public float FallingRuinPlayerCollisionRadius = 2.2f;
-        [Range(1, 12)] public int FallingRuinMinimumPieceCount = 3;
-        [Range(1, 12)] public int FallingRuinMaximumPieceCount = 6;
-        [Min(0.1f)] public float FallingRuinMinimumPieceScale = 2.6f;
-        [Min(0.1f)] public float FallingRuinMaximumPieceScale = 6f;
-        [Min(0f)] public float FallingRuinScalePerRisk = 0.035f;
-        [Min(0f)] public float FallingRuinRotationSpeed = 95f;
-        [Min(0.1f)] public float FallingRuinWarningRadius = 5.5f;
-        [Min(0f)] public float FallingRuinWarningPulseSpeed = 7f;
-        [Min(0f)] public float FallingRuinSettledLifetime = 4f;
-        [Range(1, 60)] public int FallingRuinMaximumActive = 18;
+        [Header("Risk Sand Ambusher")]
+        [Min(1)] public int SandAmbusherMinimumRisk = 2;
+        [Min(0f)] public float SandAmbusherInitialDelay = 2f;
+        [Min(0.1f)] public float SandAmbusherBaseInterval = 2.4f;
+        [Min(0f)] public float SandAmbusherIntervalReductionPerRisk = 0.55f;
+        [Min(0.1f)] public float SandAmbusherMinimumInterval = 0.55f;
+        [Min(0f)] public float SandAmbusherMinimumTargetOffset = 0f;
+        [Tooltip("Random horizontal offset around the predicted player position.")]
+        [Min(0f)] public float SandAmbusherMaximumTargetOffset = 4f;
+        [Min(0f)] public float SandAmbusherTargetPredictionTime = 1.7f;
+        [Min(0f)] public float SandAmbusherWarningDuration = 1.15f;
+        [Min(0.1f)] public float SandAmbusherWarningRadius = 5.5f;
+        [Min(0f)] public float SandAmbusherWarningPulseSpeed = 7f;
+        [Min(0.1f)] public float SandAmbusherBuriedDepth = 8f;
+        [Min(0.1f)] public float SandAmbusherAttackSpeed = 48f;
+        [Min(0f)] public float SandAmbusherAttackOvershoot = 5f;
+        [Min(0.1f)] public float SandAmbusherMaximumAttackDuration = 3f;
+        [Min(0.1f)] public float SandAmbusherRetreatSpeed = 32f;
+        [Min(0f)] public float SandAmbusherBaseDamage = 18f;
+        [Min(0f)] public float SandAmbusherDamagePerRisk = 5f;
+        public string SandAmbusherDeathMessage = "Dragged beneath the dunes by a sand ambusher.";
+        [Min(0.1f)] public float SandAmbusherCollisionRadius = 2.2f;
+        [Min(0.1f)] public float SandAmbusherPlayerCollisionRadius = 3f;
+        [Min(0.1f)] public float SandAmbusherHealth = 55f;
+        [Tooltip("Temporary test proxy only; replace when creature visuals are designed.")]
+        [Min(0.1f)] public float SandAmbusherPlaceholderRadius = 1.4f;
+        [Range(1, 60)] public int SandAmbusherMaximumActive = 60;
 
         [Header("Cargo Modifiers")]
         [Range(0f, 100f)] public float FragileFailureIntegrity = 18f;

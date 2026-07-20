@@ -48,21 +48,28 @@ namespace DuneVector
 
     [DefaultExecutionOrder(1230)]
     [DisallowMultipleComponent]
-    public sealed class DuneVectorFallingRuinHazard : MonoBehaviour
+    public sealed class DuneVectorSandAmbusherSystem : MonoBehaviour
     {
-        private sealed class FallingRuin
+        private enum AmbushState
+        {
+            Buried,
+            Attacking,
+            Retreating,
+        }
+
+        private sealed class SandAmbusher
         {
             public GameObject Root;
             public GameObject WarningMarker;
-            public Vector3 Velocity;
-            public Vector3 RotationAxis;
-            public float CollisionRadius;
-            public float SettledRemaining;
-            public bool Settled;
+            public EnemyCombatTarget CombatTarget;
+            public Vector3 BuriedPosition;
+            public Vector3 AttackEnd;
+            public float StateTime;
             public bool DamagedPlayer;
+            public AmbushState State;
         }
 
-        private readonly List<FallingRuin> _ruins = new List<FallingRuin>();
+        private readonly List<SandAmbusher> _ambushers = new List<SandAmbusher>();
         private DroneCharacterController _player;
         private DroneHealth _health;
         private DesertWorldStreamer _world;
@@ -92,13 +99,13 @@ namespace DuneVector
         {
             EndContract();
             _risk = Mathf.Max(1, risk);
-            if (_risk < Mathf.Max(1, _settings.FallingRuinMinimumRisk))
+            if (_risk < Mathf.Max(1, _settings.SandAmbusherMinimumRisk))
             {
                 return;
             }
 
             _random = new System.Random(unchecked(seed ^ (_risk * 7919) ^ _world.WorldSeed));
-            _spawnTimer = Mathf.Max(0f, _settings.FallingRuinInitialDelay);
+            _spawnTimer = Mathf.Max(0f, _settings.SandAmbusherInitialDelay);
             enabled = true;
         }
 
@@ -106,18 +113,18 @@ namespace DuneVector
         {
             enabled = false;
             _risk = 0;
-            for (int i = 0; i < _ruins.Count; i++)
+            for (int i = 0; i < _ambushers.Count; i++)
             {
-                if (_ruins[i].Root != null)
+                if (_ambushers[i].Root != null)
                 {
-                    Destroy(_ruins[i].Root);
+                    Destroy(_ambushers[i].Root);
                 }
-                if (_ruins[i].WarningMarker != null)
+                if (_ambushers[i].WarningMarker != null)
                 {
-                    Destroy(_ruins[i].WarningMarker);
+                    Destroy(_ambushers[i].WarningMarker);
                 }
             }
-            _ruins.Clear();
+            _ambushers.Clear();
         }
 
         private void Update()
@@ -129,146 +136,170 @@ namespace DuneVector
 
             float deltaTime = Time.deltaTime;
             _spawnTimer -= deltaTime;
-            if (_spawnTimer <= 0f && _ruins.Count < Mathf.Max(1, _settings.FallingRuinMaximumActive))
+            if (_spawnTimer <= 0f && _ambushers.Count < Mathf.Max(1, _settings.SandAmbusherMaximumActive))
             {
-                SpawnRuin();
+                SpawnAmbusher();
                 _spawnTimer = NextSpawnInterval();
             }
 
-            for (int i = _ruins.Count - 1; i >= 0; i--)
+            for (int i = _ambushers.Count - 1; i >= 0; i--)
             {
-                FallingRuin ruin = _ruins[i];
-                if (ruin.Root == null)
+                SandAmbusher ambusher = _ambushers[i];
+                if (ambusher.Root == null)
                 {
-                    if (ruin.WarningMarker != null)
+                    if (ambusher.WarningMarker != null)
                     {
-                        Destroy(ruin.WarningMarker);
+                        Destroy(ambusher.WarningMarker);
                     }
-                    _ruins.RemoveAt(i);
-                    continue;
-                }
-                if (ruin.Settled)
-                {
-                    ruin.SettledRemaining -= deltaTime;
-                    if (ruin.SettledRemaining <= 0f)
-                    {
-                        Destroy(ruin.Root);
-                        _ruins.RemoveAt(i);
-                    }
+                    _ambushers.RemoveAt(i);
                     continue;
                 }
 
-                if (ruin.WarningMarker != null)
+                ambusher.StateTime += deltaTime;
+                switch (ambusher.State)
                 {
-                    float pulse = 0.82f +
-                        (Mathf.Sin(Time.time * Mathf.Max(0f, _settings.FallingRuinWarningPulseSpeed)) * 0.18f);
-                    float radius = Mathf.Max(0.1f, _settings.FallingRuinWarningRadius) * pulse;
-                    ruin.WarningMarker.transform.localScale = new Vector3(radius, 0.035f, radius);
-                }
-
-                Vector3 previous = ruin.Root.transform.position;
-                ruin.Velocity += Vector3.down * Mathf.Max(0f, _settings.FallingRuinGravity) * deltaTime;
-                Vector3 next = previous + (ruin.Velocity * deltaTime);
-                ruin.Root.transform.position = next;
-                ruin.Root.transform.Rotate(
-                    ruin.RotationAxis,
-                    Mathf.Max(0f, _settings.FallingRuinRotationSpeed) * deltaTime,
-                    Space.World);
-
-                float playerRadius = ruin.CollisionRadius +
-                    Mathf.Max(0.1f, _settings.FallingRuinPlayerCollisionRadius);
-                if (!ruin.DamagedPlayer &&
-                    DistanceToSegment(_player.WorldCenter, previous, next) <= playerRadius)
-                {
-                    ruin.DamagedPlayer = true;
-                    float damage = Mathf.Max(0f, _settings.FallingRuinBaseDamage) +
-                        (Mathf.Max(0, _risk - 1) * Mathf.Max(0f, _settings.FallingRuinDamagePerRisk));
-                    _health.TakeDamage(
-                        damage,
-                        $"Risk {_risk} falling building debris",
-                        _settings.FallingRuinDeathMessage);
-                }
-
-                float terrainHeight = _world.SampleHeightAtLocal(next.x, next.z);
-                if (next.y - ruin.CollisionRadius <= terrainHeight)
-                {
-                    next.y = terrainHeight + (ruin.CollisionRadius * 0.35f);
-                    ruin.Root.transform.position = next;
-                    ruin.Settled = true;
-                    ruin.SettledRemaining = Mathf.Max(0f, _settings.FallingRuinSettledLifetime);
-                    if (ruin.WarningMarker != null)
-                    {
-                        Destroy(ruin.WarningMarker);
-                        ruin.WarningMarker = null;
-                    }
+                    case AmbushState.Buried:
+                        TickBuried(ambusher);
+                        break;
+                    case AmbushState.Attacking:
+                        TickAttack(ambusher, deltaTime);
+                        break;
+                    case AmbushState.Retreating:
+                        if (TickRetreat(ambusher, deltaTime))
+                        {
+                            _ambushers.RemoveAt(i);
+                        }
+                        break;
                 }
             }
         }
 
-        private void SpawnRuin()
+        private void TickBuried(SandAmbusher ambusher)
+        {
+            if (ambusher.WarningMarker != null)
+            {
+                float pulse = 0.82f +
+                    (Mathf.Sin(Time.time * Mathf.Max(0f, _settings.SandAmbusherWarningPulseSpeed)) * 0.18f);
+                float radius = Mathf.Max(0.1f, _settings.SandAmbusherWarningRadius) * pulse;
+                ambusher.WarningMarker.transform.localScale = new Vector3(radius, 0.035f, radius);
+            }
+
+            float warningDuration = Mathf.Max(0f, _settings.SandAmbusherWarningDuration) /
+                Mathf.Max(0.1f, DuneVectorContractRisk.EnemyAttackRateMultiplier);
+            if (ambusher.StateTime < warningDuration)
+            {
+                return;
+            }
+
+            if (ambusher.WarningMarker != null)
+            {
+                Destroy(ambusher.WarningMarker);
+                ambusher.WarningMarker = null;
+            }
+
+            Vector3 prediction = _player.Motor.BaseVelocity *
+                Mathf.Max(0f, _settings.SandAmbusherTargetPredictionTime);
+            Vector3 attackTarget = _player.WorldCenter + prediction;
+            Vector3 attackDirection = (attackTarget - ambusher.BuriedPosition).normalized;
+            ambusher.AttackEnd = attackTarget +
+                (attackDirection * Mathf.Max(0f, _settings.SandAmbusherAttackOvershoot));
+            ambusher.Root.transform.rotation = Quaternion.FromToRotation(Vector3.up, attackDirection);
+            ambusher.CombatTarget?.SetTargetable(true);
+            ambusher.State = AmbushState.Attacking;
+            ambusher.StateTime = 0f;
+        }
+
+        private void TickAttack(SandAmbusher ambusher, float deltaTime)
+        {
+            Vector3 previous = ambusher.Root.transform.position;
+            float speed = Mathf.Max(0.1f, _settings.SandAmbusherAttackSpeed) *
+                DuneVectorContractRisk.EnemySpeedMultiplier;
+            Vector3 next = Vector3.MoveTowards(previous, ambusher.AttackEnd, speed * deltaTime);
+            ambusher.Root.transform.position = next;
+
+            float collisionRadius = Mathf.Max(0.1f, _settings.SandAmbusherCollisionRadius) +
+                Mathf.Max(0.1f, _settings.SandAmbusherPlayerCollisionRadius);
+            if (!ambusher.DamagedPlayer &&
+                DistanceToSegment(_player.WorldCenter, previous, next) <= collisionRadius)
+            {
+                ambusher.DamagedPlayer = true;
+                float damage = (Mathf.Max(0f, _settings.SandAmbusherBaseDamage) +
+                    (Mathf.Max(0, _risk - 1) * Mathf.Max(0f, _settings.SandAmbusherDamagePerRisk))) *
+                    DuneVectorContractRisk.EnemyDamageMultiplier;
+                _health.TakeDamage(
+                    damage,
+                    $"Risk {_risk} sand ambusher",
+                    _settings.SandAmbusherDeathMessage);
+            }
+
+            if (next == ambusher.AttackEnd ||
+                ambusher.StateTime >= Mathf.Max(0.1f, _settings.SandAmbusherMaximumAttackDuration))
+            {
+                ambusher.CombatTarget?.SetTargetable(false);
+                ambusher.State = AmbushState.Retreating;
+                ambusher.StateTime = 0f;
+            }
+        }
+
+        private bool TickRetreat(SandAmbusher ambusher, float deltaTime)
+        {
+            float speed = Mathf.Max(0.1f, _settings.SandAmbusherRetreatSpeed);
+            ambusher.Root.transform.position = Vector3.MoveTowards(
+                ambusher.Root.transform.position,
+                ambusher.BuriedPosition,
+                speed * deltaTime);
+            if (ambusher.Root.transform.position != ambusher.BuriedPosition)
+            {
+                return false;
+            }
+
+            Destroy(ambusher.Root);
+            return true;
+        }
+
+        private void SpawnAmbusher()
         {
             float angle = RandomRange(0f, Mathf.PI * 2f);
-            float minimumOffset = Mathf.Max(0f, _settings.FallingRuinMinimumTargetOffset);
-            float maximumOffset = Mathf.Max(minimumOffset, _settings.FallingRuinMaximumTargetOffset);
+            float minimumOffset = Mathf.Max(0f, _settings.SandAmbusherMinimumTargetOffset);
+            float maximumOffset = Mathf.Max(minimumOffset, _settings.SandAmbusherMaximumTargetOffset);
             float offset = RandomRange(minimumOffset, maximumOffset);
             Vector3 prediction = Vector3.ProjectOnPlane(_player.Motor.BaseVelocity, Vector3.up) *
-                Mathf.Max(0f, _settings.FallingRuinTargetPredictionTime);
+                Mathf.Max(0f, _settings.SandAmbusherTargetPredictionTime);
             Vector3 target = _player.WorldCenter + prediction +
                 new Vector3(Mathf.Cos(angle) * offset, 0f, Mathf.Sin(angle) * offset);
             float terrainHeight = _world.SampleHeightAtLocal(target.x, target.z);
-
-            GameObject root = new GameObject($"Risk {_risk} Falling Building Ruin");
-            root.transform.SetParent(transform, true);
-            root.transform.position = new Vector3(
+            Vector3 buriedPosition = new Vector3(
                 target.x,
-                terrainHeight + Mathf.Max(1f, _settings.FallingRuinSpawnHeight),
+                terrainHeight - Mathf.Max(0.1f, _settings.SandAmbusherBuriedDepth),
                 target.z);
-            root.transform.rotation = Quaternion.Euler(
-                RandomRange(0f, 360f),
-                RandomRange(0f, 360f),
-                RandomRange(0f, 360f));
 
-            int minimumPieces = Mathf.Max(1, _settings.FallingRuinMinimumPieceCount);
-            int maximumPieces = Mathf.Max(minimumPieces, _settings.FallingRuinMaximumPieceCount);
-            int pieceCount = _random.Next(minimumPieces, maximumPieces + 1);
-            float riskScale = 1f +
-                (Mathf.Max(0, _risk - 1) * Mathf.Max(0f, _settings.FallingRuinScalePerRisk));
-            float maximumPieceExtent = 0f;
-            for (int i = 0; i < pieceCount; i++)
+            GameObject root = new GameObject($"Risk {_risk} Sand Ambusher");
+            root.transform.SetParent(transform, true);
+            root.transform.position = buriedPosition;
+
+            GameObject proxy = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            proxy.name = "Temporary Sand Ambusher Proxy";
+            proxy.transform.SetParent(root.transform, false);
+            float proxyRadius = Mathf.Max(0.1f, _settings.SandAmbusherPlaceholderRadius);
+            proxy.transform.localScale = new Vector3(proxyRadius, proxyRadius * 2f, proxyRadius);
+            proxy.GetComponent<Renderer>().sharedMaterial = _materials.GroundEnemyBody;
+            Collider proxyCollider = proxy.GetComponent<Collider>();
+            if (proxyCollider != null)
             {
-                float scale = RandomRange(
-                    Mathf.Max(0.1f, _settings.FallingRuinMinimumPieceScale),
-                    Mathf.Max(_settings.FallingRuinMinimumPieceScale, _settings.FallingRuinMaximumPieceScale)) *
-                    riskScale;
-                Vector3 pieceScale = new Vector3(
-                    scale * RandomRange(0.55f, 1.45f),
-                    scale * RandomRange(0.45f, 1.8f),
-                    scale * RandomRange(0.55f, 1.45f));
-                GameObject piece = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                piece.name = $"Broken Structure Chunk {i + 1}";
-                piece.transform.SetParent(root.transform, false);
-                piece.transform.localPosition = RandomInsideSphere(scale * 0.85f);
-                piece.transform.localRotation = Quaternion.Euler(
-                    RandomRange(-35f, 35f),
-                    RandomRange(0f, 360f),
-                    RandomRange(-35f, 35f));
-                piece.transform.localScale = pieceScale;
-                piece.GetComponent<Renderer>().sharedMaterial = _materials.Sandstone;
-                Collider collider = piece.GetComponent<Collider>();
-                if (collider != null)
-                {
-                    Destroy(collider);
-                }
-                maximumPieceExtent = Mathf.Max(maximumPieceExtent,
-                    piece.transform.localPosition.magnitude + (pieceScale.magnitude * 0.35f));
+                Destroy(proxyCollider);
             }
 
-            Vector2 drift = RandomInsideCircle(Mathf.Max(0f, _settings.FallingRuinHorizontalDrift));
+            EnemyHealth enemyHealth = root.AddComponent<EnemyHealth>();
+            enemyHealth.Initialize(Mathf.Max(0.1f, _settings.SandAmbusherHealth));
+            EnemyCombatTarget combatTarget = root.AddComponent<EnemyCombatTarget>();
+            combatTarget.Initialize(enemyHealth, Mathf.Max(0.1f, _settings.SandAmbusherCollisionRadius));
+            combatTarget.SetTargetable(false);
+
             GameObject warningMarker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            warningMarker.name = $"Risk {_risk} Falling Ruin Impact Warning";
+            warningMarker.name = $"Risk {_risk} Sand Ambusher Warning";
             warningMarker.transform.SetParent(transform, true);
             warningMarker.transform.position = new Vector3(target.x, terrainHeight + 0.12f, target.z);
-            float warningRadius = Mathf.Max(0.1f, _settings.FallingRuinWarningRadius);
+            float warningRadius = Mathf.Max(0.1f, _settings.SandAmbusherWarningRadius);
             warningMarker.transform.localScale = new Vector3(warningRadius, 0.035f, warningRadius);
             warningMarker.GetComponent<Renderer>().sharedMaterial = _materials.GroundEnemyWarning;
             Collider warningCollider = warningMarker.GetComponent<Collider>();
@@ -276,62 +307,46 @@ namespace DuneVector
             {
                 Destroy(warningCollider);
             }
-            _ruins.Add(new FallingRuin
+            _ambushers.Add(new SandAmbusher
             {
                 Root = root,
                 WarningMarker = warningMarker,
-                Velocity = new Vector3(drift.x, 0f, drift.y),
-                RotationAxis = RandomInsideSphere(1f).normalized,
-                CollisionRadius = Mathf.Max(0.5f, maximumPieceExtent),
+                CombatTarget = combatTarget,
+                BuriedPosition = buriedPosition,
+                State = AmbushState.Buried,
             });
         }
 
         private float NextSpawnInterval()
         {
-            float interval = Mathf.Max(0.1f, _settings.FallingRuinBaseInterval) -
-                (Mathf.Max(0, _risk - _settings.FallingRuinMinimumRisk) *
-                    Mathf.Max(0f, _settings.FallingRuinIntervalReductionPerRisk));
-            interval = Mathf.Max(Mathf.Max(0.1f, _settings.FallingRuinMinimumInterval), interval);
+            float interval = Mathf.Max(0.1f, _settings.SandAmbusherBaseInterval) -
+                (Mathf.Max(0, _risk - _settings.SandAmbusherMinimumRisk) *
+                    Mathf.Max(0f, _settings.SandAmbusherIntervalReductionPerRisk));
+            interval = Mathf.Max(Mathf.Max(0.1f, _settings.SandAmbusherMinimumInterval), interval);
             return interval * RandomRange(0.82f, 1.18f);
         }
 
         private void HandleWorldShift(Vector3 shift)
         {
-            for (int i = 0; i < _ruins.Count; i++)
+            for (int i = 0; i < _ambushers.Count; i++)
             {
-                if (_ruins[i].Root != null)
+                SandAmbusher ambusher = _ambushers[i];
+                if (ambusher.Root != null)
                 {
-                    _ruins[i].Root.transform.position += shift;
+                    ambusher.Root.transform.position += shift;
                 }
-                if (_ruins[i].WarningMarker != null)
+                if (ambusher.WarningMarker != null)
                 {
-                    _ruins[i].WarningMarker.transform.position += shift;
+                    ambusher.WarningMarker.transform.position += shift;
                 }
+                ambusher.BuriedPosition += shift;
+                ambusher.AttackEnd += shift;
             }
         }
 
         private float RandomRange(float minimum, float maximum)
         {
             return Mathf.Lerp(minimum, maximum, (float)_random.NextDouble());
-        }
-
-        private Vector2 RandomInsideCircle(float radius)
-        {
-            float angle = RandomRange(0f, Mathf.PI * 2f);
-            float distance = Mathf.Sqrt(RandomRange(0f, 1f)) * radius;
-            return new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * distance;
-        }
-
-        private Vector3 RandomInsideSphere(float radius)
-        {
-            float vertical = RandomRange(-1f, 1f);
-            float angle = RandomRange(0f, Mathf.PI * 2f);
-            float horizontal = Mathf.Sqrt(Mathf.Max(0f, 1f - (vertical * vertical)));
-            float distance = Mathf.Pow(RandomRange(0f, 1f), 1f / 3f) * radius;
-            return new Vector3(
-                horizontal * Mathf.Cos(angle),
-                vertical,
-                horizontal * Mathf.Sin(angle)) * distance;
         }
 
         private static float DistanceToSegment(Vector3 point, Vector3 start, Vector3 end)
