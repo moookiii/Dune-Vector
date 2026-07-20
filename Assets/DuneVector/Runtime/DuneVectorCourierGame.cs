@@ -2029,8 +2029,8 @@ namespace DuneVector
             _terminalButtonStyle.normal.background = _terminalCardTexture;
             _terminalButtonStyle.hover.background = _terminalCardHoverTexture;
             _terminalButtonStyle.active.background = _terminalCardHoverTexture;
-            _terminalButtonStyle.normal.textColor = _hubSettings.TerminalTextColor;
-            _terminalButtonStyle.hover.textColor = _hubSettings.TerminalTextColor;
+            _terminalButtonStyle.normal.textColor = GuiTextColor(_hubSettings.TerminalTextColor);
+            _terminalButtonStyle.hover.textColor = GuiTextColor(_hubSettings.TerminalTextColor);
             _hudTitleStyle = LabelStyle(_settings.HudTitleFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.HudAccentColor);
             _hudBodyStyle = LabelStyle(_settings.HudBodyFontSize, FontStyle.Normal, TextAnchor.UpperLeft, _settings.HudTextColor);
             _objectiveStyle = LabelStyle(_settings.HudStatusFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
@@ -2045,8 +2045,17 @@ namespace DuneVector
                 fontStyle = fontStyle,
                 alignment = anchor,
                 wordWrap = true,
-                normal = { textColor = color },
+                normal = { textColor = GuiTextColor(color) },
             };
+        }
+
+        private static Color GuiTextColor(Color color)
+        {
+#if UNITY_EDITOR
+            return color;
+#else
+            return QualitySettings.activeColorSpace == ColorSpace.Linear ? color.gamma : color;
+#endif
         }
 
         private static GUIStyle MessageArchiveStyle(
@@ -2159,7 +2168,7 @@ namespace DuneVector
                 new Rect(panel.x + padding, panel.y + 34f, contentWidth, 40f),
                 "AVAILABLE CONTRACTS",
                 _terminalTitleStyle);
-            _terminalActionStyle.normal.textColor = _hubSettings.TerminalAccentColor;
+            _terminalActionStyle.normal.textColor = GuiTextColor(_hubSettings.TerminalAccentColor);
             GUI.Label(
                 new Rect(panel.xMax - padding - 120f, panel.y + 15f, 120f, 18f),
                 "ESC  CLOSE",
@@ -2248,7 +2257,7 @@ namespace DuneVector
                     22f),
                 "SELECT A CONTRACT TO DEPLOY",
                 _terminalMetaStyle);
-            _terminalActionStyle.normal.textColor = _hubSettings.TerminalAccentColor;
+            _terminalActionStyle.normal.textColor = GuiTextColor(_hubSettings.TerminalAccentColor);
             GUI.Label(
                 new Rect(
                     freeRoamButton.xMax + footerSideGap,
@@ -2492,7 +2501,7 @@ namespace DuneVector
             float left = card.x + _hubSettings.TerminalCardAccentWidth + 16f;
             float right = card.xMax - 16f;
             float contentWidth = right - left;
-            _terminalKickerStyle.normal.textColor = modifierColor;
+            _terminalKickerStyle.normal.textColor = GuiTextColor(modifierColor);
             Rect modifierLabel = new Rect(left, card.y + 12f, contentWidth, 20f);
             GUI.Label(modifierLabel, offer.DisplayModifierText, _terminalKickerStyle);
             if (modifierLabel.Contains(mousePosition))
@@ -2530,14 +2539,14 @@ namespace DuneVector
                 new Rect(left, card.y + 101f, contentWidth, 1f),
                 _hubSettings.TerminalDividerColor);
 
-            _terminalKickerStyle.normal.textColor = _hubSettings.TerminalMutedTextColor;
+            _terminalKickerStyle.normal.textColor = GuiTextColor(_hubSettings.TerminalMutedTextColor);
             GUI.Label(new Rect(left, card.y + 111f, contentWidth, 18f), "CONTRACT PAYOUT", _terminalKickerStyle);
             GUI.Label(new Rect(left, card.y + 130f, contentWidth, 28f), $"{offer.OfferedReward:N0} GOLD", _terminalRewardStyle);
 
             string details = offer.TimeLimit > 0f ? $"EXPRESS {FormatTime(offer.TimeLimit)}" : "OPEN WINDOW";
             if (offer.StopCount > 1) details += $"   /   {offer.StopCount} STOPS";
             GUI.Label(new Rect(left, card.yMax - 29f, contentWidth * 0.72f, 20f), details, _terminalMetaStyle);
-            _terminalActionStyle.normal.textColor = modifierColor;
+            _terminalActionStyle.normal.textColor = GuiTextColor(modifierColor);
             GUI.Label(new Rect(left, card.yMax - 29f, contentWidth, 20f), "SELECT", _terminalActionStyle);
             return accepted;
         }
