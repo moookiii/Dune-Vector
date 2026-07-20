@@ -1856,6 +1856,12 @@ namespace DuneVector
         [Min(1f)] public float StormfrontDepth = 115f;
         [Min(0f)] public float StormfrontBaseHeight = 22f;
 
+        [Header("High-Rank Player Pursuit")]
+        [Range(1, 20)] public int PlayerFollowStartRank = 8;
+        [Range(1, 20)] public int PlayerFollowEndRank = 20;
+        [Min(0.01f)] public float PlayerFollowSpeedAtStartRank = 8f;
+        [Min(0.01f)] public float PlayerFollowSpeedAtEndRank = 80f;
+
         [Header("Supercell Shelf")]
         [Range(4, 48)] public int StormShelfLobeCount = 20;
         [Range(0.1f, 1.5f)] public float StormShelfWidthFraction = 1.08f;

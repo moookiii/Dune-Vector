@@ -314,18 +314,41 @@ namespace DuneVector
             {
                 _stormfrontFarCenter = _drone.WorldCenter + (direction * _settings.StormfrontFarDistance);
             }
-            float distance = Mathf.Lerp(
-                _settings.StormfrontFarDistance,
-                _settings.StormfrontNearDistance,
-                _visualBlend);
-            Vector3 horizontalCenter = _stormfrontFarCenter +
-                (direction * (distance - _settings.StormfrontFarDistance));
+            bool followsPlayer = TryGetPlayerFollowSpeed(out float followSpeed);
+            Vector3 horizontalCenter;
+            if (followsPlayer)
+            {
+                Vector3 currentCenter = _stormWasVisible
+                    ? _stormRoot.transform.position
+                    : _stormfrontFarCenter;
+                currentCenter.y = 0f;
+                Vector3 playerCenter = _drone.WorldCenter;
+                playerCenter.y = 0f;
+                Vector3 toPlayer = playerCenter - currentCenter;
+                if (toPlayer.sqrMagnitude > 0.001f)
+                {
+                    direction = toPlayer.normalized;
+                }
+                horizontalCenter = Vector3.MoveTowards(
+                    currentCenter,
+                    playerCenter,
+                    followSpeed * Time.deltaTime);
+            }
+            else
+            {
+                float distance = Mathf.Lerp(
+                    _settings.StormfrontFarDistance,
+                    _settings.StormfrontNearDistance,
+                    _visualBlend);
+                horizontalCenter = _stormfrontFarCenter +
+                    (direction * (distance - _settings.StormfrontFarDistance));
+            }
             float terrainHeight = _world.SampleHeightAtLocal(horizontalCenter.x, horizontalCenter.z);
             Vector3 desired = new Vector3(
                 horizontalCenter.x,
                 terrainHeight + _settings.StormfrontBaseHeight,
                 horizontalCenter.z);
-            _stormRoot.transform.position = _stormWasVisible
+            _stormRoot.transform.position = _stormWasVisible && !followsPlayer
                 ? Vector3.Lerp(
                     _stormRoot.transform.position,
                     desired,
@@ -345,6 +368,24 @@ namespace DuneVector
                     Time.time * lobe.RotationSpeed,
                     motion * _settings.StormCloudRockAngle);
             }
+        }
+
+        private bool TryGetPlayerFollowSpeed(out float speed)
+        {
+            speed = 0f;
+            int rank = _courierGame?.ActiveContract?.Difficulty ?? 0;
+            int startRank = Mathf.Max(1, _settings.PlayerFollowStartRank);
+            if (rank < startRank)
+            {
+                return false;
+            }
+
+            int endRank = Mathf.Max(startRank, _settings.PlayerFollowEndRank);
+            float rankProgress = Mathf.InverseLerp(startRank, endRank, Mathf.Min(rank, endRank));
+            float startSpeed = Mathf.Max(0.01f, _settings.PlayerFollowSpeedAtStartRank);
+            float endSpeed = Mathf.Max(0.01f, _settings.PlayerFollowSpeedAtEndRank);
+            speed = startSpeed * Mathf.Pow(endSpeed / startSpeed, rankProgress);
+            return true;
         }
 
         private void UpdateInternalFlashes(float deltaTime)
