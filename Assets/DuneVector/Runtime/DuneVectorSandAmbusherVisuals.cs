@@ -34,6 +34,12 @@ namespace DuneVector
                 settings.SandAmbusherDisturbedSandSmoothness);
 
             Shader fractureShader = Shader.Find("DuneVector/HDRP Sand Fracture");
+            if (fractureShader == null)
+            {
+                fractureShader = FindFallbackShader();
+                Debug.LogError(
+                    "Sand Ambusher fracture shader is unavailable. Using a fallback shader so contract and hub initialization can continue.");
+            }
             Fracture = new Material(fractureShader) { name = "Sand Ambusher - Branching Fracture" };
             Fracture.SetColor("_Color", settings.SandAmbusherFractureColor);
             Fracture.SetFloat("_EdgeNoiseScale", settings.SandAmbusherFractureEdgeNoiseScale);
@@ -72,6 +78,10 @@ namespace DuneVector
         private Material CreateLit(string name, Color color, float smoothness, float metallic, Color emission)
         {
             Shader shader = Shader.Find("HDRP/Lit");
+            if (shader == null)
+            {
+                shader = FindFallbackShader();
+            }
             Material material = new Material(shader) { name = name, enableInstancing = true };
             material.SetColor("_BaseColor", color);
             material.SetFloat("_Smoothness", Mathf.Clamp01(smoothness));
@@ -99,11 +109,20 @@ namespace DuneVector
         private Material CreateParticleMaterial(string name, Color color, Texture texture)
         {
             Shader shader = Shader.Find("DuneVector/HDRP Weather Particle");
+            if (shader == null)
+            {
+                shader = FindFallbackShader();
+            }
             Material material = new Material(shader) { name = name };
             material.SetTexture("_MainTex", texture);
             material.SetColor("_Tint", color);
             _materials.Add(material);
             return material;
+        }
+
+        private static Shader FindFallbackShader()
+        {
+            return Shader.Find("HDRP/Unlit") ?? Shader.Find("Hidden/InternalErrorShader");
         }
 
         private static Texture2D CreateSoftParticleTexture(int resolution)
