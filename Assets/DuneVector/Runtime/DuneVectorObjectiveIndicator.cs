@@ -16,6 +16,7 @@ namespace DuneVector
         private bool _onScreen;
         private bool _initialized;
         private int _lastUpdateFrame = -1;
+        private float _startFlashTime;
 
         public void Draw(
             Camera camera,
@@ -86,6 +87,7 @@ namespace DuneVector
             {
                 _target = target;
                 _initialized = false;
+                _startFlashTime = Time.unscaledTime;
             }
 
             if (_lastUpdateFrame != Time.frameCount)
@@ -102,30 +104,35 @@ namespace DuneVector
             }
 
             EnsureStyle(settings, scale);
+            float iconVisibility = EvaluateStartFlashVisibility(settings);
             Rect hexagonRect = new Rect(
                 _position.x - radius,
                 _position.y - radius,
                 radius * 2f,
                 radius * 2f);
+            Color iconShadowColor = settings.ObjectiveIndicatorShadowColor;
+            iconShadowColor.a *= iconVisibility;
+            Color iconColor = settings.ObjectiveIndicatorColor;
+            iconColor.a *= iconVisibility;
             DrawIcon(
                 settings.ObjectiveIndicatorHexagonIcon,
                 hexagonRect,
-                settings.ObjectiveIndicatorShadowColor,
+                iconShadowColor,
                 settings.ObjectiveIndicatorShadowOffset * scale,
                 0f);
             DrawIcon(
                 settings.ObjectiveIndicatorHexagonIcon,
                 hexagonRect,
-                settings.ObjectiveIndicatorColor,
+                iconColor,
                 Vector2.zero,
                 0f);
 
-            if (_arrowVisibility > 0.001f)
+            if (_arrowVisibility * iconVisibility > 0.001f)
             {
                 Color shadow = settings.ObjectiveIndicatorShadowColor;
-                shadow.a *= _arrowVisibility;
+                shadow.a *= _arrowVisibility * iconVisibility;
                 Color foreground = settings.ObjectiveIndicatorColor;
-                foreground.a *= _arrowVisibility;
+                foreground.a *= _arrowVisibility * iconVisibility;
                 Vector2 arrowCenter = _position
                     + (_direction * (radius + arrowGap + (arrowLength * 0.5f)));
                 Rect arrowRect = new Rect(
@@ -161,6 +168,26 @@ namespace DuneVector
             GUI.color = settings.ObjectiveIndicatorColor;
             GUI.Label(labelRect, $"{objectiveLabel}  {distance:0} m", _labelStyle);
             GUI.color = previousColor;
+        }
+
+        private float EvaluateStartFlashVisibility(DeliveryTuning settings)
+        {
+            int flashCount = Mathf.Max(0, settings.ObjectiveIndicatorStartFlashCount);
+            if (flashCount == 0)
+            {
+                return 1f;
+            }
+
+            float onDuration = Mathf.Max(0.01f, settings.ObjectiveIndicatorStartFlashOnDuration);
+            float offDuration = Mathf.Max(0.01f, settings.ObjectiveIndicatorStartFlashOffDuration);
+            float cycleDuration = onDuration + offDuration;
+            float elapsed = Mathf.Max(0f, Time.unscaledTime - _startFlashTime);
+            if (elapsed >= flashCount * cycleDuration)
+            {
+                return 1f;
+            }
+
+            return Mathf.Repeat(elapsed, cycleDuration) < onDuration ? 1f : 0f;
         }
 
         private void UpdateState(

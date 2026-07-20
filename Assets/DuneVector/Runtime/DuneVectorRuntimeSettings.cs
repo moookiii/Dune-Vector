@@ -278,6 +278,12 @@ namespace DuneVector
         [Min(0f)] public float ObjectiveIndicatorViewportHysteresis = 18f;
         [Min(0f)] public float ObjectiveIndicatorPositionSharpness = 14f;
         [Min(0f)] public float ObjectiveIndicatorTransitionSharpness = 18f;
+        [Tooltip("Number of icon-only flashes when a pickup or delivery objective begins.")]
+        [Min(0)] public int ObjectiveIndicatorStartFlashCount = 3;
+        [Tooltip("Seconds the objective icon remains visible during each start flash.")]
+        [Min(0.01f)] public float ObjectiveIndicatorStartFlashOnDuration = 0.15f;
+        [Tooltip("Seconds the objective icon remains hidden between start flashes.")]
+        [Min(0.01f)] public float ObjectiveIndicatorStartFlashOffDuration = 0.12f;
         public Vector2 ObjectiveIndicatorShadowOffset = new Vector2(2f, 3f);
         [ColorUsage(false)] public Color ObjectiveIndicatorColor = new Color(0.96f, 0.98f, 1f, 1f);
         [ColorUsage(false)] public Color ObjectiveIndicatorShadowColor = new Color(0f, 0f, 0f, 0.72f);
