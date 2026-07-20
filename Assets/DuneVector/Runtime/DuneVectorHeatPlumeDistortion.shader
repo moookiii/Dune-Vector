@@ -52,7 +52,7 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
 
         Pass
         {
-            Name "DistortionVectors"
+            Name "DuneVectorHeatDistortion"
             Tags { "LightMode" = "DistortionVectors" }
 
             Stencil
