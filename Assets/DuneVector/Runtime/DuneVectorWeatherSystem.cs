@@ -171,7 +171,7 @@ namespace DuneVector
             Camera viewCamera,
             DesertWorldStreamer world,
             Fog fog,
-            GradientSky sky,
+            DuneVectorY2KSky sky,
             Exposure exposure,
             DesertWeatherTuning settings)
         {
@@ -222,13 +222,13 @@ namespace DuneVector
     public sealed class DuneVectorWeatherAtmosphere : MonoBehaviour
     {
         private Fog _fog;
-        private GradientSky _sky;
+        private DuneVectorY2KSky _sky;
         private Exposure _exposure;
         private DesertWeatherAtmosphereTuning _settings;
 
         public void Initialize(
             Fog fog,
-            GradientSky sky,
+            DuneVectorY2KSky sky,
             Exposure exposure,
             DesertWeatherAtmosphereTuning settings)
         {
@@ -266,9 +266,37 @@ namespace DuneVector
 
             if (_sky != null)
             {
-                _sky.top.value = Color.Lerp(_settings.ClearSkyTop, _settings.StormSkyTop, intensity);
-                _sky.middle.value = Color.Lerp(_settings.ClearSkyMiddle, _settings.StormSkyMiddle, intensity);
-                _sky.bottom.value = Color.Lerp(_settings.ClearSkyBottom, _settings.StormSkyBottom, intensity);
+                _sky.Top.value = Color.Lerp(_settings.ClearSkyTop, _settings.StormSkyTop, intensity);
+                _sky.Middle.value = Color.Lerp(_settings.ClearSkyMiddle, _settings.StormSkyMiddle, intensity);
+                _sky.Bottom.value = Color.Lerp(_settings.ClearSkyBottom, _settings.StormSkyBottom, intensity);
+                _sky.HorizonGlowColor.value = Color.Lerp(
+                    _settings.ClearHorizonGlowColor,
+                    _settings.StormHorizonGlowColor,
+                    intensity);
+                _sky.HorizonGlowIntensity.value = Mathf.Lerp(
+                    _settings.ClearHorizonGlowIntensity,
+                    _settings.StormHorizonGlowIntensity,
+                    intensity);
+                _sky.CloudColor.value = Color.Lerp(
+                    _settings.ClearSkyCloudColor,
+                    _settings.StormSkyCloudColor,
+                    intensity);
+                _sky.CloudHighlight.value = Color.Lerp(
+                    _settings.ClearSkyCloudHighlight,
+                    _settings.StormSkyCloudHighlight,
+                    intensity);
+                _sky.CloudPearl.value = Color.Lerp(
+                    _settings.ClearSkyCloudPearl,
+                    _settings.StormSkyCloudPearl,
+                    intensity);
+                _sky.CloudOpacity.value = Mathf.Lerp(
+                    _settings.ClearSkyCloudOpacity,
+                    _settings.StormSkyCloudOpacity,
+                    intensity);
+                _sky.StructureOpacity.value = Mathf.Lerp(
+                    _settings.ClearDigitalStructureOpacity,
+                    _settings.StormDigitalStructureOpacity,
+                    intensity);
             }
 
             if (_exposure != null)

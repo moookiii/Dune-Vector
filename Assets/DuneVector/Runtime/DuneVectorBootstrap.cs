@@ -94,7 +94,7 @@ namespace DuneVector
         private DuneVectorMaterials _materials;
         private VolumeProfile _runtimeVolumeProfile;
         private Fog _environmentFog;
-        private GradientSky _environmentSky;
+        private DuneVectorY2KSky _environmentSky;
         private Exposure _environmentExposure;
         private bool _ownsRuntimeSettings;
 
@@ -547,16 +547,43 @@ namespace DuneVector
             volume.sharedProfile = _runtimeVolumeProfile;
 
             VisualEnvironment environment = _runtimeVolumeProfile.Add<VisualEnvironment>(true);
-            environment.skyType.Override((int)SkyType.Gradient);
+            environment.skyType.Override(SkySettings.GetUniqueID<DuneVectorY2KSky>());
             environment.skyAmbientMode.Override(SkyAmbientMode.Dynamic);
 
             DesertWeatherAtmosphereTuning atmosphere = WeatherSettings.Atmosphere;
-            _environmentSky = _runtimeVolumeProfile.Add<GradientSky>(true);
-            _environmentSky.top.Override(atmosphere.ClearSkyTop);
-            _environmentSky.middle.Override(atmosphere.ClearSkyMiddle);
-            _environmentSky.bottom.Override(atmosphere.ClearSkyBottom);
-            _environmentSky.gradientDiffusion.Override(atmosphere.SkyGradientDiffusion);
+            _environmentSky = _runtimeVolumeProfile.Add<DuneVectorY2KSky>(true);
+            _environmentSky.Top.Override(atmosphere.ClearSkyTop);
+            _environmentSky.Middle.Override(atmosphere.ClearSkyMiddle);
+            _environmentSky.Bottom.Override(atmosphere.ClearSkyBottom);
+            _environmentSky.GradientDiffusion.Override(atmosphere.SkyGradientDiffusion);
             _environmentSky.multiplier.Override(atmosphere.SkyMultiplier);
+            _environmentSky.HorizonGlowColor.Override(atmosphere.ClearHorizonGlowColor);
+            _environmentSky.HorizonGlowSize.Override(atmosphere.HorizonGlowSize);
+            _environmentSky.HorizonGlowIntensity.Override(atmosphere.ClearHorizonGlowIntensity);
+            _environmentSky.CloudColor.Override(atmosphere.ClearSkyCloudColor);
+            _environmentSky.CloudHighlight.Override(atmosphere.ClearSkyCloudHighlight);
+            _environmentSky.CloudPearl.Override(atmosphere.ClearSkyCloudPearl);
+            _environmentSky.CloudOpacity.Override(atmosphere.ClearSkyCloudOpacity);
+            _environmentSky.CloudAltitude.Override(atmosphere.SkyCloudAltitude);
+            _environmentSky.CloudThickness.Override(atmosphere.SkyCloudThickness);
+            _environmentSky.CloudScale.Override(atmosphere.SkyCloudScale);
+            _environmentSky.CloudSoftness.Override(atmosphere.SkyCloudSoftness);
+            _environmentSky.CloudHighlightStrength.Override(atmosphere.SkyCloudHighlightStrength);
+            _environmentSky.CloudPearlStrength.Override(atmosphere.SkyCloudPearlStrength);
+            _environmentSky.CloudDriftSpeed.Override(atmosphere.SkyCloudDriftSpeed);
+            _environmentSky.StructureColor.Override(atmosphere.DigitalStructureColor);
+            _environmentSky.StructureOpacity.Override(atmosphere.ClearDigitalStructureOpacity);
+            _environmentSky.ArcAltitude.Override(atmosphere.DigitalArcAltitude);
+            _environmentSky.ArcCurvature.Override(atmosphere.DigitalArcCurvature);
+            _environmentSky.ArcThickness.Override(atmosphere.DigitalArcThickness);
+            _environmentSky.ArcFrequency.Override(atmosphere.DigitalArcFrequency);
+            _environmentSky.RingAltitude.Override(atmosphere.DigitalRingAltitude);
+            _environmentSky.RingSpacing.Override(atmosphere.DigitalRingSpacing);
+            _environmentSky.RingThickness.Override(atmosphere.DigitalRingThickness);
+            _environmentSky.GridOpacity.Override(atmosphere.DigitalGridOpacity);
+            _environmentSky.GridScale.Override(atmosphere.DigitalGridScale);
+            _environmentSky.GridHeight.Override(atmosphere.DigitalGridHeight);
+            _environmentSky.GridLineThickness.Override(atmosphere.DigitalGridLineThickness);
 
             _environmentExposure = _runtimeVolumeProfile.Add<Exposure>(true);
             _environmentExposure.mode.Override(ExposureMode.Fixed);
@@ -572,9 +599,9 @@ namespace DuneVector
             _environmentFog.enableVolumetricFog.Override(false);
 
             Bloom bloom = _runtimeVolumeProfile.Add<Bloom>(true);
-            bloom.intensity.Override(0.12f);
-            bloom.threshold.Override(1.2f);
-            bloom.scatter.Override(0.58f);
+            bloom.intensity.Override(atmosphere.BloomIntensity);
+            bloom.threshold.Override(atmosphere.BloomThreshold);
+            bloom.scatter.Override(atmosphere.BloomScatter);
 
         }
 
