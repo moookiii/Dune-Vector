@@ -859,7 +859,10 @@ namespace DuneVector
         private CourierContract CreateOffer(System.Random random, int index, int completed)
         {
             int seed = random.Next();
-            int difficulty = Mathf.Clamp(1 + (completed / 10) + random.Next(0, 3), 1, 20);
+            int difficulty = Mathf.Clamp(
+                1 + (completed / 10) + random.Next(0, 3),
+                1,
+                Mathf.Max(1, _settings.MaximumRisk));
             float distance = Mathf.Lerp(_settings.MinimumRouteDistance, _settings.MaximumRouteDistance, (float)random.NextDouble());
             CourierContractModifier gameplay = CourierContractModifier.None;
             CourierContractModifier display = CourierContractModifier.None;
@@ -2017,6 +2020,16 @@ namespace DuneVector
             float cardHeight = Mathf.Min(
                 _hubSettings.ContractCardHeight,
                 (cardsBottom - cardsTop - (gap * (rowCount - 1))) / rowCount);
+            int riskPipsPerRow = Mathf.Max(1, _hubSettings.TerminalRiskPipsPerRow);
+            bool showSecondRiskRow = false;
+            for (int i = 0; i < _offers.Count; i++)
+            {
+                if (_offers[i].Difficulty > riskPipsPerRow)
+                {
+                    showSecondRiskRow = true;
+                    break;
+                }
+            }
             CourierContract selectedOffer = null;
             for (int i = 0; i < _offers.Count; i++)
             {
@@ -2024,7 +2037,7 @@ namespace DuneVector
                 int row = i / columns;
                 Rect card = new Rect(panel.x + padding + (column * (cardWidth + gap)), cardsTop + (row * (cardHeight + gap)), cardWidth, cardHeight);
                 CourierContract offer = _offers[i];
-                if (DrawContractCard(card, offer, i, _offers.Count))
+                if (DrawContractCard(card, offer, showSecondRiskRow))
                 {
                     selectedOffer = offer;
                 }
@@ -2047,7 +2060,7 @@ namespace DuneVector
             }
         }
 
-        private bool DrawContractCard(Rect card, CourierContract offer, int offerIndex, int offerCount)
+        private bool DrawContractCard(Rect card, CourierContract offer, bool showSecondRiskRow)
         {
             bool accepted = GUI.Button(card, GUIContent.none, _terminalButtonStyle);
             Color modifierColor = GetContractModifierColor(offer.DisplayModifiers);
@@ -2064,16 +2077,25 @@ namespace DuneVector
                 new GUIContent(offer.DisplayModifierText, GetContractTypeTooltip(offer.DisplayModifiers)),
                 _terminalKickerStyle);
 
-            int pipCount = Mathf.Max(1, offerCount);
-            int activePip = Mathf.Clamp(offerIndex, 0, pipCount - 1);
+            int maximumRisk = Mathf.Max(1, _settings.MaximumRisk);
+            int filledRiskPips = Mathf.Clamp(offer.Difficulty, 0, maximumRisk);
+            int pipsPerRow = Mathf.Clamp(_hubSettings.TerminalRiskPipsPerRow, 1, maximumRisk);
             float pipSize = _hubSettings.TerminalContractOrderPipSize;
             float pipGap = _hubSettings.TerminalContractOrderPipGap;
-            float pipStart = right - ((pipSize * pipCount) + (pipGap * (pipCount - 1)));
-            for (int i = 0; i < pipCount; i++)
+            int displayedPipCount = showSecondRiskRow ? maximumRisk : Mathf.Min(maximumRisk, pipsPerRow);
+            for (int row = 0, pipIndex = 0; pipIndex < displayedPipCount && row < 2; row++)
             {
-                DrawSolidRect(
-                    new Rect(pipStart + (i * (pipSize + pipGap)), card.y + 19f, pipSize, pipSize),
-                    i == activePip ? _hubSettings.TerminalAccentColor : _hubSettings.TerminalDividerColor);
+                int rowPipCount = Mathf.Min(pipsPerRow, displayedPipCount - pipIndex);
+                float pipStart = right - ((pipSize * rowPipCount) + (pipGap * (rowPipCount - 1)));
+                float pipY = card.y + 19f + (row * (pipSize + _hubSettings.TerminalRiskPipRowGap));
+                for (int column = 0; column < rowPipCount; column++, pipIndex++)
+                {
+                    DrawSolidRect(
+                        new Rect(pipStart + (column * (pipSize + pipGap)), pipY, pipSize, pipSize),
+                        pipIndex < filledRiskPips
+                            ? _hubSettings.TerminalAccentColor
+                            : _hubSettings.TerminalDividerColor);
+                }
             }
 
             GUI.Label(new Rect(left, card.y + 40f, contentWidth, 27f), offer.DestinationName, _terminalDestinationStyle);

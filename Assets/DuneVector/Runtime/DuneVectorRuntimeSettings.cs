@@ -326,6 +326,7 @@ namespace DuneVector
         [Min(0f)] public float ContractRefreshSeconds = 240f;
 
         [Header("Risk Scaling")]
+        [Range(1, 100)] public int MaximumRisk = 20;
         [Min(0f)] public float RiskRewardMultiplierPerTier = 0.12f;
         [Min(0f)] public float RiskEnemyHealthMultiplierPerTier = 0.08f;
         [Min(0f)] public float RiskEnemySpeedMultiplierPerTier = 0.025f;
@@ -516,6 +517,8 @@ namespace DuneVector
         [Min(0f)] public float TerminalCardAccentWidth = 5f;
         [Min(0f)] public float TerminalContractOrderPipSize = 5f;
         [Min(0f)] public float TerminalContractOrderPipGap = 3f;
+        [Range(1, 50)] public int TerminalRiskPipsPerRow = 10;
+        [Min(0f)] public float TerminalRiskPipRowGap = 3f;
         [Min(0f)] public float TerminalPanelBorderThickness = 2f;
         public Vector2 TerminalPanelShadowOffset = new Vector2(12f, 14f);
         [Min(180f)] public float TerminalTooltipWidth = 360f;
