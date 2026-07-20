@@ -28,6 +28,7 @@ namespace DuneVector
         public DuneLandmarkRarity Rarity { get; private set; }
         public LogicalPosition LogicalPosition { get; private set; }
         public Transform ContractSocket { get; private set; }
+        public Transform DeliverySocket { get; private set; }
         public Transform EncounterSocket { get; private set; }
         public Transform LootSocket { get; private set; }
         public Transform FlightPathSocket { get; private set; }
@@ -64,9 +65,34 @@ namespace DuneVector
                     break;
             }
             ContractSocket = CreateSocket("Contract Socket", contractOffset);
+            DeliverySocket = CreateSocket("Airborne Delivery Socket", Vector3.zero);
             EncounterSocket = CreateSocket("Encounter Socket", Vector3.up * settings.EncounterSocketHeight);
             LootSocket = CreateSocket("Loot Socket", new Vector3(4f, 2f, -3f));
             FlightPathSocket = CreateSocket("Flight Path Socket", Vector3.up * settings.FlightSocketHeight);
+        }
+
+        public void PositionDeliverySocketAboveVisuals(float clearance)
+        {
+            if (DeliverySocket == null)
+            {
+                return;
+            }
+
+            float highestLocalPoint = 0f;
+            Renderer[] renderers = GetComponentsInChildren<Renderer>();
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer renderer = renderers[i];
+                if (renderer == null || !renderer.enabled)
+                {
+                    continue;
+                }
+
+                Vector3 worldTop = renderer.bounds.center + (Vector3.up * renderer.bounds.extents.y);
+                highestLocalPoint = Mathf.Max(highestLocalPoint, transform.InverseTransformPoint(worldTop).y);
+            }
+
+            DeliverySocket.localPosition = Vector3.up * (highestLocalPoint + Mathf.Max(0f, clearance));
         }
 
         public void ApplyWorldShift(Vector3 shift)
@@ -434,6 +460,7 @@ namespace DuneVector
                     BuildExcavation(landmarkObject.transform, variantSeed, animator);
                     break;
             }
+            instance.PositionDeliverySocketAboveVisuals(_settings.DeliveryRingClearance);
             return instance;
         }
 

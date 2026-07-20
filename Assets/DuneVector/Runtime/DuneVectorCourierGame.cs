@@ -1292,7 +1292,7 @@ namespace DuneVector
                 Destroy(_objectiveRing.gameObject);
             }
             DuneVectorLandmarkInstance landmark = _routeLandmarks[_deliveryIndex + 1];
-            Vector3 objectivePosition = landmark.ContractSocket.position;
+            Vector3 objectivePosition = landmark.DeliverySocket.position;
             LogicalPosition objectiveLogical = LocalToLogical(objectivePosition);
             _objectiveRing = CreateObjectiveRing(
                 $"Delivery Ring {_deliveryIndex + 1}", objectiveLogical, objectivePosition.y, false, HandleDelivery);
