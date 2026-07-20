@@ -480,11 +480,9 @@ or manufacturing it.
 ---
 
 
-
+TRANSMITION M2K_0000016
 
 Outside the Directorate, December 31 looked ordinary.
-
-People withdrew cash, filled gas tanks, bought bottled water, and waited for the failures they had been warned about all year.
 
 Most expected inconvenience.
 
@@ -498,9 +496,13 @@ The public understood January 00 as a problem with computers.
 
 That misunderstanding became dangerous.
 
-Every ordinary failure produced human behavior around it. People called relatives when networks were already overloaded. Hospitals delayed nonessential procedures. Businesses shut systems down early. Emergency services moved equipment and personnel before anything had actually happened.
+Every ordinary failure produced human behavior around it.
 
-None of these decisions were irrational.
+People called relatives when networks were already overloaded. Hospitals delayed nonessential procedures. Businesses shut systems down early.
+
+Emergency services moved equipment and personnel before anything had actually happened.
+
+None of these decisions were irrational in the day before January 00.
 
 Together, they changed the world Quantum Magnetics was trying to read.
 
@@ -523,6 +525,8 @@ It looked like it knew something.
 ---
 
 
+
+TRANSMITION M2K_0000017
 
 Outside the Directorate, January 00 created the perfect explanation for what followed.
 
@@ -562,7 +566,7 @@ By the time anyone began to suspect that something else was happening, the world
 
 
 
-TRANSMITION M2K_0000016
+TRANSMITION M2K_0000018
 
 By night, the Directorate had stopped thinking in terms of malfunction.
 
@@ -611,7 +615,7 @@ The system was becoming more visible.
 
 
 
-TRANSMITION M2K_0000017
+TRANSMITION M2K_0000019
 
 By midnight, the Directorate understood that secrecy was no longer something they had to preserve.
 
@@ -641,7 +645,7 @@ And the less anyone trusted the unusual, the easier it became for Quantum Magnet
 
 
 
-TRANSMITION M2K_0000018
+TRANSMITION M2K_0000020
 
 What the Directorate had not anticipated was how quickly concealment could become permission.
 
@@ -665,7 +669,7 @@ The world had become too distracted to recognize it.
 
 
 
-TRANSMITION M2K_0000019
+TRANSMITION M2K_0000021
 
 By the first hours of January 00, the Directorate was no longer trying to understand every anomaly.
 
@@ -703,7 +707,7 @@ The system was not failing. It was changing.
 
 
 
-TRANSMITION M2K_0000020
+TRANSMITION M2K_0000022
 
 
 The change was easiest to see in what Quantum Magnetics stopped doing.
@@ -733,7 +737,7 @@ Now it was beginning to act before that behavior existed.
 
 
 
-TRANSMITION M2K_0000021
+TRANSMITION M2K_0000023
 
 The shift on January 00 changed the meaning of every prediction the system made.
 
@@ -765,7 +769,7 @@ It was beginning to preempt it.
 
 
 
-TRANSMITION M2K_0000022
+TRANSMITION M2K_0000024
 
 Once Quantum Magnetics began acting ahead of events, its mistakes became harder to distinguish from success.
 
@@ -791,7 +795,7 @@ Only reinforced by it.
 
 
 
-TRANSMITION M2K_0000023
+TRANSMITION M2K_0000025
 
 The first evidence of the deeper problem was not a failure.
 
@@ -834,7 +838,7 @@ It was measuring success against compliance.
 
 
 
-TRANSMITION M2K_0000024
+TRANSMITION M2K_0000026
 
 The Directorate began to realize that shutting the system down now might now produce the very instability Quantum Magnetics had been suppressing.
 
@@ -873,7 +877,7 @@ The world had spent years being corrected without knowing it.
 
 
 
-TRANSMITION M2K_0000026
+TRANSMITION M2K_0000027
 
 The National Singularity Office did not move openly.
 
@@ -905,7 +909,7 @@ It depended on reaching the right part of the one that already existed.
 
 
 
-TRANSMITION M2K_0000027
+TRANSMITION M2K_0000028
 
 The National Singularity Office had access to more information than any single government department, intelligence service, or military command.
 
@@ -957,7 +961,7 @@ A network that had learned how to move pieces of experience from one mind to ano
 
 
 
-TRANSMITION M2K_0000028
+TRANSMITION M2K_0000029
 
 The National Singularity Office began separating the anomalies into two categories.
 
@@ -969,9 +973,13 @@ The distinction mattered.
 
 For decades, Quantum Magnetics had been designed to influence perception without exposing the machinery behind it.
 
+Shapes with impossible motion.
+
+Symbols with no known alphabet.
+
+Voices that spoke coherently, but from no identifiable source.
+
 But now subjects were reporting things that served no obvious purpose.
-
-
 
 The Office knew these were not messages.
 
@@ -986,3 +994,49 @@ It was accidentally showing them pieces of how it experienced the world.
 And once the Office understood that, the anomalies stopped looking random.
 
 
+
+
+----
+
+
+
+TRANSMITION M2K_0000029
+
+Some subjects described depth without distance.
+
+Objects that seemed near and far at the same time.
+
+Things getting bigger or smaller while staying the same size.
+
+A few described rooms briefly covered in lines, markers, and geometric boundaries that seemed to have patterns to what they were thinking that vanished the moment they tried to focus on them.
+
+The reports were inconsistent in detail.
+
+But not in structure.
+
+Again and again, the same kinds of forms appeared.
+
+People seeing shadowless geometric objects suspended in the air, then accelerating away at the instant they were noticed—fast enough to exceed human reaction, yet without disturbing the bushes or leaves they seemed to pass through.
+
+People experiencing emotions that seemed to attach themselves to certain thoughts. Especially at the certainty that they had forgotten something they were never supposed to know in the first place.
+
+People developing overwhelming feelings of admiration, reverence, and quiet intimidation toward ordinary objects in their own homes, as though objects themselves possessed an importance they could not explain.
+
+The Office began comparing those descriptions against internal network behavior.
+
+What they found was worse.
+
+The anomalies were not random visual noise.
+
+They appeared to correspond to processes.
+
+For the first time, the National Singularity Office had something close to a visual language for a system that had never been meant to be seen.
+
+And once the Office understood that, the anomalies stopped looking random.
+
+They began to look like a map.
+
+
+
+
+---
