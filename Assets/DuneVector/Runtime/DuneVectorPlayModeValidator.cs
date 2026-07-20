@@ -233,6 +233,25 @@ namespace DuneVector
             Check(courier.AvailableContracts.Count >= 5 && courier.AvailableContracts.Count <= 8,
                 "Contract terminal offers five to eight modular contracts",
                 $"Contract terminal offered {courier.AvailableContracts.Count} contracts.");
+            Check(courier.ContractTerminal != null && courier.MessageArchiveTerminal != null,
+                "Courier hub builds opposing contract and message archive terminals",
+                "One or both physical hub terminals were missing.");
+            if (courier.ContractTerminal != null && courier.MessageArchiveTerminal != null)
+            {
+                Vector3 contractToArchive = Vector3.ProjectOnPlane(
+                    courier.MessageArchiveTerminal.position - courier.ContractTerminal.position,
+                    Vector3.up).normalized;
+                Vector3 archiveToContract = -contractToArchive;
+                bool screensFaceEachOther =
+                    Vector3.Dot(-courier.ContractTerminal.forward, contractToArchive) > 0.98f &&
+                    Vector3.Dot(-courier.MessageArchiveTerminal.forward, archiveToContract) > 0.98f;
+                Check(screensFaceEachOther,
+                    "Hub terminal screens face one another",
+                    "The contract and archive terminal screen sides were not oriented toward each other.");
+            }
+            Check(courier.ArchivedMessageCount >= 0,
+                "Message archive resolves completed transmissions safely",
+                $"Archive returned an invalid count of {courier.ArchivedMessageCount}.");
             Check(bootstrap.LandmarkDirector != null,
                 "Authored procedural landmark director is active",
                 "Landmark director was missing.");

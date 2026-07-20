@@ -239,14 +239,24 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorCourierGame : MonoBehaviour
     {
+        private enum HubTerminalMode
+        {
+            None,
+            Contracts,
+            MessageArchive,
+        }
+
         public CourierRunState State { get; private set; }
         public CourierContract ActiveContract { get; private set; }
         public Transform ActiveObjective { get; private set; }
         public LogicalPosition ActiveObjectiveLogicalPosition { get; private set; }
         public bool IsContractActive => State == CourierRunState.FindPackage || State == CourierRunState.Delivering;
         public bool IsCarryingCargo => State == CourierRunState.Delivering;
-        public bool IsTerminalOpen => _terminalOpen;
+        public bool IsTerminalOpen => _hubTerminalMode != HubTerminalMode.None;
         public Vector3 HubSpawnPosition => _hubSpawn;
+        public Transform ContractTerminal => _terminal;
+        public Transform MessageArchiveTerminal => _messageArchiveTerminal;
+        public int ArchivedMessageCount => GetArchivedMessageCount();
         public static bool IsGameplayHudSuppressed
         {
             get
@@ -293,6 +303,7 @@ namespace DuneVector
 
         private Transform _hubRoot;
         private Transform _terminal;
+        private Transform _messageArchiveTerminal;
         private Transform _teleportPlatform;
         private Transform _hubEnergyOrbit;
         private Transform _upgradeEnergyOrbit;
@@ -304,6 +315,7 @@ namespace DuneVector
         private ParticleSystem _cargoSparks;
         private JobTraversalRing _objectiveRing;
         private int _deliveryIndex;
+        private int _archiveReplayClosedFrame = -1;
         private float _stateTimer;
         private float _hazardPulseTimer;
         private float _unknownRevealTimer;
@@ -312,7 +324,7 @@ namespace DuneVector
         private bool _teleportMoved;
         private bool _returnStartsVanished;
         private bool _deliveryCompletionInProgress;
-        private bool _terminalOpen;
+        private HubTerminalMode _hubTerminalMode;
         private bool _unknownRevealed;
         private bool _wasGrounded;
         private float _minimumAirVerticalSpeed;
@@ -334,6 +346,10 @@ namespace DuneVector
         private GUIStyle _terminalActionStyle;
         private GUIStyle _terminalTooltipTitleStyle;
         private GUIStyle _terminalTooltipBodyStyle;
+        private GUIStyle _archiveTitleStyle;
+        private GUIStyle _archiveEntryStyle;
+        private GUIStyle _archiveMetaStyle;
+        private GUIStyle _archiveEmptyStyle;
         private GUIStyle _hudTitleStyle;
         private GUIStyle _hudBodyStyle;
         private GUIStyle _objectiveStyle;
@@ -342,6 +358,7 @@ namespace DuneVector
         private Texture2D _terminalPanelTexture;
         private Texture2D _terminalCardTexture;
         private Texture2D _terminalCardHoverTexture;
+        private Vector2 _archiveScrollPosition;
 
         private float HubPlatformSurfaceRadius => Mathf.Max(0f, _hubSettings.PlatformRadius * 0.5f);
 
@@ -511,17 +528,29 @@ namespace DuneVector
                 GenerateOffers();
             }
 
-            float terminalDistance = _terminal != null
-                ? Vector3.Distance(_player.WorldCenter, _terminal.position)
-                : float.PositiveInfinity;
-            if (!_terminalOpen && terminalDistance <= _hubSettings.TerminalInteractionRadius &&
-                Keyboard.current != null && Keyboard.current.eKey.wasPressedThisFrame)
+            if (_messagePresenter != null && _messagePresenter.IsOpen)
             {
-                SetTerminalOpen(true);
+                return;
             }
-            else if (_terminalOpen && Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            if (_archiveReplayClosedFrame == Time.frameCount)
             {
-                SetTerminalOpen(false);
+                return;
+            }
+
+            Keyboard keyboard = Keyboard.current;
+            if (_hubTerminalMode != HubTerminalMode.None &&
+                keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
+            {
+                SetHubTerminalMode(HubTerminalMode.None);
+                return;
+            }
+
+            if (_hubTerminalMode == HubTerminalMode.None &&
+                keyboard != null && keyboard.eKey.wasPressedThisFrame &&
+                TryGetNearestHubTerminal(out HubTerminalMode mode, out _, out float distance, out float radius) &&
+                distance <= radius)
+            {
+                SetHubTerminalMode(mode);
             }
         }
 
@@ -669,22 +698,14 @@ namespace DuneVector
                 _hubBeacons.Add(beacon);
             }
 
-            GameObject terminalObject = new GameObject("Physical Contract Terminal");
-            _terminal = terminalObject.transform;
-            _terminal.SetParent(_hubRoot, false);
-            _terminal.localPosition = Vector3.forward * _hubSettings.TerminalForwardOffset;
-            HubPart(PrimitiveType.Cube, "Terminal Pedestal", _terminal, Vector3.up * 2f,
-                new Vector3(3f, 4f, 2f), Quaternion.identity, _hubMetalMaterial, true);
-            HubPart(PrimitiveType.Cube, "Terminal Screen", _terminal, new Vector3(0f, 4.1f, -0.45f),
-                new Vector3(4.4f, 2.4f, 0.25f), Quaternion.Euler(-12f, 0f, 0f), _hubEnergyMaterial, false);
-            HubPart(PrimitiveType.Cube, "Terminal Header", _terminal, new Vector3(0f, 5.7f, 0f),
-                new Vector3(5.8f, 0.32f, 1.2f), Quaternion.identity, _hubMetalMaterial, false);
-            for (int i = -1; i <= 1; i += 2)
-            {
-                HubPart(PrimitiveType.Cylinder, $"Terminal Signal Mast {(i < 0 ? "Left" : "Right")}", _terminal,
-                    new Vector3(i * 2.25f, 7.4f, 0.2f), new Vector3(0.12f, 1.8f, 0.12f),
-                    Quaternion.identity, _hubEnergyMaterial, false);
-            }
+            _terminal = BuildPhysicalTerminal(
+                "Physical Contract Terminal",
+                Vector3.forward * _hubSettings.TerminalForwardOffset,
+                Quaternion.identity);
+            _messageArchiveTerminal = BuildPhysicalTerminal(
+                "Physical Message Archive Terminal",
+                Vector3.back * _hubSettings.ArchiveTerminalBackwardOffset,
+                Quaternion.Euler(0f, 180f, 0f));
 
             Transform upgradeArea = new GameObject("Drone Upgrade Area").transform;
             upgradeArea.SetParent(_hubRoot, false);
@@ -714,6 +735,55 @@ namespace DuneVector
 
             _teleportPlatform = _hubRoot;
             _hubSpawn = _hubRoot.position + Vector3.up * (_hubSettings.PlayerSpawnHeight + (_hubSettings.PlatformThickness * 0.5f));
+        }
+
+        private Transform BuildPhysicalTerminal(string objectName, Vector3 localPosition, Quaternion localRotation)
+        {
+            Transform terminal = new GameObject(objectName).transform;
+            terminal.SetParent(_hubRoot, false);
+            terminal.SetLocalPositionAndRotation(localPosition, localRotation);
+            HubPart(
+                PrimitiveType.Cube,
+                "Terminal Pedestal",
+                terminal,
+                _hubSettings.TerminalPedestalLocalPosition,
+                _hubSettings.TerminalPedestalScale,
+                Quaternion.identity,
+                _hubMetalMaterial,
+                true);
+            HubPart(
+                PrimitiveType.Cube,
+                "Terminal Screen",
+                terminal,
+                _hubSettings.TerminalScreenLocalPosition,
+                _hubSettings.TerminalScreenScale,
+                Quaternion.Euler(_hubSettings.TerminalScreenTilt, 0f, 0f),
+                _hubEnergyMaterial,
+                false);
+            HubPart(
+                PrimitiveType.Cube,
+                "Terminal Header",
+                terminal,
+                _hubSettings.TerminalHeaderLocalPosition,
+                _hubSettings.TerminalHeaderScale,
+                Quaternion.identity,
+                _hubMetalMaterial,
+                false);
+            for (int side = -1; side <= 1; side += 2)
+            {
+                Vector3 mastPosition = _hubSettings.TerminalSignalMastLocalPosition;
+                mastPosition.x = side * _hubSettings.TerminalSignalMastHorizontalOffset;
+                HubPart(
+                    PrimitiveType.Cylinder,
+                    $"Terminal Signal Mast {(side < 0 ? "Left" : "Right")}",
+                    terminal,
+                    mastPosition,
+                    _hubSettings.TerminalSignalMastScale,
+                    Quaternion.identity,
+                    _hubEnergyMaterial,
+                    false);
+            }
+            return terminal;
         }
 
         private void BuildHubContainment()
@@ -1710,11 +1780,21 @@ namespace DuneVector
 
         private void SetTerminalOpen(bool open)
         {
-            _terminalOpen = open;
+            SetHubTerminalMode(open ? HubTerminalMode.Contracts : HubTerminalMode.None);
+        }
+
+        private void SetHubTerminalMode(HubTerminalMode mode)
+        {
+            _hubTerminalMode = mode;
+            if (mode != HubTerminalMode.MessageArchive)
+            {
+                _archiveScrollPosition = Vector2.zero;
+            }
             if (State != CourierRunState.Hub)
             {
                 return;
             }
+            bool open = mode != HubTerminalMode.None;
             _playerInput.SetInputEnabled(!open);
             Cursor.lockState = open ? CursorLockMode.None : CursorLockMode.Locked;
             Cursor.visible = open;
@@ -1870,6 +1950,31 @@ namespace DuneVector
             _terminalActionStyle = LabelStyle(_hubSettings.TerminalButtonFontSize, FontStyle.Bold, TextAnchor.MiddleRight, _hubSettings.TerminalAccentColor);
             _terminalTooltipTitleStyle = LabelStyle(_hubSettings.TerminalTooltipTitleFontSize, FontStyle.Bold, TextAnchor.UpperLeft, _hubSettings.TerminalAccentColor);
             _terminalTooltipBodyStyle = LabelStyle(_hubSettings.TerminalTooltipBodyFontSize, FontStyle.Normal, TextAnchor.UpperLeft, _hubSettings.TerminalTextColor);
+            Font archiveFont = _messagePresenter != null ? _messagePresenter.PresentationFont : _messageSettings.NarrativeFont;
+            _archiveTitleStyle = MessageArchiveStyle(
+                archiveFont,
+                _messageSettings.ArchiveTitleFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleLeft,
+                _messageSettings.PageStartTextColor);
+            _archiveEntryStyle = MessageArchiveStyle(
+                archiveFont,
+                _messageSettings.ArchiveEntryFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleLeft,
+                _messageSettings.NarrativeTextColor);
+            _archiveMetaStyle = MessageArchiveStyle(
+                archiveFont,
+                _messageSettings.ArchiveMetaFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleRight,
+                _messageSettings.SecondaryTextColor);
+            _archiveEmptyStyle = MessageArchiveStyle(
+                archiveFont,
+                _messageSettings.ArchiveEmptyFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleCenter,
+                _messageSettings.SecondaryTextColor);
             _terminalPanelTexture = SolidTexture(_hubSettings.TerminalPanelColor, "Courier Terminal Panel");
             _terminalCardTexture = SolidTexture(_hubSettings.TerminalCardColor, "Courier Contract Card");
             _terminalCardHoverTexture = SolidTexture(_hubSettings.TerminalCardHoverColor, "Courier Contract Card Hover");
@@ -1909,6 +2014,21 @@ namespace DuneVector
             };
         }
 
+        private static GUIStyle MessageArchiveStyle(
+            Font font,
+            int size,
+            FontStyle fontStyle,
+            TextAnchor anchor,
+            Color color)
+        {
+            GUIStyle style = LabelStyle(size, fontStyle, anchor, color);
+            if (font != null)
+            {
+                style.font = font;
+            }
+            return style;
+        }
+
         private static Texture2D SolidTexture(Color color, string textureName)
         {
             Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
@@ -1924,13 +2044,22 @@ namespace DuneVector
         private void OnGUI()
         {
             EnsureStyles();
-            if (_terminalOpen && State == CourierRunState.Hub)
+            if (_hubTerminalMode == HubTerminalMode.Contracts && State == CourierRunState.Hub)
             {
                 DrawContractTerminal();
             }
+            else if (_hubTerminalMode == HubTerminalMode.MessageArchive &&
+                State == CourierRunState.Hub &&
+                (_messagePresenter == null || !_messagePresenter.IsOpen))
+            {
+                DrawMessageArchiveTerminal();
+            }
             else if (State == CourierRunState.Hub)
             {
-                DrawHubHUD();
+                if (_messagePresenter == null || !_messagePresenter.IsOpen)
+                {
+                    DrawHubHUD();
+                }
             }
             else if (IsContractActive)
             {
@@ -1946,7 +2075,7 @@ namespace DuneVector
             {
                 DrawTeleportFade();
             }
-            if (!_terminalOpen && Time.unscaledTime < _statusMessageUntil)
+            if (!IsTerminalOpen && Time.unscaledTime < _statusMessageUntil)
             {
                 GUI.Label(new Rect(0f, Screen.height * 0.18f, Screen.width, 42f), _statusMessage, _statusStyle);
             }
@@ -2063,6 +2192,168 @@ namespace DuneVector
             {
                 AcceptContract(selectedOffer);
             }
+        }
+
+        private void DrawMessageArchiveTerminal()
+        {
+            GUI.depth = -1150;
+            Matrix4x4 previousMatrix = GUI.matrix;
+            float minimumScale = Mathf.Min(_messageSettings.MinimumScale, _messageSettings.MaximumScale);
+            float maximumScale = Mathf.Max(_messageSettings.MinimumScale, _messageSettings.MaximumScale);
+            float scale = Mathf.Clamp(
+                Mathf.Min(
+                    Screen.width / Mathf.Max(1f, _messageSettings.ReferenceWidth),
+                    Screen.height / Mathf.Max(1f, _messageSettings.ReferenceHeight)),
+                minimumScale,
+                maximumScale);
+            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
+            float virtualWidth = Screen.width / scale;
+            float virtualHeight = Screen.height / scale;
+            float panelWidth = Mathf.Min(
+                _messageSettings.ArchivePanelWidth,
+                virtualWidth - (_messageSettings.ScreenMargin * 2f));
+            float panelHeight = Mathf.Min(
+                _messageSettings.ArchivePanelHeight,
+                virtualHeight - (_messageSettings.ScreenMargin * 2f));
+            Rect panel = new Rect(
+                (virtualWidth - panelWidth) * 0.5f,
+                ((virtualHeight - panelHeight) * 0.5f) + _messageSettings.ArchivePanelVerticalOffset,
+                panelWidth,
+                panelHeight);
+
+            _messagePresenter.DrawArchiveChrome(virtualWidth, virtualHeight, panel);
+            float padding = _messageSettings.ArchivePadding;
+            float contentWidth = Mathf.Max(1f, panel.width - (padding * 2f));
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.y + _messageSettings.RuleOffset,
+                    contentWidth,
+                    Mathf.Max(1f, _messageSettings.ArchiveHeaderHeight - _messageSettings.RuleOffset)),
+                _messageSettings.ArchiveTitle ?? string.Empty,
+                _archiveTitleStyle);
+
+            float listTop = panel.y + _messageSettings.ArchiveHeaderHeight;
+            float listBottom = panel.yMax - _messageSettings.ArchiveFooterHeight;
+            Rect listViewport = new Rect(
+                panel.x + padding,
+                listTop,
+                contentWidth,
+                Mathf.Max(1f, listBottom - listTop));
+            int archivedCount = GetArchivedMessageCount();
+            if (archivedCount == 0)
+            {
+                GUI.Label(listViewport, _messageSettings.ArchiveEmptyState ?? string.Empty, _archiveEmptyStyle);
+            }
+            else
+            {
+                float rowHeight = _messageSettings.ArchiveRowHeight;
+                float rowGap = _messageSettings.ArchiveRowGap;
+                float contentHeight = Mathf.Max(
+                    listViewport.height,
+                    (archivedCount * rowHeight) + (Mathf.Max(0, archivedCount - 1) * rowGap));
+                Rect scrollContent = new Rect(0f, 0f, listViewport.width, contentHeight);
+                _archiveScrollPosition = GUI.BeginScrollView(
+                    listViewport,
+                    _archiveScrollPosition,
+                    scrollContent,
+                    false,
+                    contentHeight > listViewport.height);
+                Vector2 mousePosition = (Event.current.mousePosition / Mathf.Max(0.01f, scale)) - listViewport.position + _archiveScrollPosition;
+                int displayedIndex = 0;
+                int completedExclusive = Mathf.Max(0, Progress.NextDeliveryMessageIndex);
+                int sequenceCount = _messageSettings.Sequence != null ? _messageSettings.Sequence.Count : 0;
+                for (int sequenceIndex = 0; sequenceIndex < completedExclusive && sequenceIndex < sequenceCount; sequenceIndex++)
+                {
+                    DeliveryMessageAsset message = _messageSettings.Sequence[sequenceIndex];
+                    if (message == null)
+                    {
+                        continue;
+                    }
+
+                    Rect row = new Rect(
+                        0f,
+                        displayedIndex * (rowHeight + rowGap),
+                        listViewport.width,
+                        rowHeight);
+                    bool hovered = row.Contains(mousePosition);
+                    DrawSolidRect(row, hovered ? _messageSettings.ArchiveRowHoverColor : _messageSettings.ArchiveRowColor);
+                    DrawSolidRect(
+                        new Rect(row.x, row.y, _messageSettings.ArchiveRowAccentWidth, row.height),
+                        _messageSettings.SignalColor);
+                    float horizontalPadding = _messageSettings.ArchiveRowHorizontalPadding;
+                    float textLeft = row.x + _messageSettings.ArchiveRowAccentWidth + horizontalPadding;
+                    float textWidth = Mathf.Max(1f, row.width - _messageSettings.ArchiveRowAccentWidth - (horizontalPadding * 2f));
+                    string entryLabel = FormatArchiveEntryLabel(sequenceIndex + 1);
+                    GUI.Label(
+                        new Rect(textLeft, row.y, textWidth, row.height),
+                        entryLabel,
+                        _archiveEntryStyle);
+                    string messageId = string.IsNullOrWhiteSpace(message.MessageId)
+                        ? _messageSettings.ArchiveMessageIdFallback
+                        : message.MessageId;
+                    GUI.Label(
+                        new Rect(textLeft, row.y, textWidth, row.height),
+                        FormatDesignerText(_messageSettings.ArchiveMetaFormat, _messageSettings.ArchiveEntryStatus, messageId),
+                        _archiveMetaStyle);
+                    if (GUI.Button(row, GUIContent.none, GUIStyle.none))
+                    {
+                        OpenArchivedMessage(message);
+                    }
+                    displayedIndex++;
+                }
+                GUI.EndScrollView();
+            }
+
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.yMax - _messageSettings.ArchiveFooterHeight,
+                    contentWidth,
+                    _messageSettings.ArchiveFooterHeight),
+                _messageSettings.ArchiveFooter ?? string.Empty,
+                _archiveEmptyStyle);
+            GUI.matrix = previousMatrix;
+        }
+
+        private int GetArchivedMessageCount()
+        {
+            if (Progress == null || _messageSettings == null || _messageSettings.Sequence == null)
+            {
+                return 0;
+            }
+            int completedExclusive = Mathf.Min(
+                Mathf.Max(0, Progress.NextDeliveryMessageIndex),
+                _messageSettings.Sequence.Count);
+            int count = 0;
+            for (int index = 0; index < completedExclusive; index++)
+            {
+                if (_messageSettings.Sequence[index] != null)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        private string FormatArchiveEntryLabel(int displayIndex)
+        {
+            return FormatDesignerText(_messageSettings.ArchiveEntryFormat, displayIndex);
+        }
+
+        private void OpenArchivedMessage(DeliveryMessageAsset message)
+        {
+            if (_hubTerminalMode != HubTerminalMode.MessageArchive || message == null ||
+                _messagePresenter == null || _messagePresenter.IsOpen)
+            {
+                return;
+            }
+            _messagePresenter.OpenReplay(message, HandleArchivedMessageClosed);
+        }
+
+        private void HandleArchivedMessageClosed()
+        {
+            _archiveReplayClosedFrame = Time.frameCount;
         }
 
         private bool DrawContractCard(Rect card, CourierContract offer, bool showSecondRiskRow)
@@ -2233,14 +2524,20 @@ namespace DuneVector
 
         private void DrawHubHUD()
         {
-            if (_terminal == null)
+            if (!TryGetNearestHubTerminal(
+                out HubTerminalMode mode,
+                out _,
+                out float distance,
+                out float interactionRadius))
             {
                 return;
             }
-            float distance = Vector3.Distance(_player.WorldCenter, _terminal.position);
-            string prompt = distance <= _hubSettings.TerminalInteractionRadius
-                ? "PRESS E — OPEN CONTRACT TERMINAL"
-                : $"CONTRACT TERMINAL  {distance:0} m";
+            string terminalName = mode == HubTerminalMode.MessageArchive
+                ? _hubSettings.ArchiveTerminalName
+                : _hubSettings.ContractTerminalName;
+            string prompt = distance <= interactionRadius
+                ? FormatDesignerText(_hubSettings.TerminalNearbyPromptFormat, terminalName)
+                : FormatDesignerText(_hubSettings.TerminalDistancePromptFormat, terminalName, distance);
             float promptWidth = Mathf.Min(_hubSettings.TerminalPromptWidth, Screen.width);
             float promptHeight = _hubSettings.TerminalPromptHeight;
             Rect promptRect = new Rect(
@@ -2252,6 +2549,59 @@ namespace DuneVector
             GUI.Label(promptRect, prompt, _objectiveStyle);
             GUI.Label(new Rect(24f, 24f, 360f, 86f),
                 $"COURIER AERIE\nDELIVERIES  {Progress.CompletedDeliveries}\nCONTRACT GOLD  {Progress.TotalContractGold:N0}", _hudBodyStyle);
+        }
+
+        private bool TryGetNearestHubTerminal(
+            out HubTerminalMode mode,
+            out Transform terminal,
+            out float distance,
+            out float interactionRadius)
+        {
+            mode = HubTerminalMode.None;
+            terminal = null;
+            distance = float.PositiveInfinity;
+            interactionRadius = 0f;
+            if (_player == null)
+            {
+                return false;
+            }
+
+            float contractDistance = _terminal != null
+                ? Vector3.Distance(_player.WorldCenter, _terminal.position)
+                : float.PositiveInfinity;
+            float archiveDistance = _messageArchiveTerminal != null
+                ? Vector3.Distance(_player.WorldCenter, _messageArchiveTerminal.position)
+                : float.PositiveInfinity;
+            if (contractDistance <= archiveDistance && _terminal != null)
+            {
+                mode = HubTerminalMode.Contracts;
+                terminal = _terminal;
+                distance = contractDistance;
+                interactionRadius = _hubSettings.TerminalInteractionRadius;
+                return true;
+            }
+            if (_messageArchiveTerminal != null)
+            {
+                mode = HubTerminalMode.MessageArchive;
+                terminal = _messageArchiveTerminal;
+                distance = archiveDistance;
+                interactionRadius = _hubSettings.ArchiveTerminalInteractionRadius;
+                return true;
+            }
+            return false;
+        }
+
+        private static string FormatDesignerText(string format, params object[] arguments)
+        {
+            string safeFormat = format ?? string.Empty;
+            try
+            {
+                return string.Format(safeFormat, arguments);
+            }
+            catch (FormatException)
+            {
+                return safeFormat;
+            }
         }
 
         private void DrawContractHUD()

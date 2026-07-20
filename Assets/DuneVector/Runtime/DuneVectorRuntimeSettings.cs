@@ -619,9 +619,27 @@ namespace DuneVector
         [Min(0.5f)] public float PlatformThickness = 2.4f;
         [Min(0f)] public float TerminalForwardOffset = 11f;
         [Min(1f)] public float TerminalInteractionRadius = 6f;
+        [Min(0f)] public float ArchiveTerminalBackwardOffset = 11f;
+        [Min(1f)] public float ArchiveTerminalInteractionRadius = 6f;
         [Min(0f)] public float UpgradeAreaSideOffset = 13f;
         [Min(0f)] public float PlayerSpawnHeight = 2.2f;
         public bool RestoreHealthOnReturn = true;
+
+        [Header("Physical Terminals")]
+        public Vector3 TerminalPedestalLocalPosition = new Vector3(0f, 2f, 0f);
+        public Vector3 TerminalPedestalScale = new Vector3(3f, 4f, 2f);
+        public Vector3 TerminalScreenLocalPosition = new Vector3(0f, 4.1f, -0.45f);
+        public Vector3 TerminalScreenScale = new Vector3(4.4f, 2.4f, 0.25f);
+        public float TerminalScreenTilt = -12f;
+        public Vector3 TerminalHeaderLocalPosition = new Vector3(0f, 5.7f, 0f);
+        public Vector3 TerminalHeaderScale = new Vector3(5.8f, 0.32f, 1.2f);
+        [Min(0f)] public float TerminalSignalMastHorizontalOffset = 2.25f;
+        public Vector3 TerminalSignalMastLocalPosition = new Vector3(0f, 7.4f, 0.2f);
+        public Vector3 TerminalSignalMastScale = new Vector3(0.12f, 1.8f, 0.12f);
+        public string ContractTerminalName = "CONTRACT TERMINAL";
+        public string ArchiveTerminalName = "MESSAGE ARCHIVE";
+        public string TerminalNearbyPromptFormat = "PRESS E — OPEN {0}";
+        public string TerminalDistancePromptFormat = "{0}  {1:0} m";
 
         [Header("Hub Containment")]
         public bool ContainmentEnabled = true;

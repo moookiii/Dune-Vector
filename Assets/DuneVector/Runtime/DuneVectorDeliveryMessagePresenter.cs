@@ -187,6 +187,9 @@ namespace DuneVector
         }
 
         public bool IsOpen { get; private set; }
+        public Font PresentationFont => _settings != null && _settings.NarrativeFont != null
+            ? _settings.NarrativeFont
+            : _runtimeFont;
         public bool IsTyping => IsOpen &&
             _phase == PagePresentationPhase.Presenting &&
             _visibleCharacterCount < CurrentPage.Length;
@@ -214,6 +217,7 @@ namespace DuneVector
         private bool _completionSent;
         private bool _hasAcknowledgedInputHint;
         private bool _showFirstUseHint;
+        private bool _allowCancel;
         private PagePresentationPhase _phase;
         private Action _firstInteraction;
         private Font _runtimeFont;
@@ -240,6 +244,20 @@ namespace DuneVector
 
         public bool Open(DeliveryMessageAsset message, Action completed)
         {
+            return OpenInternal(message, completed, allowCancel: false, showFirstUseHint: true);
+        }
+
+        public bool OpenReplay(DeliveryMessageAsset message, Action closed)
+        {
+            return OpenInternal(message, closed, allowCancel: true, showFirstUseHint: false);
+        }
+
+        private bool OpenInternal(
+            DeliveryMessageAsset message,
+            Action completed,
+            bool allowCancel,
+            bool showFirstUseHint)
+        {
             if (IsOpen || message == null)
             {
                 return false;
@@ -260,7 +278,8 @@ namespace DuneVector
             _openedFrame = Time.frameCount;
             _completionSent = false;
             _phase = PagePresentationPhase.Presenting;
-            _showFirstUseHint = !_hasAcknowledgedInputHint;
+            _allowCancel = allowCancel;
+            _showFirstUseHint = showFirstUseHint && !_hasAcknowledgedInputHint;
             IsOpen = true;
             BeginCurrentPage();
             return true;
@@ -278,6 +297,7 @@ namespace DuneVector
             Action callback = _completed;
             _completed = null;
             _pages = Array.Empty<string>();
+            _allowCancel = false;
             _phase = PagePresentationPhase.Presenting;
             if (invokeCompletion && !_completionSent)
             {
@@ -291,6 +311,13 @@ namespace DuneVector
             _typingAudio.Tick();
             if (!IsOpen)
             {
+                return;
+            }
+
+            if (_allowCancel && Time.frameCount != _openedFrame &&
+                Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame)
+            {
+                Close(invokeCompletion: true);
                 return;
             }
 
@@ -470,8 +497,39 @@ namespace DuneVector
             }
 
             DrawFirstUseHint(virtualWidth, virtualHeight);
+            DrawArchiveReplayHint(virtualWidth, virtualHeight);
             GUI.color = previousColor;
             GUI.matrix = previousMatrix;
+        }
+
+        private void DrawArchiveReplayHint(float virtualWidth, float virtualHeight)
+        {
+            if (!_allowCancel)
+            {
+                return;
+            }
+            _hintStyle.normal.textColor = _settings.SecondaryTextColor;
+            GUI.Label(
+                new Rect(
+                    0f,
+                    virtualHeight - _settings.FirstUseHintBottomMargin - _settings.FirstUseHintHeight,
+                    virtualWidth,
+                    _settings.FirstUseHintHeight),
+                _settings.ArchiveReplayHint ?? string.Empty,
+                _hintStyle);
+        }
+
+        public void DrawArchiveChrome(float virtualWidth, float virtualHeight, Rect archiveArea)
+        {
+            EnsureStyles();
+            DrawSolidRect(new Rect(0f, 0f, virtualWidth, virtualHeight), _settings.BackdropColor);
+            DrawTransmissionArtifacts(virtualWidth, virtualHeight);
+            float flicker = 1f - (_settings.TransmissionFlickerAmount *
+                Mathf.PerlinNoise(Time.unscaledTime * _settings.TransmissionFlickerSpeed, 0.413f));
+            DrawSolidRect(
+                archiveArea,
+                WithAlpha(_settings.ReadingAreaColor, _settings.ReadingAreaColor.a * flicker));
+            DrawTransmissionFrame(archiveArea, flicker, _settings.ArchiveHeader, showTypingSignal: false);
         }
 
         private void CreateRuntimeFont()
@@ -542,6 +600,15 @@ namespace DuneVector
 
         private void DrawReadingFrame(Rect readingArea, float flicker)
         {
+            DrawTransmissionFrame(readingArea, flicker, _settings.TransmissionHeader, IsTyping);
+        }
+
+        private void DrawTransmissionFrame(
+            Rect readingArea,
+            float flicker,
+            string header,
+            bool showTypingSignal)
+        {
             float thickness = Mathf.Max(0.5f, _settings.RuleThickness);
             float ruleY = readingArea.y + _settings.RuleOffset;
             Color border = WithAlpha(_settings.BorderColor, _settings.BorderColor.a * flicker);
@@ -569,10 +636,10 @@ namespace DuneVector
                     readingArea.y,
                     readingArea.width - (_settings.HorizontalPadding * 2f),
                     Mathf.Max(1f, _settings.RuleOffset - _settings.HeaderRuleGap)),
-                _settings.TransmissionHeader ?? string.Empty,
+                header ?? string.Empty,
                 _headerStyle);
 
-            if (IsTyping)
+            if (showTypingSignal)
             {
                 DrawTypingSignal(readingArea, ruleY, flicker);
             }

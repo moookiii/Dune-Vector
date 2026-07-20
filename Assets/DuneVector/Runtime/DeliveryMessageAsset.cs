@@ -142,6 +142,33 @@ namespace DuneVector
         [Min(0f)] public float FirstUseHintBottomMargin = 54f;
         [Min(8f)] public float FirstUseHintHeight = 48f;
 
+        [Header("Message Archive")]
+        public string ArchiveHeader = "PRIVATE COURIER CHANNEL  /  ARCHIVE";
+        public string ArchiveTitle = "RECEIVED TRANSMISSIONS";
+        public string ArchiveEmptyState = "NO TRANSMISSIONS ARCHIVED";
+        public string ArchiveFooter = "SELECT A TRANSMISSION TO REPLAY  /  ESC  CLOSE";
+        public string ArchiveEntryFormat = "TRANSMISSION  {0:000}";
+        public string ArchiveEntryStatus = "RECEIVED";
+        public string ArchiveMessageIdFallback = "UNIDENTIFIED SIGNAL";
+        public string ArchiveMetaFormat = "{0}  /  {1}";
+        public string ArchiveReplayHint = "ESC  RETURN TO ARCHIVE";
+        [Min(320f)] public float ArchivePanelWidth = 900f;
+        [Min(240f)] public float ArchivePanelHeight = 620f;
+        [Min(0f)] public float ArchivePanelVerticalOffset = 0f;
+        [Min(0f)] public float ArchivePadding = 36f;
+        [Min(0f)] public float ArchiveHeaderHeight = 104f;
+        [Min(0f)] public float ArchiveFooterHeight = 46f;
+        [Min(24f)] public float ArchiveRowHeight = 54f;
+        [Min(0f)] public float ArchiveRowGap = 8f;
+        [Min(0f)] public float ArchiveRowAccentWidth = 3f;
+        [Min(0f)] public float ArchiveRowHorizontalPadding = 18f;
+        [Min(8)] public int ArchiveTitleFontSize = 28;
+        [Min(8)] public int ArchiveEntryFontSize = 15;
+        [Min(8)] public int ArchiveMetaFontSize = 10;
+        [Min(8)] public int ArchiveEmptyFontSize = 15;
+        [ColorUsage(false)] public Color ArchiveRowColor = new Color(0.035f, 0.055f, 0.062f, 0.42f);
+        [ColorUsage(false)] public Color ArchiveRowHoverColor = new Color(0.09f, 0.15f, 0.16f, 0.72f);
+
         [Header("FMOD")]
         [Tooltip("Looping FMOD event used only while characters are actively appearing.")]
         public EventReference TypingLoopEvent;
