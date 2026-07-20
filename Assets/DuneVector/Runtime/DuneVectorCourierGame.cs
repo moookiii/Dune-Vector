@@ -383,7 +383,7 @@ namespace DuneVector
                 Progress.DeliveryMessageInputHintAcknowledged,
                 Progress.AcknowledgeDeliveryMessageInputHint);
             _sandAmbusherSystem = gameObject.AddComponent<DuneVectorSandAmbusherSystem>();
-            _sandAmbusherSystem.Initialize(_player, _health, _world, _materials, _settings);
+            _sandAmbusherSystem.Initialize(_player, _health, _world, _settings);
             _health.Damaged += HandlePlayerDamaged;
             _health.Died += HandlePlayerDied;
             _world.WorldShifted += HandleWorldShift;

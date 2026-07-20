@@ -54,14 +54,16 @@ namespace DuneVector
         {
             Buried,
             Attacking,
+            Exposed,
             Retreating,
         }
 
         private sealed class SandAmbusher
         {
             public GameObject Root;
-            public GameObject WarningMarker;
             public EnemyCombatTarget CombatTarget;
+            public DuneVectorSandAmbusherVisual Visual;
+            public DuneVectorSandAmbusherEmergence Emergence;
             public Vector3 BuriedPosition;
             public Vector3 AttackEnd;
             public float StateTime;
@@ -73,9 +75,9 @@ namespace DuneVector
         private DroneCharacterController _player;
         private DroneHealth _health;
         private DesertWorldStreamer _world;
-        private DuneVectorMaterials _materials;
         private CourierContractTuning _settings;
         private System.Random _random;
+        private DuneVectorSandAmbusherPalette _palette;
         private int _risk;
         private float _spawnTimer;
 
@@ -83,14 +85,13 @@ namespace DuneVector
             DroneCharacterController player,
             DroneHealth health,
             DesertWorldStreamer world,
-            DuneVectorMaterials materials,
             CourierContractTuning settings)
         {
             _player = player;
             _health = health;
             _world = world;
-            _materials = materials;
             _settings = settings;
+            _palette = new DuneVectorSandAmbusherPalette(settings);
             _world.WorldShifted += HandleWorldShift;
             enabled = false;
         }
@@ -119,9 +120,9 @@ namespace DuneVector
                 {
                     Destroy(_ambushers[i].Root);
                 }
-                if (_ambushers[i].WarningMarker != null)
+                if (_ambushers[i].Emergence != null)
                 {
-                    Destroy(_ambushers[i].WarningMarker);
+                    Destroy(_ambushers[i].Emergence.gameObject);
                 }
             }
             _ambushers.Clear();
@@ -147,10 +148,6 @@ namespace DuneVector
                 SandAmbusher ambusher = _ambushers[i];
                 if (ambusher.Root == null)
                 {
-                    if (ambusher.WarningMarker != null)
-                    {
-                        Destroy(ambusher.WarningMarker);
-                    }
                     _ambushers.RemoveAt(i);
                     continue;
                 }
@@ -164,6 +161,9 @@ namespace DuneVector
                     case AmbushState.Attacking:
                         TickAttack(ambusher, deltaTime);
                         break;
+                    case AmbushState.Exposed:
+                        TickExposed(ambusher);
+                        break;
                     case AmbushState.Retreating:
                         if (TickRetreat(ambusher, deltaTime))
                         {
@@ -176,25 +176,14 @@ namespace DuneVector
 
         private void TickBuried(SandAmbusher ambusher)
         {
-            if (ambusher.WarningMarker != null)
-            {
-                float pulse = 0.82f +
-                    (Mathf.Sin(Time.time * Mathf.Max(0f, _settings.SandAmbusherWarningPulseSpeed)) * 0.18f);
-                float radius = Mathf.Max(0.1f, _settings.SandAmbusherWarningRadius) * pulse;
-                ambusher.WarningMarker.transform.localScale = new Vector3(radius, 0.035f, radius);
-            }
-
             float warningDuration = Mathf.Max(0f, _settings.SandAmbusherWarningDuration) /
                 Mathf.Max(0.1f, DuneVectorContractRisk.EnemyAttackRateMultiplier);
+            ambusher.Emergence?.TickWarning(warningDuration > 0f
+                ? Mathf.Clamp01(ambusher.StateTime / warningDuration)
+                : 1f);
             if (ambusher.StateTime < warningDuration)
             {
                 return;
-            }
-
-            if (ambusher.WarningMarker != null)
-            {
-                Destroy(ambusher.WarningMarker);
-                ambusher.WarningMarker = null;
             }
 
             Vector3 prediction = _player.Motor.BaseVelocity *
@@ -204,6 +193,8 @@ namespace DuneVector
             ambusher.AttackEnd = attackTarget +
                 (attackDirection * Mathf.Max(0f, _settings.SandAmbusherAttackOvershoot));
             ambusher.Root.transform.rotation = Quaternion.FromToRotation(Vector3.up, attackDirection);
+            ambusher.Emergence?.Burst();
+            ambusher.Visual?.BeginEmergence();
             ambusher.CombatTarget?.SetTargetable(true);
             ambusher.State = AmbushState.Attacking;
             ambusher.StateTime = 0f;
@@ -235,10 +226,21 @@ namespace DuneVector
             if (next == ambusher.AttackEnd ||
                 ambusher.StateTime >= Mathf.Max(0.1f, _settings.SandAmbusherMaximumAttackDuration))
             {
-                ambusher.CombatTarget?.SetTargetable(false);
-                ambusher.State = AmbushState.Retreating;
+                ambusher.State = AmbushState.Exposed;
                 ambusher.StateTime = 0f;
             }
+        }
+
+        private void TickExposed(SandAmbusher ambusher)
+        {
+            if (ambusher.StateTime < Mathf.Max(0f, _settings.SandAmbusherExposedDuration))
+            {
+                return;
+            }
+            ambusher.CombatTarget?.SetTargetable(false);
+            ambusher.Visual?.BeginRetreat();
+            ambusher.State = AmbushState.Retreating;
+            ambusher.StateTime = 0f;
         }
 
         private bool TickRetreat(SandAmbusher ambusher, float deltaTime)
@@ -277,17 +279,9 @@ namespace DuneVector
             root.transform.SetParent(transform, true);
             root.transform.position = buriedPosition;
 
-            GameObject proxy = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-            proxy.name = "Temporary Sand Ambusher Proxy";
-            proxy.transform.SetParent(root.transform, false);
-            float proxyRadius = Mathf.Max(0.1f, _settings.SandAmbusherPlaceholderRadius);
-            proxy.transform.localScale = new Vector3(proxyRadius, proxyRadius * 2f, proxyRadius);
-            proxy.GetComponent<Renderer>().sharedMaterial = _materials.GroundEnemyBody;
-            Collider proxyCollider = proxy.GetComponent<Collider>();
-            if (proxyCollider != null)
-            {
-                Destroy(proxyCollider);
-            }
+            int visualSeed = _random.Next();
+            DuneVectorSandAmbusherVisual visual = root.AddComponent<DuneVectorSandAmbusherVisual>();
+            visual.Initialize(_settings, _palette, visualSeed);
 
             EnemyHealth enemyHealth = root.AddComponent<EnemyHealth>();
             enemyHealth.Initialize(Mathf.Max(0.1f, _settings.SandAmbusherHealth));
@@ -295,23 +289,17 @@ namespace DuneVector
             combatTarget.Initialize(enemyHealth, Mathf.Max(0.1f, _settings.SandAmbusherCollisionRadius));
             combatTarget.SetTargetable(false);
 
-            GameObject warningMarker = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-            warningMarker.name = $"Risk {_risk} Sand Ambusher Warning";
-            warningMarker.transform.SetParent(transform, true);
-            warningMarker.transform.position = new Vector3(target.x, terrainHeight + 0.12f, target.z);
-            float warningRadius = Mathf.Max(0.1f, _settings.SandAmbusherWarningRadius);
-            warningMarker.transform.localScale = new Vector3(warningRadius, 0.035f, warningRadius);
-            warningMarker.GetComponent<Renderer>().sharedMaterial = _materials.GroundEnemyWarning;
-            Collider warningCollider = warningMarker.GetComponent<Collider>();
-            if (warningCollider != null)
-            {
-                Destroy(warningCollider);
-            }
+            GameObject emergenceObject = new GameObject($"Risk {_risk} Terrain Rupture and Sand Displacement");
+            emergenceObject.transform.SetParent(transform, true);
+            emergenceObject.transform.position = new Vector3(target.x, terrainHeight, target.z);
+            DuneVectorSandAmbusherEmergence emergence = emergenceObject.AddComponent<DuneVectorSandAmbusherEmergence>();
+            emergence.Initialize(_settings, _world, _palette, visualSeed ^ 1229);
             _ambushers.Add(new SandAmbusher
             {
                 Root = root,
-                WarningMarker = warningMarker,
                 CombatTarget = combatTarget,
+                Visual = visual,
+                Emergence = emergence,
                 BuriedPosition = buriedPosition,
                 State = AmbushState.Buried,
             });
@@ -334,10 +322,6 @@ namespace DuneVector
                 if (ambusher.Root != null)
                 {
                     ambusher.Root.transform.position += shift;
-                }
-                if (ambusher.WarningMarker != null)
-                {
-                    ambusher.WarningMarker.transform.position += shift;
                 }
                 ambusher.BuriedPosition += shift;
                 ambusher.AttackEnd += shift;
@@ -367,6 +351,7 @@ namespace DuneVector
             {
                 _world.WorldShifted -= HandleWorldShift;
             }
+            _palette?.Dispose();
         }
     }
 }
