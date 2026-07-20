@@ -260,6 +260,18 @@ namespace DuneVector
             SetState(StormPyramidState.IdleHovering);
         }
 
+        public void SetGameplayActive(bool active)
+        {
+            if (!active)
+            {
+                _lightning?.CancelAttack();
+                _attackTimer = _settings != null ? _settings.AttackInterval : 0f;
+                SetState(StormPyramidState.IdleHovering);
+            }
+
+            enabled = active;
+        }
+
         private void SetState(StormPyramidState state)
         {
             CurrentState = state;
@@ -1784,7 +1796,7 @@ namespace DuneVector
             {
                 if (_enemies[i] != null)
                 {
-                    _enemies[i].enabled = active;
+                    _enemies[i].SetGameplayActive(active);
                 }
             }
             for (int i = 0; i < _orbEnemies.Count; i++)
