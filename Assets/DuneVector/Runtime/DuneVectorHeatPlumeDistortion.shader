@@ -217,6 +217,57 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
             }
             ENDHLSL
         }
+
+        // HDRP strips DistortionVectors when distortion is disabled in the active
+        // frame settings. Keep an invisible forward pass so the shader remains
+        // valid instead of rendering the particle billboards with the error shader.
+        Pass
+        {
+            Name "FallbackInvisible"
+            Tags { "LightMode" = "ForwardOnly" }
+            Cull Off
+            ZWrite Off
+            ColorMask 0
+
+            HLSLPROGRAM
+            #pragma target 4.5
+            #pragma vertex VertFallback
+            #pragma fragment FragFallback
+            #pragma multi_compile_instancing
+            #pragma only_renderers d3d11 playstation xboxone xboxseries vulkan metal switch switch2
+
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+            #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"
+
+            struct FallbackAttributes
+            {
+                float3 positionOS : POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct FallbackVaryings
+            {
+                float4 positionCS : SV_POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            FallbackVaryings VertFallback(FallbackAttributes input)
+            {
+                FallbackVaryings output;
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_TRANSFER_INSTANCE_ID(input, output);
+                output.positionCS = TransformObjectToHClip(input.positionOS);
+                return output;
+            }
+
+            float4 FragFallback(FallbackVaryings input) : SV_Target
+            {
+                UNITY_SETUP_INSTANCE_ID(input);
+                return 0.0;
+            }
+            ENDHLSL
+        }
     }
     Fallback Off
 }
