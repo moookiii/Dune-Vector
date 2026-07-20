@@ -25,6 +25,7 @@ namespace DuneVector
     {
         Hub,
         TeleportingToDesert,
+        FreeRoam,
         FindPackage,
         Delivering,
         DeliveryComplete,
@@ -464,6 +465,20 @@ namespace DuneVector
                 return false;
             }
             AcceptContract(_offers[offerIndex]);
+            return true;
+        }
+
+        public bool StartFreeRoam()
+        {
+            if (State != CourierRunState.Hub)
+            {
+                return false;
+            }
+
+            ActiveContract = null;
+            CleanupContractObjects();
+            _landmarks?.ClearContractLandmarks();
+            BeginTeleport(toHub: false);
             return true;
         }
 
@@ -1744,14 +1759,17 @@ namespace DuneVector
             }
             else
             {
-                State = CourierRunState.FindPackage;
+                bool isFreeRoam = ActiveContract == null;
+                State = isFreeRoam ? CourierRunState.FreeRoam : CourierRunState.FindPackage;
                 int risk = ActiveContract != null ? ActiveContract.Difficulty : 1;
                 DuneVectorContractRisk.Configure(_settings, risk);
                 _sandAmbusherSystem?.BeginContract(risk, ActiveContract != null ? ActiveContract.Seed : 0);
                 SetCombatSystemsActive(true);
                 _playerInput.SetInputEnabled(true);
                 ShowStatus(
-                    risk >= Mathf.Max(1, _settings.SandAmbusherMinimumRisk)
+                    isFreeRoam
+                        ? "FREE ROAM DEPLOYED"
+                        : risk >= Mathf.Max(1, _settings.SandAmbusherMinimumRisk)
                         ? $"RISK {risk} // SAND AMBUSHERS ACTIVE"
                         : "CONTRACT DEPLOYED — LOCATE CARGO",
                     3f);
@@ -2165,6 +2183,7 @@ namespace DuneVector
                 }
             }
             CourierContract selectedOffer = null;
+            bool startFreeRoam = false;
             for (int i = 0; i < _offers.Count; i++)
             {
                 int column = i % columns;
@@ -2180,10 +2199,36 @@ namespace DuneVector
             DrawSolidRect(
                 new Rect(panel.x + padding, panel.yMax - _hubSettings.TerminalFooterHeight, contentWidth, 1f),
                 _hubSettings.TerminalDividerColor);
+            Rect freeRoamButton = new Rect(
+                panel.center.x - (_hubSettings.TerminalFreeRoamButtonWidth * 0.5f),
+                panel.yMax - _hubSettings.TerminalFreeRoamButtonBottomOffset - _hubSettings.TerminalFreeRoamButtonHeight,
+                _hubSettings.TerminalFreeRoamButtonWidth,
+                _hubSettings.TerminalFreeRoamButtonHeight);
+            startFreeRoam = GUI.Button(
+                freeRoamButton,
+                _hubSettings.TerminalFreeRoamButtonLabel,
+                _terminalButtonStyle);
+            float footerSideGap = _hubSettings.ContractCardGap;
+            float footerSideWidth = Mathf.Max(
+                0f,
+                (contentWidth - _hubSettings.TerminalFreeRoamButtonWidth - (footerSideGap * 2f)) * 0.5f);
             GUI.Label(
-                new Rect(panel.x + padding, panel.yMax - _hubSettings.TerminalFooterHeight + 7f, contentWidth, 22f),
-                "SELECT A CONTRACT TO DEPLOY  /  CONTRACTS REFRESH AUTOMATICALLY",
-                _terminalSubtitleStyle);
+                new Rect(
+                    panel.x + padding,
+                    panel.yMax - _hubSettings.TerminalFooterHeight + 7f,
+                    footerSideWidth,
+                    22f),
+                "SELECT A CONTRACT TO DEPLOY",
+                _terminalMetaStyle);
+            _terminalActionStyle.normal.textColor = _hubSettings.TerminalAccentColor;
+            GUI.Label(
+                new Rect(
+                    freeRoamButton.xMax + footerSideGap,
+                    panel.yMax - _hubSettings.TerminalFooterHeight + 7f,
+                    footerSideWidth,
+                    22f),
+                "CONTRACTS REFRESH AUTOMATICALLY",
+                _terminalActionStyle);
             DrawContractTypeTooltip(panel, virtualWidth, virtualHeight, scale);
 
             GUI.matrix = previousMatrix;
@@ -2191,6 +2236,10 @@ namespace DuneVector
             if (selectedOffer != null)
             {
                 AcceptContract(selectedOffer);
+            }
+            else if (startFreeRoam)
+            {
+                StartFreeRoam();
             }
         }
 

@@ -713,6 +713,10 @@ namespace DuneVector
         [Min(9)] public int TerminalMetaFontSize = 12;
         [Min(0f)] public float TerminalHeaderHeight = 122f;
         [Min(0f)] public float TerminalFooterHeight = 38f;
+        public string TerminalFreeRoamButtonLabel = "FREE ROAM";
+        [Min(80f)] public float TerminalFreeRoamButtonWidth = 180f;
+        [Min(20f)] public float TerminalFreeRoamButtonHeight = 28f;
+        [Min(0f)] public float TerminalFreeRoamButtonBottomOffset = 5f;
         [Min(0f)] public float TerminalAccentBarHeight = 4f;
         [Min(0f)] public float TerminalCardAccentWidth = 5f;
         [Min(0f)] public float TerminalContractOrderPipSize = 5f;
