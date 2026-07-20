@@ -35,6 +35,9 @@ namespace DuneVector
     {
         private EventInstance _instance;
         private bool _playing;
+        private bool _restartFailureLogged;
+        private EventReference _eventReference;
+        private UnityEngine.Object _context;
 
         public void Start(EventReference eventReference, UnityEngine.Object context)
         {
@@ -47,7 +50,20 @@ namespace DuneVector
             try
             {
                 _instance = RuntimeManager.CreateInstance(eventReference);
-                _instance.start();
+                FMOD.RESULT startResult = _instance.start();
+                if (startResult != FMOD.RESULT.OK)
+                {
+                    Debug.LogWarning(
+                        $"FMOD delivery typing loop '{eventReference}' could not start. {startResult}",
+                        context);
+                    _instance.release();
+                    _instance.clearHandle();
+                    return;
+                }
+
+                _eventReference = eventReference;
+                _context = context;
+                _restartFailureLogged = false;
                 _playing = true;
             }
             catch (Exception exception)
@@ -57,11 +73,41 @@ namespace DuneVector
             }
         }
 
+        public void Tick()
+        {
+            if (!_playing || !_instance.isValid())
+            {
+                return;
+            }
+
+            FMOD.RESULT stateResult = _instance.getPlaybackState(out PLAYBACK_STATE playbackState);
+            if (stateResult != FMOD.RESULT.OK || playbackState != PLAYBACK_STATE.STOPPED)
+            {
+                return;
+            }
+
+            if (_restartFailureLogged)
+            {
+                return;
+            }
+
+            FMOD.RESULT restartResult = _instance.start();
+            if (restartResult == FMOD.RESULT.OK)
+            {
+                return;
+            }
+
+            _restartFailureLogged = true;
+            Debug.LogWarning(
+                $"FMOD delivery typing loop '{_eventReference}' could not restart. {restartResult}",
+                _context);
+        }
+
         public void Stop()
         {
             if (!_instance.isValid())
             {
-                _playing = false;
+                ClearState();
                 return;
             }
 
@@ -71,7 +117,15 @@ namespace DuneVector
             }
             _instance.release();
             _instance.clearHandle();
+            ClearState();
+        }
+
+        private void ClearState()
+        {
             _playing = false;
+            _eventReference = default;
+            _context = null;
+            _restartFailureLogged = false;
         }
 
         public void Dispose()
@@ -207,6 +261,11 @@ namespace DuneVector
             if (!IsOpen)
             {
                 return;
+            }
+
+            if (IsTyping)
+            {
+                _typingAudio.Tick();
             }
 
             UpdatePageTransition();
