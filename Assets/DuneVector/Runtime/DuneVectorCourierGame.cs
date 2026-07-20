@@ -1979,7 +1979,7 @@ namespace DuneVector
                 archiveFont,
                 _messageSettings.ArchiveEntryFontSize,
                 FontStyle.Normal,
-                TextAnchor.MiddleLeft,
+                TextAnchor.UpperCenter,
                 _messageSettings.NarrativeTextColor);
             _archiveMetaStyle = MessageArchiveStyle(
                 archiveFont,
@@ -2307,18 +2307,29 @@ namespace DuneVector
             }
             else
             {
-                float rowHeight = _messageSettings.ArchiveRowHeight;
-                float rowGap = _messageSettings.ArchiveRowGap;
+                int columns = Mathf.Min(Mathf.Max(1, _messageSettings.ArchiveGridColumns), archivedCount);
+                int rowCount = Mathf.CeilToInt(archivedCount / (float)columns);
+                float tileHeight = _messageSettings.ArchiveTileHeight;
+                float tileGap = _messageSettings.ArchiveTileGap;
                 float contentHeight = Mathf.Max(
                     listViewport.height,
-                    (archivedCount * rowHeight) + (Mathf.Max(0, archivedCount - 1) * rowGap));
-                Rect scrollContent = new Rect(0f, 0f, listViewport.width, contentHeight);
+                    (rowCount * tileHeight) + (Mathf.Max(0, rowCount - 1) * tileGap));
+                bool needsVerticalScrollbar = contentHeight > listViewport.height;
+                float gridWidth = Mathf.Max(
+                    1f,
+                    listViewport.width -
+                    _messageSettings.ArchiveContentRightPadding -
+                    (needsVerticalScrollbar ? _messageSettings.ArchiveScrollbarReserve : 0f));
+                float tileWidth = Mathf.Max(
+                    1f,
+                    (gridWidth - (Mathf.Max(0, columns - 1) * tileGap)) / columns);
+                Rect scrollContent = new Rect(0f, 0f, gridWidth, contentHeight);
                 _archiveScrollPosition = GUI.BeginScrollView(
                     listViewport,
                     _archiveScrollPosition,
                     scrollContent,
                     false,
-                    contentHeight > listViewport.height);
+                    needsVerticalScrollbar);
                 Vector2 mousePosition = (Event.current.mousePosition / Mathf.Max(0.01f, scale)) - listViewport.position + _archiveScrollPosition;
                 int displayedIndex = 0;
                 int completedExclusive = Mathf.Max(0, Progress.NextDeliveryMessageIndex);
@@ -2331,32 +2342,36 @@ namespace DuneVector
                         continue;
                     }
 
-                    Rect row = new Rect(
-                        0f,
-                        displayedIndex * (rowHeight + rowGap),
-                        listViewport.width,
-                        rowHeight);
-                    bool hovered = row.Contains(mousePosition);
-                    DrawSolidRect(row, hovered ? _messageSettings.ArchiveRowHoverColor : _messageSettings.ArchiveRowColor);
+                    int column = displayedIndex % columns;
+                    int row = displayedIndex / columns;
+                    Rect tile = new Rect(
+                        column * (tileWidth + tileGap),
+                        row * (tileHeight + tileGap),
+                        tileWidth,
+                        tileHeight);
+                    bool hovered = tile.Contains(mousePosition);
                     DrawSolidRect(
-                        new Rect(row.x, row.y, _messageSettings.ArchiveRowAccentWidth, row.height),
-                        _messageSettings.SignalColor);
-                    float horizontalPadding = _messageSettings.ArchiveRowHorizontalPadding;
-                    float textLeft = row.x + _messageSettings.ArchiveRowAccentWidth + horizontalPadding;
-                    float textWidth = Mathf.Max(1f, row.width - _messageSettings.ArchiveRowAccentWidth - (horizontalPadding * 2f));
+                        tile,
+                        hovered ? _messageSettings.ArchiveTileHoverColor : _messageSettings.ArchiveTileColor);
+                    float iconSize = Mathf.Min(
+                        _messageSettings.ArchiveIconSize,
+                        Mathf.Min(tile.width, tile.height));
+                    Rect icon = new Rect(
+                        tile.x + ((tile.width - iconSize) * 0.5f),
+                        tile.y + _messageSettings.ArchiveIconTopPadding,
+                        iconSize,
+                        iconSize);
+                    DrawArchiveTransmissionIcon(icon);
                     string entryLabel = FormatArchiveEntryLabel(sequenceIndex + 1);
                     GUI.Label(
-                        new Rect(textLeft, row.y, textWidth, row.height),
+                        new Rect(
+                            tile.x,
+                            icon.yMax + _messageSettings.ArchiveLabelTopGap,
+                            tile.width,
+                            _messageSettings.ArchiveLabelHeight),
                         entryLabel,
                         _archiveEntryStyle);
-                    string messageId = string.IsNullOrWhiteSpace(message.MessageId)
-                        ? _messageSettings.ArchiveMessageIdFallback
-                        : message.MessageId;
-                    GUI.Label(
-                        new Rect(textLeft, row.y, textWidth, row.height),
-                        FormatDesignerText(_messageSettings.ArchiveMetaFormat, _messageSettings.ArchiveEntryStatus, messageId),
-                        _archiveMetaStyle);
-                    if (GUI.Button(row, GUIContent.none, GUIStyle.none))
+                    if (GUI.Button(tile, GUIContent.none, GUIStyle.none))
                     {
                         OpenArchivedMessage(message);
                     }
@@ -2374,6 +2389,37 @@ namespace DuneVector
                 _messageSettings.ArchiveFooter ?? string.Empty,
                 _archiveEmptyStyle);
             GUI.matrix = previousMatrix;
+        }
+
+        private void DrawArchiveTransmissionIcon(Rect icon)
+        {
+            DrawSolidRect(icon, _messageSettings.ArchiveIconColor);
+            DrawBorder(
+                icon,
+                _messageSettings.ArchiveIconDetailColor,
+                _messageSettings.ArchiveIconBorderThickness);
+            float inset = Mathf.Min(_messageSettings.ArchiveIconInset, icon.width * 0.5f);
+            float detailWidth = Mathf.Max(0f, icon.width - (inset * 2f));
+            float headerY = icon.y + inset;
+            DrawSolidRect(
+                new Rect(icon.x + inset, headerY, detailWidth, _messageSettings.ArchiveIconHeaderHeight),
+                _messageSettings.ArchiveIconDetailColor);
+            float lineY = headerY + _messageSettings.ArchiveIconHeaderHeight + _messageSettings.ArchiveIconLineGap;
+            for (int line = 0; line < _messageSettings.ArchiveIconLineCount; line++)
+            {
+                if (lineY + _messageSettings.ArchiveIconLineThickness > icon.yMax - inset)
+                {
+                    break;
+                }
+                DrawSolidRect(
+                    new Rect(
+                        icon.x + inset,
+                        lineY,
+                        detailWidth,
+                        _messageSettings.ArchiveIconLineThickness),
+                    _messageSettings.ArchiveIconDetailColor);
+                lineY += _messageSettings.ArchiveIconLineThickness + _messageSettings.ArchiveIconLineGap;
+            }
         }
 
         private int GetArchivedMessageCount()

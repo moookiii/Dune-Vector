@@ -152,22 +152,35 @@ namespace DuneVector
         public string ArchiveMessageIdFallback = "UNIDENTIFIED SIGNAL";
         public string ArchiveMetaFormat = "{0}  /  {1}";
         public string ArchiveReplayHint = "ESC  RETURN TO ARCHIVE";
-        [Min(320f)] public float ArchivePanelWidth = 900f;
-        [Min(240f)] public float ArchivePanelHeight = 620f;
+        [Min(320f)] public float ArchivePanelWidth = 1350f;
+        [Min(240f)] public float ArchivePanelHeight = 930f;
         [Min(0f)] public float ArchivePanelVerticalOffset = 0f;
         [Min(0f)] public float ArchivePadding = 36f;
         [Min(0f)] public float ArchiveHeaderHeight = 104f;
         [Min(0f)] public float ArchiveFooterHeight = 46f;
-        [Min(24f)] public float ArchiveRowHeight = 54f;
-        [Min(0f)] public float ArchiveRowGap = 8f;
-        [Min(0f)] public float ArchiveRowAccentWidth = 3f;
-        [Min(0f)] public float ArchiveRowHorizontalPadding = 18f;
+        [Range(1, 8)] public int ArchiveGridColumns = 5;
+        [Min(80f)] public float ArchiveTileHeight = 190f;
+        [Min(0f)] public float ArchiveTileGap = 24f;
+        [Min(0f)] public float ArchiveContentRightPadding = 24f;
+        [Min(0f)] public float ArchiveScrollbarReserve = 26f;
+        [Min(24f)] public float ArchiveIconSize = 112f;
+        [Min(0f)] public float ArchiveIconTopPadding = 16f;
+        [Min(0f)] public float ArchiveIconBorderThickness = 2f;
+        [Min(0f)] public float ArchiveIconInset = 18f;
+        [Min(0f)] public float ArchiveIconHeaderHeight = 9f;
+        [Range(1, 8)] public int ArchiveIconLineCount = 3;
+        [Min(0.5f)] public float ArchiveIconLineThickness = 2f;
+        [Min(0f)] public float ArchiveIconLineGap = 10f;
+        [Min(0f)] public float ArchiveLabelTopGap = 10f;
+        [Min(16f)] public float ArchiveLabelHeight = 42f;
         [Min(8)] public int ArchiveTitleFontSize = 28;
-        [Min(8)] public int ArchiveEntryFontSize = 15;
+        [Min(8)] public int ArchiveEntryFontSize = 16;
         [Min(8)] public int ArchiveMetaFontSize = 10;
         [Min(8)] public int ArchiveEmptyFontSize = 15;
-        [ColorUsage(false)] public Color ArchiveRowColor = new Color(0.035f, 0.055f, 0.062f, 0.42f);
-        [ColorUsage(false)] public Color ArchiveRowHoverColor = new Color(0.09f, 0.15f, 0.16f, 0.72f);
+        [ColorUsage(false)] public Color ArchiveTileColor = new Color(0.035f, 0.055f, 0.062f, 0.22f);
+        [ColorUsage(false)] public Color ArchiveTileHoverColor = new Color(0.09f, 0.15f, 0.16f, 0.58f);
+        [ColorUsage(false)] public Color ArchiveIconColor = new Color(0.025f, 0.055f, 0.06f, 0.92f);
+        [ColorUsage(false)] public Color ArchiveIconDetailColor = new Color(0.45f, 0.76f, 0.76f, 0.62f);
 
         [Header("FMOD")]
         [Tooltip("Looping FMOD event used only while characters are actively appearing.")]
