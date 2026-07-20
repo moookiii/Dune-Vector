@@ -639,7 +639,10 @@ namespace DuneVector
         {
             System.Random random = new System.Random(seed);
             float overallScale = Mathf.Max(0.01f, _settings.SandAmbusherFractureOverallScale);
-            Vector2 direction = RandomDirection(random);
+            Vector2 direction = RandomDirectionInCone(
+                random,
+                _settings.SandAmbusherFractureRotation,
+                _settings.SandAmbusherFractureAllowedRotation);
             _fractureDirection = direction;
             Vector2 perpendicular = new Vector2(-direction.y, direction.x);
             List<Vector2> mainPath = BuildPath(
@@ -864,9 +867,17 @@ namespace DuneVector
             _disturbedRenderer.SetPropertyBlock(_disturbedProperties);
         }
 
-        private static Vector2 RandomDirection(System.Random random)
+        private static Vector2 RandomDirectionInCone(
+            System.Random random,
+            float centerAngleDegrees,
+            float allowedAngleDegrees)
         {
-            float angle = (float)random.NextDouble() * Mathf.PI * 2f;
+            float halfAngle = Mathf.Clamp(allowedAngleDegrees, 0f, 360f) * 0.5f;
+            float angle = centerAngleDegrees + Mathf.Lerp(
+                -halfAngle,
+                halfAngle,
+                (float)random.NextDouble());
+            angle *= Mathf.Deg2Rad;
             return new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
         }
 
