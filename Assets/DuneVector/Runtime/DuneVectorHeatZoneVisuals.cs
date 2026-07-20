@@ -502,45 +502,12 @@ namespace DuneVector
 
         private Material CreateHeatPlumeMaterial()
         {
-            Shader shader = Shader.Find("DuneVector/HDRP Heat Plume Distortion");
-            Material material = new Material(shader) { name = "Masked Heat Plume Refraction" };
-            material.SetTexture("_NoiseTex", _distortionTexture);
-            material.SetFloat("_DistortionStrength", _settings.HeatPlumeDistortionStrength);
-            material.SetFloat("_DistortionBlur", _settings.HeatPlumeDistortionBlur);
-            material.SetVector("_PrimaryTiling", _settings.HeatPlumePrimaryTiling);
-            material.SetVector("_SecondaryTiling", _settings.HeatPlumeSecondaryTiling);
-            material.SetVector("_PrimaryVelocity", _settings.HeatPlumePrimaryVelocity);
-            material.SetVector("_SecondaryVelocity", _settings.HeatPlumeSecondaryVelocity);
-            material.SetFloat("_SecondaryStrength", _settings.HeatPlumeSecondaryStrength);
-            material.SetFloat("_HorizontalTurbulence", _settings.HeatPlumeHorizontalTurbulence);
-            material.SetFloat("_CoreWidth", _settings.HeatPlumeCoreWidth);
-            material.SetFloat("_TopWidth", _settings.HeatPlumeTopWidth);
-            material.SetFloat("_WidthVariation", _settings.HeatPlumeWidthVariation);
-            material.SetFloat("_WidthFrequency", _settings.HeatPlumeWidthFrequency);
-            material.SetFloat("_SideFeather", _settings.HeatPlumeSideFeather);
-            material.SetFloat("_BottomFeather", _settings.HeatPlumeBottomFeather);
-            material.SetFloat("_TopFeather", _settings.HeatPlumeTopFeather);
-            material.SetFloat("_VerticalDissipationStart", _settings.HeatPlumeVerticalDissipationStart);
-            material.SetFloat("_VerticalDissipationPower", _settings.HeatPlumeVerticalDissipationPower);
-            material.SetFloat("_Lean", _settings.HeatPlumeMaximumLean);
-            material.SetFloat("_MinimumSpeedMultiplier", _settings.HeatPlumeMinimumAnimationSpeedMultiplier);
-            material.SetFloat("_MaximumSpeedMultiplier", _settings.HeatPlumeMaximumAnimationSpeedMultiplier);
-            material.SetFloat("_MinimumStrengthMultiplier", _settings.HeatPlumeMinimumStrengthMultiplier);
-            material.SetFloat("_MaximumStrengthMultiplier", _settings.HeatPlumeMaximumStrengthMultiplier);
-            material.SetFloat("_PhaseRange", _settings.HeatPlumePhaseRange);
-            material.SetFloat("_PrimaryPhaseOffset", _settings.HeatPlumePrimaryPhaseOffset);
-            material.SetFloat("_SecondaryPhaseOffset", _settings.HeatPlumeSecondaryPhaseOffset);
-            material.SetFloat("_CardEdgeFeather", _settings.HeatPlumeCardEdgeFeather);
-            material.SetFloat("_EdgeNoiseBase", _settings.HeatPlumeEdgeNoiseBase);
-            material.SetFloat("_PrimaryEdgeNoise", _settings.HeatPlumePrimaryEdgeNoise);
-            material.SetFloat("_SecondaryEdgeNoise", _settings.HeatPlumeSecondaryEdgeNoise);
-            material.SetFloat("_FadeProfileVariation", _settings.HeatPlumeFadeProfileVariation);
-            material.SetFloat("_DistanceFadeStart", _settings.HeatPlumeDistanceFadeStart);
-            material.SetFloat("_DistanceFadeEnd", _settings.HeatPlumeDistanceFadeEnd);
-            material.SetFloat("_DetailFadeStart", _settings.HeatPlumeDetailFadeStart);
-            material.SetFloat("_DetailFadeEnd", _settings.HeatPlumeDetailFadeEnd);
-            material.SetFloat("_DepthFadeDistance", _settings.HeatPlumeDepthFadeDistance);
-            material.SetFloat("_MaskClipThreshold", _settings.HeatPlumeMaskClipThreshold);
+            Material material = CreateDistortionMaterial(
+                "Masked Heat Plume Refraction",
+                true,
+                Color.clear,
+                _settings.HeatPlumeDistortionStrength);
+            material.SetFloat("_DistortionBlurScale", _settings.HeatPlumeDistortionBlur);
             return material;
         }
 
