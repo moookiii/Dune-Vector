@@ -413,7 +413,10 @@ namespace DuneVector
             Drone.Motor = motor;
             PlayerTuning.ApplyTo(Drone);
             DroneHealth = droneObject.AddComponent<DroneHealth>();
-            DroneHealth.Initialize(HealthSettings.MaximumHealth, HealthSettings.DamageInvulnerability);
+            DroneHealth.Initialize(
+                HealthSettings.MaximumHealth,
+                HealthSettings.DamageInvulnerability,
+                HealthSettings.DebugInfiniteHealth);
             Transform visualRoot = DuneVectorVisuals.CreateDroneVisual(
                 droneObject.transform,
                 _materials,
@@ -666,6 +669,7 @@ namespace DuneVector
             DebugHUD.Drone = Drone;
             DebugHUD.CameraController = DroneCamera;
             DebugHUD.World = World;
+            DebugHUD.Health = DroneHealth;
 
             DroneHealthHUD healthHUD = gameObject.AddComponent<DroneHealthHUD>();
             healthHUD.Health = DroneHealth;
@@ -861,6 +865,7 @@ namespace DuneVector
         public DroneCharacterController Drone;
         public DroneCameraController CameraController;
         public DesertWorldStreamer World;
+        public DroneHealth Health;
         public bool ShowDebugInformation;
 
         private GUIStyle _titleStyle;
@@ -974,8 +979,19 @@ namespace DuneVector
                 return;
             }
 
-            Rect debugPanel = new Rect(20f, 145f, 390f, 236f);
+            Rect debugPanel = new Rect(20f, 145f, 390f, 270f);
             GUI.Box(debugPanel, GUIContent.none);
+            if (Health != null)
+            {
+                bool infiniteHealth = GUI.Toggle(
+                    new Rect(debugPanel.x + 12f, debugPanel.y + 8f, debugPanel.width - 24f, 22f),
+                    Health.HasInfiniteHealth,
+                    "Infinite Health");
+                if (infiniteHealth != Health.HasInfiniteHealth)
+                {
+                    Health.SetInfiniteHealth(infiniteHealth);
+                }
+            }
             LogicalPosition logical = World.LogicalPlayerPosition;
             string telemetry =
                 $"DRONE\n" +
@@ -991,7 +1007,7 @@ namespace DuneVector
                 $"Chunk: {World.CurrentLogicalChunk}   Active: {World.ActiveChunkCount}\n" +
                 $"Generated: {World.GeneratedChunkCount}   Unloaded: {World.UnloadedChunkCount}\n" +
                 $"Origin: ({World.OriginOffsetX:0}, {World.OriginOffsetZ:0})   Rebases: {World.RebaseCount}";
-            GUI.Label(new Rect(debugPanel.x + 12f, debugPanel.y + 8f, debugPanel.width - 24f, debugPanel.height - 16f), telemetry, _bodyStyle);
+            GUI.Label(new Rect(debugPanel.x + 12f, debugPanel.y + 36f, debugPanel.width - 24f, debugPanel.height - 44f), telemetry, _bodyStyle);
         }
     }
 }

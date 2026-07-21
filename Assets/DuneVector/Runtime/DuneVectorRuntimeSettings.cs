@@ -1179,6 +1179,11 @@ namespace DuneVector
     [System.Serializable]
     public sealed class PlayerHealthTuning
     {
+        [Header("Debug")]
+        [Tooltip("Starts the player with infinite health. This can also be changed at runtime from the F1 telemetry panel.")]
+        public bool DebugInfiniteHealth;
+
+        [Header("Health")]
         [Min(1f)] public float MaximumHealth = 100f;
         [Min(0f)] public float DamageInvulnerability = 0.45f;
     }

@@ -12,6 +12,7 @@ namespace DuneVector
         public float NormalizedHealth => MaximumHealth > 0f ? Mathf.Clamp01(CurrentHealth / MaximumHealth) : 0f;
         public bool IsDead { get; private set; }
         public bool IsDamageImmune { get; private set; }
+        public bool HasInfiniteHealth { get; private set; }
         public string LastDamageSource { get; private set; } = "Unknown damage source";
         public string LastDeathMessage { get; private set; } = "Destroyed by an unknown damage source.";
 
@@ -23,13 +24,14 @@ namespace DuneVector
         private float _damageInvulnerability;
         private float _nextDamageTime;
 
-        public void Initialize(float maximumHealth, float damageInvulnerability)
+        public void Initialize(float maximumHealth, float damageInvulnerability, bool infiniteHealth = false)
         {
             MaximumHealth = Mathf.Max(1f, maximumHealth);
             CurrentHealth = MaximumHealth;
             _damageInvulnerability = Mathf.Max(0f, damageInvulnerability);
             IsDead = false;
             IsDamageImmune = false;
+            HasInfiniteHealth = infiniteHealth;
             LastDamageSource = "Unknown damage source";
             LastDeathMessage = "Destroyed by an unknown damage source.";
         }
@@ -63,7 +65,7 @@ namespace DuneVector
 
         public bool TakeDamage(float damage, string damageSource, string deathMessage)
         {
-            if (IsDead || IsDamageImmune || damage <= 0f || Time.time < _nextDamageTime)
+            if (IsDead || IsDamageImmune || HasInfiniteHealth || damage <= 0f || Time.time < _nextDamageTime)
             {
                 return false;
             }
@@ -89,6 +91,11 @@ namespace DuneVector
         public void SetDamageImmune(bool immune)
         {
             IsDamageImmune = immune;
+        }
+
+        public void SetInfiniteHealth(bool enabled)
+        {
+            HasInfiniteHealth = enabled;
         }
 
         public bool RestoreHealth(float amount)
