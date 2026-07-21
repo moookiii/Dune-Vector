@@ -2024,7 +2024,8 @@ namespace DuneVector
     {
         [Header("Density & Coverage")]
         [Range(0f, 1f)] public float AmbientDustDensity = 0.18f;
-        [Range(0f, 1f)] public float AmbientAirborneSandDensity = 0.75f;
+        [Range(0f, 1f)] public float AmbientAirborneSandDensity = 1f;
+        [Range(0f, 1f)] public float AmbientAirborneSandProximityDensityMultiplier = 0.65f;
         [Range(0f, 1.5f)] public float StormDustDensity = 0.95f;
         [Min(10f)] public float FieldRadius = 80f;
         [Min(1f)] public float GroundLayerHeight = 6f;
@@ -2041,6 +2042,8 @@ namespace DuneVector
         [Min(0f)] public float SandStreakLength = 3.8f;
         [Min(0f)] public float ParticleVelocityStretch = 0.06f;
         [Min(0f)] public float CameraVelocityStretch = 0.12f;
+        [Min(0f)] public float AmbientAirborneSandSizeMultiplier = 2.5f;
+        [Min(0f)] public float AmbientAirborneSandOpacityMultiplier = 1.8f;
         [ColorUsage(false)] public Color AmbientDustColor = new Color(0.9f, 0.61f, 0.3f, 0.26f);
         [ColorUsage(false)] public Color StormDustColor = new Color(0.88f, 0.47f, 0.16f, 0.58f);
 

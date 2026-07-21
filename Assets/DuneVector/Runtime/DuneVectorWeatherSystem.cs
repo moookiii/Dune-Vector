@@ -470,21 +470,45 @@ namespace DuneVector
 
             float ambientDensity = Mathf.Clamp01(_settings.AmbientDustDensity);
             float ambientAirborneDensity = Mathf.Clamp01(_settings.AmbientAirborneSandDensity);
+            float clearWeatherBlend = 1f - snapshot.StormIntensity;
             float stormDensity = Mathf.Max(0f, _settings.StormDustDensity) * snapshot.StormIntensity;
             float groundDensity = Mathf.Lerp(ambientDensity, _settings.StormDustDensity, snapshot.StormIntensity);
-            float airborneDensity = (ambientAirborneDensity * (1f - snapshot.StormIntensity))
+            float airborneDensity = (ambientAirborneDensity * clearWeatherBlend)
                 + (stormDensity * Mathf.SmoothStep(0f, 1f, snapshot.StormIntensity));
-            float closeDensity = stormDensity * Mathf.Pow(snapshot.StormIntensity, 1.35f);
+            float closeDensity = (ambientAirborneDensity
+                    * Mathf.Clamp01(_settings.AmbientAirborneSandProximityDensityMultiplier)
+                    * clearWeatherBlend)
+                + (stormDensity * Mathf.Pow(snapshot.StormIntensity, 1.35f));
             float frontDensity = EvaluateFrontDensity(snapshot) * Mathf.Max(0f, _settings.StormDustDensity);
+            float ambientSizeMultiplier = Mathf.Lerp(
+                1f,
+                Mathf.Max(0f, _settings.AmbientAirborneSandSizeMultiplier),
+                clearWeatherBlend);
+            float ambientOpacityMultiplier = Mathf.Lerp(
+                1f,
+                Mathf.Max(0f, _settings.AmbientAirborneSandOpacityMultiplier),
+                clearWeatherBlend);
 
             Color dustColor = Color.Lerp(
                 _settings.AmbientDustColor,
                 _settings.StormDustColor,
                 snapshot.StormIntensity);
             EmitGroundDust(groundDensity, dustColor, deltaTime);
-            SetAutomaticLayer(_airborneSand, airborneDensity, _settings.AirborneEmissionRate, dustColor);
+            SetAutomaticLayer(
+                _airborneSand,
+                airborneDensity,
+                _settings.AirborneEmissionRate,
+                dustColor,
+                ambientSizeMultiplier,
+                ambientOpacityMultiplier);
             SetAutomaticLayer(_approachingFront, frontDensity, _settings.ApproachingFrontEmissionRate, dustColor);
-            SetAutomaticLayer(_closeSand, closeDensity, _settings.CloseEmissionRate, dustColor);
+            SetAutomaticLayer(
+                _closeSand,
+                closeDensity,
+                _settings.CloseEmissionRate,
+                dustColor,
+                ambientSizeMultiplier,
+                ambientOpacityMultiplier);
         }
 
         private float EvaluateFrontDensity(DesertWeatherSnapshot snapshot)
@@ -540,15 +564,21 @@ namespace DuneVector
             ParticleSystem system,
             float density,
             float maximumRate,
-            Color color)
+            Color color,
+            float sizeMultiplier = 1f,
+            float opacityMultiplier = 1f)
         {
             float safeDensity = Mathf.Max(0f, density);
             ParticleSystem.EmissionModule emission = system.emission;
             emission.rateOverTime = Mathf.Max(0f, maximumRate) * safeDensity;
             ParticleSystem.MainModule main = system.main;
             Color particleColor = color;
-            particleColor.a *= Mathf.Clamp01(0.25f + safeDensity);
+            particleColor.a *= Mathf.Clamp01(0.25f + safeDensity) * Mathf.Max(0f, opacityMultiplier);
             main.startColor = particleColor;
+            float safeSizeMultiplier = Mathf.Max(0f, sizeMultiplier);
+            main.startSize = new ParticleSystem.MinMaxCurve(
+                Mathf.Max(0.01f, _settings.MinimumParticleSize) * safeSizeMultiplier,
+                Mathf.Max(_settings.MinimumParticleSize, _settings.MaximumParticleSize) * safeSizeMultiplier);
         }
 
         private void SetLayerVelocity(ParticleSystem system, Vector3 velocity, float stormIntensity)
