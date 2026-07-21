@@ -1418,21 +1418,43 @@ namespace DuneVector
             float ringThickness,
             float heightOffset)
         {
-            GameObject impactWave = CreateMeshObject(
-                "Ground Impact Wave",
-                marker,
+            GameObject impactWaveObject = new GameObject("Ground Impact Wave");
+            Transform impactWave = impactWaveObject.transform;
+            impactWave.SetParent(marker, false);
+            impactWave.localPosition = Vector3.up * Mathf.Max(0f, heightOffset);
+
+            float safeRadius = Mathf.Max(0.01f, radius);
+            float safeThickness = Mathf.Min(
+                Mathf.Max(0.005f, ringThickness),
+                safeRadius * 0.5f);
+            GameObject expandingRim = CreateMeshObject(
+                "Expanding Impact Rim",
+                impactWave,
                 GetTorusMesh(
-                    Mathf.Max(0.2f, radius),
-                    Mathf.Max(0.005f, ringThickness),
+                    safeRadius - safeThickness,
+                    safeThickness,
                     48,
                     6),
                 materials.Lightning);
-            impactWave.transform.localPosition = Vector3.up * Mathf.Max(0f, heightOffset);
-            impactWave.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            impactWave.transform.localScale = Vector3.zero;
-            DisableRendererShadows(impactWave);
-            impactWave.SetActive(false);
-            return impactWave.transform;
+            expandingRim.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            DisableRendererShadows(expandingRim);
+
+            Transform groundFlash = CreatePart(
+                PrimitiveType.Cylinder,
+                "Expanding Ground Flash",
+                impactWave,
+                Vector3.zero,
+                new Vector3(
+                    safeRadius * 2f,
+                    Mathf.Max(0.002f, safeThickness * 0.08f),
+                    safeRadius * 2f),
+                Quaternion.identity,
+                materials.Lightning);
+            DisableRendererShadows(groundFlash.gameObject);
+
+            impactWave.localScale = Vector3.zero;
+            impactWaveObject.SetActive(false);
+            return impactWave;
         }
 
         public static Transform CreateGroundExploderVisual(Transform parent, DuneVectorMaterials materials, float scale)
