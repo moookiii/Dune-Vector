@@ -469,9 +469,11 @@ namespace DuneVector
             SetLayerVelocity(_closeSand, relativeWind * _settings.CloseWindResponse, snapshot.StormIntensity);
 
             float ambientDensity = Mathf.Clamp01(_settings.AmbientDustDensity);
+            float ambientAirborneDensity = Mathf.Clamp01(_settings.AmbientAirborneSandDensity);
             float stormDensity = Mathf.Max(0f, _settings.StormDustDensity) * snapshot.StormIntensity;
             float groundDensity = Mathf.Lerp(ambientDensity, _settings.StormDustDensity, snapshot.StormIntensity);
-            float airborneDensity = stormDensity * Mathf.SmoothStep(0f, 1f, snapshot.StormIntensity);
+            float airborneDensity = (ambientAirborneDensity * (1f - snapshot.StormIntensity))
+                + (stormDensity * Mathf.SmoothStep(0f, 1f, snapshot.StormIntensity));
             float closeDensity = stormDensity * Mathf.Pow(snapshot.StormIntensity, 1.35f);
             float frontDensity = EvaluateFrontDensity(snapshot) * Mathf.Max(0f, _settings.StormDustDensity);
 
