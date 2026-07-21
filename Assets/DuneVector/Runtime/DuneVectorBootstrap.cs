@@ -32,6 +32,7 @@ namespace DuneVector
         public RouteEncounterTuning RouteEncounterSettings => RuntimeSettings.RouteEncounters;
         public DynamicCourierTuning DynamicCourierSettings => RuntimeSettings.DynamicCouriers;
         public PyramidTuning Pyramids => RuntimeSettings.Pyramids;
+        public CactusTuning Cacti => RuntimeSettings.Cacti;
         public DesertShrubTuning DesertShrubs => RuntimeSettings.DesertShrubs;
         public WorldStreamingTuning WorldStreaming => RuntimeSettings.WorldStreaming;
         public PlayerHealthTuning HealthSettings => RuntimeSettings.HealthSettings;
@@ -324,6 +325,7 @@ namespace DuneVector
                 Deliveries,
                 Clouds,
                 DynamicCourierSettings,
+                Cacti,
                 DesertShrubs,
                 DroneVisuals,
                 RuntimeSettings.Geoglyphs,
@@ -376,6 +378,7 @@ namespace DuneVector
             World.UnloadRadius = WorldStreaming.UnloadRadius;
             World.ChunksGeneratedPerFrame = WorldStreaming.ChunksGeneratedPerFrame;
             World.FloatingOriginThreshold = WorldStreaming.FloatingOriginThreshold;
+            World.Cacti = Cacti;
             World.PyramidDensity = Pyramids.DensityPerChunk;
             World.PyramidMinimumScale = Pyramids.MinimumScale;
             World.PyramidMaximumScale = Pyramids.MaximumScale;

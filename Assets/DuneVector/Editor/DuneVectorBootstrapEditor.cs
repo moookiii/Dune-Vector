@@ -123,6 +123,7 @@ namespace DuneVector.Editor
         private SerializedProperty _routeEncounters;
         private SerializedProperty _dynamicCouriers;
         private SerializedProperty _pyramids;
+        private SerializedProperty _cacti;
         private SerializedProperty _worldStreaming;
         private SerializedProperty _rendererFrustumCulling;
         private SerializedProperty _health;
@@ -157,6 +158,7 @@ namespace DuneVector.Editor
             _routeEncounters = serializedObject.FindProperty("RouteEncounters");
             _dynamicCouriers = serializedObject.FindProperty("DynamicCouriers");
             _pyramids = serializedObject.FindProperty("Pyramids");
+            _cacti = serializedObject.FindProperty("Cacti");
             _worldStreaming = serializedObject.FindProperty("WorldStreaming");
             _rendererFrustumCulling = serializedObject.FindProperty("RendererFrustumCulling");
             _health = serializedObject.FindProperty("HealthSettings");
@@ -345,6 +347,10 @@ namespace DuneVector.Editor
                 "Pyramids",
                 "Landmark density and randomized size range.",
                 _pyramids);
+            DuneVectorSettingsInspector.DrawSection(
+                "Cacti",
+                "Saguaro density, proportions, ribbing, arm silhouettes, color, and blossoms.",
+                _cacti);
             DuneVectorSettingsInspector.DrawSection(
                 "Authored Landmarks",
                 "Placement tiers, spacing, silhouettes, sockets, and all ten landmark templates.",

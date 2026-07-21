@@ -36,9 +36,9 @@ namespace DuneVector
         [Header("Desert Shrubs")]
         public DesertShrubTuning Shrubs;
         public LandmarkSystemTuning Landmarks;
+        public CactusTuning Cacti;
 
         [Header("Spawning - expected count per chunk")]
-        [Min(0f)] public float CactusDensity = 5.5f;
         [Min(0f)] public float PyramidDensity = 0.22f;
         [Min(0.1f)] public float PyramidMinimumScale = 2f;
         [Min(0.1f)] public float PyramidMaximumScale = 4.4f;
@@ -515,7 +515,7 @@ namespace DuneVector
                 _playerHealth,
                 WorldSeed,
                 _coinRingSeed,
-                CactusDensity,
+                Cacti,
                 PyramidDensity,
                 PyramidMinimumScale,
                 PyramidMaximumScale,
@@ -676,7 +676,7 @@ namespace DuneVector
             DroneHealth playerHealth,
             int worldSeed,
             int coinRingSeed,
-            float cactusDensity,
+            CactusTuning cactusTuning,
             float pyramidDensity,
             float pyramidMinimumScale,
             float pyramidMaximumScale,
@@ -727,7 +727,7 @@ namespace DuneVector
                 playerHealth,
                 worldSeed,
                 coinRingSeed,
-                cactusDensity,
+                cactusTuning,
                 pyramidDensity,
                 pyramidMinimumScale,
                 pyramidMaximumScale,
@@ -1026,7 +1026,7 @@ namespace DuneVector
             DroneHealth playerHealth,
             int worldSeed,
             int coinRingSeed,
-            float cactusDensity,
+            CactusTuning cactusTuning,
             float pyramidDensity,
             float pyramidMinimumScale,
             float pyramidMaximumScale,
@@ -1171,8 +1171,9 @@ namespace DuneVector
                     ringActivated);
             }
 
+            CactusTuning cacti = cactusTuning ?? new CactusTuning();
             float regionNoise = (float)DuneVectorMath.ValueNoise((coordinate.x + 0.5) * 0.42, (coordinate.y + 0.5) * 0.42, worldSeed, 811);
-            int cactusCount = regionNoise < -0.36f ? 0 : CountFromDensity(cactusDensity * Mathf.Lerp(0.35f, 1.25f, (regionNoise + 1f) * 0.5f), coordinate, worldSeed, 821);
+            int cactusCount = regionNoise < -0.36f ? 0 : CountFromDensity(cacti.DensityPerChunk * Mathf.Lerp(0.35f, 1.25f, (regionNoise + 1f) * 0.5f), coordinate, worldSeed, 821);
             Vector2 clusterCenter = new Vector2(
                 DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 823, 8f, chunkSize - 8f),
                 DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 827, 8f, chunkSize - 8f));
@@ -1192,18 +1193,37 @@ namespace DuneVector
                 double logicalX = originX + local.x;
                 double logicalZ = originZ + local.y;
                 Vector3 normal = heightField.SampleNormal(logicalX, logicalZ);
-                if (Vector3.Angle(normal, Vector3.up) > 38f)
+                if (Vector3.Angle(normal, Vector3.up) > cacti.MaximumPlacementSlope)
                 {
                     continue;
                 }
 
-                float height = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 853 + (i * 13), 2.2f, 5.2f);
-                float thickness = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 857 + (i * 13), 0.32f, 0.58f);
+                float minimumHeight = Mathf.Max(0.1f, cacti.MinimumHeight);
+                float maximumHeight = Mathf.Max(minimumHeight, cacti.MaximumHeight);
+                float minimumThickness = Mathf.Max(0.05f, cacti.MinimumThickness);
+                float maximumThickness = Mathf.Max(minimumThickness, cacti.MaximumThickness);
+                float height = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 853 + (i * 13), minimumHeight, maximumHeight);
+                float thickness = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 857 + (i * 13), minimumThickness, maximumThickness);
                 float yaw = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 863 + (i * 13), 0f, 360f);
-                int arms = DuneVectorMath.Hash01(coordinate.x, coordinate.y, worldSeed, 877 + (i * 13)) > 0.45f ? 2 : 1;
-                float y = (float)heightField.SampleHeight(logicalX, logicalZ) - 0.18f;
+                int minimumArms = Mathf.Clamp(cacti.MinimumArmCount, 0, 5);
+                int maximumArms = Mathf.Clamp(Mathf.Max(minimumArms, cacti.MaximumArmCount), minimumArms, 5);
+                int arms = minimumArms + Mathf.FloorToInt(
+                    DuneVectorMath.Hash01(coordinate.x, coordinate.y, worldSeed, 877 + (i * 13))
+                    * ((maximumArms - minimumArms) + 1));
+                arms = Mathf.Min(maximumArms, arms);
+                float y = (float)heightField.SampleHeight(logicalX, logicalZ) - Mathf.Max(0f, cacti.BurialDepth);
                 int instanceSeed = unchecked((coordinate.x * 73856093) ^ (coordinate.y * 19349663) ^ (i * 83492791) ^ worldSeed);
-                DuneVectorVisuals.CreateCactus(Root, new Vector3(local.x, y, local.y), height, thickness, yaw, arms, instanceSeed, materials.Cactus);
+                DuneVectorVisuals.CreateCactus(
+                    Root,
+                    new Vector3(local.x, y, local.y),
+                    height,
+                    thickness,
+                    yaw,
+                    arms,
+                    instanceSeed,
+                    cacti,
+                    materials.Cactus,
+                    materials.CactusBlossom);
                 sceneryExclusions.Add(local);
             }
 

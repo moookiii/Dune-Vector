@@ -1061,6 +1061,53 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class CactusTuning
+    {
+        [Header("Distribution")]
+        [Tooltip("Expected cactus count per terrain chunk before biome and placement rejection.")]
+        [Min(0f)] public float DensityPerChunk = 5.5f;
+        [Range(0f, 89f)] public float MaximumPlacementSlope = 38f;
+        [Min(0f)] public float BurialDepth = 0.18f;
+
+        [Header("Overall Size")]
+        [Min(0.1f)] public float MinimumHeight = 2.6f;
+        [Min(0.1f)] public float MaximumHeight = 5.8f;
+        [Min(0.05f)] public float MinimumThickness = 0.42f;
+        [Min(0.05f)] public float MaximumThickness = 0.72f;
+        [Range(0f, 15f)] public float MaximumLeanDegrees = 4f;
+        [Range(0.4f, 1f)] public float TrunkTipScale = 0.82f;
+
+        [Header("Arms")]
+        [Range(0, 4)] public int MinimumArmCount = 1;
+        [Range(0, 5)] public int MaximumArmCount = 3;
+        public Vector2 ArmAttachmentHeightRange = new Vector2(0.36f, 0.7f);
+        public Vector2 ArmReachInThicknesses = new Vector2(2.2f, 3.8f);
+        public Vector2 ArmRiseAsHeight = new Vector2(0.22f, 0.4f);
+        [Range(0.2f, 1f)] public float ArmThicknessMultiplier = 0.68f;
+        [Range(0.4f, 1f)] public float ArmTipScale = 0.88f;
+        [Range(-0.25f, 0.5f)] public float ArmShoulderLift = 0.12f;
+        [Range(-0.25f, 0.5f)] public float ArmOutwardLean = 0.08f;
+        [Range(0f, 90f)] public float ArmAzimuthJitter = 28f;
+
+        [Header("Ribbed Surface")]
+        [Range(3, 12)] public int RibCount = 7;
+        [Range(4, 12)] public int HeightSegments = 10;
+        [Range(0f, 0.35f)] public float RibDepth = 0.14f;
+        [Range(0.1f, 0.45f)] public float RoundedCapLength = 0.25f;
+        [Range(0.5f, 1.25f)] public float ArmJointScale = 0.92f;
+
+        [Header("Appearance")]
+        [ColorUsage(false)] public Color BodyColor = new Color(0.07f, 0.33f, 0.16f, 1f);
+        [Range(0f, 1f)] public float Smoothness = 0.2f;
+        [Range(0f, 1f)] public float BlossomChance = 0.18f;
+        [Range(0.05f, 1f)] public float BlossomSizeInThicknesses = 0.34f;
+        [Range(0.1f, 1f)] public float BlossomHeightScale = 0.48f;
+        [Range(0f, 1f)] public float BlossomLiftInSizes = 0.25f;
+        [ColorUsage(false)] public Color BlossomColor = new Color(1f, 0.48f, 0.16f, 1f);
+        [Range(0f, 1f)] public float BlossomSmoothness = 0.28f;
+    }
+
+    [System.Serializable]
     public sealed class DesertShrubVariantTuning
     {
         [Tooltip("Designer label used to identify this procedural shrub silhouette.")]
@@ -2943,6 +2990,9 @@ namespace DuneVector
         [Tooltip("Procedural pyramid density and size range.")]
         public PyramidTuning Pyramids = new PyramidTuning();
 
+        [Tooltip("Procedural saguaro distribution, silhouette, ribbing, and blossoms.")]
+        public CactusTuning Cacti = new CactusTuning();
+
         [Tooltip("Clustered, biome-weighted, instanced desert shrub generation and silhouettes.")]
         public DesertShrubTuning DesertShrubs = new DesertShrubTuning();
 
@@ -3025,6 +3075,7 @@ namespace DuneVector
             RouteEncounters ??= new RouteEncounterTuning();
             DynamicCouriers ??= new DynamicCourierTuning();
             Pyramids ??= new PyramidTuning();
+            Cacti ??= new CactusTuning();
             DesertShrubs ??= new DesertShrubTuning();
             DesertShrubs.EnsureInitialized();
             WorldStreaming ??= new WorldStreamingTuning();

@@ -18,6 +18,7 @@ namespace DuneVector
         public Material NeutralDroneTop { get; }
         public Material DroneDark { get; }
         public Material Cactus { get; }
+        public Material CactusBlossom { get; }
         public IReadOnlyList<Material> Shrubs => _shrubMaterials;
         public Material Sandstone { get; }
         public Material LandmarkStone { get; }
@@ -65,6 +66,7 @@ namespace DuneVector
             DeliveryTuning deliveryTuning = null,
             CloudTuning cloudTuning = null,
             DynamicCourierTuning dynamicCourierTuning = null,
+            CactusTuning cactusTuning = null,
             DesertShrubTuning shrubTuning = null,
             DroneVisualTuning droneVisualTuning = null,
             GeoglyphSystemTuning geoglyphTuning = null,
@@ -75,6 +77,7 @@ namespace DuneVector
             DeliveryTuning delivery = deliveryTuning ?? new DeliveryTuning();
             CloudTuning clouds = cloudTuning ?? new CloudTuning();
             DynamicCourierTuning couriers = dynamicCourierTuning ?? new DynamicCourierTuning();
+            CactusTuning cacti = cactusTuning ?? new CactusTuning();
             DroneVisualTuning droneVisuals = droneVisualTuning ?? new DroneVisualTuning();
             PlayerStrikeOrbTuning strikeOrbs = playerStrikeOrbTuning ?? new PlayerStrikeOrbTuning();
             Sand = CreateLit("Sand - Textured Dunes", Color.white, 0.14f, 0f);
@@ -112,7 +115,8 @@ namespace DuneVector
                 droneVisuals.FrameColor,
                 droneVisuals.FrameSmoothness,
                 droneVisuals.FrameMetallic);
-            Cactus = CreateLit("Cactus - Stylized", new Color(0.08f, 0.31f, 0.16f), 0.25f, 0f);
+            Cactus = CreateLit("Cactus - Ribbed Saguaro", cacti.BodyColor, cacti.Smoothness, 0f);
+            CactusBlossom = CreateLit("Cactus - Blossom", cacti.BlossomColor, cacti.BlossomSmoothness, 0f);
             if (shrubTuning != null)
             {
                 shrubTuning.EnsureInitialized();
@@ -729,7 +733,17 @@ namespace DuneVector
             DisableRendererShadows(accent);
         }
 
-        public static Transform CreateCactus(Transform parent, Vector3 localPosition, float height, float thickness, float yaw, int arms, int seed, Material material)
+        public static Transform CreateCactus(
+            Transform parent,
+            Vector3 localPosition,
+            float height,
+            float thickness,
+            float yaw,
+            int arms,
+            int seed,
+            CactusTuning settings,
+            Material bodyMaterial,
+            Material blossomMaterial)
         {
             GameObject rootObject = new GameObject("Cactus");
             Transform root = rootObject.transform;
@@ -737,25 +751,129 @@ namespace DuneVector
             root.localPosition = localPosition;
             root.localRotation = Quaternion.Euler(0f, yaw, 0f);
 
-            Transform trunk = CreatePart(PrimitiveType.Capsule, "Trunk", root, new Vector3(0f, height * 0.5f, 0f), new Vector3(thickness, height * 0.5f, thickness), Quaternion.identity, material, true);
+            CactusTuning cacti = settings ?? new CactusTuning();
+            float leanDegrees = DuneVectorMath.HashRange(seed, arms, seed, 13, 0f, Mathf.Max(0f, cacti.MaximumLeanDegrees));
+            float leanAngle = DuneVectorMath.HashRange(seed, arms, seed, 19, 0f, 360f) * Mathf.Deg2Rad;
+            Vector3 trunkLean = new Vector3(Mathf.Cos(leanAngle), 0f, Mathf.Sin(leanAngle))
+                * (Mathf.Tan(leanDegrees * Mathf.Deg2Rad) * height);
+            Vector3 trunkStart = Vector3.zero;
+            Vector3 trunkTip = (Vector3.up * height) + trunkLean;
+            Mesh trunkMesh = GetCactusSegmentMesh(cacti, cacti.TrunkTipScale);
+            Mesh armMesh = GetCactusSegmentMesh(cacti, cacti.ArmTipScale);
+            CreateCactusSegment("Ribbed Trunk", root, trunkStart, trunkTip, thickness, trunkMesh, bodyMaterial, true);
 
             for (int i = 0; i < arms; i++)
             {
-                float side = ((DuneVectorMath.Hash(seed, i, seed, 17) & 1u) == 0u) ? -1f : 1f;
-                float armHeight = Mathf.Lerp(height * 0.38f, height * 0.72f, DuneVectorMath.Hash01(seed, i, seed, 23));
-                float angle = DuneVectorMath.HashRange(seed, i, seed, 29, -24f, 24f);
-                Transform arm = CreatePart(
-                    PrimitiveType.Capsule,
-                    $"Arm {i + 1}",
-                    root,
-                    new Vector3(side * thickness * 1.35f, armHeight, 0f),
-                    new Vector3(thickness * 0.68f, height * 0.16f, thickness * 0.68f),
-                    Quaternion.Euler(0f, angle, side * 68f),
-                    material,
-                    true);
+                float attachmentMinimum = Mathf.Clamp01(Mathf.Min(cacti.ArmAttachmentHeightRange.x, cacti.ArmAttachmentHeightRange.y));
+                float attachmentMaximum = Mathf.Clamp01(Mathf.Max(cacti.ArmAttachmentHeightRange.x, cacti.ArmAttachmentHeightRange.y));
+                float attachmentFraction = DuneVectorMath.HashRange(seed, i, arms, 23, attachmentMinimum, attachmentMaximum);
+                Vector3 shoulder = Vector3.Lerp(trunkStart, trunkTip, attachmentFraction);
+
+                float evenAngle = arms > 0 ? (i * (360f / arms)) : 0f;
+                float armAngle = (evenAngle + DuneVectorMath.HashRange(
+                    seed,
+                    i,
+                    arms,
+                    29,
+                    -Mathf.Max(0f, cacti.ArmAzimuthJitter),
+                    Mathf.Max(0f, cacti.ArmAzimuthJitter))) * Mathf.Deg2Rad;
+                Vector3 outward = new Vector3(Mathf.Cos(armAngle), 0f, Mathf.Sin(armAngle));
+
+                float reachMinimum = Mathf.Max(0.1f, Mathf.Min(cacti.ArmReachInThicknesses.x, cacti.ArmReachInThicknesses.y));
+                float reachMaximum = Mathf.Max(reachMinimum, Mathf.Max(cacti.ArmReachInThicknesses.x, cacti.ArmReachInThicknesses.y));
+                float reach = thickness * DuneVectorMath.HashRange(seed, i, arms, 31, reachMinimum, reachMaximum);
+                float riseMinimum = Mathf.Max(0.05f, Mathf.Min(cacti.ArmRiseAsHeight.x, cacti.ArmRiseAsHeight.y));
+                float riseMaximum = Mathf.Max(riseMinimum, Mathf.Max(cacti.ArmRiseAsHeight.x, cacti.ArmRiseAsHeight.y));
+                float rise = height * DuneVectorMath.HashRange(seed, i, arms, 37, riseMinimum, riseMaximum);
+                float armThickness = thickness * Mathf.Max(0.2f, cacti.ArmThicknessMultiplier);
+
+                Vector3 elbow = shoulder + (outward * reach) + (Vector3.up * reach * cacti.ArmShoulderLift);
+                Vector3 armTip = elbow + (Vector3.up * rise) + (outward * reach * cacti.ArmOutwardLean);
+                CreateCactusSegment($"Arm {i + 1} Shoulder", root, shoulder, elbow, armThickness, armMesh, bodyMaterial, true);
+                CreateCactusJoint($"Arm {i + 1} Elbow", root, elbow, armThickness, cacti.ArmJointScale, bodyMaterial);
+                CreateCactusSegment($"Arm {i + 1} Upturn", root, elbow, armTip, armThickness, armMesh, bodyMaterial, true);
+
+                if (blossomMaterial != null && DuneVectorMath.Hash01(seed, i, arms, 43) < Mathf.Clamp01(cacti.BlossomChance))
+                {
+                    CreateCactusBlossom($"Arm {i + 1} Blossom", root, armTip, armThickness, cacti, blossomMaterial);
+                }
+            }
+
+            if (blossomMaterial != null && DuneVectorMath.Hash01(seed, arms, seed, 47) < Mathf.Clamp01(cacti.BlossomChance))
+            {
+                CreateCactusBlossom("Crown Blossom", root, trunkTip, thickness, cacti, blossomMaterial);
             }
 
             return root;
+        }
+
+        private static void CreateCactusSegment(
+            string name,
+            Transform parent,
+            Vector3 start,
+            Vector3 end,
+            float diameter,
+            Mesh mesh,
+            Material material,
+            bool addCollider)
+        {
+            Vector3 delta = end - start;
+            float length = delta.magnitude;
+            if (length <= 0.001f)
+            {
+                return;
+            }
+
+            GameObject segment = CreateMeshObject(name, parent, mesh, material);
+            segment.transform.localPosition = (start + end) * 0.5f;
+            segment.transform.localRotation = Quaternion.FromToRotation(Vector3.up, delta / length);
+            segment.transform.localScale = new Vector3(diameter, length * 0.5f, diameter);
+            if (addCollider)
+            {
+                CapsuleCollider collider = segment.AddComponent<CapsuleCollider>();
+                collider.direction = 1;
+                collider.center = Vector3.zero;
+                collider.radius = 0.5f;
+                collider.height = 2f;
+            }
+        }
+
+        private static void CreateCactusJoint(
+            string name,
+            Transform parent,
+            Vector3 position,
+            float diameter,
+            float jointScale,
+            Material material)
+        {
+            CreatePart(
+                PrimitiveType.Sphere,
+                name,
+                parent,
+                position,
+                Vector3.one * diameter * Mathf.Max(0.5f, jointScale),
+                Quaternion.identity,
+                material,
+                true);
+        }
+
+        private static void CreateCactusBlossom(
+            string name,
+            Transform parent,
+            Vector3 position,
+            float thickness,
+            CactusTuning settings,
+            Material material)
+        {
+            float size = thickness * Mathf.Max(0.05f, settings.BlossomSizeInThicknesses);
+            CreatePart(
+                PrimitiveType.Sphere,
+                name,
+                parent,
+                position + (Vector3.up * size * Mathf.Clamp01(settings.BlossomLiftInSizes)),
+                new Vector3(size, size * Mathf.Max(0.1f, settings.BlossomHeightScale), size),
+                Quaternion.identity,
+                material);
         }
 
         public static Transform CreatePyramid(Transform parent, Vector3 localPosition, float scale, float yaw, Material material)
@@ -1801,6 +1919,96 @@ namespace DuneVector
                 mesh.name = key;
                 MeshCache[key] = mesh;
             }
+            return mesh;
+        }
+
+        private static Mesh GetCactusSegmentMesh(CactusTuning settings, float tipScale)
+        {
+            int ribs = Mathf.Clamp(settings.RibCount, 3, 12);
+            int heightSegments = Mathf.Clamp(settings.HeightSegments, 4, 12);
+            float ribDepth = Mathf.Clamp(settings.RibDepth, 0f, 0.35f);
+            float capLength = Mathf.Clamp(settings.RoundedCapLength, 0.1f, 0.45f);
+            float clampedTipScale = Mathf.Clamp(tipScale, 0.4f, 1f);
+            string key = $"cactus-segment:{ribs}:{heightSegments}:{ribDepth:0.000}:{capLength:0.000}:{clampedTipScale:0.000}";
+            if (!MeshCache.TryGetValue(key, out Mesh mesh) || mesh == null)
+            {
+                mesh = CreateCactusSegmentMesh(ribs, heightSegments, ribDepth, capLength, clampedTipScale);
+                mesh.name = key;
+                MeshCache[key] = mesh;
+            }
+            return mesh;
+        }
+
+        private static Mesh CreateCactusSegmentMesh(int ribs, int heightSegments, float ribDepth, float capLength, float tipScale)
+        {
+            int radialSegments = ribs * 2;
+            int ringCount = heightSegments - 1;
+            Vector3[] vertices = new Vector3[2 + (ringCount * radialSegments)];
+            Vector2[] uvs = new Vector2[vertices.Length];
+            int[] triangles = new int[radialSegments * (heightSegments - 1) * 6];
+
+            vertices[0] = new Vector3(0f, -1f, 0f);
+            uvs[0] = new Vector2(0.5f, 0f);
+            int topPole = vertices.Length - 1;
+            vertices[topPole] = new Vector3(0f, 1f, 0f);
+            uvs[topPole] = new Vector2(0.5f, 1f);
+
+            for (int ring = 0; ring < ringCount; ring++)
+            {
+                float t = (ring + 1f) / heightSegments;
+                float y = Mathf.Lerp(-1f, 1f, t);
+                float capProfile = t < capLength
+                    ? Mathf.Sin((t / capLength) * Mathf.PI * 0.5f)
+                    : (t > 1f - capLength
+                        ? Mathf.Sin(((1f - t) / capLength) * Mathf.PI * 0.5f)
+                        : 1f);
+                float taper = Mathf.Lerp(1f, tipScale, t * t * (3f - (2f * t)));
+                for (int radial = 0; radial < radialSegments; radial++)
+                {
+                    float radialT = radial / (float)radialSegments;
+                    float angle = radialT * Mathf.PI * 2f;
+                    float groove = (radial & 1) == 0 ? 1f : 1f - ribDepth;
+                    float radius = 0.5f * capProfile * taper * groove;
+                    int vertex = 1 + (ring * radialSegments) + radial;
+                    vertices[vertex] = new Vector3(Mathf.Cos(angle) * radius, y, Mathf.Sin(angle) * radius);
+                    uvs[vertex] = new Vector2(radialT, t);
+                }
+            }
+
+            int triangle = 0;
+            for (int radial = 0; radial < radialSegments; radial++)
+            {
+                int next = (radial + 1) % radialSegments;
+                triangles[triangle++] = 0;
+                triangles[triangle++] = 1 + next;
+                triangles[triangle++] = 1 + radial;
+
+                for (int ring = 0; ring < ringCount - 1; ring++)
+                {
+                    int lower = 1 + (ring * radialSegments) + radial;
+                    int lowerNext = 1 + (ring * radialSegments) + next;
+                    int upper = lower + radialSegments;
+                    int upperNext = lowerNext + radialSegments;
+                    triangles[triangle++] = lower;
+                    triangles[triangle++] = lowerNext;
+                    triangles[triangle++] = upper;
+                    triangles[triangle++] = lowerNext;
+                    triangles[triangle++] = upperNext;
+                    triangles[triangle++] = upper;
+                }
+
+                int topRing = 1 + ((ringCount - 1) * radialSegments);
+                triangles[triangle++] = topRing + radial;
+                triangles[triangle++] = topRing + next;
+                triangles[triangle++] = topPole;
+            }
+
+            Mesh mesh = new Mesh { name = "Ribbed Cactus Segment" };
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
             return mesh;
         }
 
