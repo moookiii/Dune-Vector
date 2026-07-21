@@ -1023,7 +1023,9 @@ namespace DuneVector
 
         private void FacePosition(Vector3 target)
         {
-            Vector3 direction = target - transform.position;
+            Vector3 direction = Vector3.ProjectOnPlane(
+                target - transform.position,
+                Vector3.up);
             if (direction.sqrMagnitude < 0.001f)
             {
                 return;
