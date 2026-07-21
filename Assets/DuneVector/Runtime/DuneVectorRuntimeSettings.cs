@@ -307,6 +307,13 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class LandmarkContractLocation
+    {
+        public DuneLandmarkType Type;
+        public string DisplayName;
+    }
+
+    [System.Serializable]
     public sealed class CourierContractTuning
     {
         [Header("Debug")]
@@ -335,6 +342,10 @@ namespace DuneVector
         [Min(1f)] public float DualModifierRewardMultiplier = 1.75f;
         [Min(1f)] public float TripleModifierRewardMultiplier = 2.4f;
         [Min(0f)] public float ContractRefreshSeconds = 240f;
+        [Tooltip("Designer-authored contract-board location label for each landmark type.")]
+        public LandmarkContractLocation[] LandmarkLocations;
+        [Tooltip("Landmark archetypes eligible for pickup and delivery contract objectives.")]
+        public DuneLandmarkType[] ContractLandmarkTypes;
 
         [Header("Risk Scaling")]
         [Range(1, 100)] public int MaximumRisk = 20;
@@ -768,8 +779,17 @@ namespace DuneVector
         [Range(0f, 1f)] public float CommonCellChance = 0.42f;
         [Range(0f, 1f)] public float StandardCellChance = 0.22f;
         [Range(0f, 1f)] public float RareCellChance = 0.035f;
+        [Tooltip("Chance that a cell proposes a region-defining landmark before other rarity tiers are evaluated.")]
+        [Range(0f, 1f)] public float RegionDefiningCellChance;
         [Min(10f)] public float StandardMinimumSpacing = 310f;
         [Min(10f)] public float RareMinimumSpacing = 950f;
+        [Min(0f)] public float SmallMediumLandmarkExclusionRadius;
+        [Min(0f)] public float LargeLandmarkExclusionRadius;
+        [Min(0f)] public float RegionDefiningExclusionRadius;
+        [Tooltip("Large landmark archetypes selected for rare procedural cells.")]
+        public DuneLandmarkType[] RareLandmarkTypes;
+        [Tooltip("Mega landmark archetypes selected for region-defining procedural cells.")]
+        public DuneLandmarkType[] RegionDefiningLandmarkTypes;
         [Min(0f)] public float HubExclusionRadius = 170f;
         [Range(0f, 50f)] public float MaximumPlacementSlope = 19f;
         [Min(0.1f)] public float RelayScale = 1f;
@@ -789,6 +809,14 @@ namespace DuneVector
         [Min(0f)] public float DeliveryRingClearance = 8f;
         [Min(0f)] public float EncounterSocketHeight = 22f;
         [Min(0f)] public float FlightSocketHeight = 18f;
+
+        [Header("Future Landmark Contract Sockets")]
+        [Tooltip("Objective socket offsets used before and after the visual composition pass.")]
+        public Vector3 OrbitalContractSocketOffset;
+        public Vector3 MegagateContractSocketOffset;
+        public Vector3 HarvesterContractSocketOffset;
+        public Vector3 ArcologyContractSocketOffset;
+        public Vector3 SandRingContractSocketOffset;
 
         [Header("Landmark Presentation")]
         [Range(1, 6)] public int VisualVariantCount = 4;

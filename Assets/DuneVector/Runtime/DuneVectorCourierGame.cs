@@ -40,6 +40,7 @@ namespace DuneVector
     {
         public string ContractId;
         public string DestinationName;
+        public DuneLandmarkType DestinationLandmarkType;
         public string CargoName;
         public int Seed;
         public int Difficulty;
@@ -991,15 +992,12 @@ namespace DuneVector
             }
             multiplier *= DuneVectorContractRisk.GetRewardMultiplier(_settings, difficulty);
 
-            string[] destinationNames =
-            {
-                "WESTERN RELAY", "EXCAVATION DELTA", "CARRIER FALL", "RAIDER MERIDIAN",
-                "ANCIENT VECTOR", "SANDWORKS NINE", "NORTHERN RELAY", "SPIRE APPROACH",
-            };
+            DuneLandmarkType destinationType = ChooseLandmarkType(random);
             return new CourierContract
             {
                 ContractId = $"DV-{completed:0000}-{index + 1:00}-{Math.Abs(seed % 10000):0000}",
-                DestinationName = destinationNames[(seed & int.MaxValue) % destinationNames.Length],
+                DestinationName = GetContractLocationName(destinationType),
+                DestinationLandmarkType = destinationType,
                 CargoName = display == CourierContractModifier.Unknown ? "CLASSIFIED" : CargoNameFor(gameplay),
                 Seed = seed,
                 Difficulty = difficulty,
@@ -1139,8 +1137,11 @@ namespace DuneVector
             _routeLandmarks.Add(_landmarks.CreateContractLandmark(pickupType, contract.PickupPosition, contract.Seed));
             for (int i = 0; i < contract.DeliveryPositions.Count; i++)
             {
+                DuneLandmarkType deliveryType = i == contract.DeliveryPositions.Count - 1
+                    ? contract.DestinationLandmarkType
+                    : ChooseLandmarkType(random);
                 _routeLandmarks.Add(_landmarks.CreateContractLandmark(
-                    ChooseLandmarkType(random), contract.DeliveryPositions[i], contract.Seed + i + 1));
+                    deliveryType, contract.DeliveryPositions[i], contract.Seed + i + 1));
             }
 
             Vector3 pickupForward = new Vector3(
@@ -2856,10 +2857,31 @@ namespace DuneVector
             return "COURIER FREIGHT";
         }
 
-        private static DuneLandmarkType ChooseLandmarkType(System.Random random)
+        private string GetContractLocationName(DuneLandmarkType type)
         {
-            int value = random.Next(0, 5);
-            return (DuneLandmarkType)value;
+            LandmarkContractLocation[] locations = _settings.LandmarkLocations;
+            if (locations != null)
+            {
+                for (int i = 0; i < locations.Length; i++)
+                {
+                    LandmarkContractLocation location = locations[i];
+                    if (location != null && location.Type == type && !string.IsNullOrWhiteSpace(location.DisplayName))
+                    {
+                        return location.DisplayName;
+                    }
+                }
+            }
+            return type.ToString().ToUpperInvariant();
+        }
+
+        private DuneLandmarkType ChooseLandmarkType(System.Random random)
+        {
+            DuneLandmarkType[] types = _settings.ContractLandmarkTypes;
+            if (types != null && types.Length > 0)
+            {
+                return types[random.Next(0, types.Length)];
+            }
+            return (DuneLandmarkType)random.Next(0, (int)DuneLandmarkType.SandRing + 1);
         }
 
         private static Transform HubPart(

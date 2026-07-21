@@ -338,7 +338,8 @@ namespace DuneVector
                     int cellX = centerCellX + dx;
                     int cellZ = centerCellZ + dz;
                     float roll = DuneVectorMath.Hash01(cellX, cellZ, worldSeed, 7103);
-                    if (roll > landmarks.RareCellChance + landmarks.StandardCellChance + landmarks.CommonCellChance)
+                    if (roll > landmarks.RegionDefiningCellChance + landmarks.RareCellChance +
+                        landmarks.StandardCellChance + landmarks.CommonCellChance)
                     {
                         continue;
                     }

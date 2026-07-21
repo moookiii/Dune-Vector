@@ -7,11 +7,17 @@ namespace DuneVector
 {
     public enum DuneLandmarkType
     {
-        DesertRelayStation,
-        CrashedCarrier,
-        RaiderBeacon,
-        AncientSpire,
-        SandExcavationSite,
+        // Explicit values preserve existing seeded contract/location data as the catalog grows.
+        DesertRelayStation = 0,
+        CrashedCarrier = 1,
+        RaiderBeacon = 2,
+        AncientSpire = 3,
+        SandExcavationSite = 4,
+        FallenOrbitalArray = 5,
+        DesertMegagate = 6,
+        WindHarvesterGraveyard = 7,
+        BuriedArcology = 8,
+        SandRing = 9,
     }
 
     public enum DuneLandmarkRarity
@@ -19,6 +25,33 @@ namespace DuneVector
         Common,
         Standard,
         Rare,
+        RegionDefining,
+    }
+
+    public sealed class DuneLandmarkPlacementRecord
+    {
+        public string PersistentId { get; }
+        public Vector2Int Cell { get; }
+        public DuneLandmarkType Type { get; }
+        public DuneLandmarkRarity Rarity { get; }
+        public LogicalPosition LogicalPosition { get; }
+        public int VariantSeed { get; }
+        public float RotationDegrees { get; }
+        public float ExclusionRadius { get; }
+
+        public DuneLandmarkPlacementRecord(string persistentId, Vector2Int cell, DuneLandmarkType type,
+            DuneLandmarkRarity rarity, LogicalPosition logicalPosition, int variantSeed,
+            float rotationDegrees, float exclusionRadius)
+        {
+            PersistentId = persistentId;
+            Cell = cell;
+            Type = type;
+            Rarity = rarity;
+            LogicalPosition = logicalPosition;
+            VariantSeed = variantSeed;
+            RotationDegrees = rotationDegrees;
+            ExclusionRadius = exclusionRadius;
+        }
     }
 
     [DisallowMultipleComponent]
@@ -33,6 +66,12 @@ namespace DuneVector
         public Transform LootSocket { get; private set; }
         public Transform FlightPathSocket { get; private set; }
         public bool IsPinnedToContract { get; private set; }
+        public DuneLandmarkPlacementRecord PlacementRecord { get; private set; }
+
+        public void AssignPlacementRecord(DuneLandmarkPlacementRecord placementRecord)
+        {
+            PlacementRecord = placementRecord;
+        }
 
         public void Initialize(
             DuneLandmarkType type,
@@ -59,6 +98,21 @@ namespace DuneVector
                     break;
                 case DuneLandmarkType.AncientSpire:
                     contractOffset = new Vector3(24f * settings.SpireScale, settings.ContractSocketHeight + 3f, 0f);
+                    break;
+                case DuneLandmarkType.FallenOrbitalArray:
+                    contractOffset = settings.OrbitalContractSocketOffset;
+                    break;
+                case DuneLandmarkType.DesertMegagate:
+                    contractOffset = settings.MegagateContractSocketOffset;
+                    break;
+                case DuneLandmarkType.WindHarvesterGraveyard:
+                    contractOffset = settings.HarvesterContractSocketOffset;
+                    break;
+                case DuneLandmarkType.BuriedArcology:
+                    contractOffset = settings.ArcologyContractSocketOffset;
+                    break;
+                case DuneLandmarkType.SandRing:
+                    contractOffset = settings.SandRingContractSocketOffset;
                     break;
                 default:
                     contractOffset = new Vector3(0f, settings.ContractSocketHeight, 19f * settings.ExcavationScale);
@@ -220,6 +274,8 @@ namespace DuneVector
     {
         private readonly Dictionary<Vector2Int, DuneVectorLandmarkInstance> _streamed =
             new Dictionary<Vector2Int, DuneVectorLandmarkInstance>();
+        private readonly Dictionary<Vector2Int, DuneLandmarkPlacementRecord> _placementRecords =
+            new Dictionary<Vector2Int, DuneLandmarkPlacementRecord>();
         private readonly List<DuneVectorLandmarkInstance> _pinned = new List<DuneVectorLandmarkInstance>();
         private readonly List<Vector2Int> _removeBuffer = new List<Vector2Int>();
 
@@ -232,6 +288,7 @@ namespace DuneVector
 
         public IReadOnlyCollection<DuneVectorLandmarkInstance> StreamedLandmarks => _streamed.Values;
         public IReadOnlyList<DuneVectorLandmarkInstance> ContractLandmarks => _pinned;
+        public IReadOnlyDictionary<Vector2Int, DuneLandmarkPlacementRecord> PlacementRecords => _placementRecords;
 
         public void Initialize(
             DesertWorldStreamer world,
@@ -253,10 +310,13 @@ namespace DuneVector
             LogicalPosition logicalPosition,
             int variantSeed)
         {
-            DuneLandmarkRarity rarity = type == DuneLandmarkType.AncientSpire
-                ? DuneLandmarkRarity.Rare
-                : DuneLandmarkRarity.Standard;
+            DuneLandmarkRarity rarity = GetRarity(type);
             DuneVectorLandmarkInstance landmark = BuildLandmark(type, rarity, logicalPosition, variantSeed, true);
+            float rotation = Mathf.Repeat(variantSeed * 0.137f, 360f);
+            landmark.AssignPlacementRecord(new DuneLandmarkPlacementRecord(
+                $"DV-CONTRACT-{_world.WorldSeed:X8}-{variantSeed:X8}-{(int)type}",
+                LogicalToCell(logicalPosition), type, rarity, logicalPosition, variantSeed, rotation,
+                GetExclusionRadius(type)));
             _pinned.Add(landmark);
             return landmark;
         }
@@ -331,18 +391,51 @@ namespace DuneVector
 
         private void TryGenerateCell(Vector2Int cell)
         {
-            float roll = DuneVectorMath.Hash01(cell.x, cell.y, _world.WorldSeed, 7103);
-            float rareThreshold = _settings.RareCellChance;
-            float standardThreshold = rareThreshold + _settings.StandardCellChance;
-            float commonThreshold = standardThreshold + _settings.CommonCellChance;
-            if (roll > commonThreshold)
+            DuneLandmarkPlacementRecord record = GetOrCreatePlacementRecord(cell);
+            if (record == null)
             {
                 _streamed[cell] = null;
                 return;
             }
 
-            DuneLandmarkRarity rarity = roll <= rareThreshold
-                ? DuneLandmarkRarity.Rare
+            DuneVectorLandmarkInstance landmark = BuildLandmark(record.Type, record.Rarity, record.LogicalPosition,
+                record.VariantSeed, false, record.RotationDegrees);
+            landmark.AssignPlacementRecord(record);
+            _streamed[cell] = landmark;
+        }
+
+        private DuneLandmarkPlacementRecord GetOrCreatePlacementRecord(Vector2Int cell)
+        {
+            if (_placementRecords.TryGetValue(cell, out DuneLandmarkPlacementRecord cached))
+            {
+                return cached;
+            }
+
+            DuneLandmarkPlacementRecord candidate = CreatePlacementCandidate(cell);
+            if (candidate != null && IsBlockedByPreferredNeighbor(candidate))
+            {
+                candidate = null;
+            }
+            _placementRecords[cell] = candidate;
+            return candidate;
+        }
+
+        private DuneLandmarkPlacementRecord CreatePlacementCandidate(Vector2Int cell)
+        {
+            float roll = DuneVectorMath.Hash01(cell.x, cell.y, _world.WorldSeed, 7103);
+            float megaThreshold = _settings.RegionDefiningCellChance;
+            float rareThreshold = megaThreshold + _settings.RareCellChance;
+            float standardThreshold = rareThreshold + _settings.StandardCellChance;
+            float commonThreshold = standardThreshold + _settings.CommonCellChance;
+            if (roll > commonThreshold)
+            {
+                return null;
+            }
+
+            DuneLandmarkRarity rarity = roll <= megaThreshold
+                ? DuneLandmarkRarity.RegionDefining
+                : roll <= rareThreshold
+                    ? DuneLandmarkRarity.Rare
                 : roll <= standardThreshold
                     ? DuneLandmarkRarity.Standard
                     : DuneLandmarkRarity.Common;
@@ -352,8 +445,7 @@ namespace DuneVector
             double hubDz = logical.Z - DesertWorldStreamer.StartingLogicalPosition.y;
             if ((hubDx * hubDx) + (hubDz * hubDz) < _settings.HubExclusionRadius * _settings.HubExclusionRadius)
             {
-                _streamed[cell] = null;
-                return;
+                return null;
             }
             float slope = Vector3.Angle(_world.HeightField.SampleNormal(logical.X, logical.Z), Vector3.up);
             if (slope > _settings.MaximumPlacementSlope)
@@ -363,49 +455,78 @@ namespace DuneVector
                     ((cell.y + 0.5) * _settings.PlacementCellSize));
                 slope = Vector3.Angle(_world.HeightField.SampleNormal(logical.X, logical.Z), Vector3.up);
             }
-            if (slope > _settings.MaximumPlacementSlope || ViolatesSpacing(logical, rarity))
+            if (slope > _settings.MaximumPlacementSlope)
             {
-                _streamed[cell] = null;
-                return;
+                return null;
             }
 
-            _streamed[cell] = BuildLandmark(type, rarity, logical, HashCell(cell), false);
+            int variantSeed = HashCell(cell);
+            float rotation = Mathf.Repeat(variantSeed * 0.137f, 360f);
+            return new DuneLandmarkPlacementRecord(
+                $"DV-LM-{_world.WorldSeed:X8}-{cell.x}-{cell.y}", cell, type, rarity, logical,
+                variantSeed, rotation, GetExclusionRadius(type));
         }
 
-        private bool ViolatesSpacing(LogicalPosition logical, DuneLandmarkRarity rarity)
+        private bool IsBlockedByPreferredNeighbor(DuneLandmarkPlacementRecord candidate)
         {
-            float required = rarity == DuneLandmarkRarity.Rare
-                ? _settings.RareMinimumSpacing
-                : rarity == DuneLandmarkRarity.Standard
-                    ? _settings.StandardMinimumSpacing
-                    : 0f;
-            if (required <= 0f)
+            float maximumRadius = Mathf.Max(
+                GetExclusionRadius(DuneLandmarkType.DesertRelayStation),
+                GetExclusionRadius(DuneLandmarkType.AncientSpire),
+                GetExclusionRadius(DuneLandmarkType.SandRing));
+            int searchRadius = Mathf.Max(1, Mathf.CeilToInt(
+                (candidate.ExclusionRadius + maximumRadius) / Mathf.Max(1f, _settings.PlacementCellSize)));
+            for (int z = -searchRadius; z <= searchRadius; z++)
             {
-                return false;
-            }
-
-            double requiredSquared = required * required;
-            foreach (DuneVectorLandmarkInstance existing in _streamed.Values)
-            {
-                if (existing == null || existing.Rarity == DuneLandmarkRarity.Common)
+                for (int x = -searchRadius; x <= searchRadius; x++)
                 {
-                    continue;
-                }
-                double dx = existing.LogicalPosition.X - logical.X;
-                double dz = existing.LogicalPosition.Z - logical.Z;
-                if ((dx * dx) + (dz * dz) < requiredSquared)
-                {
-                    return true;
+                    if (x == 0 && z == 0)
+                    {
+                        continue;
+                    }
+                    DuneLandmarkPlacementRecord neighbor = CreatePlacementCandidate(
+                        candidate.Cell + new Vector2Int(x, z));
+                    if (neighbor == null)
+                    {
+                        continue;
+                    }
+                    double dx = neighbor.LogicalPosition.X - candidate.LogicalPosition.X;
+                    double dz = neighbor.LogicalPosition.Z - candidate.LogicalPosition.Z;
+                    double separation = candidate.ExclusionRadius + neighbor.ExclusionRadius;
+                    if ((dx * dx) + (dz * dz) < separation * separation && IsPreferred(neighbor, candidate))
+                    {
+                        return true;
+                    }
                 }
             }
             return false;
         }
 
+        private static bool IsPreferred(DuneLandmarkPlacementRecord left, DuneLandmarkPlacementRecord right)
+        {
+            if (left.Rarity != right.Rarity)
+            {
+                return left.Rarity > right.Rarity;
+            }
+            uint leftRank = unchecked((uint)left.VariantSeed);
+            uint rightRank = unchecked((uint)right.VariantSeed);
+            if (leftRank != rightRank)
+            {
+                return leftRank < rightRank;
+            }
+            return left.Cell.x < right.Cell.x || (left.Cell.x == right.Cell.x && left.Cell.y < right.Cell.y);
+        }
+
         private DuneLandmarkType ChooseType(Vector2Int cell, DuneLandmarkRarity rarity)
         {
+            if (rarity == DuneLandmarkRarity.RegionDefining)
+            {
+                return ChooseFromPool(cell, _settings.RegionDefiningLandmarkTypes, 7107,
+                    DuneLandmarkType.SandRing);
+            }
             if (rarity == DuneLandmarkRarity.Rare)
             {
-                return DuneLandmarkType.AncientSpire;
+                return ChooseFromPool(cell, _settings.RareLandmarkTypes, 7108,
+                    DuneLandmarkType.AncientSpire);
             }
             int choice = Mathf.FloorToInt(DuneVectorMath.Hash01(cell.x, cell.y, _world.WorldSeed, 7109) * 4f);
             switch (Mathf.Clamp(choice, 0, 3))
@@ -415,6 +536,18 @@ namespace DuneVector
                 case 2: return DuneLandmarkType.RaiderBeacon;
                 default: return DuneLandmarkType.SandExcavationSite;
             }
+        }
+
+        private DuneLandmarkType ChooseFromPool(Vector2Int cell, DuneLandmarkType[] pool, int salt,
+            DuneLandmarkType fallback)
+        {
+            if (pool == null || pool.Length == 0)
+            {
+                return fallback;
+            }
+            int choice = Mathf.FloorToInt(
+                DuneVectorMath.Hash01(cell.x, cell.y, _world.WorldSeed, salt) * pool.Length);
+            return pool[Mathf.Clamp(choice, 0, pool.Length - 1)];
         }
 
         private LogicalPosition ChoosePlacement(Vector2Int cell)
@@ -432,13 +565,15 @@ namespace DuneVector
             DuneLandmarkRarity rarity,
             LogicalPosition logical,
             int variantSeed,
-            bool pinned)
+            bool pinned,
+            float? authoredRotation = null)
         {
             GameObject landmarkObject = new GameObject($"{type} {(pinned ? "Contract" : rarity.ToString())}");
             landmarkObject.transform.SetParent(_root, false);
             double height = _world.HeightField.SampleHeight(logical.X, logical.Z);
             landmarkObject.transform.position = _world.LogicalToLocal(logical.X, height, logical.Z);
-            landmarkObject.transform.rotation = Quaternion.Euler(0f, Mathf.Repeat(variantSeed * 0.137f, 360f), 0f);
+            landmarkObject.transform.rotation = Quaternion.Euler(
+                0f, authoredRotation ?? Mathf.Repeat(variantSeed * 0.137f, 360f), 0f);
 
             DuneVectorLandmarkInstance instance = landmarkObject.AddComponent<DuneVectorLandmarkInstance>();
             instance.Initialize(type, rarity, logical, pinned, _settings);
@@ -461,9 +596,50 @@ namespace DuneVector
                 case DuneLandmarkType.SandExcavationSite:
                     BuildExcavation(landmarkObject.transform, variantSeed, animator);
                     break;
+                case DuneLandmarkType.FallenOrbitalArray:
+                case DuneLandmarkType.DesertMegagate:
+                case DuneLandmarkType.WindHarvesterGraveyard:
+                case DuneLandmarkType.BuriedArcology:
+                case DuneLandmarkType.SandRing:
+                    // Identity, placement, streaming and sockets are implemented first.
+                    // Authored visual composition is intentionally deferred to the next pass.
+                    break;
             }
             instance.PositionDeliverySocketAboveVisuals(_settings.DeliveryRingClearance);
             return instance;
+        }
+
+        private DuneLandmarkRarity GetRarity(DuneLandmarkType type)
+        {
+            switch (type)
+            {
+                case DuneLandmarkType.WindHarvesterGraveyard:
+                case DuneLandmarkType.BuriedArcology:
+                case DuneLandmarkType.SandRing:
+                    return DuneLandmarkRarity.RegionDefining;
+                case DuneLandmarkType.AncientSpire:
+                case DuneLandmarkType.FallenOrbitalArray:
+                case DuneLandmarkType.DesertMegagate:
+                    return DuneLandmarkRarity.Rare;
+                default:
+                    return DuneLandmarkRarity.Standard;
+            }
+        }
+
+        private float GetExclusionRadius(DuneLandmarkType type)
+        {
+            DuneLandmarkRarity rarity = GetRarity(type);
+            return rarity == DuneLandmarkRarity.RegionDefining
+                ? PositiveOrFallback(_settings.RegionDefiningExclusionRadius, _settings.RareMinimumSpacing * 0.5f)
+                : rarity == DuneLandmarkRarity.Rare
+                    ? PositiveOrFallback(_settings.LargeLandmarkExclusionRadius, _settings.RareMinimumSpacing * 0.5f)
+                    : PositiveOrFallback(_settings.SmallMediumLandmarkExclusionRadius,
+                        _settings.StandardMinimumSpacing * 0.5f);
+        }
+
+        private static float PositiveOrFallback(float value, float fallback)
+        {
+            return value > 0f ? value : Mathf.Max(0f, fallback);
         }
 
         private void BuildRelay(Transform root, int seed, DuneVectorLandmarkAnimator animator)
