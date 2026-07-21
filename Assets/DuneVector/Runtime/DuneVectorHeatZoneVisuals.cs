@@ -113,19 +113,16 @@ namespace DuneVector
         private void RefreshZoneVisuals()
         {
             _refreshTimer = Mathf.Max(0.05f, _settings.VisualRefreshInterval);
-            bool independentGroundDistortion = !_settings.Enabled && _settings.GroundDistortionEnabled;
-            if (independentGroundDistortion)
+            if (!_settings.Enabled && _settings.GroundDistortionEnabled)
             {
-                CollectWorldAnchoredGroundDistortionFields();
+                CollectPlayerCenteredGroundDistortion();
             }
             else
             {
                 _hazards.CollectNearbyHeatZones(_nearbyZones, Mathf.Max(0f, _settings.VisualRange));
             }
             _activeIds.Clear();
-            int count = independentGroundDistortion
-                ? _nearbyZones.Count
-                : Mathf.Min(Mathf.Max(1, _settings.MaximumVisibleZones), _nearbyZones.Count);
+            int count = Mathf.Min(Mathf.Max(1, _settings.MaximumVisibleZones), _nearbyZones.Count);
             for (int i = 0; i < count; i++)
             {
                 HeatZoneSample sample = _nearbyZones[i];
@@ -152,32 +149,22 @@ namespace DuneVector
             }
         }
 
-        private void CollectWorldAnchoredGroundDistortionFields()
+        private void CollectPlayerCenteredGroundDistortion()
         {
             _nearbyZones.Clear();
             LogicalPosition player = _world.LogicalPlayerPosition;
-            float fieldSpacing = Mathf.Max(20f, _settings.GroundDistortionFieldSpacing);
-            int centerCellX = Mathf.FloorToInt((float)(player.X / fieldSpacing) + 0.5f);
-            int centerCellZ = Mathf.FloorToInt((float)(player.Z / fieldSpacing) + 0.5f);
-            int gridRadius = Mathf.Clamp(_settings.GroundDistortionFieldGridRadius, 1, 2);
-            float fieldRadius = Mathf.Max(20f, _settings.GroundDistortionFollowRadius);
-            for (int offsetZ = -gridRadius; offsetZ <= gridRadius; offsetZ++)
-            {
-                for (int offsetX = -gridRadius; offsetX <= gridRadius; offsetX++)
-                {
-                    int cellX = centerCellX + offsetX;
-                    int cellZ = centerCellZ + offsetZ;
-                    LogicalPosition center = new LogicalPosition(
-                        cellX * (double)fieldSpacing,
-                        cellZ * (double)fieldSpacing);
-                    _nearbyZones.Add(new HeatZoneSample(
-                        new Vector2Int(cellX, cellZ),
-                        center,
-                        fieldRadius,
-                        1f,
-                        0f));
-                }
-            }
+            float recenterDistance = Mathf.Max(5f, _settings.GroundDistortionRecenterDistance);
+            int cellX = Mathf.FloorToInt((float)(player.X / recenterDistance));
+            int cellZ = Mathf.FloorToInt((float)(player.Z / recenterDistance));
+            LogicalPosition center = new LogicalPosition(
+                (cellX + 0.5d) * recenterDistance,
+                (cellZ + 0.5d) * recenterDistance);
+            _nearbyZones.Add(new HeatZoneSample(
+                new Vector2Int(cellX, cellZ),
+                center,
+                Mathf.Max(20f, _settings.GroundDistortionFollowRadius),
+                1f,
+                0f));
         }
 
         private ZoneVisual CreateZoneVisual(HeatZoneSample sample)
