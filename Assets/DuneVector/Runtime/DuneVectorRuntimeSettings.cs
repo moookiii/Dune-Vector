@@ -2480,12 +2480,16 @@ namespace DuneVector
         [Range(1, 8)] public int MaximumVisibleZones = 4;
         [Min(0.05f)] public float VisualRefreshInterval = 0.75f;
         [Min(8)] public int CurtainSegments = 48;
-        [Min(2)] public int GroundMirageRings = 7;
-        [Min(8)] public int GroundMirageSegments = 48;
 
         [Header("Refractive Air")]
         [Min(1f)] public float ShimmerCurtainHeight = 62f;
         [Range(0.1f, 1.5f)] public float ShimmerCurtainRadiusMultiplier = 1f;
+
+        [Header("Independent Ground Distortion")]
+        [Tooltip("Keeps the terrain-following ground distortion active independently of heat-zone gameplay.")]
+        public bool GroundDistortionEnabled = true;
+        [Min(2)] public int GroundMirageRings = 7;
+        [Min(8)] public int GroundMirageSegments = 48;
         [Min(0f)] public float GroundMirageHeightOffset = 0.16f;
         [Range(0.05f, 1f)] public float GroundMirageRadiusMultiplier = 0.92f;
         [Min(0f)] public float DistantDistortionStrength = 0.34f;

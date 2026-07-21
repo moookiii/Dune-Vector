@@ -56,12 +56,15 @@ namespace DuneVector
             _settings = settings;
             _upperFlightRingHud = world.GetComponent<DuneVectorUpperFlightRingHUD>();
             _distortionTexture = CreateDistortionTexture(Mathf.Max(16, settings.DistortionTextureResolution));
-            _particleTexture = CreateSoftParticleTexture(Mathf.Max(16, settings.DistortionTextureResolution));
-            _plumeMaterial = CreateHeatPlumeMaterial();
-            _streakMaterial = CreateParticleMaterial("Hot Wind Streaks", settings.HeatStreakColor);
-            _hotPlateMaterial = CreateLitMaterial("Heat Pocket Basalt", settings.HotSpotPlateColor, Color.black);
-            _hotGlowMaterial = CreateLitMaterial("Heat Pocket Mineral Glow", Color.black, settings.HotSpotGlowColor);
-            CreateInteriorVolume();
+            if (HeatZoneVisualsActive)
+            {
+                _particleTexture = CreateSoftParticleTexture(Mathf.Max(16, settings.DistortionTextureResolution));
+                _plumeMaterial = CreateHeatPlumeMaterial();
+                _streakMaterial = CreateParticleMaterial("Hot Wind Streaks", settings.HeatStreakColor);
+                _hotPlateMaterial = CreateLitMaterial("Heat Pocket Basalt", settings.HotSpotPlateColor, Color.black);
+                _hotGlowMaterial = CreateLitMaterial("Heat Pocket Mineral Glow", Color.black, settings.HotSpotGlowColor);
+                CreateInteriorVolume();
+            }
             _world.WorldShifted += HandleWorldShift;
             RefreshZoneVisuals();
         }
@@ -86,8 +89,10 @@ namespace DuneVector
                 visual.GroundMaterial?.SetTextureOffset("_DistortionVectorMap", offset);
             }
 
-            float desiredBlend = Mathf.Clamp01(
-                _hazards.HeatZoneIntensity * Mathf.Max(_settings.MildSeverity, _hazards.CurrentHeatZoneSeverity));
+            float desiredBlend = HeatZoneVisualsActive
+                ? Mathf.Clamp01(
+                    _hazards.HeatZoneIntensity * Mathf.Max(_settings.MildSeverity, _hazards.CurrentHeatZoneSeverity))
+                : 0f;
             _interiorBlend = Mathf.Lerp(
                 _interiorBlend,
                 desiredBlend,
@@ -142,40 +147,54 @@ namespace DuneVector
                 _settings.DistantDistortionStrength,
                 _settings.InteriorDistortionStrength,
                 sample.Severity);
-            Material curtainMaterial = CreateDistortionMaterial(
-                $"Heat Curtain [{sample.Id.x}, {sample.Id.y}]",
-                true,
-                Color.clear,
-                distortion);
-            Material groundMaterial = CreateDistortionMaterial(
-                $"Ground Mirage [{sample.Id.x}, {sample.Id.y}]",
-                false,
-                WithAlpha(_settings.MirageSurfaceColor, _settings.MirageSurfaceOpacity * sample.Severity),
-                distortion);
+            Material curtainMaterial = null;
+            Mesh curtainMesh = null;
+            ParticleSystem plumes = null;
+            ParticleSystem streaks = null;
+            if (HeatZoneVisualsActive)
+            {
+                curtainMaterial = CreateDistortionMaterial(
+                    $"Heat Curtain [{sample.Id.x}, {sample.Id.y}]",
+                    true,
+                    Color.clear,
+                    distortion);
+                curtainMesh = CreateOpenCylinderMesh(
+                    sample.Radius * _settings.ShimmerCurtainRadiusMultiplier,
+                    _settings.ShimmerCurtainHeight,
+                    Mathf.Max(8, _settings.CurtainSegments));
+                CreateMeshRenderer(
+                    "Refractive Air Curtain",
+                    root.transform,
+                    curtainMesh,
+                    curtainMaterial);
+                plumes = CreateHeatPlumes(root.transform, sample);
+                streaks = CreateHeatStreaks(root.transform, sample);
+                CreateHotSpots(root.transform, center, sample);
+            }
 
-            Mesh curtainMesh = CreateOpenCylinderMesh(
-                sample.Radius * _settings.ShimmerCurtainRadiusMultiplier,
-                _settings.ShimmerCurtainHeight,
-                Mathf.Max(8, _settings.CurtainSegments));
-            CreateMeshRenderer(
-                "Refractive Air Curtain",
-                root.transform,
-                curtainMesh,
-                curtainMaterial);
-            Mesh groundMesh = CreateGroundMirageMesh(
-                center,
-                sample.Radius * _settings.GroundMirageRadiusMultiplier,
-                Mathf.Max(2, _settings.GroundMirageRings),
-                Mathf.Max(8, _settings.GroundMirageSegments));
-            CreateMeshRenderer(
-                "Terrain-Following Ground Mirage",
-                root.transform,
-                groundMesh,
-                groundMaterial);
-
-            ParticleSystem plumes = CreateHeatPlumes(root.transform, sample);
-            ParticleSystem streaks = CreateHeatStreaks(root.transform, sample);
-            CreateHotSpots(root.transform, center, sample);
+            Material groundMaterial = null;
+            Mesh groundMesh = null;
+            if (_settings.GroundDistortionEnabled)
+            {
+                bool distortionOnly = !_settings.Enabled;
+                groundMaterial = CreateDistortionMaterial(
+                    $"Ground Mirage [{sample.Id.x}, {sample.Id.y}]",
+                    distortionOnly,
+                    distortionOnly
+                        ? Color.clear
+                        : WithAlpha(_settings.MirageSurfaceColor, _settings.MirageSurfaceOpacity * sample.Severity),
+                    distortion);
+                groundMesh = CreateGroundMirageMesh(
+                    center,
+                    sample.Radius * _settings.GroundMirageRadiusMultiplier,
+                    Mathf.Max(2, _settings.GroundMirageRings),
+                    Mathf.Max(8, _settings.GroundMirageSegments));
+                CreateMeshRenderer(
+                    "Terrain-Following Ground Distortion",
+                    root.transform,
+                    groundMesh,
+                    groundMaterial);
+            }
             return new ZoneVisual
             {
                 Id = sample.Id,
@@ -188,6 +207,8 @@ namespace DuneVector
                 Streaks = streaks,
             };
         }
+
+        private bool HeatZoneVisualsActive => _settings != null && _settings.Enabled && _settings.VisualsEnabled;
 
         private Mesh CreateGroundMirageMesh(Vector3 center, float radius, int rings, int segments)
         {

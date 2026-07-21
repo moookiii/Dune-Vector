@@ -99,7 +99,7 @@ namespace DuneVector
                 _electricalVisuals = gameObject.AddComponent<DuneVectorElectricalStormVisualSystem>();
                 _electricalVisuals.Initialize(this, _drone, _world, _weather, _electricalSettings.Visuals);
             }
-            if (_heatSettings.VisualsEnabled)
+            if ((_heatSettings.Enabled && _heatSettings.VisualsEnabled) || _heatSettings.GroundDistortionEnabled)
             {
                 DuneVectorHeatZoneVisualSystem visuals = gameObject.AddComponent<DuneVectorHeatZoneVisualSystem>();
                 visuals.Initialize(this, _drone, _world, _heatSettings);
@@ -303,7 +303,8 @@ namespace DuneVector
         public void CollectNearbyHeatZones(System.Collections.Generic.List<HeatZoneSample> results, float range)
         {
             results.Clear();
-            if (_world == null || _heatSettings == null || !_heatSettings.Enabled)
+            if (_world == null || _heatSettings == null ||
+                (!_heatSettings.Enabled && !_heatSettings.GroundDistortionEnabled))
             {
                 return;
             }
