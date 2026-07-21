@@ -1346,7 +1346,8 @@ namespace DuneVector
         public bool CanTargetAirbornePlayer(Vector3 origin)
         {
             return IsPlayerAirborne()
-                && Vector3.Distance(origin, _player.WorldCenter) <= _settings.DetectionRange;
+                && Vector3.Distance(origin, _player.WorldCenter)
+                    <= _settings.EvaluateDetectionRange(DuneVectorContractRisk.CurrentRisk);
         }
 
         public bool IsPlayerAirborne()

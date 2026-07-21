@@ -1690,7 +1690,12 @@ namespace DuneVector
         [Min(0f)] public float PatrolDriftSpeed = 5f;
 
         [Header("Airborne Player Targeting")]
-        [Min(1f)] public float DetectionRange = 155f;
+        [Tooltip("Attack range at rank 0.")]
+        [Min(1f)] public float DetectionRange = 50f;
+        [Tooltip("Attack range at the rank scaling ceiling.")]
+        [Min(1f)] public float DetectionRangeAtRankCeiling = 150f;
+        [Tooltip("Rank at which the attack range reaches its ceiling value.")]
+        [Min(1)] public int DetectionRangeRankCeiling = 20;
         [Tooltip("The drone must be at least this far above the dune surface before this enemy can attack it.")]
         [Min(0f)] public float MinimumTargetHeightAboveGround = 3f;
         [Tooltip("Time spent visibly following the airborne drone before locking the predicted strike point.")]
@@ -1761,6 +1766,13 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color BodyEmission = new Color(0.08f, 0.18f, 0.8f);
         [ColorUsage(false)] public Color OrbColor = new Color(0.08f, 0.3f, 0.48f);
         [ColorUsage(false, true)] public Color OrbEmission = new Color(0.35f, 3.5f, 6.8f);
+
+        public float EvaluateDetectionRange(int rank)
+        {
+            float rankProgress = Mathf.Clamp01(
+                rank / (float)Mathf.Max(1, DetectionRangeRankCeiling));
+            return Mathf.Lerp(DetectionRange, DetectionRangeAtRankCeiling, rankProgress);
+        }
     }
 
     [System.Serializable]
