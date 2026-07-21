@@ -86,7 +86,10 @@ namespace DuneVector
             foreach (ZoneVisual visual in _zoneVisuals.Values)
             {
                 visual.CurtainMaterial?.SetTextureOffset("_DistortionVectorMap", offset);
-                visual.GroundMaterial?.SetTextureOffset("_DistortionVectorMap", offset);
+                if (visual.GroundMaterial != null && visual.GroundMaterial.HasProperty("_DistortionVectorMap"))
+                {
+                    visual.GroundMaterial.SetTextureOffset("_DistortionVectorMap", offset);
+                }
             }
 
             float desiredBlend = HeatZoneVisualsActive
@@ -106,7 +109,14 @@ namespace DuneVector
         private void RefreshZoneVisuals()
         {
             _refreshTimer = Mathf.Max(0.05f, _settings.VisualRefreshInterval);
-            _hazards.CollectNearbyHeatZones(_nearbyZones, Mathf.Max(0f, _settings.VisualRange));
+            if (!_settings.Enabled && _settings.GroundDistortionEnabled)
+            {
+                CollectPlayerCenteredGroundDistortion();
+            }
+            else
+            {
+                _hazards.CollectNearbyHeatZones(_nearbyZones, Mathf.Max(0f, _settings.VisualRange));
+            }
             _activeIds.Clear();
             int count = Mathf.Min(Mathf.Max(1, _settings.MaximumVisibleZones), _nearbyZones.Count);
             for (int i = 0; i < count; i++)
@@ -133,6 +143,24 @@ namespace DuneVector
                 DestroyZoneVisual(_zoneVisuals[id]);
                 _zoneVisuals.Remove(id);
             }
+        }
+
+        private void CollectPlayerCenteredGroundDistortion()
+        {
+            _nearbyZones.Clear();
+            LogicalPosition player = _world.LogicalPlayerPosition;
+            float recenterDistance = Mathf.Max(5f, _settings.GroundDistortionRecenterDistance);
+            int cellX = Mathf.FloorToInt((float)(player.X / recenterDistance));
+            int cellZ = Mathf.FloorToInt((float)(player.Z / recenterDistance));
+            LogicalPosition center = new LogicalPosition(
+                (cellX + 0.5d) * recenterDistance,
+                (cellZ + 0.5d) * recenterDistance);
+            _nearbyZones.Add(new HeatZoneSample(
+                new Vector2Int(cellX, cellZ),
+                center,
+                Mathf.Max(20f, _settings.GroundDistortionFollowRadius),
+                1f,
+                0f));
         }
 
         private ZoneVisual CreateZoneVisual(HeatZoneSample sample)
@@ -176,24 +204,29 @@ namespace DuneVector
             Mesh groundMesh = null;
             if (_settings.GroundDistortionEnabled)
             {
-                bool distortionOnly = !_settings.Enabled;
-                groundMaterial = CreateDistortionMaterial(
+                groundMaterial = CreateGroundDistortionMaterial(
                     $"Ground Mirage [{sample.Id.x}, {sample.Id.y}]",
-                    distortionOnly,
-                    distortionOnly
-                        ? Color.clear
-                        : WithAlpha(_settings.MirageSurfaceColor, _settings.MirageSurfaceOpacity * sample.Severity),
                     distortion);
                 groundMesh = CreateGroundMirageMesh(
                     center,
                     sample.Radius * _settings.GroundMirageRadiusMultiplier,
                     Mathf.Max(2, _settings.GroundMirageRings),
                     Mathf.Max(8, _settings.GroundMirageSegments));
-                CreateMeshRenderer(
-                    "Terrain-Following Ground Distortion",
-                    root.transform,
-                    groundMesh,
-                    groundMaterial);
+                int shellCount = Mathf.Max(1, _settings.GroundDistortionShellCount);
+                for (int shell = 0; shell < shellCount; shell++)
+                {
+                    Renderer renderer = CreateMeshRenderer(
+                        $"Terrain-Following Ground Distortion Shell {shell + 1}",
+                        root.transform,
+                        groundMesh,
+                        groundMaterial);
+                    renderer.transform.localPosition = Vector3.up * (_settings.GroundDistortionShellSpacing * shell);
+                    MaterialPropertyBlock properties = new MaterialPropertyBlock();
+                    properties.SetFloat(
+                        "_ShellStrengthMultiplier",
+                        Mathf.Pow(_settings.GroundDistortionShellStrengthFalloff, shell));
+                    renderer.SetPropertyBlock(properties);
+                }
             }
             return new ZoneVisual
             {
@@ -518,6 +551,23 @@ namespace DuneVector
             material.SetFloat("_DistortionVectorBias", -1f);
             material.SetFloat("_DistortionBlurScale", _settings.DistortionBlurStrength);
             HDMaterial.ValidateMaterial(material);
+            return material;
+        }
+
+        private Material CreateGroundDistortionMaterial(string materialName, float strength)
+        {
+            Shader shader = Shader.Find("DuneVector/HDRP Dune Heat Distortion");
+            if (shader == null)
+            {
+                return CreateDistortionMaterial(materialName, true, Color.clear, strength);
+            }
+
+            Material material = new Material(shader) { name = materialName };
+            material.SetTexture("_NoiseTex", _distortionTexture);
+            material.SetFloat("_DistortionStrength", Mathf.Max(0f, strength));
+            material.SetFloat("_DistortionBlur", Mathf.Clamp01(_settings.DistortionBlurStrength));
+            material.SetFloat("_TextureScale", Mathf.Max(0.01f, _settings.DistortionTextureScale));
+            material.SetVector("_ScrollVelocity", _settings.DistortionScrollVelocity);
             return material;
         }
 

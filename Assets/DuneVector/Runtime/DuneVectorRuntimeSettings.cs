@@ -2511,6 +2511,11 @@ namespace DuneVector
         [Min(2)] public int GroundMirageRings = 7;
         [Min(8)] public int GroundMirageSegments = 48;
         [Min(0f)] public float GroundMirageHeightOffset = 0.16f;
+        [Range(1, 8)] public int GroundDistortionShellCount = 3;
+        [Min(0f)] public float GroundDistortionShellSpacing = 0.55f;
+        [Range(0f, 1f)] public float GroundDistortionShellStrengthFalloff = 0.72f;
+        [Min(20f)] public float GroundDistortionFollowRadius = 220f;
+        [Min(5f)] public float GroundDistortionRecenterDistance = 40f;
         [Range(0.05f, 1f)] public float GroundMirageRadiusMultiplier = 0.92f;
         [Min(0f)] public float DistantDistortionStrength = 0.34f;
         [Min(0f)] public float InteriorDistortionStrength = 0.78f;
