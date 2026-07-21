@@ -1846,7 +1846,10 @@ namespace DuneVector
         [Min(0f)] public float SignalEmissionMultiplier = 3.5f;
 
         [Header("Free Roam HUD")]
-        public Rect HudRect = new Rect(24f, 128f, 390f, 112f);
+        [Min(0f)] public float HudRightMargin = 28f;
+        [Min(0f)] public float HudTop = 196f;
+        [Min(160f)] public float HudWidth = 390f;
+        [Min(60f)] public float HudHeight = 112f;
         [Min(0f)] public float HudPadding = 12f;
         [Min(9)] public int HudTitleFontSize = 15;
         [Min(9)] public int HudBodyFontSize = 13;

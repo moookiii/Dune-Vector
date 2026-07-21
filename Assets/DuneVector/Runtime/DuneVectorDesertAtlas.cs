@@ -392,7 +392,11 @@ namespace DuneVector
                 return;
             }
             EnsureGui();
-            Rect panel = _settings.HudRect;
+            Rect panel = new Rect(
+                Screen.width - _settings.HudRightMargin - _settings.HudWidth,
+                _settings.HudTop,
+                _settings.HudWidth,
+                _settings.HudHeight);
             DrawRect(panel, _settings.HudPanelColor);
             float padding = _settings.HudPadding;
             GUI.Label(new Rect(panel.x + padding, panel.y + _settings.HudTitleTop,
