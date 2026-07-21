@@ -137,7 +137,8 @@ namespace DuneVector
                 sample.Radius * _settings.HeatPlumeRadiusMultiplier,
                 Mathf.RoundToInt(_settings.HeatPlumeParticleBudget * sample.Severity),
                 _settings.HeatPlumeEmissionRate * sample.Severity,
-                1f);
+                1f,
+                false);
             ParticleSystem streaks = CreateHeatStreaks(root.transform, sample);
             CreateHotSpots(root.transform, center, sample);
             return new ZoneVisual
@@ -166,7 +167,8 @@ namespace DuneVector
                 _settings.AmbientHeatPlumeRadius,
                 _settings.AmbientHeatPlumeParticleBudget,
                 _settings.AmbientHeatPlumeEmissionRate,
-                _settings.AmbientHeatPlumeOpacity);
+                _settings.AmbientHeatPlumeOpacity,
+                _settings.AmbientHeatPlumePrewarm);
         }
 
         private void UpdateAmbientPlumePosition()
@@ -187,7 +189,8 @@ namespace DuneVector
             float radius,
             int particleBudget,
             float emissionRate,
-            float opacity)
+            float opacity,
+            bool prewarm)
         {
             GameObject plumeObject = new GameObject(objectName);
             plumeObject.transform.SetParent(parent, false);
@@ -196,7 +199,9 @@ namespace DuneVector
             ParticleSystem.MainModule main = system.main;
             main.loop = true;
             main.playOnAwake = true;
+            main.prewarm = prewarm;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.startSpeed = _settings.HeatPlumeInitialSpeed;
             main.maxParticles = Mathf.Max(0, particleBudget);
             main.startLifetime = new ParticleSystem.MinMaxCurve(
                 _settings.HeatPlumeMinimumLifetime,
