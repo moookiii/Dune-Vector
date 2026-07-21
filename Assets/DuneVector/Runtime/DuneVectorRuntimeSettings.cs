@@ -2809,7 +2809,6 @@ namespace DuneVector
         [Min(0f)] public float GroundDistortionShellSpacing = 0.55f;
         [Range(0f, 1f)] public float GroundDistortionShellStrengthFalloff = 0.72f;
         [Min(20f)] public float GroundDistortionFollowRadius = 420f;
-        [Min(5f)] public float GroundDistortionRecenterDistance = 40f;
         [Range(1, 64)] public int GroundHeatVeilRingCount = 48;
         [Range(16, 192)] public int GroundHeatVeilSegments = 128;
         [Min(0.25f)] public float GroundHeatVeilMinimumRadius = 1.5f;
