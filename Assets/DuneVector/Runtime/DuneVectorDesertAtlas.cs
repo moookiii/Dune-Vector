@@ -32,6 +32,8 @@ namespace DuneVector
             public TraversalRing ChallengeFlightRing;
             public ParticleSystem AmbientParticles;
             public readonly List<Transform> SlalomGates = new List<Transform>();
+            public Transform DiscoveredMarker;
+            public Vector3 DiscoveredMarkerBaseScale;
         }
 
         public bool IsUnlocked => _settings != null && _settings.Enabled && _progress != null &&
@@ -66,6 +68,8 @@ namespace DuneVector
         private string _savePath;
         private DesertAtlasSiteDefinition _nearestSite;
         private float _nearestDistance;
+        private DesertAtlasSiteDefinition _nearestDiscoveredSite;
+        private float _nearestDiscoveredDistance;
         private float _scanProgress;
         private string _scanningSiteId;
         private float _orbitLastAngle;
@@ -95,6 +99,9 @@ namespace DuneVector
         private GUIStyle _hudMetricStyle;
         private GUIStyle _hudBearingStyle;
         private GUIStyle _hudCountStyle;
+        private GUIStyle _hudLoreMetaStyle;
+        private GUIStyle _hudLoreTitleStyle;
+        private GUIStyle _hudLoreBodyStyle;
         private GUIStyle _statusStyle;
         private GUIStyle _terminalTitleStyle;
         private GUIStyle _terminalBodyStyle;
@@ -175,6 +182,8 @@ namespace DuneVector
         {
             _nearestSite = null;
             _nearestDistance = float.PositiveInfinity;
+            _nearestDiscoveredSite = null;
+            _nearestDiscoveredDistance = float.PositiveInfinity;
             Vector3 playerPosition = _player.WorldCenter;
             float spawnDistance = Mathf.Max(1f, _settings.SiteVisualSpawnDistance);
             float despawnDistance = Mathf.Max(spawnDistance, _settings.SiteVisualDespawnDistance);
@@ -194,6 +203,11 @@ namespace DuneVector
                 {
                     _nearestSite = site;
                     _nearestDistance = distance;
+                }
+                if (discovered && distance < _nearestDiscoveredDistance)
+                {
+                    _nearestDiscoveredSite = site;
+                    _nearestDiscoveredDistance = distance;
                 }
 
                 if ((available || discovered) && distance <= spawnDistance)
@@ -750,6 +764,10 @@ namespace DuneVector
             if (_visuals.TryGetValue(site.PersistentId, out SiteVisual visual))
             {
                 ApplyMaterial(visual.Root, _discoveredMaterial);
+                if (visual.DiscoveredMarker != null)
+                {
+                    visual.DiscoveredMarker.gameObject.SetActive(true);
+                }
                 EmitCompletionBurst(visual, site.SignalColor);
             }
             int milestoneInterval = Mathf.Max(1, _settings.MilestoneInterval);
@@ -827,6 +845,9 @@ namespace DuneVector
                 BeamBaseScale = beam.localScale,
             };
             created.AmbientParticles = CreateAmbientParticles(root, signalMaterial, site.SignalColor);
+            created.DiscoveredMarker = BuildDiscoveredMarker(root);
+            created.DiscoveredMarkerBaseScale = created.DiscoveredMarker.localScale;
+            created.DiscoveredMarker.gameObject.SetActive(IsDiscovered(site));
             if (site.ChallengeType == DesertAtlasChallengeType.AerialSlalom)
             {
                 BuildSlalomGates(created, site, material);
@@ -859,6 +880,39 @@ namespace DuneVector
             }
             _visuals.Add(site.PersistentId, created);
             return created;
+        }
+
+        private Transform BuildDiscoveredMarker(Transform root)
+        {
+            Transform marker = new GameObject("Discovered Archive Crown").transform;
+            marker.SetParent(root, false);
+            marker.localPosition = Vector3.up * _settings.DiscoveredMarkerHeight;
+            int segments = Mathf.Max(6, _settings.DiscoveredMarkerSegmentCount);
+            for (int i = 0; i < segments; i++)
+            {
+                float angle = (360f / segments) * i;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                CreatePart(
+                    PrimitiveType.Cube,
+                    $"Archive Halo Segment {i + 1}",
+                    marker,
+                    direction * _settings.DiscoveredMarkerRadius,
+                    new Vector3(
+                        _settings.DiscoveredMarkerSegmentThickness,
+                        _settings.DiscoveredMarkerSegmentThickness,
+                        _settings.DiscoveredMarkerSegmentLength),
+                    _discoveredMaterial,
+                    Quaternion.Euler(0f, angle, 0f));
+            }
+            CreatePart(
+                PrimitiveType.Cube,
+                "Archive Crown Diamond",
+                marker,
+                Vector3.up * _settings.DiscoveredMarkerDiamondHeight,
+                Vector3.one * _settings.DiscoveredMarkerDiamondSize,
+                _discoveredMaterial,
+                Quaternion.Euler(45f, 45f, 0f));
+            return marker;
         }
 
         private void BuildSlalomGates(SiteVisual visual, DesertAtlasSiteDefinition site, Material material)
@@ -999,6 +1053,18 @@ namespace DuneVector
                         }
                         visual.SlalomGates[gateIndex].localScale = Vector3.one * gateScale;
                     }
+                }
+                if (visual.DiscoveredMarker != null && visual.DiscoveredMarker.gameObject.activeSelf)
+                {
+                    float discoveredPulse = 1f +
+                        (Mathf.Sin(Time.time * _settings.DiscoveredMarkerPulseSpeed) *
+                            _settings.DiscoveredMarkerPulseAmount);
+                    visual.DiscoveredMarker.localScale = visual.DiscoveredMarkerBaseScale * discoveredPulse;
+                    visual.DiscoveredMarker.Rotate(
+                        0f,
+                        _settings.DiscoveredMarkerRotationSpeed * Time.deltaTime,
+                        0f,
+                        Space.Self);
                 }
                 if (visual.Beam != null)
                 {
@@ -1397,6 +1463,11 @@ namespace DuneVector
 
         private void DrawAtlasHud(Rect panel)
         {
+            bool discoveredLoreActive = _nearestDiscoveredSite != null &&
+                _nearestDiscoveredDistance <= _settings.DiscoveredLoreRadius;
+            Color stateAccent = discoveredLoreActive
+                ? _settings.HudDiscoveredAccentColor
+                : _settings.HudAccentColor;
             Rect shadow = new Rect(
                 panel.x + _settings.HudShadowOffset.x,
                 panel.y + _settings.HudShadowOffset.y,
@@ -1407,7 +1478,7 @@ namespace DuneVector
             DrawBorder(panel, _settings.HudBorderColor, _settings.HudBorderThickness);
             DrawRect(
                 new Rect(panel.x, panel.y, _settings.HudAccentWidth, panel.height),
-                _settings.HudAccentColor);
+                stateAccent);
             DrawRect(
                 new Rect(
                     panel.x + _settings.HudAccentWidth,
@@ -1445,7 +1516,11 @@ namespace DuneVector
                 _hudCountStyle);
 
             bool challengeActive = _nearestSite != null && IsWithinChallengeActivation(_nearestSite);
-            if (_nearestSite == null)
+            if (discoveredLoreActive)
+            {
+                DrawAtlasDiscoveredState(panel, padding);
+            }
+            else if (_nearestSite == null)
             {
                 DrawAtlasEmptyState(panel, padding);
             }
@@ -1457,7 +1532,35 @@ namespace DuneVector
             {
                 DrawAtlasNavigationState(panel, padding);
             }
-            DrawAtlasSurveyProgress(panel);
+            DrawAtlasSurveyProgress(panel, stateAccent);
+        }
+
+        private void DrawAtlasDiscoveredState(Rect panel, float padding)
+        {
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.y + _settings.HudContentTop,
+                    panel.width - (padding * 2f),
+                    _settings.HudMetaHeight),
+                FormatDesignerText(_settings.HudDiscoveredLabelFormat, _nearestDiscoveredDistance),
+                _hudLoreMetaStyle);
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.y + _settings.HudLoreTitleTop,
+                    panel.width - (padding * 2f),
+                    _settings.HudLoreTitleHeight),
+                _nearestDiscoveredSite.DisplayName,
+                _hudLoreTitleStyle);
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.y + _settings.HudLoreBodyTop,
+                    panel.width - (padding * 2f),
+                    _settings.HudLoreBodyHeight),
+                _nearestDiscoveredSite.Description,
+                _hudLoreBodyStyle);
         }
 
         private void DrawAtlasEmptyState(Rect panel, float padding)
@@ -1553,7 +1656,7 @@ namespace DuneVector
                 _settings.HudAccentColor);
         }
 
-        private void DrawAtlasSurveyProgress(Rect panel)
+        private void DrawAtlasSurveyProgress(Rect panel, Color accentColor)
         {
             int segmentCount = Mathf.Max(1, _settings.HudSurveySegmentCount);
             float gap = _settings.HudSurveySegmentGap;
@@ -1577,7 +1680,7 @@ namespace DuneVector
                 {
                     DrawRect(
                         new Rect(segment.x, segment.y, segment.width * fill, segment.height),
-                        _settings.HudAccentColor);
+                        accentColor);
                 }
             }
         }
@@ -1651,6 +1754,9 @@ namespace DuneVector
             _hudMetricStyle ??= CreateStyle(_settings.HudMetricFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.HudAccentColor);
             _hudBearingStyle ??= CreateStyle(_settings.HudBearingFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
             _hudCountStyle ??= CreateStyle(_settings.HudCountFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
+            _hudLoreMetaStyle ??= CreateStyle(_settings.HudMetaFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.HudDiscoveredAccentColor);
+            _hudLoreTitleStyle ??= CreateStyle(_settings.HudLoreTitleFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.HudTextColor);
+            _hudLoreBodyStyle ??= CreateStyle(_settings.HudLoreBodyFontSize, FontStyle.Normal, TextAnchor.UpperLeft, _settings.HudMutedColor);
             _statusStyle ??= CreateStyle(_settings.HudTitleFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
             _terminalTitleStyle ??= CreateStyle(_settings.TerminalTitleFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.TerminalTextColor);
             _terminalBodyStyle ??= CreateStyle(_settings.TerminalBodyFontSize, FontStyle.Bold, TextAnchor.UpperLeft, _settings.TerminalTextColor);
