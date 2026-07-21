@@ -14,7 +14,7 @@ namespace DuneVector
         [Serializable]
         private sealed class AtlasSaveData
         {
-            public int Version = 2;
+            public int Version = 3;
             public List<string> DiscoveredSiteIds = new List<string>();
             public bool CompletionRewardClaimed;
         }
@@ -30,6 +30,7 @@ namespace DuneVector
             public Transform Beam;
             public Vector3 BeamBaseScale;
             public TraversalRing ChallengeFlightRing;
+            public ParticleSystem AmbientParticles;
         }
 
         public bool IsUnlocked => _settings != null && _settings.Enabled && _progress != null &&
@@ -72,15 +73,22 @@ namespace DuneVector
         private bool _vectorPassArmed;
         private Vector3 _vectorPassPreviousPosition;
         private bool _hasVectorPassPreviousPosition;
+        private int _relayStage;
+        private float _relayStageProgress;
+        private float _challengeStartedAt;
         private bool _completionRewardClaimed;
         private string _statusText;
         private float _statusUntil;
+        private float _discoveryPresentationStartedAt;
+        private float _discoveryPresentationUntil;
         private Vector2 _terminalScroll;
         private GUIStyle _hudTitleStyle;
         private GUIStyle _hudBodyStyle;
+        private GUIStyle _statusStyle;
         private GUIStyle _terminalTitleStyle;
         private GUIStyle _terminalBodyStyle;
         private GUIStyle _terminalMetaStyle;
+        private GUIStyle _discoveryBannerStyle;
         private Texture2D _whiteTexture;
 
         public void Initialize(
@@ -219,6 +227,9 @@ namespace DuneVector
                 case DesertAtlasChallengeType.AltitudeHold:
                     UpdateAltitudeHoldChallenge(_nearestSite);
                     break;
+                case DesertAtlasChallengeType.RelaySequence:
+                    UpdateRelaySequenceChallenge(_nearestSite);
+                    break;
                 default:
                     UpdateSignalLockChallenge(_nearestSite);
                     break;
@@ -233,6 +244,7 @@ namespace DuneVector
         {
             ResetScan();
             _scanningSiteId = site.PersistentId;
+            _challengeStartedAt = Time.unscaledTime;
         }
 
         private void UpdateSignalLockChallenge(DesertAtlasSiteDefinition site)
@@ -357,6 +369,126 @@ namespace DuneVector
             }
         }
 
+        private void UpdateRelaySequenceChallenge(DesertAtlasSiteDefinition site)
+        {
+            switch (_relayStage)
+            {
+                case 0:
+                    UpdateRelaySynchronization(site);
+                    break;
+                case 1:
+                    UpdateRelayVectorPass(site);
+                    break;
+                default:
+                    UpdateRelayAltitudeHold(site);
+                    break;
+            }
+
+            _scanProgress = Mathf.Clamp01((_relayStage + _relayStageProgress) / 3f);
+        }
+
+        private void UpdateRelaySynchronization(DesertAtlasSiteDefinition site)
+        {
+            Keyboard keyboard = Keyboard.current;
+            bool held = keyboard != null && _settings.ScanKey != Key.None && keyboard[_settings.ScanKey].isPressed;
+            if (!held || _nearestDistance > _settings.ScanRadius)
+            {
+                _relayStageProgress = Mathf.Max(
+                    0f,
+                    _relayStageProgress - (_settings.ScanProgressDecayPerSecond * Time.deltaTime));
+                return;
+            }
+
+            _relayStageProgress = Mathf.Clamp01(
+                _relayStageProgress + (Time.deltaTime / Mathf.Max(0.1f, site.RequiredAmount)));
+            if (_relayStageProgress >= 1f)
+            {
+                AdvanceRelayStage();
+            }
+        }
+
+        private void UpdateRelayVectorPass(DesertAtlasSiteDefinition site)
+        {
+            Vector3 playerPosition = _player.WorldCenter;
+            Vector3 targetPosition = GetVectorPassTargetPosition(site);
+            float targetDistance = Vector3.Distance(playerPosition, targetPosition);
+            bool flightValid = _player.CurrentMode == DroneTraversalMode.Flight && _player.Speed >= site.MinimumSpeed;
+            if (!_hasVectorPassPreviousPosition)
+            {
+                _vectorPassPreviousPosition = playerPosition;
+                _hasVectorPassPreviousPosition = true;
+            }
+            if (!_vectorPassArmed && flightValid && targetDistance >= _settings.RelayVectorArmRadius)
+            {
+                _vectorPassArmed = true;
+            }
+            if (!_vectorPassArmed || !flightValid)
+            {
+                _relayStageProgress = 0f;
+                _vectorPassPreviousPosition = playerPosition;
+                return;
+            }
+
+            float finishRadius = _settings.VectorPassFinishRadius;
+            _relayStageProgress = Mathf.Max(
+                _relayStageProgress,
+                Mathf.InverseLerp(_settings.RelayVectorArmRadius, finishRadius, targetDistance));
+            if (DidCrossTarget(_vectorPassPreviousPosition, playerPosition, targetPosition, finishRadius))
+            {
+                AdvanceRelayStage();
+            }
+            _vectorPassPreviousPosition = playerPosition;
+        }
+
+        private void UpdateRelayAltitudeHold(DesertAtlasSiteDefinition site)
+        {
+            Vector3 offset = _player.WorldCenter - GetSiteLocalPosition(site);
+            float planarRadius = new Vector2(offset.x, offset.z).magnitude;
+            float heightError = offset.y - site.TargetHeightAboveSignal;
+            Vector3 velocity = _player.Motor != null ? _player.Motor.Velocity : Vector3.zero;
+            bool valid = _player.CurrentMode == DroneTraversalMode.Flight &&
+                planarRadius <= _settings.AltitudeHoldHorizontalRadius &&
+                Mathf.Abs(heightError) <= site.HeightTolerance &&
+                Mathf.Abs(velocity.y) <= _settings.AltitudeHoldMaximumVerticalSpeed;
+            if (valid)
+            {
+                _relayStageProgress = Mathf.Clamp01(
+                    _relayStageProgress + (Time.deltaTime / Mathf.Max(0.1f, site.SecondaryRequiredAmount)));
+            }
+            else
+            {
+                _relayStageProgress = Mathf.Max(
+                    0f,
+                    _relayStageProgress - (_settings.ScanProgressDecayPerSecond * Time.deltaTime));
+            }
+        }
+
+        private void AdvanceRelayStage()
+        {
+            _relayStage++;
+            _relayStageProgress = 0f;
+            _vectorPassArmed = false;
+            _hasVectorPassPreviousPosition = false;
+            _statusText = FormatDesignerText(_settings.RelayStageAdvancedFormat, _relayStage);
+            _statusUntil = Time.unscaledTime + _settings.ScanInterruptedStatusDuration;
+        }
+
+        private static bool DidCrossTarget(Vector3 start, Vector3 end, Vector3 target, float radius)
+        {
+            if (Vector3.Distance(end, target) <= radius)
+            {
+                return true;
+            }
+            Vector3 segment = end - start;
+            float lengthSquared = segment.sqrMagnitude;
+            if (lengthSquared <= Mathf.Epsilon)
+            {
+                return false;
+            }
+            float interpolation = Mathf.Clamp01(Vector3.Dot(target - start, segment) / lengthSquared);
+            return Vector3.Distance(start + (segment * interpolation), target) <= radius;
+        }
+
         private void DecayScan()
         {
             if (_scanProgress <= 0f)
@@ -378,13 +510,35 @@ namespace DuneVector
                 ResetScan();
                 return;
             }
-            _wallet?.AddGold(Mathf.Max(0, site.GoldReward));
-            _statusText = FormatDesignerText(_settings.DiscoveryStatusFormat, site.DisplayName, site.GoldReward);
+            int baseReward = Mathf.Max(0, site.GoldReward);
+            bool earnedMasteryBonus = site.BonusTimeLimit > 0f &&
+                Time.unscaledTime - _challengeStartedAt <= site.BonusTimeLimit;
+            int masteryReward = earnedMasteryBonus ? Mathf.Max(0, site.BonusGoldReward) : 0;
+            _wallet?.AddGold(baseReward + masteryReward);
+            _statusText = FormatDesignerText(
+                _settings.DiscoveryStatusFormat,
+                site.DisplayName,
+                baseReward,
+                masteryReward);
             _statusUntil = Time.unscaledTime + _settings.DiscoveryStatusDuration;
+            _discoveryPresentationStartedAt = Time.unscaledTime;
+            _discoveryPresentationUntil = Time.unscaledTime + _settings.DiscoveryPresentationDuration;
             if (_visuals.TryGetValue(site.PersistentId, out SiteVisual visual))
             {
                 ApplyMaterial(visual.Root, _discoveredMaterial);
                 EmitCompletionBurst(visual, site.SignalColor);
+            }
+            int milestoneInterval = Mathf.Max(1, _settings.MilestoneInterval);
+            if (DiscoveredCount < TotalSiteCount && DiscoveredCount % milestoneInterval == 0)
+            {
+                int milestoneReward = Mathf.Max(0, _settings.MilestoneGoldReward);
+                _wallet?.AddGold(milestoneReward);
+                _statusText = FormatDesignerText(
+                    _settings.MilestoneStatusFormat,
+                    _statusText,
+                    DiscoveredCount,
+                    TotalSiteCount,
+                    milestoneReward);
             }
             bool completedAtlas = TryGrantCompletionReward(showStatus: true);
             if (!completedAtlas) Save();
@@ -448,6 +602,7 @@ namespace DuneVector
                 Beam = beam,
                 BeamBaseScale = beam.localScale,
             };
+            created.AmbientParticles = CreateAmbientParticles(root, signalMaterial, site.SignalColor);
             if (_settings.SpawnChallengeFlightRing &&
                 site.ChallengeType != DesertAtlasChallengeType.SignalLock && _world.Rings != null)
             {
@@ -455,7 +610,8 @@ namespace DuneVector
                 ringObject.transform.SetParent(root, false);
                 ringObject.transform.localPosition = new Vector3(
                     0f,
-                    site.ChallengeType == DesertAtlasChallengeType.VectorPass
+                    site.ChallengeType == DesertAtlasChallengeType.VectorPass ||
+                    site.ChallengeType == DesertAtlasChallengeType.RelaySequence
                         ? _settings.CoreHeight
                         : Mathf.Max(_settings.ChallengeFlightRingHeight, site.TargetHeightAboveSignal),
                     -_settings.ChallengeFlightRingDistance);
@@ -473,6 +629,32 @@ namespace DuneVector
             }
             _visuals.Add(site.PersistentId, created);
             return created;
+        }
+
+        private ParticleSystem CreateAmbientParticles(Transform parent, Material material, Color color)
+        {
+            GameObject particleObject = new GameObject("Signal Ambient Particles");
+            particleObject.transform.SetParent(parent, false);
+            particleObject.transform.localPosition = Vector3.up * _settings.CoreHeight;
+            ParticleSystem particles = particleObject.AddComponent<ParticleSystem>();
+            ParticleSystem.MainModule main = particles.main;
+            main.loop = true;
+            main.playOnAwake = true;
+            main.startLifetime = _settings.AmbientParticleLifetime;
+            main.startSpeed = _settings.AmbientParticleSpeed;
+            main.startSize = new ParticleSystem.MinMaxCurve(
+                _settings.AmbientParticleMinimumSize,
+                Mathf.Max(_settings.AmbientParticleMinimumSize, _settings.AmbientParticleMaximumSize));
+            main.startColor = color;
+            ParticleSystem.EmissionModule emission = particles.emission;
+            emission.rateOverTime = _settings.AmbientParticleRate;
+            ParticleSystem.ShapeModule shape = particles.shape;
+            shape.shapeType = ParticleSystemShapeType.Circle;
+            shape.radius = _settings.AmbientParticleRadius;
+            ParticleSystemRenderer renderer = particles.GetComponent<ParticleSystemRenderer>();
+            renderer.sharedMaterial = material;
+            particles.Play();
+            return particles;
         }
 
         private void BuildSegmentedRing(Transform parent, float height, float radius, Material material, int ringIndex)
@@ -540,6 +722,12 @@ namespace DuneVector
                         "_EmissiveColor",
                         visual.SignalColor * (_settings.SignalEmissionMultiplier * challengeEmission));
                 }
+                if (visual.AmbientParticles != null)
+                {
+                    ParticleSystem.EmissionModule emission = visual.AmbientParticles.emission;
+                    emission.rateOverTime = _settings.AmbientParticleRate *
+                        (challengeActive ? _settings.ActiveChallengeParticleMultiplier : 1f);
+                }
             }
         }
 
@@ -582,6 +770,7 @@ namespace DuneVector
                 DesertAtlasChallengeType.VectorPass => _settings.VectorPassStartRadius,
                 DesertAtlasChallengeType.OrbitTrace => _settings.OrbitMaximumRadius,
                 DesertAtlasChallengeType.AltitudeHold => _settings.AltitudeHoldHorizontalRadius,
+                DesertAtlasChallengeType.RelaySequence => _settings.VectorPassStartRadius,
                 _ => _settings.ScanRadius,
             };
         }
@@ -589,7 +778,8 @@ namespace DuneVector
         private bool IsWithinChallengeActivation(DesertAtlasSiteDefinition site)
         {
             if (site == null) return false;
-            if (site.ChallengeType == DesertAtlasChallengeType.VectorPass)
+            if (site.ChallengeType == DesertAtlasChallengeType.VectorPass ||
+                site.ChallengeType == DesertAtlasChallengeType.RelaySequence)
             {
                 return Vector3.Distance(_player.WorldCenter, GetVectorPassTargetPosition(site)) <=
                     GetChallengeActivationRadius(site);
@@ -612,34 +802,69 @@ namespace DuneVector
                 case DesertAtlasChallengeType.VectorPass:
                     if (_player.CurrentMode != DroneTraversalMode.Flight)
                     {
-                        return _settings.VectorPassNeedFlightText;
+                        return WithTimedBonus(site, _settings.VectorPassNeedFlightText);
                     }
                     if (_player.Speed < site.MinimumSpeed)
                     {
-                        return FormatDesignerText(
+                        return WithTimedBonus(site, FormatDesignerText(
                             _settings.VectorPassNeedSpeedFormat,
                             _player.Speed,
-                            site.MinimumSpeed);
+                            site.MinimumSpeed));
                     }
-                    return FormatDesignerText(
+                    return WithTimedBonus(site, FormatDesignerText(
                         _settings.VectorPassProgressFormat,
                         _scanProgress * 100f,
-                        _player.Speed);
+                        _player.Speed));
                 case DesertAtlasChallengeType.OrbitTrace:
-                    return FormatDesignerText(
+                    return WithTimedBonus(site, FormatDesignerText(
                         _settings.OrbitProgressFormat,
                         _scanProgress * site.RequiredAmount,
-                        site.RequiredAmount);
+                        site.RequiredAmount));
                 case DesertAtlasChallengeType.AltitudeHold:
                     float heightError = _player.WorldCenter.y - GetSiteLocalPosition(site).y - site.TargetHeightAboveSignal;
-                    return FormatDesignerText(
+                    return WithTimedBonus(site, FormatDesignerText(
                         _settings.AltitudeProgressFormat,
                         _scanProgress * site.RequiredAmount,
                         site.RequiredAmount,
-                        heightError);
+                        heightError));
+                case DesertAtlasChallengeType.RelaySequence:
+                    return WithTimedBonus(site, GetRelayProgressText(site));
                 default:
-                    return FormatDesignerText(_settings.SignalLockProgressFormat, _scanProgress * 100f);
+                    return WithTimedBonus(
+                        site,
+                        FormatDesignerText(_settings.SignalLockProgressFormat, _scanProgress * 100f));
             }
+        }
+
+        private string GetRelayProgressText(DesertAtlasSiteDefinition site)
+        {
+            return _relayStage switch
+            {
+                0 when _nearestDistance > _settings.ScanRadius => FormatDesignerText(
+                    _settings.RelayStageOneApproachFormat,
+                    _nearestDistance),
+                0 => FormatDesignerText(_settings.RelayStageOneProgressFormat, _relayStageProgress * 100f),
+                1 when !_vectorPassArmed => _settings.RelayStageTwoNeedArmText,
+                1 => FormatDesignerText(_settings.RelayStageTwoProgressFormat, _relayStageProgress * 100f),
+                _ => FormatDesignerText(
+                    _settings.RelayStageThreeProgressFormat,
+                    _relayStageProgress * site.SecondaryRequiredAmount,
+                    site.SecondaryRequiredAmount),
+            };
+        }
+
+        private string WithTimedBonus(DesertAtlasSiteDefinition site, string progressText)
+        {
+            if (site.BonusTimeLimit <= 0f || site.BonusGoldReward <= 0)
+            {
+                return progressText;
+            }
+            float remaining = Mathf.Max(0f, site.BonusTimeLimit - (Time.unscaledTime - _challengeStartedAt));
+            return FormatDesignerText(
+                _settings.TimedBonusProgressFormat,
+                progressText,
+                remaining,
+                site.BonusGoldReward);
         }
 
         private Vector3 GetSiteLocalPosition(DesertAtlasSiteDefinition site)
@@ -733,10 +958,17 @@ namespace DuneVector
                 }
                 else if (available)
                 {
-                    body = FormatDesignerText(
-                        _settings.TerminalChallengeFormat,
-                        site.IsFinalSignal ? _settings.TerminalFinalSignalStatus : _settings.TerminalAvailableStatus,
-                        site.ChallengeInstruction);
+                    string availability = site.IsFinalSignal
+                        ? _settings.TerminalFinalSignalStatus
+                        : _settings.TerminalAvailableStatus;
+                    body = site.BonusTimeLimit > 0f && site.BonusGoldReward > 0
+                        ? FormatDesignerText(
+                            _settings.TerminalChallengeWithBonusFormat,
+                            availability,
+                            site.ChallengeInstruction,
+                            site.BonusTimeLimit,
+                            site.BonusGoldReward)
+                        : FormatDesignerText(_settings.TerminalChallengeFormat, availability, site.ChallengeInstruction);
                 }
                 else
                 {
@@ -807,11 +1039,50 @@ namespace DuneVector
                 DrawRect(bar, _settings.ScanBarBackgroundColor);
                 DrawRect(new Rect(bar.x, bar.y, bar.width * _scanProgress, bar.height), _settings.HudAccentColor);
             }
-            if (Time.unscaledTime < _statusUntil)
+            if (Time.unscaledTime < _discoveryPresentationUntil)
+            {
+                DrawDiscoveryPresentation();
+            }
+            else if (Time.unscaledTime < _statusUntil)
             {
                 GUI.Label(new Rect(0f, Screen.height * _settings.StatusVerticalFraction, Screen.width,
-                    _settings.StatusHeight), _statusText, _hudTitleStyle);
+                    _settings.StatusHeight), _statusText, _statusStyle);
             }
+        }
+
+        private void DrawDiscoveryPresentation()
+        {
+            float duration = Mathf.Max(0.01f, _settings.DiscoveryPresentationDuration);
+            float elapsed = Time.unscaledTime - _discoveryPresentationStartedAt;
+            float normalized = Mathf.Clamp01(elapsed / duration);
+            float flashDuration = Mathf.Max(0.01f, _settings.DiscoveryFlashDuration);
+            if (elapsed < flashDuration)
+            {
+                Color flashColor = _settings.DiscoveryFlashColor;
+                flashColor.a *= Mathf.Sin(Mathf.Clamp01(elapsed / flashDuration) * Mathf.PI);
+                DrawRect(new Rect(0f, 0f, Screen.width, Screen.height), flashColor);
+            }
+
+            float fade = 1f - Mathf.SmoothStep(0f, 1f, normalized);
+            float slide = Mathf.Lerp(_settings.DiscoveryBannerSlideDistance, 0f, Mathf.SmoothStep(0f, 1f, normalized));
+            float width = Mathf.Min(_settings.DiscoveryBannerWidth, Screen.safeArea.width);
+            Rect banner = new Rect(
+                Screen.safeArea.x + ((Screen.safeArea.width - width) * 0.5f),
+                (Screen.height * _settings.DiscoveryBannerVerticalFraction) - slide,
+                width,
+                _settings.DiscoveryBannerHeight);
+            Color panelColor = _settings.DiscoveryBannerColor;
+            panelColor.a *= fade;
+            Color accentColor = _settings.DiscoveryBannerAccentColor;
+            accentColor.a *= fade;
+            DrawRect(banner, panelColor);
+            DrawRect(
+                new Rect(banner.x, banner.y, banner.width, _settings.DiscoveryBannerAccentHeight),
+                accentColor);
+            Color previous = GUI.color;
+            GUI.color = new Color(previous.r, previous.g, previous.b, fade);
+            GUI.Label(banner, _statusText, _discoveryBannerStyle);
+            GUI.color = previous;
         }
 
         private string GetBearingText(DesertAtlasSiteDefinition site)
@@ -844,9 +1115,15 @@ namespace DuneVector
             }
             _hudTitleStyle ??= CreateStyle(_settings.HudTitleFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.HudTextColor);
             _hudBodyStyle ??= CreateStyle(_settings.HudBodyFontSize, FontStyle.Normal, TextAnchor.MiddleLeft, _settings.HudMutedColor);
+            _statusStyle ??= CreateStyle(_settings.HudTitleFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
             _terminalTitleStyle ??= CreateStyle(_settings.TerminalTitleFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.TerminalTextColor);
             _terminalBodyStyle ??= CreateStyle(_settings.TerminalBodyFontSize, FontStyle.Bold, TextAnchor.UpperLeft, _settings.TerminalTextColor);
             _terminalMetaStyle ??= CreateStyle(_settings.TerminalMetaFontSize, FontStyle.Normal, TextAnchor.UpperLeft, _settings.TerminalMutedColor);
+            _discoveryBannerStyle ??= CreateStyle(
+                _settings.DiscoveryBannerFontSize,
+                FontStyle.Bold,
+                TextAnchor.MiddleCenter,
+                _settings.HudTextColor);
         }
 
         private static GUIStyle CreateStyle(int fontSize, FontStyle fontStyle, TextAnchor alignment, Color color)
@@ -913,6 +1190,8 @@ namespace DuneVector
             _vectorPassArmed = false;
             _vectorPassPreviousPosition = Vector3.zero;
             _hasVectorPassPreviousPosition = false;
+            _relayStage = 0;
+            _relayStageProgress = 0f;
         }
 
         private void Load()
@@ -927,7 +1206,7 @@ namespace DuneVector
             {
                 AtlasSaveData data = JsonUtility.FromJson<AtlasSaveData>(File.ReadAllText(_savePath));
                 if (data?.DiscoveredSiteIds == null) return;
-                _completionRewardClaimed = data.CompletionRewardClaimed;
+                _completionRewardClaimed = data.Version >= 3 && data.CompletionRewardClaimed;
                 for (int i = 0; i < data.DiscoveredSiteIds.Count; i++)
                 {
                     if (!string.IsNullOrWhiteSpace(data.DiscoveredSiteIds[i]))

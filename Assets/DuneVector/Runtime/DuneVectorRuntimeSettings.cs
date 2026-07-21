@@ -1782,6 +1782,7 @@ namespace DuneVector
         VectorPass,
         OrbitTrace,
         AltitudeHold,
+        RelaySequence,
     }
 
     [System.Serializable]
@@ -1803,9 +1804,14 @@ namespace DuneVector
         public string ChallengeInstruction = "HOLD E TO SYNCHRONIZE";
         [Tooltip("Seconds for timed challenges or degrees for orbit challenges.")]
         [Min(0.1f)] public float RequiredAmount = 4f;
+        [Tooltip("Seconds used by the final phase of multi-stage relay challenges.")]
+        [Min(0.1f)] public float SecondaryRequiredAmount = 4f;
         [Min(0f)] public float MinimumSpeed;
         [Min(0f)] public float TargetHeightAboveSignal = 12f;
         [Min(0.1f)] public float HeightTolerance = 5f;
+        [Header("Optional Mastery Bonus")]
+        [Min(0f)] public float BonusTimeLimit;
+        [Min(0)] public int BonusGoldReward;
     }
 
     [System.Serializable]
@@ -1821,8 +1827,11 @@ namespace DuneVector
         [Min(1f)] public float SiteVisualDespawnDistance = 1100f;
         public Key ScanKey = Key.E;
         public string ScanInterruptedText = "SIGNAL ANALYSIS INTERRUPTED";
-        public string DiscoveryStatusFormat = "ATLAS UPDATED — {0}  +{1} GOLD";
-        [Min(0)] public int AtlasCompletionGoldReward = 1000;
+        public string DiscoveryStatusFormat = "ATLAS UPDATED — {0}  +{1} GOLD  /  MASTERY +{2}";
+        [Min(1)] public int MilestoneInterval = 5;
+        [Min(0)] public int MilestoneGoldReward = 300;
+        public string MilestoneStatusFormat = "{0}\nSURVEY MILESTONE {1}/{2} — +{3} GOLD";
+        [Min(0)] public int AtlasCompletionGoldReward = 5000;
         public string AtlasCompletionStatusFormat = "DESERT ATLAS COMPLETE — FINAL SIGNAL RESOLVED  +{0} GOLD";
 
         [Header("Atlas Terminal")]
@@ -1845,6 +1854,7 @@ namespace DuneVector
         public string TerminalDiscoveredStatus = "CATALOGUED  +{0} GOLD";
         public string TerminalDiscoveredEntryFormat = "{0}  /  {1}";
         public string TerminalChallengeFormat = "{0}  /  {1}";
+        public string TerminalChallengeWithBonusFormat = "{0}  /  {1}  /  MASTERY {2:0}s +{3} GOLD";
         public string HudTitleFormat = "DESERT ATLAS  {0}/{1}";
         public string HudAllDiscoveredText = "ALL SIGNALS CATALOGUED";
         public string HudSignalsLockedText = "FURTHER SIGNALS ENCRYPTED — REVIEW THE ATLAS";
@@ -1856,6 +1866,13 @@ namespace DuneVector
         public string VectorPassProgressFormat = "VECTOR PASS  {0:0}%  SPEED {1:0.0}";
         public string VectorPassNeedFlightText = "ENTER FLIGHT MODE THROUGH THE NEARBY RING";
         public string VectorPassNeedSpeedFormat = "MORE SPEED REQUIRED  {0:0.0} / {1:0.0} M/S";
+        public string TimedBonusProgressFormat = "{0}\nMASTERY WINDOW  {1:0.0}s  /  +{2} GOLD";
+        public string RelayStageOneApproachFormat = "PHASE 1/3 — APPROACH CORE  {0:0}m";
+        public string RelayStageOneProgressFormat = "PHASE 1/3 — HOLD E TO SYNCHRONIZE  {0:0}%";
+        public string RelayStageTwoNeedArmText = "PHASE 2/3 — FLY OUT THROUGH THE RELAY RING";
+        public string RelayStageTwoProgressFormat = "PHASE 2/3 — STRIKE THE CORE  {0:0}%";
+        public string RelayStageThreeProgressFormat = "PHASE 3/3 — HOLD ALTITUDE  {0:0.0}s / {1:0.0}s";
+        public string RelayStageAdvancedFormat = "RELAY PHASE {0}/3 COMPLETE";
         [Min(0f)] public float DiscoveryStatusDuration = 4f;
         [Min(0f)] public float ScanInterruptedStatusDuration = 2f;
 
@@ -1888,6 +1905,28 @@ namespace DuneVector
         [Min(0.01f)] public float CompletionBurstMinimumSize = 0.12f;
         [Min(0.01f)] public float CompletionBurstMaximumSize = 0.42f;
 
+        [Header("Ambient Signal Particles")]
+        [Min(0f)] public float AmbientParticleRate = 8f;
+        [Min(1f)] public float ActiveChallengeParticleMultiplier = 3f;
+        [Min(0.1f)] public float AmbientParticleLifetime = 2.8f;
+        [Min(0f)] public float AmbientParticleSpeed = 1.5f;
+        [Min(0.01f)] public float AmbientParticleMinimumSize = 0.05f;
+        [Min(0.01f)] public float AmbientParticleMaximumSize = 0.16f;
+        [Min(0.1f)] public float AmbientParticleRadius = 5.8f;
+
+        [Header("Discovery Presentation")]
+        [Min(0f)] public float DiscoveryPresentationDuration = 3.2f;
+        [Min(0f)] public float DiscoveryFlashDuration = 0.7f;
+        [ColorUsage(false)] public Color DiscoveryFlashColor = new Color(0.1f, 0.85f, 1f, 0.18f);
+        [Min(160f)] public float DiscoveryBannerWidth = 620f;
+        [Min(36f)] public float DiscoveryBannerHeight = 84f;
+        [Range(0f, 1f)] public float DiscoveryBannerVerticalFraction = 0.24f;
+        [Min(0f)] public float DiscoveryBannerSlideDistance = 28f;
+        [ColorUsage(false)] public Color DiscoveryBannerColor = new Color(0.015f, 0.05f, 0.08f, 0.96f);
+        [ColorUsage(false)] public Color DiscoveryBannerAccentColor = new Color(0.12f, 0.85f, 1f, 1f);
+        [Min(1f)] public float DiscoveryBannerAccentHeight = 4f;
+        [Min(9)] public int DiscoveryBannerFontSize = 18;
+
         [Header("Flight Challenge Rules")]
         [Min(0.1f)] public float OrbitMinimumRadius = 13f;
         [Min(0.1f)] public float OrbitMaximumRadius = 30f;
@@ -1897,6 +1936,7 @@ namespace DuneVector
         [Min(0.1f)] public float VectorPassStartRadius = 62f;
         [Min(0.1f)] public float VectorPassFinishRadius = 8f;
         [Min(0f)] public float VectorPassProgressDecayPerSecond = 0.8f;
+        [Min(0.1f)] public float RelayVectorArmRadius = 42f;
 
         [Header("Site Flight Ring")]
         public bool SpawnChallengeFlightRing = true;
