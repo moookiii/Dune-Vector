@@ -3103,11 +3103,52 @@ namespace DuneVector
         }
     }
 
+    [System.Serializable]
+    public sealed class CompassHudTuning
+    {
+        public bool Enabled = true;
+        [Min(240f)] public float ReferenceHeight = 1080f;
+        [Range(0.25f, 2f)] public float MinimumScale = 0.65f;
+        [Range(0.25f, 2f)] public float MaximumScale = 1.25f;
+        [Min(160f)] public float Width = 720f;
+        [Min(24f)] public float Height = 72f;
+        [Min(0f)] public float TopMargin = 18f;
+        [Range(30f, 240f)] public float VisibleDegrees = 120f;
+        [Range(1f, 45f)] public float TickStepDegrees = 5f;
+        [Min(1)] public int MajorTickEvery = 3;
+        [Min(1)] public int DegreeLabelEvery = 9;
+        public bool ShowDegreeLabels = true;
+        [Min(1f)] public float MinorTickHeight = 9f;
+        [Min(1f)] public float MajorTickHeight = 18f;
+        [Min(1f)] public float CardinalTickHeight = 27f;
+        [Min(1f)] public float TickWidth = 2f;
+        [Min(0f)] public float TickBottomMargin = 8f;
+        [Min(1f)] public float BaselineHeight = 1f;
+        [Min(8)] public int LabelFontSize = 15;
+        [Min(12f)] public float LabelWidth = 64f;
+        [Min(12f)] public float LabelHeight = 24f;
+        [Min(1f)] public float CenterMarkerWidth = 3f;
+        [Min(1f)] public float CenterMarkerHeight = 34f;
+        public string NorthLabel = "N";
+        public string EastLabel = "E";
+        public string SouthLabel = "S";
+        public string WestLabel = "W";
+        public Vector2 ShadowOffset = new Vector2(1.5f, 2f);
+        [ColorUsage(false)] public Color PanelColor = new Color(0.015f, 0.045f, 0.07f, 0.48f);
+        [ColorUsage(false)] public Color TickColor = new Color(0.72f, 0.87f, 0.92f, 0.88f);
+        [ColorUsage(false)] public Color CardinalColor = new Color(0.95f, 0.99f, 1f, 1f);
+        [ColorUsage(false)] public Color CenterMarkerColor = new Color(0f, 0.86f, 1f, 1f);
+        [ColorUsage(false)] public Color ShadowColor = new Color(0f, 0f, 0f, 0.7f);
+    }
+
     [CreateAssetMenu(fileName = "Dune Vector Runtime Settings", menuName = "Dune Vector/Runtime Settings", order = 0)]
     public sealed class DuneVectorRuntimeSettings : ScriptableObject
     {
         [Tooltip("Movement, flight, boost, and camera controls for the drone.")]
         public DroneTuning PlayerTuning = new DroneTuning();
+
+        [Tooltip("Top-center heading ribbon driven by the gameplay camera's yaw.")]
+        public CompassHudTuning CompassHud = new CompassHudTuning();
 
         [Tooltip("Shared player, rival, and neutral drone model, materials, rotor animation, and trails.")]
         public DroneVisualTuning DroneVisuals = new DroneVisualTuning();

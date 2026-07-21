@@ -683,6 +683,8 @@ namespace DuneVector
             healthHUD.Health = DroneHealth;
             DroneStaminaHUD staminaHUD = gameObject.AddComponent<DroneStaminaHUD>();
             staminaHUD.Initialize(Drone, DroneCamera.Camera, Player.Stamina, PlayerTuning.StaminaBoost);
+            DuneVectorCompassHUD compassHUD = gameObject.AddComponent<DuneVectorCompassHUD>();
+            compassHUD.Initialize(DroneCamera.Camera, RuntimeSettings.CompassHud);
             GameOverController = gameObject.AddComponent<DuneVectorGameOverController>();
             GameOverController.Initialize(DroneHealth);
             PauseMenu = gameObject.AddComponent<DuneVectorPauseMenu>();
