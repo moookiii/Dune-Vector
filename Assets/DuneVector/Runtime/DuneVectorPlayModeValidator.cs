@@ -233,9 +233,9 @@ namespace DuneVector
             Check(courier.AvailableContracts.Count >= 5 && courier.AvailableContracts.Count <= 8,
                 "Contract terminal offers five to eight modular contracts",
                 $"Contract terminal offered {courier.AvailableContracts.Count} contracts.");
-            Check(courier.ContractTerminal != null && courier.MessageArchiveTerminal != null,
-                "Courier hub builds opposing contract and message archive terminals",
-                "One or both physical hub terminals were missing.");
+            Check(courier.ContractTerminal != null && courier.MessageArchiveTerminal != null && courier.FreeRoamTerminal != null,
+                "Courier hub builds contract, message archive, and free roam terminals",
+                "One or more physical hub terminals were missing.");
             if (courier.ContractTerminal != null && courier.MessageArchiveTerminal != null)
             {
                 Vector3 contractToArchive = Vector3.ProjectOnPlane(
@@ -248,6 +248,18 @@ namespace DuneVector
                 Check(screensFaceEachOther,
                     "Hub terminal screens face one another",
                     "The contract and archive terminal screen sides were not oriented toward each other.");
+            }
+            if (courier.FreeRoamTerminal != null)
+            {
+                Vector3 spawnToFreeRoam = Vector3.ProjectOnPlane(
+                    courier.FreeRoamTerminal.position - courier.HubSpawnPosition,
+                    Vector3.up).normalized;
+                bool terminalIsLeftAndFacesSpawn =
+                    Vector3.Dot(Vector3.left, spawnToFreeRoam) > 0.98f &&
+                    Vector3.Dot(-courier.FreeRoamTerminal.forward, -spawnToFreeRoam) > 0.98f;
+                Check(terminalIsLeftAndFacesSpawn,
+                    "Free roam terminal stands left of the player start and faces the player",
+                    "The free roam terminal was not positioned left of the hub spawn or its screen did not face the spawn.");
             }
             Check(courier.ArchivedMessageCount >= 0,
                 "Message archive resolves completed transmissions safely",

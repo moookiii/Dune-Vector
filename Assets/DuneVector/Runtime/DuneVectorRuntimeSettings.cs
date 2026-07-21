@@ -640,6 +640,10 @@ namespace DuneVector
         [Min(1f)] public float TerminalInteractionRadius = 6f;
         [Min(0f)] public float ArchiveTerminalBackwardOffset = 11f;
         [Min(1f)] public float ArchiveTerminalInteractionRadius = 6f;
+        [Min(0f)] public float FreeRoamTerminalLeftOffset = 11f;
+        [Min(1f)] public float FreeRoamTerminalInteractionRadius = 6f;
+        [Min(0f)] public float FreeRoamDeploymentDistance = 320f;
+        public float FreeRoamDeploymentHeadingDegrees = 90f;
         [Min(0f)] public float UpgradeAreaSideOffset = 13f;
         [Min(0f)] public float PlayerSpawnHeight = 2.2f;
         public bool RestoreHealthOnReturn = true;
@@ -657,6 +661,8 @@ namespace DuneVector
         public Vector3 TerminalSignalMastScale = new Vector3(0.12f, 1.8f, 0.12f);
         public string ContractTerminalName = "CONTRACT TERMINAL";
         public string ArchiveTerminalName = "MESSAGE ARCHIVE";
+        public string FreeRoamTerminalName = "FREE ROAM TERMINAL";
+        public string FreeRoamTerminalNearbyPrompt = "PRESS E — DEPLOY TO FREE ROAM";
         public string TerminalNearbyPromptFormat = "PRESS E — OPEN {0}";
         public string TerminalDistancePromptFormat = "{0}  {1:0} m";
 
@@ -731,10 +737,6 @@ namespace DuneVector
         [Min(9)] public int TerminalMetaFontSize = 12;
         [Min(0f)] public float TerminalHeaderHeight = 122f;
         [Min(0f)] public float TerminalFooterHeight = 38f;
-        public string TerminalFreeRoamButtonLabel = "FREE ROAM";
-        [Min(80f)] public float TerminalFreeRoamButtonWidth = 180f;
-        [Min(20f)] public float TerminalFreeRoamButtonHeight = 28f;
-        [Min(0f)] public float TerminalFreeRoamButtonBottomOffset = 5f;
         [Min(0f)] public float TerminalAccentBarHeight = 4f;
         [Min(0f)] public float TerminalCardAccentWidth = 5f;
         [Min(0f)] public float TerminalContractOrderPipSize = 5f;

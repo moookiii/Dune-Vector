@@ -279,6 +279,7 @@ namespace DuneVector
             None,
             Contracts,
             MessageArchive,
+            FreeRoam,
         }
 
         public CourierRunState State { get; private set; }
@@ -292,6 +293,7 @@ namespace DuneVector
         public Vector3 HubSpawnPosition => _hubSpawn;
         public Transform ContractTerminal => _terminal;
         public Transform MessageArchiveTerminal => _messageArchiveTerminal;
+        public Transform FreeRoamTerminal => _freeRoamTerminal;
         public int ArchivedMessageCount => GetArchivedMessageCount();
         public static bool IsGameplayHudSuppressed
         {
@@ -340,6 +342,7 @@ namespace DuneVector
         private Transform _hubRoot;
         private Transform _terminal;
         private Transform _messageArchiveTerminal;
+        private Transform _freeRoamTerminal;
         private Transform _teleportPlatform;
         private Transform _hubEnergyOrbit;
         private Transform _upgradeEnergyOrbit;
@@ -516,8 +519,31 @@ namespace DuneVector
             ActiveContract = null;
             CleanupContractObjects();
             _landmarks?.ClearContractLandmarks();
+            PrepareFreeRoamDeployment();
             BeginTeleport(toHub: false);
             return true;
+        }
+
+        private void PrepareFreeRoamDeployment()
+        {
+            LogicalPosition hub = new LogicalPosition(
+                DesertWorldStreamer.StartingLogicalPosition.x,
+                DesertWorldStreamer.StartingLogicalPosition.y);
+            float headingRadians = _hubSettings.FreeRoamDeploymentHeadingDegrees * Mathf.Deg2Rad;
+            Vector3 heading = new Vector3(
+                Mathf.Cos(headingRadians),
+                0f,
+                Mathf.Sin(headingRadians));
+            double deploymentDistance = _hubSettings.FreeRoamDeploymentDistance;
+            LogicalPosition deployment = new LogicalPosition(
+                hub.X + (heading.x * deploymentDistance),
+                hub.Z + (heading.z * deploymentDistance));
+            float terrainHeight = (float)_world.HeightField.SampleHeight(deployment.X, deployment.Z);
+            _desertSpawn = _world.LogicalToLocal(
+                deployment.X,
+                terrainHeight + _hubSettings.DesertInsertionHeight,
+                deployment.Z);
+            _desertRotation = Quaternion.LookRotation(heading, Vector3.up);
         }
 
         private void Update()
@@ -603,7 +629,14 @@ namespace DuneVector
                 TryGetNearestHubTerminal(out HubTerminalMode mode, out _, out float distance, out float radius) &&
                 distance <= radius)
             {
-                SetHubTerminalMode(mode);
+                if (mode == HubTerminalMode.FreeRoam)
+                {
+                    StartFreeRoam();
+                }
+                else
+                {
+                    SetHubTerminalMode(mode);
+                }
             }
         }
 
@@ -759,6 +792,10 @@ namespace DuneVector
                 "Physical Message Archive Terminal",
                 Vector3.back * _hubSettings.ArchiveTerminalBackwardOffset,
                 Quaternion.Euler(0f, 180f, 0f));
+            _freeRoamTerminal = BuildPhysicalTerminal(
+                "Physical Free Roam Terminal",
+                Vector3.left * _hubSettings.FreeRoamTerminalLeftOffset,
+                Quaternion.Euler(0f, -90f, 0f));
 
             Transform upgradeArea = new GameObject("Drone Upgrade Area").transform;
             upgradeArea.SetParent(_hubRoot, false);
@@ -2252,7 +2289,6 @@ namespace DuneVector
             CourierContract selectedOffer = null;
             string hoveredContractTypeTooltip = null;
             Vector2 virtualMousePosition = Event.current.mousePosition / Mathf.Max(0.01f, scale);
-            bool startFreeRoam = false;
             for (int i = 0; i < _offers.Count; i++)
             {
                 int column = i % columns;
@@ -2277,33 +2313,20 @@ namespace DuneVector
             DrawSolidRect(
                 new Rect(panel.x + padding, panel.yMax - _hubSettings.TerminalFooterHeight, contentWidth, 1f),
                 _hubSettings.TerminalDividerColor);
-            Rect freeRoamButton = new Rect(
-                panel.center.x - (_hubSettings.TerminalFreeRoamButtonWidth * 0.5f),
-                panel.yMax - _hubSettings.TerminalFreeRoamButtonBottomOffset - _hubSettings.TerminalFreeRoamButtonHeight,
-                _hubSettings.TerminalFreeRoamButtonWidth,
-                _hubSettings.TerminalFreeRoamButtonHeight);
-            startFreeRoam = GUI.Button(
-                freeRoamButton,
-                _hubSettings.TerminalFreeRoamButtonLabel,
-                _terminalButtonStyle);
-            float footerSideGap = _hubSettings.ContractCardGap;
-            float footerSideWidth = Mathf.Max(
-                0f,
-                (contentWidth - _hubSettings.TerminalFreeRoamButtonWidth - (footerSideGap * 2f)) * 0.5f);
             GUI.Label(
                 new Rect(
                     panel.x + padding,
                     panel.yMax - _hubSettings.TerminalFooterHeight + 7f,
-                    footerSideWidth,
+                    contentWidth * 0.5f,
                     22f),
                 "SELECT A CONTRACT TO DEPLOY",
                 _terminalMetaStyle);
             _terminalActionStyle.normal.textColor = GuiTextColor(_hubSettings.TerminalAccentColor);
             GUI.Label(
                 new Rect(
-                    freeRoamButton.xMax + footerSideGap,
+                    panel.center.x,
                     panel.yMax - _hubSettings.TerminalFooterHeight + 7f,
-                    footerSideWidth,
+                    contentWidth * 0.5f,
                     22f),
                 "CONTRACTS REFRESH AUTOMATICALLY",
                 _terminalActionStyle);
@@ -2314,10 +2337,6 @@ namespace DuneVector
             if (selectedOffer != null)
             {
                 AcceptContract(selectedOffer);
-            }
-            else if (startFreeRoam)
-            {
-                StartFreeRoam();
             }
         }
 
@@ -2713,11 +2732,23 @@ namespace DuneVector
             {
                 return;
             }
-            string terminalName = mode == HubTerminalMode.MessageArchive
-                ? _hubSettings.ArchiveTerminalName
-                : _hubSettings.ContractTerminalName;
+            string terminalName;
+            switch (mode)
+            {
+                case HubTerminalMode.MessageArchive:
+                    terminalName = _hubSettings.ArchiveTerminalName;
+                    break;
+                case HubTerminalMode.FreeRoam:
+                    terminalName = _hubSettings.FreeRoamTerminalName;
+                    break;
+                default:
+                    terminalName = _hubSettings.ContractTerminalName;
+                    break;
+            }
             string prompt = distance <= interactionRadius
-                ? FormatDesignerText(_hubSettings.TerminalNearbyPromptFormat, terminalName)
+                ? mode == HubTerminalMode.FreeRoam
+                    ? _hubSettings.FreeRoamTerminalNearbyPrompt
+                    : FormatDesignerText(_hubSettings.TerminalNearbyPromptFormat, terminalName)
                 : FormatDesignerText(_hubSettings.TerminalDistancePromptFormat, terminalName, distance);
             float promptWidth = Mathf.Min(_hubSettings.TerminalPromptWidth, Screen.width);
             float promptHeight = _hubSettings.TerminalPromptHeight;
@@ -2753,7 +2784,10 @@ namespace DuneVector
             float archiveDistance = _messageArchiveTerminal != null
                 ? Vector3.Distance(_player.WorldCenter, _messageArchiveTerminal.position)
                 : float.PositiveInfinity;
-            if (contractDistance <= archiveDistance && _terminal != null)
+            float freeRoamDistance = _freeRoamTerminal != null
+                ? Vector3.Distance(_player.WorldCenter, _freeRoamTerminal.position)
+                : float.PositiveInfinity;
+            if (contractDistance <= archiveDistance && contractDistance <= freeRoamDistance && _terminal != null)
             {
                 mode = HubTerminalMode.Contracts;
                 terminal = _terminal;
@@ -2761,12 +2795,20 @@ namespace DuneVector
                 interactionRadius = _hubSettings.TerminalInteractionRadius;
                 return true;
             }
-            if (_messageArchiveTerminal != null)
+            if (archiveDistance <= freeRoamDistance && _messageArchiveTerminal != null)
             {
                 mode = HubTerminalMode.MessageArchive;
                 terminal = _messageArchiveTerminal;
                 distance = archiveDistance;
                 interactionRadius = _hubSettings.ArchiveTerminalInteractionRadius;
+                return true;
+            }
+            if (_freeRoamTerminal != null)
+            {
+                mode = HubTerminalMode.FreeRoam;
+                terminal = _freeRoamTerminal;
+                distance = freeRoamDistance;
+                interactionRadius = _hubSettings.FreeRoamTerminalInteractionRadius;
                 return true;
             }
             return false;
