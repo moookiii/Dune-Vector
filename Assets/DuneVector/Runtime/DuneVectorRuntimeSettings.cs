@@ -2693,9 +2693,9 @@ namespace DuneVector
         [Min(0f)] public float BoostMaximumSpeed = 150f;
 
         [Header("World-Following Meter")]
-        [Tooltip("Screen-space offset from the drone while stationary.")]
+        [Tooltip("Screen-space offset from the drone whenever the stamina boost is inactive, including normal forward movement.")]
         public Vector2 MeterScreenOffset = new Vector2(62f, 4f);
-        [Tooltip("Screen-space offset from the drone at its current maximum speed. The meter blends between the two offsets based on speed.")]
+        [Tooltip("Screen-space offset from the drone at full stamina boost. The meter follows the boost acceleration and deceleration blend between the two offsets.")]
         public Vector2 MeterMaximumSpeedScreenOffset = new Vector2(62f, 4f);
         [Min(8f)] public float MeterRadius = 28f;
         [Min(1f)] public float MeterThickness = 5f;
