@@ -1867,6 +1867,7 @@ namespace DuneVector
                 int risk = ActiveContract != null ? ActiveContract.Difficulty : 1;
                 DuneVectorContractRisk.Configure(_settings, risk);
                 _sandAmbusherSystem?.BeginContract(risk, ActiveContract != null ? ActiveContract.Seed : 0);
+                EndDeliveryMessageSafety();
                 SetCombatSystemsActive(true);
                 _playerInput.SetInputEnabled(true);
                 ShowStatus(
