@@ -33,6 +33,8 @@ namespace DuneVector
         private Material _streakMaterial;
         private Material _hotPlateMaterial;
         private Material _hotGlowMaterial;
+        private Transform _ambientPlumeRoot;
+        private ParticleSystem _ambientPlumes;
         private Volume _interiorVolume;
         private VolumeProfile _interiorProfile;
         private float _refreshTimer;
@@ -57,6 +59,7 @@ namespace DuneVector
             _streakMaterial = CreateParticleMaterial("Hot Wind Streaks", settings.HeatStreakColor);
             _hotPlateMaterial = CreateLitMaterial("Heat Pocket Basalt", settings.HotSpotPlateColor, Color.black);
             _hotGlowMaterial = CreateLitMaterial("Heat Pocket Mineral Glow", Color.black, settings.HotSpotGlowColor);
+            CreateAmbientHeatPlumes();
             CreateInteriorVolume();
             _world.WorldShifted += HandleWorldShift;
             RefreshZoneVisuals();
@@ -90,6 +93,7 @@ namespace DuneVector
         private void RefreshZoneVisuals()
         {
             _refreshTimer = Mathf.Max(0.05f, _settings.VisualRefreshInterval);
+            UpdateAmbientPlumePosition();
             _hazards.CollectNearbyHeatZones(_nearbyZones, Mathf.Max(0f, _settings.VisualRange));
             _activeIds.Clear();
             int count = Mathf.Min(Mathf.Max(1, _settings.MaximumVisibleZones), _nearbyZones.Count);
@@ -127,7 +131,13 @@ namespace DuneVector
             root.transform.SetParent(transform, true);
             root.transform.position = center;
 
-            ParticleSystem plumes = CreateHeatPlumes(root.transform, sample);
+            ParticleSystem plumes = CreateHeatPlumes(
+                root.transform,
+                "Sparse Rising Heat Columns",
+                sample.Radius * _settings.HeatPlumeRadiusMultiplier,
+                Mathf.RoundToInt(_settings.HeatPlumeParticleBudget * sample.Severity),
+                _settings.HeatPlumeEmissionRate * sample.Severity,
+                1f);
             ParticleSystem streaks = CreateHeatStreaks(root.transform, sample);
             CreateHotSpots(root.transform, center, sample);
             return new ZoneVisual
@@ -139,9 +149,47 @@ namespace DuneVector
             };
         }
 
-        private ParticleSystem CreateHeatPlumes(Transform parent, HeatZoneSample sample)
+        private void CreateAmbientHeatPlumes()
         {
-            GameObject plumeObject = new GameObject("Sparse Rising Heat Columns");
+            if (!_settings.AmbientHeatPlumesEnabled)
+            {
+                return;
+            }
+
+            GameObject root = new GameObject("Ambient Ground Heat Plumes");
+            root.transform.SetParent(transform, false);
+            _ambientPlumeRoot = root.transform;
+            UpdateAmbientPlumePosition();
+            _ambientPlumes = CreateHeatPlumes(
+                _ambientPlumeRoot,
+                "Ambient Rising Heat Columns",
+                _settings.AmbientHeatPlumeRadius,
+                _settings.AmbientHeatPlumeParticleBudget,
+                _settings.AmbientHeatPlumeEmissionRate,
+                _settings.AmbientHeatPlumeOpacity);
+        }
+
+        private void UpdateAmbientPlumePosition()
+        {
+            if (_ambientPlumeRoot == null || _drone == null || _world == null)
+            {
+                return;
+            }
+
+            Vector3 center = _drone.WorldCenter;
+            center.y = _world.SampleHeightAtLocal(center.x, center.z);
+            _ambientPlumeRoot.position = center;
+        }
+
+        private ParticleSystem CreateHeatPlumes(
+            Transform parent,
+            string objectName,
+            float radius,
+            int particleBudget,
+            float emissionRate,
+            float opacity)
+        {
+            GameObject plumeObject = new GameObject(objectName);
             plumeObject.transform.SetParent(parent, false);
             plumeObject.transform.localPosition = Vector3.up * _settings.HeatPlumeGroundOffset;
             ParticleSystem system = plumeObject.AddComponent<ParticleSystem>();
@@ -149,7 +197,7 @@ namespace DuneVector
             main.loop = true;
             main.playOnAwake = true;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.maxParticles = Mathf.Max(0, Mathf.RoundToInt(_settings.HeatPlumeParticleBudget * sample.Severity));
+            main.maxParticles = Mathf.Max(0, particleBudget);
             main.startLifetime = new ParticleSystem.MinMaxCurve(
                 _settings.HeatPlumeMinimumLifetime,
                 Mathf.Max(_settings.HeatPlumeMinimumLifetime, _settings.HeatPlumeMaximumLifetime));
@@ -166,11 +214,11 @@ namespace DuneVector
                     _settings.HeatPlumeMinimumSize * _settings.HeatPlumeMinimumHeightMultiplier,
                     _settings.HeatPlumeMaximumSize * _settings.HeatPlumeMaximumHeightMultiplier));
             ParticleSystem.EmissionModule emission = system.emission;
-            emission.rateOverTime = _settings.HeatPlumeEmissionRate * sample.Severity;
+            emission.rateOverTime = Mathf.Max(0f, emissionRate);
             ParticleSystem.ShapeModule shape = system.shape;
             shape.enabled = true;
             shape.shapeType = ParticleSystemShapeType.Circle;
-            shape.radius = sample.Radius * _settings.HeatPlumeRadiusMultiplier;
+            shape.radius = Mathf.Max(0f, radius);
             shape.rotation = new Vector3(90f, 0f, 0f);
             ParticleSystem.VelocityOverLifetimeModule velocity = system.velocityOverLifetime;
             velocity.enabled = true;
@@ -192,8 +240,8 @@ namespace DuneVector
                 new[]
                 {
                     new GradientAlphaKey(0f, 0f),
-                    new GradientAlphaKey(1f, _settings.HeatPlumeLifetimeFadeInFraction),
-                    new GradientAlphaKey(1f, _settings.HeatPlumeLifetimeFadeOutFraction),
+                    new GradientAlphaKey(Mathf.Clamp01(opacity), _settings.HeatPlumeLifetimeFadeInFraction),
+                    new GradientAlphaKey(Mathf.Clamp01(opacity), _settings.HeatPlumeLifetimeFadeOutFraction),
                     new GradientAlphaKey(0f, 1f),
                 });
             plumeFade.color = plumeGradient;
@@ -484,6 +532,11 @@ namespace DuneVector
 
         private void HandleWorldShift(Vector3 shift)
         {
+            if (_ambientPlumeRoot != null)
+            {
+                _ambientPlumeRoot.position += shift;
+                _ambientPlumes?.Clear();
+            }
             foreach (ZoneVisual visual in _zoneVisuals.Values)
             {
                 visual.Root.transform.position += shift;

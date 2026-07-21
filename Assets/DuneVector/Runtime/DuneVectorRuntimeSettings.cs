@@ -2502,6 +2502,11 @@ namespace DuneVector
         [Min(0f)] public float HeatPlumeEmissionRate = 7f;
         [Min(0f)] public float HeatPlumeGroundOffset = 0.16f;
         [Range(0.05f, 1f)] public float HeatPlumeRadiusMultiplier = 0.92f;
+        public bool AmbientHeatPlumesEnabled = true;
+        [Min(1f)] public float AmbientHeatPlumeRadius = 120f;
+        [Range(0, 240)] public int AmbientHeatPlumeParticleBudget = 36;
+        [Min(0f)] public float AmbientHeatPlumeEmissionRate = 3.5f;
+        [Range(0f, 1f)] public float AmbientHeatPlumeOpacity = 0.55f;
         [Min(0.1f)] public float HeatPlumeMinimumLifetime = 4.5f;
         [Min(0.1f)] public float HeatPlumeMaximumLifetime = 8f;
         [Min(0.01f)] public float HeatPlumeMinimumSize = 4f;
