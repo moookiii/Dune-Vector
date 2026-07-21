@@ -451,7 +451,7 @@ namespace DuneVector
             Progress = gameObject.AddComponent<DuneVectorCourierProgress>();
             Progress.Initialize();
             DesertAtlas = gameObject.AddComponent<DuneVectorDesertAtlas>();
-            DesertAtlas.Initialize(_player, _world, _materials, _wallet, Progress, this, _desertAtlasSettings);
+            DesertAtlas.Initialize(_player, _health, _world, _materials, _wallet, Progress, this, _desertAtlasSettings);
             _messagePresenter = gameObject.AddComponent<DuneVectorDeliveryMessagePresenter>();
             _messagePresenter.Initialize(
                 _messageSettings,

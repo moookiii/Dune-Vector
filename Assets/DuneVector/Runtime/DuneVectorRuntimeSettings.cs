@@ -1776,6 +1776,14 @@ namespace DuneVector
         }
     }
 
+    public enum DesertAtlasChallengeType
+    {
+        SignalLock,
+        VectorPass,
+        OrbitTrace,
+        AltitudeHold,
+    }
+
     [System.Serializable]
     public sealed class DesertAtlasSiteDefinition
     {
@@ -1787,6 +1795,17 @@ namespace DuneVector
         public Vector2 WorldPosition;
         [Min(0)] public int GoldReward = 100;
         public Color SignalColor = new Color(0.12f, 0.85f, 1f, 1f);
+        [Header("Progression")]
+        [Min(0)] public int RequiredDiscoveries;
+        public bool IsFinalSignal;
+        [Header("Flight Challenge")]
+        public DesertAtlasChallengeType ChallengeType = DesertAtlasChallengeType.SignalLock;
+        public string ChallengeInstruction = "HOLD E TO SYNCHRONIZE";
+        [Tooltip("Seconds for timed challenges or degrees for orbit challenges.")]
+        [Min(0.1f)] public float RequiredAmount = 4f;
+        [Min(0f)] public float MinimumSpeed;
+        [Min(0f)] public float TargetHeightAboveSignal = 12f;
+        [Min(0.1f)] public float HeightTolerance = 5f;
     }
 
     [System.Serializable]
@@ -1797,14 +1816,14 @@ namespace DuneVector
         [Header("Unlock and Discovery")]
         [Min(0)] public int UnlockCompletedDeliveries = 7;
         [Min(1f)] public float ScanRadius = 24f;
-        [Min(0.1f)] public float ScanDuration = 4f;
         [Min(0f)] public float ScanProgressDecayPerSecond = 0.7f;
         [Min(1f)] public float SiteVisualSpawnDistance = 950f;
         [Min(1f)] public float SiteVisualDespawnDistance = 1100f;
         public Key ScanKey = Key.E;
-        public string ScanPrompt = "HOLD E — ANALYZE SIGNAL";
         public string ScanInterruptedText = "SIGNAL ANALYSIS INTERRUPTED";
         public string DiscoveryStatusFormat = "ATLAS UPDATED — {0}  +{1} GOLD";
+        [Min(0)] public int AtlasCompletionGoldReward = 1000;
+        public string AtlasCompletionStatusFormat = "DESERT ATLAS COMPLETE — FINAL SIGNAL RESOLVED  +{0} GOLD";
 
         [Header("Atlas Terminal")]
         public Vector3 TerminalLocalPosition = new Vector3(11f, 0f, 0f);
@@ -1820,9 +1839,21 @@ namespace DuneVector
         public string TerminalLockedBodyFormat = "Complete {0} more delivery contract{1} to receive survey clearance.";
         public string TerminalUnknownSiteFormat = "SIGNAL {0:00} — UNRESOLVED";
         public string TerminalUnknownDescription = "Survey data encrypted. Locate this signal in free roam.";
+        public string TerminalStagedLockFormat = "LOCKED — RESOLVE {0} MORE SIGNAL{1}";
+        public string TerminalAvailableStatus = "SIGNAL AVAILABLE";
+        public string TerminalFinalSignalStatus = "FINAL SIGNAL AVAILABLE";
+        public string TerminalDiscoveredStatus = "CATALOGUED  +{0} GOLD";
+        public string TerminalDiscoveredEntryFormat = "{0}  /  {1}";
+        public string TerminalChallengeFormat = "{0}  /  {1}";
         public string HudTitleFormat = "DESERT ATLAS  {0}/{1}";
         public string HudAllDiscoveredText = "ALL SIGNALS CATALOGUED";
+        public string HudSignalsLockedText = "FURTHER SIGNALS ENCRYPTED — REVIEW THE ATLAS";
         public string HudNearestSignalFormat = "NEAREST SIGNAL  {0:0} m  {1}";
+        public string HudChallengeFormat = "{0}\n{1}";
+        public string SignalLockProgressFormat = "SYNC  {0:0}%";
+        public string OrbitProgressFormat = "TRACE  {0:0}° / {1:0}°";
+        public string AltitudeProgressFormat = "HOLD  {0:0.0}s / {1:0.0}s  ALT {2:+0.0;-0.0;0.0}m";
+        public string VectorPassProgressFormat = "VECTOR PASS  {0:0}%  SPEED {1:0.0}";
         [Min(0f)] public float DiscoveryStatusDuration = 4f;
         [Min(0f)] public float ScanInterruptedStatusDuration = 2f;
 
@@ -1844,6 +1875,32 @@ namespace DuneVector
         [ColorUsage(false)] public Color DiscoveredColor = new Color(0.25f, 0.72f, 0.42f, 1f);
         [Min(0f)] public float SignalBaseColorMultiplier = 0.24f;
         [Min(0f)] public float SignalEmissionMultiplier = 3.5f;
+        [Min(1f)] public float ActiveChallengeEmissionMultiplier = 2f;
+        [Min(1f)] public float SignalBeamHeight = 90f;
+        [Min(0.01f)] public float SignalBeamRadius = 0.22f;
+        [Range(0f, 1f)] public float SignalBeamPulseAmount = 0.22f;
+        [Min(1f)] public float ActiveChallengeRotationMultiplier = 3f;
+        [Min(0)] public int CompletionBurstParticleCount = 54;
+        [Min(0.1f)] public float CompletionBurstLifetime = 2.4f;
+        [Min(0f)] public float CompletionBurstSpeed = 13f;
+        [Min(0.01f)] public float CompletionBurstMinimumSize = 0.12f;
+        [Min(0.01f)] public float CompletionBurstMaximumSize = 0.42f;
+
+        [Header("Flight Challenge Rules")]
+        [Min(0.1f)] public float OrbitMinimumRadius = 13f;
+        [Min(0.1f)] public float OrbitMaximumRadius = 30f;
+        [Min(0f)] public float OrbitProgressDecayPerSecond = 0.04f;
+        [Min(0.1f)] public float AltitudeHoldHorizontalRadius = 20f;
+        [Min(0f)] public float AltitudeHoldMaximumVerticalSpeed = 5f;
+        [Min(0.1f)] public float VectorPassStartRadius = 62f;
+        [Min(0.1f)] public float VectorPassFinishRadius = 8f;
+        [Min(0f)] public float VectorPassProgressDecayPerSecond = 0.8f;
+
+        [Header("Site Flight Ring")]
+        public bool SpawnChallengeFlightRing = true;
+        [Min(1f)] public float ChallengeFlightRingDistance = 74f;
+        [Min(0f)] public float ChallengeFlightRingHeight = 8f;
+        [Min(0.75f)] public float ChallengeFlightRingRadius = 5.5f;
 
         [Header("Free Roam HUD")]
         [Min(0f)] public float HudRightMargin = 28f;
@@ -1897,6 +1954,10 @@ namespace DuneVector
         [ColorUsage(false)] public Color TerminalBackdropColor = new Color(0.006f, 0.012f, 0.022f, 0.9f);
         [ColorUsage(false)] public Color TerminalPanelColor = new Color(0.018f, 0.035f, 0.055f, 0.98f);
         [ColorUsage(false)] public Color TerminalEntryColor = new Color(0.045f, 0.072f, 0.095f, 1f);
+        [ColorUsage(false)] public Color TerminalAvailableEntryColor = new Color(0.035f, 0.13f, 0.16f, 1f);
+        [ColorUsage(false)] public Color TerminalDiscoveredEntryColor = new Color(0.035f, 0.11f, 0.075f, 1f);
+        [Range(0f, 1f)] public float TerminalAvailablePulseAmount = 0.18f;
+        [Min(0f)] public float TerminalAvailablePulseSpeed = 2.2f;
         [ColorUsage(false)] public Color TerminalBorderColor = new Color(0.18f, 0.3f, 0.38f, 0.9f);
         [ColorUsage(false)] public Color TerminalTextColor = new Color(0.9f, 0.96f, 1f, 1f);
         [ColorUsage(false)] public Color TerminalMutedColor = new Color(0.55f, 0.65f, 0.72f, 1f);
