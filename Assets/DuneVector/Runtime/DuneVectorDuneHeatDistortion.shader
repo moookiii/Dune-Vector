@@ -8,6 +8,8 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
         _TextureScale("Texture Scale", Float) = 4.5
         _ScrollVelocity("Scroll Velocity", Vector) = (0.035, 0.12, 0, 0)
         _ShellStrengthMultiplier("Shell Strength Multiplier", Float) = 1
+        [HDR] _ShimmerColor("Visible Heat Shimmer", Color) = (1.15, 0.9, 0.62, 1)
+        _ShimmerOpacity("Visible Heat Shimmer Opacity", Range(0, 0.3)) = 0.08
     }
 
     SubShader
@@ -106,16 +108,17 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
 
         Pass
         {
-            Name "FallbackInvisible"
+            Name "VisibleHeatShimmer"
             Tags { "LightMode" = "ForwardOnly" }
-            Cull Off
+            Blend SrcAlpha OneMinusSrcAlpha
+            ZTest LEqual
             ZWrite Off
-            ColorMask 0
+            Cull Off
 
             HLSLPROGRAM
             #pragma target 4.5
-            #pragma vertex VertFallback
-            #pragma fragment FragFallback
+            #pragma vertex VertShimmer
+            #pragma fragment FragShimmer
             #pragma multi_compile_instancing
             #pragma only_renderers d3d11 playstation xboxone xboxseries vulkan metal switch switch2
 
@@ -123,34 +126,68 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
             #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
             #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"
 
-            struct Attributes
+            TEXTURE2D(_NoiseTex);
+            SAMPLER(sampler_NoiseTex);
+
+            CBUFFER_START(UnityPerMaterial)
+                float _DistortionStrength;
+                float _DistortionBlur;
+                float _TextureScale;
+                float4 _ScrollVelocity;
+                float _ShellStrengthMultiplier;
+                float4 _ShimmerColor;
+                float _ShimmerOpacity;
+            CBUFFER_END
+
+            struct ShimmerAttributes
             {
                 float3 positionOS : POSITION;
+                float2 uv : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
-            struct Varyings
+            struct ShimmerVaryings
             {
                 float4 positionCS : SV_POSITION;
+                float2 uv : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
-            Varyings VertFallback(Attributes input)
+            ShimmerVaryings VertShimmer(ShimmerAttributes input)
             {
-                Varyings output;
+                ShimmerVaryings output;
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 output.positionCS = TransformObjectToHClip(input.positionOS);
+                output.uv = input.uv;
                 return output;
             }
 
-            float4 FragFallback(Varyings input) : SV_Target
+            float4 FragShimmer(ShimmerVaryings input) : SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(input);
-                return 0.0;
+                float2 scroll = _ScrollVelocity.xy * _Time.y;
+                float3 primary = SAMPLE_TEXTURE2D(
+                    _NoiseTex,
+                    sampler_NoiseTex,
+                    (input.uv * _TextureScale) + scroll).rgb;
+                float secondary = SAMPLE_TEXTURE2D(
+                    _NoiseTex,
+                    sampler_NoiseTex,
+                    (input.uv.yx * (_TextureScale * 1.61)) - (scroll.yx * 0.73)).b;
+                float sideFade = smoothstep(0.0, 0.18, input.uv.x) *
+                    smoothstep(0.0, 0.18, 1.0 - input.uv.x);
+                float verticalFade = smoothstep(0.0, 0.12, input.uv.y) *
+                    smoothstep(0.0, 0.24, 1.0 - input.uv.y);
+                float pulse = 0.45 + (0.35 * sin((_Time.y * 2.1) + (input.uv.y * 24.0)));
+                float shimmer = saturate((primary.b * 0.65) + (secondary * 0.35) + pulse - 0.55);
+                float alpha = shimmer * sideFade * verticalFade * _ShimmerOpacity * _ShellStrengthMultiplier;
+                clip(alpha - 0.002);
+                return float4(_ShimmerColor.rgb, alpha);
             }
             ENDHLSL
         }
+
     }
     Fallback Off
 }

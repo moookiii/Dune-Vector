@@ -2522,6 +2522,8 @@ namespace DuneVector
         [Min(0.1f)] public float GroundHeatRibbonMinimumWidth = 3f;
         [Min(0.1f)] public float GroundHeatRibbonMaximumWidth = 7f;
         [Min(0f)] public float GroundHeatRibbonBaseOffset = 0.2f;
+        [Range(0f, 0.3f)] public float GroundHeatShimmerOpacity = 0.08f;
+        [ColorUsage(false, true)] public Color GroundHeatShimmerColor = new Color(1.15f, 0.9f, 0.62f, 1f);
         [Range(0.05f, 1f)] public float GroundMirageRadiusMultiplier = 0.92f;
         [Min(0f)] public float DistantDistortionStrength = 0.34f;
         [Min(0f)] public float InteriorDistortionStrength = 0.78f;

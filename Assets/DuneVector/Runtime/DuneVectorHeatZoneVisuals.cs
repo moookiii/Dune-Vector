@@ -672,6 +672,8 @@ namespace DuneVector
             material.SetFloat("_DistortionBlur", Mathf.Clamp01(_settings.DistortionBlurStrength));
             material.SetFloat("_TextureScale", Mathf.Max(0.01f, _settings.DistortionTextureScale));
             material.SetVector("_ScrollVelocity", _settings.DistortionScrollVelocity);
+            material.SetFloat("_ShimmerOpacity", Mathf.Clamp(_settings.GroundHeatShimmerOpacity, 0f, 0.3f));
+            material.SetColor("_ShimmerColor", _settings.GroundHeatShimmerColor);
             return material;
         }
 
