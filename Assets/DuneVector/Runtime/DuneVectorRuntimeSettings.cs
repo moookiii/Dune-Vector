@@ -2024,7 +2024,7 @@ namespace DuneVector
     {
         [Header("Density & Coverage")]
         [Range(0f, 1f)] public float AmbientDustDensity = 0.18f;
-        [Range(0f, 1f)] public float AmbientAirborneSandDensity = 0.22f;
+        [Range(0f, 1f)] public float AmbientAirborneSandDensity = 0.75f;
         [Range(0f, 1.5f)] public float StormDustDensity = 0.95f;
         [Min(10f)] public float FieldRadius = 80f;
         [Min(1f)] public float GroundLayerHeight = 6f;
