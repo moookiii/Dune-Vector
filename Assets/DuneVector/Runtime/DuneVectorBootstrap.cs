@@ -31,6 +31,7 @@ namespace DuneVector
         public LandmarkSystemTuning LandmarkSettings => RuntimeSettings.Landmarks;
         public RouteEncounterTuning RouteEncounterSettings => RuntimeSettings.RouteEncounters;
         public DynamicCourierTuning DynamicCourierSettings => RuntimeSettings.DynamicCouriers;
+        public DesertAtlasTuning DesertAtlasSettings => RuntimeSettings.DesertAtlas;
         public PyramidTuning Pyramids => RuntimeSettings.Pyramids;
         public CactusTuning Cacti => RuntimeSettings.Cacti;
         public DesertShrubTuning DesertShrubs => RuntimeSettings.DesertShrubs;
@@ -75,6 +76,7 @@ namespace DuneVector
         public DuneVectorCourierGame CourierGame { get; private set; }
         public DuneVectorRouteEncounterDirector RouteEncounterDirector { get; private set; }
         public DuneVectorDynamicCourierDirector DynamicCourierDirector { get; private set; }
+        public DuneVectorDesertAtlas DesertAtlas { get; private set; }
         public DroneHealth DroneHealth { get; private set; }
         public DroneTargetDetector TargetDetector { get; private set; }
         public DroneLockOnController LockOnController { get; private set; }
@@ -724,8 +726,10 @@ namespace DuneVector
                     Contracts,
                     DeliveryMessages,
                     WorldHubSettings,
+                    DesertAtlasSettings,
                     EnemyDirector,
                     StormPyramidDirector);
+                DesertAtlas = CourierGame.DesertAtlas;
 
                 GameObject encounterObject = new GameObject("Route Encounter Formation Director");
                 encounterObject.transform.SetParent(transform, false);

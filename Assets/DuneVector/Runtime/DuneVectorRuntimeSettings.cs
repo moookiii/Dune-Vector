@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace DuneVector
 {
@@ -1776,6 +1777,138 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class DesertAtlasSiteDefinition
+    {
+        [Tooltip("Stable identifier written to the Desert Atlas .dat save file.")]
+        public string PersistentId = "signal-site";
+        public string DisplayName = "UNIDENTIFIED SIGNAL";
+        [TextArea(2, 5)] public string Description = "No survey record available.";
+        [Tooltip("Persistent logical X/Z position in the endless desert.")]
+        public Vector2 WorldPosition;
+        [Min(0)] public int GoldReward = 100;
+        public Color SignalColor = new Color(0.12f, 0.85f, 1f, 1f);
+    }
+
+    [System.Serializable]
+    public sealed class DesertAtlasTuning
+    {
+        public bool Enabled = true;
+
+        [Header("Unlock and Discovery")]
+        [Min(0)] public int UnlockCompletedDeliveries = 7;
+        [Min(1f)] public float ScanRadius = 24f;
+        [Min(0.1f)] public float ScanDuration = 4f;
+        [Min(0f)] public float ScanProgressDecayPerSecond = 0.7f;
+        [Min(1f)] public float SiteVisualSpawnDistance = 950f;
+        [Min(1f)] public float SiteVisualDespawnDistance = 1100f;
+        public Key ScanKey = Key.E;
+        public string ScanPrompt = "HOLD E — ANALYZE SIGNAL";
+        public string ScanInterruptedText = "SIGNAL ANALYSIS INTERRUPTED";
+        public string DiscoveryStatusFormat = "ATLAS UPDATED — {0}  +{1} GOLD";
+
+        [Header("Atlas Terminal")]
+        public Vector3 TerminalLocalPosition = new Vector3(11f, 0f, 0f);
+        public Vector3 TerminalLocalEulerAngles = new Vector3(0f, 90f, 0f);
+        [Min(1f)] public float TerminalInteractionRadius = 6f;
+        public string TerminalName = "DESERT ATLAS";
+        public string TerminalNearbyPrompt = "PRESS E — OPEN DESERT ATLAS";
+        public string LockedNearbyPromptFormat = "DESERT ATLAS LOCKED — COMPLETE {0} MORE CONTRACTS";
+        public string TerminalTitle = "DESERT ATLAS";
+        public string TerminalClosePrompt = "ESC  CLOSE";
+        public string TerminalProgressFormat = "SURVEY COMPLETION  {0} / {1}";
+        public string TerminalLockedTitle = "ATLAS NETWORK OFFLINE";
+        public string TerminalLockedBodyFormat = "Complete {0} more delivery contract{1} to receive survey clearance.";
+        public string TerminalUnknownSiteFormat = "SIGNAL {0:00} — UNRESOLVED";
+        public string TerminalUnknownDescription = "Survey data encrypted. Locate this signal in free roam.";
+        public string HudTitleFormat = "DESERT ATLAS  {0}/{1}";
+        public string HudAllDiscoveredText = "ALL SIGNALS CATALOGUED";
+        public string HudNearestSignalFormat = "NEAREST SIGNAL  {0:0} m  {1}";
+        [Min(0f)] public float DiscoveryStatusDuration = 4f;
+        [Min(0f)] public float ScanInterruptedStatusDuration = 2f;
+
+        [Header("Signal Visual")]
+        [Min(0.1f)] public float BaseRadius = 5.5f;
+        [Min(0.1f)] public float BaseHeight = 0.7f;
+        [Min(0.1f)] public float CoreRadius = 1.25f;
+        [Min(0.1f)] public float CoreHeight = 4.8f;
+        [Range(3, 32)] public int RingSegmentCount = 16;
+        [Range(1, 5)] public int RingCount = 3;
+        [Min(0.1f)] public float RingRadius = 5.8f;
+        [Min(0.01f)] public float RingSegmentWidth = 0.16f;
+        [Min(0.01f)] public float RingSegmentDepth = 1.65f;
+        [Min(0.1f)] public float RingHeightSpacing = 1.35f;
+        [Min(0f)] public float RingRotationSpeed = 28f;
+        [Min(0f)] public float PulseSpeed = 2.4f;
+        [Range(0f, 1f)] public float PulseScaleAmount = 0.12f;
+        [Min(0f)] public float HeightAboveTerrain = 0.3f;
+        [ColorUsage(false)] public Color DiscoveredColor = new Color(0.25f, 0.72f, 0.42f, 1f);
+        [Min(0f)] public float SignalBaseColorMultiplier = 0.24f;
+        [Min(0f)] public float SignalEmissionMultiplier = 3.5f;
+
+        [Header("Free Roam HUD")]
+        public Rect HudRect = new Rect(24f, 128f, 390f, 112f);
+        [Min(0f)] public float HudPadding = 12f;
+        [Min(9)] public int HudTitleFontSize = 15;
+        [Min(9)] public int HudBodyFontSize = 13;
+        [Min(1f)] public float ScanBarHeight = 8f;
+        [ColorUsage(false)] public Color HudPanelColor = new Color(0.018f, 0.035f, 0.055f, 0.92f);
+        [ColorUsage(false)] public Color HudTextColor = new Color(0.9f, 0.96f, 1f, 1f);
+        [ColorUsage(false)] public Color HudMutedColor = new Color(0.55f, 0.65f, 0.72f, 1f);
+        [ColorUsage(false)] public Color HudAccentColor = new Color(0.12f, 0.85f, 1f, 1f);
+        [ColorUsage(false)] public Color ScanBarBackgroundColor = new Color(0.04f, 0.08f, 0.11f, 1f);
+        [Min(0f)] public float HudTitleTop = 6f;
+        [Min(0f)] public float HudTitleHeight = 22f;
+        [Min(0f)] public float HudBodyTop = 34f;
+        [Min(0f)] public float HudBodyHeight = 24f;
+        [Range(0f, 1f)] public float StatusVerticalFraction = 0.18f;
+        [Min(0f)] public float StatusHeight = 36f;
+
+        [Header("Terminal UI")]
+        [Min(480f)] public float TerminalReferenceWidth = 1600f;
+        [Min(320f)] public float TerminalReferenceHeight = 900f;
+        [Range(0.5f, 1.5f)] public float TerminalMinimumScale = 0.72f;
+        [Range(0.5f, 1.5f)] public float TerminalMaximumScale = 1.08f;
+        [Min(480f)] public float TerminalPanelWidth = 1060f;
+        [Min(320f)] public float TerminalPanelHeight = 650f;
+        [Min(0f)] public float TerminalScreenMargin = 28f;
+        [Min(0f)] public float TerminalPadding = 28f;
+        [Min(0f)] public float TerminalHeaderHeight = 116f;
+        [Min(0f)] public float TerminalFooterHeight = 42f;
+        [Min(0f)] public float TerminalEntryHeight = 78f;
+        [Min(0f)] public float TerminalEntryGap = 8f;
+        [Min(0f)] public float TerminalAccentBarHeight = 4f;
+        [Min(0f)] public float TerminalBorderThickness = 2f;
+        [Min(10)] public int TerminalTitleFontSize = 30;
+        [Min(9)] public int TerminalBodyFontSize = 13;
+        [Min(9)] public int TerminalMetaFontSize = 11;
+        [Min(0f)] public float TerminalTitleTop = 18f;
+        [Min(0f)] public float TerminalTitleHeight = 42f;
+        [Min(0f)] public float TerminalCloseWidth = 150f;
+        [Min(0f)] public float TerminalCloseHeight = 24f;
+        [Min(0f)] public float TerminalProgressTop = 65f;
+        [Min(0f)] public float TerminalProgressHeight = 24f;
+        [Min(0f)] public float TerminalEntryPadding = 12f;
+        [Min(0f)] public float TerminalEntryTitleTop = 7f;
+        [Min(0f)] public float TerminalEntryTitleHeight = 22f;
+        [Min(0f)] public float TerminalEntryDescriptionTop = 31f;
+        [ColorUsage(false)] public Color TerminalBackdropColor = new Color(0.006f, 0.012f, 0.022f, 0.9f);
+        [ColorUsage(false)] public Color TerminalPanelColor = new Color(0.018f, 0.035f, 0.055f, 0.98f);
+        [ColorUsage(false)] public Color TerminalEntryColor = new Color(0.045f, 0.072f, 0.095f, 1f);
+        [ColorUsage(false)] public Color TerminalBorderColor = new Color(0.18f, 0.3f, 0.38f, 0.9f);
+        [ColorUsage(false)] public Color TerminalTextColor = new Color(0.9f, 0.96f, 1f, 1f);
+        [ColorUsage(false)] public Color TerminalMutedColor = new Color(0.55f, 0.65f, 0.72f, 1f);
+        [ColorUsage(false)] public Color TerminalAccentColor = new Color(0.12f, 0.85f, 1f, 1f);
+
+        [Header("Authored Signal Sites")]
+        public List<DesertAtlasSiteDefinition> Sites = new List<DesertAtlasSiteDefinition>();
+
+        public void EnsureInitialized()
+        {
+            Sites ??= new List<DesertAtlasSiteDefinition>();
+        }
+    }
+
+    [System.Serializable]
     public sealed class GroundExploderTuning
     {
         public bool Enabled = true;
@@ -3018,6 +3151,9 @@ namespace DuneVector
         [Tooltip("Unique mask-authored ground artworks placed in persistent logical world coordinates.")]
         public GeoglyphSystemTuning Geoglyphs = new GeoglyphSystemTuning();
 
+        [Tooltip("Persistent free-roam signal discoveries, scanner presentation, rewards, and Atlas terminal.")]
+        public DesertAtlasTuning DesertAtlas = new DesertAtlasTuning();
+
         [Tooltip("Route-aware open-world enemy formation choreography.")]
         public RouteEncounterTuning RouteEncounters = new RouteEncounterTuning();
 
@@ -3109,6 +3245,8 @@ namespace DuneVector
             Landmarks ??= new LandmarkSystemTuning();
             Geoglyphs ??= new GeoglyphSystemTuning();
             Geoglyphs.EnsureInitialized();
+            DesertAtlas ??= new DesertAtlasTuning();
+            DesertAtlas.EnsureInitialized();
             RouteEncounters ??= new RouteEncounterTuning();
             DynamicCouriers ??= new DynamicCourierTuning();
             Pyramids ??= new PyramidTuning();
