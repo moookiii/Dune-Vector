@@ -2310,10 +2310,13 @@ namespace DuneVector
         [Min(1f)] public float StormfrontDepth = 115f;
         [Min(0f)] public float StormfrontBaseHeight = 22f;
 
-        [Header("High-Rank Player Pursuit")]
-        [Range(1, 20)] public int PlayerFollowStartRank = 8;
+        [Header("Risk Player Pursuit")]
+        [Tooltip("First contract risk at which the electrical storm continuously follows the player.")]
+        [Range(1, 20)] public int PlayerFollowStartRank = 1;
         [Range(1, 20)] public int PlayerFollowEndRank = 20;
+        [Tooltip("Storm follow speed at Player Follow Start Rank.")]
         [Min(0.01f)] public float PlayerFollowSpeedAtStartRank = 8f;
+        [Tooltip("Storm follow speed at Player Follow End Rank.")]
         [Min(0.01f)] public float PlayerFollowSpeedAtEndRank = 80f;
 
         [Header("Supercell Shelf")]
