@@ -48,6 +48,8 @@ namespace DuneVector
         public Material StormPyramidCore { get; }
         public Material PlayerStrikeOrbBody { get; }
         public Material PlayerStrikeOrbCore { get; }
+        public Material PlayerStrikeOrbExplosionWhite { get; }
+        public Material PlayerStrikeOrbExplosionBlue { get; }
         public Material Lightning { get; }
         public Material LightningWarning { get; }
 
@@ -66,13 +68,15 @@ namespace DuneVector
             DesertShrubTuning shrubTuning = null,
             DroneVisualTuning droneVisualTuning = null,
             GeoglyphSystemTuning geoglyphTuning = null,
-            LandmarkSystemTuning landmarkTuning = null)
+            LandmarkSystemTuning landmarkTuning = null,
+            PlayerStrikeOrbTuning playerStrikeOrbTuning = null)
         {
             RingTuning rings = ringTuning ?? new RingTuning();
             DeliveryTuning delivery = deliveryTuning ?? new DeliveryTuning();
             CloudTuning clouds = cloudTuning ?? new CloudTuning();
             DynamicCourierTuning couriers = dynamicCourierTuning ?? new DynamicCourierTuning();
             DroneVisualTuning droneVisuals = droneVisualTuning ?? new DroneVisualTuning();
+            PlayerStrikeOrbTuning strikeOrbs = playerStrikeOrbTuning ?? new PlayerStrikeOrbTuning();
             Sand = CreateLit("Sand - Textured Dunes", Color.white, 0.14f, 0f);
             ConfigureDuneTexture(Sand, duneTexture, duneTextureTileSize);
             _sandOnlyTerrainMaterials = new[] { Sand };
@@ -232,8 +236,16 @@ namespace DuneVector
             GroundEnemyWarning = CreateLit("Ground Exploder - Warning", new Color(0.46f, 0.055f, 0.008f), 0.62f, 0.3f, new Color(5.2f, 0.32f, 0.015f));
             StormPyramidBody = CreateLit("Storm Pyramid - Body", new Color(0.025f, 0.035f, 0.09f), 0.58f, 0.82f, new Color(0.08f, 0.12f, 0.55f));
             StormPyramidCore = CreateLit("Storm Pyramid - Core", new Color(0.01f, 0.08f, 0.14f), 0.76f, 0.22f, new Color(0.15f, 3.6f, 6.5f));
-            PlayerStrikeOrbBody = CreateLit("Strike Orb - Body", new Color(0.018f, 0.028f, 0.07f), 0.64f, 0.76f, new Color(0.08f, 0.18f, 0.8f));
-            PlayerStrikeOrbCore = CreateLit("Strike Orb - Satellites", new Color(0.08f, 0.3f, 0.48f), 0.78f, 0.28f, new Color(0.35f, 3.5f, 6.8f));
+            PlayerStrikeOrbBody = CreateLit("Strike Orb - Body", strikeOrbs.BodyColor, 0.64f, 0.76f, strikeOrbs.BodyEmission);
+            PlayerStrikeOrbCore = CreateLit("Strike Orb - Satellites", strikeOrbs.OrbColor, 0.78f, 0.28f, strikeOrbs.OrbEmission);
+            PlayerStrikeOrbExplosionWhite = CreateUnlit(
+                "Strike Orb Explosion - White",
+                strikeOrbs.FlyThroughExplosionWhiteColor,
+                strikeOrbs.FlyThroughExplosionWhiteEmission);
+            PlayerStrikeOrbExplosionBlue = CreateUnlit(
+                "Strike Orb Explosion - Blue",
+                strikeOrbs.FlyThroughExplosionBlueColor,
+                strikeOrbs.FlyThroughExplosionBlueEmission);
             Lightning = CreateUnlit("Storm Pyramid - Lightning", new Color(0.55f, 0.86f, 1f), new Color(7.5f, 12f, 18f));
             LightningWarning = CreateUnlit("Storm Pyramid - Warning", new Color(0.18f, 0.42f, 0.62f), new Color(0.45f, 2.8f, 5.8f));
         }
@@ -332,6 +344,14 @@ namespace DuneVector
 
             ConfigureLitColors(PlayerStrikeOrbBody, settings.BodyColor, settings.BodyEmission);
             ConfigureLitColors(PlayerStrikeOrbCore, settings.OrbColor, settings.OrbEmission);
+            ConfigureLitColors(
+                PlayerStrikeOrbExplosionWhite,
+                settings.FlyThroughExplosionWhiteColor,
+                settings.FlyThroughExplosionWhiteEmission);
+            ConfigureLitColors(
+                PlayerStrikeOrbExplosionBlue,
+                settings.FlyThroughExplosionBlueColor,
+                settings.FlyThroughExplosionBlueEmission);
         }
 
         private static void ConfigureLitColors(Material material, Color baseColor, Color emission)
@@ -1230,6 +1250,54 @@ namespace DuneVector
             GameObject originObject = new GameObject("Lightning Origin");
             originObject.transform.SetParent(root, false);
             return root;
+        }
+
+        public static PlayerStrikeOrbFlyThroughExplosion CreatePlayerStrikeOrbFlyThroughExplosion(
+            Vector3 position,
+            Quaternion rotation,
+            DuneVectorMaterials materials,
+            PlayerStrikeOrbTuning settings)
+        {
+            GameObject rootObject = new GameObject("Strike Orb Fly-Through Explosion");
+            Transform root = rootObject.transform;
+            root.SetPositionAndRotation(position, rotation);
+
+            Transform flash = CreatePart(
+                PrimitiveType.Sphere,
+                "White Energy Flash",
+                root,
+                Vector3.zero,
+                Vector3.zero,
+                Quaternion.identity,
+                materials.PlayerStrikeOrbExplosionWhite);
+            DisableRendererShadows(flash.gameObject);
+
+            int shockwaveCount = Mathf.Max(1, settings.FlyThroughShockwaveCount);
+            Transform[] shockwaves = new Transform[shockwaveCount];
+            for (int i = 0; i < shockwaveCount; i++)
+            {
+                float angle = (360f / shockwaveCount) * i;
+                GameObject shockwave = CreateMeshObject(
+                    $"Blue Energy Shockwave {i + 1:00}",
+                    root,
+                    GetTorusMesh(1f, settings.FlyThroughShockwaveThickness, 64, 8),
+                    materials.PlayerStrikeOrbExplosionBlue);
+                shockwave.transform.localRotation = Quaternion.Euler(angle, angle * 0.5f, 0f);
+                shockwave.transform.localScale = Vector3.zero;
+                DisableRendererShadows(shockwave);
+                shockwaves[i] = shockwave.transform;
+            }
+
+            Light explosionLight = rootObject.AddComponent<Light>();
+            explosionLight.type = LightType.Point;
+            explosionLight.color = settings.FlyThroughExplosionBlueColor;
+            explosionLight.intensity = 0f;
+            explosionLight.range = settings.FlyThroughExplosionLightRange;
+            explosionLight.shadows = LightShadows.None;
+
+            PlayerStrikeOrbFlyThroughExplosion explosion = rootObject.AddComponent<PlayerStrikeOrbFlyThroughExplosion>();
+            explosion.Initialize(flash, shockwaves, explosionLight, settings);
+            return explosion;
         }
 
         private static void CreateOrbitingOrb(

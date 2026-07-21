@@ -1624,6 +1624,24 @@ namespace DuneVector
         [Min(0f)] public float LightningJitterPerMeter = 0.022f;
         [Range(0.1f, 1f)] public float LightningEndWidthMultiplier = 0.65f;
 
+        [Header("Fly-Through Destruction")]
+        [Tooltip("Fraction of the visible ring opening that counts as flying through its center.")]
+        [Range(0.1f, 1f)] public float FlyThroughRadiusMultiplier = 0.78f;
+        [Min(0.05f)] public float FlyThroughExplosionDuration = 0.7f;
+        [Min(0.1f)] public float FlyThroughFlashStartScale = 1.5f;
+        [Min(0.1f)] public float FlyThroughFlashMaximumScale = 24f;
+        [Range(0.05f, 0.95f)] public float FlyThroughFlashPeakTime = 0.28f;
+        [Range(1, 8)] public int FlyThroughShockwaveCount = 3;
+        [Min(0.01f)] public float FlyThroughShockwaveThickness = 0.16f;
+        [Min(0.1f)] public float FlyThroughShockwaveStartRadius = 1.5f;
+        [Min(0.1f)] public float FlyThroughShockwaveEndRadius = 27f;
+        [Min(0f)] public float FlyThroughExplosionLightIntensity = 85000f;
+        [Min(0f)] public float FlyThroughExplosionLightRange = 48f;
+        [ColorUsage(false)] public Color FlyThroughExplosionWhiteColor = Color.white;
+        [ColorUsage(false, true)] public Color FlyThroughExplosionWhiteEmission = new Color(18f, 22f, 28f);
+        [ColorUsage(false)] public Color FlyThroughExplosionBlueColor = new Color(0.16f, 0.62f, 1f);
+        [ColorUsage(false, true)] public Color FlyThroughExplosionBlueEmission = new Color(2.5f, 12f, 28f);
+
         [Header("Presentation")]
         [Min(0.1f)] public float VisualScale = 2.35f;
         [Min(0.1f)] public float RingRadius = 1.55f;

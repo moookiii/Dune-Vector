@@ -327,7 +327,8 @@ namespace DuneVector
                 DesertShrubs,
                 DroneVisuals,
                 RuntimeSettings.Geoglyphs,
-                RuntimeSettings.Landmarks);
+                RuntimeSettings.Landmarks,
+                PlayerStrikeOrbs);
             _materials.ConfigureStormPyramid(StormPyramids);
             _materials.ConfigurePlayerStrikeOrb(PlayerStrikeOrbs);
 

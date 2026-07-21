@@ -794,6 +794,8 @@ namespace DuneVector
         private PlayerStrikeOrbMovement _movement;
         private PlayerStrikeOrbTargeting _targeting;
         private PlayerStrikeOrbLightningAttack _lightning;
+        private EnemyHealth _enemyHealth;
+        private DuneVectorMaterials _materials;
         private Transform _visual;
         private Transform _firstOrbPivot;
         private Transform _secondOrbPivot;
@@ -801,6 +803,9 @@ namespace DuneVector
         private float _stateTime;
         private float _attackTimer;
         private int _identity;
+        private Vector3 _previousPlayerPosition;
+        private bool _hasPreviousPlayerPosition;
+        private bool _flyThroughTriggered;
 
         public void Initialize(
             DroneCharacterController player,
@@ -813,6 +818,7 @@ namespace DuneVector
             _player = player;
             _playerHealth = playerHealth;
             _settings = settings;
+            _materials = materials;
             _identity = identity;
 
             _visual = DuneVectorVisuals.CreatePlayerStrikeOrbVisual(transform, materials, settings);
@@ -821,13 +827,13 @@ namespace DuneVector
             Transform halo = _visual.Find("Charge Halo");
             Transform lightningOrigin = _visual.Find("Lightning Origin");
 
-            EnemyHealth enemyHealth = gameObject.AddComponent<EnemyHealth>();
-            enemyHealth.Initialize(settings.MaximumHealth);
+            _enemyHealth = gameObject.AddComponent<EnemyHealth>();
+            _enemyHealth.Initialize(settings.MaximumHealth);
             EnemyCombatTarget combatTarget = gameObject.AddComponent<EnemyCombatTarget>();
-            combatTarget.Initialize(enemyHealth, settings.VisualScale * settings.RingRadius);
+            combatTarget.Initialize(_enemyHealth, settings.VisualScale * settings.RingRadius);
             EnemyGoldReward goldReward = gameObject.AddComponent<EnemyGoldReward>();
             goldReward.Initialize(
-                enemyHealth,
+                _enemyHealth,
                 player != null ? player.GetComponent<DroneGoldWallet>() : null,
                 settings.GoldReward);
 
@@ -852,6 +858,9 @@ namespace DuneVector
                 settings.MinimumInitialAttackDelayMultiplier,
                 1f,
                 Mathf.Repeat((identity * 0.371f) + 0.18f, 1f));
+            _previousPlayerPosition = player != null ? player.WorldCenter : Vector3.zero;
+            _hasPreviousPlayerPosition = player != null;
+            _flyThroughTriggered = false;
             SetState(StormPyramidState.IdleHovering);
         }
 
@@ -862,6 +871,14 @@ namespace DuneVector
                 _lightning?.CancelAttack();
                 return;
             }
+
+            Vector3 playerPosition = _player.WorldCenter;
+            if (TryDestroyFromFlyThrough(playerPosition))
+            {
+                return;
+            }
+            _previousPlayerPosition = playerPosition;
+            _hasPreviousPlayerPosition = true;
 
             float deltaTime = Time.deltaTime;
             _stateTime += deltaTime;
@@ -1017,6 +1034,54 @@ namespace DuneVector
             SetState(StormPyramidState.IdleHovering);
         }
 
+        private bool TryDestroyFromFlyThrough(Vector3 playerPosition)
+        {
+            if (_flyThroughTriggered
+                || !_hasPreviousPlayerPosition
+                || _player.CurrentMode != DroneTraversalMode.Flight
+                || _enemyHealth == null
+                || _enemyHealth.IsDead)
+            {
+                return false;
+            }
+
+            float visibleOpeningRadius = Mathf.Max(
+                0.1f,
+                (_settings.RingRadius - (_settings.RingThickness * 1.7f)) * _settings.VisualScale);
+            float triggerRadius = visibleOpeningRadius
+                * Mathf.Clamp01(_settings.FlyThroughRadiusMultiplier);
+            Vector3 segment = playerPosition - _previousPlayerPosition;
+            float segmentLengthSquared = segment.sqrMagnitude;
+            if (segmentLengthSquared <= Mathf.Epsilon)
+            {
+                return false;
+            }
+
+            float previousDistanceSquared = (_previousPlayerPosition - transform.position).sqrMagnitude;
+            if (previousDistanceSquared <= triggerRadius * triggerRadius)
+            {
+                return false;
+            }
+
+            float closestTime = Mathf.Clamp01(
+                Vector3.Dot(transform.position - _previousPlayerPosition, segment) / segmentLengthSquared);
+            Vector3 closestPoint = _previousPlayerPosition + (segment * closestTime);
+            if ((closestPoint - transform.position).sqrMagnitude > triggerRadius * triggerRadius)
+            {
+                return false;
+            }
+
+            _flyThroughTriggered = true;
+            _lightning?.CancelAttack();
+            DuneVectorVisuals.CreatePlayerStrikeOrbFlyThroughExplosion(
+                transform.position,
+                transform.rotation,
+                _materials,
+                _settings);
+            _enemyHealth.TakeDamage(float.MaxValue);
+            return true;
+        }
+
         private void SetState(StormPyramidState state)
         {
             CurrentState = state;
@@ -1064,6 +1129,90 @@ namespace DuneVector
             _movement.ApplyWorldShift(shift);
             _trackedTarget += shift;
             _lightning.ApplyWorldShift(shift);
+            if (_hasPreviousPlayerPosition)
+            {
+                _previousPlayerPosition += shift;
+            }
+        }
+    }
+
+    [DisallowMultipleComponent]
+    public sealed class PlayerStrikeOrbFlyThroughExplosion : MonoBehaviour
+    {
+        private Transform _flash;
+        private Transform[] _shockwaves;
+        private Light _light;
+        private PlayerStrikeOrbTuning _settings;
+        private float _elapsed;
+
+        public void Initialize(
+            Transform flash,
+            Transform[] shockwaves,
+            Light explosionLight,
+            PlayerStrikeOrbTuning settings)
+        {
+            _flash = flash;
+            _shockwaves = shockwaves;
+            _light = explosionLight;
+            _settings = settings;
+            _elapsed = 0f;
+        }
+
+        private void Update()
+        {
+            if (_settings == null)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            float duration = Mathf.Max(0.05f, _settings.FlyThroughExplosionDuration);
+            float progress = Mathf.Clamp01(_elapsed / duration);
+            float peakTime = Mathf.Clamp(_settings.FlyThroughFlashPeakTime, 0.05f, 0.95f);
+            float flashProgress = progress <= peakTime
+                ? progress / peakTime
+                : 1f - ((progress - peakTime) / (1f - peakTime));
+            float flashScale = Mathf.Lerp(
+                _settings.FlyThroughFlashStartScale,
+                _settings.FlyThroughFlashMaximumScale,
+                Mathf.Sin(Mathf.Clamp01(flashProgress) * Mathf.PI * 0.5f));
+            if (_flash != null)
+            {
+                _flash.localScale = Vector3.one * flashScale;
+            }
+
+            if (_shockwaves != null)
+            {
+                for (int i = 0; i < _shockwaves.Length; i++)
+                {
+                    Transform shockwave = _shockwaves[i];
+                    if (shockwave == null)
+                    {
+                        continue;
+                    }
+                    float delay = (float)i / (_shockwaves.Length * 3f);
+                    float waveProgress = Mathf.Clamp01((progress - delay) / Mathf.Max(0.01f, 1f - delay));
+                    float radius = Mathf.Lerp(
+                        _settings.FlyThroughShockwaveStartRadius,
+                        _settings.FlyThroughShockwaveEndRadius,
+                        1f - ((1f - waveProgress) * (1f - waveProgress)));
+                    shockwave.localScale = Vector3.one * radius;
+                }
+            }
+
+            if (_light != null)
+            {
+                _light.intensity = _settings.FlyThroughExplosionLightIntensity
+                    * (1f - progress)
+                    * (1f - progress);
+                _light.range = _settings.FlyThroughExplosionLightRange;
+            }
+
+            _elapsed += Time.deltaTime;
+            if (_elapsed >= duration)
+            {
+                Destroy(gameObject);
+            }
         }
     }
 
