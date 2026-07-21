@@ -9,8 +9,6 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
         _ScrollVelocity("Scroll Velocity", Vector) = (0.035, 0.12, 0, 0)
         _ShellStrengthMultiplier("Shell Strength Multiplier", Float) = 1
         [HideInInspector] _VerticalVeil("Vertical Veil", Float) = 0
-        [HideInInspector] _VisibleTintStartDistance("Visible Tint Start Distance", Float) = 24
-        [HideInInspector] _VisibleTintFullDistance("Visible Tint Full Distance", Float) = 90
         [HDR] _ShimmerColor("Visible Heat Shimmer", Color) = (1.15, 0.9, 0.62, 1)
         _ShimmerOpacity("Visible Heat Shimmer Opacity", Range(0, 0.3)) = 0.08
     }
@@ -143,8 +141,6 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 float4 _ScrollVelocity;
                 float _ShellStrengthMultiplier;
                 float _VerticalVeil;
-                float _VisibleTintStartDistance;
-                float _VisibleTintFullDistance;
                 float4 _ShimmerColor;
                 float _ShimmerOpacity;
             CBUFFER_END
@@ -160,7 +156,6 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
             {
                 float4 positionCS : SV_POSITION;
                 float2 uv : TEXCOORD0;
-                float viewDepth : TEXCOORD1;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -171,7 +166,6 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 output.positionCS = TransformObjectToHClip(input.positionOS);
                 output.uv = input.uv;
-                output.viewDepth = -TransformWorldToView(TransformObjectToWorld(input.positionOS)).z;
                 return output;
             }
 
@@ -194,11 +188,7 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                     smoothstep(0.0, 0.24, 1.0 - input.uv.y);
                 float pulse = 0.45 + (0.35 * sin((input.uv.y * 24.0) - (_Time.y * 2.1)));
                 float shimmer = saturate((primary.b * 0.65) + (secondary * 0.35) + pulse - 0.55);
-                float tintDistance = smoothstep(
-                    _VisibleTintStartDistance,
-                    _VisibleTintFullDistance,
-                    input.viewDepth);
-                float alpha = shimmer * sideFade * verticalFade * tintDistance * saturate(_VerticalVeil) *
+                float alpha = shimmer * sideFade * verticalFade * saturate(_VerticalVeil) *
                     _ShimmerOpacity * _ShellStrengthMultiplier;
                 clip(alpha - 0.002);
                 return float4(_ShimmerColor.rgb, alpha);
