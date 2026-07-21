@@ -692,8 +692,6 @@ namespace DuneVector
                     true);
             }
 
-            DuneVectorSpatialInstancing.Capture(rootObject, false);
-
             return root;
         }
 
