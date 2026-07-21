@@ -1012,9 +1012,11 @@ namespace DuneVector
             int batch = Mathf.FloorToInt(Time.unscaledTime / Mathf.Max(1f, _settings.ContractRefreshSeconds));
             System.Random random = new System.Random(unchecked(
                 _world.WorldSeed ^ _settings.ContractSeedOffset ^ (completionTier * 486187739) ^ batch));
-            for (int i = 0; i < count; i++)
+            int offerIndex = 0;
+            while (_offers.Count < count)
             {
-                CourierContract offer = CreateOffer(random, i, completionTier);
+                CourierContract offer = CreateOffer(random, offerIndex, completionTier);
+                offerIndex++;
                 if (!Progress.WasContractAccepted(offer.ContractId))
                 {
                     _offers.Add(offer);
@@ -1114,7 +1116,7 @@ namespace DuneVector
                 return;
             }
             Progress.RecordContractAccepted(contract.ContractId);
-            RemoveContractOffer(contract);
+            GenerateOffers();
             if (_settings.DebugCompleteContractsInstantlyWithoutPayout)
             {
                 CompleteContractInstantlyWithoutPayout(contract);
