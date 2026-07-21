@@ -101,7 +101,7 @@ namespace DuneVector
         [Serializable]
         private sealed class SaveData
         {
-            public int Version = 3;
+            public int Version = 4;
             public int CompletedDeliveries;
             public int FailedDeliveries;
             public int TotalContractGold;
@@ -109,6 +109,7 @@ namespace DuneVector
             public int NextDeliveryMessageIndex;
             public int PendingDeliveryMessageIndex = -1;
             public bool DeliveryMessageInputHintAcknowledged;
+            public List<string> AcceptedContractIds = new List<string>();
         }
 
         public int CompletedDeliveries { get; private set; }
@@ -118,9 +119,11 @@ namespace DuneVector
         public int NextDeliveryMessageIndex { get; private set; }
         public int PendingDeliveryMessageIndex { get; private set; } = -1;
         public bool DeliveryMessageInputHintAcknowledged { get; private set; }
+        public IReadOnlyList<string> AcceptedContractIds => _acceptedContractIds;
         public event Action Changed;
 
         private string _savePath;
+        private readonly List<string> _acceptedContractIds = new List<string>();
 
         public void Initialize()
         {
@@ -176,6 +179,23 @@ namespace DuneVector
             Changed?.Invoke();
         }
 
+        public void RecordContractAccepted(string contractId)
+        {
+            if (string.IsNullOrEmpty(contractId) || _acceptedContractIds.Contains(contractId))
+            {
+                return;
+            }
+
+            _acceptedContractIds.Add(contractId);
+            Save();
+            Changed?.Invoke();
+        }
+
+        public bool WasContractAccepted(string contractId)
+        {
+            return !string.IsNullOrEmpty(contractId) && _acceptedContractIds.Contains(contractId);
+        }
+
         private void Load()
         {
             if (!File.Exists(_savePath))
@@ -207,6 +227,18 @@ namespace DuneVector
                 }
                 DeliveryMessageInputHintAcknowledged =
                     data.Version >= 3 && data.DeliveryMessageInputHintAcknowledged;
+                _acceptedContractIds.Clear();
+                if (data.Version >= 4 && data.AcceptedContractIds != null)
+                {
+                    for (int i = 0; i < data.AcceptedContractIds.Count; i++)
+                    {
+                        string contractId = data.AcceptedContractIds[i];
+                        if (!string.IsNullOrEmpty(contractId) && !_acceptedContractIds.Contains(contractId))
+                        {
+                            _acceptedContractIds.Add(contractId);
+                        }
+                    }
+                }
             }
             catch (Exception exception)
             {
@@ -227,6 +259,7 @@ namespace DuneVector
                     NextDeliveryMessageIndex = NextDeliveryMessageIndex,
                     PendingDeliveryMessageIndex = PendingDeliveryMessageIndex,
                     DeliveryMessageInputHintAcknowledged = DeliveryMessageInputHintAcknowledged,
+                    AcceptedContractIds = new List<string>(_acceptedContractIds),
                 };
                 File.WriteAllText(_savePath, JsonUtility.ToJson(data));
             }
@@ -944,7 +977,11 @@ namespace DuneVector
                 _world.WorldSeed ^ _settings.ContractSeedOffset ^ (completionTier * 486187739) ^ batch));
             for (int i = 0; i < count; i++)
             {
-                _offers.Add(CreateOffer(random, i, completionTier));
+                CourierContract offer = CreateOffer(random, i, completionTier);
+                if (!Progress.WasContractAccepted(offer.ContractId))
+                {
+                    _offers.Add(offer);
+                }
             }
             _offerRefreshTimer = Mathf.Max(5f, _settings.ContractRefreshSeconds);
         }
@@ -1039,6 +1076,8 @@ namespace DuneVector
             {
                 return;
             }
+            Progress.RecordContractAccepted(contract.ContractId);
+            RemoveContractOffer(contract);
             if (_settings.DebugCompleteContractsInstantlyWithoutPayout)
             {
                 CompleteContractInstantlyWithoutPayout(contract);
