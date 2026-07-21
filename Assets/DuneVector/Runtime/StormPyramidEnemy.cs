@@ -815,6 +815,7 @@ namespace DuneVector
         private Vector3 _previousPlayerPosition;
         private bool _hasPreviousPlayerPosition;
         private bool _flyThroughTriggered;
+        private bool _facingLockedForClosePass;
 
         public void Initialize(
             DroneCharacterController player,
@@ -870,6 +871,7 @@ namespace DuneVector
             _previousPlayerPosition = player != null ? player.WorldCenter : Vector3.zero;
             _hasPreviousPlayerPosition = player != null;
             _flyThroughTriggered = false;
+            _facingLockedForClosePass = false;
             SetState(StormPyramidState.IdleHovering);
         }
 
@@ -1023,10 +1025,14 @@ namespace DuneVector
 
         private void FacePosition(Vector3 target)
         {
-            float facingLockDistance = _settings.RingRadius * _settings.VisualScale;
-            if (_player != null
-                && (_player.WorldCenter - transform.position).sqrMagnitude
-                    <= facingLockDistance * facingLockDistance)
+            if (!_facingLockedForClosePass && _player != null)
+            {
+                float facingLockDistance = _settings.OrbitRadius * _settings.VisualScale;
+                _facingLockedForClosePass =
+                    (_player.WorldCenter - transform.position).sqrMagnitude
+                    <= facingLockDistance * facingLockDistance;
+            }
+            if (_facingLockedForClosePass)
             {
                 return;
             }
@@ -1049,6 +1055,7 @@ namespace DuneVector
         {
             _lightning.CancelAttack();
             _movement.RepositionNearPlayer();
+            _facingLockedForClosePass = false;
             _attackTimer = Mathf.Max(0.1f, _settings.AttackInterval);
             SetState(StormPyramidState.IdleHovering);
         }
