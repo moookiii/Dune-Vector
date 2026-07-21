@@ -1980,8 +1980,8 @@ namespace DuneVector
             {
                 int next = (radial + 1) % radialSegments;
                 triangles[triangle++] = 0;
-                triangles[triangle++] = 1 + next;
                 triangles[triangle++] = 1 + radial;
+                triangles[triangle++] = 1 + next;
 
                 for (int ring = 0; ring < ringCount - 1; ring++)
                 {
@@ -1990,17 +1990,17 @@ namespace DuneVector
                     int upper = lower + radialSegments;
                     int upperNext = lowerNext + radialSegments;
                     triangles[triangle++] = lower;
-                    triangles[triangle++] = lowerNext;
                     triangles[triangle++] = upper;
                     triangles[triangle++] = lowerNext;
+                    triangles[triangle++] = lowerNext;
+                    triangles[triangle++] = upper;
                     triangles[triangle++] = upperNext;
-                    triangles[triangle++] = upper;
                 }
 
                 int topRing = 1 + ((ringCount - 1) * radialSegments);
                 triangles[triangle++] = topRing + radial;
-                triangles[triangle++] = topRing + next;
                 triangles[triangle++] = topPole;
+                triangles[triangle++] = topRing + next;
             }
 
             Mesh mesh = new Mesh { name = "Ribbed Cactus Segment" };
