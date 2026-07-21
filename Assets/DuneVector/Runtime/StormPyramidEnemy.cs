@@ -116,7 +116,7 @@ namespace DuneVector
                 damage,
                 identity);
 
-            _attackTimer = settings.AttackInterval * Mathf.Lerp(
+            _attackTimer = GetAttackInterval() * Mathf.Lerp(
                 0.35f,
                 1f,
                 Mathf.Repeat((identity * 0.417f) + 0.21f, 1f));
@@ -172,8 +172,7 @@ namespace DuneVector
 
         private void UpdateIdle(float deltaTime)
         {
-            _attackTimer = Mathf.Max(0f, _attackTimer -
-                (deltaTime * DuneVectorContractRisk.EnemyAttackRateMultiplier));
+            _attackTimer = Mathf.Max(0f, _attackTimer - deltaTime);
             if (_attackTimer <= 0f)
             {
                 BeginGroundStrike();
@@ -211,7 +210,7 @@ namespace DuneVector
         {
             if (_stateTime >= _settings.Cooldown)
             {
-                _attackTimer = Mathf.Max(0.1f, _settings.AttackInterval);
+                _attackTimer = GetAttackInterval();
                 SetState(StormPyramidState.IdleHovering);
             }
         }
@@ -256,7 +255,7 @@ namespace DuneVector
         {
             _lightning.CancelAttack();
             _movement.RepositionNearPlayer();
-            _attackTimer = _settings.AttackInterval;
+            _attackTimer = GetAttackInterval();
             SetState(StormPyramidState.IdleHovering);
         }
 
@@ -265,11 +264,31 @@ namespace DuneVector
             if (!active)
             {
                 _lightning?.CancelAttack();
-                _attackTimer = _settings != null ? _settings.AttackInterval : 0f;
+                _attackTimer = GetAttackInterval();
                 SetState(StormPyramidState.IdleHovering);
+            }
+            else
+            {
+                _attackTimer = Mathf.Min(_attackTimer, GetAttackInterval());
             }
 
             enabled = active;
+        }
+
+        private float GetAttackInterval()
+        {
+            if (_settings == null)
+            {
+                return 0f;
+            }
+
+            float riskProgress = Mathf.Clamp01(
+                DuneVectorContractRisk.CurrentRisk /
+                (float)Mathf.Max(1, _settings.AttackIntervalRiskCeiling));
+            return Mathf.Max(0f, Mathf.Lerp(
+                _settings.AttackInterval,
+                _settings.AttackIntervalAtRiskCeiling,
+                riskProgress));
         }
 
         private void SetState(StormPyramidState state)

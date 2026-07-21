@@ -10,6 +10,7 @@ namespace DuneVector
         public static float EnemyDamageMultiplier { get; private set; } = 1f;
         public static float EnemyAttackRateMultiplier { get; private set; } = 1f;
         public static float EnemySpawnMultiplier { get; private set; } = 1f;
+        public static int CurrentRisk { get; private set; }
 
         public static float GetRewardMultiplier(CourierContractTuning settings, int risk)
         {
@@ -21,6 +22,7 @@ namespace DuneVector
         {
             int maximumRisk = Mathf.Max(1, settings.MaximumRisk);
             int clampedRisk = Mathf.Clamp(risk, 1, maximumRisk);
+            CurrentRisk = Mathf.Clamp(risk, 0, maximumRisk);
             float rankProgress = maximumRisk > 1
                 ? (clampedRisk - 1f) / (maximumRisk - 1f)
                 : 0f;
@@ -37,6 +39,7 @@ namespace DuneVector
 
         public static void Reset()
         {
+            CurrentRisk = 0;
             EnemyHealthMultiplier = 1f;
             EnemySpeedMultiplier = 1f;
             EnemyDamageMultiplier = 1f;

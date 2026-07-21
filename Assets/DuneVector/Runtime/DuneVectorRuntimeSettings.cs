@@ -1488,8 +1488,12 @@ namespace DuneVector
         [Min(1f)] public float DetectionRange = 125f;
 
         [Header("Lightning Attack")]
-        [Tooltip("Delay before beginning another straight-down ground strike after returning to idle.")]
-        [Min(0.1f)] public float AttackInterval = 4.5f;
+        [Tooltip("Delay before beginning another straight-down ground strike after returning to idle at risk 0.")]
+        [Min(0f)] public float AttackInterval = 4.5f;
+        [Tooltip("Delay between ground strikes at the attack interval risk ceiling.")]
+        [Min(0f)] public float AttackIntervalAtRiskCeiling = 0f;
+        [Tooltip("Risk at which the storm pyramid reaches Attack Interval At Risk Ceiling.")]
+        [Min(1)] public int AttackIntervalRiskCeiling = 20;
         [Tooltip("Charge duration for a straight-down ground strike.")]
         [InspectorName("Ground Strike Charge Time")]
         [Min(0.1f)] public float ChargeTime = 1.15f;
