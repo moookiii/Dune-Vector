@@ -13,6 +13,10 @@ namespace DuneVector
         {
             public Vector2Int Id;
             public GameObject Root;
+            public Material CurtainMaterial;
+            public Material GroundMaterial;
+            public Mesh CurtainMesh;
+            public Mesh GroundMesh;
             public ParticleSystem Plumes;
             public ParticleSystem Streaks;
         }
@@ -33,8 +37,6 @@ namespace DuneVector
         private Material _streakMaterial;
         private Material _hotPlateMaterial;
         private Material _hotGlowMaterial;
-        private Transform _ambientPlumeRoot;
-        private ParticleSystem _ambientPlumes;
         private Volume _interiorVolume;
         private VolumeProfile _interiorProfile;
         private float _refreshTimer;
@@ -59,7 +61,6 @@ namespace DuneVector
             _streakMaterial = CreateParticleMaterial("Hot Wind Streaks", settings.HeatStreakColor);
             _hotPlateMaterial = CreateLitMaterial("Heat Pocket Basalt", settings.HotSpotPlateColor, Color.black);
             _hotGlowMaterial = CreateLitMaterial("Heat Pocket Mineral Glow", Color.black, settings.HotSpotGlowColor);
-            CreateAmbientHeatPlumes();
             CreateInteriorVolume();
             _world.WorldShifted += HandleWorldShift;
             RefreshZoneVisuals();
@@ -78,6 +79,13 @@ namespace DuneVector
                 RefreshZoneVisuals();
             }
 
+            Vector2 offset = _settings.DistortionScrollVelocity * Time.time;
+            foreach (ZoneVisual visual in _zoneVisuals.Values)
+            {
+                visual.CurtainMaterial?.SetTextureOffset("_DistortionVectorMap", offset);
+                visual.GroundMaterial?.SetTextureOffset("_DistortionVectorMap", offset);
+            }
+
             float desiredBlend = Mathf.Clamp01(
                 _hazards.HeatZoneIntensity * Mathf.Max(_settings.MildSeverity, _hazards.CurrentHeatZoneSeverity));
             _interiorBlend = Mathf.Lerp(
@@ -93,7 +101,6 @@ namespace DuneVector
         private void RefreshZoneVisuals()
         {
             _refreshTimer = Mathf.Max(0.05f, _settings.VisualRefreshInterval);
-            UpdateAmbientPlumePosition();
             _hazards.CollectNearbyHeatZones(_nearbyZones, Mathf.Max(0f, _settings.VisualRange));
             _activeIds.Clear();
             int count = Mathf.Min(Mathf.Max(1, _settings.MaximumVisibleZones), _nearbyZones.Count);
@@ -131,78 +138,158 @@ namespace DuneVector
             root.transform.SetParent(transform, true);
             root.transform.position = center;
 
-            ParticleSystem plumes = CreateHeatPlumes(
+            float distortion = Mathf.Lerp(
+                _settings.DistantDistortionStrength,
+                _settings.InteriorDistortionStrength,
+                sample.Severity);
+            Material curtainMaterial = CreateDistortionMaterial(
+                $"Heat Curtain [{sample.Id.x}, {sample.Id.y}]",
+                true,
+                Color.clear,
+                distortion);
+            Material groundMaterial = CreateDistortionMaterial(
+                $"Ground Mirage [{sample.Id.x}, {sample.Id.y}]",
+                false,
+                WithAlpha(_settings.MirageSurfaceColor, _settings.MirageSurfaceOpacity * sample.Severity),
+                distortion);
+
+            Mesh curtainMesh = CreateOpenCylinderMesh(
+                sample.Radius * _settings.ShimmerCurtainRadiusMultiplier,
+                _settings.ShimmerCurtainHeight,
+                Mathf.Max(8, _settings.CurtainSegments));
+            CreateMeshRenderer(
+                "Refractive Air Curtain",
                 root.transform,
-                "Sparse Rising Heat Columns",
-                sample.Radius * _settings.HeatPlumeRadiusMultiplier,
-                Mathf.RoundToInt(_settings.HeatPlumeParticleBudget * sample.Severity),
-                _settings.HeatPlumeEmissionRate * sample.Severity,
-                1f,
-                false);
+                curtainMesh,
+                curtainMaterial);
+            Mesh groundMesh = CreateGroundMirageMesh(
+                center,
+                sample.Radius * _settings.GroundMirageRadiusMultiplier,
+                Mathf.Max(2, _settings.GroundMirageRings),
+                Mathf.Max(8, _settings.GroundMirageSegments));
+            CreateMeshRenderer(
+                "Terrain-Following Ground Mirage",
+                root.transform,
+                groundMesh,
+                groundMaterial);
+
+            ParticleSystem plumes = CreateHeatPlumes(root.transform, sample);
             ParticleSystem streaks = CreateHeatStreaks(root.transform, sample);
             CreateHotSpots(root.transform, center, sample);
             return new ZoneVisual
             {
                 Id = sample.Id,
                 Root = root,
+                CurtainMaterial = curtainMaterial,
+                GroundMaterial = groundMaterial,
+                CurtainMesh = curtainMesh,
+                GroundMesh = groundMesh,
                 Plumes = plumes,
                 Streaks = streaks,
             };
         }
 
-        private void CreateAmbientHeatPlumes()
+        private Mesh CreateGroundMirageMesh(Vector3 center, float radius, int rings, int segments)
         {
-            if (!_settings.AmbientHeatPlumesEnabled)
+            int vertexCount = 1 + (rings * segments);
+            Vector3[] vertices = new Vector3[vertexCount];
+            Vector2[] uvs = new Vector2[vertexCount];
+            int[] triangles = new int[((rings - 1) * segments * 6) + (segments * 3)];
+            vertices[0] = new Vector3(0f, _settings.GroundMirageHeightOffset, 0f);
+            uvs[0] = new Vector2(0.5f, 0.5f);
+            for (int ring = 1; ring <= rings; ring++)
             {
-                return;
+                float ringRadius = radius * ring / rings;
+                for (int segment = 0; segment < segments; segment++)
+                {
+                    float angle = (Mathf.PI * 2f * segment) / segments;
+                    float x = Mathf.Cos(angle) * ringRadius;
+                    float z = Mathf.Sin(angle) * ringRadius;
+                    float terrain = _world.SampleHeightAtLocal(center.x + x, center.z + z);
+                    int index = 1 + ((ring - 1) * segments) + segment;
+                    vertices[index] = new Vector3(x, terrain - center.y + _settings.GroundMirageHeightOffset, z);
+                    uvs[index] = new Vector2((x / (radius * 2f)) + 0.5f, (z / (radius * 2f)) + 0.5f);
+                }
             }
 
-            GameObject root = new GameObject("Ambient Ground Heat Plumes");
-            root.transform.SetParent(transform, false);
-            _ambientPlumeRoot = root.transform;
-            UpdateAmbientPlumePosition();
-            _ambientPlumes = CreateHeatPlumes(
-                _ambientPlumeRoot,
-                "Ambient Rising Heat Columns",
-                _settings.AmbientHeatPlumeRadius,
-                _settings.AmbientHeatPlumeParticleBudget,
-                _settings.AmbientHeatPlumeEmissionRate,
-                _settings.AmbientHeatPlumeOpacity,
-                _settings.AmbientHeatPlumePrewarm);
-        }
-
-        private void UpdateAmbientPlumePosition()
-        {
-            if (_ambientPlumeRoot == null || _drone == null || _world == null)
+            int triangleIndex = 0;
+            for (int segment = 0; segment < segments; segment++)
             {
-                return;
+                int next = (segment + 1) % segments;
+                triangles[triangleIndex++] = 0;
+                triangles[triangleIndex++] = 1 + next;
+                triangles[triangleIndex++] = 1 + segment;
             }
-
-            Vector3 center = _drone.WorldCenter;
-            center.y = _world.SampleHeightAtLocal(center.x, center.z);
-            _ambientPlumeRoot.position = center;
+            for (int ring = 1; ring < rings; ring++)
+            {
+                int innerStart = 1 + ((ring - 1) * segments);
+                int outerStart = 1 + (ring * segments);
+                for (int segment = 0; segment < segments; segment++)
+                {
+                    int next = (segment + 1) % segments;
+                    triangles[triangleIndex++] = innerStart + segment;
+                    triangles[triangleIndex++] = innerStart + next;
+                    triangles[triangleIndex++] = outerStart + segment;
+                    triangles[triangleIndex++] = outerStart + segment;
+                    triangles[triangleIndex++] = innerStart + next;
+                    triangles[triangleIndex++] = outerStart + next;
+                }
+            }
+            Mesh mesh = new Mesh { name = "Terrain-Following Heat Mirage" };
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
-        private ParticleSystem CreateHeatPlumes(
-            Transform parent,
-            string objectName,
-            float radius,
-            int particleBudget,
-            float emissionRate,
-            float opacity,
-            bool prewarm)
+        private static Mesh CreateOpenCylinderMesh(float radius, float height, int segments)
         {
-            GameObject plumeObject = new GameObject(objectName);
+            Vector3[] vertices = new Vector3[(segments + 1) * 2];
+            Vector2[] uvs = new Vector2[vertices.Length];
+            int[] triangles = new int[segments * 6];
+            for (int i = 0; i <= segments; i++)
+            {
+                float progress = i / (float)segments;
+                float angle = progress * Mathf.PI * 2f;
+                Vector3 radial = new Vector3(Mathf.Cos(angle) * radius, 0f, Mathf.Sin(angle) * radius);
+                vertices[i * 2] = radial;
+                vertices[(i * 2) + 1] = radial + (Vector3.up * height);
+                uvs[i * 2] = new Vector2(progress, 0f);
+                uvs[(i * 2) + 1] = new Vector2(progress, 1f);
+                if (i == segments)
+                {
+                    continue;
+                }
+                int vertex = i * 2;
+                int triangle = i * 6;
+                triangles[triangle] = vertex;
+                triangles[triangle + 1] = vertex + 1;
+                triangles[triangle + 2] = vertex + 2;
+                triangles[triangle + 3] = vertex + 2;
+                triangles[triangle + 4] = vertex + 1;
+                triangles[triangle + 5] = vertex + 3;
+            }
+            Mesh mesh = new Mesh { name = "Heat Shimmer Curtain" };
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private ParticleSystem CreateHeatPlumes(Transform parent, HeatZoneSample sample)
+        {
+            GameObject plumeObject = new GameObject("Sparse Rising Heat Columns");
             plumeObject.transform.SetParent(parent, false);
-            plumeObject.transform.localPosition = Vector3.up * _settings.HeatPlumeGroundOffset;
             ParticleSystem system = plumeObject.AddComponent<ParticleSystem>();
             ParticleSystem.MainModule main = system.main;
             main.loop = true;
             main.playOnAwake = true;
-            main.prewarm = prewarm;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.startSpeed = _settings.HeatPlumeInitialSpeed;
-            main.maxParticles = Mathf.Max(0, particleBudget);
+            main.maxParticles = Mathf.Max(0, Mathf.RoundToInt(_settings.HeatPlumeParticleBudget * sample.Severity));
             main.startLifetime = new ParticleSystem.MinMaxCurve(
                 _settings.HeatPlumeMinimumLifetime,
                 Mathf.Max(_settings.HeatPlumeMinimumLifetime, _settings.HeatPlumeMaximumLifetime));
@@ -219,12 +306,11 @@ namespace DuneVector
                     _settings.HeatPlumeMinimumSize * _settings.HeatPlumeMinimumHeightMultiplier,
                     _settings.HeatPlumeMaximumSize * _settings.HeatPlumeMaximumHeightMultiplier));
             ParticleSystem.EmissionModule emission = system.emission;
-            emission.rateOverTime = Mathf.Max(0f, emissionRate);
+            emission.rateOverTime = _settings.HeatPlumeEmissionRate * sample.Severity;
             ParticleSystem.ShapeModule shape = system.shape;
             shape.enabled = true;
             shape.shapeType = ParticleSystemShapeType.Circle;
-            shape.radius = Mathf.Max(0f, radius);
-            shape.rotation = new Vector3(90f, 0f, 0f);
+            shape.radius = sample.Radius * _settings.GroundMirageRadiusMultiplier;
             ParticleSystem.VelocityOverLifetimeModule velocity = system.velocityOverLifetime;
             velocity.enabled = true;
             velocity.space = ParticleSystemSimulationSpace.World;
@@ -245,8 +331,8 @@ namespace DuneVector
                 new[]
                 {
                     new GradientAlphaKey(0f, 0f),
-                    new GradientAlphaKey(Mathf.Clamp01(opacity), _settings.HeatPlumeLifetimeFadeInFraction),
-                    new GradientAlphaKey(Mathf.Clamp01(opacity), _settings.HeatPlumeLifetimeFadeOutFraction),
+                    new GradientAlphaKey(1f, _settings.HeatPlumeLifetimeFadeInFraction),
+                    new GradientAlphaKey(1f, _settings.HeatPlumeLifetimeFadeOutFraction),
                     new GradientAlphaKey(0f, 1f),
                 });
             plumeFade.color = plumeGradient;
@@ -389,47 +475,39 @@ namespace DuneVector
             bloom.threshold.Override(Mathf.Max(0f, _settings.InteriorBloomThreshold));
         }
 
+        private Material CreateDistortionMaterial(string materialName, bool distortionOnly, Color tint, float strength)
+        {
+            Shader shader = Shader.Find("HDRP/Unlit");
+            Material material = new Material(shader) { name = materialName };
+            material.SetFloat("_SurfaceType", 1f);
+            material.SetFloat("_BlendMode", 0f);
+            material.SetFloat("_TransparentCullMode", 0f);
+            material.SetFloat("_DoubleSidedEnable", 1f);
+            material.SetFloat("_EnableFogOnTransparent", 1f);
+            material.SetColor("_UnlitColor", tint);
+            material.SetTexture("_UnlitColorMap", Texture2D.whiteTexture);
+            material.SetFloat("_DistortionEnable", 1f);
+            material.SetFloat("_DistortionOnly", distortionOnly ? 1f : 0f);
+            material.SetFloat("_DistortionDepthTest", 1f);
+            material.SetFloat("_DistortionBlendMode", 0f);
+            material.SetTexture("_DistortionVectorMap", _distortionTexture);
+            material.SetTextureScale("_DistortionVectorMap", Vector2.one * _settings.DistortionTextureScale);
+            material.SetFloat("_DistortionScale", Mathf.Max(0f, strength));
+            material.SetFloat("_DistortionVectorScale", 2f);
+            material.SetFloat("_DistortionVectorBias", -1f);
+            material.SetFloat("_DistortionBlurScale", _settings.DistortionBlurStrength);
+            HDMaterial.ValidateMaterial(material);
+            return material;
+        }
+
         private Material CreateHeatPlumeMaterial()
         {
-            Shader shader = Shader.Find("DuneVector/HDRP Heat Plume Distortion");
-            Material material = new Material(shader) { name = "Masked Heat Plume Refraction" };
-            material.SetTexture("_NoiseTex", _distortionTexture);
-            material.SetFloat("_DistortionStrength", _settings.HeatPlumeDistortionStrength);
-            material.SetFloat("_DistortionBlur", _settings.HeatPlumeDistortionBlur);
-            material.SetVector("_PrimaryTiling", _settings.HeatPlumePrimaryTiling);
-            material.SetVector("_SecondaryTiling", _settings.HeatPlumeSecondaryTiling);
-            material.SetVector("_PrimaryVelocity", _settings.HeatPlumePrimaryVelocity);
-            material.SetVector("_SecondaryVelocity", _settings.HeatPlumeSecondaryVelocity);
-            material.SetFloat("_SecondaryStrength", _settings.HeatPlumeSecondaryStrength);
-            material.SetFloat("_HorizontalTurbulence", _settings.HeatPlumeHorizontalTurbulence);
-            material.SetFloat("_CoreWidth", _settings.HeatPlumeCoreWidth);
-            material.SetFloat("_TopWidth", _settings.HeatPlumeTopWidth);
-            material.SetFloat("_WidthVariation", _settings.HeatPlumeWidthVariation);
-            material.SetFloat("_WidthFrequency", _settings.HeatPlumeWidthFrequency);
-            material.SetFloat("_SideFeather", _settings.HeatPlumeSideFeather);
-            material.SetFloat("_BottomFeather", _settings.HeatPlumeBottomFeather);
-            material.SetFloat("_TopFeather", _settings.HeatPlumeTopFeather);
-            material.SetFloat("_VerticalDissipationStart", _settings.HeatPlumeVerticalDissipationStart);
-            material.SetFloat("_VerticalDissipationPower", _settings.HeatPlumeVerticalDissipationPower);
-            material.SetFloat("_Lean", _settings.HeatPlumeMaximumLean);
-            material.SetFloat("_MinimumSpeedMultiplier", _settings.HeatPlumeMinimumAnimationSpeedMultiplier);
-            material.SetFloat("_MaximumSpeedMultiplier", _settings.HeatPlumeMaximumAnimationSpeedMultiplier);
-            material.SetFloat("_MinimumStrengthMultiplier", _settings.HeatPlumeMinimumStrengthMultiplier);
-            material.SetFloat("_MaximumStrengthMultiplier", _settings.HeatPlumeMaximumStrengthMultiplier);
-            material.SetFloat("_PhaseRange", _settings.HeatPlumePhaseRange);
-            material.SetFloat("_PrimaryPhaseOffset", _settings.HeatPlumePrimaryPhaseOffset);
-            material.SetFloat("_SecondaryPhaseOffset", _settings.HeatPlumeSecondaryPhaseOffset);
-            material.SetFloat("_CardEdgeFeather", _settings.HeatPlumeCardEdgeFeather);
-            material.SetFloat("_EdgeNoiseBase", _settings.HeatPlumeEdgeNoiseBase);
-            material.SetFloat("_PrimaryEdgeNoise", _settings.HeatPlumePrimaryEdgeNoise);
-            material.SetFloat("_SecondaryEdgeNoise", _settings.HeatPlumeSecondaryEdgeNoise);
-            material.SetFloat("_FadeProfileVariation", _settings.HeatPlumeFadeProfileVariation);
-            material.SetFloat("_DistanceFadeStart", _settings.HeatPlumeDistanceFadeStart);
-            material.SetFloat("_DistanceFadeEnd", _settings.HeatPlumeDistanceFadeEnd);
-            material.SetFloat("_DetailFadeStart", _settings.HeatPlumeDetailFadeStart);
-            material.SetFloat("_DetailFadeEnd", _settings.HeatPlumeDetailFadeEnd);
-            material.SetFloat("_DepthFadeDistance", _settings.HeatPlumeDepthFadeDistance);
-            material.SetFloat("_MaskClipThreshold", _settings.HeatPlumeMaskClipThreshold);
+            Material material = CreateDistortionMaterial(
+                "Masked Heat Plume Refraction",
+                true,
+                Color.clear,
+                _settings.HeatPlumeDistortionStrength);
+            material.SetFloat("_DistortionBlurScale", _settings.HeatPlumeDistortionBlur);
             return material;
         }
 
@@ -457,6 +535,19 @@ namespace DuneVector
             if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", emission);
             if (material.HasProperty("_EmissiveExposureWeight")) material.SetFloat("_EmissiveExposureWeight", 0f);
             return material;
+        }
+
+        private static Renderer CreateMeshRenderer(string name, Transform parent, Mesh mesh, Material material)
+        {
+            GameObject meshObject = new GameObject(name);
+            meshObject.transform.SetParent(parent, false);
+            MeshFilter filter = meshObject.AddComponent<MeshFilter>();
+            filter.sharedMesh = mesh;
+            MeshRenderer renderer = meshObject.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return renderer;
         }
 
         private static Transform CreatePrimitive(
@@ -537,11 +628,6 @@ namespace DuneVector
 
         private void HandleWorldShift(Vector3 shift)
         {
-            if (_ambientPlumeRoot != null)
-            {
-                _ambientPlumeRoot.position += shift;
-                _ambientPlumes?.Clear();
-            }
             foreach (ZoneVisual visual in _zoneVisuals.Values)
             {
                 visual.Root.transform.position += shift;
@@ -626,6 +712,12 @@ namespace DuneVector
             GUI.color = previous;
         }
 
+        private static Color WithAlpha(Color color, float alpha)
+        {
+            color.a = Mathf.Clamp01(alpha);
+            return color;
+        }
+
         private static void DestroyZoneVisual(ZoneVisual visual)
         {
             if (visual == null)
@@ -633,6 +725,10 @@ namespace DuneVector
                 return;
             }
             if (visual.Root != null) Destroy(visual.Root);
+            if (visual.CurtainMaterial != null) Destroy(visual.CurtainMaterial);
+            if (visual.GroundMaterial != null) Destroy(visual.GroundMaterial);
+            if (visual.CurtainMesh != null) Destroy(visual.CurtainMesh);
+            if (visual.GroundMesh != null) Destroy(visual.GroundMesh);
         }
 
         private void OnDestroy()
