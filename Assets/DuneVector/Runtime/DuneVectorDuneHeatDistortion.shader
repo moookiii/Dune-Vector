@@ -103,7 +103,7 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                     smoothstep(0.0, 0.22, 1.0 - input.uv.y);
                 float edgeMask = lerp(radialMask, verticalMask, saturate(_VerticalVeil));
                 float nearFade = smoothstep(_NearFadeStart, _NearFadeEnd, input.viewDepth);
-                edgeMask *= lerp(1.0, nearFade, saturate(_VerticalVeil));
+                edgeMask *= nearFade;
 
                 float2 scroll = _ScrollVelocity.xy * _Time.y;
                 float2 primaryUv = (input.uv * _TextureScale) - scroll;
@@ -201,8 +201,7 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 float pulse = 0.45 + (0.35 * sin((input.uv.y * 24.0) - (_Time.y * 2.1)));
                 float shimmer = saturate((primary.b * 0.65) + (secondary * 0.35) + pulse - 0.55);
                 float nearFade = smoothstep(_NearFadeStart, _NearFadeEnd, input.viewDepth);
-                nearFade = lerp(1.0, nearFade, saturate(_VerticalVeil));
-                float alpha = shimmer * sideFade * verticalFade * nearFade *
+                float alpha = shimmer * sideFade * verticalFade * nearFade * saturate(_VerticalVeil) *
                     _ShimmerOpacity * _ShellStrengthMultiplier;
                 clip(alpha - 0.002);
                 return float4(_ShimmerColor.rgb, alpha);
