@@ -54,6 +54,8 @@ namespace DuneVector
         public bool LoopSequence;
 
         [Header("Typewriter")]
+        [Tooltip("Seconds the message UI remains empty before the first page begins typing.")]
+        [Min(0f)] public float FirstPageTypingDelay = 1f;
         [Min(0.01f)] public float CharactersPerSecond = 34f;
         [Min(0f)] public float PageAdvanceInputDelay = 0.12f;
         [Min(0f)] public float PageFadeOutDuration = 0.1f;

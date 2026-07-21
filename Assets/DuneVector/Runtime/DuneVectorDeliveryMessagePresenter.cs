@@ -169,6 +169,7 @@ namespace DuneVector
     {
         private enum PagePresentationPhase
         {
+            OpeningDelay,
             Presenting,
             FadingOut,
             EmptyBeat,
@@ -277,11 +278,10 @@ namespace DuneVector
             _emissiveVisibleCharacterCount = -1;
             _openedFrame = Time.frameCount;
             _completionSent = false;
-            _phase = PagePresentationPhase.Presenting;
+            _phase = PagePresentationPhase.OpeningDelay;
             _allowCancel = allowCancel;
             _showFirstUseHint = showFirstUseHint && !_hasAcknowledgedInputHint;
             IsOpen = true;
-            BeginCurrentPage();
             return true;
         }
 
@@ -407,6 +407,12 @@ namespace DuneVector
 
         private void UpdatePageTransition()
         {
+            if (_phase == PagePresentationPhase.OpeningDelay &&
+                Time.unscaledTime >= _phaseStartedAt + Mathf.Max(0f, _settings.FirstPageTypingDelay))
+            {
+                BeginCurrentPage();
+            }
+
             if (_phase == PagePresentationPhase.FadingOut &&
                 Time.unscaledTime >= _phaseStartedAt + Mathf.Max(0f, _settings.PageFadeOutDuration))
             {
