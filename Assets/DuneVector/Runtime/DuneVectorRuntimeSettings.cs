@@ -812,6 +812,17 @@ namespace DuneVector
         [Min(0f)] public float EncounterSocketHeight = 22f;
         [Min(0f)] public float FlightSocketHeight = 18f;
 
+        [Header("Landmark Materials")]
+        [ColorUsage(false)] public Color LandmarkStoneColor;
+        [ColorUsage(false)] public Color LandmarkMetalColor;
+        [ColorUsage(false)] public Color LandmarkSecondaryColor;
+        [ColorUsage(false)] public Color LandmarkInteriorColor;
+        [ColorUsage(false)] public Color LandmarkAccentColor;
+        [ColorUsage(false, true)] public Color LandmarkAccentEmission;
+        [Range(0f, 1f)] public float LandmarkStoneSmoothness;
+        [Range(0f, 1f)] public float LandmarkMetalSmoothness;
+        [Range(0f, 1f)] public float LandmarkMetallic;
+
         [Header("Landmark Contract Sockets")]
         [Tooltip("Objective socket offsets for the five large and region-defining landmark compositions.")]
         public Vector3 OrbitalContractSocketOffset;
@@ -905,6 +916,7 @@ namespace DuneVector
         [Range(1, 30)] public int HarvesterCount;
         [Min(2f)] public float HarvesterRingRadius;
         [Min(0.1f)] public float HarvesterRingThickness;
+        [Range(8, 36)] public int HarvesterRingSegmentCount;
         [Min(4f)] public float HarvesterTowerHeight;
         [Min(4f)] public float HarvesterSpacing;
         [Range(0f, 1f)] public float HarvesterBrokenChance;
@@ -1490,6 +1502,18 @@ namespace DuneVector
         [Min(0.01f)] public float LightningWidth = 0.48f;
         [Tooltip("Multiplies only the lightning bolt emission, creating a stronger HDR bloom halo.")]
         [Min(0f)] public float LightningBloomIntensity = 4f;
+
+        [Header("Ground Impact Effect")]
+        [Tooltip("Time for the ground shockwave to expand from the strike point to Strike Radius.")]
+        [Min(0.01f)] public float GroundImpactExpansionDuration = 0.42f;
+        [Tooltip("Time the ground shockwave remains at the full Strike Radius before disappearing.")]
+        [Min(0f)] public float GroundImpactHoldDuration = 0.1f;
+        [Tooltip("Initial shockwave size as a fraction of Strike Radius.")]
+        [Range(0f, 1f)] public float GroundImpactStartScale = 0.08f;
+        [Tooltip("World-space thickness of the expanding ground shockwave ring.")]
+        [Min(0.005f)] public float GroundImpactRingThickness = 0.14f;
+        [Tooltip("Raises the shockwave slightly above the terrain to keep it visible on the ground.")]
+        [Min(0f)] public float GroundImpactHeightOffset = 0.06f;
 
         [Header("Attack Warning HUD")]
         [Tooltip("Ground strikes show the attack warning when their impact point is within this distance of the drone. Player-targeted strikes always warn.")]

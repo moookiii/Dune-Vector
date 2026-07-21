@@ -20,6 +20,11 @@ namespace DuneVector
         public Material Cactus { get; }
         public IReadOnlyList<Material> Shrubs => _shrubMaterials;
         public Material Sandstone { get; }
+        public Material LandmarkStone { get; }
+        public Material LandmarkMetal { get; }
+        public Material LandmarkSecondary { get; }
+        public Material LandmarkInterior { get; }
+        public Material LandmarkAccent { get; }
         public Material BoostRing { get; }
         public Material FlightRing { get; }
         public Material UpperFlightRing { get; }
@@ -60,7 +65,8 @@ namespace DuneVector
             DynamicCourierTuning dynamicCourierTuning = null,
             DesertShrubTuning shrubTuning = null,
             DroneVisualTuning droneVisualTuning = null,
-            GeoglyphSystemTuning geoglyphTuning = null)
+            GeoglyphSystemTuning geoglyphTuning = null,
+            LandmarkSystemTuning landmarkTuning = null)
         {
             RingTuning rings = ringTuning ?? new RingTuning();
             DeliveryTuning delivery = deliveryTuning ?? new DeliveryTuning();
@@ -122,6 +128,43 @@ namespace DuneVector
                 }
             }
             Sandstone = CreateLit("Pyramid - Sandstone", new Color(0.58f, 0.31f, 0.13f), 0.18f, 0f);
+            if (landmarkTuning != null)
+            {
+                LandmarkStone = CreateLit(
+                    "Landmark - Weathered Stone",
+                    landmarkTuning.LandmarkStoneColor,
+                    landmarkTuning.LandmarkStoneSmoothness,
+                    0f);
+                LandmarkMetal = CreateLit(
+                    "Landmark - Oxidized Metal",
+                    landmarkTuning.LandmarkMetalColor,
+                    landmarkTuning.LandmarkMetalSmoothness,
+                    landmarkTuning.LandmarkMetallic);
+                LandmarkSecondary = CreateLit(
+                    "Landmark - Sun-Bleached Structure",
+                    landmarkTuning.LandmarkSecondaryColor,
+                    landmarkTuning.LandmarkStoneSmoothness,
+                    landmarkTuning.LandmarkMetallic * 0.35f);
+                LandmarkInterior = CreateLit(
+                    "Landmark - Recessed Interior",
+                    landmarkTuning.LandmarkInteriorColor,
+                    landmarkTuning.LandmarkMetalSmoothness * 0.55f,
+                    landmarkTuning.LandmarkMetallic);
+                LandmarkAccent = CreateLit(
+                    "Landmark - Cyan Signal",
+                    landmarkTuning.LandmarkAccentColor,
+                    landmarkTuning.LandmarkMetalSmoothness,
+                    landmarkTuning.LandmarkMetallic,
+                    landmarkTuning.LandmarkAccentEmission);
+            }
+            else
+            {
+                LandmarkStone = Sandstone;
+                LandmarkMetal = DroneBody;
+                LandmarkSecondary = DroneBody;
+                LandmarkInterior = DroneDark;
+                LandmarkAccent = DroneAccent;
+            }
             BoostRing = CreateLit("Ring - Boost Amber", rings.BoostRingBaseColor, 0.65f, 0.4f, rings.BoostRingEmissionColor);
             FlightRing = CreateLit("Ring - Flight Cyan", rings.FlightRingBaseColor, 0.7f, 0.5f, rings.FlightRingEmissionColor);
             UpperFlightRing = CreateLit(
@@ -1298,6 +1341,30 @@ namespace DuneVector
             DisableRendererShadows(impactFlash.gameObject);
             rootObject.SetActive(false);
             return root;
+        }
+
+        public static Transform CreateStormGroundImpactWave(
+            Transform marker,
+            DuneVectorMaterials materials,
+            float radius,
+            float ringThickness,
+            float heightOffset)
+        {
+            GameObject impactWave = CreateMeshObject(
+                "Ground Impact Wave",
+                marker,
+                GetTorusMesh(
+                    Mathf.Max(0.2f, radius),
+                    Mathf.Max(0.005f, ringThickness),
+                    48,
+                    6),
+                materials.Lightning);
+            impactWave.transform.localPosition = Vector3.up * Mathf.Max(0f, heightOffset);
+            impactWave.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            impactWave.transform.localScale = Vector3.zero;
+            DisableRendererShadows(impactWave);
+            impactWave.SetActive(false);
+            return impactWave.transform;
         }
 
         public static Transform CreateGroundExploderVisual(Transform parent, DuneVectorMaterials materials, float scale)

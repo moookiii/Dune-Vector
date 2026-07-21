@@ -1009,18 +1009,34 @@ namespace DuneVector
             MeshPart("Broken Parabolic Dish", impactFrame, Vector3.zero, Quaternion.identity,
                 Vector3.one, CreateParabolicDishMesh(radius, _settings.OrbitalDishSegmentCount,
                     _settings.OrbitalDishMissingSegmentCount, seed),
-                _materials.DroneBody, true);
+                _materials.LandmarkSecondary, true);
             HorizontalSegmentedRing(impactFrame, "Orbital Dish Rim", radius, radius * 0.055f,
                 _settings.OrbitalDishSegmentCount, _settings.OrbitalDishMissingSegmentCount,
-                seed, _materials.DroneDark, true);
+                seed, _materials.LandmarkMetal, true);
+
+            Part(PrimitiveType.Cube, "Orbital Equipment Bus", impactFrame,
+                new Vector3(0f, -radius * 0.24f, -radius * 0.18f),
+                new Vector3(radius * 0.82f, radius * 0.3f, radius * 0.48f),
+                Quaternion.Euler(0f, 0f, 4f), _materials.LandmarkSecondary, true);
+            Part(PrimitiveType.Cylinder, "Orbital Gimbal Housing", impactFrame,
+                new Vector3(0f, -radius * 0.06f, -radius * 0.05f),
+                new Vector3(radius * 0.18f, radius * 0.34f, radius * 0.18f),
+                Quaternion.Euler(0f, 0f, 90f), _materials.LandmarkInterior, true);
+            for (int brace = -1; brace <= 1; brace += 2)
+            {
+                BeamBetween(impactFrame, $"Dish Gimbal Brace {brace}",
+                    new Vector3(brace * radius * 0.32f, -radius * 0.2f, -radius * 0.1f),
+                    new Vector3(brace * radius * 0.13f, radius * 0.08f, 0f),
+                    radius * 0.045f, _materials.LandmarkInterior, true);
+            }
 
             float mastHeight = Mathf.Max(1f, _settings.OrbitalMastHeight);
             BeamBetween(impactFrame, "Snapped Dish Feed Mast", Vector3.up * (radius * 0.08f),
                 new Vector3(radius * 0.06f, mastHeight, radius * 0.08f), radius * 0.035f,
-                _materials.DroneDark, true);
+                _materials.LandmarkInterior, true);
             Part(PrimitiveType.Sphere, "Dish Receiver", impactFrame,
                 new Vector3(radius * 0.06f, mastHeight, radius * 0.08f),
-                Vector3.one * (radius * 0.1f), Quaternion.identity, _materials.DroneAccent, false);
+                Vector3.one * (radius * 0.1f), Quaternion.identity, _materials.LandmarkAccent, false);
 
             int frameworkCount = Mathf.Max(3, _settings.OrbitalDishSegmentCount / 6);
             for (int i = 0; i < frameworkCount; i++)
@@ -1028,7 +1044,7 @@ namespace DuneVector
                 float angle = (360f / frameworkCount) * i;
                 Vector3 rim = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * (radius * 0.86f);
                 BeamBetween(impactFrame, $"Exposed Dish Truss {i + 1}", Vector3.zero, rim,
-                    radius * 0.022f, _materials.DroneDark, false);
+                    radius * 0.022f, _materials.LandmarkInterior, false);
             }
 
             int wingCount = Mathf.Max(0, _settings.OrbitalSolarWingCount);
@@ -1043,7 +1059,7 @@ namespace DuneVector
                 Part(PrimitiveType.Cube, $"Scattered Solar Wing {i + 1}", root, offset,
                     new Vector3(_settings.OrbitalSolarWingLength, radius * 0.03f,
                         _settings.OrbitalSolarWingLength * 0.36f),
-                    wingRotation, _materials.DroneAccent, true);
+                    wingRotation, i % 2 == 0 ? _materials.LandmarkMetal : _materials.LandmarkSecondary, true);
                 int panelLines = 4;
                 for (int panel = 1; panel < panelLines; panel++)
                 {
@@ -1054,12 +1070,13 @@ namespace DuneVector
                         new Vector3(radius * 0.025f, radius * 0.035f,
                             _settings.OrbitalSolarWingLength * 0.38f),
                         wingRotation,
-                        _materials.DroneDark, false);
+                        _materials.LandmarkInterior, false);
                 }
             }
 
             BuildDebrisTrail(root, "Orbital Impact Debris", seed, _settings.OrbitalDebrisCount,
-                _settings.OrbitalDebrisSpread, radius * 0.12f, Vector3.back, _materials.DroneDark, 7221);
+                _settings.OrbitalDebrisSpread, radius * 0.12f, Vector3.back,
+                _materials.LandmarkInterior, 7221);
         }
 
         private void BuildDesertMegagate(Transform root, int seed, DuneVectorLandmarkAnimator animator)
@@ -1078,7 +1095,24 @@ namespace DuneVector
                 MeshPart($"Megagate Pylon {i + 1}", root,
                     basePosition + (Vector3.up * (height * 0.5f)), Quaternion.identity, Vector3.one,
                     CreateTaperedPrismMesh(width, height, width * 0.62f, _settings.MegagateTaper),
-                    _materials.Sandstone, true);
+                    _materials.LandmarkStone, true);
+
+                Part(PrimitiveType.Cube, $"Pylon {i + 1} Outer Buttress", root,
+                    basePosition + new Vector3(side * width * 0.38f, height * 0.43f, width * 0.03f),
+                    new Vector3(width * 0.16f, height * 0.7f, width * 0.72f),
+                    Quaternion.Euler(0f, 0f, -side * 3f), _materials.LandmarkSecondary, true);
+                Part(PrimitiveType.Cube, $"Pylon {i + 1} Inset Face", root,
+                    basePosition + new Vector3(-side * width * 0.32f, height * 0.49f, -width * 0.08f),
+                    new Vector3(width * 0.04f, height * 0.5f, width * 0.52f),
+                    Quaternion.identity, _materials.LandmarkInterior, false);
+                Part(PrimitiveType.Cube, $"Pylon {i + 1} Crown Band", root,
+                    basePosition + new Vector3(0f, height * 0.91f, 0f),
+                    new Vector3(width * 1.08f, height * 0.055f, width * 0.72f),
+                    Quaternion.identity, _materials.LandmarkSecondary, true);
+                Part(PrimitiveType.Cube, $"Pylon {i + 1} Mid Band", root,
+                    basePosition + new Vector3(0f, height * 0.55f, 0f),
+                    new Vector3(width * 1.03f, height * 0.025f, width * 0.68f),
+                    Quaternion.identity, _materials.LandmarkMetal, false);
 
                 int stripCount = 5;
                 for (int strip = 0; strip < stripCount; strip++)
@@ -1087,7 +1121,8 @@ namespace DuneVector
                     Part(PrimitiveType.Cube, $"Pylon {i + 1} Recessed Signal Strip {strip + 1}", root,
                         basePosition + new Vector3(-side * width * 0.315f, stripHeight, -width * 0.12f),
                         new Vector3(width * 0.025f, height * 0.012f, width * 0.34f),
-                        Quaternion.identity, strip % 2 == 0 ? _materials.DroneAccent : _materials.DroneDark,
+                        Quaternion.identity,
+                        strip % 2 == 0 ? _materials.LandmarkAccent : _materials.LandmarkSecondary,
                         false);
                 }
             }
@@ -1103,7 +1138,7 @@ namespace DuneVector
                     new Vector3(x, y, (i - bridgeCount * 0.5f) * width * 0.08f),
                     new Vector3(fragmentLength, width * 0.11f, width * 0.3f),
                     Quaternion.Euler(SeedRange(seed, i, 7245, -8f, 8f), 0f,
-                        SeedRange(seed, i, 7247, -6f, 6f)), _materials.DroneDark, true);
+                        SeedRange(seed, i, 7247, -6f, 6f)), _materials.LandmarkMetal, true);
             }
 
             for (int i = 0; i < Mathf.Max(0, _settings.MegagateBaseRuinCount); i++)
@@ -1118,10 +1153,10 @@ namespace DuneVector
                         height * SeedRange(seed, i, 7259, 0.05f, 0.14f),
                         width * SeedRange(seed, i, 7261, 0.35f, 0.85f)),
                     Quaternion.Euler(SeedRange(seed, i, 7263, -18f, 18f), angle,
-                        SeedRange(seed, i, 7265, -28f, 28f)), _materials.Sandstone, true);
+                        SeedRange(seed, i, 7265, -28f, 28f)), _materials.LandmarkStone, true);
             }
             BuildDebrisTrail(root, "Megagate Debris", seed + 31, _settings.MegagateDebrisCount,
-                opening * 1.5f, width * 0.16f, Vector3.right, _materials.DroneDark, 7271);
+                opening * 1.5f, width * 0.16f, Vector3.right, _materials.LandmarkInterior, 7271);
         }
 
         private void BuildWindHarvesterGraveyard(Transform root, int seed, DuneVectorLandmarkAnimator animator)
@@ -1160,7 +1195,7 @@ namespace DuneVector
                         new Vector3(_settings.HarvesterRingThickness * 2f, towerHeight * 0.24f,
                             _settings.HarvesterRingThickness * 2f),
                         Quaternion.Euler(0f, 0f, SeedRange(seed, i, 7311, -12f, 12f)),
-                        _materials.DroneDark, true);
+                        _materials.LandmarkInterior, true);
                     Transform fallenRing = new GameObject("Fallen Turbine Ring").transform;
                     fallenRing.SetParent(installation, false);
                     fallenRing.localPosition = new Vector3(_settings.HarvesterRingRadius * 0.35f,
@@ -1185,14 +1220,16 @@ namespace DuneVector
                         new Vector3(_settings.HarvesterRingRadius * 0.7f,
                             _settings.HarvesterRingThickness * 0.45f,
                             _settings.HarvesterRingRadius * 0.42f),
-                        Quaternion.Euler(0f, 0f, broken ? 11f : 0f), _materials.DroneBody, true);
+                        Quaternion.Euler(0f, 0f, broken ? 11f : 0f),
+                        _materials.LandmarkSecondary, true);
                     if (i % 2 == 0)
                     {
                         BeamBetween(tower, "Hanging Maintenance Cable",
                             new Vector3(0f, towerHeight * 0.56f, _settings.HarvesterRingRadius * 0.16f),
                             new Vector3(_settings.HarvesterRingRadius * 0.24f,
                                 towerHeight * 0.2f, _settings.HarvesterRingRadius * 0.22f),
-                            _settings.HarvesterRingThickness * 0.12f, _materials.DroneDark, false);
+                            _settings.HarvesterRingThickness * 0.12f,
+                            _materials.LandmarkInterior, false);
                     }
                     Transform ring = new GameObject(broken ? "Broken Turbine Ring" : "Intact Turbine Ring").transform;
                     ring.SetParent(tower, false);
@@ -1204,22 +1241,26 @@ namespace DuneVector
             }
             BuildDebrisTrail(root, "Harvester Field Debris", seed + 79, _settings.HarvesterDebrisCount,
                 fieldRadius, _settings.HarvesterRingThickness * 2.5f, Vector3.forward,
-                _materials.DroneDark, 7331);
+                _materials.LandmarkInterior, 7331);
         }
 
         private void BuildHarvesterRing(Transform parent, int seed, bool broken)
         {
-            int segmentCount = Mathf.Clamp(
-                Mathf.RoundToInt((_settings.HarvesterRingRadius * Mathf.PI * 2f) /
-                    Mathf.Max(0.1f, _settings.HarvesterRingThickness * 2.2f)), 12, 36);
+            int segmentCount = Mathf.Clamp(_settings.HarvesterRingSegmentCount, 8, 36);
             int missing = broken ? Mathf.Max(2, segmentCount / 5) : 0;
             VerticalSegmentedRing(parent, "Harvester Turbine", _settings.HarvesterRingRadius,
-                _settings.HarvesterRingThickness, segmentCount, missing, seed, _materials.DroneBody, true);
+                _settings.HarvesterRingThickness, segmentCount, missing, seed,
+                _materials.LandmarkSecondary, true, _materials.LandmarkMetal);
+            Part(PrimitiveType.Cylinder, "Harvester Nacelle", parent, Vector3.zero,
+                new Vector3(_settings.HarvesterRingThickness * 2.35f,
+                    _settings.HarvesterRingThickness * 1.4f,
+                    _settings.HarvesterRingThickness * 2.35f),
+                Quaternion.Euler(90f, 0f, 0f), _materials.LandmarkInterior, true);
             Part(PrimitiveType.Cylinder, "Harvester Axle", parent, Vector3.zero,
                 new Vector3(_settings.HarvesterRingThickness * 1.5f,
                     _settings.HarvesterRingThickness * 2.5f,
                     _settings.HarvesterRingThickness * 1.5f),
-                Quaternion.Euler(90f, 0f, 0f), _materials.DroneAccent, false);
+                Quaternion.Euler(90f, 0f, 0f), _materials.LandmarkAccent, false);
             int spokeCount = broken ? 3 : 5;
             for (int spoke = 0; spoke < spokeCount; spoke++)
             {
@@ -1227,7 +1268,7 @@ namespace DuneVector
                 Vector3 endpoint = Quaternion.Euler(0f, 0f, angle) * Vector3.up *
                     (_settings.HarvesterRingRadius * 0.78f);
                 BeamBetween(parent, $"Harvester Spoke {spoke + 1}", Vector3.zero, endpoint,
-                    _settings.HarvesterRingThickness * 0.32f, _materials.DroneDark, false);
+                    _settings.HarvesterRingThickness * 0.32f, _materials.LandmarkInterior, false);
             }
         }
 
@@ -1239,11 +1280,22 @@ namespace DuneVector
             MeshPart("Arcology Central Crown", root, new Vector3(0f, coreBase + coreHeight * 0.5f, 0f),
                 Quaternion.Euler(0f, 45f, 0f), Vector3.one,
                 CreateTaperedPrismMesh(coreRadius * 2f, coreHeight, coreRadius * 2f, 0.72f),
-                _materials.Sandstone, true);
+                _materials.LandmarkStone, true);
             Part(PrimitiveType.Cube, "Arcology Crown Aperture", root,
                 new Vector3(0f, coreBase + coreHeight + 0.08f, 0f),
                 new Vector3(coreRadius * 0.42f, coreHeight * 0.018f, coreRadius * 0.42f),
-                Quaternion.Euler(0f, 45f, 0f), _materials.DroneDark, false);
+                Quaternion.Euler(0f, 45f, 0f), _materials.LandmarkInterior, false);
+
+            float exposedCrownHeight = coreHeight * (1f - _settings.ArcologyBurialRatio);
+            for (int terrace = 0; terrace < 3; terrace++)
+            {
+                float terraceScale = coreRadius * (2.55f - terrace * 0.42f);
+                Part(PrimitiveType.Cube, $"Arcology Sandline Terrace {terrace + 1}", root,
+                    new Vector3(0f, exposedCrownHeight * (0.18f + terrace * 0.22f), 0f),
+                    new Vector3(terraceScale, coreHeight * 0.035f, terraceScale),
+                    Quaternion.Euler(0f, 45f, 0f),
+                    terrace == 1 ? _materials.LandmarkSecondary : _materials.LandmarkStone, true);
+            }
 
             int roofCount = Mathf.Max(1, _settings.ArcologyRoofClusterCount);
             for (int i = 0; i < roofCount; i++)
@@ -1262,7 +1314,7 @@ namespace DuneVector
                     Quaternion.Euler(SeedRange(seed, i, 7411, -4f, 4f), angle, 0f), Vector3.one,
                     CreateTaperedPrismMesh(clusterRadius * 2f, clusterHeight,
                         clusterRadius * SeedRange(seed, i, 7413, 1.2f, 2f), 0.64f),
-                    _materials.Sandstone, true);
+                    i % 3 == 0 ? _materials.LandmarkSecondary : _materials.LandmarkStone, true);
             }
 
             for (int i = 0; i < Mathf.Max(0, _settings.ArcologyStructuralRibCount); i++)
@@ -1275,7 +1327,7 @@ namespace DuneVector
                 start.y = TerrainLocalHeight(root, start) + coreHeight * 0.04f;
                 end.y = TerrainLocalHeight(root, end) - coreHeight * 0.025f;
                 BeamBetween(root, $"Submerging Structural Rib {i + 1}", start, end,
-                    coreRadius * 0.045f, _materials.DroneDark, true);
+                    coreRadius * 0.045f, _materials.LandmarkMetal, true);
             }
 
             for (int i = 0; i < Mathf.Max(0, _settings.ArcologyVentTowerCount); i++)
@@ -1289,11 +1341,11 @@ namespace DuneVector
                 Part(PrimitiveType.Cylinder, $"Arcology Vent Tower {i + 1}", root, offset,
                     new Vector3(coreRadius * 0.045f, ventHeight * 0.5f, coreRadius * 0.045f),
                     Quaternion.Euler(SeedRange(seed, i, 7437, -5f, 5f), 0f,
-                        SeedRange(seed, i, 7439, -5f, 5f)), _materials.DroneDark, true);
+                        SeedRange(seed, i, 7439, -5f, 5f)), _materials.LandmarkMetal, true);
                 Part(PrimitiveType.Cylinder, $"Arcology Vent Crown {i + 1}", root,
                     offset + Vector3.up * ventHeight * 0.52f,
                     new Vector3(coreRadius * 0.075f, coreHeight * 0.008f, coreRadius * 0.075f),
-                    Quaternion.identity, _materials.DroneAccent, false);
+                    Quaternion.identity, _materials.LandmarkAccent, false);
             }
 
             for (int i = 0; i < Mathf.Max(0, _settings.ArcologyExposedWindowCount); i++)
@@ -1305,7 +1357,8 @@ namespace DuneVector
                     coreHeight * Mathf.Max(0.04f, 1f - _settings.ArcologyBurialRatio));
                 Part(PrimitiveType.Cube, $"Half-Buried Arcology Window {i + 1}", root, offset,
                     new Vector3(coreRadius * 0.085f, coreHeight * 0.028f, coreRadius * 0.018f),
-                    Quaternion.Euler(0f, angle, 0f), _materials.DroneDark, false);
+                    Quaternion.Euler(0f, angle, 0f),
+                    i % 4 == 0 ? _materials.LandmarkAccent : _materials.LandmarkInterior, false);
             }
             int antennaCount = Mathf.Max(1, _settings.ArcologyVentTowerCount / 4);
             for (int i = 0; i < antennaCount; i++)
@@ -1315,11 +1368,11 @@ namespace DuneVector
                 basePoint.y = coreBase + coreHeight;
                 Vector3 tip = basePoint + new Vector3(coreRadius * 0.08f, coreHeight * 0.13f, 0f);
                 BeamBetween(root, $"Broken Arcology Antenna {i + 1}", basePoint, tip,
-                    coreRadius * 0.018f, _materials.DroneDark, false);
+                    coreRadius * 0.018f, _materials.LandmarkMetal, false);
             }
             BuildDebrisTrail(root, "Arcology Upper Ruin", seed + 101, _settings.ArcologyDebrisCount,
                 _settings.ArcologyRoofClusterRadius, coreRadius * 0.08f, Vector3.right,
-                _materials.Sandstone, 7461);
+                _materials.LandmarkStone, 7461);
         }
 
         private void BuildSandRing(Transform root, int seed, DuneVectorLandmarkAnimator animator)
@@ -1332,7 +1385,12 @@ namespace DuneVector
             ring.localRotation = Quaternion.Euler(0f, 0f, _settings.SandRingTilt);
             VerticalSegmentedRing(ring, "Sand Ring Segment", radius, _settings.SandRingThickness,
                 _settings.SandRingSegmentCount, _settings.SandRingMissingSegmentCount, seed,
-                _materials.DroneBody, true);
+                _materials.LandmarkMetal, true, _materials.LandmarkSecondary);
+            VerticalSegmentedRing(ring, "Sand Ring Inner Spine",
+                radius - (_settings.SandRingThickness * 0.92f),
+                _settings.SandRingThickness * 0.28f,
+                _settings.SandRingSegmentCount, _settings.SandRingMissingSegmentCount,
+                seed, _materials.LandmarkInterior, false, _materials.LandmarkAccent);
 
             int segmentCount = Mathf.Max(3, _settings.SandRingSegmentCount);
             for (int i = 0; i < segmentCount; i++)
@@ -1345,7 +1403,7 @@ namespace DuneVector
                 Vector3 edge = Quaternion.Euler(0f, 0f, angle) * Vector3.right * radius;
                 Part(PrimitiveType.Cube, $"Exposed Ring Break Framework {i + 1}", ring, edge,
                     Vector3.one * (_settings.SandRingThickness * 0.72f),
-                    Quaternion.Euler(angle, angle * 0.4f, 45f), _materials.DroneAccent, false);
+                    Quaternion.Euler(angle, angle * 0.4f, 45f), _materials.LandmarkAccent, false);
             }
 
             int supportCount = Mathf.Max(0, _settings.SandRingSupportCount);
@@ -1360,17 +1418,18 @@ namespace DuneVector
                 float ringY = centerHeight - Mathf.Sqrt(Mathf.Max(0f, radius * radius - x * x));
                 Vector3 anchor = new Vector3(x, ringY + radius * 0.12f, 0f);
                 BeamBetween(root, $"Sand Ring Stabilizer {i + 1}", ground, anchor,
-                    _settings.SandRingThickness * 0.55f, _materials.DroneDark, true);
+                    _settings.SandRingThickness * 0.55f, _materials.LandmarkInterior, true);
                 Part(PrimitiveType.Cube, $"Sand Ring Footing {i + 1}", root, ground,
                     new Vector3(_settings.SandRingThickness * 2.2f,
                         _settings.SandRingThickness * 0.65f, _settings.SandRingThickness * 2.8f),
-                    Quaternion.Euler(0f, side * 12f, normalizedX * 6f), _materials.Sandstone, true);
+                    Quaternion.Euler(0f, side * 12f, normalizedX * 6f),
+                    _materials.LandmarkStone, true);
                 if (i % 2 == 0)
                 {
                     Vector3 cableEnd = ground + new Vector3(side * _settings.SandRingThickness,
                         _settings.SandRingThickness * 0.4f, -side * _settings.SandRingThickness * 1.8f);
                     BeamBetween(root, $"Broken Ring Cable {i + 1}", anchor, cableEnd,
-                        _settings.SandRingThickness * 0.1f, _materials.DroneDark, false);
+                        _settings.SandRingThickness * 0.1f, _materials.LandmarkInterior, false);
                 }
             }
 
@@ -1382,13 +1441,13 @@ namespace DuneVector
                     (radius - _settings.SandRingThickness * 1.1f);
                 Transform accent = Part(PrimitiveType.Sphere, $"Ring Energy Node {i + 1}", ring, point,
                     Vector3.one * (_settings.SandRingThickness * 0.32f), Quaternion.identity,
-                    _materials.DroneAccent, false);
+                    _materials.LandmarkAccent, false);
                 animator.RegisterPulse(accent, _settings.BeaconPulseAmount,
                     _settings.BeaconPulseSpeed, i * 0.4f);
             }
             BuildDebrisTrail(root, "Sand Ring Damage Debris", seed + 151, _settings.SandRingDebrisCount,
                 _settings.SandRingDebrisSpread, _settings.SandRingThickness * 1.15f,
-                Vector3.right, _materials.DroneDark, 7491);
+                Vector3.right, _materials.LandmarkInterior, 7491);
         }
 
         private void BuildCurvedTower(Transform parent, float height, float curve,
@@ -1402,7 +1461,7 @@ namespace DuneVector
                 float t = i / (float)segmentCount;
                 Vector3 next = new Vector3(curve * t * t, height * t, 0f);
                 BeamBetween(parent, $"Curved Tower Segment {i}", previous, next, thickness,
-                    _materials.DroneDark, true);
+                    _materials.LandmarkInterior, true);
                 previous = next;
             }
         }
@@ -1430,7 +1489,8 @@ namespace DuneVector
         }
 
         private void VerticalSegmentedRing(Transform parent, string partName, float radius,
-            float thickness, int segmentCount, int missingCount, int seed, Material material, bool collider)
+            float thickness, int segmentCount, int missingCount, int seed, Material material,
+            bool collider, Material secondaryMaterial = null)
         {
             int count = Mathf.Max(3, segmentCount);
             float segmentLength = ((Mathf.PI * 2f * Mathf.Max(0.01f, radius)) / count) *
@@ -1445,7 +1505,8 @@ namespace DuneVector
                 Vector3 point = Quaternion.Euler(0f, 0f, angle) * Vector3.right * radius;
                 Part(PrimitiveType.Cube, $"{partName} {i + 1:00}", parent, point,
                     new Vector3(segmentLength, thickness, thickness),
-                    Quaternion.Euler(0f, 0f, angle + 90f), material, collider);
+                    Quaternion.Euler(0f, 0f, angle + 90f),
+                    secondaryMaterial != null && i % 4 == 0 ? secondaryMaterial : material, collider);
             }
         }
 
