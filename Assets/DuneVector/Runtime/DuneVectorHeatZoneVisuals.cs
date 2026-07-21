@@ -17,7 +17,7 @@ namespace DuneVector
             public Material GroundMaterial;
             public Mesh CurtainMesh;
             public Mesh GroundMesh;
-            public Mesh HeatRibbonMesh;
+            public Mesh HeatVeilMesh;
             public ParticleSystem Plumes;
             public ParticleSystem Streaks;
         }
@@ -203,7 +203,7 @@ namespace DuneVector
 
             Material groundMaterial = null;
             Mesh groundMesh = null;
-            Mesh heatRibbonMesh = null;
+            Mesh heatVeilMesh = null;
             if (_settings.GroundDistortionEnabled)
             {
                 groundMaterial = CreateGroundDistortionMaterial(
@@ -230,14 +230,17 @@ namespace DuneVector
                     renderer.SetPropertyBlock(properties);
                 }
 
-                heatRibbonMesh = CreateDuneHeatRibbonMesh(center, sample);
-                if (heatRibbonMesh != null)
+                heatVeilMesh = CreateDuneHeatVeilMesh(center, sample);
+                if (heatVeilMesh != null)
                 {
-                    CreateMeshRenderer(
-                        "Dune-Rising Heat Distortion Ribbons",
+                    Renderer veilRenderer = CreateMeshRenderer(
+                        "Continuous Dune-Rising Heat Veils",
                         root.transform,
-                        heatRibbonMesh,
+                        heatVeilMesh,
                         groundMaterial);
+                    MaterialPropertyBlock veilProperties = new MaterialPropertyBlock();
+                    veilProperties.SetFloat("_VerticalVeil", 1f);
+                    veilRenderer.SetPropertyBlock(veilProperties);
                 }
             }
             return new ZoneVisual
@@ -248,7 +251,7 @@ namespace DuneVector
                 GroundMaterial = groundMaterial,
                 CurtainMesh = curtainMesh,
                 GroundMesh = groundMesh,
-                HeatRibbonMesh = heatRibbonMesh,
+                HeatVeilMesh = heatVeilMesh,
                 Plumes = plumes,
                 Streaks = streaks,
             };
@@ -311,95 +314,72 @@ namespace DuneVector
             return mesh;
         }
 
-        private Mesh CreateDuneHeatRibbonMesh(Vector3 center, HeatZoneSample sample)
+        private Mesh CreateDuneHeatVeilMesh(Vector3 center, HeatZoneSample sample)
         {
-            int ribbonCount = Mathf.Max(0, _settings.GroundHeatRibbonCount);
-            if (ribbonCount == 0)
-            {
-                return null;
-            }
-
-            Vector3[] vertices = new Vector3[ribbonCount * 8];
+            int rings = Mathf.Max(1, _settings.GroundHeatVeilRingCount);
+            int segments = Mathf.Max(16, _settings.GroundHeatVeilSegments);
+            int quadCount = rings * segments;
+            Vector3[] vertices = new Vector3[quadCount * 4];
             Vector2[] uvs = new Vector2[vertices.Length];
-            Vector2[] randomValues = new Vector2[vertices.Length];
-            Color[] colors = new Color[vertices.Length];
-            int[] triangles = new int[ribbonCount * 12];
-            float radius = sample.Radius * _settings.GroundMirageRadiusMultiplier;
-            for (int ribbon = 0; ribbon < ribbonCount; ribbon++)
+            int[] triangles = new int[quadCount * 6];
+            float maximumRadius = sample.Radius * _settings.GroundMirageRadiusMultiplier;
+            float minimumRadius = maximumRadius / (rings + 1f);
+            float minimumHeight = Mathf.Max(0.1f, _settings.GroundHeatVeilMinimumHeight);
+            float maximumHeight = Mathf.Max(minimumHeight, _settings.GroundHeatVeilMaximumHeight);
+
+            for (int ring = 0; ring < rings; ring++)
             {
-                float angle = DuneVectorMath.HashRange(
-                    sample.Id.x, sample.Id.y, ribbon, _settings.RandomSeedOffset + 91,
-                    0f, Mathf.PI * 2f);
-                float distance = Mathf.Sqrt(DuneVectorMath.Hash01(
-                    sample.Id.x, sample.Id.y, ribbon, _settings.RandomSeedOffset + 92)) * radius;
-                float x = Mathf.Cos(angle) * distance;
-                float z = Mathf.Sin(angle) * distance;
-                float terrain = _world.SampleHeightAtLocal(center.x + x, center.z + z);
-                float baseY = terrain - center.y + _settings.GroundHeatRibbonBaseOffset;
-                float height = DuneVectorMath.HashRange(
-                    sample.Id.x, sample.Id.y, ribbon, _settings.RandomSeedOffset + 93,
-                    _settings.GroundHeatRibbonMinimumHeight,
-                    Mathf.Max(_settings.GroundHeatRibbonMinimumHeight, _settings.GroundHeatRibbonMaximumHeight));
-                float width = DuneVectorMath.HashRange(
-                    sample.Id.x, sample.Id.y, ribbon, _settings.RandomSeedOffset + 94,
-                    _settings.GroundHeatRibbonMinimumWidth,
-                    Mathf.Max(_settings.GroundHeatRibbonMinimumWidth, _settings.GroundHeatRibbonMaximumWidth));
-                float yaw = DuneVectorMath.HashRange(
-                    sample.Id.x, sample.Id.y, ribbon, _settings.RandomSeedOffset + 95,
-                    0f, Mathf.PI * 2f);
-                float random = DuneVectorMath.Hash01(
-                    sample.Id.x, sample.Id.y, ribbon, _settings.RandomSeedOffset + 96);
-                Vector3 ribbonCenter = new Vector3(x, baseY, z);
-                Vector3 firstAxis = new Vector3(Mathf.Cos(yaw), 0f, Mathf.Sin(yaw)) * (width * 0.5f);
-                Vector3 secondAxis = new Vector3(-firstAxis.z, 0f, firstAxis.x);
-                WriteHeatRibbonQuad(vertices, uvs, randomValues, colors, triangles, ribbon * 8, ribbon * 12,
-                    ribbonCenter, firstAxis, height, random);
-                WriteHeatRibbonQuad(vertices, uvs, randomValues, colors, triangles, (ribbon * 8) + 4, (ribbon * 12) + 6,
-                    ribbonCenter, secondAxis, height, random);
+                float ringProgress = (ring + 1f) / rings;
+                float radius = Mathf.Lerp(minimumRadius, maximumRadius, ringProgress);
+                for (int segment = 0; segment < segments; segment++)
+                {
+                    int next = (segment + 1) % segments;
+                    float angle = (Mathf.PI * 2f * segment) / segments;
+                    float nextAngle = (Mathf.PI * 2f * next) / segments;
+                    float x = Mathf.Cos(angle) * radius;
+                    float z = Mathf.Sin(angle) * radius;
+                    float nextX = Mathf.Cos(nextAngle) * radius;
+                    float nextZ = Mathf.Sin(nextAngle) * radius;
+                    float terrain = _world.SampleHeightAtLocal(center.x + x, center.z + z) - center.y;
+                    float nextTerrain = _world.SampleHeightAtLocal(center.x + nextX, center.z + nextZ) - center.y;
+                    float height = DuneVectorMath.HashRange(
+                        sample.Id.x + ring, sample.Id.y, segment, _settings.RandomSeedOffset + 101,
+                        minimumHeight, maximumHeight);
+                    float nextHeight = DuneVectorMath.HashRange(
+                        sample.Id.x + ring, sample.Id.y, next, _settings.RandomSeedOffset + 101,
+                        minimumHeight, maximumHeight);
+                    float baseOffset = _settings.GroundHeatVeilBaseOffset;
+                    int quad = (ring * segments) + segment;
+                    int vertex = quad * 4;
+                    int triangle = quad * 6;
+                    vertices[vertex] = new Vector3(x, terrain + baseOffset, z);
+                    vertices[vertex + 1] = new Vector3(nextX, nextTerrain + baseOffset, nextZ);
+                    vertices[vertex + 2] = new Vector3(x, terrain + baseOffset + height, z);
+                    vertices[vertex + 3] = new Vector3(nextX, nextTerrain + baseOffset + nextHeight, nextZ);
+                    float u = segment * 0.22f;
+                    float nextU = (segment + 1f) * 0.22f;
+                    uvs[vertex] = new Vector2(u, 0f);
+                    uvs[vertex + 1] = new Vector2(nextU, 0f);
+                    uvs[vertex + 2] = new Vector2(u, 1f);
+                    uvs[vertex + 3] = new Vector2(nextU, 1f);
+                    triangles[triangle] = vertex;
+                    triangles[triangle + 1] = vertex + 2;
+                    triangles[triangle + 2] = vertex + 1;
+                    triangles[triangle + 3] = vertex + 1;
+                    triangles[triangle + 4] = vertex + 2;
+                    triangles[triangle + 5] = vertex + 3;
+                }
             }
 
-            Mesh mesh = new Mesh { name = "Dune-Rising Heat Distortion Ribbons" };
+            Mesh mesh = new Mesh { name = "Continuous Dune-Rising Heat Veils" };
+            mesh.indexFormat = vertices.Length > ushort.MaxValue
+                ? UnityEngine.Rendering.IndexFormat.UInt32
+                : UnityEngine.Rendering.IndexFormat.UInt16;
             mesh.vertices = vertices;
             mesh.uv = uvs;
-            mesh.uv2 = randomValues;
-            mesh.colors = colors;
             mesh.triangles = triangles;
             mesh.RecalculateBounds();
             return mesh;
-        }
-
-        private static void WriteHeatRibbonQuad(
-            Vector3[] vertices,
-            Vector2[] uvs,
-            Vector2[] randomValues,
-            Color[] colors,
-            int[] triangles,
-            int vertex,
-            int triangle,
-            Vector3 center,
-            Vector3 axis,
-            float height,
-            float random)
-        {
-            vertices[vertex] = center - axis;
-            vertices[vertex + 1] = center + axis;
-            vertices[vertex + 2] = center - axis + (Vector3.up * height);
-            vertices[vertex + 3] = center + axis + (Vector3.up * height);
-            uvs[vertex] = new Vector2(0f, 0f);
-            uvs[vertex + 1] = new Vector2(1f, 0f);
-            uvs[vertex + 2] = new Vector2(0f, 1f);
-            uvs[vertex + 3] = new Vector2(1f, 1f);
-            for (int i = 0; i < 4; i++)
-            {
-                randomValues[vertex + i] = new Vector2(random, 0f);
-                colors[vertex + i] = Color.white;
-            }
-            triangles[triangle] = vertex;
-            triangles[triangle + 1] = vertex + 2;
-            triangles[triangle + 2] = vertex + 1;
-            triangles[triangle + 3] = vertex + 1;
-            triangles[triangle + 4] = vertex + 2;
-            triangles[triangle + 5] = vertex + 3;
         }
 
         private static Mesh CreateOpenCylinderMesh(float radius, float height, int segments)
@@ -906,7 +886,7 @@ namespace DuneVector
             if (visual.GroundMaterial != null) Destroy(visual.GroundMaterial);
             if (visual.CurtainMesh != null) Destroy(visual.CurtainMesh);
             if (visual.GroundMesh != null) Destroy(visual.GroundMesh);
-            if (visual.HeatRibbonMesh != null) Destroy(visual.HeatRibbonMesh);
+            if (visual.HeatVeilMesh != null) Destroy(visual.HeatVeilMesh);
         }
 
         private void OnDestroy()
