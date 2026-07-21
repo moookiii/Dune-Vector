@@ -9,8 +9,6 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorHeatZoneVisualSystem : MonoBehaviour
     {
-        private static readonly Vector2Int PlayerCenteredGroundDistortionId = new Vector2Int(int.MinValue, int.MinValue);
-
         private sealed class ZoneVisual
         {
             public Vector2Int Id;
@@ -82,11 +80,6 @@ namespace DuneVector
                 return;
             }
 
-            if (!_settings.Enabled && _settings.GroundDistortionEnabled)
-            {
-                UpdatePlayerCenteredGroundAnchor();
-            }
-
             _refreshTimer -= Time.deltaTime;
             if (_refreshTimer <= 0f)
             {
@@ -138,10 +131,6 @@ namespace DuneVector
                 {
                     _zoneVisuals.Add(sample.Id, CreateZoneVisual(sample));
                 }
-                else if (!_settings.Enabled && _settings.GroundDistortionEnabled)
-                {
-                    RefreshPlayerCenteredGroundGeometry(_zoneVisuals[sample.Id], sample);
-                }
             }
 
             _removalBuffer.Clear();
@@ -164,58 +153,18 @@ namespace DuneVector
         {
             _nearbyZones.Clear();
             LogicalPosition player = _world.LogicalPlayerPosition;
+            float recenterDistance = Mathf.Max(5f, _settings.GroundDistortionRecenterDistance);
+            int cellX = Mathf.FloorToInt((float)(player.X / recenterDistance));
+            int cellZ = Mathf.FloorToInt((float)(player.Z / recenterDistance));
+            LogicalPosition center = new LogicalPosition(
+                (cellX + 0.5d) * recenterDistance,
+                (cellZ + 0.5d) * recenterDistance);
             _nearbyZones.Add(new HeatZoneSample(
-                PlayerCenteredGroundDistortionId,
-                player,
+                new Vector2Int(cellX, cellZ),
+                center,
                 Mathf.Max(20f, _settings.GroundDistortionFollowRadius),
                 1f,
                 0f));
-        }
-
-        private void UpdatePlayerCenteredGroundAnchor()
-        {
-            if (!_zoneVisuals.TryGetValue(PlayerCenteredGroundDistortionId, out ZoneVisual visual))
-            {
-                return;
-            }
-
-            LogicalPosition player = _world.LogicalPlayerPosition;
-            Vector3 center = _world.LogicalToLocal(player.X, 0d, player.Z);
-            center.y = _world.SampleHeightAtLocal(center.x, center.z);
-            visual.Root.transform.position = center;
-        }
-
-        private void RefreshPlayerCenteredGroundGeometry(ZoneVisual visual, HeatZoneSample sample)
-        {
-            Vector3 center = _world.LogicalToLocal(sample.LogicalCenter.X, 0d, sample.LogicalCenter.Z);
-            center.y = _world.SampleHeightAtLocal(center.x, center.z);
-            visual.Root.transform.position = center;
-
-            Mesh previousGroundMesh = visual.GroundMesh;
-            Mesh previousVeilMesh = visual.HeatVeilMesh;
-            Mesh groundMesh = CreateGroundMirageMesh(
-                center,
-                sample.Radius * _settings.GroundMirageRadiusMultiplier,
-                Mathf.Max(2, _settings.GroundMirageRings),
-                Mathf.Max(8, _settings.GroundMirageSegments));
-            Mesh veilMesh = CreateDuneHeatVeilMesh(center, sample);
-            MeshFilter[] filters = visual.Root.GetComponentsInChildren<MeshFilter>();
-            foreach (MeshFilter filter in filters)
-            {
-                if (filter.sharedMesh == previousGroundMesh)
-                {
-                    filter.sharedMesh = groundMesh;
-                }
-                else if (filter.sharedMesh == previousVeilMesh)
-                {
-                    filter.sharedMesh = veilMesh;
-                }
-            }
-
-            visual.GroundMesh = groundMesh;
-            visual.HeatVeilMesh = veilMesh;
-            if (previousGroundMesh != null) Destroy(previousGroundMesh);
-            if (previousVeilMesh != null) Destroy(previousVeilMesh);
         }
 
         private ZoneVisual CreateZoneVisual(HeatZoneSample sample)
