@@ -2816,10 +2816,12 @@ namespace DuneVector
         [Range(0.25f, 4f)] public float GroundHeatPlumeRadiusDistribution = 0.55f;
         [Min(0.5f)] public float GroundHeatPlumeMinimumLength = 10f;
         [Min(0.5f)] public float GroundHeatPlumeMaximumLength = 36f;
+        [Min(1f)] public float GroundHeatPlumeFarLengthMultiplier = 1.35f;
         [Min(0f)] public float GroundHeatPlumeMaximumCurveOffset = 4f;
         [Range(0f, 90f)] public float GroundHeatPlumeOrientationJitter = 22f;
         [Min(0.1f)] public float GroundHeatPlumeMinimumHeight = 1.5f;
         [Min(0.1f)] public float GroundHeatPlumeMaximumHeight = 3.5f;
+        [Min(1f)] public float GroundHeatPlumeFarHeightMultiplier = 1.8f;
         [Min(0f)] public float GroundHeatPlumeBaseOffset = 0.1f;
         [Range(0f, 0.3f)] public float GroundHeatShimmerOpacity = 0.14f;
         [ColorUsage(false, true)] public Color GroundHeatShimmerColor = new Color(1.15f, 0.9f, 0.62f, 1f);

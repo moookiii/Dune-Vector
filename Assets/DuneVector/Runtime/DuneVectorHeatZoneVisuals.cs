@@ -360,9 +360,17 @@ namespace DuneVector
                 Vector2 perpendicular = new Vector2(-direction.y, direction.x);
                 float patchLength = DuneVectorMath.HashRange(
                     sample.Id.x, sample.Id.y, seed, salt + 13, minimumLength, maximumLength);
+                patchLength *= Mathf.Lerp(
+                    1f,
+                    Mathf.Max(1f, _settings.GroundHeatPlumeFarLengthMultiplier),
+                    radiusProgress);
                 float patchHeight = DuneVectorMath.HashRange(
                     sample.Id.x, sample.Id.y, seed, salt + 17,
                     minimumHeight, maximumHeight);
+                patchHeight *= Mathf.Lerp(
+                    1f,
+                    Mathf.Max(1f, _settings.GroundHeatPlumeFarHeightMultiplier),
+                    radiusProgress);
                 float curveOffset = DuneVectorMath.HashRange(
                     sample.Id.x, sample.Id.y, seed, salt + 19, -maximumCurve, maximumCurve);
 
