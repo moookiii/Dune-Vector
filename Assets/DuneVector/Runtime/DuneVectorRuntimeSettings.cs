@@ -810,8 +810,8 @@ namespace DuneVector
         [Min(0f)] public float EncounterSocketHeight = 22f;
         [Min(0f)] public float FlightSocketHeight = 18f;
 
-        [Header("Future Landmark Contract Sockets")]
-        [Tooltip("Objective socket offsets used before and after the visual composition pass.")]
+        [Header("Landmark Contract Sockets")]
+        [Tooltip("Objective socket offsets for the five large and region-defining landmark compositions.")]
         public Vector3 OrbitalContractSocketOffset;
         public Vector3 MegagateContractSocketOffset;
         public Vector3 HarvesterContractSocketOffset;
@@ -874,6 +874,65 @@ namespace DuneVector
         [Min(0.1f)] public float ExcavationTerraceStep = 2.4f;
         [Range(2, 12)] public int ExcavationCraneTrussCount = 7;
         [Range(1, 10)] public int ExcavationCargoStackCount = 5;
+
+        [Header("Fallen Orbital Array Detail")]
+        [Min(4f)] public float OrbitalDishRadius;
+        [Range(8, 48)] public int OrbitalDishSegmentCount;
+        [Range(0, 12)] public int OrbitalDishMissingSegmentCount;
+        [Range(0f, 89f)] public float OrbitalDishTiltMinimum;
+        [Range(0f, 89f)] public float OrbitalDishTiltMaximum;
+        [Min(1f)] public float OrbitalMastHeight;
+        [Range(0, 8)] public int OrbitalSolarWingCount;
+        [Min(1f)] public float OrbitalSolarWingLength;
+        [Range(0, 40)] public int OrbitalDebrisCount;
+        [Min(0f)] public float OrbitalDebrisSpread;
+        [Min(0f)] public float OrbitalBurialDepth;
+
+        [Header("Desert Megagate Detail")]
+        [Range(2, 6)] public int MegagatePylonCount;
+        [Min(8f)] public float MegagatePylonHeight;
+        [Min(2f)] public float MegagatePylonWidth;
+        [Min(4f)] public float MegagateOpeningWidth;
+        [Range(0f, 0.9f)] public float MegagateTaper;
+        [Range(0, 12)] public int MegagateBridgeFragmentCount;
+        [Range(0, 20)] public int MegagateBaseRuinCount;
+        [Range(0, 40)] public int MegagateDebrisCount;
+        [Min(0f)] public float MegagateBurialDepth;
+
+        [Header("Wind Harvester Graveyard Detail")]
+        [Range(1, 30)] public int HarvesterCount;
+        [Min(2f)] public float HarvesterRingRadius;
+        [Min(0.1f)] public float HarvesterRingThickness;
+        [Min(4f)] public float HarvesterTowerHeight;
+        [Min(4f)] public float HarvesterSpacing;
+        [Range(0f, 1f)] public float HarvesterBrokenChance;
+        [Range(0f, 1f)] public float HarvesterLeanChance;
+        [Range(0f, 1f)] public float HarvesterFallenChance;
+        [Range(0, 60)] public int HarvesterDebrisCount;
+        [Min(8f)] public float HarvesterFieldRadius;
+
+        [Header("Buried Arcology Detail")]
+        [Min(8f)] public float ArcologyCoreRadius;
+        [Min(8f)] public float ArcologyCoreHeight;
+        [Range(0.5f, 0.95f)] public float ArcologyBurialRatio;
+        [Range(1, 16)] public int ArcologyRoofClusterCount;
+        [Min(8f)] public float ArcologyRoofClusterRadius;
+        [Range(0, 20)] public int ArcologyVentTowerCount;
+        [Range(0, 24)] public int ArcologyStructuralRibCount;
+        [Range(0, 40)] public int ArcologyExposedWindowCount;
+        [Range(0, 50)] public int ArcologyDebrisCount;
+
+        [Header("Sand Ring Detail")]
+        [Min(4f)] public float SandRingRadius;
+        [Range(12, 64)] public int SandRingSegmentCount;
+        [Min(0.2f)] public float SandRingThickness;
+        [Min(0f)] public float SandRingBurialDepth;
+        [Range(0, 20)] public int SandRingMissingSegmentCount;
+        [Range(0, 16)] public int SandRingSupportCount;
+        [Min(1f)] public float SandRingSupportRadius;
+        [Range(0, 50)] public int SandRingDebrisCount;
+        [Min(0f)] public float SandRingDebrisSpread;
+        [Range(-35f, 35f)] public float SandRingTilt;
     }
 
     [System.Serializable]

@@ -347,7 +347,7 @@ namespace DuneVector.Editor
                 _pyramids);
             DuneVectorSettingsInspector.DrawSection(
                 "Authored Landmarks",
-                "Placement tiers, spacing, silhouettes, sockets, and the five initial landmark templates.",
+                "Placement tiers, spacing, silhouettes, sockets, and all ten landmark templates.",
                 _landmarks);
             DuneVectorSettingsInspector.DrawSection(
                 "World Geoglyph Artwork",

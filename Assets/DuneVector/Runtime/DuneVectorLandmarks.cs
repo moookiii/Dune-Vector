@@ -268,6 +268,26 @@ namespace DuneVector
         }
     }
 
+    [DisallowMultipleComponent]
+    public sealed class DuneVectorGeneratedLandmarkMesh : MonoBehaviour
+    {
+        private Mesh _mesh;
+
+        public void Initialize(Mesh mesh)
+        {
+            _mesh = mesh;
+        }
+
+        private void OnDestroy()
+        {
+            if (_mesh != null)
+            {
+                Destroy(_mesh);
+                _mesh = null;
+            }
+        }
+    }
+
     [DefaultExecutionOrder(1040)]
     [DisallowMultipleComponent]
     public sealed class DuneVectorLandmarkDirector : MonoBehaviour
@@ -597,12 +617,19 @@ namespace DuneVector
                     BuildExcavation(landmarkObject.transform, variantSeed, animator);
                     break;
                 case DuneLandmarkType.FallenOrbitalArray:
+                    BuildFallenOrbitalArray(landmarkObject.transform, variantSeed, animator);
+                    break;
                 case DuneLandmarkType.DesertMegagate:
+                    BuildDesertMegagate(landmarkObject.transform, variantSeed, animator);
+                    break;
                 case DuneLandmarkType.WindHarvesterGraveyard:
+                    BuildWindHarvesterGraveyard(landmarkObject.transform, variantSeed, animator);
+                    break;
                 case DuneLandmarkType.BuriedArcology:
+                    BuildBuriedArcology(landmarkObject.transform, variantSeed, animator);
+                    break;
                 case DuneLandmarkType.SandRing:
-                    // Identity, placement, streaming and sockets are implemented first.
-                    // Authored visual composition is intentionally deferred to the next pass.
+                    BuildSandRing(landmarkObject.transform, variantSeed, animator);
                     break;
             }
             instance.PositionDeliverySocketAboveVisuals(_settings.DeliveryRingClearance);
@@ -969,6 +996,521 @@ namespace DuneVector
             }
         }
 
+        private void BuildFallenOrbitalArray(Transform root, int seed, DuneVectorLandmarkAnimator animator)
+        {
+            float radius = Mathf.Max(4f, _settings.OrbitalDishRadius);
+            float tilt = SeedRange(seed, 0, 7201, _settings.OrbitalDishTiltMinimum,
+                Mathf.Max(_settings.OrbitalDishTiltMinimum, _settings.OrbitalDishTiltMaximum));
+            Transform impactFrame = new GameObject("Orbital Array Impact Frame").transform;
+            impactFrame.SetParent(root, false);
+            impactFrame.localPosition = new Vector3(0f, radius * 0.18f - _settings.OrbitalBurialDepth, 0f);
+            impactFrame.localRotation = Quaternion.Euler(tilt, 0f, SeedRange(seed, 1, 7203, -9f, 9f));
+
+            MeshPart("Broken Parabolic Dish", impactFrame, Vector3.zero, Quaternion.identity,
+                Vector3.one, CreateParabolicDishMesh(radius, _settings.OrbitalDishSegmentCount,
+                    _settings.OrbitalDishMissingSegmentCount, seed),
+                _materials.DroneBody, true);
+            HorizontalSegmentedRing(impactFrame, "Orbital Dish Rim", radius, radius * 0.055f,
+                _settings.OrbitalDishSegmentCount, _settings.OrbitalDishMissingSegmentCount,
+                seed, _materials.DroneDark, true);
+
+            float mastHeight = Mathf.Max(1f, _settings.OrbitalMastHeight);
+            BeamBetween(impactFrame, "Snapped Dish Feed Mast", Vector3.up * (radius * 0.08f),
+                new Vector3(radius * 0.06f, mastHeight, radius * 0.08f), radius * 0.035f,
+                _materials.DroneDark, true);
+            Part(PrimitiveType.Sphere, "Dish Receiver", impactFrame,
+                new Vector3(radius * 0.06f, mastHeight, radius * 0.08f),
+                Vector3.one * (radius * 0.1f), Quaternion.identity, _materials.DroneAccent, false);
+
+            int frameworkCount = Mathf.Max(3, _settings.OrbitalDishSegmentCount / 6);
+            for (int i = 0; i < frameworkCount; i++)
+            {
+                float angle = (360f / frameworkCount) * i;
+                Vector3 rim = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * (radius * 0.86f);
+                BeamBetween(impactFrame, $"Exposed Dish Truss {i + 1}", Vector3.zero, rim,
+                    radius * 0.022f, _materials.DroneDark, false);
+            }
+
+            int wingCount = Mathf.Max(0, _settings.OrbitalSolarWingCount);
+            for (int i = 0; i < wingCount; i++)
+            {
+                float side = i % 2 == 0 ? -1f : 1f;
+                float trail = radius + (i * _settings.OrbitalSolarWingLength * 0.7f);
+                Vector3 offset = new Vector3(side * radius * SeedRange(seed, i, 7211, 0.65f, 1.35f), 0f, -trail);
+                offset.y = TerrainLocalHeight(root, offset) + SeedRange(seed, i, 7213, -0.8f, 1.5f);
+                Quaternion wingRotation = Quaternion.Euler(SeedRange(seed, i, 7215, -12f, 18f),
+                    SeedRange(seed, i, 7217, -28f, 28f), SeedRange(seed, i, 7219, -18f, 18f));
+                Part(PrimitiveType.Cube, $"Scattered Solar Wing {i + 1}", root, offset,
+                    new Vector3(_settings.OrbitalSolarWingLength, radius * 0.03f,
+                        _settings.OrbitalSolarWingLength * 0.36f),
+                    wingRotation, _materials.DroneAccent, true);
+                int panelLines = 4;
+                for (int panel = 1; panel < panelLines; panel++)
+                {
+                    Part(PrimitiveType.Cube, $"Solar Wing {i + 1} Divider {panel}", root,
+                        offset + (wingRotation * Vector3.right *
+                            Mathf.Lerp(-_settings.OrbitalSolarWingLength * 0.5f,
+                                _settings.OrbitalSolarWingLength * 0.5f, panel / (float)panelLines)),
+                        new Vector3(radius * 0.025f, radius * 0.035f,
+                            _settings.OrbitalSolarWingLength * 0.38f),
+                        wingRotation,
+                        _materials.DroneDark, false);
+                }
+            }
+
+            BuildDebrisTrail(root, "Orbital Impact Debris", seed, _settings.OrbitalDebrisCount,
+                _settings.OrbitalDebrisSpread, radius * 0.12f, Vector3.back, _materials.DroneDark, 7221);
+        }
+
+        private void BuildDesertMegagate(Transform root, int seed, DuneVectorLandmarkAnimator animator)
+        {
+            int pylonCount = Mathf.Max(2, _settings.MegagatePylonCount);
+            float height = Mathf.Max(8f, _settings.MegagatePylonHeight);
+            float width = Mathf.Max(2f, _settings.MegagatePylonWidth);
+            float opening = Mathf.Max(4f, _settings.MegagateOpeningWidth);
+            for (int i = 0; i < pylonCount; i++)
+            {
+                int pairIndex = i / 2;
+                float side = i % 2 == 0 ? -1f : 1f;
+                float x = side * ((opening * 0.5f) + (width * 0.5f) + (pairIndex * width * 1.7f));
+                Vector3 basePosition = new Vector3(x, 0f, pairIndex * width * 0.35f);
+                basePosition.y = TerrainLocalHeight(root, basePosition) - _settings.MegagateBurialDepth;
+                MeshPart($"Megagate Pylon {i + 1}", root,
+                    basePosition + (Vector3.up * (height * 0.5f)), Quaternion.identity, Vector3.one,
+                    CreateTaperedPrismMesh(width, height, width * 0.62f, _settings.MegagateTaper),
+                    _materials.Sandstone, true);
+
+                int stripCount = 5;
+                for (int strip = 0; strip < stripCount; strip++)
+                {
+                    float stripHeight = height * Mathf.Lerp(0.2f, 0.86f, strip / (float)(stripCount - 1));
+                    Part(PrimitiveType.Cube, $"Pylon {i + 1} Recessed Signal Strip {strip + 1}", root,
+                        basePosition + new Vector3(-side * width * 0.315f, stripHeight, -width * 0.12f),
+                        new Vector3(width * 0.025f, height * 0.012f, width * 0.34f),
+                        Quaternion.identity, strip % 2 == 0 ? _materials.DroneAccent : _materials.DroneDark,
+                        false);
+                }
+            }
+
+            int bridgeCount = Mathf.Max(0, _settings.MegagateBridgeFragmentCount);
+            for (int i = 0; i < bridgeCount; i++)
+            {
+                float side = i % 2 == 0 ? -1f : 1f;
+                float fragmentLength = opening * SeedRange(seed, i, 7241, 0.14f, 0.28f);
+                float x = side * ((opening * 0.5f) - (fragmentLength * 0.5f));
+                float y = height * SeedRange(seed, i, 7243, 0.68f, 0.9f);
+                Part(PrimitiveType.Cube, $"Suspended Bridge Fragment {i + 1}", root,
+                    new Vector3(x, y, (i - bridgeCount * 0.5f) * width * 0.08f),
+                    new Vector3(fragmentLength, width * 0.11f, width * 0.3f),
+                    Quaternion.Euler(SeedRange(seed, i, 7245, -8f, 8f), 0f,
+                        SeedRange(seed, i, 7247, -6f, 6f)), _materials.DroneDark, true);
+            }
+
+            for (int i = 0; i < Mathf.Max(0, _settings.MegagateBaseRuinCount); i++)
+            {
+                float angle = SeedRange(seed, i, 7251, 0f, 360f);
+                float distance = SeedRange(seed, i, 7253, opening * 0.62f, opening * 1.15f);
+                Vector3 offset = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * distance;
+                offset.y = TerrainLocalHeight(root, offset) - _settings.MegagateBurialDepth *
+                    SeedRange(seed, i, 7255, 0.15f, 0.7f);
+                Part(PrimitiveType.Cube, $"Collapsed Gate Base {i + 1}", root, offset,
+                    new Vector3(width * SeedRange(seed, i, 7257, 0.3f, 0.7f),
+                        height * SeedRange(seed, i, 7259, 0.05f, 0.14f),
+                        width * SeedRange(seed, i, 7261, 0.35f, 0.85f)),
+                    Quaternion.Euler(SeedRange(seed, i, 7263, -18f, 18f), angle,
+                        SeedRange(seed, i, 7265, -28f, 28f)), _materials.Sandstone, true);
+            }
+            BuildDebrisTrail(root, "Megagate Debris", seed + 31, _settings.MegagateDebrisCount,
+                opening * 1.5f, width * 0.16f, Vector3.right, _materials.DroneDark, 7271);
+        }
+
+        private void BuildWindHarvesterGraveyard(Transform root, int seed, DuneVectorLandmarkAnimator animator)
+        {
+            int count = Mathf.Max(1, _settings.HarvesterCount);
+            float fieldRadius = Mathf.Max(_settings.HarvesterSpacing, _settings.HarvesterFieldRadius);
+            bool hasFallen = false;
+            for (int i = 0; i < count; i++)
+            {
+                float normalizedRadius = Mathf.Sqrt((i + 0.5f) / count);
+                float distance = Mathf.Min(fieldRadius,
+                    Mathf.Max(_settings.HarvesterSpacing * 0.5f, normalizedRadius * fieldRadius));
+                float angle = (i * 137.50776f) + SeedRange(seed, i, 7301, -18f, 18f);
+                Vector3 offset = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * distance;
+                offset.y = TerrainLocalHeight(root, offset);
+                Transform installation = new GameObject($"Wind Harvester {i + 1:00}").transform;
+                installation.SetParent(root, false);
+                installation.localPosition = offset;
+                installation.localRotation = Quaternion.Euler(0f, SeedRange(seed, i, 7303, 0f, 360f), 0f);
+
+                float state = SeedRange(seed, i, 7305, 0f, 1f);
+                bool fallen = state < _settings.HarvesterFallenChance;
+                if (!hasFallen && i == count - 1 && _settings.HarvesterFallenChance > 0f)
+                {
+                    fallen = true;
+                }
+                bool broken = !fallen && state < _settings.HarvesterFallenChance + _settings.HarvesterBrokenChance;
+                bool leaning = !fallen && SeedRange(seed, i, 7307, 0f, 1f) < _settings.HarvesterLeanChance;
+                float towerHeight = _settings.HarvesterTowerHeight * SeedRange(seed, i, 7309, 0.82f, 1.12f);
+
+                if (fallen)
+                {
+                    hasFallen = true;
+                    Part(PrimitiveType.Cube, "Snapped Harvester Stump", installation,
+                        Vector3.up * (towerHeight * 0.12f),
+                        new Vector3(_settings.HarvesterRingThickness * 2f, towerHeight * 0.24f,
+                            _settings.HarvesterRingThickness * 2f),
+                        Quaternion.Euler(0f, 0f, SeedRange(seed, i, 7311, -12f, 12f)),
+                        _materials.DroneDark, true);
+                    Transform fallenRing = new GameObject("Fallen Turbine Ring").transform;
+                    fallenRing.SetParent(installation, false);
+                    fallenRing.localPosition = new Vector3(_settings.HarvesterRingRadius * 0.35f,
+                        -_settings.HarvesterRingRadius * 0.28f, _settings.HarvesterRingRadius * 0.4f);
+                    fallenRing.localRotation = Quaternion.Euler(90f,
+                        SeedRange(seed, i, 7313, -35f, 35f), SeedRange(seed, i, 7315, -12f, 12f));
+                    BuildHarvesterRing(fallenRing, seed + i, broken: true);
+                }
+                else
+                {
+                    Transform tower = new GameObject("Curved Harvester Tower").transform;
+                    tower.SetParent(installation, false);
+                    if (leaning)
+                    {
+                        tower.localRotation = Quaternion.Euler(0f, 0f,
+                            SeedRange(seed, i, 7317, -13f, 13f));
+                    }
+                    BuildCurvedTower(tower, towerHeight, _settings.HarvesterRingRadius * 0.34f,
+                        _settings.HarvesterRingThickness * 1.4f, broken ? 0.58f : 1f);
+                    Part(PrimitiveType.Cube, "Broken Maintenance Platform", tower,
+                        new Vector3(_settings.HarvesterRingRadius * 0.07f, towerHeight * 0.58f, 0f),
+                        new Vector3(_settings.HarvesterRingRadius * 0.7f,
+                            _settings.HarvesterRingThickness * 0.45f,
+                            _settings.HarvesterRingRadius * 0.42f),
+                        Quaternion.Euler(0f, 0f, broken ? 11f : 0f), _materials.DroneBody, true);
+                    if (i % 2 == 0)
+                    {
+                        BeamBetween(tower, "Hanging Maintenance Cable",
+                            new Vector3(0f, towerHeight * 0.56f, _settings.HarvesterRingRadius * 0.16f),
+                            new Vector3(_settings.HarvesterRingRadius * 0.24f,
+                                towerHeight * 0.2f, _settings.HarvesterRingRadius * 0.22f),
+                            _settings.HarvesterRingThickness * 0.12f, _materials.DroneDark, false);
+                    }
+                    Transform ring = new GameObject(broken ? "Broken Turbine Ring" : "Intact Turbine Ring").transform;
+                    ring.SetParent(tower, false);
+                    ring.localPosition = new Vector3(_settings.HarvesterRingRadius * 0.18f,
+                        towerHeight * (broken ? 0.61f : 1f), 0f);
+                    ring.localRotation = Quaternion.Euler(0f, SeedRange(seed, i, 7319, -9f, 9f), 0f);
+                    BuildHarvesterRing(ring, seed + i, broken);
+                }
+            }
+            BuildDebrisTrail(root, "Harvester Field Debris", seed + 79, _settings.HarvesterDebrisCount,
+                fieldRadius, _settings.HarvesterRingThickness * 2.5f, Vector3.forward,
+                _materials.DroneDark, 7331);
+        }
+
+        private void BuildHarvesterRing(Transform parent, int seed, bool broken)
+        {
+            int segmentCount = Mathf.Clamp(
+                Mathf.RoundToInt((_settings.HarvesterRingRadius * Mathf.PI * 2f) /
+                    Mathf.Max(0.1f, _settings.HarvesterRingThickness * 2.2f)), 12, 36);
+            int missing = broken ? Mathf.Max(2, segmentCount / 5) : 0;
+            VerticalSegmentedRing(parent, "Harvester Turbine", _settings.HarvesterRingRadius,
+                _settings.HarvesterRingThickness, segmentCount, missing, seed, _materials.DroneBody, true);
+            Part(PrimitiveType.Cylinder, "Harvester Axle", parent, Vector3.zero,
+                new Vector3(_settings.HarvesterRingThickness * 1.5f,
+                    _settings.HarvesterRingThickness * 2.5f,
+                    _settings.HarvesterRingThickness * 1.5f),
+                Quaternion.Euler(90f, 0f, 0f), _materials.DroneAccent, false);
+            int spokeCount = broken ? 3 : 5;
+            for (int spoke = 0; spoke < spokeCount; spoke++)
+            {
+                float angle = (360f / spokeCount) * spoke;
+                Vector3 endpoint = Quaternion.Euler(0f, 0f, angle) * Vector3.up *
+                    (_settings.HarvesterRingRadius * 0.78f);
+                BeamBetween(parent, $"Harvester Spoke {spoke + 1}", Vector3.zero, endpoint,
+                    _settings.HarvesterRingThickness * 0.32f, _materials.DroneDark, false);
+            }
+        }
+
+        private void BuildBuriedArcology(Transform root, int seed, DuneVectorLandmarkAnimator animator)
+        {
+            float coreRadius = Mathf.Max(8f, _settings.ArcologyCoreRadius);
+            float coreHeight = Mathf.Max(8f, _settings.ArcologyCoreHeight);
+            float coreBase = -(coreHeight * _settings.ArcologyBurialRatio);
+            MeshPart("Arcology Central Crown", root, new Vector3(0f, coreBase + coreHeight * 0.5f, 0f),
+                Quaternion.Euler(0f, 45f, 0f), Vector3.one,
+                CreateTaperedPrismMesh(coreRadius * 2f, coreHeight, coreRadius * 2f, 0.72f),
+                _materials.Sandstone, true);
+            Part(PrimitiveType.Cube, "Arcology Crown Aperture", root,
+                new Vector3(0f, coreBase + coreHeight + 0.08f, 0f),
+                new Vector3(coreRadius * 0.42f, coreHeight * 0.018f, coreRadius * 0.42f),
+                Quaternion.Euler(0f, 45f, 0f), _materials.DroneDark, false);
+
+            int roofCount = Mathf.Max(1, _settings.ArcologyRoofClusterCount);
+            for (int i = 0; i < roofCount; i++)
+            {
+                float angle = (360f / roofCount) * i + SeedRange(seed, i, 7401, -18f, 18f);
+                float distance = SeedRange(seed, i, 7403, coreRadius * 0.9f,
+                    _settings.ArcologyRoofClusterRadius);
+                Vector3 offset = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * distance;
+                float terrain = TerrainLocalHeight(root, offset);
+                float clusterRadius = coreRadius * SeedRange(seed, i, 7405, 0.22f, 0.48f);
+                float clusterHeight = coreHeight * SeedRange(seed, i, 7407, 0.22f, 0.46f);
+                float burial = clusterHeight * SeedRange(seed, i, 7409,
+                    _settings.ArcologyBurialRatio, Mathf.Min(0.95f, _settings.ArcologyBurialRatio + 0.1f));
+                offset.y = terrain - burial + clusterHeight * 0.5f;
+                MeshPart($"Arcology Roof Cluster {i + 1}", root, offset,
+                    Quaternion.Euler(SeedRange(seed, i, 7411, -4f, 4f), angle, 0f), Vector3.one,
+                    CreateTaperedPrismMesh(clusterRadius * 2f, clusterHeight,
+                        clusterRadius * SeedRange(seed, i, 7413, 1.2f, 2f), 0.64f),
+                    _materials.Sandstone, true);
+            }
+
+            for (int i = 0; i < Mathf.Max(0, _settings.ArcologyStructuralRibCount); i++)
+            {
+                float angle = (360f / Mathf.Max(1, _settings.ArcologyStructuralRibCount)) * i;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                Vector3 start = direction * (coreRadius * 0.72f);
+                Vector3 end = direction * SeedRange(seed, i, 7421, coreRadius * 1.4f,
+                    _settings.ArcologyRoofClusterRadius);
+                start.y = TerrainLocalHeight(root, start) + coreHeight * 0.04f;
+                end.y = TerrainLocalHeight(root, end) - coreHeight * 0.025f;
+                BeamBetween(root, $"Submerging Structural Rib {i + 1}", start, end,
+                    coreRadius * 0.045f, _materials.DroneDark, true);
+            }
+
+            for (int i = 0; i < Mathf.Max(0, _settings.ArcologyVentTowerCount); i++)
+            {
+                float angle = SeedRange(seed, i, 7431, 0f, 360f);
+                float distance = SeedRange(seed, i, 7433, coreRadius * 0.75f,
+                    _settings.ArcologyRoofClusterRadius * 0.85f);
+                Vector3 offset = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * distance;
+                float ventHeight = coreHeight * SeedRange(seed, i, 7435, 0.08f, 0.19f);
+                offset.y = TerrainLocalHeight(root, offset) + ventHeight * 0.42f;
+                Part(PrimitiveType.Cylinder, $"Arcology Vent Tower {i + 1}", root, offset,
+                    new Vector3(coreRadius * 0.045f, ventHeight * 0.5f, coreRadius * 0.045f),
+                    Quaternion.Euler(SeedRange(seed, i, 7437, -5f, 5f), 0f,
+                        SeedRange(seed, i, 7439, -5f, 5f)), _materials.DroneDark, true);
+                Part(PrimitiveType.Cylinder, $"Arcology Vent Crown {i + 1}", root,
+                    offset + Vector3.up * ventHeight * 0.52f,
+                    new Vector3(coreRadius * 0.075f, coreHeight * 0.008f, coreRadius * 0.075f),
+                    Quaternion.identity, _materials.DroneAccent, false);
+            }
+
+            for (int i = 0; i < Mathf.Max(0, _settings.ArcologyExposedWindowCount); i++)
+            {
+                float angle = SeedRange(seed, i, 7451, 0f, 360f);
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                Vector3 offset = direction * SeedRange(seed, i, 7453, coreRadius * 0.55f, coreRadius * 0.78f);
+                offset.y = SeedRange(seed, i, 7455, coreHeight * 0.025f,
+                    coreHeight * Mathf.Max(0.04f, 1f - _settings.ArcologyBurialRatio));
+                Part(PrimitiveType.Cube, $"Half-Buried Arcology Window {i + 1}", root, offset,
+                    new Vector3(coreRadius * 0.085f, coreHeight * 0.028f, coreRadius * 0.018f),
+                    Quaternion.Euler(0f, angle, 0f), _materials.DroneDark, false);
+            }
+            int antennaCount = Mathf.Max(1, _settings.ArcologyVentTowerCount / 4);
+            for (int i = 0; i < antennaCount; i++)
+            {
+                float angle = (360f / antennaCount) * i + 25f;
+                Vector3 basePoint = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * (coreRadius * 0.28f);
+                basePoint.y = coreBase + coreHeight;
+                Vector3 tip = basePoint + new Vector3(coreRadius * 0.08f, coreHeight * 0.13f, 0f);
+                BeamBetween(root, $"Broken Arcology Antenna {i + 1}", basePoint, tip,
+                    coreRadius * 0.018f, _materials.DroneDark, false);
+            }
+            BuildDebrisTrail(root, "Arcology Upper Ruin", seed + 101, _settings.ArcologyDebrisCount,
+                _settings.ArcologyRoofClusterRadius, coreRadius * 0.08f, Vector3.right,
+                _materials.Sandstone, 7461);
+        }
+
+        private void BuildSandRing(Transform root, int seed, DuneVectorLandmarkAnimator animator)
+        {
+            float radius = Mathf.Max(4f, _settings.SandRingRadius);
+            float centerHeight = radius - _settings.SandRingBurialDepth;
+            Transform ring = new GameObject("Colossal Sand Ring").transform;
+            ring.SetParent(root, false);
+            ring.localPosition = Vector3.up * centerHeight;
+            ring.localRotation = Quaternion.Euler(0f, 0f, _settings.SandRingTilt);
+            VerticalSegmentedRing(ring, "Sand Ring Segment", radius, _settings.SandRingThickness,
+                _settings.SandRingSegmentCount, _settings.SandRingMissingSegmentCount, seed,
+                _materials.DroneBody, true);
+
+            int segmentCount = Mathf.Max(3, _settings.SandRingSegmentCount);
+            for (int i = 0; i < segmentCount; i++)
+            {
+                if (!IsMissingSegment(i, segmentCount, _settings.SandRingMissingSegmentCount, seed))
+                {
+                    continue;
+                }
+                float angle = (360f / segmentCount) * i;
+                Vector3 edge = Quaternion.Euler(0f, 0f, angle) * Vector3.right * radius;
+                Part(PrimitiveType.Cube, $"Exposed Ring Break Framework {i + 1}", ring, edge,
+                    Vector3.one * (_settings.SandRingThickness * 0.72f),
+                    Quaternion.Euler(angle, angle * 0.4f, 45f), _materials.DroneAccent, false);
+            }
+
+            int supportCount = Mathf.Max(0, _settings.SandRingSupportCount);
+            for (int i = 0; i < supportCount; i++)
+            {
+                float t = supportCount == 1 ? 0.5f : i / (float)(supportCount - 1);
+                float side = i % 2 == 0 ? -1f : 1f;
+                float x = Mathf.Lerp(-radius * 0.82f, radius * 0.82f, t);
+                Vector3 ground = new Vector3(x, 0f, side * _settings.SandRingSupportRadius * 0.34f);
+                ground.y = TerrainLocalHeight(root, ground) - _settings.SandRingBurialDepth * 0.12f;
+                float normalizedX = Mathf.Clamp(x / radius, -1f, 1f);
+                float ringY = centerHeight - Mathf.Sqrt(Mathf.Max(0f, radius * radius - x * x));
+                Vector3 anchor = new Vector3(x, ringY + radius * 0.12f, 0f);
+                BeamBetween(root, $"Sand Ring Stabilizer {i + 1}", ground, anchor,
+                    _settings.SandRingThickness * 0.55f, _materials.DroneDark, true);
+                Part(PrimitiveType.Cube, $"Sand Ring Footing {i + 1}", root, ground,
+                    new Vector3(_settings.SandRingThickness * 2.2f,
+                        _settings.SandRingThickness * 0.65f, _settings.SandRingThickness * 2.8f),
+                    Quaternion.Euler(0f, side * 12f, normalizedX * 6f), _materials.Sandstone, true);
+                if (i % 2 == 0)
+                {
+                    Vector3 cableEnd = ground + new Vector3(side * _settings.SandRingThickness,
+                        _settings.SandRingThickness * 0.4f, -side * _settings.SandRingThickness * 1.8f);
+                    BeamBetween(root, $"Broken Ring Cable {i + 1}", anchor, cableEnd,
+                        _settings.SandRingThickness * 0.1f, _materials.DroneDark, false);
+                }
+            }
+
+            int accentCount = Mathf.Max(3, segmentCount / 8);
+            for (int i = 0; i < accentCount; i++)
+            {
+                float angle = (360f / accentCount) * i + SeedRange(seed, i, 7481, -8f, 8f);
+                Vector3 point = Quaternion.Euler(0f, 0f, angle) * Vector3.right *
+                    (radius - _settings.SandRingThickness * 1.1f);
+                Transform accent = Part(PrimitiveType.Sphere, $"Ring Energy Node {i + 1}", ring, point,
+                    Vector3.one * (_settings.SandRingThickness * 0.32f), Quaternion.identity,
+                    _materials.DroneAccent, false);
+                animator.RegisterPulse(accent, _settings.BeaconPulseAmount,
+                    _settings.BeaconPulseSpeed, i * 0.4f);
+            }
+            BuildDebrisTrail(root, "Sand Ring Damage Debris", seed + 151, _settings.SandRingDebrisCount,
+                _settings.SandRingDebrisSpread, _settings.SandRingThickness * 1.15f,
+                Vector3.right, _materials.DroneDark, 7491);
+        }
+
+        private void BuildCurvedTower(Transform parent, float height, float curve,
+            float thickness, float completion)
+        {
+            int segmentCount = 6;
+            int builtSegments = Mathf.Clamp(Mathf.CeilToInt(segmentCount * completion), 1, segmentCount);
+            Vector3 previous = Vector3.zero;
+            for (int i = 1; i <= builtSegments; i++)
+            {
+                float t = i / (float)segmentCount;
+                Vector3 next = new Vector3(curve * t * t, height * t, 0f);
+                BeamBetween(parent, $"Curved Tower Segment {i}", previous, next, thickness,
+                    _materials.DroneDark, true);
+                previous = next;
+            }
+        }
+
+        private void BuildDebrisTrail(Transform root, string namePrefix, int seed, int count,
+            float spread, float size, Vector3 trailDirection, Material material, int salt)
+        {
+            Vector3 direction = trailDirection.sqrMagnitude > 0.001f ? trailDirection.normalized : Vector3.forward;
+            Vector3 lateral = new Vector3(-direction.z, 0f, direction.x);
+            for (int i = 0; i < Mathf.Max(0, count); i++)
+            {
+                float distance = SeedRange(seed, i, salt, spread * 0.08f, spread);
+                float lateralOffset = SeedRange(seed, i, salt + 2, -spread * 0.38f, spread * 0.38f);
+                Vector3 offset = direction * distance + lateral * lateralOffset;
+                offset.y = TerrainLocalHeight(root, offset) + SeedRange(seed, i, salt + 4, -size * 0.4f, size * 0.35f);
+                float pieceScale = size * SeedRange(seed, i, salt + 6, 0.45f, 1.35f);
+                Part(i % 4 == 0 ? PrimitiveType.Cylinder : PrimitiveType.Cube,
+                    $"{namePrefix} {i + 1:00}", root, offset,
+                    new Vector3(pieceScale, pieceScale * SeedRange(seed, i, salt + 8, 0.35f, 1.2f),
+                        pieceScale * SeedRange(seed, i, salt + 10, 0.5f, 1.6f)),
+                    Quaternion.Euler(SeedRange(seed, i, salt + 12, 0f, 360f),
+                        SeedRange(seed, i, salt + 14, 0f, 360f),
+                        SeedRange(seed, i, salt + 16, 0f, 360f)), material, true);
+            }
+        }
+
+        private void VerticalSegmentedRing(Transform parent, string partName, float radius,
+            float thickness, int segmentCount, int missingCount, int seed, Material material, bool collider)
+        {
+            int count = Mathf.Max(3, segmentCount);
+            float segmentLength = ((Mathf.PI * 2f * Mathf.Max(0.01f, radius)) / count) *
+                _settings.LandmarkRingSegmentFill;
+            for (int i = 0; i < count; i++)
+            {
+                if (IsMissingSegment(i, count, missingCount, seed))
+                {
+                    continue;
+                }
+                float angle = (360f / count) * i;
+                Vector3 point = Quaternion.Euler(0f, 0f, angle) * Vector3.right * radius;
+                Part(PrimitiveType.Cube, $"{partName} {i + 1:00}", parent, point,
+                    new Vector3(segmentLength, thickness, thickness),
+                    Quaternion.Euler(0f, 0f, angle + 90f), material, collider);
+            }
+        }
+
+        private void HorizontalSegmentedRing(Transform parent, string partName, float radius,
+            float thickness, int segmentCount, int missingCount, int seed, Material material, bool collider)
+        {
+            int count = Mathf.Max(3, segmentCount);
+            float segmentLength = ((Mathf.PI * 2f * Mathf.Max(0.01f, radius)) / count) *
+                _settings.LandmarkRingSegmentFill;
+            for (int i = 0; i < count; i++)
+            {
+                if (IsMissingSegment(i, count, missingCount, seed))
+                {
+                    continue;
+                }
+                float angle = (360f / count) * i;
+                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                Part(PrimitiveType.Cube, $"{partName} {i + 1:00}", parent, direction * radius,
+                    new Vector3(thickness, thickness, segmentLength),
+                    Quaternion.Euler(0f, angle + 90f, 0f), material, collider);
+            }
+        }
+
+        private static bool IsMissingSegment(int index, int segmentCount, int missingCount, int seed)
+        {
+            int targetCount = Mathf.Clamp(missingCount, 0, Mathf.Max(0, segmentCount - 3));
+            uint value = DuneVectorMath.Hash(seed, index, 0, 7523);
+            int rank = 0;
+            for (int other = 0; other < segmentCount; other++)
+            {
+                if (other == index)
+                {
+                    continue;
+                }
+                uint otherValue = DuneVectorMath.Hash(seed, other, 0, 7523);
+                if (otherValue < value || (otherValue == value && other < index))
+                {
+                    rank++;
+                }
+            }
+            return rank < targetCount;
+        }
+
+        private float TerrainLocalHeight(Transform root, Vector3 localOffset)
+        {
+            DuneVectorLandmarkInstance instance = root.GetComponent<DuneVectorLandmarkInstance>();
+            if (instance == null || _world == null)
+            {
+                return 0f;
+            }
+            Vector3 horizontal = root.rotation * new Vector3(localOffset.x, 0f, localOffset.z);
+            double baseHeight = _world.HeightField.SampleHeight(
+                instance.LogicalPosition.X, instance.LogicalPosition.Z);
+            double sampleHeight = _world.HeightField.SampleHeight(
+                instance.LogicalPosition.X + horizontal.x,
+                instance.LogicalPosition.Z + horizontal.z);
+            return (float)(sampleHeight - baseHeight);
+        }
+
+        private float SeedRange(int seed, int index, int salt, float minimum, float maximum)
+        {
+            return DuneVectorMath.HashRange(seed, index, _world != null ? _world.WorldSeed : 0,
+                salt, minimum, maximum);
+        }
+
         private void SegmentedRing(
             Transform parent,
             int segmentCount,
@@ -1051,6 +1593,154 @@ namespace DuneVector
         {
             int count = Mathf.Max(1, _settings.VisualVariantCount);
             return (int)((uint)seed % (uint)count);
+        }
+
+        private static Transform MeshPart(
+            string partName,
+            Transform parent,
+            Vector3 localPosition,
+            Quaternion localRotation,
+            Vector3 localScale,
+            Mesh mesh,
+            Material material,
+            bool collider)
+        {
+            GameObject part = new GameObject(partName);
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = localPosition;
+            part.transform.localRotation = localRotation;
+            part.transform.localScale = localScale;
+            MeshFilter filter = part.AddComponent<MeshFilter>();
+            filter.sharedMesh = mesh;
+            part.AddComponent<DuneVectorGeneratedLandmarkMesh>().Initialize(mesh);
+            MeshRenderer renderer = part.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = ShadowCastingMode.On;
+            if (collider)
+            {
+                MeshCollider meshCollider = part.AddComponent<MeshCollider>();
+                meshCollider.sharedMesh = mesh;
+            }
+            return part.transform;
+        }
+
+        private static Mesh CreateParabolicDishMesh(float radius, int segmentCount,
+            int missingSegmentCount, int seed)
+        {
+            int segments = Mathf.Max(8, segmentCount);
+            int rings = Mathf.Max(4, segments / 4);
+            int layerVertexCount = (rings + 1) * segments;
+            Vector3[] vertices = new Vector3[layerVertexCount * 2];
+            Vector2[] uv = new Vector2[vertices.Length];
+            float depth = radius * 0.32f;
+            float shellThickness = radius * 0.035f;
+            for (int layer = 0; layer < 2; layer++)
+            {
+                for (int ring = 0; ring <= rings; ring++)
+                {
+                    float t = ring / (float)rings;
+                    float ringRadius = radius * t;
+                    float y = depth * t * t - (layer * shellThickness);
+                    for (int segment = 0; segment < segments; segment++)
+                    {
+                        float angle = (Mathf.PI * 2f * segment) / segments;
+                        int index = (layer * layerVertexCount) + (ring * segments) + segment;
+                        vertices[index] = new Vector3(Mathf.Cos(angle) * ringRadius, y,
+                            Mathf.Sin(angle) * ringRadius);
+                        uv[index] = new Vector2(segment / (float)segments, t);
+                    }
+                }
+            }
+
+            List<int> triangles = new List<int>(rings * segments * 12 + segments * 6);
+            for (int layer = 0; layer < 2; layer++)
+            {
+                int layerStart = layer * layerVertexCount;
+                for (int ring = 0; ring < rings; ring++)
+                {
+                    for (int segment = 0; segment < segments; segment++)
+                    {
+                        if (IsMissingSegment(segment, segments, missingSegmentCount, seed))
+                        {
+                            continue;
+                        }
+                        int next = (segment + 1) % segments;
+                        int a = layerStart + (ring * segments) + segment;
+                        int b = layerStart + (ring * segments) + next;
+                        int c = layerStart + ((ring + 1) * segments) + segment;
+                        int d = layerStart + ((ring + 1) * segments) + next;
+                        if (layer == 0)
+                        {
+                            triangles.Add(a); triangles.Add(b); triangles.Add(c);
+                            triangles.Add(b); triangles.Add(d); triangles.Add(c);
+                        }
+                        else
+                        {
+                            triangles.Add(a); triangles.Add(c); triangles.Add(b);
+                            triangles.Add(b); triangles.Add(c); triangles.Add(d);
+                        }
+                    }
+                }
+            }
+            int frontRim = rings * segments;
+            int backRim = layerVertexCount + frontRim;
+            for (int segment = 0; segment < segments; segment++)
+            {
+                if (IsMissingSegment(segment, segments, missingSegmentCount, seed))
+                {
+                    continue;
+                }
+                int next = (segment + 1) % segments;
+                triangles.Add(frontRim + segment);
+                triangles.Add(frontRim + next);
+                triangles.Add(backRim + segment);
+                triangles.Add(frontRim + next);
+                triangles.Add(backRim + next);
+                triangles.Add(backRim + segment);
+            }
+
+            Mesh mesh = new Mesh { name = "Procedural Parabolic Dish" };
+            mesh.vertices = vertices;
+            mesh.uv = uv;
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static Mesh CreateTaperedPrismMesh(float width, float height, float depth, float taper)
+        {
+            float bottomX = width * 0.5f;
+            float bottomZ = depth * 0.5f;
+            float topScale = Mathf.Clamp01(1f - taper);
+            float topX = bottomX * topScale;
+            float topZ = bottomZ * topScale;
+            Vector3[] vertices =
+            {
+                new Vector3(-bottomX, -height * 0.5f, -bottomZ),
+                new Vector3(bottomX, -height * 0.5f, -bottomZ),
+                new Vector3(bottomX, -height * 0.5f, bottomZ),
+                new Vector3(-bottomX, -height * 0.5f, bottomZ),
+                new Vector3(-topX, height * 0.5f, -topZ),
+                new Vector3(topX, height * 0.5f, -topZ),
+                new Vector3(topX, height * 0.5f, topZ),
+                new Vector3(-topX, height * 0.5f, topZ),
+            };
+            int[] triangles =
+            {
+                0, 2, 1, 0, 3, 2,
+                4, 5, 6, 4, 6, 7,
+                0, 1, 5, 0, 5, 4,
+                1, 2, 6, 1, 6, 5,
+                2, 3, 7, 2, 7, 6,
+                3, 0, 4, 3, 4, 7,
+            };
+            Mesh mesh = new Mesh { name = "Procedural Tapered Landmark Prism" };
+            mesh.vertices = vertices;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
         }
 
         private static Transform Part(
