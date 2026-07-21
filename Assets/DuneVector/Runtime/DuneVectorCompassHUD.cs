@@ -78,7 +78,7 @@ namespace DuneVector
                     tickHeight);
                 DrawShadowedRect(tickRect, tickColor, scale);
 
-                string label = GetHeadingLabel(wrappedHeading, cardinal, tickIndex);
+                string label = GetHeadingLabel(wrappedHeading, cardinal);
                 if (!string.IsNullOrEmpty(label))
                 {
                     EnsureLabelStyle(scale, cardinal ? _settings.CardinalColor : _settings.TickColor);
@@ -101,7 +101,7 @@ namespace DuneVector
             DrawShadowedRect(marker, _settings.CenterMarkerColor, scale);
         }
 
-        private string GetHeadingLabel(float heading, bool cardinal, int tickIndex)
+        private string GetHeadingLabel(float heading, bool cardinal)
         {
             if (cardinal)
             {
@@ -115,10 +115,20 @@ namespace DuneVector
                 };
             }
 
-            int labelInterval = Mathf.Max(1, _settings.DegreeLabelEvery);
-            return _settings.ShowDegreeLabels && PositiveModulo(tickIndex, labelInterval) == 0
-                ? $"{Mathf.RoundToInt(heading):000}"
-                : string.Empty;
+            if (!_settings.ShowIntercardinalLabels
+                || !Mathf.Approximately(Mathf.Repeat(heading - 45f, 90f), 0f))
+            {
+                return string.Empty;
+            }
+
+            int intercardinal = Mathf.RoundToInt((heading - 45f) / 90f) % 4;
+            return intercardinal switch
+            {
+                0 => _settings.NorthEastLabel,
+                1 => _settings.SouthEastLabel,
+                2 => _settings.SouthWestLabel,
+                _ => _settings.NorthWestLabel,
+            };
         }
 
         private void EnsureLabelStyle(float scale, Color color)

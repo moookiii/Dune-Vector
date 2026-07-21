@@ -3178,8 +3178,7 @@ namespace DuneVector
         [Range(30f, 240f)] public float VisibleDegrees = 120f;
         [Range(1f, 45f)] public float TickStepDegrees = 5f;
         [Min(1)] public int MajorTickEvery = 3;
-        [Min(1)] public int DegreeLabelEvery = 9;
-        public bool ShowDegreeLabels = true;
+        public bool ShowIntercardinalLabels = true;
         [Min(1f)] public float MinorTickHeight = 9f;
         [Min(1f)] public float MajorTickHeight = 18f;
         [Min(1f)] public float CardinalTickHeight = 27f;
@@ -3195,6 +3194,10 @@ namespace DuneVector
         public string EastLabel = "E";
         public string SouthLabel = "S";
         public string WestLabel = "W";
+        public string NorthEastLabel = "NE";
+        public string SouthEastLabel = "SE";
+        public string SouthWestLabel = "SW";
+        public string NorthWestLabel = "NW";
         public Vector2 ShadowOffset = new Vector2(1.5f, 2f);
         [ColorUsage(false)] public Color PanelColor = new Color(0.015f, 0.045f, 0.07f, 0.48f);
         [ColorUsage(false)] public Color TickColor = new Color(0.72f, 0.87f, 0.92f, 0.88f);
