@@ -202,11 +202,6 @@ namespace DuneVector
                 CreateHotSpots(root.transform, center, sample);
             }
 
-            if ((HeatZoneVisualsActive || _settings.GroundDistortionEnabled) && _plumeMaterial != null)
-            {
-                plumes = CreateHeatPlumes(root.transform, sample);
-            }
-
             Material groundMaterial = null;
             Mesh groundMesh = null;
             if (_settings.GroundDistortionEnabled)
@@ -234,6 +229,11 @@ namespace DuneVector
                         Mathf.Pow(_settings.GroundDistortionShellStrengthFalloff, shell));
                     renderer.SetPropertyBlock(properties);
                 }
+            }
+
+            if ((HeatZoneVisualsActive || _settings.GroundDistortionEnabled) && _plumeMaterial != null)
+            {
+                plumes = CreateHeatPlumes(root.transform, sample, groundMesh);
             }
             return new ZoneVisual
             {
@@ -410,7 +410,7 @@ namespace DuneVector
             return mesh;
         }
 
-        private ParticleSystem CreateHeatPlumes(Transform parent, HeatZoneSample sample)
+        private ParticleSystem CreateHeatPlumes(Transform parent, HeatZoneSample sample, Mesh emissionMesh)
         {
             GameObject plumeObject = new GameObject("Sparse Rising Heat Columns");
             plumeObject.transform.SetParent(parent, false);
@@ -419,6 +419,7 @@ namespace DuneVector
             main.loop = true;
             main.playOnAwake = true;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
+            main.startSpeed = 0f;
             main.maxParticles = Mathf.Max(0, Mathf.RoundToInt(_settings.HeatPlumeParticleBudget * sample.Severity));
             main.startLifetime = new ParticleSystem.MinMaxCurve(
                 _settings.HeatPlumeMinimumLifetime,
@@ -439,8 +440,17 @@ namespace DuneVector
             emission.rateOverTime = _settings.HeatPlumeEmissionRate * sample.Severity;
             ParticleSystem.ShapeModule shape = system.shape;
             shape.enabled = true;
-            shape.shapeType = ParticleSystemShapeType.Circle;
-            shape.radius = sample.Radius * _settings.GroundMirageRadiusMultiplier;
+            if (emissionMesh != null)
+            {
+                shape.shapeType = ParticleSystemShapeType.Mesh;
+                shape.mesh = emissionMesh;
+                shape.meshShapeType = ParticleSystemMeshShapeType.Triangle;
+            }
+            else
+            {
+                shape.shapeType = ParticleSystemShapeType.Circle;
+                shape.radius = sample.Radius * _settings.GroundMirageRadiusMultiplier;
+            }
             ParticleSystem.VelocityOverLifetimeModule velocity = system.velocityOverLifetime;
             velocity.enabled = true;
             velocity.space = ParticleSystemSimulationSpace.World;
