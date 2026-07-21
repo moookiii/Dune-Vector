@@ -96,7 +96,7 @@ namespace DuneVector
             _pickupRing = CreateJobRing(
                 "Pickup Ring",
                 _packageLogicalPosition,
-                _packageHeight + _settings.ObjectiveRingHeight,
+                _packageHeight + _settings.PickupRingHeight,
                 approach,
                 true,
                 HandlePickup);
@@ -202,7 +202,7 @@ namespace DuneVector
             {
                 _package.position = _world.LogicalToLocal(
                     _packageLogicalPosition.X,
-                    _packageHeight + _settings.ObjectiveRingHeight,
+                    _packageHeight + _settings.PickupRingHeight,
                     _packageLogicalPosition.Z);
                 _package.Rotate(0f, 28f * Time.deltaTime, 0f, Space.World);
             }

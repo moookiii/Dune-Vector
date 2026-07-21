@@ -247,6 +247,9 @@ namespace DuneVector
         [Min(1f)] public float ObjectiveRingRadius = 3.2f;
         [Tooltip("Radius used by delivery objective rings.")]
         [Min(1f)] public float DeliveryRingRadius = 15f;
+        [Tooltip("Height of pickup rings above the sampled terrain surface, in meters.")]
+        [Min(0f)] public float PickupRingHeight = 1f;
+        [Tooltip("Height of delivery rings above the sampled terrain surface, in meters.")]
         [Min(0f)] public float ObjectiveRingHeight = 3.4f;
         [Min(0.1f)] public float PackageScale = 0.8f;
 
