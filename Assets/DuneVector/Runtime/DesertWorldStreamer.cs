@@ -447,6 +447,11 @@ namespace DuneVector
             }
             _lastScheduledChunk = playerChunk;
 
+            // The normal generation queue is intentionally throttled, but terrain collision cannot be.
+            // A fast flight can cross a chunk boundary before the queued chunk receives a MeshCollider,
+            // so keep the player's chunk and every chunk touching it available synchronously.
+            EnsureCollisionNeighborhood(playerChunk);
+
             if (force)
             {
                 _generationQueue.Clear();
@@ -490,6 +495,17 @@ namespace DuneVector
                 _chunks[coordinate].Dispose();
                 _chunks.Remove(coordinate);
                 UnloadedChunkCount++;
+            }
+        }
+
+        private void EnsureCollisionNeighborhood(Vector2Int playerChunk)
+        {
+            for (int z = -1; z <= 1; z++)
+            {
+                for (int x = -1; x <= 1; x++)
+                {
+                    GenerateChunkImmediate(playerChunk + new Vector2Int(x, z));
+                }
             }
         }
 
