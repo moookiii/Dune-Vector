@@ -2742,20 +2742,29 @@ namespace DuneVector
         [Header("Independent Ground Distortion")]
         [Tooltip("Keeps the terrain-following ground distortion active independently of heat-zone gameplay.")]
         public bool GroundDistortionEnabled = true;
-        [Min(2)] public int GroundMirageRings = 64;
-        [Min(8)] public int GroundMirageSegments = 128;
-        [Min(0f)] public float GroundMirageHeightOffset = 0.12f;
+        [Min(2)] public int GroundMirageRings = 7;
+        [Min(8)] public int GroundMirageSegments = 48;
+        [Min(0f)] public float GroundMirageHeightOffset = 0.16f;
         [Range(1, 8)] public int GroundDistortionShellCount = 3;
         [Min(0f)] public float GroundDistortionShellSpacing = 0.55f;
         [Range(0f, 1f)] public float GroundDistortionShellStrengthFalloff = 0.72f;
         [Min(20f)] public float GroundDistortionFollowRadius = 420f;
         [Min(5f)] public float GroundDistortionRecenterDistance = 40f;
+        [Range(1, 64)] public int GroundHeatVeilRingCount = 48;
+        [Range(16, 192)] public int GroundHeatVeilSegments = 128;
+        [Min(0.25f)] public float GroundHeatVeilMinimumRadius = 1.5f;
+        [Range(0.25f, 4f)] public float GroundHeatVeilRadiusDistribution = 1.6f;
+        [Min(0.1f)] public float GroundHeatVeilMinimumHeight = 1.5f;
+        [Min(0.1f)] public float GroundHeatVeilMaximumHeight = 3.5f;
+        [Min(0f)] public float GroundHeatVeilBaseOffset = 0.1f;
+        [Min(0f)] public float GroundHeatTintStartDistance = 24f;
+        [Min(0f)] public float GroundHeatTintFullDistance = 90f;
         [Range(0f, 0.3f)] public float GroundHeatShimmerOpacity = 0.14f;
         [ColorUsage(false, true)] public Color GroundHeatShimmerColor = new Color(1.15f, 0.9f, 0.62f, 1f);
         [Range(0.05f, 1f)] public float GroundMirageRadiusMultiplier = 0.98f;
-        [Min(0f)] public float DistantDistortionStrength = 0.34f;
-        [Min(0f)] public float InteriorDistortionStrength = 0.78f;
-        [Min(0f)] public float DistortionBlurStrength = 0.18f;
+        [Min(0f)] public float DistantDistortionStrength = 6f;
+        [Min(0f)] public float InteriorDistortionStrength = 8f;
+        [Min(0f)] public float DistortionBlurStrength = 0.1f;
         [Min(0f)] public float DistortionTextureScale = 4.5f;
         public Vector2 DistortionScrollVelocity = new Vector2(0.035f, 0.12f);
         [Range(16, 256)] public int DistortionTextureResolution = 96;
