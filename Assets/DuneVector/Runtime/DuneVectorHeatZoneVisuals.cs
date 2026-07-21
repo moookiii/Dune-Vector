@@ -9,8 +9,6 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorHeatZoneVisualSystem : MonoBehaviour
     {
-        private static readonly Vector2Int WorldAnchoredGroundDistortionId = new Vector2Int(int.MinValue, int.MinValue);
-
         private sealed class ZoneVisual
         {
             public Vector2Int Id;
@@ -28,9 +26,6 @@ namespace DuneVector
         private readonly List<HeatZoneSample> _nearbyZones = new List<HeatZoneSample>();
         private readonly HashSet<Vector2Int> _activeIds = new HashSet<Vector2Int>();
         private readonly List<Vector2Int> _removalBuffer = new List<Vector2Int>();
-
-        private LogicalPosition _groundDistortionAnchor;
-        private bool _groundDistortionAnchorInitialized;
 
         private DuneVectorEnvironmentalHazardSystem _hazards;
         private DroneCharacterController _drone;
@@ -120,7 +115,7 @@ namespace DuneVector
             _refreshTimer = Mathf.Max(0.05f, _settings.VisualRefreshInterval);
             if (!_settings.Enabled && _settings.GroundDistortionEnabled)
             {
-                CollectWorldAnchoredGroundDistortion();
+                CollectPlayerCenteredGroundDistortion();
             }
             else
             {
@@ -154,18 +149,19 @@ namespace DuneVector
             }
         }
 
-        private void CollectWorldAnchoredGroundDistortion()
+        private void CollectPlayerCenteredGroundDistortion()
         {
             _nearbyZones.Clear();
-            if (!_groundDistortionAnchorInitialized)
-            {
-                _groundDistortionAnchor = _world.LogicalPlayerPosition;
-                _groundDistortionAnchorInitialized = true;
-            }
-
+            LogicalPosition player = _world.LogicalPlayerPosition;
+            float recenterDistance = Mathf.Max(5f, _settings.GroundDistortionRecenterDistance);
+            int cellX = Mathf.FloorToInt((float)(player.X / recenterDistance));
+            int cellZ = Mathf.FloorToInt((float)(player.Z / recenterDistance));
+            LogicalPosition center = new LogicalPosition(
+                (cellX + 0.5d) * recenterDistance,
+                (cellZ + 0.5d) * recenterDistance);
             _nearbyZones.Add(new HeatZoneSample(
-                WorldAnchoredGroundDistortionId,
-                _groundDistortionAnchor,
+                new Vector2Int(cellX, cellZ),
+                center,
                 Mathf.Max(20f, _settings.GroundDistortionFollowRadius),
                 1f,
                 0f));
