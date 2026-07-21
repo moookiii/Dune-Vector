@@ -1526,7 +1526,12 @@ namespace DuneVector
         [Min(0f)] public float Cooldown = 2.4f;
         [Min(0f)] public float LightningDamage = 32f;
         public string LightningDeathMessage = "Struck by Storm Pyramid ground lightning.";
-        [Min(0.1f)] public float StrikeRadius = 5.5f;
+        [Tooltip("Ground strike radius at risk 0.")]
+        [Min(0.1f)] public float StrikeRadius = 5f;
+        [Tooltip("Ground strike radius at the strike radius risk ceiling.")]
+        [Min(0.1f)] public float StrikeRadiusAtRiskCeiling = 20f;
+        [Tooltip("Risk at which the ground strike reaches Strike Radius At Risk Ceiling.")]
+        [Min(1)] public int StrikeRadiusRiskCeiling = 20;
         [Min(0.05f)] public float LightningVisualDuration = 0.28f;
         [Min(0.01f)] public float ChargeTelegraphWidth = 0.12f;
         [Min(0.01f)] public float LightningWidth = 0.48f;
@@ -1596,6 +1601,13 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color LightningEmission = new Color(7.5f, 12f, 18f);
         [ColorUsage(false)] public Color WarningColor = new Color(0.18f, 0.42f, 0.62f);
         [ColorUsage(false, true)] public Color WarningEmission = new Color(0.45f, 2.8f, 5.8f);
+
+        public float EvaluateStrikeRadius(int risk)
+        {
+            float riskProgress = Mathf.Clamp01(
+                risk / (float)Mathf.Max(1, StrikeRadiusRiskCeiling));
+            return Mathf.Lerp(StrikeRadius, StrikeRadiusAtRiskCeiling, riskProgress);
+        }
     }
 
     [System.Serializable]

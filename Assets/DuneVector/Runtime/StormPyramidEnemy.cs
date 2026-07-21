@@ -340,7 +340,9 @@ namespace DuneVector
             Color strikeColor = _settings.LightningColor;
             strikeColor.a = 0.7f;
             Gizmos.color = strikeColor;
-            Gizmos.DrawWireSphere(_lightning != null ? _lightning.TargetPosition : transform.position, _settings.StrikeRadius);
+            Gizmos.DrawWireSphere(
+                _lightning != null ? _lightning.TargetPosition : transform.position,
+                _settings.EvaluateStrikeRadius(DuneVectorContractRisk.CurrentRisk));
         }
     }
 
@@ -511,6 +513,8 @@ namespace DuneVector
         private StormLightningTarget _target;
         private float _timer;
         private float _chargeDuration;
+        private float _strikeRadius;
+        private float _strikeRadiusScale = 1f;
         private int _identity;
         private bool _charging;
         private bool _firing;
@@ -550,13 +554,15 @@ namespace DuneVector
         public void BeginCharge(StormLightningTarget target)
         {
             _target = target;
+            _strikeRadius = _settings.EvaluateStrikeRadius(DuneVectorContractRisk.CurrentRisk);
+            _strikeRadiusScale = _strikeRadius / Mathf.Max(0.1f, _settings.StrikeRadius);
             _timer = 0f;
             _chargeDuration = GetChargeDuration(target.Type);
             _charging = true;
             _firing = false;
             _marker.gameObject.SetActive(true);
             _marker.position = target.Position;
-            _marker.localScale = Vector3.one * 0.25f;
+            _marker.localScale = Vector3.one * (0.25f * _strikeRadiusScale);
             if (_impactFlash != null)
             {
                 _impactFlash.localScale = Vector3.zero;
@@ -591,7 +597,7 @@ namespace DuneVector
             _timer = 0f;
             _chargeLine.enabled = false;
             _lightningLine.enabled = true;
-            _marker.localScale = Vector3.one;
+            _marker.localScale = Vector3.one * _strikeRadiusScale;
             SetWarningRingsActive(false);
             if (_groundImpactWave != null)
             {
@@ -600,7 +606,7 @@ namespace DuneVector
             }
             _damage.ResolveStrike(
                 _target.Position,
-                _settings.StrikeRadius,
+                _strikeRadius,
                 _settings.LightningDamage,
                 "Storm Pyramid ground lightning",
                 _settings.LightningDeathMessage);
@@ -702,7 +708,10 @@ namespace DuneVector
         {
             float pulse = 0.88f + (Mathf.Sin((Time.time * 12f) + _identity) * 0.12f);
             _marker.position = _target.Position;
-            _marker.localScale = Vector3.one * Mathf.Lerp(0.25f, 1f, charge01) * pulse;
+            _marker.localScale = Vector3.one
+                * Mathf.Lerp(0.25f, 1f, charge01)
+                * pulse
+                * _strikeRadiusScale;
             if (_halo != null)
             {
                 _halo.localScale = Vector3.one * Mathf.Lerp(0.35f, 1.15f, charge01) * pulse;
