@@ -63,9 +63,14 @@ namespace DuneVector
         public void Initialize(EnemyHealth health, float collisionRadius)
         {
             _health = health;
-            CollisionRadius = Mathf.Max(Mathf.Epsilon, collisionRadius);
+            SetCollisionRadius(collisionRadius);
             _previousPosition = transform.position;
             _hasPreviousPosition = true;
+        }
+
+        public void SetCollisionRadius(float collisionRadius)
+        {
+            CollisionRadius = Mathf.Max(Mathf.Epsilon, collisionRadius);
         }
 
         public void SetTargetable(bool targetable)

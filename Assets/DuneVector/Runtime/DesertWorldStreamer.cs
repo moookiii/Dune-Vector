@@ -194,7 +194,8 @@ namespace DuneVector
                 return;
             }
 
-            float minimum = Mathf.Max(GroundExploders.DetectionRadius + GroundExploders.ExplosionRadius, minimumDistance);
+            float explosionRadius = GroundExploders.EvaluateExplosionRadius(DuneVectorContractRisk.CurrentRisk);
+            float minimum = Mathf.Max(GroundExploders.DetectionRadius + explosionRadius, minimumDistance);
             float maximum = Mathf.Max(minimum, maximumDistance);
             LogicalPosition playerLogical = LogicalPlayerPosition;
             int spawned = 0;

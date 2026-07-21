@@ -1662,11 +1662,34 @@ namespace DuneVector
         [Header("Proximity Explosion")]
         [Min(0.5f)] public float DetectionRadius = 18f;
         [Min(0.1f)] public float WindUpDuration = 1.25f;
+        [Tooltip("Explosion radius at risk 0.")]
         [Min(0.5f)] public float ExplosionRadius = 11f;
+        [Tooltip("Explosion radius at the risk scaling ceiling.")]
+        [Min(0.5f)] public float ExplosionRadiusAtRiskCeiling = 18.3f;
         [Min(0f)] public float MaximumDamage = 65f;
         public string ExplosionDeathMessage = "Destroyed by a Ground Exploder blast.";
         [Header("Presentation")]
-        [Min(0.1f)] public float VisualScale = 1.15f;
+        [Tooltip("Visual scale at risk 0.")]
+        [Min(0.1f)] public float VisualScale = 3f;
+        [Tooltip("Visual scale at the risk scaling ceiling.")]
+        [Min(0.1f)] public float VisualScaleAtRiskCeiling = 5f;
+        [Tooltip("Risk at which visual scale and explosion radius reach their ceiling values.")]
+        [Min(1)] public int RiskScalingCeiling = 20;
+
+        public float EvaluateExplosionRadius(int risk)
+        {
+            return Mathf.Lerp(ExplosionRadius, ExplosionRadiusAtRiskCeiling, EvaluateRisk(risk));
+        }
+
+        public float EvaluateVisualScale(int risk)
+        {
+            return Mathf.Lerp(VisualScale, VisualScaleAtRiskCeiling, EvaluateRisk(risk));
+        }
+
+        private float EvaluateRisk(int risk)
+        {
+            return Mathf.Clamp01(risk / (float)Mathf.Max(1, RiskScalingCeiling));
+        }
     }
 
     [System.Serializable]

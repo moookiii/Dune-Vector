@@ -27,6 +27,8 @@ namespace DuneVector
         private EnemyGoldReward _goldReward;
         private DroneHealth _playerHealth;
         private float _stateTime;
+        private float _explosionRadius;
+        private int _appliedRisk = int.MinValue;
 
         public void Initialize(
             DroneCharacterController player,
@@ -46,7 +48,7 @@ namespace DuneVector
             _visual = gameObject.AddComponent<GroundExploderVisual>();
 
             Transform visualRoot = DuneVectorVisuals.CreateGroundExploderVisual(transform, materials, settings.VisualScale);
-            _visual.Initialize(visualRoot, settings);
+            _visual.Initialize(visualRoot);
             _movement.Initialize(heightField, chunkLogicalX, chunkLogicalZ, chunkSize, settings, identity);
             EnemyHealth enemyHealth = gameObject.AddComponent<EnemyHealth>();
             enemyHealth.Initialize(settings.MaximumHealth);
@@ -57,6 +59,7 @@ namespace DuneVector
                 enemyHealth,
                 player != null ? player.GetComponent<DroneGoldWallet>() : null,
                 settings.GoldReward);
+            ApplyRiskScaling();
             BindTargets(player, playerHealth);
             SetState(GroundExploderState.Patrolling);
         }
@@ -75,6 +78,8 @@ namespace DuneVector
             {
                 return;
             }
+
+            ApplyRiskScaling();
 
             float stateRate = CurrentState == GroundExploderState.TriggeredWindUp
                 ? DuneVectorContractRisk.EnemyAttackRateMultiplier
@@ -103,7 +108,7 @@ namespace DuneVector
 
                 case GroundExploderState.Exploding:
                     float explosion01 = Mathf.Clamp01(_stateTime / ExplosionPresentationDuration);
-                    _visual.TickExplosion(explosion01, _settings.ExplosionRadius);
+                    _visual.TickExplosion(explosion01, _explosionRadius);
                     if (_stateTime >= ExplosionPresentationDuration)
                     {
                         SetState(GroundExploderState.Dead);
@@ -125,9 +130,25 @@ namespace DuneVector
             SetState(GroundExploderState.Exploding);
             _damage.Detonate(
                 transform.position,
-                _settings.ExplosionRadius,
+                _explosionRadius,
                 _settings.MaximumDamage * DuneVectorContractRisk.EnemyDamageMultiplier,
                 _settings.ExplosionDeathMessage);
+        }
+
+        private void ApplyRiskScaling()
+        {
+            int risk = DuneVectorContractRisk.CurrentRisk;
+            if (_appliedRisk == risk)
+            {
+                return;
+            }
+
+            _appliedRisk = risk;
+            float visualScale = _settings.EvaluateVisualScale(risk);
+            _explosionRadius = _settings.EvaluateExplosionRadius(risk);
+            _visual.SetRiskScale(visualScale, _explosionRadius);
+            _movement.SetVisualScale(visualScale);
+            _combatTarget.SetCollisionRadius(visualScale);
         }
 
         private void SetState(GroundExploderState state)
@@ -162,7 +183,9 @@ namespace DuneVector
             Gizmos.color = new Color(1f, 0.65f, 0.05f, 0.55f);
             Gizmos.DrawWireSphere(transform.position, _settings.DetectionRadius);
             Gizmos.color = new Color(1f, 0.12f, 0.02f, 0.65f);
-            Gizmos.DrawWireSphere(transform.position, _settings.ExplosionRadius);
+            Gizmos.DrawWireSphere(
+                transform.position,
+                _settings.EvaluateExplosionRadius(DuneVectorContractRisk.CurrentRisk));
         }
     }
 
@@ -175,6 +198,7 @@ namespace DuneVector
         private GroundExploderTuning _settings;
         private System.Random _random;
         private Rigidbody _body;
+        private SphereCollider _bodyCollider;
         private Vector2 _patrolCenter;
         private Vector2 _patrolTarget;
         private Vector3 _lastMeasuredPosition;
@@ -203,8 +227,8 @@ namespace DuneVector
             _groundClearance = Mathf.Max(0.2f, settings.VisualScale * 1.08f);
             SnapToSurface();
 
-            SphereCollider bodyCollider = gameObject.AddComponent<SphereCollider>();
-            bodyCollider.radius = settings.VisualScale * 1.05f;
+            _bodyCollider = gameObject.AddComponent<SphereCollider>();
+            _bodyCollider.radius = settings.VisualScale * 1.05f;
             _body = gameObject.AddComponent<Rigidbody>();
             _body.isKinematic = true;
             _body.useGravity = false;
@@ -212,6 +236,15 @@ namespace DuneVector
             _body.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
             _lastMeasuredPosition = _body.position;
             ChoosePatrolTarget();
+        }
+
+        public void SetVisualScale(float visualScale)
+        {
+            _groundClearance = Mathf.Max(0.2f, visualScale * 1.08f);
+            if (_bodyCollider != null)
+            {
+                _bodyCollider.radius = visualScale * 1.05f;
+            }
         }
 
         public float TickPatrol(float deltaTime)
@@ -398,7 +431,6 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class GroundExploderVisual : MonoBehaviour
     {
-        private GroundExploderTuning _settings;
         private Transform _root;
         private Transform _wheel;
         private Quaternion _wheelBaseRotation;
@@ -408,11 +440,12 @@ namespace DuneVector
         private Renderer[] _renderers;
         private float _windUpTime;
         private float _wheelAngle;
+        private float _visualScale;
+        private float _explosionRadius;
 
-        public void Initialize(Transform visualRoot, GroundExploderTuning settings)
+        public void Initialize(Transform visualRoot)
         {
             _root = visualRoot;
-            _settings = settings;
             _wheel = _root.Find("Spiked Hollow Wheel");
             _wheelBaseRotation = _wheel != null ? _wheel.localRotation : Quaternion.identity;
             _beacon = _root.Find("Warning Ring");
@@ -424,6 +457,13 @@ namespace DuneVector
             _explosionFlash = _root.Find("Explosion Flash");
             _renderers = _root.GetComponentsInChildren<Renderer>(true);
             EnterPatrol();
+        }
+
+        public void SetRiskScale(float visualScale, float explosionRadius)
+        {
+            _visualScale = Mathf.Max(0.1f, visualScale);
+            _explosionRadius = Mathf.Max(0.5f, explosionRadius);
+            _root.localScale = Vector3.one * _visualScale;
         }
 
         public void EnterPatrol()
@@ -446,7 +486,7 @@ namespace DuneVector
 
         public void TickPatrol(float distanceMoved, float deltaTime)
         {
-            float rollingRadius = Mathf.Max(0.05f, 1.08f * _settings.VisualScale);
+            float rollingRadius = Mathf.Max(0.05f, 1.08f * _visualScale);
             _wheelAngle = Mathf.Repeat(
                 _wheelAngle + ((distanceMoved / rollingRadius) * Mathf.Rad2Deg),
                 360f);
@@ -490,8 +530,8 @@ namespace DuneVector
                     continue;
                 }
                 float baseRadius = 1.25f + (i * 0.32f);
-                float targetScale = _settings.ExplosionRadius
-                    / (baseRadius * Mathf.Max(0.01f, _settings.VisualScale));
+                float targetScale = _explosionRadius
+                    / (baseRadius * Mathf.Max(0.01f, _visualScale));
                 float stagger = Mathf.Clamp01((windUp01 * 1.12f) - (i * 0.08f));
                 float growth = Mathf.SmoothStep(0f, 1f, stagger);
                 float ringScale = Mathf.Lerp(0.3f, targetScale, growth) * Mathf.Lerp(0.9f, 1f, pulse);
@@ -525,7 +565,7 @@ namespace DuneVector
             }
             float eased = 1f - Mathf.Pow(1f - explosion01, 3f);
             float worldDiameter = explosionRadius * 2f * eased;
-            float rootScale = Mathf.Max(0.01f, _settings.VisualScale);
+            float rootScale = Mathf.Max(0.01f, _visualScale);
             _explosionFlash.localScale = Vector3.one * (worldDiameter / rootScale);
         }
 
