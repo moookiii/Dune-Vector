@@ -188,7 +188,19 @@ namespace DuneVector
                 return;
             }
 
-            UpdateAttackTarget(ambusher);
+            Vector3 prediction = _player.Motor.BaseVelocity *
+                Mathf.Max(0f, _settings.SandAmbusherTargetPredictionTime);
+            Vector3 attackTarget = _player.WorldCenter + prediction;
+            Vector3 attackDirection = (attackTarget - ambusher.BuriedPosition).normalized;
+            if (_player.IsStableGrounded)
+            {
+                attackDirection = ApplyMinimumElevation(
+                    attackDirection,
+                    _settings.SandAmbusherGroundedMinimumAttackAngle);
+            }
+            ambusher.AttackEnd = attackTarget +
+                (attackDirection * Mathf.Max(0f, _settings.SandAmbusherAttackOvershoot));
+            ambusher.Root.transform.rotation = Quaternion.FromToRotation(Vector3.up, attackDirection);
             ambusher.Emergence?.Burst();
             ambusher.Visual?.BeginEmergence();
             ambusher.CombatTarget?.SetTargetable(true);
@@ -198,9 +210,8 @@ namespace DuneVector
 
         private void TickAttack(SandAmbusher ambusher, float deltaTime)
         {
-            UpdateAttackTarget(ambusher);
             Vector3 previous = ambusher.Root.transform.position;
-            float speed = Mathf.Max(0.1f, _settings.SandAmbusherPlayerFollowSpeed) *
+            float speed = Mathf.Max(0.1f, _settings.SandAmbusherAttackSpeed) *
                 DuneVectorContractRisk.EnemySpeedMultiplier;
             Vector3 next = Vector3.MoveTowards(previous, ambusher.AttackEnd, speed * deltaTime);
             ambusher.Root.transform.position = next;
@@ -218,27 +229,6 @@ namespace DuneVector
             {
                 ambusher.State = AmbushState.Exposed;
                 ambusher.StateTime = 0f;
-            }
-        }
-
-        private void UpdateAttackTarget(SandAmbusher ambusher)
-        {
-            Vector3 prediction = _player.Motor.BaseVelocity *
-                Mathf.Max(0f, _settings.SandAmbusherTargetPredictionTime);
-            Vector3 attackTarget = _player.WorldCenter + prediction;
-            Vector3 attackDirection = (attackTarget - ambusher.Root.transform.position).normalized;
-            if (_player.IsStableGrounded)
-            {
-                attackDirection = ApplyMinimumElevation(
-                    attackDirection,
-                    _settings.SandAmbusherGroundedMinimumAttackAngle);
-            }
-
-            ambusher.AttackEnd = attackTarget +
-                (attackDirection * Mathf.Max(0f, _settings.SandAmbusherAttackOvershoot));
-            if (attackDirection.sqrMagnitude > Mathf.Epsilon)
-            {
-                ambusher.Root.transform.rotation = Quaternion.FromToRotation(Vector3.up, attackDirection);
             }
         }
 
