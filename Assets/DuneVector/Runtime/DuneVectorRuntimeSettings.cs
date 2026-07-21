@@ -1854,6 +1854,8 @@ namespace DuneVector
         public string OrbitProgressFormat = "TRACE  {0:0}° / {1:0}°";
         public string AltitudeProgressFormat = "HOLD  {0:0.0}s / {1:0.0}s  ALT {2:+0.0;-0.0;0.0}m";
         public string VectorPassProgressFormat = "VECTOR PASS  {0:0}%  SPEED {1:0.0}";
+        public string VectorPassNeedFlightText = "ENTER FLIGHT MODE THROUGH THE NEARBY RING";
+        public string VectorPassNeedSpeedFormat = "MORE SPEED REQUIRED  {0:0.0} / {1:0.0} M/S";
         [Min(0f)] public float DiscoveryStatusDuration = 4f;
         [Min(0f)] public float ScanInterruptedStatusDuration = 2f;
 

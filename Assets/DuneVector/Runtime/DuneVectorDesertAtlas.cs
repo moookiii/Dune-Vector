@@ -69,6 +69,8 @@ namespace DuneVector
         private float _orbitDirection;
         private bool _hasOrbitAngle;
         private bool _vectorPassArmed;
+        private Vector3 _vectorPassPreviousPosition;
+        private bool _hasVectorPassPreviousPosition;
         private bool _completionRewardClaimed;
         private string _statusText;
         private float _statusUntil;
@@ -308,24 +310,45 @@ namespace DuneVector
         {
             float startRadius = Mathf.Max(_settings.VectorPassFinishRadius, _settings.VectorPassStartRadius);
             float finishRadius = Mathf.Min(startRadius, _settings.VectorPassFinishRadius);
+            Vector3 playerPosition = _player.WorldCenter;
+            Vector3 targetPosition = GetVectorPassTargetPosition(site);
+            float targetDistance = Vector3.Distance(playerPosition, targetPosition);
             bool flightValid = _player.CurrentMode == DroneTraversalMode.Flight && _player.Speed >= site.MinimumSpeed;
-            if (_nearestDistance > startRadius)
+            if (targetDistance > startRadius)
             {
                 _vectorPassArmed = false;
                 _scanProgress = 0f;
+                _hasVectorPassPreviousPosition = false;
                 return;
             }
-            if (!_vectorPassArmed && flightValid && _nearestDistance > finishRadius)
+            if (!_hasVectorPassPreviousPosition)
+            {
+                _vectorPassPreviousPosition = playerPosition;
+                _hasVectorPassPreviousPosition = true;
+            }
+            if (!_vectorPassArmed && flightValid)
             {
                 _vectorPassArmed = true;
             }
             if (!_vectorPassArmed || !flightValid)
             {
                 _scanProgress = Mathf.Max(0f, _scanProgress - (_settings.VectorPassProgressDecayPerSecond * Time.deltaTime));
+                _vectorPassPreviousPosition = playerPosition;
                 return;
             }
-            _scanProgress = Mathf.Max(_scanProgress, Mathf.InverseLerp(startRadius, finishRadius, _nearestDistance));
-            if (_nearestDistance <= finishRadius)
+            _scanProgress = Mathf.Max(_scanProgress, Mathf.InverseLerp(startRadius, finishRadius, targetDistance));
+            Vector3 segment = playerPosition - _vectorPassPreviousPosition;
+            float segmentLengthSquared = segment.sqrMagnitude;
+            bool crossedCore = targetDistance <= finishRadius;
+            if (!crossedCore && segmentLengthSquared > Mathf.Epsilon)
+            {
+                float interpolation = Mathf.Clamp01(
+                    Vector3.Dot(targetPosition - _vectorPassPreviousPosition, segment) / segmentLengthSquared);
+                Vector3 closestPoint = _vectorPassPreviousPosition + (segment * interpolation);
+                crossedCore = Vector3.Distance(closestPoint, targetPosition) <= finishRadius;
+            }
+            _vectorPassPreviousPosition = playerPosition;
+            if (crossedCore)
             {
                 _scanProgress = 1f;
             }
@@ -429,7 +452,9 @@ namespace DuneVector
                 ringObject.transform.SetParent(root, false);
                 ringObject.transform.localPosition = new Vector3(
                     0f,
-                    _settings.ChallengeFlightRingHeight,
+                    site.ChallengeType == DesertAtlasChallengeType.VectorPass
+                        ? _settings.CoreHeight
+                        : Mathf.Max(_settings.ChallengeFlightRingHeight, site.TargetHeightAboveSignal),
                     -_settings.ChallengeFlightRingDistance);
                 ringObject.transform.localRotation = Quaternion.LookRotation(Vector3.forward, Vector3.up);
                 TraversalRing flightRing = ringObject.AddComponent<TraversalRing>();
@@ -561,6 +586,11 @@ namespace DuneVector
         private bool IsWithinChallengeActivation(DesertAtlasSiteDefinition site)
         {
             if (site == null) return false;
+            if (site.ChallengeType == DesertAtlasChallengeType.VectorPass)
+            {
+                return Vector3.Distance(_player.WorldCenter, GetVectorPassTargetPosition(site)) <=
+                    GetChallengeActivationRadius(site);
+            }
             if (site.ChallengeType == DesertAtlasChallengeType.OrbitTrace ||
                 site.ChallengeType == DesertAtlasChallengeType.AltitudeHold)
             {
@@ -577,6 +607,17 @@ namespace DuneVector
             switch (site.ChallengeType)
             {
                 case DesertAtlasChallengeType.VectorPass:
+                    if (_player.CurrentMode != DroneTraversalMode.Flight)
+                    {
+                        return _settings.VectorPassNeedFlightText;
+                    }
+                    if (_player.Speed < site.MinimumSpeed)
+                    {
+                        return FormatDesignerText(
+                            _settings.VectorPassNeedSpeedFormat,
+                            _player.Speed,
+                            site.MinimumSpeed);
+                    }
                     return FormatDesignerText(
                         _settings.VectorPassProgressFormat,
                         _scanProgress * 100f,
@@ -603,6 +644,11 @@ namespace DuneVector
             float height = (float)_world.HeightField.SampleHeight(site.WorldPosition.x, site.WorldPosition.y) +
                 _settings.HeightAboveTerrain;
             return _world.LogicalToLocal(site.WorldPosition.x, height, site.WorldPosition.y);
+        }
+
+        private Vector3 GetVectorPassTargetPosition(DesertAtlasSiteDefinition site)
+        {
+            return GetSiteLocalPosition(site) + (Vector3.up * _settings.CoreHeight);
         }
 
         private static bool IsValidSite(DesertAtlasSiteDefinition site)
@@ -847,6 +893,8 @@ namespace DuneVector
             _orbitLastAngle = 0f;
             _hasOrbitAngle = false;
             _vectorPassArmed = false;
+            _vectorPassPreviousPosition = Vector3.zero;
+            _hasVectorPassPreviousPosition = false;
         }
 
         private void Load()
