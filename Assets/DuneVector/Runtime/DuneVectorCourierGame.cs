@@ -39,6 +39,8 @@ namespace DuneVector
     public sealed class CourierContract
     {
         public string ContractId;
+        public string PickupName;
+        public DuneLandmarkType PickupLandmarkType;
         public string DestinationName;
         public DuneLandmarkType DestinationLandmarkType;
         public string CargoName;
@@ -1068,10 +1070,13 @@ namespace DuneVector
             }
             multiplier *= DuneVectorContractRisk.GetRewardMultiplier(_settings, difficulty);
 
+            DuneLandmarkType pickupType = ChooseLandmarkType(random);
             DuneLandmarkType destinationType = ChooseLandmarkType(random);
             return new CourierContract
             {
                 ContractId = $"DV-{completed:0000}-{index + 1:00}-{Math.Abs(seed % 10000):0000}",
+                PickupName = GetContractLocationName(pickupType),
+                PickupLandmarkType = pickupType,
                 DestinationName = GetContractLocationName(destinationType),
                 DestinationLandmarkType = destinationType,
                 CargoName = display == CourierContractModifier.Unknown ? "CLASSIFIED" : CargoNameFor(gameplay),
@@ -1211,8 +1216,8 @@ namespace DuneVector
                 previous = destination;
             }
 
-            DuneLandmarkType pickupType = ChooseLandmarkType(random);
-            _routeLandmarks.Add(_landmarks.CreateContractLandmark(pickupType, contract.PickupPosition, contract.Seed));
+            _routeLandmarks.Add(_landmarks.CreateContractLandmark(
+                contract.PickupLandmarkType, contract.PickupPosition, contract.Seed));
             for (int i = 0; i < contract.DeliveryPositions.Count; i++)
             {
                 DuneLandmarkType deliveryType = i == contract.DeliveryPositions.Count - 1
@@ -2592,7 +2597,7 @@ namespace DuneVector
                 }
             }
 
-            GUI.Label(new Rect(left, card.y + 40f, contentWidth, 27f), offer.DestinationName, _terminalDestinationStyle);
+            GUI.Label(new Rect(left, card.y + 40f, contentWidth, 27f), offer.PickupName, _terminalDestinationStyle);
             GUI.Label(
                 new Rect(left, card.y + 70f, contentWidth, 21f),
                 $"ROUTE  {offer.RouteDistance / 1000f:0.0} KM      RISK  {offer.Difficulty:00}",
