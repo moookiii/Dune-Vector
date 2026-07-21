@@ -56,8 +56,18 @@ namespace DuneVector
             _cycle = cycle;
             _wind = wind;
             _random = new System.Random(unchecked(worldSeed ^ cycle.RandomSeedOffset));
-            CurrentState = DesertWeatherState.Clear;
-            _stateDuration = Mathf.Max(0.1f, cycle.InitialClearDuration);
+            if (cycle.StartWithFullSandstorm)
+            {
+                CurrentState = DesertWeatherState.FullSandstorm;
+                _stateDuration = RandomRange(
+                    cycle.MinimumFullStormDuration,
+                    cycle.MaximumFullStormDuration);
+            }
+            else
+            {
+                CurrentState = DesertWeatherState.Clear;
+                _stateDuration = Mathf.Max(0.1f, cycle.InitialClearDuration);
+            }
         }
 
         public DesertWeatherSnapshot Tick(float deltaTime)

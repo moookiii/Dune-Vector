@@ -2118,6 +2118,8 @@ namespace DuneVector
     public sealed class DesertWeatherCycleTuning
     {
         [Header("Storm Frequency")]
+        [Tooltip("Start a new game directly in a full sandstorm, bypassing the initial clear, dust-building, and approaching phases.")]
+        public bool StartWithFullSandstorm;
         [Tooltip("Clear time before the first storm begins, in seconds.")]
         [Min(0f)] public float InitialClearDuration = 35f;
         [Tooltip("Minimum clear interval between completed storms, in seconds.")]

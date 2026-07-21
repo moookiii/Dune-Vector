@@ -305,6 +305,7 @@ namespace DuneVector
                 return;
             }
             Instance = this;
+            Time.timeScale = 1f;
 
             if (RuntimeSettings == null)
             {
