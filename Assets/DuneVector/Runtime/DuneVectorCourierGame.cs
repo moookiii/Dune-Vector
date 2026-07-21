@@ -365,6 +365,8 @@ namespace DuneVector
         private bool _teleportMoved;
         private bool _returnStartsVanished;
         private bool _deliveryCompletionInProgress;
+        private bool _deliveryMessageSafetyActive;
+        private bool _infiniteHealthBeforeDeliveryMessage;
         private HubTerminalMode _hubTerminalMode;
         private bool _unknownRevealed;
         private bool _wasGrounded;
@@ -460,6 +462,7 @@ namespace DuneVector
             if (Progress.PendingDeliveryMessageIndex >= 0 &&
                 _messageSettings.TryResolve(Progress.PendingDeliveryMessageIndex, out DeliveryMessageAsset pendingMessage))
             {
+                BeginDeliveryMessageSafety();
                 if (_player.DroneVisualRoot != null)
                 {
                     _player.DroneVisualRoot.localScale = Vector3.zero;
@@ -473,6 +476,12 @@ namespace DuneVector
         public void BindEnvironmentalHazardSystem(DuneVectorEnvironmentalHazardSystem environmentalHazards)
         {
             _environmentalHazards = environmentalHazards;
+            _environmentalHazards?.SetGameplayActive(
+                State != CourierRunState.Hub &&
+                State != CourierRunState.DeliveryComplete &&
+                State != CourierRunState.TeleportOut &&
+                State != CourierRunState.DeliveryMessage &&
+                State != CourierRunState.ReturnToBase);
         }
 
         public void BindEncounterDirector(DuneVectorRouteEncounterDirector director)
@@ -1153,12 +1162,14 @@ namespace DuneVector
 
             State = CourierRunState.DeliveryMessage;
             _playerInput.SetInputEnabled(false);
+            BeginDeliveryMessageSafety();
             if (!_messagePresenter.Open(deliveryMessage, HandleInstantContractMessageCompleted))
             {
                 Debug.LogError(
                     $"Debug-completed contract message {Progress.PendingDeliveryMessageIndex} could not be opened. Its progression index remains pending.",
                     this);
                 EnterHubImmediate(openTerminal: false);
+                EndDeliveryMessageSafety();
             }
         }
 
@@ -1175,6 +1186,7 @@ namespace DuneVector
                 Progress.CompletePendingDeliveryMessage(completedMessageIndex);
             }
             EnterHubImmediate(openTerminal: false);
+            EndDeliveryMessageSafety();
         }
 
         private void PrepareRoute(CourierContract contract)
@@ -1675,6 +1687,7 @@ namespace DuneVector
             _teleportMoved = false;
             _returnStartsVanished = false;
             _playerInput.SetInputEnabled(false);
+            BeginDeliveryMessageSafety();
             CreateTeleportParticles();
         }
 
@@ -1876,13 +1889,39 @@ namespace DuneVector
             _returnStartsVanished = false;
             _deliveryCompletionInProgress = false;
             EnterHubImmediate(openTerminal: false);
+            EndDeliveryMessageSafety();
             ShowStatus("RETURNED TO COURIER AERIE", 2.5f);
+        }
+
+        private void BeginDeliveryMessageSafety()
+        {
+            if (_deliveryMessageSafetyActive || _health == null)
+            {
+                return;
+            }
+
+            _deliveryMessageSafetyActive = true;
+            _infiniteHealthBeforeDeliveryMessage = _health.HasInfiniteHealth;
+            _health.SetInfiniteHealth(true);
+            _environmentalHazards?.SetGameplayActive(false);
+        }
+
+        private void EndDeliveryMessageSafety()
+        {
+            if (!_deliveryMessageSafetyActive || _health == null)
+            {
+                return;
+            }
+
+            _health.SetInfiniteHealth(_infiniteHealthBeforeDeliveryMessage);
+            _deliveryMessageSafetyActive = false;
         }
 
         private void SetCombatSystemsActive(bool active)
         {
             _enemyDirector?.SetGameplayActive(active);
             _stormDirector?.SetGameplayActive(active);
+            _environmentalHazards?.SetGameplayActive(active);
             if (_routeEncounterDirector != null) _routeEncounterDirector.enabled = active;
         }
 

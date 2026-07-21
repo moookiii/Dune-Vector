@@ -65,6 +65,7 @@ namespace DuneVector
         private float _phaseTimer;
         private float _phaseDuration;
         private float _strikeDelay;
+        private bool _gameplayActive = true;
 
         public void Initialize(
             DroneCharacterController drone,
@@ -105,9 +106,26 @@ namespace DuneVector
             }
         }
 
+        public void SetGameplayActive(bool active)
+        {
+            _gameplayActive = active;
+            if (!active)
+            {
+                IsElectricalInterferenceActive = false;
+                SetStrikePhase(ElectricalStrikePhase.Idle, 0f);
+                _strikeDelay = Mathf.Max(0f, _electricalSettings != null
+                    ? _electricalSettings.InitialStrikeDelay
+                    : 0f);
+                _stamina?.SetEnvironmentalDrainMultiplier(1f);
+                _launcher?.SetEnvironmentalCooldownMultiplier(1f);
+            }
+
+            gameObject.SetActive(active);
+        }
+
         private void Update()
         {
-            if (_drone == null || _world == null)
+            if (!_gameplayActive || _drone == null || _world == null)
             {
                 return;
             }
