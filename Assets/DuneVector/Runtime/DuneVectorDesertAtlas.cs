@@ -91,6 +91,10 @@ namespace DuneVector
         private Vector2 _terminalScroll;
         private GUIStyle _hudTitleStyle;
         private GUIStyle _hudBodyStyle;
+        private GUIStyle _hudMetaStyle;
+        private GUIStyle _hudMetricStyle;
+        private GUIStyle _hudBearingStyle;
+        private GUIStyle _hudCountStyle;
         private GUIStyle _statusStyle;
         private GUIStyle _terminalTitleStyle;
         private GUIStyle _terminalBodyStyle;
@@ -1379,39 +1383,7 @@ namespace DuneVector
                 compassBottom + (_settings.HudGapBelowCompass * compassScale),
                 panelWidth,
                 _settings.HudHeight);
-            DrawRect(panel, _settings.HudPanelColor);
-            float padding = _settings.HudPadding;
-            GUI.Label(new Rect(panel.x + padding, panel.y + _settings.HudTitleTop,
-                panel.width - (padding * 2f), _settings.HudTitleHeight),
-                FormatDesignerText(_settings.HudTitleFormat, DiscoveredCount, TotalSiteCount), _hudTitleStyle);
-            string body;
-            if (_nearestSite == null)
-            {
-                body = DiscoveredCount >= TotalSiteCount
-                    ? _settings.HudAllDiscoveredText
-                    : _settings.HudSignalsLockedText;
-            }
-            else if (IsWithinChallengeActivation(_nearestSite))
-            {
-                body = FormatDesignerText(
-                    _settings.HudChallengeFormat,
-                    _nearestSite.ChallengeInstruction,
-                    GetChallengeProgressText(_nearestSite));
-            }
-            else
-            {
-                body = FormatDesignerText(_settings.HudNearestSignalFormat, _nearestDistance, GetBearingText(_nearestSite));
-            }
-            GUI.Label(new Rect(panel.x + padding, panel.y + _settings.HudBodyTop,
-                panel.width - (padding * 2f), _settings.HudBodyHeight), body, _hudBodyStyle);
-            if (_scanProgress > 0f ||
-                (_nearestSite != null && IsWithinChallengeActivation(_nearestSite)))
-            {
-                Rect bar = new Rect(panel.x + padding, panel.yMax - padding - _settings.ScanBarHeight,
-                    panel.width - (padding * 2f), _settings.ScanBarHeight);
-                DrawRect(bar, _settings.ScanBarBackgroundColor);
-                DrawRect(new Rect(bar.x, bar.y, bar.width * _scanProgress, bar.height), _settings.HudAccentColor);
-            }
+            DrawAtlasHud(panel);
             if (Time.unscaledTime < _discoveryPresentationUntil)
             {
                 DrawDiscoveryPresentation();
@@ -1420,6 +1392,193 @@ namespace DuneVector
             {
                 GUI.Label(new Rect(0f, Screen.height * _settings.StatusVerticalFraction, Screen.width,
                     _settings.StatusHeight), _statusText, _statusStyle);
+            }
+        }
+
+        private void DrawAtlasHud(Rect panel)
+        {
+            Rect shadow = new Rect(
+                panel.x + _settings.HudShadowOffset.x,
+                panel.y + _settings.HudShadowOffset.y,
+                panel.width,
+                panel.height);
+            DrawRect(shadow, _settings.HudShadowColor);
+            DrawRect(panel, _settings.HudPanelColor);
+            DrawBorder(panel, _settings.HudBorderColor, _settings.HudBorderThickness);
+            DrawRect(
+                new Rect(panel.x, panel.y, _settings.HudAccentWidth, panel.height),
+                _settings.HudAccentColor);
+            DrawRect(
+                new Rect(
+                    panel.x + _settings.HudAccentWidth,
+                    panel.y,
+                    panel.width - _settings.HudAccentWidth,
+                    _settings.HudHeaderHeight),
+                _settings.HudHeaderColor);
+            DrawRect(
+                new Rect(
+                    panel.x + _settings.HudAccentWidth,
+                    panel.y + _settings.HudHeaderHeight,
+                    panel.width - _settings.HudAccentWidth,
+                    _settings.HudDividerHeight),
+                _settings.HudBorderColor);
+
+            float padding = _settings.HudPadding;
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.y,
+                    panel.width - (_settings.HudCountBadgeWidth + (padding * 3f)),
+                    _settings.HudHeaderHeight),
+                _settings.HudTitleFormat,
+                _hudTitleStyle);
+            Rect countBadge = new Rect(
+                panel.xMax - padding - _settings.HudCountBadgeWidth,
+                panel.y + ((_settings.HudHeaderHeight - _settings.HudCountBadgeHeight) * 0.5f),
+                _settings.HudCountBadgeWidth,
+                _settings.HudCountBadgeHeight);
+            DrawRect(countBadge, _settings.HudBadgeColor);
+            DrawBorder(countBadge, _settings.HudBorderColor, _settings.HudBorderThickness);
+            GUI.Label(
+                countBadge,
+                FormatDesignerText(_settings.HudCountFormat, DiscoveredCount, TotalSiteCount),
+                _hudCountStyle);
+
+            bool challengeActive = _nearestSite != null && IsWithinChallengeActivation(_nearestSite);
+            if (_nearestSite == null)
+            {
+                DrawAtlasEmptyState(panel, padding);
+            }
+            else if (challengeActive)
+            {
+                DrawAtlasChallengeState(panel, padding);
+            }
+            else
+            {
+                DrawAtlasNavigationState(panel, padding);
+            }
+            DrawAtlasSurveyProgress(panel);
+        }
+
+        private void DrawAtlasEmptyState(Rect panel, float padding)
+        {
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.y + _settings.HudContentTop,
+                    panel.width - (padding * 2f),
+                    _settings.HudMetaHeight),
+                _settings.HudNoSignalLabel,
+                _hudMetaStyle);
+            string state = DiscoveredCount >= TotalSiteCount
+                ? _settings.HudAllDiscoveredText
+                : _settings.HudSignalsLockedText;
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.y + _settings.HudMetricTop,
+                    panel.width - (padding * 2f),
+                    _settings.HudMetricHeight),
+                state,
+                _hudBodyStyle);
+        }
+
+        private void DrawAtlasNavigationState(Rect panel, float padding)
+        {
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.y + _settings.HudContentTop,
+                    panel.width - (padding * 2f),
+                    _settings.HudMetaHeight),
+                _settings.HudSignalLabel,
+                _hudMetaStyle);
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.y + _settings.HudMetricTop,
+                    panel.width - (_settings.HudBearingBadgeSize + (padding * 3f)),
+                    _settings.HudMetricHeight),
+                FormatDesignerText(_settings.HudDistanceFormat, _nearestDistance),
+                _hudMetricStyle);
+            Rect bearingBadge = new Rect(
+                panel.xMax - padding - _settings.HudBearingBadgeSize,
+                panel.y + _settings.HudBearingBadgeTop,
+                _settings.HudBearingBadgeSize,
+                _settings.HudBearingBadgeSize);
+            float pulse = (Mathf.Sin(Time.unscaledTime * _settings.HudActivePulseSpeed) + 1f) * 0.5f;
+            Color badgeColor = Color.Lerp(
+                _settings.HudBadgeColor,
+                _settings.HudAccentColor,
+                pulse * _settings.HudActivePulseAmount);
+            DrawRect(bearingBadge, badgeColor);
+            DrawBorder(bearingBadge, _settings.HudAccentColor, _settings.HudBorderThickness);
+            GUI.Label(bearingBadge, GetBearingText(_nearestSite), _hudBearingStyle);
+        }
+
+        private void DrawAtlasChallengeState(Rect panel, float padding)
+        {
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.y + _settings.HudContentTop,
+                    panel.width - (padding * 2f),
+                    _settings.HudMetaHeight),
+                _settings.HudChallengeLabel,
+                _hudMetaStyle);
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.y + _settings.HudChallengeBodyTop,
+                    panel.width - (padding * 2f),
+                    _settings.HudChallengeBodyHeight),
+                _nearestSite.ChallengeInstruction,
+                _hudBodyStyle);
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.y + _settings.HudChallengeProgressTop,
+                    panel.width - (padding * 2f),
+                    _settings.HudChallengeProgressHeight),
+                GetChallengeProgressText(_nearestSite),
+                _hudMetaStyle);
+            Rect scanBar = new Rect(
+                panel.x + padding,
+                panel.yMax - _settings.HudScanBarBottomOffset - _settings.ScanBarHeight,
+                panel.width - (padding * 2f),
+                _settings.ScanBarHeight);
+            DrawRect(scanBar, _settings.ScanBarBackgroundColor);
+            DrawRect(
+                new Rect(scanBar.x, scanBar.y, scanBar.width * _scanProgress, scanBar.height),
+                _settings.HudAccentColor);
+        }
+
+        private void DrawAtlasSurveyProgress(Rect panel)
+        {
+            int segmentCount = Mathf.Max(1, _settings.HudSurveySegmentCount);
+            float gap = _settings.HudSurveySegmentGap;
+            float availableWidth = panel.width - _settings.HudAccentWidth;
+            float segmentWidth = Mathf.Max(
+                0f,
+                (availableWidth - (gap * (segmentCount - 1))) / segmentCount);
+            float surveyProgress = TotalSiteCount > 0 ? DiscoveredCount / (float)TotalSiteCount : 0f;
+            float filledSegments = surveyProgress * segmentCount;
+            float y = panel.yMax - _settings.HudSurveyBarBottomMargin - _settings.HudSurveyBarHeight;
+            for (int i = 0; i < segmentCount; i++)
+            {
+                Rect segment = new Rect(
+                    panel.x + _settings.HudAccentWidth + (i * (segmentWidth + gap)),
+                    y,
+                    segmentWidth,
+                    _settings.HudSurveyBarHeight);
+                DrawRect(segment, _settings.ScanBarBackgroundColor);
+                float fill = Mathf.Clamp01(filledSegments - i);
+                if (fill > 0f)
+                {
+                    DrawRect(
+                        new Rect(segment.x, segment.y, segment.width * fill, segment.height),
+                        _settings.HudAccentColor);
+                }
             }
         }
 
@@ -1487,7 +1646,11 @@ namespace DuneVector
                 _whiteTexture.Apply(false, true);
             }
             _hudTitleStyle ??= CreateStyle(_settings.HudTitleFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.HudTextColor);
-            _hudBodyStyle ??= CreateStyle(_settings.HudBodyFontSize, FontStyle.Normal, TextAnchor.MiddleLeft, _settings.HudMutedColor);
+            _hudBodyStyle ??= CreateStyle(_settings.HudBodyFontSize, FontStyle.Normal, TextAnchor.MiddleLeft, _settings.HudTextColor);
+            _hudMetaStyle ??= CreateStyle(_settings.HudMetaFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.HudMutedColor);
+            _hudMetricStyle ??= CreateStyle(_settings.HudMetricFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.HudAccentColor);
+            _hudBearingStyle ??= CreateStyle(_settings.HudBearingFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
+            _hudCountStyle ??= CreateStyle(_settings.HudCountFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
             _statusStyle ??= CreateStyle(_settings.HudTitleFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
             _terminalTitleStyle ??= CreateStyle(_settings.TerminalTitleFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.TerminalTextColor);
             _terminalBodyStyle ??= CreateStyle(_settings.TerminalBodyFontSize, FontStyle.Bold, TextAnchor.UpperLeft, _settings.TerminalTextColor);
