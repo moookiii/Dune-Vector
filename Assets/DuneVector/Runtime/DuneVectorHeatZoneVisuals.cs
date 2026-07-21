@@ -17,6 +17,7 @@ namespace DuneVector
             public Material GroundMaterial;
             public Mesh CurtainMesh;
             public Mesh GroundMesh;
+            public Mesh HeatVeilMesh;
             public ParticleSystem Plumes;
             public ParticleSystem Streaks;
         }
@@ -204,6 +205,7 @@ namespace DuneVector
 
             Material groundMaterial = null;
             Mesh groundMesh = null;
+            Mesh heatVeilMesh = null;
             if (_settings.GroundDistortionEnabled)
             {
                 groundMaterial = CreateGroundDistortionMaterial(
@@ -229,6 +231,19 @@ namespace DuneVector
                         Mathf.Pow(_settings.GroundDistortionShellStrengthFalloff, shell));
                     renderer.SetPropertyBlock(properties);
                 }
+
+                heatVeilMesh = CreateDuneHeatVeilMesh(center, sample);
+                if (heatVeilMesh != null)
+                {
+                    Renderer veilRenderer = CreateMeshRenderer(
+                        "Continuous Dune-Rising Heat Veils",
+                        root.transform,
+                        heatVeilMesh,
+                        groundMaterial);
+                    MaterialPropertyBlock veilProperties = new MaterialPropertyBlock();
+                    veilProperties.SetFloat("_VerticalVeil", 1f);
+                    veilRenderer.SetPropertyBlock(veilProperties);
+                }
             }
 
             if ((HeatZoneVisualsActive || _settings.GroundDistortionEnabled) && _plumeMaterial != null)
@@ -243,6 +258,7 @@ namespace DuneVector
                 GroundMaterial = groundMaterial,
                 CurtainMesh = curtainMesh,
                 GroundMesh = groundMesh,
+                HeatVeilMesh = heatVeilMesh,
                 Plumes = plumes,
                 Streaks = streaks,
             };
@@ -654,6 +670,8 @@ namespace DuneVector
             material.SetFloat("_DistortionBlur", Mathf.Clamp01(_settings.DistortionBlurStrength));
             material.SetFloat("_TextureScale", Mathf.Max(0.01f, _settings.DistortionTextureScale));
             material.SetVector("_ScrollVelocity", _settings.DistortionScrollVelocity);
+            material.SetFloat("_VeilNearSofteningDistance", _settings.GroundHeatVeilNearSofteningDistance);
+            material.SetFloat("_VeilNearMinimumStrength", _settings.GroundHeatVeilNearMinimumStrength);
             material.SetFloat("_ShimmerOpacity", Mathf.Clamp(_settings.GroundHeatShimmerOpacity, 0f, 0.3f));
             material.SetColor("_ShimmerColor", _settings.GroundHeatShimmerColor);
             return material;
@@ -932,6 +950,7 @@ namespace DuneVector
             if (visual.GroundMaterial != null) Destroy(visual.GroundMaterial);
             if (visual.CurtainMesh != null) Destroy(visual.CurtainMesh);
             if (visual.GroundMesh != null) Destroy(visual.GroundMesh);
+            if (visual.HeatVeilMesh != null) Destroy(visual.HeatVeilMesh);
         }
 
         private void OnDestroy()
