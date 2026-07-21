@@ -9,8 +9,6 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
         _ScrollVelocity("Scroll Velocity", Vector) = (0.035, 0.12, 0, 0)
         _ShellStrengthMultiplier("Shell Strength Multiplier", Float) = 1
         [HideInInspector] _VerticalVeil("Vertical Veil", Float) = 0
-        _VeilNearSofteningDistance("Veil Near Softening Distance", Float) = 32
-        _VeilNearMinimumStrength("Veil Near Minimum Strength", Range(0, 1)) = 0.08
         [HDR] _ShimmerColor("Visible Heat Shimmer", Color) = (1.15, 0.9, 0.62, 1)
         _ShimmerOpacity("Visible Heat Shimmer Opacity", Range(0, 0.3)) = 0.08
     }
@@ -64,8 +62,6 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 float4 _ScrollVelocity;
                 float _ShellStrengthMultiplier;
                 float _VerticalVeil;
-                float _VeilNearSofteningDistance;
-                float _VeilNearMinimumStrength;
             CBUFFER_END
 
             struct Attributes
@@ -79,7 +75,6 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
             {
                 float4 positionCS : SV_POSITION;
                 float2 uv : TEXCOORD0;
-                float3 positionRWS : TEXCOORD1;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -88,8 +83,7 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 Varyings output;
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
-                output.positionRWS = TransformObjectToWorld(input.positionOS);
-                output.positionCS = TransformWorldToHClip(output.positionRWS);
+                output.positionCS = TransformObjectToHClip(input.positionOS);
                 output.uv = input.uv;
                 return output;
             }
@@ -97,16 +91,12 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
             float4 Frag(Varyings input) : SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(input);
-                float cameraDistance = length(input.positionRWS);
-                float veilNearStrength = lerp(
-                    _VeilNearMinimumStrength,
-                    1.0,
-                    smoothstep(0.0, max(_VeilNearSofteningDistance, 0.001), cameraDistance));
-                float veilStrength = lerp(1.0, veilNearStrength, saturate(_VerticalVeil));
                 float2 centeredUv = input.uv - 0.5;
                 float radialMask = 1.0 - smoothstep(0.38, 0.5, length(centeredUv));
                 float verticalMask = smoothstep(0.0, 0.12, input.uv.y) *
                     smoothstep(0.0, 0.22, 1.0 - input.uv.y);
+                verticalMask *= smoothstep(0.0, 0.16, input.uv.x) *
+                    smoothstep(0.0, 0.16, 1.0 - input.uv.x);
                 float edgeMask = lerp(radialMask, verticalMask, saturate(_VerticalVeil));
 
                 float2 scroll = _ScrollVelocity.xy * _Time.y;
@@ -116,9 +106,9 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 float2 secondary = SAMPLE_TEXTURE2D(_NoiseTex, sampler_NoiseTex, secondaryUv).gr - 0.5;
                 float wave = sin((input.uv.y * 31.0) - (_Time.y * 2.4));
                 float2 distortion = primary + (secondary * 0.55) + float2(wave * 0.12, wave * 0.04);
-                distortion *= _DistortionStrength * _ShellStrengthMultiplier * edgeMask * veilStrength;
+                distortion *= _DistortionStrength * _ShellStrengthMultiplier * edgeMask;
 
-                return float4(distortion, 1.0, _DistortionBlur * edgeMask * veilStrength);
+                return float4(distortion, 1.0, _DistortionBlur * edgeMask);
             }
             ENDHLSL
         }
@@ -153,8 +143,6 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 float4 _ScrollVelocity;
                 float _ShellStrengthMultiplier;
                 float _VerticalVeil;
-                float _VeilNearSofteningDistance;
-                float _VeilNearMinimumStrength;
                 float4 _ShimmerColor;
                 float _ShimmerOpacity;
             CBUFFER_END
@@ -170,7 +158,6 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
             {
                 float4 positionCS : SV_POSITION;
                 float2 uv : TEXCOORD0;
-                float3 positionRWS : TEXCOORD1;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -179,8 +166,7 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 ShimmerVaryings output;
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
-                output.positionRWS = TransformObjectToWorld(input.positionOS);
-                output.positionCS = TransformWorldToHClip(output.positionRWS);
+                output.positionCS = TransformObjectToHClip(input.positionOS);
                 output.uv = input.uv;
                 return output;
             }
@@ -188,11 +174,6 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
             float4 FragShimmer(ShimmerVaryings input) : SV_Target
             {
                 UNITY_SETUP_INSTANCE_ID(input);
-                float cameraDistance = length(input.positionRWS);
-                float veilNearStrength = lerp(
-                    _VeilNearMinimumStrength,
-                    1.0,
-                    smoothstep(0.0, max(_VeilNearSofteningDistance, 0.001), cameraDistance));
                 float2 scroll = _ScrollVelocity.xy * _Time.y;
                 float3 primary = SAMPLE_TEXTURE2D(
                     _NoiseTex,
@@ -204,13 +185,12 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                     (input.uv.yx * (_TextureScale * 1.61)) - (scroll.yx * 0.73)).b;
                 float sideFade = smoothstep(0.0, 0.18, input.uv.x) *
                     smoothstep(0.0, 0.18, 1.0 - input.uv.x);
-                sideFade = lerp(sideFade, 1.0, saturate(_VerticalVeil));
                 float verticalFade = smoothstep(0.0, 0.12, input.uv.y) *
                     smoothstep(0.0, 0.24, 1.0 - input.uv.y);
                 float pulse = 0.45 + (0.35 * sin((input.uv.y * 24.0) - (_Time.y * 2.1)));
                 float shimmer = saturate((primary.b * 0.65) + (secondary * 0.35) + pulse - 0.55);
                 float alpha = shimmer * sideFade * verticalFade * saturate(_VerticalVeil) *
-                    _ShimmerOpacity * _ShellStrengthMultiplier * veilNearStrength;
+                    _ShimmerOpacity * _ShellStrengthMultiplier;
                 clip(alpha - 0.002);
                 return float4(_ShimmerColor.rgb, alpha);
             }
