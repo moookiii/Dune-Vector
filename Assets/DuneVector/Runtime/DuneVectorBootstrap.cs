@@ -451,6 +451,9 @@ namespace DuneVector
             {
                 cameraData = cameraObject.AddComponent<HDAdditionalCameraData>();
             }
+            cameraData.customRenderingSettings = true;
+            cameraData.renderingPathCustomFrameSettings.SetEnabled(FrameSettingsField.Distortion, true);
+            cameraData.renderingPathCustomFrameSettingsOverrideMask.mask[(uint)FrameSettingsField.Distortion] = true;
             ConfigureCameraAntiAliasing(cameraData, PlayerTuning);
 
             DroneCamera = cameraObject.AddComponent<DroneCameraController>();
