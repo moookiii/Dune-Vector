@@ -1778,11 +1778,16 @@ namespace DuneVector
 
     public enum DesertAtlasChallengeType
     {
-        SignalLock,
-        VectorPass,
-        OrbitTrace,
-        AltitudeHold,
-        RelaySequence,
+        VectorPass = 1,
+        OrbitTrace = 2,
+        RelaySequence = 4,
+        AerialSlalom = 5,
+        DuneSkim = 6,
+        PrecisionDive = 7,
+        PulseDecode = 8,
+        ReverseOrbit = 9,
+        TouchdownScan = 10,
+        FluxWeave = 11,
     }
 
     [System.Serializable]
@@ -1800,8 +1805,8 @@ namespace DuneVector
         [Min(0)] public int RequiredDiscoveries;
         public bool IsFinalSignal;
         [Header("Flight Challenge")]
-        public DesertAtlasChallengeType ChallengeType = DesertAtlasChallengeType.SignalLock;
-        public string ChallengeInstruction = "HOLD E TO SYNCHRONIZE";
+        public DesertAtlasChallengeType ChallengeType = DesertAtlasChallengeType.VectorPass;
+        public string ChallengeInstruction = "HIT THE CORE IN FLIGHT";
         [Tooltip("Seconds for timed challenges or degrees for orbit challenges.")]
         [Min(0.1f)] public float RequiredAmount = 4f;
         [Tooltip("Seconds used by the final phase of multi-stage relay challenges.")]
@@ -1860,9 +1865,7 @@ namespace DuneVector
         public string HudSignalsLockedText = "FURTHER SIGNALS ENCRYPTED — REVIEW THE ATLAS";
         public string HudNearestSignalFormat = "NEAREST SIGNAL  {0:0} m  {1}";
         public string HudChallengeFormat = "{0}\n{1}";
-        public string SignalLockProgressFormat = "SYNC  {0:0}%";
         public string OrbitProgressFormat = "TRACE  {0:0}° / {1:0}°";
-        public string AltitudeProgressFormat = "HOLD  {0:0.0}s / {1:0.0}s  ALT {2:+0.0;-0.0;0.0}m";
         public string VectorPassProgressFormat = "VECTOR PASS  {0:0}%  SPEED {1:0.0}";
         public string VectorPassNeedFlightText = "ENTER FLIGHT MODE THROUGH THE NEARBY RING";
         public string VectorPassNeedSpeedFormat = "MORE SPEED REQUIRED  {0:0.0} / {1:0.0} M/S";
@@ -1873,6 +1876,19 @@ namespace DuneVector
         public string RelayStageTwoProgressFormat = "PHASE 2/3 — STRIKE THE CORE  {0:0}%";
         public string RelayStageThreeProgressFormat = "PHASE 3/3 — HOLD ALTITUDE  {0:0.0}s / {1:0.0}s";
         public string RelayStageAdvancedFormat = "RELAY PHASE {0}/3 COMPLETE";
+        public string SlalomProgressFormat = "SLALOM GATE  {0}/{1}  SPEED {2:0.0}";
+        public string SkimProgressFormat = "DUNE SKIM  {0:0.0}s / {1:0.0}s  HEIGHT {2:0.0}m";
+        public string DiveClimbFormat = "CLIMB TO ARM DIVE  {0:0}m / {1:0}m";
+        public string DiveArmedFormat = "DIVE ARMED — STRIKE CORE  DESCENT {0:0.0} M/S";
+        public string PulseReadyFormat = "PULSE OPEN — PRESS E  {0}/{1}";
+        public string PulseWaitFormat = "WAIT FOR PULSE  {0}/{1}";
+        public string ReverseOrbitFirstFormat = "ORBIT PHASE 1  {0:0}° / {1:0}°";
+        public string ReverseOrbitSecondFormat = "REVERSE DIRECTION  {0:0}° / {1:0}°";
+        public string TouchdownArmFormat = "FLY ABOVE CORE TO ARM  {0:0}m / {1:0}m";
+        public string TouchdownLandText = "TOUCH DOWN INSIDE THE SIGNAL RING";
+        public string TouchdownScanFormat = "LANDED SCAN  {0:0.0}s / {1:0.0}s";
+        public string FluxOuterText = "FLUX WEAVE — EXIT TO THE OUTER RING";
+        public string FluxInnerFormat = "FLUX WEAVE — CUT THROUGH CORE  {0}/{1}";
         [Min(0f)] public float DiscoveryStatusDuration = 4f;
         [Min(0f)] public float ScanInterruptedStatusDuration = 2f;
 
@@ -1937,6 +1953,50 @@ namespace DuneVector
         [Min(0.1f)] public float VectorPassFinishRadius = 8f;
         [Min(0f)] public float VectorPassProgressDecayPerSecond = 0.8f;
         [Min(0.1f)] public float RelayVectorArmRadius = 42f;
+
+        [Header("Aerial Slalom")]
+        [Range(3, 9)] public int SlalomMinimumGateCount = 3;
+        [Range(3, 12)] public int SlalomMaximumGateCount = 9;
+        [Min(1f)] public float SlalomGateSpacing = 18f;
+        [Min(0f)] public float SlalomGateLateralOffset = 12f;
+        [Min(0f)] public float SlalomGateVerticalOffset = 5f;
+        [Min(0.5f)] public float SlalomGateRadius = 5f;
+        [Min(0.05f)] public float SlalomGateThickness = 0.18f;
+        [Range(6, 32)] public int SlalomGateSegments = 18;
+        [Min(0.5f)] public float SlalomPassRadius = 5.5f;
+        [Min(1f)] public float SlalomActivationPadding = 26f;
+        [Range(0.1f, 1f)] public float SlalomPassedGateScale = 0.65f;
+        [Min(0f)] public float SlalomCurrentGatePulseAmount = 0.12f;
+
+        [Header("Dune Skim")]
+        [Min(1f)] public float SkimChallengeRadius = 70f;
+        [Min(0f)] public float SkimMinimumTerrainClearance = 1.5f;
+        [Min(0f)] public float SkimProgressDecayPerSecond = 0.5f;
+
+        [Header("Precision Dive")]
+        [Min(1f)] public float DiveChallengeRadius = 70f;
+        [Min(0f)] public float DiveMinimumDownwardSpeed = 12f;
+        [Min(0.5f)] public float DiveCoreRadius = 7f;
+
+        [Header("Pulse Decode")]
+        [Min(0.2f)] public float PulseDecodeCycleDuration = 1.6f;
+        [Range(0.05f, 0.45f)] public float PulseDecodeWindowFraction = 0.2f;
+        [Range(0f, 1f)] public float PulseDecodeMistakePenalty = 0.5f;
+        [Min(1f)] public float PulseDecodeOpenScaleMultiplier = 1.35f;
+
+        [Header("Reverse Orbit")]
+        [Min(0f)] public float ReverseOrbitDirectionToleranceDegrees = 0.1f;
+
+        [Header("Touchdown Scan")]
+        [Min(1f)] public float TouchdownChallengeRadius = 28f;
+        [Min(0f)] public float TouchdownMaximumGroundSpeed = 3f;
+        [Min(0f)] public float TouchdownProgressDecayPerSecond = 0.35f;
+
+        [Header("Flux Weave")]
+        [Min(1f)] public float FluxInnerRadius = 10f;
+        [Min(1f)] public float FluxOuterRadius = 42f;
+        [Min(0f)] public float FluxActivationPadding = 18f;
+        [Min(0f)] public float FluxProgressDecayPerSecond = 0.15f;
 
         [Header("Site Flight Ring")]
         public bool SpawnChallengeFlightRing = true;

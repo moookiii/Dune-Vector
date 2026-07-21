@@ -31,6 +31,7 @@ namespace DuneVector
             public Vector3 BeamBaseScale;
             public TraversalRing ChallengeFlightRing;
             public ParticleSystem AmbientParticles;
+            public readonly List<Transform> SlalomGates = new List<Transform>();
         }
 
         public bool IsUnlocked => _settings != null && _settings.Enabled && _progress != null &&
@@ -76,6 +77,12 @@ namespace DuneVector
         private int _relayStage;
         private float _relayStageProgress;
         private float _challengeStartedAt;
+        private int _challengeStep;
+        private float _challengeStepProgress;
+        private bool _challengeArmed;
+        private float _firstOrbitDirection;
+        private Vector3 _challengePreviousPosition;
+        private bool _hasChallengePreviousPosition;
         private bool _completionRewardClaimed;
         private string _statusText;
         private float _statusUntil;
@@ -224,14 +231,32 @@ namespace DuneVector
                 case DesertAtlasChallengeType.OrbitTrace:
                     UpdateOrbitChallenge(_nearestSite);
                     break;
-                case DesertAtlasChallengeType.AltitudeHold:
-                    UpdateAltitudeHoldChallenge(_nearestSite);
-                    break;
                 case DesertAtlasChallengeType.RelaySequence:
                     UpdateRelaySequenceChallenge(_nearestSite);
                     break;
+                case DesertAtlasChallengeType.AerialSlalom:
+                    UpdateAerialSlalomChallenge(_nearestSite);
+                    break;
+                case DesertAtlasChallengeType.DuneSkim:
+                    UpdateDuneSkimChallenge(_nearestSite);
+                    break;
+                case DesertAtlasChallengeType.PrecisionDive:
+                    UpdatePrecisionDiveChallenge(_nearestSite);
+                    break;
+                case DesertAtlasChallengeType.PulseDecode:
+                    UpdatePulseDecodeChallenge(_nearestSite);
+                    break;
+                case DesertAtlasChallengeType.ReverseOrbit:
+                    UpdateReverseOrbitChallenge(_nearestSite);
+                    break;
+                case DesertAtlasChallengeType.TouchdownScan:
+                    UpdateTouchdownScanChallenge(_nearestSite);
+                    break;
+                case DesertAtlasChallengeType.FluxWeave:
+                    UpdateFluxWeaveChallenge(_nearestSite);
+                    break;
                 default:
-                    UpdateSignalLockChallenge(_nearestSite);
+                    UpdateVectorPassChallenge(_nearestSite);
                     break;
             }
             if (_scanProgress >= 1f)
@@ -245,19 +270,6 @@ namespace DuneVector
             ResetScan();
             _scanningSiteId = site.PersistentId;
             _challengeStartedAt = Time.unscaledTime;
-        }
-
-        private void UpdateSignalLockChallenge(DesertAtlasSiteDefinition site)
-        {
-            Keyboard keyboard = Keyboard.current;
-            bool held = keyboard != null && _settings.ScanKey != Key.None && keyboard[_settings.ScanKey].isPressed;
-            if (!held || _nearestDistance > _settings.ScanRadius)
-            {
-                DecayScan();
-                return;
-            }
-            _scanProgress = Mathf.Clamp01(_scanProgress +
-                (Time.deltaTime / Mathf.Max(0.1f, site.RequiredAmount)));
         }
 
         private void UpdateOrbitChallenge(DesertAtlasSiteDefinition site)
@@ -296,28 +308,6 @@ namespace DuneVector
             else
             {
                 _scanProgress = Mathf.Max(0f, _scanProgress - (_settings.OrbitProgressDecayPerSecond * Time.deltaTime));
-            }
-        }
-
-        private void UpdateAltitudeHoldChallenge(DesertAtlasSiteDefinition site)
-        {
-            Vector3 sitePosition = GetSiteLocalPosition(site);
-            Vector3 offset = _player.WorldCenter - sitePosition;
-            float planarRadius = new Vector2(offset.x, offset.z).magnitude;
-            float heightError = offset.y - site.TargetHeightAboveSignal;
-            Vector3 velocity = _player.Motor != null ? _player.Motor.Velocity : Vector3.zero;
-            bool valid = _player.CurrentMode == DroneTraversalMode.Flight &&
-                planarRadius <= _settings.AltitudeHoldHorizontalRadius &&
-                Mathf.Abs(heightError) <= site.HeightTolerance &&
-                Mathf.Abs(velocity.y) <= _settings.AltitudeHoldMaximumVerticalSpeed;
-            if (valid)
-            {
-                _scanProgress = Mathf.Clamp01(_scanProgress +
-                    (Time.deltaTime / Mathf.Max(0.1f, site.RequiredAmount)));
-            }
-            else
-            {
-                DecayScan();
             }
         }
 
@@ -473,6 +463,236 @@ namespace DuneVector
             _statusUntil = Time.unscaledTime + _settings.ScanInterruptedStatusDuration;
         }
 
+        private void UpdateAerialSlalomChallenge(DesertAtlasSiteDefinition site)
+        {
+            if (!_visuals.TryGetValue(site.PersistentId, out SiteVisual visual) || visual.SlalomGates.Count == 0)
+            {
+                DecayScan();
+                return;
+            }
+
+            Vector3 playerPosition = _player.WorldCenter;
+            if (!_hasChallengePreviousPosition)
+            {
+                _challengePreviousPosition = playerPosition;
+                _hasChallengePreviousPosition = true;
+            }
+            bool valid = _player.CurrentMode == DroneTraversalMode.Flight && _player.Speed >= site.MinimumSpeed;
+            int gateIndex = Mathf.Clamp(_challengeStep, 0, visual.SlalomGates.Count - 1);
+            if (valid && DidCrossTarget(
+                _challengePreviousPosition,
+                playerPosition,
+                visual.SlalomGates[gateIndex].position,
+                _settings.SlalomPassRadius))
+            {
+                _challengeStep++;
+                _scanProgress = Mathf.Clamp01(_challengeStep / (float)visual.SlalomGates.Count);
+            }
+            else if (!valid)
+            {
+                _scanProgress = Mathf.Max(
+                    0f,
+                    _scanProgress - (_settings.ScanProgressDecayPerSecond * Time.deltaTime));
+            }
+            _challengePreviousPosition = playerPosition;
+        }
+
+        private void UpdateDuneSkimChallenge(DesertAtlasSiteDefinition site)
+        {
+            Vector3 playerPosition = _player.WorldCenter;
+            float terrainHeight = _world.SampleHeightAtLocal(playerPosition.x, playerPosition.z);
+            float clearance = playerPosition.y - terrainHeight;
+            bool valid = _player.CurrentMode == DroneTraversalMode.Flight &&
+                _player.Speed >= site.MinimumSpeed &&
+                clearance >= _settings.SkimMinimumTerrainClearance &&
+                clearance <= site.TargetHeightAboveSignal;
+            if (valid)
+            {
+                _scanProgress = Mathf.Clamp01(
+                    _scanProgress + (Time.deltaTime / Mathf.Max(0.1f, site.RequiredAmount)));
+            }
+            else
+            {
+                _scanProgress = Mathf.Max(
+                    0f,
+                    _scanProgress - (_settings.SkimProgressDecayPerSecond * Time.deltaTime));
+            }
+        }
+
+        private void UpdatePrecisionDiveChallenge(DesertAtlasSiteDefinition site)
+        {
+            Vector3 playerPosition = _player.WorldCenter;
+            Vector3 sitePosition = GetSiteLocalPosition(site);
+            Vector3 targetPosition = GetVectorPassTargetPosition(site);
+            float height = playerPosition.y - sitePosition.y;
+            Vector3 velocity = _player.Motor != null ? _player.Motor.Velocity : Vector3.zero;
+            bool flightValid = _player.CurrentMode == DroneTraversalMode.Flight && _player.Speed >= site.MinimumSpeed;
+            if (!_challengeArmed && flightValid && height >= site.TargetHeightAboveSignal)
+            {
+                _challengeArmed = true;
+            }
+            if (!_hasChallengePreviousPosition)
+            {
+                _challengePreviousPosition = playerPosition;
+                _hasChallengePreviousPosition = true;
+            }
+            if (!_challengeArmed)
+            {
+                _scanProgress = Mathf.Clamp01(height / Mathf.Max(1f, site.TargetHeightAboveSignal)) * 0.45f;
+            }
+            else
+            {
+                float distance = Vector3.Distance(playerPosition, targetPosition);
+                _scanProgress = Mathf.Max(
+                    _scanProgress,
+                    0.45f + (Mathf.InverseLerp(_settings.DiveChallengeRadius, _settings.DiveCoreRadius, distance) * 0.55f));
+                bool descendingFastEnough = velocity.y <= -_settings.DiveMinimumDownwardSpeed;
+                if (flightValid && descendingFastEnough && DidCrossTarget(
+                    _challengePreviousPosition,
+                    playerPosition,
+                    targetPosition,
+                    _settings.DiveCoreRadius))
+                {
+                    _scanProgress = 1f;
+                }
+            }
+            _challengePreviousPosition = playerPosition;
+        }
+
+        private void UpdatePulseDecodeChallenge(DesertAtlasSiteDefinition site)
+        {
+            int requiredPulses = Mathf.Max(1, Mathf.RoundToInt(site.RequiredAmount));
+            Keyboard keyboard = Keyboard.current;
+            bool pressed = keyboard != null && _settings.ScanKey != Key.None &&
+                keyboard[_settings.ScanKey].wasPressedThisFrame;
+            if (pressed && IsPulseDecodeWindowOpen())
+            {
+                _challengeStepProgress = Mathf.Min(requiredPulses, _challengeStepProgress + 1f);
+            }
+            else if (pressed)
+            {
+                _challengeStepProgress = Mathf.Max(
+                    0f,
+                    _challengeStepProgress - _settings.PulseDecodeMistakePenalty);
+            }
+            _scanProgress = Mathf.Clamp01(_challengeStepProgress / requiredPulses);
+        }
+
+        private void UpdateReverseOrbitChallenge(DesertAtlasSiteDefinition site)
+        {
+            Vector3 sitePosition = GetSiteLocalPosition(site);
+            Vector3 offset = _player.WorldCenter - sitePosition;
+            float planarRadius = new Vector2(offset.x, offset.z).magnitude;
+            float heightError = Mathf.Abs(offset.y - site.TargetHeightAboveSignal);
+            bool valid = _player.CurrentMode == DroneTraversalMode.Flight &&
+                _player.Speed >= site.MinimumSpeed &&
+                planarRadius >= _settings.OrbitMinimumRadius &&
+                planarRadius <= _settings.OrbitMaximumRadius &&
+                heightError <= site.HeightTolerance;
+            float angle = Mathf.Atan2(offset.x, offset.z) * Mathf.Rad2Deg;
+            if (!valid)
+            {
+                _hasOrbitAngle = false;
+                return;
+            }
+            if (!_hasOrbitAngle)
+            {
+                _orbitLastAngle = angle;
+                _hasOrbitAngle = true;
+                return;
+            }
+
+            float delta = Mathf.DeltaAngle(_orbitLastAngle, angle);
+            _orbitLastAngle = angle;
+            if (Mathf.Abs(delta) < _settings.ReverseOrbitDirectionToleranceDegrees)
+            {
+                return;
+            }
+            float direction = Mathf.Sign(delta);
+            float phaseTarget = Mathf.Max(1f, site.RequiredAmount * 0.5f);
+            if (_challengeStep == 0)
+            {
+                if (Mathf.Approximately(_firstOrbitDirection, 0f)) _firstOrbitDirection = direction;
+                if (direction == Mathf.Sign(_firstOrbitDirection))
+                {
+                    _challengeStepProgress = Mathf.Min(phaseTarget, _challengeStepProgress + Mathf.Abs(delta));
+                    if (_challengeStepProgress >= phaseTarget)
+                    {
+                        _challengeStep = 1;
+                        _challengeStepProgress = 0f;
+                        _hasOrbitAngle = false;
+                    }
+                }
+            }
+            else if (direction != Mathf.Sign(_firstOrbitDirection))
+            {
+                _challengeStepProgress = Mathf.Min(phaseTarget, _challengeStepProgress + Mathf.Abs(delta));
+            }
+            _scanProgress = Mathf.Clamp01((_challengeStep + (_challengeStepProgress / phaseTarget)) * 0.5f);
+        }
+
+        private void UpdateTouchdownScanChallenge(DesertAtlasSiteDefinition site)
+        {
+            Vector3 offset = _player.WorldCenter - GetSiteLocalPosition(site);
+            float planarRadius = new Vector2(offset.x, offset.z).magnitude;
+            if (!_challengeArmed && _player.CurrentMode == DroneTraversalMode.Flight &&
+                _player.Speed >= site.MinimumSpeed && offset.y >= site.TargetHeightAboveSignal)
+            {
+                _challengeArmed = true;
+            }
+            if (!_challengeArmed)
+            {
+                _scanProgress = Mathf.Clamp01(offset.y / Mathf.Max(1f, site.TargetHeightAboveSignal)) * 0.35f;
+                return;
+            }
+
+            Keyboard keyboard = Keyboard.current;
+            bool held = keyboard != null && _settings.ScanKey != Key.None && keyboard[_settings.ScanKey].isPressed;
+            bool valid = _player.CurrentMode == DroneTraversalMode.Normal &&
+                planarRadius <= _settings.TouchdownChallengeRadius &&
+                _player.Speed <= _settings.TouchdownMaximumGroundSpeed && held;
+            if (valid)
+            {
+                _challengeStepProgress = Mathf.Clamp01(
+                    _challengeStepProgress + (Time.deltaTime / Mathf.Max(0.1f, site.RequiredAmount)));
+            }
+            else
+            {
+                _challengeStepProgress = Mathf.Max(
+                    0f,
+                    _challengeStepProgress - (_settings.TouchdownProgressDecayPerSecond * Time.deltaTime));
+            }
+            _scanProgress = 0.35f + (_challengeStepProgress * 0.65f);
+        }
+
+        private void UpdateFluxWeaveChallenge(DesertAtlasSiteDefinition site)
+        {
+            Vector3 offset = _player.WorldCenter - GetSiteLocalPosition(site);
+            float planarRadius = new Vector2(offset.x, offset.z).magnitude;
+            int requiredPasses = Mathf.Max(1, Mathf.RoundToInt(site.RequiredAmount));
+            bool flightValid = _player.CurrentMode == DroneTraversalMode.Flight && _player.Speed >= site.MinimumSpeed;
+            if (!flightValid)
+            {
+                _challengeStepProgress = Mathf.Max(
+                    0f,
+                    _challengeStepProgress - (_settings.FluxProgressDecayPerSecond * Time.deltaTime));
+                _challengeStep = Mathf.FloorToInt(_challengeStepProgress);
+                _scanProgress = Mathf.Clamp01(_challengeStepProgress / requiredPasses);
+                return;
+            }
+            if (!_challengeArmed && planarRadius >= _settings.FluxOuterRadius)
+            {
+                _challengeArmed = true;
+            }
+            else if (_challengeArmed && planarRadius <= _settings.FluxInnerRadius)
+            {
+                _challengeStepProgress = Mathf.Min(requiredPasses, _challengeStepProgress + 1f);
+                _challengeStep = Mathf.FloorToInt(_challengeStepProgress);
+                _challengeArmed = false;
+            }
+            _scanProgress = Mathf.Clamp01(_challengeStepProgress / requiredPasses);
+        }
+
         private static bool DidCrossTarget(Vector3 start, Vector3 end, Vector3 target, float radius)
         {
             if (Vector3.Distance(end, target) <= radius)
@@ -603,8 +823,14 @@ namespace DuneVector
                 BeamBaseScale = beam.localScale,
             };
             created.AmbientParticles = CreateAmbientParticles(root, signalMaterial, site.SignalColor);
+            if (site.ChallengeType == DesertAtlasChallengeType.AerialSlalom)
+            {
+                BuildSlalomGates(created, site, material);
+            }
             if (_settings.SpawnChallengeFlightRing &&
-                site.ChallengeType != DesertAtlasChallengeType.SignalLock && _world.Rings != null)
+                (site.ChallengeType == DesertAtlasChallengeType.VectorPass ||
+                 site.ChallengeType == DesertAtlasChallengeType.RelaySequence) &&
+                _world.Rings != null)
             {
                 GameObject ringObject = new GameObject("Atlas Challenge Flight Ring");
                 ringObject.transform.SetParent(root, false);
@@ -629,6 +855,50 @@ namespace DuneVector
             }
             _visuals.Add(site.PersistentId, created);
             return created;
+        }
+
+        private void BuildSlalomGates(SiteVisual visual, DesertAtlasSiteDefinition site, Material material)
+        {
+            int minimum = Mathf.Min(_settings.SlalomMinimumGateCount, _settings.SlalomMaximumGateCount);
+            int maximum = Mathf.Max(_settings.SlalomMinimumGateCount, _settings.SlalomMaximumGateCount);
+            int gateCount = Mathf.Clamp(Mathf.RoundToInt(site.RequiredAmount), minimum, maximum);
+            float center = (gateCount - 1) * 0.5f;
+            for (int i = 0; i < gateCount; i++)
+            {
+                Transform gate = new GameObject($"Slalom Gate {i + 1}").transform;
+                gate.SetParent(visual.Root, false);
+                float side = i % 2 == 0 ? -1f : 1f;
+                float vertical = i % 3 == 1 ? _settings.SlalomGateVerticalOffset : 0f;
+                gate.localPosition = new Vector3(
+                    side * _settings.SlalomGateLateralOffset,
+                    Mathf.Max(_settings.CoreHeight, site.TargetHeightAboveSignal) + vertical,
+                    (i - center) * _settings.SlalomGateSpacing);
+                BuildVerticalSegmentedRing(gate, material);
+                visual.SlalomGates.Add(gate);
+            }
+        }
+
+        private void BuildVerticalSegmentedRing(Transform parent, Material material)
+        {
+            int segments = Mathf.Max(6, _settings.SlalomGateSegments);
+            float segmentLength = (Mathf.PI * 2f * _settings.SlalomGateRadius) / segments;
+            for (int i = 0; i < segments; i++)
+            {
+                float angle = (360f / segments) * i;
+                float radians = angle * Mathf.Deg2Rad;
+                Vector3 position = new Vector3(
+                    Mathf.Cos(radians) * _settings.SlalomGateRadius,
+                    Mathf.Sin(radians) * _settings.SlalomGateRadius,
+                    0f);
+                CreatePart(
+                    PrimitiveType.Cube,
+                    $"Gate Segment {i + 1}",
+                    parent,
+                    position,
+                    new Vector3(_settings.SlalomGateThickness, segmentLength, _settings.SlalomGateThickness),
+                    material,
+                    Quaternion.Euler(0f, 0f, angle));
+            }
         }
 
         private ParticleSystem CreateAmbientParticles(Transform parent, Material material, Color color)
@@ -704,7 +974,27 @@ namespace DuneVector
                 Transform core = visual.Root.Find("Signal Core");
                 if (core != null)
                 {
-                    core.localScale = visual.CoreBaseScale * pulse;
+                    bool decodeWindowOpen = challengeActive &&
+                        _nearestSite != null &&
+                        _nearestSite.ChallengeType == DesertAtlasChallengeType.PulseDecode &&
+                        IsPulseDecodeWindowOpen();
+                    core.localScale = visual.CoreBaseScale * pulse *
+                        (decodeWindowOpen ? _settings.PulseDecodeOpenScaleMultiplier : 1f);
+                }
+                if (visual.SlalomGates.Count > 0)
+                {
+                    for (int gateIndex = 0; gateIndex < visual.SlalomGates.Count; gateIndex++)
+                    {
+                        float gateScale = challengeActive && gateIndex < _challengeStep
+                            ? _settings.SlalomPassedGateScale
+                            : 1f;
+                        if (challengeActive && gateIndex == _challengeStep)
+                        {
+                            gateScale += Mathf.Sin(Time.time * _settings.PulseSpeed) *
+                                _settings.SlalomCurrentGatePulseAmount;
+                        }
+                        visual.SlalomGates[gateIndex].localScale = Vector3.one * gateScale;
+                    }
                 }
                 if (visual.Beam != null)
                 {
@@ -769,8 +1059,13 @@ namespace DuneVector
             {
                 DesertAtlasChallengeType.VectorPass => _settings.VectorPassStartRadius,
                 DesertAtlasChallengeType.OrbitTrace => _settings.OrbitMaximumRadius,
-                DesertAtlasChallengeType.AltitudeHold => _settings.AltitudeHoldHorizontalRadius,
                 DesertAtlasChallengeType.RelaySequence => _settings.VectorPassStartRadius,
+                DesertAtlasChallengeType.AerialSlalom => GetSlalomActivationRadius(site),
+                DesertAtlasChallengeType.DuneSkim => _settings.SkimChallengeRadius,
+                DesertAtlasChallengeType.PrecisionDive => _settings.DiveChallengeRadius,
+                DesertAtlasChallengeType.ReverseOrbit => _settings.OrbitMaximumRadius,
+                DesertAtlasChallengeType.TouchdownScan => _settings.TouchdownChallengeRadius,
+                DesertAtlasChallengeType.FluxWeave => _settings.FluxOuterRadius + _settings.FluxActivationPadding,
                 _ => _settings.ScanRadius,
             };
         }
@@ -779,13 +1074,18 @@ namespace DuneVector
         {
             if (site == null) return false;
             if (site.ChallengeType == DesertAtlasChallengeType.VectorPass ||
-                site.ChallengeType == DesertAtlasChallengeType.RelaySequence)
+                site.ChallengeType == DesertAtlasChallengeType.RelaySequence ||
+                site.ChallengeType == DesertAtlasChallengeType.PrecisionDive)
             {
                 return Vector3.Distance(_player.WorldCenter, GetVectorPassTargetPosition(site)) <=
                     GetChallengeActivationRadius(site);
             }
             if (site.ChallengeType == DesertAtlasChallengeType.OrbitTrace ||
-                site.ChallengeType == DesertAtlasChallengeType.AltitudeHold)
+                site.ChallengeType == DesertAtlasChallengeType.ReverseOrbit ||
+                site.ChallengeType == DesertAtlasChallengeType.AerialSlalom ||
+                site.ChallengeType == DesertAtlasChallengeType.DuneSkim ||
+                site.ChallengeType == DesertAtlasChallengeType.TouchdownScan ||
+                site.ChallengeType == DesertAtlasChallengeType.FluxWeave)
             {
                 Vector3 offset = _player.WorldCenter - GetSiteLocalPosition(site);
                 float planarDistance = new Vector2(offset.x, offset.z).magnitude;
@@ -820,20 +1120,93 @@ namespace DuneVector
                         _settings.OrbitProgressFormat,
                         _scanProgress * site.RequiredAmount,
                         site.RequiredAmount));
-                case DesertAtlasChallengeType.AltitudeHold:
-                    float heightError = _player.WorldCenter.y - GetSiteLocalPosition(site).y - site.TargetHeightAboveSignal;
-                    return WithTimedBonus(site, FormatDesignerText(
-                        _settings.AltitudeProgressFormat,
-                        _scanProgress * site.RequiredAmount,
-                        site.RequiredAmount,
-                        heightError));
                 case DesertAtlasChallengeType.RelaySequence:
                     return WithTimedBonus(site, GetRelayProgressText(site));
+                case DesertAtlasChallengeType.AerialSlalom:
+                    int gateCount = GetSlalomGateCount(site);
+                    return WithTimedBonus(site, FormatDesignerText(
+                        _settings.SlalomProgressFormat,
+                        Mathf.Min(_challengeStep + 1, gateCount),
+                        gateCount,
+                        _player.Speed));
+                case DesertAtlasChallengeType.DuneSkim:
+                    Vector3 skimPosition = _player.WorldCenter;
+                    float clearance = skimPosition.y - _world.SampleHeightAtLocal(skimPosition.x, skimPosition.z);
+                    return WithTimedBonus(site, FormatDesignerText(
+                        _settings.SkimProgressFormat,
+                        _scanProgress * site.RequiredAmount,
+                        site.RequiredAmount,
+                        clearance));
+                case DesertAtlasChallengeType.PrecisionDive:
+                    float diveHeight = _player.WorldCenter.y - GetSiteLocalPosition(site).y;
+                    Vector3 diveVelocity = _player.Motor != null ? _player.Motor.Velocity : Vector3.zero;
+                    return WithTimedBonus(site, _challengeArmed
+                        ? FormatDesignerText(_settings.DiveArmedFormat, -diveVelocity.y)
+                        : FormatDesignerText(
+                            _settings.DiveClimbFormat,
+                            diveHeight,
+                            site.TargetHeightAboveSignal));
+                case DesertAtlasChallengeType.PulseDecode:
+                    return WithTimedBonus(site, FormatDesignerText(
+                        IsPulseDecodeWindowOpen() ? _settings.PulseReadyFormat : _settings.PulseWaitFormat,
+                        Mathf.FloorToInt(_challengeStepProgress),
+                        Mathf.Max(1, Mathf.RoundToInt(site.RequiredAmount))));
+                case DesertAtlasChallengeType.ReverseOrbit:
+                    float phaseTarget = Mathf.Max(1f, site.RequiredAmount * 0.5f);
+                    return WithTimedBonus(site, FormatDesignerText(
+                        _challengeStep == 0
+                            ? _settings.ReverseOrbitFirstFormat
+                            : _settings.ReverseOrbitSecondFormat,
+                        _challengeStepProgress,
+                        phaseTarget));
+                case DesertAtlasChallengeType.TouchdownScan:
+                    float touchdownHeight = _player.WorldCenter.y - GetSiteLocalPosition(site).y;
+                    string touchdownText = !_challengeArmed
+                        ? FormatDesignerText(
+                            _settings.TouchdownArmFormat,
+                            touchdownHeight,
+                            site.TargetHeightAboveSignal)
+                        : _player.CurrentMode == DroneTraversalMode.Flight
+                            ? _settings.TouchdownLandText
+                            : FormatDesignerText(
+                                _settings.TouchdownScanFormat,
+                                _challengeStepProgress * site.RequiredAmount,
+                                site.RequiredAmount);
+                    return WithTimedBonus(site, touchdownText);
+                case DesertAtlasChallengeType.FluxWeave:
+                    return WithTimedBonus(site, _challengeArmed
+                        ? FormatDesignerText(
+                            _settings.FluxInnerFormat,
+                            _challengeStep,
+                            Mathf.Max(1, Mathf.RoundToInt(site.RequiredAmount)))
+                        : _settings.FluxOuterText);
                 default:
-                    return WithTimedBonus(
-                        site,
-                        FormatDesignerText(_settings.SignalLockProgressFormat, _scanProgress * 100f));
+                    return WithTimedBonus(site, string.Empty);
             }
+        }
+
+        private int GetSlalomGateCount(DesertAtlasSiteDefinition site)
+        {
+            int minimum = Mathf.Min(_settings.SlalomMinimumGateCount, _settings.SlalomMaximumGateCount);
+            int maximum = Mathf.Max(_settings.SlalomMinimumGateCount, _settings.SlalomMaximumGateCount);
+            return Mathf.Clamp(Mathf.RoundToInt(site.RequiredAmount), minimum, maximum);
+        }
+
+        private float GetSlalomActivationRadius(DesertAtlasSiteDefinition site)
+        {
+            float halfLength = Mathf.Max(0f, GetSlalomGateCount(site) - 1) * _settings.SlalomGateSpacing * 0.5f;
+            return Mathf.Sqrt(
+                (halfLength * halfLength) +
+                (_settings.SlalomGateLateralOffset * _settings.SlalomGateLateralOffset)) +
+                _settings.SlalomActivationPadding;
+        }
+
+        private bool IsPulseDecodeWindowOpen()
+        {
+            float cycle = Mathf.Max(0.2f, _settings.PulseDecodeCycleDuration);
+            float phase = Mathf.Repeat((Time.unscaledTime - _challengeStartedAt) / cycle, 1f);
+            float halfWindow = _settings.PulseDecodeWindowFraction * 0.5f;
+            return phase <= halfWindow || phase >= 1f - halfWindow;
         }
 
         private string GetRelayProgressText(DesertAtlasSiteDefinition site)
@@ -1192,6 +1565,12 @@ namespace DuneVector
             _hasVectorPassPreviousPosition = false;
             _relayStage = 0;
             _relayStageProgress = 0f;
+            _challengeStep = 0;
+            _challengeStepProgress = 0f;
+            _challengeArmed = false;
+            _firstOrbitDirection = 0f;
+            _challengePreviousPosition = Vector3.zero;
+            _hasChallengePreviousPosition = false;
         }
 
         private void Load()
