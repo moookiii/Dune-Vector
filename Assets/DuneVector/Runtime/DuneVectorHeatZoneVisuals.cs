@@ -17,7 +17,7 @@ namespace DuneVector
             public Material GroundMaterial;
             public Mesh CurtainMesh;
             public Mesh GroundMesh;
-            public Mesh HeatPlumePatchMesh;
+            public Mesh HeatVeilMesh;
             public ParticleSystem Plumes;
             public ParticleSystem Streaks;
         }
@@ -205,7 +205,7 @@ namespace DuneVector
 
             Material groundMaterial = null;
             Mesh groundMesh = null;
-            Mesh heatPlumePatchMesh = null;
+            Mesh heatVeilMesh = null;
             if (_settings.GroundDistortionEnabled)
             {
                 groundMaterial = CreateGroundDistortionMaterial(
@@ -232,13 +232,13 @@ namespace DuneVector
                     renderer.SetPropertyBlock(properties);
                 }
 
-                heatPlumePatchMesh = CreateDuneHeatPlumePatchMesh(center, sample);
-                if (heatPlumePatchMesh != null)
+                heatVeilMesh = CreateDuneHeatVeilMesh(center, sample);
+                if (heatVeilMesh != null)
                 {
                     Renderer veilRenderer = CreateMeshRenderer(
-                        "Terrain-Following Heat Plume Patches",
+                        "Continuous Dune-Rising Heat Veils",
                         root.transform,
-                        heatPlumePatchMesh,
+                        heatVeilMesh,
                         groundMaterial);
                     MaterialPropertyBlock veilProperties = new MaterialPropertyBlock();
                     veilProperties.SetFloat("_VerticalVeil", 1f);
@@ -258,7 +258,7 @@ namespace DuneVector
                 GroundMaterial = groundMaterial,
                 CurtainMesh = curtainMesh,
                 GroundMesh = groundMesh,
-                HeatPlumePatchMesh = heatPlumePatchMesh,
+                HeatVeilMesh = heatVeilMesh,
                 Plumes = plumes,
                 Streaks = streaks,
             };
@@ -321,85 +321,62 @@ namespace DuneVector
             return mesh;
         }
 
-        private Mesh CreateDuneHeatPlumePatchMesh(Vector3 center, HeatZoneSample sample)
+        private Mesh CreateDuneHeatVeilMesh(Vector3 center, HeatZoneSample sample)
         {
-            int patchCount = Mathf.Max(1, _settings.GroundHeatPlumePatchCount);
-            int segments = Mathf.Max(1, _settings.GroundHeatPlumePatchSegments);
-            int quadCount = patchCount * segments;
+            int rings = Mathf.Max(1, _settings.GroundHeatVeilRingCount);
+            int segments = Mathf.Max(16, _settings.GroundHeatVeilSegments);
+            int quadCount = rings * segments;
             Vector3[] vertices = new Vector3[quadCount * 4];
             Vector2[] uvs = new Vector2[vertices.Length];
+            Vector2[] baseHeights = new Vector2[vertices.Length];
             int[] triangles = new int[quadCount * 6];
             float maximumRadius = sample.Radius * _settings.GroundMirageRadiusMultiplier;
             float minimumRadius = Mathf.Min(
                 maximumRadius,
-                Mathf.Max(0.25f, _settings.GroundHeatPlumeMinimumRadius));
-            float radiusDistribution = Mathf.Max(0.25f, _settings.GroundHeatPlumeRadiusDistribution);
-            float minimumLength = Mathf.Max(0.5f, _settings.GroundHeatPlumeMinimumLength);
-            float maximumLength = Mathf.Max(minimumLength, _settings.GroundHeatPlumeMaximumLength);
-            float minimumHeight = Mathf.Max(0.1f, _settings.GroundHeatPlumeMinimumHeight);
-            float maximumHeight = Mathf.Max(minimumHeight, _settings.GroundHeatPlumeMaximumHeight);
-            float maximumCurve = Mathf.Max(0f, _settings.GroundHeatPlumeMaximumCurveOffset);
-            float orientationJitter = Mathf.Max(0f, _settings.GroundHeatPlumeOrientationJitter) * Mathf.Deg2Rad;
-            int seed = _settings.RandomSeedOffset + 101;
+                Mathf.Max(0.25f, _settings.GroundHeatVeilMinimumRadius));
+            float radiusDistribution = Mathf.Max(0.25f, _settings.GroundHeatVeilRadiusDistribution);
+            float minimumHeight = Mathf.Max(0.1f, _settings.GroundHeatVeilMinimumHeight);
+            float maximumHeight = Mathf.Max(minimumHeight, _settings.GroundHeatVeilMaximumHeight);
 
-            for (int patch = 0; patch < patchCount; patch++)
+            for (int ring = 0; ring < rings; ring++)
             {
-                int salt = patch * 29;
-                float angle = DuneVectorMath.HashRange(
-                    sample.Id.x, sample.Id.y, seed, salt + 3, 0f, Mathf.PI * 2f);
-                float radiusProgress = Mathf.Pow(
-                    DuneVectorMath.Hash01(sample.Id.x, sample.Id.y, seed, salt + 7),
-                    radiusDistribution);
-                float radius = Mathf.Lerp(minimumRadius, maximumRadius, radiusProgress);
-                Vector2 radial = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-                Vector2 patchCenter = radial * radius;
-                float jitter = DuneVectorMath.HashRange(
-                    sample.Id.x, sample.Id.y, seed, salt + 11, -orientationJitter, orientationJitter);
-                float tangentAngle = angle + (Mathf.PI * 0.5f) + jitter;
-                Vector2 direction = new Vector2(Mathf.Cos(tangentAngle), Mathf.Sin(tangentAngle));
-                Vector2 perpendicular = new Vector2(-direction.y, direction.x);
-                float patchLength = DuneVectorMath.HashRange(
-                    sample.Id.x, sample.Id.y, seed, salt + 13, minimumLength, maximumLength);
-                patchLength *= Mathf.Lerp(
-                    1f,
-                    Mathf.Max(1f, _settings.GroundHeatPlumeFarLengthMultiplier),
-                    radiusProgress);
-                float patchHeight = DuneVectorMath.HashRange(
-                    sample.Id.x, sample.Id.y, seed, salt + 17,
+                float ringProgress = rings == 1 ? 0f : ring / (rings - 1f);
+                float distributedProgress = Mathf.Pow(ringProgress, radiusDistribution);
+                float radius = Mathf.Lerp(minimumRadius, maximumRadius, distributedProgress);
+                float ringHeight = DuneVectorMath.HashRange(
+                    sample.Id.x, sample.Id.y, ring, _settings.RandomSeedOffset + 101,
                     minimumHeight, maximumHeight);
-                patchHeight *= Mathf.Lerp(
-                    1f,
-                    Mathf.Max(1f, _settings.GroundHeatPlumeFarHeightMultiplier),
-                    radiusProgress);
-                float curveOffset = DuneVectorMath.HashRange(
-                    sample.Id.x, sample.Id.y, seed, salt + 19, -maximumCurve, maximumCurve);
-
                 for (int segment = 0; segment < segments; segment++)
                 {
-                    float progress = segment / (float)segments;
-                    float nextProgress = (segment + 1f) / segments;
-                    float along = (progress - 0.5f) * patchLength;
-                    float nextAlong = (nextProgress - 0.5f) * patchLength;
-                    float curve = Mathf.Sin(progress * Mathf.PI) * curveOffset;
-                    float nextCurve = Mathf.Sin(nextProgress * Mathf.PI) * curveOffset;
-                    float x = patchCenter.x + (direction.x * along) + (perpendicular.x * curve);
-                    float z = patchCenter.y + (direction.y * along) + (perpendicular.y * curve);
-                    float nextX = patchCenter.x + (direction.x * nextAlong) + (perpendicular.x * nextCurve);
-                    float nextZ = patchCenter.y + (direction.y * nextAlong) + (perpendicular.y * nextCurve);
+                    int next = (segment + 1) % segments;
+                    float angle = (Mathf.PI * 2f * segment) / segments;
+                    float nextAngle = (Mathf.PI * 2f * next) / segments;
+                    float x = Mathf.Cos(angle) * radius;
+                    float z = Mathf.Sin(angle) * radius;
+                    float nextX = Mathf.Cos(nextAngle) * radius;
+                    float nextZ = Mathf.Sin(nextAngle) * radius;
                     float terrain = _world.SampleHeightAtLocal(center.x + x, center.z + z) - center.y;
                     float nextTerrain = _world.SampleHeightAtLocal(center.x + nextX, center.z + nextZ) - center.y;
-                    float baseOffset = _settings.GroundHeatPlumeBaseOffset;
-                    int quad = (patch * segments) + segment;
+                    float baseOffset = _settings.GroundHeatVeilBaseOffset;
+                    float baseHeight = terrain + baseOffset;
+                    float nextBaseHeight = nextTerrain + baseOffset;
+                    int quad = (ring * segments) + segment;
                     int vertex = quad * 4;
                     int triangle = quad * 6;
-                    vertices[vertex] = new Vector3(x, terrain + baseOffset, z);
-                    vertices[vertex + 1] = new Vector3(nextX, nextTerrain + baseOffset, nextZ);
-                    vertices[vertex + 2] = new Vector3(x, terrain + baseOffset + patchHeight, z);
-                    vertices[vertex + 3] = new Vector3(nextX, nextTerrain + baseOffset + patchHeight, nextZ);
-                    uvs[vertex] = new Vector2(progress, 0f);
-                    uvs[vertex + 1] = new Vector2(nextProgress, 0f);
-                    uvs[vertex + 2] = new Vector2(progress, 1f);
-                    uvs[vertex + 3] = new Vector2(nextProgress, 1f);
+                    vertices[vertex] = new Vector3(x, baseHeight, z);
+                    vertices[vertex + 1] = new Vector3(nextX, nextBaseHeight, nextZ);
+                    vertices[vertex + 2] = new Vector3(x, baseHeight + ringHeight, z);
+                    vertices[vertex + 3] = new Vector3(nextX, nextBaseHeight + ringHeight, nextZ);
+                    float u = segment * 0.22f;
+                    float nextU = (segment + 1f) * 0.22f;
+                    uvs[vertex] = new Vector2(u, 0f);
+                    uvs[vertex + 1] = new Vector2(nextU, 0f);
+                    uvs[vertex + 2] = new Vector2(u, 1f);
+                    uvs[vertex + 3] = new Vector2(nextU, 1f);
+                    baseHeights[vertex] = new Vector2(baseHeight, 0f);
+                    baseHeights[vertex + 1] = new Vector2(nextBaseHeight, 0f);
+                    baseHeights[vertex + 2] = new Vector2(baseHeight, 0f);
+                    baseHeights[vertex + 3] = new Vector2(nextBaseHeight, 0f);
                     triangles[triangle] = vertex;
                     triangles[triangle + 1] = vertex + 2;
                     triangles[triangle + 2] = vertex + 1;
@@ -409,12 +386,13 @@ namespace DuneVector
                 }
             }
 
-            Mesh mesh = new Mesh { name = "Terrain-Following Heat Plume Patches" };
+            Mesh mesh = new Mesh { name = "Continuous Dune-Rising Heat Veils" };
             mesh.indexFormat = vertices.Length > ushort.MaxValue
                 ? UnityEngine.Rendering.IndexFormat.UInt32
                 : UnityEngine.Rendering.IndexFormat.UInt16;
             mesh.vertices = vertices;
             mesh.uv = uvs;
+            mesh.uv2 = baseHeights;
             mesh.triangles = triangles;
             mesh.RecalculateBounds();
             return mesh;
@@ -700,6 +678,8 @@ namespace DuneVector
             material.SetFloat("_DistortionBlur", Mathf.Clamp01(_settings.DistortionBlurStrength));
             material.SetFloat("_TextureScale", Mathf.Max(0.01f, _settings.DistortionTextureScale));
             material.SetVector("_ScrollVelocity", _settings.DistortionScrollVelocity);
+            material.SetFloat("_VeilNearHeightDistance", _settings.GroundHeatVeilNearHeightDistance);
+            material.SetFloat("_VeilNearHeightMultiplier", _settings.GroundHeatVeilNearHeightMultiplier);
             material.SetFloat("_ShimmerOpacity", Mathf.Clamp(_settings.GroundHeatShimmerOpacity, 0f, 0.3f));
             material.SetColor("_ShimmerColor", _settings.GroundHeatShimmerColor);
             return material;
@@ -978,7 +958,7 @@ namespace DuneVector
             if (visual.GroundMaterial != null) Destroy(visual.GroundMaterial);
             if (visual.CurtainMesh != null) Destroy(visual.CurtainMesh);
             if (visual.GroundMesh != null) Destroy(visual.GroundMesh);
-            if (visual.HeatPlumePatchMesh != null) Destroy(visual.HeatPlumePatchMesh);
+            if (visual.HeatVeilMesh != null) Destroy(visual.HeatVeilMesh);
         }
 
         private void OnDestroy()
