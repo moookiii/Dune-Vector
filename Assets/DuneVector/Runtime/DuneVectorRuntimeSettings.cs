@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 
 namespace DuneVector
 {
@@ -380,7 +381,9 @@ namespace DuneVector
         [Range(0f, 90f)] public float SandAmbusherGroundedMinimumAttackAngle = 65f;
         [Min(0f)] public float SandAmbusherWarningDuration = 1.15f;
         [Min(0.1f)] public float SandAmbusherBuriedDepth = 8f;
-        [Min(0.1f)] public float SandAmbusherAttackSpeed = 48f;
+        [Tooltip("How quickly an emerged Sand Ambusher follows its live predicted player target.")]
+        [FormerlySerializedAs("SandAmbusherAttackSpeed")]
+        [Min(0.1f)] public float SandAmbusherPlayerFollowSpeed = 48f;
         [Min(0f)] public float SandAmbusherAttackOvershoot = 5f;
         [Min(0.1f)] public float SandAmbusherMaximumAttackDuration = 3f;
         [Min(0.1f)] public float SandAmbusherRetreatSpeed = 32f;
