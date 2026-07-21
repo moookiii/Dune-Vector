@@ -149,23 +149,18 @@ namespace DuneVector
             for (int i = 0; i < _batches.Count; i++)
             {
                 VariantBatch batch = _batches[i];
-                RenderParams renderParams = new RenderParams(batch.Material)
-                {
-                    camera = viewCamera,
-                    layer = _root.gameObject.layer,
-                    worldBounds = batch.WorldBounds,
-                    shadowCastingMode = shadows,
-                    receiveShadows = _settings.ReceiveShadows,
-                    lightProbeUsage = LightProbeUsage.Off,
-                    reflectionProbeUsage = ReflectionProbeUsage.Off,
-                };
-                Graphics.RenderMeshInstanced(
-                    renderParams,
+                Graphics.DrawMeshInstanced(
                     useLowLod ? batch.LowMesh : batch.HighMesh,
                     0,
+                    batch.Material,
                     batch.WorldMatrices,
                     batch.WorldMatrices.Length,
-                    0);
+                    null,
+                    shadows,
+                    _settings.ReceiveShadows,
+                    _root.gameObject.layer,
+                    viewCamera,
+                    LightProbeUsage.Off);
             }
         }
 
