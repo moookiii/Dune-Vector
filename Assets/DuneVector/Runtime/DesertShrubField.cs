@@ -521,11 +521,11 @@ namespace DuneVector
                 int a = baseIndex + (i * 2);
                 int b = baseIndex + (next * 2);
                 triangles.Add(a);
-                triangles.Add(b);
                 triangles.Add(a + 1);
                 triangles.Add(b);
+                triangles.Add(b);
+                triangles.Add(a + 1);
                 triangles.Add(b + 1);
-                triangles.Add(a + 1);
             }
         }
 
@@ -559,8 +559,8 @@ namespace DuneVector
             {
                 int next = (i + 1) % sides;
                 triangles.Add(bottom);
-                triangles.Add(firstRing + i);
                 triangles.Add(firstRing + next);
+                triangles.Add(firstRing + i);
             }
 
             for (int ring = 0; ring < ringHeights.Length - 1; ring++)
@@ -571,11 +571,11 @@ namespace DuneVector
                 {
                     int next = (i + 1) % sides;
                     triangles.Add(lower + i);
-                    triangles.Add(lower + next);
                     triangles.Add(upper + i);
                     triangles.Add(lower + next);
+                    triangles.Add(lower + next);
+                    triangles.Add(upper + i);
                     triangles.Add(upper + next);
-                    triangles.Add(upper + i);
                 }
             }
 
@@ -584,8 +584,8 @@ namespace DuneVector
             {
                 int next = (i + 1) % sides;
                 triangles.Add(top);
-                triangles.Add(topRing + next);
                 triangles.Add(topRing + i);
+                triangles.Add(topRing + next);
             }
         }
     }
