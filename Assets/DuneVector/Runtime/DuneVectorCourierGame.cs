@@ -2290,7 +2290,7 @@ namespace DuneVector
             }
             CourierContract selectedOffer = null;
             string hoveredContractTypeTooltip = null;
-            Vector2 virtualMousePosition = Event.current.mousePosition / Mathf.Max(0.01f, scale);
+            Vector2 virtualMousePosition = Event.current.mousePosition;
             for (int i = 0; i < _offers.Count; i++)
             {
                 int column = i % columns;
@@ -2332,7 +2332,7 @@ namespace DuneVector
                     22f),
                 "CONTRACTS REFRESH AUTOMATICALLY",
                 _terminalActionStyle);
-            DrawContractTypeTooltip(panel, virtualWidth, virtualHeight, scale, hoveredContractTypeTooltip);
+            DrawContractTypeTooltip(panel, virtualWidth, virtualHeight, hoveredContractTypeTooltip);
 
             GUI.matrix = previousMatrix;
             GUI.backgroundColor = previousBackground;
@@ -2617,7 +2617,6 @@ namespace DuneVector
             Rect panel,
             float virtualWidth,
             float virtualHeight,
-            float scale,
             string tooltip)
         {
             if (string.IsNullOrWhiteSpace(tooltip))
@@ -2634,7 +2633,7 @@ namespace DuneVector
             float titleHeight = _terminalTooltipTitleStyle.CalcHeight(new GUIContent(title), textWidth);
             float bodyHeight = _terminalTooltipBodyStyle.CalcHeight(new GUIContent(body), textWidth);
             float height = padding + titleHeight + bodyHeight + padding;
-            Vector2 mouse = Event.current.mousePosition / Mathf.Max(0.01f, scale);
+            Vector2 mouse = Event.current.mousePosition;
             Vector2 offset = _hubSettings.TerminalTooltipMouseOffset;
             float maximumX = Mathf.Min(virtualWidth, panel.xMax) - width - padding;
             float maximumY = Mathf.Min(virtualHeight, panel.yMax) - height - padding;
