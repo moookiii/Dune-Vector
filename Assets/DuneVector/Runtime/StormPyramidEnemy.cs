@@ -1023,6 +1023,14 @@ namespace DuneVector
 
         private void FacePosition(Vector3 target)
         {
+            float facingLockDistance = _settings.RingRadius * _settings.VisualScale;
+            if (_player != null
+                && (_player.WorldCenter - transform.position).sqrMagnitude
+                    <= facingLockDistance * facingLockDistance)
+            {
+                return;
+            }
+
             Vector3 direction = Vector3.ProjectOnPlane(
                 target - transform.position,
                 Vector3.up);
