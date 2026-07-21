@@ -1449,8 +1449,16 @@ namespace DuneVector
         [Min(1f)] public float DetectionRange = 125f;
         [Min(1f)] public float HoverHeight = 20f;
         [Min(0f)] public float HoverAmplitude = 1.1f;
+        [Tooltip("Player follow speed at risk 0.")]
         [Min(0f)] public float FollowSpeed = 11f;
-        [Min(0f)] public float AttackSpeed = 38f;
+        [Tooltip("Player follow speed at the speed risk scaling ceiling.")]
+        [Min(0f)] public float FollowSpeedAtRiskCeiling = 33f;
+        [Tooltip("Attack dive speed at risk 0.")]
+        [Min(0f)] public float AttackSpeed = 66f;
+        [Tooltip("Attack dive speed at the speed risk scaling ceiling.")]
+        [Min(0f)] public float AttackSpeedAtRiskCeiling = 102f;
+        [Tooltip("Risk at which follow and attack speeds reach their ceiling values.")]
+        [Min(1)] public int SpeedRiskScalingCeiling = 20;
         [Min(0.1f)] public float AttackCooldown = 3.5f;
         [Min(0.25f)] public float AttackAlignmentDistance = 4f;
         [Min(0f)] public float ImpactDamage = 25f;
@@ -1460,6 +1468,21 @@ namespace DuneVector
         [Min(0f)] public float ReturnSpeed = 13f;
         [Min(20f)] public float RepositionDistance = 240f;
         [Min(0.1f)] public float VisualScale = 1.35f;
+
+        public float EvaluateFollowSpeed(int risk)
+        {
+            return Mathf.Lerp(FollowSpeed, FollowSpeedAtRiskCeiling, EvaluateSpeedRisk(risk));
+        }
+
+        public float EvaluateAttackSpeed(int risk)
+        {
+            return Mathf.Lerp(AttackSpeed, AttackSpeedAtRiskCeiling, EvaluateSpeedRisk(risk));
+        }
+
+        private float EvaluateSpeedRisk(int risk)
+        {
+            return Mathf.Clamp01(risk / (float)Mathf.Max(1, SpeedRiskScalingCeiling));
+        }
     }
 
     [System.Serializable]

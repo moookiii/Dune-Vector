@@ -127,7 +127,7 @@ namespace DuneVector
             _cachedTransform.position = Vector3.MoveTowards(
                 _cachedTransform.position,
                 target,
-                _settings.FollowSpeed * DuneVectorContractRisk.EnemySpeedMultiplier * deltaTime);
+                _settings.EvaluateFollowSpeed(DuneVectorContractRisk.CurrentRisk) * deltaTime);
 
             Vector2 horizontalOffset = new Vector2(
                 _cachedTransform.position.x - playerPosition.x,
@@ -153,7 +153,7 @@ namespace DuneVector
             position.y = Mathf.MoveTowards(
                 position.y,
                 _strikePoint.y,
-                _settings.AttackSpeed * DuneVectorContractRisk.EnemySpeedMultiplier * deltaTime);
+                _settings.EvaluateAttackSpeed(DuneVectorContractRisk.CurrentRisk) * deltaTime);
             _cachedTransform.position = position;
             if (Mathf.Abs(position.y - _strikePoint.y) <= 0.01f)
             {
