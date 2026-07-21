@@ -2170,9 +2170,9 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color ClearSkyTop = new Color(0.018f, 0.24f, 1.65f);
         [ColorUsage(false, true)] public Color ClearSkyMiddle = new Color(0.04f, 0.72f, 2.15f);
         [ColorUsage(false, true)] public Color ClearSkyBottom = new Color(0.42f, 2.25f, 3.2f);
-        [ColorUsage(false, true)] public Color StormSkyTop = new Color(0.025f, 0.105f, 0.32f);
-        [ColorUsage(false, true)] public Color StormSkyMiddle = new Color(0.045f, 0.22f, 0.48f);
-        [ColorUsage(false, true)] public Color StormSkyBottom = new Color(0.18f, 0.52f, 0.72f);
+        [ColorUsage(false, true)] public Color StormSkyTop = new Color(0.24f, 0.14f, 0.065f);
+        [ColorUsage(false, true)] public Color StormSkyMiddle = new Color(0.54f, 0.29f, 0.1f);
+        [ColorUsage(false, true)] public Color StormSkyBottom = new Color(1.15f, 0.54f, 0.15f);
         [Min(0f)] public float SkyGradientDiffusion = 1.48f;
         [Min(0f)] public float SkyMultiplier = 0.82f;
         public float ClearExposure = 2f;
@@ -2180,20 +2180,20 @@ namespace DuneVector
 
         [Header("Y2K Horizon Glow")]
         [ColorUsage(false, true)] public Color ClearHorizonGlowColor = new Color(0.38f, 2.8f, 4.4f, 1f);
-        [ColorUsage(false, true)] public Color StormHorizonGlowColor = new Color(0.08f, 0.42f, 0.68f, 1f);
+        [ColorUsage(false, true)] public Color StormHorizonGlowColor = new Color(1.3f, 0.42f, 0.08f, 1f);
         [Range(0.01f, 0.5f)] public float HorizonGlowSize = 0.14f;
         [Min(0f)] public float ClearHorizonGlowIntensity = 0.72f;
-        [Min(0f)] public float StormHorizonGlowIntensity = 0.18f;
+        [Min(0f)] public float StormHorizonGlowIntensity = 0.28f;
 
         [Header("Y2K Sky Clouds")]
         [ColorUsage(false, true)] public Color ClearSkyCloudColor = new Color(1.1f, 1.75f, 2.05f, 1f);
         [ColorUsage(false, true)] public Color ClearSkyCloudHighlight = new Color(1.8f, 2.7f, 3.1f, 1f);
         [ColorUsage(false, true)] public Color ClearSkyCloudPearl = new Color(0.62f, 1.8f, 2.4f, 1f);
-        [ColorUsage(false, true)] public Color StormSkyCloudColor = new Color(0.18f, 0.36f, 0.52f, 1f);
-        [ColorUsage(false, true)] public Color StormSkyCloudHighlight = new Color(0.36f, 0.62f, 0.78f, 1f);
-        [ColorUsage(false, true)] public Color StormSkyCloudPearl = new Color(0.16f, 0.42f, 0.64f, 1f);
+        [ColorUsage(false, true)] public Color StormSkyCloudColor = new Color(0.38f, 0.2f, 0.08f, 1f);
+        [ColorUsage(false, true)] public Color StormSkyCloudHighlight = new Color(0.9f, 0.43f, 0.12f, 1f);
+        [ColorUsage(false, true)] public Color StormSkyCloudPearl = new Color(0.55f, 0.25f, 0.08f, 1f);
         [Range(0f, 1f)] public float ClearSkyCloudOpacity = 0.82f;
-        [Range(0f, 1f)] public float StormSkyCloudOpacity = 0.24f;
+        [Range(0f, 1f)] public float StormSkyCloudOpacity = 0.45f;
         [Range(0.05f, 0.8f)] public float SkyCloudAltitude = 0.28f;
         [Range(0.03f, 0.5f)] public float SkyCloudThickness = 0.2f;
         [Min(0.1f)] public float SkyCloudScale = 3.8f;
