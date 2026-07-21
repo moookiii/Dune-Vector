@@ -335,6 +335,9 @@ namespace DuneVector
                 float ringProgress = rings == 1 ? 0f : ring / (rings - 1f);
                 float distributedProgress = Mathf.Pow(ringProgress, radiusDistribution);
                 float radius = Mathf.Lerp(minimumRadius, maximumRadius, distributedProgress);
+                float ringHeight = DuneVectorMath.HashRange(
+                    sample.Id.x, sample.Id.y, ring, _settings.RandomSeedOffset + 101,
+                    minimumHeight, maximumHeight);
                 for (int segment = 0; segment < segments; segment++)
                 {
                     int next = (segment + 1) % segments;
@@ -346,20 +349,14 @@ namespace DuneVector
                     float nextZ = Mathf.Sin(nextAngle) * radius;
                     float terrain = _world.SampleHeightAtLocal(center.x + x, center.z + z) - center.y;
                     float nextTerrain = _world.SampleHeightAtLocal(center.x + nextX, center.z + nextZ) - center.y;
-                    float height = DuneVectorMath.HashRange(
-                        sample.Id.x + ring, sample.Id.y, segment, _settings.RandomSeedOffset + 101,
-                        minimumHeight, maximumHeight);
-                    float nextHeight = DuneVectorMath.HashRange(
-                        sample.Id.x + ring, sample.Id.y, next, _settings.RandomSeedOffset + 101,
-                        minimumHeight, maximumHeight);
                     float baseOffset = _settings.GroundHeatVeilBaseOffset;
                     int quad = (ring * segments) + segment;
                     int vertex = quad * 4;
                     int triangle = quad * 6;
                     vertices[vertex] = new Vector3(x, terrain + baseOffset, z);
                     vertices[vertex + 1] = new Vector3(nextX, nextTerrain + baseOffset, nextZ);
-                    vertices[vertex + 2] = new Vector3(x, terrain + baseOffset + height, z);
-                    vertices[vertex + 3] = new Vector3(nextX, nextTerrain + baseOffset + nextHeight, nextZ);
+                    vertices[vertex + 2] = new Vector3(x, terrain + baseOffset + ringHeight, z);
+                    vertices[vertex + 3] = new Vector3(nextX, nextTerrain + baseOffset + ringHeight, nextZ);
                     float u = segment * 0.22f;
                     float nextU = (segment + 1f) * 0.22f;
                     uvs[vertex] = new Vector2(u, 0f);
@@ -656,10 +653,6 @@ namespace DuneVector
             material.SetFloat("_DistortionBlur", Mathf.Clamp01(_settings.DistortionBlurStrength));
             material.SetFloat("_TextureScale", Mathf.Max(0.01f, _settings.DistortionTextureScale));
             material.SetVector("_ScrollVelocity", _settings.DistortionScrollVelocity);
-            material.SetFloat("_NearFadeStart", Mathf.Max(0f, _settings.GroundHeatVeilNearFadeStart));
-            material.SetFloat(
-                "_NearFadeEnd",
-                Mathf.Max(_settings.GroundHeatVeilNearFadeStart + 0.01f, _settings.GroundHeatVeilNearFadeEnd));
             material.SetFloat("_ShimmerOpacity", Mathf.Clamp(_settings.GroundHeatShimmerOpacity, 0f, 0.3f));
             material.SetColor("_ShimmerColor", _settings.GroundHeatShimmerColor);
             return material;
