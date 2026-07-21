@@ -1510,6 +1510,8 @@ namespace DuneVector
         [Min(0f)] public float GroundImpactHoldDuration = 0.1f;
         [Tooltip("Initial shockwave size as a fraction of Strike Radius.")]
         [Range(0f, 1f)] public float GroundImpactStartScale = 0.08f;
+        [Tooltip("Peak size of the central impact flash as a fraction of Strike Radius.")]
+        [Min(0f)] public float GroundImpactFlashScaleMultiplier = 0.34f;
         [Tooltip("World-space thickness of the expanding ground shockwave ring.")]
         [Min(0.005f)] public float GroundImpactRingThickness = 0.14f;
         [Tooltip("Raises the shockwave slightly above the terrain to keep it visible on the ground.")]
