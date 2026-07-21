@@ -8,7 +8,7 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
         _TextureScale("Texture Scale", Float) = 4.5
         _ScrollVelocity("Scroll Velocity", Vector) = (0.035, 0.12, 0, 0)
         _ShellStrengthMultiplier("Shell Strength Multiplier", Float) = 1
-        [HideInInspector] _VerticalVeil("Vertical Veil", Float) = 0
+        [HideInInspector] _VisibleShimmerSurface("Visible Shimmer Surface", Float) = 0
         [HDR] _ShimmerColor("Visible Heat Shimmer", Color) = (1.15, 0.9, 0.62, 1)
         _ShimmerOpacity("Visible Heat Shimmer Opacity", Range(0, 0.3)) = 0.08
     }
@@ -61,7 +61,7 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 float _TextureScale;
                 float4 _ScrollVelocity;
                 float _ShellStrengthMultiplier;
-                float _VerticalVeil;
+                float _VisibleShimmerSurface;
             CBUFFER_END
 
             struct Attributes
@@ -93,9 +93,7 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 UNITY_SETUP_INSTANCE_ID(input);
                 float2 centeredUv = input.uv - 0.5;
                 float radialMask = 1.0 - smoothstep(0.38, 0.5, length(centeredUv));
-                float verticalMask = smoothstep(0.0, 0.12, input.uv.y) *
-                    smoothstep(0.0, 0.22, 1.0 - input.uv.y);
-                float edgeMask = lerp(radialMask, verticalMask, saturate(_VerticalVeil));
+                float edgeMask = radialMask;
 
                 float2 scroll = _ScrollVelocity.xy * _Time.y;
                 float2 primaryUv = (input.uv * _TextureScale) - scroll;
@@ -140,7 +138,7 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 float _TextureScale;
                 float4 _ScrollVelocity;
                 float _ShellStrengthMultiplier;
-                float _VerticalVeil;
+                float _VisibleShimmerSurface;
                 float4 _ShimmerColor;
                 float _ShimmerOpacity;
             CBUFFER_END
@@ -181,14 +179,10 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                     _NoiseTex,
                     sampler_NoiseTex,
                     (input.uv.yx * (_TextureScale * 1.61)) - (scroll.yx * 0.73)).b;
-                float sideFade = smoothstep(0.0, 0.18, input.uv.x) *
-                    smoothstep(0.0, 0.18, 1.0 - input.uv.x);
-                sideFade = lerp(sideFade, 1.0, saturate(_VerticalVeil));
-                float verticalFade = smoothstep(0.0, 0.12, input.uv.y) *
-                    smoothstep(0.0, 0.24, 1.0 - input.uv.y);
-                float pulse = 0.45 + (0.35 * sin((input.uv.y * 24.0) - (_Time.y * 2.1)));
-                float shimmer = saturate((primary.b * 0.65) + (secondary * 0.35) + pulse - 0.55);
-                float alpha = shimmer * sideFade * verticalFade * saturate(_VerticalVeil) *
+                float2 centeredUv = input.uv - 0.5;
+                float surfaceFade = 1.0 - smoothstep(0.38, 0.5, length(centeredUv));
+                float shimmer = smoothstep(0.42, 0.82, (primary.b * 0.65) + (secondary * 0.35));
+                float alpha = shimmer * surfaceFade * saturate(_VisibleShimmerSurface) *
                     _ShimmerOpacity * _ShellStrengthMultiplier;
                 clip(alpha - 0.002);
                 return float4(_ShimmerColor.rgb, alpha);
