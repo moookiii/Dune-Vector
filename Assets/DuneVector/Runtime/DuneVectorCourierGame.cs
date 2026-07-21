@@ -1293,6 +1293,7 @@ namespace DuneVector
                 _player,
                 _camera,
                 _materials,
+                _deliverySettings,
                 pickup,
                 Mathf.Max(1f, pickup
                     ? _deliverySettings.ObjectiveRingRadius

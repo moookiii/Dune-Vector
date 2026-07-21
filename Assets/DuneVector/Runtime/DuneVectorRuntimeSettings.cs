@@ -267,6 +267,14 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color PickupRingEmissionColor = new Color(2.8f, 0.05f, 4.2f);
         [ColorUsage(false, true)] public Color DeliveryRingBaseColor = new Color(0.015f, 0.42f, 0.12f);
         [ColorUsage(false, true)] public Color DeliveryRingEmissionColor = new Color(0.05f, 3.8f, 0.45f);
+        [Tooltip("How many complete RGB hue cycles the pickup and delivery rings make per second. Set to 0 to freeze the blend.")]
+        [Min(0f)] public float ObjectiveRingRgbBlendSpeed = 0.12f;
+        [Tooltip("Hue offset between pickup and delivery rings, measured as a normalized color wheel turn.")]
+        [Range(0f, 1f)] public float DeliveryRingRgbHueOffset = 0.5f;
+        [Tooltip("Brightness of the animated RGB base color.")]
+        [Min(0f)] public float ObjectiveRingRgbBaseIntensity = 0.55f;
+        [Tooltip("HDR brightness of the animated RGB emission color.")]
+        [Min(0f)] public float ObjectiveRingRgbEmissionIntensity = 4.5f;
 
         [Header("Objective Indicator HUD")]
         [Min(240f)] public float ObjectiveIndicatorReferenceHeight = 1080f;

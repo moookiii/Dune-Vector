@@ -176,7 +176,7 @@ namespace DuneVector
 
             JobTraversalRing ring = ringObject.AddComponent<JobTraversalRing>();
             float ringRadius = isPickup ? _settings.ObjectiveRingRadius : _settings.DeliveryRingRadius;
-            ring.Initialize(_player, _camera, _materials, isPickup, ringRadius, callback);
+            ring.Initialize(_player, _camera, _materials, _settings, isPickup, ringRadius, callback);
             ring.LogicalPosition = logicalPosition;
             ring.LogicalHeight = height;
             return ring;
@@ -339,6 +339,10 @@ namespace DuneVector
         private Action _onCrossed;
         private Func<bool> _canActivate;
         private Transform _visual;
+        private Renderer[] _renderers;
+        private MaterialPropertyBlock _colorProperties;
+        private DeliveryTuning _settings;
+        private bool _isPickup;
         private float _innerRadius;
         private Vector3 _previousWorldPosition;
         private bool _hasPreviousPosition;
@@ -349,6 +353,7 @@ namespace DuneVector
             DroneCharacterController player,
             Camera billboardCamera,
             DuneVectorMaterials materials,
+            DeliveryTuning settings,
             bool isPickup,
             float radius,
             Action onCrossed,
@@ -358,8 +363,13 @@ namespace DuneVector
             _billboardCamera = billboardCamera;
             _onCrossed = onCrossed;
             _canActivate = canActivate;
+            _settings = settings;
+            _isPickup = isPickup;
             _innerRadius = Mathf.Max(0.5f, radius - 0.38f);
             _visual = DuneVectorVisuals.CreateJobRingVisual(transform, isPickup, materials, radius);
+            _renderers = _visual.GetComponentsInChildren<Renderer>(true);
+            _colorProperties = new MaterialPropertyBlock();
+            UpdateRgbBlend();
         }
 
         public void ApplyWorldShift(Vector3 shift)
@@ -374,6 +384,7 @@ namespace DuneVector
         private void Update()
         {
             UpdateBillboard();
+            UpdateRgbBlend();
             if (_activated || _player == null)
             {
                 return;
@@ -421,6 +432,37 @@ namespace DuneVector
             {
                 _spin = Mathf.Repeat(_spin + (32f * Time.deltaTime), 360f);
                 _visual.localRotation = Quaternion.AngleAxis(_spin, Vector3.forward);
+            }
+        }
+
+        private void UpdateRgbBlend()
+        {
+            if (_settings == null || _renderers == null || _colorProperties == null)
+            {
+                return;
+            }
+
+            float hueOffset = _isPickup ? 0f : _settings.DeliveryRingRgbHueOffset;
+            float hue = Mathf.Repeat((Time.unscaledTime * _settings.ObjectiveRingRgbBlendSpeed) + hueOffset, 1f);
+            Color rgb = Color.HSVToRGB(hue, 1f, 1f);
+            Color baseColor = rgb * _settings.ObjectiveRingRgbBaseIntensity;
+            Color emissionColor = rgb * _settings.ObjectiveRingRgbEmissionIntensity;
+            baseColor.a = 1f;
+            emissionColor.a = 1f;
+
+            for (int i = 0; i < _renderers.Length; i++)
+            {
+                Renderer renderer = _renderers[i];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                renderer.GetPropertyBlock(_colorProperties);
+                _colorProperties.SetColor("_BaseColor", baseColor);
+                _colorProperties.SetColor("_UnlitColor", baseColor);
+                _colorProperties.SetColor("_EmissiveColor", emissionColor);
+                renderer.SetPropertyBlock(_colorProperties);
             }
         }
 
