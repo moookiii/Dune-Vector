@@ -140,6 +140,8 @@ namespace DuneVector
         public Vector3 CurrentDustDevilForce { get; private set; }
         public float CurrentDustDevilInfluence { get; private set; }
         public float CurrentDustDevilCoreInfluence { get; private set; }
+        public bool IsFlightSuspendedByDustDevil => CurrentMode == DroneTraversalMode.Flight
+            && CurrentDustDevilInfluence > 0f;
 
         private Vector2 _rawMove;
         private bool _flightBrakeHeld;
@@ -162,6 +164,7 @@ namespace DuneVector
         private WindFieldSystemTuning _windFieldSettings;
         private DuneVectorDustDevilSystem _dustDevils;
         private DustDevilTuning _dustDevilSettings;
+        private DustDevilSample _currentDustDevilSample;
         private int _activeDustDevilId = int.MinValue;
         private bool _entryLaunchApplied;
         private bool _launchedByActiveDustDevil;
@@ -347,6 +350,8 @@ namespace DuneVector
 
         public void BeforeCharacterUpdate(float deltaTime)
         {
+            RefreshDustDevilSample();
+
             if (_flightRequested)
             {
                 _flightRequested = false;
@@ -371,6 +376,16 @@ namespace DuneVector
 
         public void UpdateRotation(ref Quaternion currentRotation, float deltaTime)
         {
+            if (IsFlightSuspendedByDustDevil)
+            {
+                float spinDegrees = _dustDevilSettings.DroneSpinDegreesPerSecond
+                    * CurrentDustDevilInfluence
+                    * _currentDustDevilSample.SpinSign
+                    * Mathf.Max(0f, deltaTime);
+                currentRotation = Quaternion.AngleAxis(spinDegrees, Vector3.up) * currentRotation;
+                return;
+            }
+
             if (CurrentMode == DroneTraversalMode.Flight)
             {
                 Vector3 desiredForward = _flightDirection.sqrMagnitude > 0.001f ? _flightDirection : Motor.CharacterForward;
@@ -407,7 +422,10 @@ namespace DuneVector
             _boostSpeedModifier?.Tick(IsBoosting, deltaTime);
             if (CurrentMode == DroneTraversalMode.Flight)
             {
-                UpdateFlightVelocity(ref currentVelocity, deltaTime);
+                if (!IsFlightSuspendedByDustDevil)
+                {
+                    UpdateFlightVelocity(ref currentVelocity, deltaTime);
+                }
             }
             else
             {
@@ -421,19 +439,13 @@ namespace DuneVector
         {
             if (_dustDevils == null || _dustDevilSettings == null)
             {
-                CurrentDustDevilForce = Vector3.zero;
-                CurrentDustDevilInfluence = 0f;
-                CurrentDustDevilCoreInfluence = 0f;
                 _activeDustDevilId = int.MinValue;
                 _entryLaunchApplied = false;
                 _launchedByActiveDustDevil = false;
                 return;
             }
 
-            DustDevilSample sample = _dustDevils.Sample(WorldCenter);
-            CurrentDustDevilForce = sample.Acceleration;
-            CurrentDustDevilInfluence = sample.Influence;
-            CurrentDustDevilCoreInfluence = sample.CoreInfluence;
+            DustDevilSample sample = _currentDustDevilSample;
             if (sample.Influence <= 0f)
             {
                 _activeDustDevilId = int.MinValue;
@@ -495,6 +507,16 @@ namespace DuneVector
                 launchDirection = Vector3.up;
             }
             RequestFlight(launchDirection, _dustDevilSettings.LaunchFlightSpeedMultiplier);
+        }
+
+        private void RefreshDustDevilSample()
+        {
+            _currentDustDevilSample = _dustDevils != null && _dustDevilSettings != null
+                ? _dustDevils.Sample(WorldCenter)
+                : default;
+            CurrentDustDevilForce = _currentDustDevilSample.Acceleration;
+            CurrentDustDevilInfluence = _currentDustDevilSample.Influence;
+            CurrentDustDevilCoreInfluence = _currentDustDevilSample.CoreInfluence;
         }
 
         private void ApplyWindFieldForce(ref Vector3 currentVelocity, float deltaTime)
@@ -714,6 +736,11 @@ namespace DuneVector
             }
             else
             {
+                if (IsFlightSuspendedByDustDevil)
+                {
+                    return;
+                }
+
                 _flightElapsedTime += deltaTime;
                 FlightTimeRemaining = Mathf.Max(0f, FlightTimeRemaining - deltaTime);
                 if (FlightTimeRemaining <= 0f)
