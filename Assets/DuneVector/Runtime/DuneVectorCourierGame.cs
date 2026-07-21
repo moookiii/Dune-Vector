@@ -468,7 +468,7 @@ namespace DuneVector
             }
             BuildHub();
             GenerateOffers();
-            EnterHubImmediate(openTerminal: Progress.PendingDeliveryMessageIndex < 0);
+            EnterHubImmediate(openTerminal: false);
             if (Progress.PendingDeliveryMessageIndex >= 0 &&
                 _messageSettings.TryResolve(Progress.PendingDeliveryMessageIndex, out DeliveryMessageAsset pendingMessage))
             {
