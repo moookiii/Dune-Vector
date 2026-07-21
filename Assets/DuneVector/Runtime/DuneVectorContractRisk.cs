@@ -189,6 +189,12 @@ namespace DuneVector
                 Mathf.Max(0f, _settings.SandAmbusherTargetPredictionTime);
             Vector3 attackTarget = _player.WorldCenter + prediction;
             Vector3 attackDirection = (attackTarget - ambusher.BuriedPosition).normalized;
+            if (_player.IsStableGrounded)
+            {
+                attackDirection = ApplyMinimumElevation(
+                    attackDirection,
+                    _settings.SandAmbusherGroundedMinimumAttackAngle);
+            }
             ambusher.AttackEnd = attackTarget +
                 (attackDirection * Mathf.Max(0f, _settings.SandAmbusherAttackOvershoot));
             ambusher.Root.transform.rotation = Quaternion.FromToRotation(Vector3.up, attackDirection);
@@ -368,6 +374,26 @@ namespace DuneVector
             }
             float t = Mathf.Clamp01(Vector3.Dot(point - start, segment) / lengthSquared);
             return Vector3.Distance(point, start + (segment * t));
+        }
+
+        private static Vector3 ApplyMinimumElevation(Vector3 direction, float minimumAngle)
+        {
+            Vector3 horizontal = Vector3.ProjectOnPlane(direction, Vector3.up);
+            if (horizontal.sqrMagnitude <= Mathf.Epsilon)
+            {
+                return Vector3.up;
+            }
+
+            float clampedAngle = Mathf.Clamp(minimumAngle, 0f, 90f);
+            float currentAngle = Mathf.Asin(Mathf.Clamp(direction.y, -1f, 1f)) * Mathf.Rad2Deg;
+            if (currentAngle >= clampedAngle)
+            {
+                return direction;
+            }
+
+            float angleRadians = clampedAngle * Mathf.Deg2Rad;
+            return (horizontal.normalized * Mathf.Cos(angleRadians)) +
+                (Vector3.up * Mathf.Sin(angleRadians));
         }
 
         private void OnDestroy()

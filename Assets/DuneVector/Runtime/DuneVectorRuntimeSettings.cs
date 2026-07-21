@@ -353,6 +353,8 @@ namespace DuneVector
         [Tooltip("Random horizontal offset around the predicted player position.")]
         [Min(0f)] public float SandAmbusherMaximumTargetOffset = 4f;
         [Min(0f)] public float SandAmbusherTargetPredictionTime = 1.7f;
+        [Tooltip("Minimum angle above the horizon for a Sand Ambusher aimed at a grounded drone.")]
+        [Range(0f, 90f)] public float SandAmbusherGroundedMinimumAttackAngle = 65f;
         [Min(0f)] public float SandAmbusherWarningDuration = 1.15f;
         [Min(0.1f)] public float SandAmbusherBuriedDepth = 8f;
         [Min(0.1f)] public float SandAmbusherAttackSpeed = 48f;
