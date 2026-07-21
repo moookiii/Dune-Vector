@@ -2817,8 +2817,6 @@ namespace DuneVector
         [Min(0.1f)] public float GroundHeatVeilMinimumHeight = 1.5f;
         [Min(0.1f)] public float GroundHeatVeilMaximumHeight = 3.5f;
         [Min(0f)] public float GroundHeatVeilBaseOffset = 0.1f;
-        [Min(0.01f)] public float GroundHeatVeilNearHeightDistance = 42f;
-        [Range(0f, 1f)] public float GroundHeatVeilNearHeightMultiplier = 0.06f;
         [Range(0f, 0.3f)] public float GroundHeatShimmerOpacity = 0.14f;
         [ColorUsage(false, true)] public Color GroundHeatShimmerColor = new Color(1.15f, 0.9f, 0.62f, 1f);
         [Range(0.05f, 1f)] public float GroundMirageRadiusMultiplier = 0.98f;
@@ -2876,8 +2874,6 @@ namespace DuneVector
         [Range(0f, 1f)] public float HeatPlumeFadeProfileVariation = 0.18f;
         [Range(0f, 1f)] public float HeatPlumeLifetimeFadeInFraction = 0.12f;
         [Range(0f, 1f)] public float HeatPlumeLifetimeFadeOutFraction = 0.72f;
-        [Min(0.01f)] public float HeatPlumeNearSofteningDistance = 28f;
-        [Range(0f, 1f)] public float HeatPlumeNearMinimumStrength = 0.18f;
         [Min(0f)] public float HeatPlumeDistanceFadeStart = 160f;
         [Min(0f)] public float HeatPlumeDistanceFadeEnd = 480f;
         [Min(0f)] public float HeatPlumeDetailFadeStart = 120f;

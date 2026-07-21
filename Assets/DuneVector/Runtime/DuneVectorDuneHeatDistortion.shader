@@ -9,8 +9,6 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
         _ScrollVelocity("Scroll Velocity", Vector) = (0.035, 0.12, 0, 0)
         _ShellStrengthMultiplier("Shell Strength Multiplier", Float) = 1
         [HideInInspector] _VerticalVeil("Vertical Veil", Float) = 0
-        _VeilNearHeightDistance("Veil Near Height Distance", Float) = 42
-        _VeilNearHeightMultiplier("Veil Near Height Multiplier", Range(0, 1)) = 0.06
         [HDR] _ShimmerColor("Visible Heat Shimmer", Color) = (1.15, 0.9, 0.62, 1)
         _ShimmerOpacity("Visible Heat Shimmer Opacity", Range(0, 0.3)) = 0.08
     }
@@ -64,15 +62,12 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 float4 _ScrollVelocity;
                 float _ShellStrengthMultiplier;
                 float _VerticalVeil;
-                float _VeilNearHeightDistance;
-                float _VeilNearHeightMultiplier;
             CBUFFER_END
 
             struct Attributes
             {
                 float3 positionOS : POSITION;
                 float2 uv : TEXCOORD0;
-                float2 baseHeight : TEXCOORD1;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -88,15 +83,7 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 Varyings output;
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
-                float cameraDistance = length(TransformObjectToWorld(input.positionOS));
-                float nearHeightScale = lerp(
-                    _VeilNearHeightMultiplier,
-                    1.0,
-                    smoothstep(0.0, max(_VeilNearHeightDistance, 0.001), cameraDistance));
-                float3 adjustedPosition = input.positionOS;
-                float compressedHeight = lerp(input.baseHeight.x, input.positionOS.y, nearHeightScale);
-                adjustedPosition.y = lerp(input.positionOS.y, compressedHeight, saturate(_VerticalVeil));
-                output.positionCS = TransformObjectToHClip(adjustedPosition);
+                output.positionCS = TransformObjectToHClip(input.positionOS);
                 output.uv = input.uv;
                 return output;
             }
@@ -154,8 +141,6 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 float4 _ScrollVelocity;
                 float _ShellStrengthMultiplier;
                 float _VerticalVeil;
-                float _VeilNearHeightDistance;
-                float _VeilNearHeightMultiplier;
                 float4 _ShimmerColor;
                 float _ShimmerOpacity;
             CBUFFER_END
@@ -164,7 +149,6 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
             {
                 float3 positionOS : POSITION;
                 float2 uv : TEXCOORD0;
-                float2 baseHeight : TEXCOORD1;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -180,15 +164,7 @@ Shader "DuneVector/HDRP Dune Heat Distortion"
                 ShimmerVaryings output;
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
-                float cameraDistance = length(TransformObjectToWorld(input.positionOS));
-                float nearHeightScale = lerp(
-                    _VeilNearHeightMultiplier,
-                    1.0,
-                    smoothstep(0.0, max(_VeilNearHeightDistance, 0.001), cameraDistance));
-                float3 adjustedPosition = input.positionOS;
-                float compressedHeight = lerp(input.baseHeight.x, input.positionOS.y, nearHeightScale);
-                adjustedPosition.y = lerp(input.positionOS.y, compressedHeight, saturate(_VerticalVeil));
-                output.positionCS = TransformObjectToHClip(adjustedPosition);
+                output.positionCS = TransformObjectToHClip(input.positionOS);
                 output.uv = input.uv;
                 return output;
             }

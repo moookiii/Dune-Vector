@@ -33,8 +33,6 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
         _PrimaryEdgeNoise("Primary Edge Noise", Range(0, 1)) = 0.56
         _SecondaryEdgeNoise("Secondary Edge Noise", Range(0, 1)) = 0.28
         _FadeProfileVariation("Fade Profile Variation", Range(0, 1)) = 0.18
-        _NearSofteningDistance("Near Softening Distance", Float) = 28
-        _NearMinimumStrength("Near Minimum Strength", Range(0, 1)) = 0.18
         _DistanceFadeStart("Distance Fade Start", Float) = 160
         _DistanceFadeEnd("Distance Fade End", Float) = 480
         _DetailFadeStart("Detail Fade Start", Float) = 120
@@ -116,8 +114,6 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
                 float _PrimaryEdgeNoise;
                 float _SecondaryEdgeNoise;
                 float _FadeProfileVariation;
-                float _NearSofteningDistance;
-                float _NearMinimumStrength;
                 float _DistanceFadeStart;
                 float _DistanceFadeEnd;
                 float _DetailFadeStart;
@@ -162,10 +158,6 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
             {
                 UNITY_SETUP_INSTANCE_ID(input);
                 float distanceToCamera = length(input.positionRWS);
-                float nearStrength = lerp(
-                    _NearMinimumStrength,
-                    1.0,
-                    smoothstep(0.0, max(_NearSofteningDistance, 0.001), distanceToCamera));
                 float distanceFade = 1.0 - smoothstep(_DistanceFadeStart, _DistanceFadeEnd, distanceToCamera);
                 float detailFade = 1.0 - smoothstep(_DetailFadeStart, _DetailFadeEnd, distanceToCamera);
                 float speed = lerp(_MinimumSpeedMultiplier, _MaximumSpeedMultiplier, input.random);
@@ -213,12 +205,13 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
                 float intersectionFade = saturate((sceneDepth - cardDepth) / max(_DepthFadeDistance, 0.001));
                 float mask = sideMask * cardEdgeMask * bottomMask * topMask * verticalDissipation * turbulentEdge *
                     input.color.a * distanceFade * intersectionFade;
+                clip(mask - _MaskClipThreshold);
 
                 float2 primaryVector = (primary.rg * 2.0) - 1.0;
                 float2 secondaryVector = (secondary.rg * 2.0) - 1.0;
                 float2 distortion = (primaryVector + (secondaryVector * _SecondaryStrength * detailFade));
                 distortion.x += (secondary.g - 0.5) * _HorizontalTurbulence * detailFade;
-                distortion *= _DistortionStrength * strengthVariation * nearStrength * mask;
+                distortion *= _DistortionStrength * strengthVariation * mask;
 
                 return float4(distortion, 1.0, _DistortionBlur * mask);
             }

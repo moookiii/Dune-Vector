@@ -203,6 +203,11 @@ namespace DuneVector
                 CreateHotSpots(root.transform, center, sample);
             }
 
+            if ((HeatZoneVisualsActive || _settings.GroundDistortionEnabled) && _plumeMaterial != null)
+            {
+                plumes = CreateHeatPlumes(root.transform, sample);
+            }
+
             Material groundMaterial = null;
             Mesh groundMesh = null;
             Mesh heatVeilMesh = null;
@@ -244,11 +249,6 @@ namespace DuneVector
                     veilProperties.SetFloat("_VerticalVeil", 1f);
                     veilRenderer.SetPropertyBlock(veilProperties);
                 }
-            }
-
-            if ((HeatZoneVisualsActive || _settings.GroundDistortionEnabled) && _plumeMaterial != null)
-            {
-                plumes = CreateHeatPlumes(root.transform, sample, groundMesh);
             }
             return new ZoneVisual
             {
@@ -328,7 +328,6 @@ namespace DuneVector
             int quadCount = rings * segments;
             Vector3[] vertices = new Vector3[quadCount * 4];
             Vector2[] uvs = new Vector2[vertices.Length];
-            Vector2[] baseHeights = new Vector2[vertices.Length];
             int[] triangles = new int[quadCount * 6];
             float maximumRadius = sample.Radius * _settings.GroundMirageRadiusMultiplier;
             float minimumRadius = Mathf.Min(
@@ -358,25 +357,19 @@ namespace DuneVector
                     float terrain = _world.SampleHeightAtLocal(center.x + x, center.z + z) - center.y;
                     float nextTerrain = _world.SampleHeightAtLocal(center.x + nextX, center.z + nextZ) - center.y;
                     float baseOffset = _settings.GroundHeatVeilBaseOffset;
-                    float baseHeight = terrain + baseOffset;
-                    float nextBaseHeight = nextTerrain + baseOffset;
                     int quad = (ring * segments) + segment;
                     int vertex = quad * 4;
                     int triangle = quad * 6;
-                    vertices[vertex] = new Vector3(x, baseHeight, z);
-                    vertices[vertex + 1] = new Vector3(nextX, nextBaseHeight, nextZ);
-                    vertices[vertex + 2] = new Vector3(x, baseHeight + ringHeight, z);
-                    vertices[vertex + 3] = new Vector3(nextX, nextBaseHeight + ringHeight, nextZ);
+                    vertices[vertex] = new Vector3(x, terrain + baseOffset, z);
+                    vertices[vertex + 1] = new Vector3(nextX, nextTerrain + baseOffset, nextZ);
+                    vertices[vertex + 2] = new Vector3(x, terrain + baseOffset + ringHeight, z);
+                    vertices[vertex + 3] = new Vector3(nextX, nextTerrain + baseOffset + ringHeight, nextZ);
                     float u = segment * 0.22f;
                     float nextU = (segment + 1f) * 0.22f;
                     uvs[vertex] = new Vector2(u, 0f);
                     uvs[vertex + 1] = new Vector2(nextU, 0f);
                     uvs[vertex + 2] = new Vector2(u, 1f);
                     uvs[vertex + 3] = new Vector2(nextU, 1f);
-                    baseHeights[vertex] = new Vector2(baseHeight, 0f);
-                    baseHeights[vertex + 1] = new Vector2(nextBaseHeight, 0f);
-                    baseHeights[vertex + 2] = new Vector2(baseHeight, 0f);
-                    baseHeights[vertex + 3] = new Vector2(nextBaseHeight, 0f);
                     triangles[triangle] = vertex;
                     triangles[triangle + 1] = vertex + 2;
                     triangles[triangle + 2] = vertex + 1;
@@ -392,7 +385,6 @@ namespace DuneVector
                 : UnityEngine.Rendering.IndexFormat.UInt16;
             mesh.vertices = vertices;
             mesh.uv = uvs;
-            mesh.uv2 = baseHeights;
             mesh.triangles = triangles;
             mesh.RecalculateBounds();
             return mesh;
@@ -434,7 +426,7 @@ namespace DuneVector
             return mesh;
         }
 
-        private ParticleSystem CreateHeatPlumes(Transform parent, HeatZoneSample sample, Mesh emissionMesh)
+        private ParticleSystem CreateHeatPlumes(Transform parent, HeatZoneSample sample)
         {
             GameObject plumeObject = new GameObject("Sparse Rising Heat Columns");
             plumeObject.transform.SetParent(parent, false);
@@ -443,7 +435,6 @@ namespace DuneVector
             main.loop = true;
             main.playOnAwake = true;
             main.simulationSpace = ParticleSystemSimulationSpace.World;
-            main.startSpeed = 0f;
             main.maxParticles = Mathf.Max(0, Mathf.RoundToInt(_settings.HeatPlumeParticleBudget * sample.Severity));
             main.startLifetime = new ParticleSystem.MinMaxCurve(
                 _settings.HeatPlumeMinimumLifetime,
@@ -464,17 +455,8 @@ namespace DuneVector
             emission.rateOverTime = _settings.HeatPlumeEmissionRate * sample.Severity;
             ParticleSystem.ShapeModule shape = system.shape;
             shape.enabled = true;
-            if (emissionMesh != null)
-            {
-                shape.shapeType = ParticleSystemShapeType.Mesh;
-                shape.mesh = emissionMesh;
-                shape.meshShapeType = ParticleSystemMeshShapeType.Triangle;
-            }
-            else
-            {
-                shape.shapeType = ParticleSystemShapeType.Circle;
-                shape.radius = sample.Radius * _settings.GroundMirageRadiusMultiplier;
-            }
+            shape.shapeType = ParticleSystemShapeType.Circle;
+            shape.radius = sample.Radius * _settings.GroundMirageRadiusMultiplier;
             ParticleSystem.VelocityOverLifetimeModule velocity = system.velocityOverLifetime;
             velocity.enabled = true;
             velocity.space = ParticleSystemSimulationSpace.World;
@@ -678,8 +660,6 @@ namespace DuneVector
             material.SetFloat("_DistortionBlur", Mathf.Clamp01(_settings.DistortionBlurStrength));
             material.SetFloat("_TextureScale", Mathf.Max(0.01f, _settings.DistortionTextureScale));
             material.SetVector("_ScrollVelocity", _settings.DistortionScrollVelocity);
-            material.SetFloat("_VeilNearHeightDistance", _settings.GroundHeatVeilNearHeightDistance);
-            material.SetFloat("_VeilNearHeightMultiplier", _settings.GroundHeatVeilNearHeightMultiplier);
             material.SetFloat("_ShimmerOpacity", Mathf.Clamp(_settings.GroundHeatShimmerOpacity, 0f, 0.3f));
             material.SetColor("_ShimmerColor", _settings.GroundHeatShimmerColor);
             return material;
@@ -729,8 +709,6 @@ namespace DuneVector
             material.SetFloat("_PrimaryEdgeNoise", _settings.HeatPlumePrimaryEdgeNoise);
             material.SetFloat("_SecondaryEdgeNoise", _settings.HeatPlumeSecondaryEdgeNoise);
             material.SetFloat("_FadeProfileVariation", _settings.HeatPlumeFadeProfileVariation);
-            material.SetFloat("_NearSofteningDistance", _settings.HeatPlumeNearSofteningDistance);
-            material.SetFloat("_NearMinimumStrength", _settings.HeatPlumeNearMinimumStrength);
             material.SetFloat("_DistanceFadeStart", _settings.HeatPlumeDistanceFadeStart);
             material.SetFloat("_DistanceFadeEnd", _settings.HeatPlumeDistanceFadeEnd);
             material.SetFloat("_DetailFadeStart", _settings.HeatPlumeDetailFadeStart);
