@@ -37,12 +37,13 @@ namespace DuneVector
             public float ImpactRadius;
         }
 
-        private sealed class StrikeScarVisual
+        private sealed class GroundImpactVisual
         {
             public GameObject Root;
-            public Material Material;
-            public float Duration;
-            public float Remaining;
+            public Transform Flash;
+            public Transform Wave;
+            public float Radius;
+            public float Elapsed;
         }
 
         private readonly List<CloudLobe> _cloudLobes = new List<CloudLobe>();
@@ -51,7 +52,7 @@ namespace DuneVector
         private readonly List<Light> _internalLights = new List<Light>();
         private readonly List<LineRenderer> _targetRings = new List<LineRenderer>();
         private readonly List<LightningVisual> _lightning = new List<LightningVisual>();
-        private readonly List<StrikeScarVisual> _strikeScars = new List<StrikeScarVisual>();
+        private readonly List<GroundImpactVisual> _groundImpacts = new List<GroundImpactVisual>();
         private readonly List<DuneVectorLandmarkInstance> _landmarkCandidates = new List<DuneVectorLandmarkInstance>();
 
         private DuneVectorEnvironmentalHazardSystem _hazards;
@@ -59,6 +60,9 @@ namespace DuneVector
         private DesertWorldStreamer _world;
         private DuneVectorWeatherController _weather;
         private ElectricalStormVisualTuning _settings;
+        private DuneVectorMaterials _materials;
+        private StormPyramidTuning _groundImpactSettings;
+        private float _groundStrikeRadius;
         private DuneVectorCourierGame _courierGame;
         private DuneVectorDynamicCourierDirector _dynamicCourierDirector;
         private System.Random _random;
@@ -109,33 +113,38 @@ namespace DuneVector
             DroneCharacterController drone,
             DesertWorldStreamer world,
             DuneVectorWeatherController weather,
-            ElectricalStormVisualTuning settings)
+            ElectricalSandstormTuning electricalSettings,
+            DuneVectorMaterials materials,
+            StormPyramidTuning stormPyramidSettings)
         {
             _hazards = hazards;
             _drone = drone;
             _world = world;
             _weather = weather;
-            _settings = settings;
+            _settings = electricalSettings.Visuals;
+            _materials = materials;
+            _groundImpactSettings = stormPyramidSettings;
+            _groundStrikeRadius = electricalSettings.StrikeRadius;
             _courierGame = Object.FindAnyObjectByType<DuneVectorCourierGame>();
             _dynamicCourierDirector = Object.FindAnyObjectByType<DuneVectorDynamicCourierDirector>();
             _random = new System.Random(unchecked(world.WorldSeed ^ 77531));
-            _softParticleTexture = CreateSoftParticleTexture(Mathf.Max(16, settings.ParticleTextureResolution));
+            _softParticleTexture = CreateSoftParticleTexture(Mathf.Max(16, _settings.ParticleTextureResolution));
             BuildCloudResources();
-            _lightningMaterial = CreateEnergyMaterial("Electrical Storm Lightning", settings.LightningColor);
-            _telegraphMaterial = CreateEnergyMaterial("Electrical Strike Telegraph", settings.TelegraphColor);
-            _chargedDustMaterial = CreateParticleMaterial("Charged Desert Dust", settings.ChargedDustColor);
-            _staticMoteMaterial = CreateParticleMaterial("Ionized Static Motes", settings.StaticMoteColor);
+            _lightningMaterial = CreateEnergyMaterial("Electrical Storm Lightning", _settings.LightningColor);
+            _telegraphMaterial = CreateEnergyMaterial("Electrical Strike Telegraph", _settings.TelegraphColor);
+            _chargedDustMaterial = CreateParticleMaterial("Charged Desert Dust", _settings.ChargedDustColor);
+            _staticMoteMaterial = CreateParticleMaterial("Ionized Static Motes", _settings.StaticMoteColor);
             BuildStormfront();
             _chargedDust = CreateChargedDust();
             _staticMotes = CreateStaticMotes();
             BuildTargetTelegraph();
             CreateInteriorVolume();
 
-            _flashTimer = NextInterval(settings.InternalFlashMinimumInterval, settings.InternalFlashMaximumInterval);
-            _probeTimer = NextInterval(settings.ProbeMinimumInterval, settings.ProbeMaximumInterval);
-            _nearArcTimer = NextInterval(settings.NearArcMinimumInterval, settings.NearArcMaximumInterval);
-            _landmarkTimer = NextInterval(settings.LandmarkReactionMinimumInterval, settings.LandmarkReactionMaximumInterval);
-            _cloudArcTimer = NextInterval(settings.CloudArcMinimumInterval, settings.CloudArcMaximumInterval);
+            _flashTimer = NextInterval(_settings.InternalFlashMinimumInterval, _settings.InternalFlashMaximumInterval);
+            _probeTimer = NextInterval(_settings.ProbeMinimumInterval, _settings.ProbeMaximumInterval);
+            _nearArcTimer = NextInterval(_settings.NearArcMinimumInterval, _settings.NearArcMaximumInterval);
+            _landmarkTimer = NextInterval(_settings.LandmarkReactionMinimumInterval, _settings.LandmarkReactionMaximumInterval);
+            _cloudArcTimer = NextInterval(_settings.CloudArcMinimumInterval, _settings.CloudArcMaximumInterval);
 
             _hazards.StrikePhaseChanged += HandleStrikePhaseChanged;
             _hazards.LightningTargetLocked += HandleLightningTargetLocked;
@@ -168,7 +177,7 @@ namespace DuneVector
             UpdateTargetTelegraph();
             UpdateAmbientElectricalEvents(Time.deltaTime);
             UpdateLightningVisuals(Time.deltaTime);
-            UpdateStrikeScars(Time.deltaTime);
+            UpdateGroundImpacts(Time.deltaTime);
             if (_interiorVolume != null)
             {
                 _interiorVolume.weight = _visualBlend;
@@ -855,7 +864,7 @@ namespace DuneVector
             Vector3 end,
             float width,
             float duration,
-            bool createScar,
+            bool createGroundImpact,
             bool branches)
         {
             GameObject root = new GameObject("Electrical Storm Lightning Release");
@@ -897,9 +906,9 @@ namespace DuneVector
             visual.ImpactFlash = flash.transform;
             _lightning.Add(visual);
             UpdateLightningGeometry(visual);
-            if (createScar)
+            if (createGroundImpact)
             {
-                CreateStrikeScar(end);
+                CreateGroundImpact(end);
             }
         }
 
@@ -983,47 +992,74 @@ namespace DuneVector
             }
         }
 
-        private void CreateStrikeScar(Vector3 position)
+        private void CreateGroundImpact(Vector3 position)
         {
-            GameObject scar = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            scar.name = "Fused Sand Lightning Scar";
-            scar.transform.SetParent(transform, true);
-            scar.transform.position = position + (Vector3.up * _settings.StrikeScarHeightOffset);
-            scar.transform.localScale = new Vector3(
-                _settings.StrikeScarRadius * 2f,
-                _settings.StrikeScarThickness,
-                _settings.StrikeScarRadius * 2f);
-            Material material = CreateScarMaterial();
-            Renderer renderer = scar.GetComponent<Renderer>();
-            renderer.sharedMaterial = material;
-            Collider collider = scar.GetComponent<Collider>();
-            if (collider != null) Destroy(collider);
-            _strikeScars.Add(new StrikeScarVisual
+            Transform marker = DuneVectorVisuals.CreateStormStrikeMarker(
+                transform,
+                _materials,
+                _groundStrikeRadius);
+            marker.name = "Electrical Storm Ground Impact";
+            marker.position = position;
+            Transform outerRing = marker.Find("Outer Warning Ring");
+            Transform innerRing = marker.Find("Inner Warning Ring");
+            if (outerRing != null) outerRing.gameObject.SetActive(false);
+            if (innerRing != null) innerRing.gameObject.SetActive(false);
+
+            Transform wave = DuneVectorVisuals.CreateStormGroundImpactWave(
+                marker,
+                _materials,
+                _groundStrikeRadius,
+                _groundImpactSettings.GroundImpactRingThickness,
+                _groundImpactSettings.GroundImpactHeightOffset);
+            Transform flash = marker.Find("Strike Impact Flash");
+            marker.gameObject.SetActive(true);
+            wave.gameObject.SetActive(true);
+            wave.localScale = Vector3.one * _groundImpactSettings.GroundImpactStartScale;
+            if (flash != null) flash.localScale = Vector3.zero;
+
+            _groundImpacts.Add(new GroundImpactVisual
             {
-                Root = scar,
-                Material = material,
-                Duration = Mathf.Max(0.1f, _settings.StrikeScarLifetime),
-                Remaining = Mathf.Max(0.1f, _settings.StrikeScarLifetime),
+                Root = marker.gameObject,
+                Flash = flash,
+                Wave = wave,
+                Radius = _groundStrikeRadius,
             });
         }
 
-        private void UpdateStrikeScars(float deltaTime)
+        private void UpdateGroundImpacts(float deltaTime)
         {
-            for (int i = _strikeScars.Count - 1; i >= 0; i--)
+            float lightningDuration = Mathf.Max(0.01f, _groundImpactSettings.LightningVisualDuration);
+            float expansionDuration = Mathf.Max(0.01f, _groundImpactSettings.GroundImpactExpansionDuration);
+            float impactDuration = expansionDuration + Mathf.Max(0f, _groundImpactSettings.GroundImpactHoldDuration);
+            float totalDuration = Mathf.Max(lightningDuration, impactDuration);
+
+            for (int i = _groundImpacts.Count - 1; i >= 0; i--)
             {
-                StrikeScarVisual scar = _strikeScars[i];
-                scar.Remaining -= deltaTime;
-                if (scar.Remaining <= 0f)
+                GroundImpactVisual impact = _groundImpacts[i];
+                impact.Elapsed += deltaTime;
+                if (impact.Elapsed >= totalDuration)
                 {
-                    Destroy(scar.Root);
-                    Destroy(scar.Material);
-                    _strikeScars.RemoveAt(i);
+                    Destroy(impact.Root);
+                    _groundImpacts.RemoveAt(i);
                     continue;
                 }
-                float glow = Mathf.Clamp01(scar.Remaining / scar.Duration);
-                if (scar.Material.HasProperty("_EmissiveColor"))
+
+                if (impact.Flash != null)
                 {
-                    scar.Material.SetColor("_EmissiveColor", _settings.StrikeScarEmission * glow);
+                    float flashLife01 = Mathf.Clamp01(impact.Elapsed / lightningDuration);
+                    float flashScale = Mathf.Sin(flashLife01 * Mathf.PI)
+                        * impact.Radius
+                        * _groundImpactSettings.GroundImpactFlashScaleMultiplier;
+                    impact.Flash.localScale = Vector3.one * flashScale;
+                }
+                if (impact.Wave != null)
+                {
+                    float expansion01 = Mathf.Clamp01(impact.Elapsed / expansionDuration);
+                    float easedExpansion = Mathf.SmoothStep(
+                        _groundImpactSettings.GroundImpactStartScale,
+                        1f,
+                        expansion01);
+                    impact.Wave.localScale = Vector3.one * easedExpansion;
                 }
             }
         }
@@ -1200,17 +1236,6 @@ namespace DuneVector
             return material;
         }
 
-        private Material CreateScarMaterial()
-        {
-            Shader shader = Shader.Find("HDRP/Lit");
-            Material material = new Material(shader) { name = "Fused Sand Afterglow" };
-            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", _settings.StrikeScarColor);
-            if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", _settings.StrikeScarSmoothness);
-            if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", _settings.StrikeScarEmission);
-            if (material.HasProperty("_EmissiveExposureWeight")) material.SetFloat("_EmissiveExposureWeight", 0f);
-            return material;
-        }
-
         private static LineRenderer CreateLine(string name, Transform parent, Material material)
         {
             GameObject lineObject = new GameObject(name);
@@ -1324,9 +1349,9 @@ namespace DuneVector
                 _lightning[i].Start += shift;
                 _lightning[i].End += shift;
             }
-            for (int i = 0; i < _strikeScars.Count; i++)
+            for (int i = 0; i < _groundImpacts.Count; i++)
             {
-                _strikeScars[i].Root.transform.position += shift;
+                _groundImpacts[i].Root.transform.position += shift;
             }
         }
 
@@ -1457,10 +1482,6 @@ namespace DuneVector
             if (_staticMoteMaterial != null) Destroy(_staticMoteMaterial);
             if (_softParticleTexture != null) Destroy(_softParticleTexture);
             if (_interiorProfile != null) Destroy(_interiorProfile);
-            for (int i = 0; i < _strikeScars.Count; i++)
-            {
-                if (_strikeScars[i].Material != null) Destroy(_strikeScars[i].Material);
-            }
         }
     }
 }

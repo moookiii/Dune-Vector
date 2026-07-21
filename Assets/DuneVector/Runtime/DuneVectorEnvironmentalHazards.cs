@@ -75,7 +75,9 @@ namespace DuneVector
             DesertWorldStreamer world,
             DuneVectorWeatherController weather,
             DuneVectorCourierGame courierGame,
-            EnvironmentalHazardTuning settings)
+            EnvironmentalHazardTuning settings,
+            DuneVectorMaterials materials,
+            StormPyramidTuning stormPyramidSettings)
         {
             settings.EnsureInitialized();
             _drone = drone;
@@ -97,7 +99,14 @@ namespace DuneVector
             if (_electricalSettings.Enabled && _electricalSettings.Visuals.Enabled)
             {
                 _electricalVisuals = gameObject.AddComponent<DuneVectorElectricalStormVisualSystem>();
-                _electricalVisuals.Initialize(this, _drone, _world, _weather, _electricalSettings.Visuals);
+                _electricalVisuals.Initialize(
+                    this,
+                    _drone,
+                    _world,
+                    _weather,
+                    _electricalSettings,
+                    materials,
+                    stormPyramidSettings);
             }
             if ((_heatSettings.Enabled && _heatSettings.VisualsEnabled) || _heatSettings.GroundDistortionEnabled)
             {

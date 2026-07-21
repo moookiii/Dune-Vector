@@ -849,7 +849,9 @@ namespace DuneVector
                 World,
                 WeatherSystem,
                 CourierGame,
-                EnvironmentalHazardSettings);
+                EnvironmentalHazardSettings,
+                _materials,
+                StormPyramids);
             CourierGame?.BindEnvironmentalHazardSystem(EnvironmentalHazardSystem);
             DeliveryLoop?.BindEnvironmentalHazardSystem(EnvironmentalHazardSystem);
         }

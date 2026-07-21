@@ -2568,15 +2568,6 @@ namespace DuneVector
         [Min(0f)] public float ImpactFlashRadius = 5.8f;
         [Min(0.01f)] public float ImpactFlashDuration = 0.38f;
 
-        [Header("Fused Sand Afterglow")]
-        [Min(0f)] public float StrikeScarRadius = 3.6f;
-        [Min(0f)] public float StrikeScarThickness = 0.09f;
-        [Min(0f)] public float StrikeScarHeightOffset = 0.06f;
-        [Min(0.1f)] public float StrikeScarLifetime = 28f;
-        [ColorUsage(false)] public Color StrikeScarColor = new Color(0.018f, 0.024f, 0.032f, 1f);
-        [ColorUsage(false, true)] public Color StrikeScarEmission = new Color(0.12f, 1.2f, 3.4f, 1f);
-        [Range(0f, 1f)] public float StrikeScarSmoothness = 0.72f;
-
         [Header("Near-Field Arc Snaps")]
         [Min(0.1f)] public float NearArcMinimumInterval = 1.4f;
         [Min(0.1f)] public float NearArcMaximumInterval = 3.8f;
