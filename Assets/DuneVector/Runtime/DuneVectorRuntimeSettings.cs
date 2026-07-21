@@ -2714,6 +2714,8 @@ namespace DuneVector
         [Range(16, 160)] public int GroundHeatVeilSegments = 96;
         [Min(0.25f)] public float GroundHeatVeilMinimumRadius = 1.5f;
         [Range(0.25f, 4f)] public float GroundHeatVeilRadiusDistribution = 1.6f;
+        [Min(0f)] public float GroundHeatVeilNearFadeStart = 5f;
+        [Min(0f)] public float GroundHeatVeilNearFadeEnd = 14f;
         [Min(0.1f)] public float GroundHeatVeilMinimumHeight = 1.5f;
         [Min(0.1f)] public float GroundHeatVeilMaximumHeight = 3.5f;
         [Min(0f)] public float GroundHeatVeilBaseOffset = 0.1f;
