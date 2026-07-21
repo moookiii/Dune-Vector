@@ -323,14 +323,18 @@ namespace DuneVector
             Vector2[] uvs = new Vector2[vertices.Length];
             int[] triangles = new int[quadCount * 6];
             float maximumRadius = sample.Radius * _settings.GroundMirageRadiusMultiplier;
-            float minimumRadius = maximumRadius / (rings + 1f);
+            float minimumRadius = Mathf.Min(
+                maximumRadius,
+                Mathf.Max(0.25f, _settings.GroundHeatVeilMinimumRadius));
+            float radiusDistribution = Mathf.Max(0.25f, _settings.GroundHeatVeilRadiusDistribution);
             float minimumHeight = Mathf.Max(0.1f, _settings.GroundHeatVeilMinimumHeight);
             float maximumHeight = Mathf.Max(minimumHeight, _settings.GroundHeatVeilMaximumHeight);
 
             for (int ring = 0; ring < rings; ring++)
             {
-                float ringProgress = (ring + 1f) / rings;
-                float radius = Mathf.Lerp(minimumRadius, maximumRadius, ringProgress);
+                float ringProgress = rings == 1 ? 0f : ring / (rings - 1f);
+                float distributedProgress = Mathf.Pow(ringProgress, radiusDistribution);
+                float radius = Mathf.Lerp(minimumRadius, maximumRadius, distributedProgress);
                 for (int segment = 0; segment < segments; segment++)
                 {
                     int next = (segment + 1) % segments;
