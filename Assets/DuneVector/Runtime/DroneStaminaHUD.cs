@@ -75,9 +75,14 @@ namespace DuneVector
             }
 
             float padding = Mathf.Max(0f, _settings.ScreenEdgePadding);
+            float speed01 = Mathf.Clamp01(_drone.Speed / Mathf.Max(1f, _drone.CurrentSpeedometerMaximum));
+            Vector2 meterOffset = Vector2.Lerp(
+                _settings.MeterScreenOffset,
+                _settings.MeterMaximumSpeedScreenOffset,
+                speed01);
             Vector2 targetCenter = new Vector2(
-                Mathf.Clamp(screenPosition.x + _settings.MeterScreenOffset.x, padding, Screen.width - padding),
-                Mathf.Clamp(Screen.height - screenPosition.y + _settings.MeterScreenOffset.y, padding, Screen.height - padding));
+                Mathf.Clamp(screenPosition.x + meterOffset.x, padding, Screen.width - padding),
+                Mathf.Clamp(Screen.height - screenPosition.y + meterOffset.y, padding, Screen.height - padding));
             if (!_hasScreenCenter)
             {
                 _screenCenter = targetCenter;
