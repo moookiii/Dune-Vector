@@ -17,7 +17,6 @@ namespace DuneVector
             public Material GroundMaterial;
             public Mesh CurtainMesh;
             public Mesh GroundMesh;
-            public Mesh HeatVeilMesh;
             public ParticleSystem Plumes;
             public ParticleSystem Streaks;
         }
@@ -210,7 +209,6 @@ namespace DuneVector
 
             Material groundMaterial = null;
             Mesh groundMesh = null;
-            Mesh heatVeilMesh = null;
             if (_settings.GroundDistortionEnabled)
             {
                 groundMaterial = CreateGroundDistortionMaterial(
@@ -236,19 +234,6 @@ namespace DuneVector
                         Mathf.Pow(_settings.GroundDistortionShellStrengthFalloff, shell));
                     renderer.SetPropertyBlock(properties);
                 }
-
-                heatVeilMesh = CreateDuneHeatVeilMesh(center, sample);
-                if (heatVeilMesh != null)
-                {
-                    Renderer veilRenderer = CreateMeshRenderer(
-                        "Continuous Dune-Rising Heat Veils",
-                        root.transform,
-                        heatVeilMesh,
-                        groundMaterial);
-                    MaterialPropertyBlock veilProperties = new MaterialPropertyBlock();
-                    veilProperties.SetFloat("_VerticalVeil", 1f);
-                    veilRenderer.SetPropertyBlock(veilProperties);
-                }
             }
             return new ZoneVisual
             {
@@ -258,7 +243,6 @@ namespace DuneVector
                 GroundMaterial = groundMaterial,
                 CurtainMesh = curtainMesh,
                 GroundMesh = groundMesh,
-                HeatVeilMesh = heatVeilMesh,
                 Plumes = plumes,
                 Streaks = streaks,
             };
@@ -709,6 +693,8 @@ namespace DuneVector
             material.SetFloat("_PrimaryEdgeNoise", _settings.HeatPlumePrimaryEdgeNoise);
             material.SetFloat("_SecondaryEdgeNoise", _settings.HeatPlumeSecondaryEdgeNoise);
             material.SetFloat("_FadeProfileVariation", _settings.HeatPlumeFadeProfileVariation);
+            material.SetFloat("_NearSofteningDistance", _settings.HeatPlumeNearSofteningDistance);
+            material.SetFloat("_NearMinimumStrength", _settings.HeatPlumeNearMinimumStrength);
             material.SetFloat("_DistanceFadeStart", _settings.HeatPlumeDistanceFadeStart);
             material.SetFloat("_DistanceFadeEnd", _settings.HeatPlumeDistanceFadeEnd);
             material.SetFloat("_DetailFadeStart", _settings.HeatPlumeDetailFadeStart);
@@ -936,7 +922,6 @@ namespace DuneVector
             if (visual.GroundMaterial != null) Destroy(visual.GroundMaterial);
             if (visual.CurtainMesh != null) Destroy(visual.CurtainMesh);
             if (visual.GroundMesh != null) Destroy(visual.GroundMesh);
-            if (visual.HeatVeilMesh != null) Destroy(visual.HeatVeilMesh);
         }
 
         private void OnDestroy()

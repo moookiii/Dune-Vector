@@ -2874,6 +2874,8 @@ namespace DuneVector
         [Range(0f, 1f)] public float HeatPlumeFadeProfileVariation = 0.18f;
         [Range(0f, 1f)] public float HeatPlumeLifetimeFadeInFraction = 0.12f;
         [Range(0f, 1f)] public float HeatPlumeLifetimeFadeOutFraction = 0.72f;
+        [Min(0.01f)] public float HeatPlumeNearSofteningDistance = 28f;
+        [Range(0f, 1f)] public float HeatPlumeNearMinimumStrength = 0.18f;
         [Min(0f)] public float HeatPlumeDistanceFadeStart = 160f;
         [Min(0f)] public float HeatPlumeDistanceFadeEnd = 480f;
         [Min(0f)] public float HeatPlumeDetailFadeStart = 120f;
