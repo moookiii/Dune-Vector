@@ -2516,6 +2516,12 @@ namespace DuneVector
         [Range(0f, 1f)] public float GroundDistortionShellStrengthFalloff = 0.72f;
         [Min(20f)] public float GroundDistortionFollowRadius = 220f;
         [Min(5f)] public float GroundDistortionRecenterDistance = 40f;
+        [Range(0, 160)] public int GroundHeatRibbonCount = 64;
+        [Min(0.1f)] public float GroundHeatRibbonMinimumHeight = 3.5f;
+        [Min(0.1f)] public float GroundHeatRibbonMaximumHeight = 9f;
+        [Min(0.1f)] public float GroundHeatRibbonMinimumWidth = 3f;
+        [Min(0.1f)] public float GroundHeatRibbonMaximumWidth = 7f;
+        [Min(0f)] public float GroundHeatRibbonBaseOffset = 0.2f;
         [Range(0.05f, 1f)] public float GroundMirageRadiusMultiplier = 0.92f;
         [Min(0f)] public float DistantDistortionStrength = 0.34f;
         [Min(0f)] public float InteriorDistortionStrength = 0.78f;
