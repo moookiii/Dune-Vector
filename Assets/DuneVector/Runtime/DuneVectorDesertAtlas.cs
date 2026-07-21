@@ -59,6 +59,7 @@ namespace DuneVector
         private DuneVectorCourierProgress _progress;
         private DuneVectorCourierGame _courierGame;
         private DesertAtlasTuning _settings;
+        private CompassHudTuning _compassSettings;
         private Material _discoveredMaterial;
         private string _savePath;
         private DesertAtlasSiteDefinition _nearestSite;
@@ -90,7 +91,8 @@ namespace DuneVector
             DroneGoldWallet wallet,
             DuneVectorCourierProgress progress,
             DuneVectorCourierGame courierGame,
-            DesertAtlasTuning settings)
+            DesertAtlasTuning settings,
+            CompassHudTuning compassSettings)
         {
             _player = player;
             _health = health;
@@ -100,6 +102,7 @@ namespace DuneVector
             _progress = progress;
             _courierGame = courierGame;
             _settings = settings ?? new DesertAtlasTuning();
+            _compassSettings = compassSettings ?? new CompassHudTuning();
             _settings.EnsureInitialized();
             _savePath = Path.Combine(Application.persistentDataPath, SaveFileName);
             Load();
@@ -761,10 +764,15 @@ namespace DuneVector
                 return;
             }
             EnsureGui();
+            float compassScale = GetCompassScale();
+            float panelWidth = Mathf.Min(_settings.HudWidth, Screen.safeArea.width);
+            float panelLeft = Screen.safeArea.x + ((Screen.safeArea.width - panelWidth) * 0.5f);
+            float compassBottom = (Screen.height - Screen.safeArea.yMax) +
+                ((_compassSettings.TopMargin + _compassSettings.Height) * compassScale);
             Rect panel = new Rect(
-                Screen.width - _settings.HudRightMargin - _settings.HudWidth,
-                _settings.HudTop,
-                _settings.HudWidth,
+                panelLeft,
+                compassBottom + (_settings.HudGapBelowCompass * compassScale),
+                panelWidth,
                 _settings.HudHeight);
             DrawRect(panel, _settings.HudPanelColor);
             float padding = _settings.HudPadding;
@@ -814,6 +822,16 @@ namespace DuneVector
             string[] cardinals = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
             int index = Mathf.RoundToInt(angle / 45f) % cardinals.Length;
             return cardinals[index];
+        }
+
+        private float GetCompassScale()
+        {
+            float minimumScale = Mathf.Min(_compassSettings.MinimumScale, _compassSettings.MaximumScale);
+            float maximumScale = Mathf.Max(_compassSettings.MinimumScale, _compassSettings.MaximumScale);
+            return Mathf.Clamp(
+                Screen.height / Mathf.Max(1f, _compassSettings.ReferenceHeight),
+                minimumScale,
+                maximumScale);
         }
 
         private void EnsureGui()

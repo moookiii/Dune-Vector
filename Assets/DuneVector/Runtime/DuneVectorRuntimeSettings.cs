@@ -1905,9 +1905,8 @@ namespace DuneVector
         [Min(0.75f)] public float ChallengeFlightRingRadius = 5.5f;
 
         [Header("Free Roam HUD")]
-        [Min(0f)] public float HudRightMargin = 28f;
-        [Min(0f)] public float HudTop = 196f;
-        [Min(160f)] public float HudWidth = 390f;
+        [Min(0f)] public float HudGapBelowCompass = 10f;
+        [Min(160f)] public float HudWidth = 320f;
         [Min(60f)] public float HudHeight = 112f;
         [Min(0f)] public float HudPadding = 12f;
         [Min(9)] public int HudTitleFontSize = 15;

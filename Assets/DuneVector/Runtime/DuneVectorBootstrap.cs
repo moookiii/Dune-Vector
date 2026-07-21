@@ -730,6 +730,7 @@ namespace DuneVector
                     DeliveryMessages,
                     WorldHubSettings,
                     DesertAtlasSettings,
+                    RuntimeSettings.CompassHud,
                     EnemyDirector,
                     StormPyramidDirector);
                 DesertAtlas = CourierGame.DesertAtlas;
