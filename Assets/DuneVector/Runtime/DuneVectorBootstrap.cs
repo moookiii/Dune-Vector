@@ -930,7 +930,7 @@ namespace DuneVector
             EnsureStyles();
 
             float elapsed = Time.time - _startTime;
-            if (elapsed < 9f)
+            if (elapsed < 9f && !ShowDebugInformation)
             {
                 float alpha = elapsed < 6.5f ? 1f : Mathf.Clamp01((9f - elapsed) / 2.5f);
                 Color previous = GUI.color;
@@ -979,35 +979,30 @@ namespace DuneVector
                 return;
             }
 
-            Rect debugPanel = new Rect(20f, 145f, 390f, 270f);
-            GUI.Box(debugPanel, GUIContent.none);
-            if (Health != null)
-            {
-                bool infiniteHealth = GUI.Toggle(
-                    new Rect(debugPanel.x + 12f, debugPanel.y + 8f, debugPanel.width - 24f, 22f),
-                    Health.HasInfiniteHealth,
-                    "Infinite Health");
-                if (infiniteHealth != Health.HasInfiniteHealth)
-                {
-                    Health.SetInfiniteHealth(infiniteHealth);
-                }
-            }
             LogicalPosition logical = World.LogicalPlayerPosition;
+            string healthState = Health != null && Health.HasInfiniteHealth ? "INFINITE" : "NORMAL";
             string telemetry =
-                $"DRONE\n" +
+                $"DRONE  Health: {healthState}\n" +
                 $"Mode: {Drone.CurrentMode}   Stable grounded: {Drone.IsStableGrounded}\n" +
                 $"Velocity: {Drone.Motor.Velocity}   Speed: {Drone.Speed:0.00}\n" +
                 $"Boost: {Drone.IsBoosting}   Flight remaining: {Drone.FlightTimeRemaining:0.0}s\n" +
                 $"Wind: {Drone.CurrentWindType}  influence {Drone.CurrentWindInfluence:0.00}  force {Drone.CurrentWindForce}\n" +
-                $"Logical position: {logical}\n\n" +
-                $"CAMERA\n" +
-                $"FollowingSharpness: {CameraController.FollowingSharpness:0.00}\n" +
-                $"Follow error: {CameraController.FollowingError:0.00} m\n\n" +
+                $"Logical position: {logical}\n" +
+                $"CAMERA  Sharpness: {CameraController.FollowingSharpness:0.00}   Error: {CameraController.FollowingError:0.00} m\n" +
                 $"WORLD\n" +
                 $"Chunk: {World.CurrentLogicalChunk}   Active: {World.ActiveChunkCount}\n" +
                 $"Generated: {World.GeneratedChunkCount}   Unloaded: {World.UnloadedChunkCount}\n" +
                 $"Origin: ({World.OriginOffsetX:0}, {World.OriginOffsetZ:0})   Rebases: {World.RebaseCount}";
-            GUI.Label(new Rect(debugPanel.x + 12f, debugPanel.y + 36f, debugPanel.width - 24f, debugPanel.height - 44f), telemetry, _bodyStyle);
+            float debugPanelWidth = Mathf.Min(390f, Mathf.Max(1f, Screen.width - 20f));
+            float debugContentWidth = Mathf.Max(1f, debugPanelWidth - 24f);
+            float debugContentHeight = _bodyStyle.CalcHeight(new GUIContent(telemetry), debugContentWidth);
+            float debugPanelHeight = Mathf.Min(debugContentHeight + 16f, Mathf.Max(1f, Screen.height - 20f));
+            Rect debugPanel = new Rect(10f, 10f, debugPanelWidth, debugPanelHeight);
+            GUI.Box(debugPanel, GUIContent.none);
+            GUI.Label(
+                new Rect(debugPanel.x + 12f, debugPanel.y + 8f, debugContentWidth, debugPanelHeight - 16f),
+                telemetry,
+                _bodyStyle);
         }
     }
 }
