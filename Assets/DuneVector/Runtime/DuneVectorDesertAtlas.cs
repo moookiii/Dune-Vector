@@ -836,6 +836,7 @@ namespace DuneVector
         {
             if (_visuals.TryGetValue(site.PersistentId, out SiteVisual existing))
             {
+                DisableGameplayColliders(existing.Root);
                 return existing;
             }
 
@@ -931,7 +932,29 @@ namespace DuneVector
                 created.ChallengeFlightRing = ringObject.transform;
             }
             _visuals.Add(site.PersistentId, created);
+            DisableGameplayColliders(created.Root);
             return created;
+        }
+
+        private static void DisableGameplayColliders(Transform root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            Collider[] colliders = root.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                Collider collider = colliders[i];
+                if (collider == null)
+                {
+                    continue;
+                }
+
+                collider.enabled = false;
+                Destroy(collider);
+            }
         }
 
         private Transform BuildDiscoveredMarker(Transform root)
@@ -1092,6 +1115,7 @@ namespace DuneVector
             part.transform.localScale = localScale;
             if (part.TryGetComponent(out Collider collider))
             {
+                collider.enabled = false;
                 Destroy(collider);
             }
             part.GetComponent<Renderer>().sharedMaterial = material;
