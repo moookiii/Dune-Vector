@@ -120,6 +120,7 @@ namespace DuneVector.Editor
         private SerializedProperty _worldHub;
         private SerializedProperty _landmarks;
         private SerializedProperty _geoglyphs;
+        private SerializedProperty _desertAtlas;
         private SerializedProperty _routeEncounters;
         private SerializedProperty _dynamicCouriers;
         private SerializedProperty _pyramids;
@@ -155,6 +156,7 @@ namespace DuneVector.Editor
             _worldHub = serializedObject.FindProperty("WorldHub");
             _landmarks = serializedObject.FindProperty("Landmarks");
             _geoglyphs = serializedObject.FindProperty("Geoglyphs");
+            _desertAtlas = serializedObject.FindProperty("DesertAtlas");
             _routeEncounters = serializedObject.FindProperty("RouteEncounters");
             _dynamicCouriers = serializedObject.FindProperty("DynamicCouriers");
             _pyramids = serializedObject.FindProperty("Pyramids");
@@ -359,6 +361,10 @@ namespace DuneVector.Editor
                 "World Geoglyph Artwork",
                 "Unique mask landmarks projected once in persistent logical world coordinates across streamed dunes.",
                 _geoglyphs);
+            DuneVectorSettingsInspector.DrawSection(
+                "Desert Atlas",
+                "Persistent signal discoveries, full-screen Atlas terminal, and the free-roam Atlas HUD.",
+                _desertAtlas);
         }
 
         private void DrawDunePresetControls()
