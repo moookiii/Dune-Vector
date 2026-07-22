@@ -1439,16 +1439,17 @@ namespace DuneVector
                 return;
             }
             EnsureGui();
-            float compassScale = GetCompassScale();
-            float panelWidth = Mathf.Min(_settings.HudWidth, Screen.safeArea.width);
-            float panelLeft = Screen.safeArea.x + ((Screen.safeArea.width - panelWidth) * 0.5f);
-            float compassBottom = (Screen.height - Screen.safeArea.yMax) +
-                ((_compassSettings.TopMargin + _compassSettings.Height) * compassScale);
+            float availableWidth = Mathf.Max(0f, Screen.safeArea.width - _settings.HudLeftMargin);
+            float availableHeight = Mathf.Max(0f, Screen.safeArea.height - _settings.HudTopMargin);
+            float panelWidth = Mathf.Min(_settings.HudWidth, availableWidth);
+            float panelHeight = Mathf.Min(_settings.HudHeight, availableHeight);
+            float panelLeft = Screen.safeArea.x + _settings.HudLeftMargin;
+            float panelTop = (Screen.height - Screen.safeArea.yMax) + _settings.HudTopMargin;
             Rect panel = new Rect(
                 panelLeft,
-                compassBottom + (_settings.HudGapBelowCompass * compassScale),
+                panelTop,
                 panelWidth,
-                _settings.HudHeight);
+                panelHeight);
             DrawAtlasHud(panel);
             if (Time.unscaledTime < _discoveryPresentationUntil)
             {

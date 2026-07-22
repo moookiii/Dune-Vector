@@ -2017,8 +2017,10 @@ namespace DuneVector
 
         [Header("Free Roam HUD")]
         [Min(0f)] public float HudGapBelowCompass = 10f;
-        [Min(160f)] public float HudWidth = 360f;
-        [Min(60f)] public float HudHeight = 108f;
+        [Min(0f)] public float HudLeftMargin = 18f;
+        [Min(0f)] public float HudTopMargin = 18f;
+        [Min(160f)] public float HudWidth = 440f;
+        [Min(60f)] public float HudHeight = 142f;
         [Min(0f)] public float HudPadding = 12f;
         public Vector2 HudShadowOffset = new Vector2(4f, 5f);
         [Min(0f)] public float HudHeaderHeight = 32f;
@@ -2035,16 +2037,16 @@ namespace DuneVector
         [Min(9)] public int HudCountFontSize = 11;
         [Min(0f)] public float HudContentTop = 39f;
         [Min(0f)] public float HudMetaHeight = 14f;
-        [Min(0f)] public float HudMetricTop = 51f;
-        [Min(0f)] public float HudMetricHeight = 27f;
+        [Min(0f)] public float HudMetricTop = 54f;
+        [Min(0f)] public float HudMetricHeight = 30f;
         [Min(20f)] public float HudBearingBadgeSize = 38f;
-        [Min(0f)] public float HudBearingBadgeTop = 42f;
-        [Min(0f)] public float HudChallengeBodyTop = 50f;
+        [Min(0f)] public float HudBearingBadgeTop = 48f;
+        [Min(0f)] public float HudChallengeBodyTop = 54f;
         [Min(0f)] public float HudChallengeBodyHeight = 28f;
-        [Min(0f)] public float HudChallengeProgressTop = 77f;
-        [Min(0f)] public float HudChallengeProgressHeight = 16f;
+        [Min(0f)] public float HudChallengeProgressTop = 84f;
+        [Min(0f)] public float HudChallengeProgressHeight = 30f;
         [Min(1f)] public float ScanBarHeight = 4f;
-        [Min(0f)] public float HudScanBarBottomOffset = 10f;
+        [Min(0f)] public float HudScanBarBottomOffset = 14f;
         [Min(1f)] public float HudSurveyBarHeight = 5f;
         [Min(0f)] public float HudSurveyBarBottomMargin = 0f;
         [Range(3, 30)] public int HudSurveySegmentCount = 10;
@@ -2059,10 +2061,10 @@ namespace DuneVector
         public string HudDiscoveredLabelFormat = "ARCHIVE RECOVERED  /  {0:0} m";
         [Min(9)] public int HudLoreTitleFontSize = 12;
         [Min(9)] public int HudLoreBodyFontSize = 10;
-        [Min(0f)] public float HudLoreTitleTop = 50f;
+        [Min(0f)] public float HudLoreTitleTop = 54f;
         [Min(0f)] public float HudLoreTitleHeight = 18f;
-        [Min(0f)] public float HudLoreBodyTop = 68f;
-        [Min(0f)] public float HudLoreBodyHeight = 32f;
+        [Min(0f)] public float HudLoreBodyTop = 74f;
+        [Min(0f)] public float HudLoreBodyHeight = 50f;
         [ColorUsage(false)] public Color HudPanelColor = new Color(0.012f, 0.025f, 0.045f, 0.95f);
         [ColorUsage(false)] public Color HudShadowColor = new Color(0f, 0f, 0f, 0.42f);
         [ColorUsage(false)] public Color HudHeaderColor = new Color(0.02f, 0.065f, 0.09f, 0.96f);
