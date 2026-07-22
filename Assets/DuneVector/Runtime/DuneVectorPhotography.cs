@@ -1046,13 +1046,10 @@ namespace DuneVector
                     _settings.ScreenMargin,
                     Screen.width - _settings.ScreenMargin - _settings.SubjectLabelWidth);
                 float titleClearance = _settings.ScreenMargin + _settings.SubjectLabelHeight;
-                float labelTop = _animatedBounds.yMin - _settings.SubjectLabelHeight;
-                if (labelTop < titleClearance)
-                {
-                    labelTop = Mathf.Min(
-                        Screen.height - _settings.ScreenMargin - _settings.SubjectLabelHeight,
-                        _animatedBounds.yMax);
-                }
+                float labelTop = Mathf.Clamp(
+                    _animatedBounds.center.y - (_settings.SubjectLabelHeight * 0.5f),
+                    titleClearance,
+                    Screen.height - _settings.ScreenMargin - _settings.SubjectLabelHeight);
                 GUI.Label(new Rect(labelLeft, labelTop,
                     _settings.SubjectLabelWidth, _settings.SubjectLabelHeight), subjectLabel, _labelStyle);
             }
