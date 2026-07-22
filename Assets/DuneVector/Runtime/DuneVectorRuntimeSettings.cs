@@ -1411,6 +1411,8 @@ namespace DuneVector
         [Min(60f)] public float HudHeight;
         [Min(0f)] public float HudLeft;
         [Min(0f)] public float HudTop;
+        [Tooltip("Minimum vertical gap below another visible left-side HUD panel.")]
+        [Min(0f)] public float HudOtherPanelGap;
         [Min(0f)] public float HudPadding;
         [Min(8)] public int HudTitleFontSize;
         [Min(8)] public int HudBodyFontSize;
@@ -2019,8 +2021,9 @@ namespace DuneVector
         [Min(0f)] public float HudGapBelowCompass = 10f;
         [Min(0f)] public float HudLeftMargin = 18f;
         [Min(0f)] public float HudTopMargin = 18f;
-        [Min(160f)] public float HudWidth = 440f;
-        [Min(60f)] public float HudHeight = 142f;
+        [Min(160f)] public float HudWidth = 360f;
+        [Min(60f)] public float HudHeight = 108f;
+        [Min(60f)] public float HudExpandedHeight = 142f;
         [Min(0f)] public float HudPadding = 12f;
         public Vector2 HudShadowOffset = new Vector2(4f, 5f);
         [Min(0f)] public float HudHeaderHeight = 32f;

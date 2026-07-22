@@ -1378,6 +1378,11 @@ namespace DuneVector
                 fontSize = _settings.HudStatusFontSize,
             };
             float panelTop = _settings.HudTop;
+            if (DuneVectorDesertAtlas.TryGetVisibleHudRect(out Rect atlasPanel) &&
+                HorizontalRangesOverlap(_settings.HudLeft, _settings.HudWidth, atlasPanel))
+            {
+                panelTop = Mathf.Max(panelTop, atlasPanel.yMax + _settings.HudOtherPanelGap);
+            }
             if (_courierGame != null && _courierGame.TryGetVisibleContractPanelRect(out Rect contractPanel) &&
                 HorizontalRangesOverlap(_settings.HudLeft, _settings.HudWidth, contractPanel))
             {

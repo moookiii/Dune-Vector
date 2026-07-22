@@ -10,6 +10,7 @@ namespace DuneVector
     public sealed class DuneVectorDesertAtlas : MonoBehaviour
     {
         private const string SaveFileName = "DuneVectorDesertAtlas.dat";
+        private static DuneVectorDesertAtlas _activeInstance;
 
         [Serializable]
         private sealed class AtlasSaveData
@@ -130,6 +131,7 @@ namespace DuneVector
             _settings = settings ?? new DesertAtlasTuning();
             _compassSettings = compassSettings ?? new CompassHudTuning();
             _settings.EnsureInitialized();
+            _activeInstance = this;
             _savePath = Path.Combine(Application.persistentDataPath, SaveFileName);
             Load();
             _discoveredMaterial = CreateSignalMaterial(_materials.LandmarkMetal, _settings.DiscoveredColor);
@@ -1433,23 +1435,11 @@ namespace DuneVector
 
         private void OnGUI()
         {
-            if (_settings == null || !IsUnlocked || _courierGame == null ||
-                _courierGame.State != CourierRunState.FreeRoam || _courierGame.IsTerminalOpen)
+            if (!TryBuildVisibleHudRect(out Rect panel))
             {
                 return;
             }
             EnsureGui();
-            float availableWidth = Mathf.Max(0f, Screen.safeArea.width - _settings.HudLeftMargin);
-            float availableHeight = Mathf.Max(0f, Screen.safeArea.height - _settings.HudTopMargin);
-            float panelWidth = Mathf.Min(_settings.HudWidth, availableWidth);
-            float panelHeight = Mathf.Min(_settings.HudHeight, availableHeight);
-            float panelLeft = Screen.safeArea.x + _settings.HudLeftMargin;
-            float panelTop = (Screen.height - Screen.safeArea.yMax) + _settings.HudTopMargin;
-            Rect panel = new Rect(
-                panelLeft,
-                panelTop,
-                panelWidth,
-                panelHeight);
             DrawAtlasHud(panel);
             if (Time.unscaledTime < _discoveryPresentationUntil)
             {
@@ -1460,6 +1450,44 @@ namespace DuneVector
                 GUI.Label(new Rect(0f, Screen.height * _settings.StatusVerticalFraction, Screen.width,
                     _settings.StatusHeight), _statusText, _statusStyle);
             }
+        }
+
+        public static bool TryGetVisibleHudRect(out Rect panel)
+        {
+            if (_activeInstance != null)
+            {
+                return _activeInstance.TryBuildVisibleHudRect(out panel);
+            }
+            panel = default;
+            return false;
+        }
+
+        private bool TryBuildVisibleHudRect(out Rect panel)
+        {
+            if (_settings == null || !IsUnlocked || _courierGame == null ||
+                _courierGame.State != CourierRunState.FreeRoam || _courierGame.IsTerminalOpen)
+            {
+                panel = default;
+                return false;
+            }
+            float availableWidth = Mathf.Max(0f, Screen.safeArea.width - _settings.HudLeftMargin);
+            float availableHeight = Mathf.Max(0f, Screen.safeArea.height - _settings.HudTopMargin);
+            float panelWidth = Mathf.Min(_settings.HudWidth, availableWidth);
+            bool discoveredLoreActive = _nearestDiscoveredSite != null &&
+                _nearestDiscoveredDistance <= _settings.DiscoveredLoreRadius;
+            bool challengeActive = _nearestSite != null && IsWithinChallengeActivation(_nearestSite);
+            float desiredHeight = discoveredLoreActive || challengeActive
+                ? _settings.HudExpandedHeight
+                : _settings.HudHeight;
+            float panelHeight = Mathf.Min(desiredHeight, availableHeight);
+            float panelLeft = Screen.safeArea.x + _settings.HudLeftMargin;
+            float panelTop = (Screen.height - Screen.safeArea.yMax) + _settings.HudTopMargin;
+            panel = new Rect(
+                panelLeft,
+                panelTop,
+                panelWidth,
+                panelHeight);
+            return panel.width > 0f && panel.height > 0f;
         }
 
         private void DrawAtlasHud(Rect panel)
@@ -1901,6 +1929,10 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            if (_activeInstance == this)
+            {
+                _activeInstance = null;
+            }
             foreach (SiteVisual visual in _visuals.Values)
             {
                 if (visual.SignalMaterial != null) Destroy(visual.SignalMaterial);

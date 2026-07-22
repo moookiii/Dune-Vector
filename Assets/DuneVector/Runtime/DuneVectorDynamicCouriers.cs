@@ -883,7 +883,7 @@ namespace DuneVector
             }
 
             EnsureGuiStyles();
-            Rect panel = new Rect(_settings.HudLeft, _settings.HudTop, _settings.HudWidth, _settings.HudHeight);
+            Rect panel = GetHudPanelRect();
             Color previousColor = GUI.color;
             GUI.color = _settings.HudPanelColor;
             GUI.DrawTexture(panel, Texture2D.whiteTexture);
@@ -911,11 +911,23 @@ namespace DuneVector
             if (_settings != null && _phase != DynamicCourierEventPhase.Inactive &&
                 !DuneVectorCourierGame.IsGameplayHudSuppressed)
             {
-                panel = new Rect(_settings.HudLeft, _settings.HudTop, _settings.HudWidth, _settings.HudHeight);
+                panel = GetHudPanelRect();
                 return true;
             }
             panel = default;
             return false;
+        }
+
+        private Rect GetHudPanelRect()
+        {
+            float panelTop = _settings.HudTop;
+            if (DuneVectorDesertAtlas.TryGetVisibleHudRect(out Rect atlasPanel) &&
+                _settings.HudLeft < atlasPanel.xMax &&
+                _settings.HudLeft + _settings.HudWidth > atlasPanel.x)
+            {
+                panelTop = Mathf.Max(panelTop, atlasPanel.yMax + _settings.HudOtherPanelGap);
+            }
+            return new Rect(_settings.HudLeft, panelTop, _settings.HudWidth, _settings.HudHeight);
         }
 
         private void EnsureGuiStyles()
