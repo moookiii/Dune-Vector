@@ -21,7 +21,7 @@ namespace DuneVector
         public int WorldSeed = 19770503;
         [Min(24f)] public float ChunkSize = 80f;
         [Range(8, 96)] public int ChunkResolution = 32;
-        [Range(1, 14)] public int ActiveRadius = 3;
+        [Range(1, 24)] public int ActiveRadius = 3;
         [Range(1, 9)] public int PreloadRadius = 3;
         [Range(2, 12)] public int UnloadRadius = 4;
         [Range(1, 4)] public int ChunksGeneratedPerFrame = 1;
@@ -290,8 +290,8 @@ namespace DuneVector
             {
                 Vector2Int coordinate = _generationQueue.Dequeue();
                 _queuedCoordinates.Remove(coordinate);
-                int distance = ChebyshevDistance(coordinate, playerChunk);
-                if (_chunks.ContainsKey(coordinate) || distance > PreloadRadius + 1)
+                int loadRadius = GetLoadRadius();
+                if (_chunks.ContainsKey(coordinate) || !IsWithinRadius(coordinate, playerChunk, loadRadius))
                 {
                     continue;
                 }
@@ -459,15 +459,15 @@ namespace DuneVector
             }
 
             _candidateCoordinates.Clear();
-            int radius = Mathf.Min(
-                Mathf.Max(ActiveRadius, PreloadRadius),
-                Mathf.Max(1, PreloadRadius) + 1);
+            int radius = GetLoadRadius();
             for (int z = -radius; z <= radius; z++)
             {
                 for (int x = -radius; x <= radius; x++)
                 {
                     Vector2Int coordinate = playerChunk + new Vector2Int(x, z);
-                    if (!_chunks.ContainsKey(coordinate) && !_queuedCoordinates.Contains(coordinate))
+                    if (IsWithinRadius(coordinate, playerChunk, radius)
+                        && !_chunks.ContainsKey(coordinate)
+                        && !_queuedCoordinates.Contains(coordinate))
                     {
                         _candidateCoordinates.Add(coordinate);
                     }
@@ -482,9 +482,10 @@ namespace DuneVector
             }
 
             _removalBuffer.Clear();
+            int unloadRadius = Mathf.Max(UnloadRadius, radius);
             foreach (KeyValuePair<Vector2Int, DesertChunk> entry in _chunks)
             {
-                if (ChebyshevDistance(entry.Key, playerChunk) > UnloadRadius)
+                if (!IsWithinRadius(entry.Key, playerChunk, unloadRadius))
                 {
                     _removalBuffer.Add(entry.Key);
                 }
@@ -561,11 +562,11 @@ namespace DuneVector
                 return 0f;
             }
 
-            int diameter = (Mathf.Max(1, PreloadRadius) * 2) + 1;
+            int loadedChunkCount = CountCoordinatesWithinRadius(GetLoadRadius());
             Clouds.EnsureInitialized();
             CloudArrangementTuning arrangement = Clouds.GetActiveArrangement();
             return (Clouds.ClusterCount * Mathf.Max(0f, arrangement.ClusterCountMultiplier))
-                / (diameter * diameter);
+                / loadedChunkCount;
         }
 
         private void HandleTraversalRingActivated(TraversalRing ring)
@@ -606,15 +607,45 @@ namespace DuneVector
                 (int)Math.Floor(logicalZ / ChunkSize));
         }
 
-        private static int ChebyshevDistance(Vector2Int a, Vector2Int b)
+        private int GetLoadRadius()
         {
-            return Mathf.Max(Mathf.Abs(a.x - b.x), Mathf.Abs(a.y - b.y));
+            return Mathf.Max(1, Mathf.Max(ActiveRadius, PreloadRadius));
+        }
+
+        private static bool IsWithinRadius(Vector2Int coordinate, Vector2Int center, int radius)
+        {
+            int x = coordinate.x - center.x;
+            int y = coordinate.y - center.y;
+            return (x * x) + (y * y) <= radius * radius;
+        }
+
+        private static int SquaredDistance(Vector2Int a, Vector2Int b)
+        {
+            int x = a.x - b.x;
+            int y = a.y - b.y;
+            return (x * x) + (y * y);
+        }
+
+        private static int CountCoordinatesWithinRadius(int radius)
+        {
+            int count = 0;
+            for (int y = -radius; y <= radius; y++)
+            {
+                for (int x = -radius; x <= radius; x++)
+                {
+                    if ((x * x) + (y * y) <= radius * radius)
+                    {
+                        count++;
+                    }
+                }
+            }
+            return count;
         }
 
         private int CompareCandidateCoordinates(Vector2Int left, Vector2Int right)
         {
-            return ChebyshevDistance(left, _candidateSortCenter)
-                .CompareTo(ChebyshevDistance(right, _candidateSortCenter));
+            return SquaredDistance(left, _candidateSortCenter)
+                .CompareTo(SquaredDistance(right, _candidateSortCenter));
         }
 
         private void OnDrawGizmos()
