@@ -450,20 +450,36 @@ namespace DuneVector
 
         private void BuildSamples(DesertAtlasSiteDefinition site, GeoglyphArtworkPlacement artwork)
         {
-            Vector2 size = artwork.WorldSize * Mathf.Max(0.1f, site.PhotoCaptureRegionScale);
+            Vector2 contentCenter = artwork.MaskContentCenter;
+            Vector2 contentScale = artwork.MaskContentSize;
+            if (contentScale.x <= 0f || contentScale.y <= 0f)
+            {
+                contentCenter = new Vector2(0.5f, 0.5f);
+                contentScale = Vector2.one;
+            }
+
+            Vector2 size = Vector2.Scale(artwork.WorldSize, contentScale) *
+                Mathf.Max(0.1f, site.PhotoCaptureRegionScale);
             // The geoglyph shader converts world deltas into artwork space with a
             // clockwise X/Z rotation. Unity's positive Y quaternion uses that same
             // direction for local-to-world, so invert the authored angle here to
             // reconstruct the shader's artwork footprint in world space.
             Quaternion rotation = Quaternion.Euler(0f, -artwork.RotationDegrees, 0f);
+            Vector2 normalizedCenterOffset = contentCenter - new Vector2(0.5f, 0.5f);
+            Vector3 centerOffset = rotation * new Vector3(
+                normalizedCenterOffset.x * artwork.WorldSize.x,
+                0f,
+                normalizedCenterOffset.y * artwork.WorldSize.y);
+            double contentCenterX = artwork.WorldCenter.x + centerOffset.x;
+            double contentCenterZ = artwork.WorldCenter.y + centerOffset.z;
             int index = 0;
             for (int z = -1; z <= 1; z++)
             {
                 for (int x = -1; x <= 1; x++)
                 {
                     Vector3 offset = rotation * new Vector3(size.x * 0.5f * x, 0f, size.y * 0.5f * z);
-                    double logicalX = artwork.WorldCenter.x + offset.x;
-                    double logicalZ = artwork.WorldCenter.y + offset.z;
+                    double logicalX = contentCenterX + offset.x;
+                    double logicalZ = contentCenterZ + offset.z;
                     Vector3 local = _world.LogicalToLocal(logicalX, 0f, logicalZ);
                     local.y = _world.SampleHeightAtLocal(local.x, local.z) + _settings.CaptureHeightOffset;
                     _worldSamples[index++] = local;

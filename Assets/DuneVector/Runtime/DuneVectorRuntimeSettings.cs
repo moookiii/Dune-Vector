@@ -40,6 +40,12 @@ namespace DuneVector
         [Tooltip("Width and length of the artwork footprint in world metres.")]
         public Vector2 WorldSize = new Vector2(640f, 426.67f);
 
+        [Tooltip("Center of the visible mask linework in normalized Unity texture coordinates.")]
+        public Vector2 MaskContentCenter = new Vector2(0.5f, 0.5f);
+
+        [Tooltip("Width and height of the visible mask linework as normalized fractions of the full texture.")]
+        public Vector2 MaskContentSize = Vector2.one;
+
         [Tooltip("Rotation of the artwork footprint around its world-space center.")]
         public float RotationDegrees;
 
