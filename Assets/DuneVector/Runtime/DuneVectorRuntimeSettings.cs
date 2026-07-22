@@ -2352,6 +2352,14 @@ namespace DuneVector
         [Min(0.75f)] public float GroundRingRadius = 3.25f;
         [Min(0.75f)] public float FlightRingRadius = 3.55f;
 
+        [Header("Placement")]
+        [Tooltip("Minimum horizontal center-to-center distance between any two procedurally generated traversal rings, regardless of ring type.")]
+        [Min(0f)] public float MinimumRingSeparation = 10f;
+
+        [Header("Billboarding")]
+        [Tooltip("Distance from the drone center at which rings freeze their current orientation instead of continuing to face the camera.")]
+        [Min(0f)] public float BillboardDisableRadius = 14f;
+
         [Header("Blue Flight Ring Generation")]
         [Tooltip("Multiplier for the expected number of procedurally generated blue flight rings. One preserves the base amount; values above one add blue rings without adding boost rings.")]
         [Min(1f)] public float FlightRingAmountMultiplier = 1f;

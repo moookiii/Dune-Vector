@@ -267,6 +267,17 @@ namespace DuneVector
                 return;
             }
 
+            float billboardDisableRadius = _ringTuning != null
+                ? Mathf.Max(0f, _ringTuning.BillboardDisableRadius)
+                : 0f;
+            if (_controller != null
+                && billboardDisableRadius > 0f
+                && (_controller.WorldCenter - _visualRoot.position).sqrMagnitude
+                    <= billboardDisableRadius * billboardDisableRadius)
+            {
+                return;
+            }
+
             Vector3 toCamera = _billboardCamera.transform.position - _visualRoot.position;
             if (toCamera.sqrMagnitude < 0.001f)
             {
