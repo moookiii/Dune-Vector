@@ -306,7 +306,8 @@ namespace DuneVector
             {
                 DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
                 return bootstrap != null && bootstrap.CourierGame != null &&
-                    (bootstrap.CourierGame.IsTerminalOpen ||
+                    (DuneVectorPhotographySystem.IsCameraModeActive ||
+                     bootstrap.CourierGame.IsTerminalOpen ||
                      bootstrap.CourierGame.State == CourierRunState.DeliveryMessage);
             }
         }

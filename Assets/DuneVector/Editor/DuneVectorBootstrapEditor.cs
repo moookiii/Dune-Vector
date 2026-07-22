@@ -121,6 +121,7 @@ namespace DuneVector.Editor
         private SerializedProperty _landmarks;
         private SerializedProperty _geoglyphs;
         private SerializedProperty _desertAtlas;
+        private SerializedProperty _photography;
         private SerializedProperty _routeEncounters;
         private SerializedProperty _dynamicCouriers;
         private SerializedProperty _pyramids;
@@ -157,6 +158,7 @@ namespace DuneVector.Editor
             _landmarks = serializedObject.FindProperty("Landmarks");
             _geoglyphs = serializedObject.FindProperty("Geoglyphs");
             _desertAtlas = serializedObject.FindProperty("DesertAtlas");
+            _photography = serializedObject.FindProperty("Photography");
             _routeEncounters = serializedObject.FindProperty("RouteEncounters");
             _dynamicCouriers = serializedObject.FindProperty("DynamicCouriers");
             _pyramids = serializedObject.FindProperty("Pyramids");
@@ -251,6 +253,10 @@ namespace DuneVector.Editor
                 "Delivery Messages",
                 "Authored narrative order, typewriter timing, replay policy, and FMOD typing loop.",
                 _deliveryMessages);
+            DuneVectorSettingsInspector.DrawSection(
+                "Photography & Glyph Documentation",
+                "Camera mode, subject recognition, capture validation, persistent photographs, Gallery, and Atlas registration.",
+                _photography);
             DuneVectorSettingsInspector.DrawSection(
                 "Dynamic Couriers & Convoys",
                 "Ambient rescue events, open-route races, moving convoy attacks, rewards, and faction colors.",

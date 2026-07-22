@@ -91,6 +91,7 @@ namespace DuneVector
         public DuneVectorGameOverController GameOverController { get; private set; }
         public DuneVectorAudioManager AudioManager { get; private set; }
         public DuneVectorPauseMenu PauseMenu { get; private set; }
+        public DuneVectorPhotographySystem Photography { get; private set; }
         public DroneGoldWallet GoldWallet { get; private set; }
         public DronePermanentUpgradeSystem PermanentUpgrades { get; private set; }
 
@@ -698,6 +699,15 @@ namespace DuneVector
                 PermanentUpgrades,
                 AudioSettings.PauseMenu,
                 RuntimeSettings.PermanentUpgrades.ShopVisuals);
+            Photography = gameObject.AddComponent<DuneVectorPhotographySystem>();
+            Photography.Initialize(
+                Player,
+                DroneCamera,
+                World,
+                RuntimeSettings.Geoglyphs,
+                RuntimeSettings.DesertAtlas,
+                RuntimeSettings.Photography);
+            PauseMenu.BindPhotography(Photography);
         }
 
         private void BuildDeliveryGameplay()

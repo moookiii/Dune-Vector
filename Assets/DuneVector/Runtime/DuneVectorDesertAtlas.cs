@@ -213,12 +213,14 @@ namespace DuneVector
                 float distance = Vector3.Distance(playerPosition, sitePosition);
                 bool discovered = IsDiscovered(site);
                 bool available = IsSiteAvailable(site);
-                if (available && distance < _nearestDistance)
+                bool documentationMissing = DuneVectorPhotographySystem.RequiresGlyphDocumentation &&
+                    !DuneVectorPhotographySystem.IsGlyphDocumented(site.PersistentId);
+                if ((available || (discovered && documentationMissing)) && distance < _nearestDistance)
                 {
                     _nearestSite = site;
                     _nearestDistance = distance;
                 }
-                if (discovered && distance < _nearestDiscoveredDistance)
+                if (discovered && !documentationMissing && distance < _nearestDiscoveredDistance)
                 {
                     _nearestDiscoveredSite = site;
                     _nearestDiscoveredDistance = distance;
@@ -247,6 +249,16 @@ namespace DuneVector
                     _statusUntil = Time.unscaledTime + _settings.ScanInterruptedStatusDuration;
                 }
                 DecayScan();
+                return;
+            }
+
+            if (DuneVectorPhotographySystem.RequiresGlyphDocumentation &&
+                !DuneVectorPhotographySystem.IsGlyphDocumented(_nearestSite.PersistentId))
+            {
+                if (!string.IsNullOrEmpty(_scanningSiteId)) ResetScan();
+                PhotographyTuning photography = DuneVectorPhotographySystem.Active.Tuning;
+                _statusText = photography.PhotographRequiredText;
+                _statusUntil = Time.unscaledTime + _settings.ScanInterruptedStatusDuration;
                 return;
             }
 
@@ -1432,8 +1444,11 @@ namespace DuneVector
             DrawBorder(panel, _settings.TerminalBorderColor, _settings.TerminalBorderThickness);
             DrawRect(new Rect(panel.x, panel.y, panel.width, _settings.TerminalAccentBarHeight), _settings.TerminalAccentColor);
             float padding = _settings.TerminalPadding;
+            string terminalTitle = DuneVectorPhotographySystem.HasNewGlyphs
+                ? _settings.TerminalTitle + DuneVectorPhotographySystem.Active.Tuning.AtlasNewTitleSuffix
+                : _settings.TerminalTitle;
             GUI.Label(new Rect(panel.x + padding, panel.y + _settings.TerminalTitleTop,
-                panel.width - (padding * 2f), _settings.TerminalTitleHeight), _settings.TerminalTitle, _terminalTitleStyle);
+                panel.width - (padding * 2f), _settings.TerminalTitleHeight), terminalTitle, _terminalTitleStyle);
             GUI.Label(new Rect(panel.xMax - padding - _settings.TerminalCloseWidth, panel.y + _settings.TerminalTitleTop,
                 _settings.TerminalCloseWidth, _settings.TerminalCloseHeight), _settings.TerminalClosePrompt, _terminalMetaStyle);
 
@@ -1448,9 +1463,18 @@ namespace DuneVector
                 return;
             }
 
+            PhotographyTuning photographyTuning = DuneVectorPhotographySystem.Active != null
+                ? DuneVectorPhotographySystem.Active.Tuning
+                : null;
+            string progressText = photographyTuning != null && photographyTuning.Enabled
+                ? FormatDesignerText(
+                    photographyTuning.AtlasDocumentationProgressFormat,
+                    DuneVectorPhotographySystem.DocumentedGlyphCount,
+                    TotalSiteCount,
+                    DiscoveredCount)
+                : FormatDesignerText(_settings.TerminalProgressFormat, DiscoveredCount, TotalSiteCount);
             GUI.Label(new Rect(panel.x + padding, panel.y + _settings.TerminalProgressTop,
-                panel.width - (padding * 2f), _settings.TerminalProgressHeight),
-                FormatDesignerText(_settings.TerminalProgressFormat, DiscoveredCount, TotalSiteCount), _terminalMetaStyle);
+                panel.width - (padding * 2f), _settings.TerminalProgressHeight), progressText, _terminalMetaStyle);
             Rect viewport = new Rect(panel.x + padding, panel.y + _settings.TerminalHeaderHeight,
                 panel.width - (padding * 2f), panel.height - _settings.TerminalHeaderHeight - _settings.TerminalFooterHeight);
             float contentHeight = Mathf.Max(viewport.height, _settings.Sites.Count * (_settings.TerminalEntryHeight + _settings.TerminalEntryGap));
@@ -1459,6 +1483,12 @@ namespace DuneVector
             {
                 DesertAtlasSiteDefinition site = _settings.Sites[i];
                 Rect entry = new Rect(0f, i * (_settings.TerminalEntryHeight + _settings.TerminalEntryGap), viewport.width - 24f, _settings.TerminalEntryHeight);
+                bool documented = !DuneVectorPhotographySystem.RequiresGlyphDocumentation ||
+                    DuneVectorPhotographySystem.IsGlyphDocumented(site.PersistentId);
+                if (GUI.Button(entry, GUIContent.none, GUIStyle.none) && documented)
+                {
+                    DuneVectorPhotographySystem.MarkGlyphViewed(site.PersistentId);
+                }
                 bool discovered = IsDiscovered(site);
                 bool available = IsSiteAvailable(site);
                 Color entryColor = _settings.TerminalEntryColor;
@@ -1475,17 +1505,29 @@ namespace DuneVector
                         pulse * _settings.TerminalAvailablePulseAmount);
                 }
                 DrawRect(entry, entryColor);
-                string title = discovered ? site.DisplayName : FormatDesignerText(_settings.TerminalUnknownSiteFormat, i + 1);
+                string title = documented ? site.DisplayName : FormatDesignerText(_settings.TerminalUnknownSiteFormat, i + 1);
+                if (DuneVectorPhotographySystem.IsGlyphNew(site.PersistentId))
+                {
+                    title = $"[{DuneVectorPhotographySystem.Active.Tuning.AtlasNewMarker}]  {title}";
+                }
                 string body;
                 if (discovered)
                 {
-                    body = FormatDesignerText(
-                        _settings.TerminalDiscoveredEntryFormat,
-                        FormatDesignerText(_settings.TerminalDiscoveredStatus, site.GoldReward),
-                        site.Description);
+                    body = documented
+                        ? FormatDesignerText(
+                            _settings.TerminalDiscoveredEntryFormat,
+                            FormatDesignerText(_settings.TerminalDiscoveredStatus, site.GoldReward),
+                            site.Description)
+                        : DuneVectorPhotographySystem.Active.Tuning.PhotographRequiredText;
                 }
                 else if (available)
                 {
+                    if (!documented)
+                    {
+                        body = DuneVectorPhotographySystem.Active.Tuning.PhotographRequiredText;
+                    }
+                    else
+                    {
                     string availability = site.IsFinalSignal
                         ? _settings.TerminalFinalSignalStatus
                         : _settings.TerminalAvailableStatus;
@@ -1497,6 +1539,7 @@ namespace DuneVector
                             site.BonusTimeLimit,
                             site.BonusGoldReward)
                         : FormatDesignerText(_settings.TerminalChallengeFormat, availability, site.ChallengeInstruction);
+                    }
                 }
                 else
                 {
@@ -1507,10 +1550,23 @@ namespace DuneVector
                         remaining == 1 ? string.Empty : "S");
                 }
                 float entryPadding = _settings.TerminalEntryPadding;
-                GUI.Label(new Rect(entry.x + entryPadding, entry.y + _settings.TerminalEntryTitleTop,
-                    entry.width - (entryPadding * 2f), _settings.TerminalEntryTitleHeight), title, _terminalBodyStyle);
-                GUI.Label(new Rect(entry.x + entryPadding, entry.y + _settings.TerminalEntryDescriptionTop,
-                    entry.width - (entryPadding * 2f), entry.height - _settings.TerminalEntryDescriptionTop), body, _terminalMetaStyle);
+                Texture2D atlasPhoto = documented
+                    ? DuneVectorPhotographySystem.GetGlyphAtlasTexture(site.PersistentId)
+                    : null;
+                float textLeft = entry.x + entryPadding;
+                if (atlasPhoto != null)
+                {
+                    PhotographyTuning photography = DuneVectorPhotographySystem.Active.Tuning;
+                    Rect photoRect = new Rect(entry.x + entryPadding,
+                        entry.y + ((entry.height - photography.AtlasPhotoHeight) * 0.5f),
+                        photography.AtlasPhotoWidth, photography.AtlasPhotoHeight);
+                    GUI.DrawTexture(photoRect, atlasPhoto, ScaleMode.ScaleToFit, false);
+                    textLeft = photoRect.xMax + entryPadding;
+                }
+                GUI.Label(new Rect(textLeft, entry.y + _settings.TerminalEntryTitleTop,
+                    entry.xMax - entryPadding - textLeft, _settings.TerminalEntryTitleHeight), title, _terminalBodyStyle);
+                GUI.Label(new Rect(textLeft, entry.y + _settings.TerminalEntryDescriptionTop,
+                    entry.xMax - entryPadding - textLeft, entry.height - _settings.TerminalEntryDescriptionTop), body, _terminalMetaStyle);
             }
             GUI.EndScrollView();
             GUI.matrix = previousMatrix;
@@ -1761,6 +1817,11 @@ namespace DuneVector
 
         private void DrawAtlasChallengeState(Rect panel, float padding)
         {
+            bool photoRequired = DuneVectorPhotographySystem.RequiresGlyphDocumentation &&
+                !DuneVectorPhotographySystem.IsGlyphDocumented(_nearestSite.PersistentId);
+            PhotographyTuning photography = DuneVectorPhotographySystem.Active != null
+                ? DuneVectorPhotographySystem.Active.Tuning
+                : null;
             GUI.Label(
                 new Rect(
                     panel.x + padding,
@@ -1775,7 +1836,7 @@ namespace DuneVector
                     panel.y + _settings.HudChallengeBodyTop,
                     panel.width - (padding * 2f),
                     _settings.HudChallengeBodyHeight),
-                _nearestSite.ChallengeInstruction,
+                photoRequired && photography != null ? photography.PhotographRequiredText : _nearestSite.ChallengeInstruction,
                 _hudBodyStyle);
             GUI.Label(
                 new Rect(
@@ -1783,7 +1844,7 @@ namespace DuneVector
                     panel.y + _settings.HudChallengeProgressTop,
                     panel.width - (padding * 2f),
                     _settings.HudChallengeProgressHeight),
-                GetChallengeProgressText(_nearestSite),
+                photoRequired ? string.Empty : GetChallengeProgressText(_nearestSite),
                 _hudMetaStyle);
             Rect scanBar = new Rect(
                 panel.x + padding,

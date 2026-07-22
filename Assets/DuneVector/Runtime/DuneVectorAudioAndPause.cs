@@ -393,7 +393,9 @@ namespace DuneVector
         private PauseMenuVisualTuning _visuals;
         private DuneVectorUpgradeShopView _shopView;
         private DuneVectorCourierGame _courierGame;
+        private DuneVectorPhotographySystem _photography;
         private bool _showShop;
+        private bool _showGallery;
 
         private GUIStyle _titleStyle;
         private GUIStyle _subtitleStyle;
@@ -445,8 +447,17 @@ namespace DuneVector
             _courierGame = courierGame;
         }
 
+        public void BindPhotography(DuneVectorPhotographySystem photography)
+        {
+            _photography = photography;
+        }
+
         private void Update()
         {
+            if (DuneVectorPhotographySystem.IsCameraModeActive)
+            {
+                return;
+            }
             if (_courierGame != null &&
                 (_courierGame.IsTerminalOpen || _courierGame.IsDeliveryMessageOpen))
             {
@@ -459,6 +470,10 @@ namespace DuneVector
                 if (IsPaused && _showShop)
                 {
                     _showShop = false;
+                }
+                else if (IsPaused && _showGallery)
+                {
+                    _showGallery = false;
                 }
                 else
                 {
@@ -483,6 +498,7 @@ namespace DuneVector
             if (!paused)
             {
                 _showShop = false;
+                _showGallery = false;
                 _audio?.FlushPreferences();
             }
         }
@@ -491,6 +507,7 @@ namespace DuneVector
         {
             IsPaused = false;
             _showShop = false;
+            _showGallery = false;
             _audio?.SetPausedDucking(false);
             _player?.SetInputEnabled(false);
         }
@@ -513,6 +530,14 @@ namespace DuneVector
                 if (_shopView == null || _shopView.Draw())
                 {
                     _showShop = false;
+                }
+                return;
+            }
+            if (_showGallery)
+            {
+                if (_photography == null || _photography.DrawGallery())
+                {
+                    _showGallery = false;
                 }
                 return;
             }
@@ -575,6 +600,15 @@ namespace DuneVector
             if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), "RESUME FLIGHT", _primaryButtonStyle))
             {
                 SetPaused(false);
+            }
+            y += buttonHeight + gap;
+
+            string galleryButtonLabel = _photography != null && _photography.Tuning != null
+                ? _photography.Tuning.PauseMenuButtonLabel
+                : string.Empty;
+            if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), galleryButtonLabel, _secondaryButtonStyle))
+            {
+                _showGallery = true;
             }
             y += buttonHeight + gap;
 

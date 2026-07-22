@@ -86,6 +86,128 @@ namespace DuneVector
         }
     }
 
+    public enum PhotographableSubjectCategory
+    {
+        Glyph,
+        Landmark,
+        Creature,
+        Enemy,
+        Plant,
+        AncientStructure,
+        RarePhenomenon,
+    }
+
+    [System.Serializable]
+    public sealed class PhotographyTuning
+    {
+        public bool Enabled = true;
+
+        [Header("Camera and Capture")]
+        [Min(320)] public int ImageWidth = 1280;
+        [Min(180)] public int ImageHeight = 720;
+        [Range(1, 100)] public int JpegQuality = 90;
+        [Min(1)] public int MaximumGalleryPhotographs = 200;
+        [Min(1f)] public float MaximumZoom = 8f;
+        [Min(0f)] public float CameraDistance = 0.45f;
+        [Min(0f)] public float ZoomStep = 0.8f;
+        [Min(0f)] public float ZoomSharpness = 12f;
+        [Min(0f)] public float IdentificationHoldDuration = 2.4f;
+        [Min(0f)] public float ShutterFlashDuration = 0.18f;
+        [Min(0f)] public float BracketSharpness = 14f;
+        [Min(0f)] public float ValidationInterval = 0.08f;
+        [Range(0f, 0.2f)] public float ViewportEdgePadding = 0.035f;
+        [Min(0f)] public float CaptureHeightOffset = 0.8f;
+        [Min(0f)] public float OcclusionRayEndTolerance = 2f;
+        public LayerMask OcclusionLayers = -1;
+
+        [Header("Viewfinder Layout")]
+        [Min(0f)] public float ScreenMargin = 34f;
+        [Min(1f)] public float FrameThickness = 2f;
+        [Min(1f)] public float FrameCornerLength = 52f;
+        [Min(1f)] public float TargetBracketThickness = 3f;
+        [Min(1f)] public float TargetBracketLength = 34f;
+        [Min(0f)] public float TargetBracketPadding = 10f;
+        [Min(1f)] public float CrosshairSize = 16f;
+        [Min(1f)] public float CrosshairThickness = 2f;
+        [Min(60f)] public float SubjectLabelWidth = 300f;
+        [Min(16f)] public float SubjectLabelHeight = 30f;
+        [Min(8)] public int SubjectLabelFontSize = 17;
+        [Min(8)] public int StatusFontSize = 14;
+        [Min(8)] public int ZoomFontSize = 14;
+        [ColorUsage(false)] public Color NeutralColor = new Color(0.25f, 0.88f, 1f, 0.9f);
+        [ColorUsage(false)] public Color InvalidColor = new Color(1f, 0.48f, 0.52f, 0.95f);
+        [ColorUsage(false)] public Color ValidColor = new Color(0.42f, 1f, 0.66f, 0.95f);
+        [ColorUsage(false)] public Color HudShadowColor = new Color(0f, 0f, 0f, 0.75f);
+        [ColorUsage(false)] public Color ShutterFlashColor = new Color(0.8f, 0.96f, 1f, 0.9f);
+        [ColorUsage(false)] public Color HudTextColor = Color.white;
+        public string CameraTitle = "FIELD DOCUMENTATION CAMERA";
+        public string NeutralStatus = "SEARCHING FOR SUBJECT";
+        public string InvalidStatus = "GLYPH DETECTED — REFRAME";
+        public string ValidStatus = "GLYPH READY — TAKE PHOTO";
+        public string UnknownSubjectLabel = "???";
+        public string ExitHint = "RMB  EXIT   /   LMB  SHUTTER   /   WHEEL  ZOOM";
+        public string StatusZoomFormat = "{0}   /   {1:0.0}x";
+
+        [Header("Identification Presentation")]
+        [Min(240f)] public float IdentificationPanelWidth = 720f;
+        [Min(120f)] public float IdentificationPanelHeight = 190f;
+        [Min(8)] public int IdentificationTitleFontSize = 28;
+        [Min(8)] public int IdentificationNameFontSize = 22;
+        [ColorUsage(false)] public Color IdentificationPanelColor = new Color(0.015f, 0.05f, 0.075f, 0.95f);
+        public string IdentifiedTitle = "GLYPH IDENTIFIED";
+        public string RegisteredText = "REGISTERED TO ATLAS";
+        public string AlreadyDocumentedText = "ALREADY DOCUMENTED";
+        public string ReplacePrompt = "REPLACE ATLAS PHOTOGRAPH?";
+        public string ComparisonNewLabel = "NEW";
+        public string ComparisonCurrentLabel = "CURRENT";
+        [Min(120f)] public float ComparisonImageWidth = 520f;
+        [Min(68f)] public float ComparisonImageHeight = 292f;
+        [Min(0f)] public float ComparisonImageGap = 24f;
+        public string ReplaceButton = "REPLACE";
+        public string KeepButton = "KEEP CURRENT";
+
+        [Header("Gallery Layout")]
+        [Min(640f)] public float GalleryReferenceWidth = 1920f;
+        [Min(360f)] public float GalleryReferenceHeight = 1080f;
+        [Range(0.5f, 2f)] public float GalleryMinimumScale = 0.7f;
+        [Range(0.5f, 2f)] public float GalleryMaximumScale = 1.2f;
+        [Min(400f)] public float GalleryPanelWidth = 1420f;
+        [Min(300f)] public float GalleryPanelHeight = 860f;
+        [Min(8f)] public float GalleryPadding = 30f;
+        [Range(2, 8)] public int GalleryColumns = 4;
+        [Min(80f)] public float GalleryThumbnailWidth = 300f;
+        [Min(45f)] public float GalleryThumbnailHeight = 169f;
+        [Min(0f)] public float GalleryGap = 18f;
+        [Min(20f)] public float GalleryHeaderHeight = 72f;
+        [Min(32f)] public float GalleryButtonHeight = 44f;
+        [Min(8)] public int GalleryTitleFontSize = 32;
+        [Min(8)] public int GalleryBodyFontSize = 15;
+        [ColorUsage(false)] public Color GalleryBackdropColor = new Color(0.01f, 0.02f, 0.035f, 0.98f);
+        [ColorUsage(false)] public Color GalleryPanelColor = new Color(0.035f, 0.065f, 0.085f, 0.98f);
+        [ColorUsage(false)] public Color GalleryAccentColor = new Color(0.12f, 0.85f, 1f, 1f);
+        [ColorUsage(false)] public Color GallerySelectionColor = new Color(0.35f, 0.95f, 1f, 1f);
+        [ColorUsage(false)] public Color GalleryDangerColor = new Color(0.95f, 0.25f, 0.2f, 1f);
+        [ColorUsage(false)] public Color GalleryTextColor = Color.white;
+        public string GalleryTitle = "PHOTOGRAPHIC ARCHIVE";
+        public string GalleryCountFormat = "{0}  /  {1:000}";
+        public string GalleryEmptyText = "NO PHOTOGRAPHS ARCHIVED";
+        public string GalleryDocumentedLabel = "DOCUMENTED GLYPH";
+        public string GalleryPhotoLabelFormat = "PHOTO {0:000}";
+        public string GalleryDoneButton = "DONE";
+        public string GalleryDeleteButton = "DELETE";
+        public string DeleteConfirmation = "ARE YOU SURE YOU WANT TO DELETE THIS PHOTOGRAPH?";
+        public string DeleteCancelButton = "CANCEL";
+
+        [Header("Atlas Integration")]
+        public string PhotographRequiredText = "DOCUMENT THIS GLYPH WITH YOUR CAMERA FIRST";
+        public string PauseMenuButtonLabel = "GALLERY";
+        public string AtlasNewMarker = "NEW";
+        public string AtlasNewTitleSuffix = "  ●";
+        public string AtlasDocumentationProgressFormat = "GLYPHS  {0} / {1}   /   SURVEYED  {2} / {1}";
+        [Min(80f)] public float AtlasPhotoWidth = 190f;
+        [Min(45f)] public float AtlasPhotoHeight = 107f;
+    }
+
     [System.Serializable]
     public sealed class CloudLobeTuning
     {
@@ -1819,6 +1941,14 @@ namespace DuneVector
         [Header("Optional Mastery Bonus")]
         [Min(0f)] public float BonusTimeLimit;
         [Min(0)] public int BonusGoldReward;
+
+        [Header("Photography Capture Definition")]
+        [Range(0.1f, 1.5f)] public float PhotoCaptureRegionScale = 0.92f;
+        [Range(0.001f, 1f)] public float MinimumPhotoScreenCoverage = 0.035f;
+        [Range(0.001f, 1f)] public float MaximumPhotoScreenCoverage = 0.92f;
+        [Range(0f, 1f)] public float MinimumPhotoReadableAngle = 0.08f;
+        [Range(0f, 1f)] public float RequiredPhotoVisiblePercentage = 0.75f;
+        public bool AllowPartialPhotoOcclusion = true;
     }
 
     [System.Serializable]
@@ -3456,6 +3586,9 @@ namespace DuneVector
         [Tooltip("Persistent free-roam signal discoveries, scanner presentation, rewards, and Atlas terminal.")]
         public DesertAtlasTuning DesertAtlas = new DesertAtlasTuning();
 
+        [Tooltip("In-game camera, generic subject detection, persistent photographs, Gallery, and glyph documentation.")]
+        public PhotographyTuning Photography = new PhotographyTuning();
+
         [Tooltip("Route-aware open-world enemy formation choreography.")]
         public RouteEncounterTuning RouteEncounters = new RouteEncounterTuning();
 
@@ -3549,6 +3682,7 @@ namespace DuneVector
             Geoglyphs.EnsureInitialized();
             DesertAtlas ??= new DesertAtlasTuning();
             DesertAtlas.EnsureInitialized();
+            Photography ??= new PhotographyTuning();
             RouteEncounters ??= new RouteEncounterTuning();
             DynamicCouriers ??= new DynamicCourierTuning();
             Pyramids ??= new PyramidTuning();

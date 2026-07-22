@@ -228,6 +228,14 @@ namespace DuneVector
         private bool _distanceIsObstructed;
         private bool _wasFlying;
         private Quaternion _flightTargetRotation;
+        private bool _photographyModeActive;
+        private float _photographyDistance;
+
+        public void SetPhotographyMode(bool active, float cameraDistance)
+        {
+            _photographyModeActive = active;
+            _photographyDistance = Mathf.Max(0f, cameraDistance);
+        }
 
         private void Awake()
         {
@@ -318,9 +326,16 @@ namespace DuneVector
             _wasFlying = isFlying;
             transform.rotation = Quaternion.Slerp(transform.rotation, desiredRotation, DuneVectorMath.Sharpness(RotationSharpness, deltaTime));
 
-            TargetDistance = Mathf.Clamp(TargetDistance - (scrollInput * DistanceMovementSpeed), MinDistance, MaxDistance);
-            float speed01 = SpeedSource != null ? Mathf.Clamp01(SpeedSource.Speed / SpeedForMaximumDistance) : 0f;
-            float idealDistance = Mathf.Clamp(TargetDistance + (speed01 * SpeedDistanceAmount), MinDistance, MaxDistance);
+            if (!_photographyModeActive)
+            {
+                TargetDistance = Mathf.Clamp(TargetDistance - (scrollInput * DistanceMovementSpeed), MinDistance, MaxDistance);
+            }
+            float speed01 = !_photographyModeActive && SpeedSource != null
+                ? Mathf.Clamp01(SpeedSource.Speed / SpeedForMaximumDistance)
+                : 0f;
+            float idealDistance = _photographyModeActive
+                ? _photographyDistance
+                : Mathf.Clamp(TargetDistance + (speed01 * SpeedDistanceAmount), MinDistance, MaxDistance);
 
             _currentFollowPosition = Vector3.Lerp(
                 _currentFollowPosition,
@@ -357,7 +372,9 @@ namespace DuneVector
             float distanceSharpness = _distanceIsObstructed ? ObstructionSharpness : ObstructionReleaseSharpness;
             _currentDistance = Mathf.Lerp(
                 _currentDistance,
-                foundObstruction ? Mathf.Max(MinDistance * 0.2f, closestDistance - ObstructionCheckRadius) : idealDistance,
+                foundObstruction
+                    ? Mathf.Max(_photographyModeActive ? 0f : MinDistance * 0.2f, closestDistance - ObstructionCheckRadius)
+                    : idealDistance,
                 DuneVectorMath.Sharpness(distanceSharpness, deltaTime));
 
             Vector3 targetPosition = _currentFollowPosition + (castDirection * _currentDistance);
