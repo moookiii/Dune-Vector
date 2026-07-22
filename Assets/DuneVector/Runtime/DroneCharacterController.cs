@@ -62,7 +62,9 @@ namespace DuneVector
         [Tooltip("How quickly flight removes roll inherited from grounded traversal and returns the drone's up-axis toward world-up.")]
         [Min(0f)] public float FlightLevelingSharpness = 5f;
         [Min(0f)] public float FlightYawRate = 125f;
-        [Min(0.1f)] public float FlightDuration = 14f;
+        [Min(0.1f)] public float FlightDuration = 60f;
+        [Tooltip("Seconds restored to the flight meter when the drone passes through a flight ring.")]
+        [Min(0f)] public float FlightRingRechargeSeconds = 7f;
         [Tooltip("How long a newly started flight receives a protective upward lift. Flight-ring refreshes do not restart it.")]
         [Min(0f)] public float FlightEntryLiftDuration = 0.75f;
         [Tooltip("Minimum upward speed at the beginning of a newly started flight.")]
@@ -178,6 +180,7 @@ namespace DuneVector
         private float _flightSpeedMultiplier = 1f;
         private float _flightElapsedTime;
         private float _flightEntryLiftTimeRemaining;
+        private bool _flightMeterInitialized;
 
         private Vector3 _visualBaseLocalPosition;
         private Vector3 _lastVisualForward;
@@ -259,7 +262,6 @@ namespace DuneVector
             _flightRequested = false;
             _flightBurstRequested = false;
             _flightElapsedTime = 0f;
-            FlightTimeRemaining = 0f;
             _flightSpeedMultiplier = 1f;
             _requestedFlightSpeedMultiplier = 1f;
             _flightEntryLiftTimeRemaining = 0f;
@@ -310,8 +312,32 @@ namespace DuneVector
 
             if (inputs.JumpPressed && CurrentMode == DroneTraversalMode.Normal)
             {
-                _jumpRequested = true;
-                _timeSinceJumpRequested = 0f;
+                bool canGroundJump = !_jumpConsumed
+                    && (Motor.GroundingStatus.IsStableOnGround || _timeSinceStableGround <= CoyoteTime);
+                if (canGroundJump)
+                {
+                    _jumpRequested = true;
+                    _timeSinceJumpRequested = 0f;
+                }
+                else if (_jumpConsumed && !Motor.GroundingStatus.IsStableOnGround)
+                {
+                    RequestFlight(_cameraForward);
+                }
+            }
+        }
+
+        public void ConfigureFlightMeter(float maximumSeconds, float ringRechargeSeconds)
+        {
+            FlightDuration = Mathf.Max(0.1f, maximumSeconds);
+            FlightRingRechargeSeconds = Mathf.Max(0f, ringRechargeSeconds);
+            if (!_flightMeterInitialized)
+            {
+                FlightTimeRemaining = FlightDuration;
+                _flightMeterInitialized = true;
+            }
+            else
+            {
+                FlightTimeRemaining = Mathf.Min(FlightTimeRemaining, FlightDuration);
             }
         }
 
@@ -323,12 +349,16 @@ namespace DuneVector
 
         public void RequestFlight(Vector3 launchDirection, float speedMultiplier = 1f)
         {
+            if (FlightTimeRemaining <= 0f)
+            {
+                return;
+            }
+
             float requestedMultiplier = Mathf.Max(1f, speedMultiplier);
             if (CurrentMode == DroneTraversalMode.Flight)
             {
                 bool returningToStandardSpeed = requestedMultiplier < _flightSpeedMultiplier;
                 _flightSpeedMultiplier = requestedMultiplier;
-                FlightTimeRemaining = FlightDuration;
                 if (returningToStandardSpeed)
                 {
                     _ringBurstTimeRemaining = 0f;
@@ -348,6 +378,14 @@ namespace DuneVector
             _flightRequested = true;
         }
 
+        public void RequestFlightFromRing(Vector3 launchDirection, float speedMultiplier = 1f)
+        {
+            FlightTimeRemaining = Mathf.Min(
+                FlightDuration,
+                FlightTimeRemaining + FlightRingRechargeSeconds);
+            RequestFlight(launchDirection, speedMultiplier);
+        }
+
         public void BeforeCharacterUpdate(float deltaTime)
         {
             RefreshDustDevilSample();
@@ -357,7 +395,6 @@ namespace DuneVector
                 _flightRequested = false;
                 CurrentMode = DroneTraversalMode.Flight;
                 _flightElapsedTime = 0f;
-                FlightTimeRemaining = FlightDuration;
                 if (_flightBurstRequested)
                 {
                     StartRingBurst();
@@ -799,7 +836,6 @@ namespace DuneVector
             CurrentMode = DroneTraversalMode.Normal;
             Motor.SetGroundSolvingActivation(true);
             _flightElapsedTime = 0f;
-            FlightTimeRemaining = 0f;
             _flightSpeedMultiplier = 1f;
             _requestedFlightSpeedMultiplier = 1f;
             _flightEntryLiftTimeRemaining = 0f;

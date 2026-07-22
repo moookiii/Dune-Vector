@@ -967,7 +967,7 @@ namespace DuneVector
                 GUI.Box(panel, GUIContent.none);
                 Rect content = new Rect(panel.x + 14f, panel.y, panel.width - 28f, panel.height);
                 GUI.Label(new Rect(content.x, panel.y + 8f, content.width, 30f), "DUNE VECTOR", _titleStyle);
-                GUI.Label(new Rect(content.x, panel.y + 42f, content.width, 24f), "WASD Move  •  Shift Boost  •  Space Jump / Air Brake  •  Mouse Look", _hintStyle);
+                GUI.Label(new Rect(content.x, panel.y + 42f, content.width, 24f), "WASD Move  •  Shift Boost  •  Double Space Flight / Air Brake  •  Mouse Look", _hintStyle);
                 GUI.Label(new Rect(content.x, panel.y + 69f, content.width, 22f), "LMB Fire  •  F1 Telemetry  •  Amber: Ring Boost  •  Cyan: Flight", _hintStyle);
                 GUI.color = previous;
             }
@@ -983,23 +983,20 @@ namespace DuneVector
             GUI.DrawTexture(new Rect(bar.x + 1f, bar.y + 1f, (bar.width - 2f) * speed01, bar.height - 2f), Texture2D.whiteTexture);
             GUI.color = oldColor;
 
-            if (Drone.CurrentMode == DroneTraversalMode.Flight)
-            {
-                Rect flightPanel = new Rect((Screen.width * 0.5f) - 180f, Screen.height - 86f, 360f, 52f);
-                GUI.Box(flightPanel, GUIContent.none);
-                GUI.Label(
-                    new Rect(flightPanel.x + 12f, flightPanel.y + 4f, flightPanel.width - 24f, 22f),
-                    $"FLIGHT  {Drone.FlightTimeRemaining:0.0}s",
-                    _hintStyle);
-                Rect flightBar = new Rect(flightPanel.x + 12f, flightPanel.y + 31f, flightPanel.width - 24f, 10f);
-                GUI.Box(flightBar, GUIContent.none);
-                float flight01 = Drone.FlightTimeNormalized;
-                GUI.color = Color.Lerp(new Color(1f, 0.2f, 0.08f), new Color(0f, 0.85f, 1f), flight01);
-                GUI.DrawTexture(
-                    new Rect(flightBar.x + 1f, flightBar.y + 1f, (flightBar.width - 2f) * flight01, flightBar.height - 2f),
-                    Texture2D.whiteTexture);
-                GUI.color = oldColor;
-            }
+            Rect flightPanel = new Rect((Screen.width * 0.5f) - 180f, Screen.height - 86f, 360f, 52f);
+            GUI.Box(flightPanel, GUIContent.none);
+            GUI.Label(
+                new Rect(flightPanel.x + 12f, flightPanel.y + 4f, flightPanel.width - 24f, 22f),
+                $"FLIGHT  {Drone.FlightTimeRemaining:0.0}s",
+                _hintStyle);
+            Rect flightBar = new Rect(flightPanel.x + 12f, flightPanel.y + 31f, flightPanel.width - 24f, 10f);
+            GUI.Box(flightBar, GUIContent.none);
+            float flight01 = Drone.FlightTimeNormalized;
+            GUI.color = Color.Lerp(new Color(1f, 0.2f, 0.08f), new Color(0f, 0.85f, 1f), flight01);
+            GUI.DrawTexture(
+                new Rect(flightBar.x + 1f, flightBar.y + 1f, (flightBar.width - 2f) * flight01, flightBar.height - 2f),
+                Texture2D.whiteTexture);
+            GUI.color = oldColor;
 
             if (!ShowDebugInformation)
             {

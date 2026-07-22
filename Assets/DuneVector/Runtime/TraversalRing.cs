@@ -313,7 +313,7 @@ namespace DuneVector
                     float speedMultiplier = RingType == TraversalRingType.UpperFlight
                         ? _ringTuning.UpperFlightSpeedMultiplier
                         : 1f;
-                    _controller.RequestFlight(transform.forward, speedMultiplier);
+                    _controller.RequestFlightFromRing(transform.forward, speedMultiplier);
                 }
                 else
                 {
