@@ -447,8 +447,8 @@ namespace DuneVector
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.allowHDR = true;
             camera.allowMSAA = false;
-            camera.farClipPlane = 900f;
-            camera.nearClipPlane = 0.08f;
+            camera.nearClipPlane = PlayerTuning.CameraNearClipPlane;
+            camera.farClipPlane = Mathf.Max(PlayerTuning.CameraNearClipPlane, PlayerTuning.CameraFarClipPlane);
             cameraObject.AddComponent<StudioListener>();
             HDAdditionalCameraData cameraData = cameraObject.GetComponent<HDAdditionalCameraData>();
             if (cameraData == null)

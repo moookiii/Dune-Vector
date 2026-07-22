@@ -250,7 +250,6 @@ namespace DuneVector
                 Camera = GetComponent<Camera>();
             }
             Camera.fieldOfView = BaseFieldOfView;
-            Camera.nearClipPlane = 0.08f;
             TargetDistance = Mathf.Clamp(DefaultDistance, MinDistance, MaxDistance);
             _currentDistance = TargetDistance;
             _targetPitch = Mathf.Clamp(DefaultPitch, MinPitch, MaxPitch);

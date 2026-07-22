@@ -3456,6 +3456,8 @@ namespace DuneVector
         [Min(0f)] public float CameraLookSensitivity = 0.085f;
         [Min(0f)] public float CameraRotationSharpness = 30f;
         [Min(0f)] public float CameraFollowSharpness = 4.2f;
+        [Min(0.001f)] public float CameraNearClipPlane = 0.01f;
+        [Min(0.01f)] public float CameraFarClipPlane = 10000f;
 
         [Header("Camera Temporal Anti-Aliasing (HDRP)")]
         public bool EnableTemporalAntiAliasing = true;
@@ -3507,6 +3509,8 @@ namespace DuneVector
             camera.LookSensitivity = CameraLookSensitivity;
             camera.RotationSharpness = CameraRotationSharpness;
             camera.FollowingSharpness = CameraFollowSharpness;
+            camera.Camera.nearClipPlane = CameraNearClipPlane;
+            camera.Camera.farClipPlane = Mathf.Max(CameraNearClipPlane, CameraFarClipPlane);
         }
     }
 
