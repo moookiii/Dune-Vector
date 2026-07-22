@@ -230,11 +230,17 @@ namespace DuneVector
         private Quaternion _flightTargetRotation;
         private bool _photographyModeActive;
         private float _photographyDistance;
+        private float _photographyHeight;
 
-        public void SetPhotographyMode(bool active, float cameraDistance)
+        public void SetPhotographyMode(bool active, float cameraDistance, float cameraHeight)
         {
             _photographyModeActive = active;
             _photographyDistance = Mathf.Max(0f, cameraDistance);
+            _photographyHeight = Mathf.Max(0f, cameraHeight);
+            if (active)
+            {
+                _currentDistance = _photographyDistance;
+            }
         }
 
         private void Awake()
@@ -377,9 +383,19 @@ namespace DuneVector
                     : idealDistance,
                 DuneVectorMath.Sharpness(distanceSharpness, deltaTime));
 
-            Vector3 targetPosition = _currentFollowPosition + (castDirection * _currentDistance);
-            targetPosition += transform.right * FollowPointFraming.x;
-            targetPosition += transform.up * FollowPointFraming.y;
+            Vector3 targetPosition;
+            if (_photographyModeActive)
+            {
+                targetPosition = _currentFollowPosition +
+                    (castDirection * _currentDistance) +
+                    (Vector3.up * _photographyHeight);
+            }
+            else
+            {
+                targetPosition = _currentFollowPosition + (castDirection * _currentDistance);
+                targetPosition += transform.right * FollowPointFraming.x;
+                targetPosition += transform.up * FollowPointFraming.y;
+            }
             transform.position = targetPosition;
 
             float targetFov = BaseFieldOfView + (speed01 * SpeedFieldOfViewAmount);

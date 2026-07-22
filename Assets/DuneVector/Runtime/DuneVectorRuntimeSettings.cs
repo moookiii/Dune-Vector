@@ -108,7 +108,8 @@ namespace DuneVector
         [Range(1, 100)] public int JpegQuality = 90;
         [Min(1)] public int MaximumGalleryPhotographs = 200;
         [Min(1f)] public float MaximumZoom = 8f;
-        [Min(0f)] public float CameraDistance = 0.45f;
+        [Min(0f)] public float CameraDistance = 0f;
+        [Min(0f)] public float CameraHeight = 0.65f;
         [Min(0f)] public float ZoomStep = 0.8f;
         [Min(0f)] public float ZoomSharpness = 12f;
         [Min(0f)] public float IdentificationHoldDuration = 2.4f;
