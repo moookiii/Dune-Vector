@@ -2616,6 +2616,21 @@ namespace DuneVector
         [Min(0f)] public float StormCloudRollSpeed = 0.16f;
         [Min(0f)] public float StormCloudRockAngle = 1.8f;
 
+        [Header("Intelligent Cloud Morphing")]
+        [Tooltip("Allows the storm mass to billow coherently and reshape in response to movement, turning, and intensity.")]
+        public bool IntelligentStormCloudMorphing = true;
+        [Min(0f)] public float StormCloudMorphSpeed = 0.11f;
+        [Min(1f)] public float StormCloudMorphCoherenceDistance = 115f;
+        public Vector3 StormCloudMorphScaleAmount = new Vector3(0.12f, 0.16f, 0.1f);
+        [Min(0f)] public float StormCloudMorphPositionAmount = 4.5f;
+        [Min(0f)] public float StormCloudMorphResponseSharpness = 2.8f;
+        [Min(0.1f)] public float StormCloudMovementReferenceSpeed = 24f;
+        [Range(0f, 1f)] public float StormCloudMovementStretch = 0.18f;
+        [Min(0f)] public float StormCloudMovementLag = 12f;
+        [Min(0.1f)] public float StormCloudTurnReferenceSpeed = 35f;
+        [Min(0f)] public float StormCloudTurnShear = 14f;
+        [Range(0f, 0.5f)] public float StormCloudIntensityConvection = 0.12f;
+
         [Header("Cloud Lighting & Value Layers")]
         [ColorUsage(false)] public Color StormCloudTopColor = new Color(0.24f, 0.29f, 0.36f, 1f);
         [ColorUsage(false)] public Color StormCloudMiddleColor = new Color(0.095f, 0.12f, 0.16f, 1f);

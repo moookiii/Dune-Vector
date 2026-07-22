@@ -14,7 +14,10 @@ namespace DuneVector
             public Transform Transform;
             public Vector3 BasePosition;
             public Quaternion BaseRotation;
+            public Vector3 BaseScale;
             public Vector3 DriftAxis;
+            public Vector3 MorphOffset;
+            public Vector3 MorphScale;
             public float Phase;
             public float MotionMultiplier;
             public float RotationSpeed;
@@ -88,6 +91,11 @@ namespace DuneVector
         private bool _targetTelegraphActive;
         private bool _stormWasVisible;
         private Vector3 _stormfrontFarCenter;
+        private Vector3 _previousStormPosition;
+        private Vector3 _previousStormDirection;
+        private Vector3 _smoothedStormVelocity;
+        private float _smoothedStormTurn;
+        private bool _hasStormMotionSample;
         private GUIStyle _hudTitleStyle;
         private GUIStyle _hudStatusStyle;
 
@@ -310,6 +318,7 @@ namespace DuneVector
             if (!visible)
             {
                 _stormWasVisible = false;
+                _hasStormMotionSample = false;
                 return;
             }
 
@@ -364,17 +373,105 @@ namespace DuneVector
             _stormWasVisible = true;
             _stormRoot.transform.rotation = Quaternion.LookRotation(-direction, Vector3.up);
 
+            UpdateStormMotionSample(direction, Time.deltaTime);
+
             for (int i = 0; i < _cloudLobes.Count; i++)
             {
                 CloudLobe lobe = _cloudLobes[i];
                 float motion = Mathf.Sin((Time.time * _settings.StormCloudRollSpeed * lobe.MotionMultiplier) + lobe.Phase);
+                UpdateCloudLobeMorph(lobe, Time.deltaTime);
                 lobe.Transform.localPosition = lobe.BasePosition +
-                    (lobe.DriftAxis * motion * _settings.StormCloudRollAmount * lobe.MotionMultiplier);
+                    (lobe.DriftAxis * motion * _settings.StormCloudRollAmount * lobe.MotionMultiplier) +
+                    lobe.MorphOffset;
                 lobe.Transform.localRotation = lobe.BaseRotation * Quaternion.Euler(
                     0f,
                     Time.time * lobe.RotationSpeed,
                     motion * _settings.StormCloudRockAngle);
+                lobe.Transform.localScale = Vector3.Scale(lobe.BaseScale, lobe.MorphScale);
             }
+        }
+
+        private void UpdateStormMotionSample(Vector3 direction, float deltaTime)
+        {
+            Vector3 stormPosition = _stormRoot.transform.position;
+            if (!_hasStormMotionSample || deltaTime <= 0f)
+            {
+                _previousStormPosition = stormPosition;
+                _previousStormDirection = direction;
+                _smoothedStormVelocity = Vector3.zero;
+                _smoothedStormTurn = 0f;
+                _hasStormMotionSample = true;
+                return;
+            }
+
+            Vector3 velocity = (stormPosition - _previousStormPosition) / deltaTime;
+            velocity.y = 0f;
+            float angularVelocity = Vector3.SignedAngle(_previousStormDirection, direction, Vector3.up) / deltaTime;
+            float response = DuneVectorMath.Sharpness(_settings.StormCloudMorphResponseSharpness, deltaTime);
+            _smoothedStormVelocity = Vector3.Lerp(_smoothedStormVelocity, velocity, response);
+            _smoothedStormTurn = Mathf.Lerp(_smoothedStormTurn, angularVelocity, response);
+            _previousStormPosition = stormPosition;
+            _previousStormDirection = direction;
+        }
+
+        private void UpdateCloudLobeMorph(CloudLobe lobe, float deltaTime)
+        {
+            Vector3 targetOffset = Vector3.zero;
+            Vector3 targetScale = Vector3.one;
+            if (_settings.IntelligentStormCloudMorphing)
+            {
+                float coherence = Mathf.Max(1f, _settings.StormCloudMorphCoherenceDistance);
+                Vector3 coordinate = lobe.BasePosition / coherence;
+                float phaseOffset = lobe.Phase / (Mathf.PI * 2f);
+                float morphTime = Time.time * _settings.StormCloudMorphSpeed;
+                float broadMorph = SignedPerlin(
+                    coordinate.x + morphTime,
+                    coordinate.z + (phaseOffset * 0.35f));
+                float verticalMorph = SignedPerlin(
+                    coordinate.z - (morphTime * 0.73f),
+                    coordinate.y + (phaseOffset * 0.35f) + 7.1f);
+                float depthMorph = SignedPerlin(
+                    coordinate.y + (morphTime * 0.51f),
+                    coordinate.x - coordinate.z + (phaseOffset * 0.35f) + 19.3f);
+                Vector3 morphShape = new Vector3(broadMorph, verticalMorph, depthMorph);
+                targetScale += Vector3.Scale(_settings.StormCloudMorphScaleAmount, morphShape) *
+                    lobe.MotionMultiplier;
+
+                float referenceSpeed = Mathf.Max(0.1f, _settings.StormCloudMovementReferenceSpeed);
+                float movementStrength = Mathf.Clamp01(_smoothedStormVelocity.magnitude / referenceSpeed);
+                Vector3 localVelocity = _stormRoot.transform.InverseTransformDirection(_smoothedStormVelocity);
+                Vector3 localDirection = localVelocity.sqrMagnitude > 0.001f
+                    ? localVelocity.normalized
+                    : Vector3.zero;
+                float stretch = movementStrength * _settings.StormCloudMovementStretch;
+                targetScale.x += Mathf.Abs(localDirection.x) * stretch;
+                targetScale.z += Mathf.Abs(localDirection.z) * stretch;
+                targetScale.y += _visualBlend * _settings.StormCloudIntensityConvection;
+
+                float heightFraction = Mathf.Clamp01(
+                    lobe.BasePosition.y / Mathf.Max(1f, _settings.StormfrontHeight));
+                targetOffset = morphShape *
+                    (_settings.StormCloudMorphPositionAmount * lobe.MotionMultiplier);
+                targetOffset -= localDirection *
+                    (movementStrength * _settings.StormCloudMovementLag * heightFraction);
+                float turnStrength = Mathf.Clamp(
+                    _smoothedStormTurn / Mathf.Max(0.1f, _settings.StormCloudTurnReferenceSpeed),
+                    -1f,
+                    1f);
+                targetOffset.x += turnStrength * _settings.StormCloudTurnShear * heightFraction;
+            }
+
+            targetScale.x = Mathf.Max(0.05f, targetScale.x);
+            targetScale.y = Mathf.Max(0.05f, targetScale.y);
+            targetScale.z = Mathf.Max(0.05f, targetScale.z);
+            float response = DuneVectorMath.Sharpness(_settings.StormCloudMorphResponseSharpness, deltaTime);
+            lobe.MorphOffset = Vector3.Lerp(lobe.MorphOffset, targetOffset, response);
+            lobe.MorphScale = Vector3.Lerp(lobe.MorphScale, targetScale, response);
+        }
+
+        private static float SignedPerlin(float x, float y)
+        {
+            return (Mathf.PerlinNoise(x, y) * 2f) - 1f;
         }
 
         private bool TryGetPlayerFollowSpeed(out float speed)
@@ -1138,11 +1235,13 @@ namespace DuneVector
                 Transform = lobe.transform,
                 BasePosition = position,
                 BaseRotation = rotation,
+                BaseScale = scale,
                 DriftAxis = new Vector3(
                     RandomRange(-1f, 1f),
                     RandomRange(-_settings.StormCloudVerticalDriftRatio, _settings.StormCloudVerticalDriftRatio),
                     RandomRange(-1f, 1f)).normalized,
                 Phase = RandomRange(0f, Mathf.PI * 2f),
+                MorphScale = Vector3.one,
                 MotionMultiplier = motionMultiplier,
                 RotationSpeed = rotationSpeed,
             });
@@ -1340,6 +1439,10 @@ namespace DuneVector
             if (_stormRoot != null)
             {
                 _stormRoot.transform.position += shift;
+            }
+            if (_hasStormMotionSample)
+            {
+                _previousStormPosition += shift;
             }
             _chargedDust.Clear();
             _staticMotes.Clear();
