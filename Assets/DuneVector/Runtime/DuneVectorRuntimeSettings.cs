@@ -1313,10 +1313,10 @@ namespace DuneVector
     public sealed class WorldStreamingTuning
     {
         [Tooltip("Chunk radius kept active around the player.")]
-        [Range(1, 24)] public int ActiveRadius = 3;
+        [Range(1, 14)] public int ActiveRadius = 3;
         [Tooltip("Chunk radius generated ahead of the player.")]
         [Range(1, 9)] public int PreloadRadius = 3;
-        [Tooltip("Chunks beyond this radius are removed. Runtime unloading never contracts inside the active or preload radius.")]
+        [Tooltip("Chunks beyond this radius are removed.")]
         [Range(2, 12)] public int UnloadRadius = 4;
         [Tooltip("Maximum terrain chunks generated during one frame.")]
         [Range(1, 4)] public int ChunksGeneratedPerFrame = 1;
