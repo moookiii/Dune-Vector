@@ -46,6 +46,9 @@ namespace DuneVector
         [Tooltip("Width and height of the visible mask linework as normalized fractions of the full texture.")]
         public Vector2 MaskContentSize = Vector2.one;
 
+        [Tooltip("Convex boundary samples around the visible linework in normalized Unity texture coordinates. Camera framing uses these points instead of the rectangular texture footprint.")]
+        public List<Vector2> MaskCaptureBoundary = new List<Vector2>();
+
         [Tooltip("Rotation of the artwork footprint around its world-space center.")]
         public float RotationDegrees;
 

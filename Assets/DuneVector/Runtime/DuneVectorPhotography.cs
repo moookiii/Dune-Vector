@@ -371,7 +371,8 @@ namespace DuneVector
         private readonly GeoglyphSystemTuning _geoglyphs;
         private readonly DesertAtlasTuning _atlas;
         private readonly PhotographyTuning _settings;
-        private readonly Vector3[] _worldSamples = new Vector3[9];
+        private readonly List<Vector3> _worldSamples = new List<Vector3>(40);
+        private int _centerSampleIndex;
 
         public DuneVectorSubjectDetector(Camera camera, DesertWorldStreamer world, GeoglyphSystemTuning geoglyphs, DesertAtlasTuning atlas, PhotographyTuning settings)
         {
@@ -450,6 +451,7 @@ namespace DuneVector
 
         private void BuildSamples(DesertAtlasSiteDefinition site, GeoglyphArtworkPlacement artwork)
         {
+            _worldSamples.Clear();
             Vector2 contentCenter = artwork.MaskContentCenter;
             Vector2 contentScale = artwork.MaskContentSize;
             if (contentScale.x <= 0f || contentScale.y <= 0f)
@@ -472,7 +474,27 @@ namespace DuneVector
                 normalizedCenterOffset.y * artwork.WorldSize.y);
             double contentCenterX = artwork.WorldCenter.x + centerOffset.x;
             double contentCenterZ = artwork.WorldCenter.y + centerOffset.z;
-            int index = 0;
+            float regionScale = Mathf.Max(0.1f, site.PhotoCaptureRegionScale);
+            if (artwork.MaskCaptureBoundary != null && artwork.MaskCaptureBoundary.Count >= 3)
+            {
+                _centerSampleIndex = 0;
+                AddWorldSample(contentCenterX, contentCenterZ);
+                for (int i = 0; i < artwork.MaskCaptureBoundary.Count; i++)
+                {
+                    Vector2 uv = contentCenter +
+                        ((artwork.MaskCaptureBoundary[i] - contentCenter) * regionScale);
+                    Vector3 offset = rotation * new Vector3(
+                        (uv.x - 0.5f) * artwork.WorldSize.x,
+                        0f,
+                        (uv.y - 0.5f) * artwork.WorldSize.y);
+                    AddWorldSample(
+                        artwork.WorldCenter.x + offset.x,
+                        artwork.WorldCenter.y + offset.z);
+                }
+                return;
+            }
+
+            _centerSampleIndex = 4;
             for (int z = -1; z <= 1; z++)
             {
                 for (int x = -1; x <= 1; x++)
@@ -480,11 +502,16 @@ namespace DuneVector
                     Vector3 offset = rotation * new Vector3(size.x * 0.5f * x, 0f, size.y * 0.5f * z);
                     double logicalX = contentCenterX + offset.x;
                     double logicalZ = contentCenterZ + offset.z;
-                    Vector3 local = _world.LogicalToLocal(logicalX, 0f, logicalZ);
-                    local.y = _world.SampleHeightAtLocal(local.x, local.z) + _settings.CaptureHeightOffset;
-                    _worldSamples[index++] = local;
+                    AddWorldSample(logicalX, logicalZ);
                 }
             }
+        }
+
+        private void AddWorldSample(double logicalX, double logicalZ)
+        {
+            Vector3 local = _world.LogicalToLocal(logicalX, 0f, logicalZ);
+            local.y = _world.SampleHeightAtLocal(local.x, local.z) + _settings.CaptureHeightOffset;
+            _worldSamples.Add(local);
         }
 
         private bool TryProjectBounds(out Rect bounds, out float coverage, out float priority)
@@ -495,7 +522,7 @@ namespace DuneVector
             float maxY = float.NegativeInfinity;
             int frontSampleCount = 0;
             bool centerInFront = false;
-            for (int i = 0; i < _worldSamples.Length; i++)
+            for (int i = 0; i < _worldSamples.Count; i++)
             {
                 Vector3 viewport = _camera.WorldToViewportPoint(_worldSamples[i]);
                 if (viewport.z <= _camera.nearClipPlane)
@@ -504,7 +531,7 @@ namespace DuneVector
                 }
 
                 frontSampleCount++;
-                centerInFront |= i == (_worldSamples.Length / 2);
+                centerInFront |= i == _centerSampleIndex;
                 float x = viewport.x * Screen.width;
                 float y = (1f - viewport.y) * Screen.height;
                 minX = Mathf.Min(minX, x);
@@ -533,7 +560,7 @@ namespace DuneVector
         {
             int visible = 0;
             Vector3 origin = _camera.transform.position;
-            for (int i = 0; i < _worldSamples.Length; i++)
+            for (int i = 0; i < _worldSamples.Count; i++)
             {
                 Vector3 direction = _worldSamples[i] - origin;
                 float distance = direction.magnitude;
@@ -546,7 +573,7 @@ namespace DuneVector
                         QueryTriggerInteraction.Ignore);
                 if (!blocked) visible++;
             }
-            return visible / (float)_worldSamples.Length;
+            return _worldSamples.Count > 0 ? visible / (float)_worldSamples.Count : 0f;
         }
 
         private static Rect Intersect(Rect a, Rect b)
