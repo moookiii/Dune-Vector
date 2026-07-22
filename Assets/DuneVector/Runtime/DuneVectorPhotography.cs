@@ -451,7 +451,11 @@ namespace DuneVector
         private void BuildSamples(DesertAtlasSiteDefinition site, GeoglyphArtworkPlacement artwork)
         {
             Vector2 size = artwork.WorldSize * Mathf.Max(0.1f, site.PhotoCaptureRegionScale);
-            Quaternion rotation = Quaternion.Euler(0f, artwork.RotationDegrees, 0f);
+            // The geoglyph shader converts world deltas into artwork space with a
+            // clockwise X/Z rotation. Unity's positive Y quaternion uses that same
+            // direction for local-to-world, so invert the authored angle here to
+            // reconstruct the shader's artwork footprint in world space.
+            Quaternion rotation = Quaternion.Euler(0f, -artwork.RotationDegrees, 0f);
             int index = 0;
             for (int z = -1; z <= 1; z++)
             {
