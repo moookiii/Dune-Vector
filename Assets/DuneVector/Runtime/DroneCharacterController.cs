@@ -548,6 +548,12 @@ namespace DuneVector
                 currentVelocity.y = Mathf.Max(currentVelocity.y, _windFieldSettings.UpdraftMinimumLaunchSpeed);
             }
             currentVelocity += CurrentWindForce * Mathf.Max(0f, deltaTime);
+            if (sample.DominantType == WindFieldType.Updraft)
+            {
+                currentVelocity.y = Mathf.Min(
+                    currentVelocity.y,
+                    Mathf.Max(0f, _windFieldSettings.UpdraftMaximumUpwardSpeed));
+            }
         }
 
         private void UpdateNormalVelocity(ref Vector3 currentVelocity, float deltaTime)

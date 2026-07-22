@@ -64,6 +64,8 @@ namespace DuneVector
         [Min(0f)] public float TurbulenceFrequency = 0.17f;
         [Range(0f, 1f)] public float UpdraftLaunchInfluenceThreshold = 0.12f;
         [Min(0f)] public float UpdraftMinimumLaunchSpeed = 8f;
+        [Tooltip("Maximum upward player speed while affected by an updraft field.")]
+        [Min(0f)] public float UpdraftMaximumUpwardSpeed = 30f;
 
         [Header("World-space Streamlines")]
         [Range(0, 512)] public int StreamlineParticleBudget = 180;
