@@ -539,8 +539,6 @@ namespace DuneVector
         private GUIStyle _titleStyle;
         private GUIStyle _bodyStyle;
         private GUIStyle _buttonStyle;
-        private readonly List<Renderer> _hiddenPlayerRenderers = new List<Renderer>();
-        private readonly List<bool> _hiddenPlayerRendererStates = new List<bool>();
 
         public DuneVectorGalleryView(DuneVectorPhotographStorage storage, PhotographyTuning settings)
         {
@@ -761,6 +759,8 @@ namespace DuneVector
         private GUIStyle _identificationTitleStyle;
         private GUIStyle _identificationNameStyle;
         private GUIStyle _buttonStyle;
+        private readonly List<Renderer> _hiddenPlayerRenderers = new List<Renderer>();
+        private readonly List<bool> _hiddenPlayerRendererStates = new List<bool>();
 
         public void Initialize(
             DronePlayer player,
