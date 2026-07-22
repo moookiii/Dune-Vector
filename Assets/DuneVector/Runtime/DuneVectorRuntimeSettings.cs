@@ -1924,9 +1924,25 @@ namespace DuneVector
         [Min(0f)] public float SignalBaseColorMultiplier = 0.24f;
         [Min(0f)] public float SignalEmissionMultiplier = 3.5f;
         [Min(1f)] public float ActiveChallengeEmissionMultiplier = 2f;
+
+        [Header("Sky Beacon Visibility")]
         [Min(1f)] public float SignalBeamHeight = 90f;
         [Min(0.01f)] public float SignalBeamRadius = 0.22f;
         [Range(0f, 1f)] public float SignalBeamPulseAmount = 0.22f;
+        [Tooltip("HDR emission used only by the vertical Atlas beacon so it produces a strong bloom halo.")]
+        [Min(0f)] public float SignalBeamEmissionMultiplier = 10.5f;
+        [Range(0.05f, 1f)] public float SignalBeamCoreRadiusMultiplier = 0.38f;
+        [ColorUsage(false)] public Color SignalBeamCoreColor = Color.white;
+        [Range(0f, 1f)] public float SignalBeamCoreWhiteness = 0.72f;
+        [Min(1f)] public float SignalBeamCoreEmissionMultiplier = 2.25f;
+        [Range(0, 8)] public int SignalBeamLocatorBandCount = 3;
+        [Range(6, 32)] public int SignalBeamLocatorBandSegments = 16;
+        [Min(0.1f)] public float SignalBeamLocatorBandRadius = 1.8f;
+        [Min(0.01f)] public float SignalBeamLocatorBandThickness = 0.12f;
+        [Min(0.01f)] public float SignalBeamLocatorBandLength = 0.7f;
+        [Min(0f)] public float SignalBeamLocatorBandBottomHeight = 24f;
+        [Min(0f)] public float SignalBeamLocatorBandSpacing = 22f;
+        [Min(0f)] public float SignalBeamLocatorBandRotationSpeed = 20f;
         [Min(1f)] public float ActiveChallengeRotationMultiplier = 3f;
         [Min(0)] public int CompletionBurstParticleCount = 54;
         [Min(0.1f)] public float CompletionBurstLifetime = 2.4f;

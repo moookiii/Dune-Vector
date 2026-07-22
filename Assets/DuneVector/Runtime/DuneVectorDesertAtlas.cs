@@ -27,9 +27,14 @@ namespace DuneVector
             public Transform Rings;
             public Vector3 CoreBaseScale;
             public Material SignalMaterial;
+            public Material BeamMaterial;
+            public Material BeamCoreMaterial;
             public Color SignalColor;
             public Transform Beam;
             public Vector3 BeamBaseScale;
+            public Transform BeamCore;
+            public Vector3 BeamCoreBaseScale;
+            public Transform BeamLocatorBands;
             public TraversalRing ChallengeFlightRing;
             public ParticleSystem AmbientParticles;
             public readonly List<Transform> SlalomGates = new List<Transform>();
@@ -766,6 +771,7 @@ namespace DuneVector
             if (_visuals.TryGetValue(site.PersistentId, out SiteVisual visual))
             {
                 ApplyMaterial(visual.Root, _discoveredMaterial);
+                ApplySpecialBeamMaterials(visual);
                 if (visual.DiscoveredMarker != null)
                 {
                     visual.DiscoveredMarker.gameObject.SetActive(true);
@@ -818,6 +824,21 @@ namespace DuneVector
             root.SetParent(transform, true);
             Material signalMaterial = CreateSignalMaterial(_materials.LandmarkMetal, site.SignalColor);
             Material material = IsDiscovered(site) ? _discoveredMaterial : signalMaterial;
+            Color beamColor = IsDiscovered(site) ? _settings.DiscoveredColor : site.SignalColor;
+            Material beamMaterial = CreateSignalMaterial(
+                _materials.LandmarkMetal,
+                beamColor,
+                _settings.SignalBaseColorMultiplier,
+                _settings.SignalBeamEmissionMultiplier);
+            Color beamCoreColor = Color.Lerp(
+                beamColor,
+                _settings.SignalBeamCoreColor,
+                _settings.SignalBeamCoreWhiteness);
+            Material beamCoreMaterial = CreateSignalMaterial(
+                _materials.LandmarkMetal,
+                beamCoreColor,
+                _settings.SignalBaseColorMultiplier,
+                _settings.SignalBeamEmissionMultiplier * _settings.SignalBeamCoreEmissionMultiplier);
             CreatePart(PrimitiveType.Cylinder, "Signal Base", root, Vector3.up * (_settings.BaseHeight * 0.5f),
                 new Vector3(_settings.BaseRadius * 2f, _settings.BaseHeight * 0.5f, _settings.BaseRadius * 2f), material);
             Transform core = CreatePart(PrimitiveType.Sphere, "Signal Core", root, Vector3.up * _settings.CoreHeight,
@@ -827,7 +848,15 @@ namespace DuneVector
             Transform beam = CreatePart(PrimitiveType.Cylinder, "Signal Sky Beam", root,
                 Vector3.up * (_settings.SignalBeamHeight * 0.5f),
                 new Vector3(_settings.SignalBeamRadius * 2f, _settings.SignalBeamHeight * 0.5f,
-                    _settings.SignalBeamRadius * 2f), material);
+                    _settings.SignalBeamRadius * 2f), beamMaterial);
+            Transform beamCore = CreatePart(PrimitiveType.Cylinder, "Signal Sky Beam Core", root,
+                Vector3.up * (_settings.SignalBeamHeight * 0.5f),
+                new Vector3(
+                    _settings.SignalBeamRadius * 2f * _settings.SignalBeamCoreRadiusMultiplier,
+                    _settings.SignalBeamHeight * 0.5f,
+                    _settings.SignalBeamRadius * 2f * _settings.SignalBeamCoreRadiusMultiplier),
+                beamCoreMaterial);
+            Transform beamLocatorBands = BuildBeamLocatorBands(root, beamMaterial);
             Transform rings = new GameObject("Signal Rings").transform;
             rings.SetParent(root, false);
             for (int ring = 0; ring < Mathf.Max(1, _settings.RingCount); ring++)
@@ -842,9 +871,14 @@ namespace DuneVector
                 Rings = rings,
                 CoreBaseScale = core.localScale,
                 SignalMaterial = signalMaterial,
+                BeamMaterial = beamMaterial,
+                BeamCoreMaterial = beamCoreMaterial,
                 SignalColor = site.SignalColor,
                 Beam = beam,
                 BeamBaseScale = beam.localScale,
+                BeamCore = beamCore,
+                BeamCoreBaseScale = beamCore.localScale,
+                BeamLocatorBands = beamLocatorBands,
             };
             created.AmbientParticles = CreateAmbientParticles(root, signalMaterial, site.SignalColor);
             created.DiscoveredMarker = BuildDiscoveredMarker(root);
@@ -1001,6 +1035,36 @@ namespace DuneVector
             }
         }
 
+        private Transform BuildBeamLocatorBands(Transform parent, Material material)
+        {
+            Transform bands = new GameObject("Signal Sky Beam Locator Bands").transform;
+            bands.SetParent(parent, false);
+            int bandCount = Mathf.Max(0, _settings.SignalBeamLocatorBandCount);
+            int segments = Mathf.Max(3, _settings.SignalBeamLocatorBandSegments);
+            for (int band = 0; band < bandCount; band++)
+            {
+                float height = _settings.SignalBeamLocatorBandBottomHeight +
+                    (band * _settings.SignalBeamLocatorBandSpacing);
+                for (int segment = 0; segment < segments; segment++)
+                {
+                    float angle = (360f / segments) * segment;
+                    Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                    CreatePart(
+                        PrimitiveType.Cube,
+                        $"Locator Band {band + 1} Segment {segment + 1}",
+                        bands,
+                        (direction * _settings.SignalBeamLocatorBandRadius) + (Vector3.up * height),
+                        new Vector3(
+                            _settings.SignalBeamLocatorBandThickness,
+                            _settings.SignalBeamLocatorBandThickness,
+                            _settings.SignalBeamLocatorBandLength),
+                        material,
+                        Quaternion.Euler(0f, angle, 0f));
+                }
+            }
+            return bands;
+        }
+
         private static Transform CreatePart(PrimitiveType type, string name, Transform parent, Vector3 localPosition,
             Vector3 localScale, Material material, Quaternion? localRotation = null)
         {
@@ -1074,6 +1138,21 @@ namespace DuneVector
                         visual.BeamBaseScale.x * beamPulse,
                         visual.BeamBaseScale.y,
                         visual.BeamBaseScale.z * beamPulse);
+                }
+                if (visual.BeamCore != null)
+                {
+                    visual.BeamCore.localScale = new Vector3(
+                        visual.BeamCoreBaseScale.x * beamPulse,
+                        visual.BeamCoreBaseScale.y,
+                        visual.BeamCoreBaseScale.z * beamPulse);
+                }
+                if (visual.BeamLocatorBands != null)
+                {
+                    visual.BeamLocatorBands.Rotate(
+                        0f,
+                        _settings.SignalBeamLocatorBandRotationSpeed * rotationMultiplier * Time.deltaTime,
+                        0f,
+                        Space.Self);
                 }
                 if (visual.SignalMaterial != null && visual.SignalMaterial.HasProperty("_EmissiveColor"))
                 {
@@ -1828,9 +1907,22 @@ namespace DuneVector
 
         private Material CreateSignalMaterial(Material source, Color color)
         {
+            return CreateSignalMaterial(
+                source,
+                color,
+                _settings.SignalBaseColorMultiplier,
+                _settings.SignalEmissionMultiplier);
+        }
+
+        private static Material CreateSignalMaterial(
+            Material source,
+            Color color,
+            float baseColorMultiplier,
+            float emissionMultiplier)
+        {
             Material material = new Material(source) { hideFlags = HideFlags.HideAndDontSave };
-            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color * _settings.SignalBaseColorMultiplier);
-            if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", color * _settings.SignalEmissionMultiplier);
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color * baseColorMultiplier);
+            if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", color * emissionMultiplier);
             return material;
         }
 
@@ -1840,6 +1932,26 @@ namespace DuneVector
             for (int i = 0; i < renderers.Length; i++)
             {
                 renderers[i].sharedMaterial = material;
+            }
+        }
+
+        private static void ApplySpecialBeamMaterials(SiteVisual visual)
+        {
+            if (visual.Beam != null && visual.Beam.TryGetComponent(out Renderer beamRenderer))
+            {
+                beamRenderer.sharedMaterial = visual.BeamMaterial;
+            }
+            if (visual.BeamCore != null && visual.BeamCore.TryGetComponent(out Renderer coreRenderer))
+            {
+                coreRenderer.sharedMaterial = visual.BeamCoreMaterial;
+            }
+            if (visual.BeamLocatorBands != null)
+            {
+                Renderer[] bandRenderers = visual.BeamLocatorBands.GetComponentsInChildren<Renderer>(true);
+                for (int i = 0; i < bandRenderers.Length; i++)
+                {
+                    bandRenderers[i].sharedMaterial = visual.BeamMaterial;
+                }
             }
         }
 
@@ -1936,6 +2048,8 @@ namespace DuneVector
             foreach (SiteVisual visual in _visuals.Values)
             {
                 if (visual.SignalMaterial != null) Destroy(visual.SignalMaterial);
+                if (visual.BeamMaterial != null) Destroy(visual.BeamMaterial);
+                if (visual.BeamCoreMaterial != null) Destroy(visual.BeamCoreMaterial);
             }
             if (_discoveredMaterial != null) Destroy(_discoveredMaterial);
             if (_whiteTexture != null) Destroy(_whiteTexture);
