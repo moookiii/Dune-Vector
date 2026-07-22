@@ -863,9 +863,13 @@ namespace DuneVector
             Vector2 look = mouse != null ? mouse.delta.ReadValue() : Vector2.zero;
             float scroll = mouse != null ? mouse.scroll.ReadValue().y / 120f : 0f;
             _cameraController.UpdateWithInput(Time.unscaledDeltaTime, look, 0f);
-            _targetZoom = Mathf.Clamp(_targetZoom + (scroll * _settings.ZoomStep), 1f, Mathf.Max(1f, _settings.MaximumZoom));
+            float minimumZoom = Mathf.Clamp(_settings.MinimumZoom, 0.25f, 1f);
+            _targetZoom = Mathf.Clamp(
+                _targetZoom + (scroll * _settings.ZoomStep),
+                minimumZoom,
+                Mathf.Max(1f, _settings.MaximumZoom));
             _zoom = Mathf.Lerp(_zoom, _targetZoom, DuneVectorMath.Sharpness(_settings.ZoomSharpness, Time.unscaledDeltaTime));
-            _camera.fieldOfView = _baseFieldOfView / Mathf.Max(1f, _zoom);
+            _camera.fieldOfView = Mathf.Clamp(_baseFieldOfView / Mathf.Max(0.01f, _zoom), 1f, 179f);
 
             if (Time.unscaledTime >= _nextValidationTime)
             {
