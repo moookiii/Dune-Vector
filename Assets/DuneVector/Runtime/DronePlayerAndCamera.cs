@@ -169,6 +169,11 @@ namespace DuneVector
             _disabledFlightStopEnabled = enabled;
         }
 
+        public void SetDisabledMovementRotation(Quaternion rotation)
+        {
+            _disabledMovementRotation = rotation;
+        }
+
         private void CaptureDisabledMovementRotation()
         {
             if (Character == null || Character.Motor == null)

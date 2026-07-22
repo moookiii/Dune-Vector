@@ -910,6 +910,7 @@ namespace DuneVector
             Vector2 look = mouse != null ? mouse.delta.ReadValue() : Vector2.zero;
             float scroll = mouse != null ? mouse.scroll.ReadValue().y / 120f : 0f;
             _cameraController.UpdateWithInput(Time.unscaledDeltaTime, look, 0f);
+            _player.SetDisabledMovementRotation(_camera.transform.rotation);
             float minimumZoom = Mathf.Clamp(_settings.MinimumZoom, 0.25f, 1f);
             _targetZoom = Mathf.Clamp(
                 _targetZoom + (scroll * _settings.ZoomStep),
