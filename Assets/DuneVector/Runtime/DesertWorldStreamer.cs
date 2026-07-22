@@ -1436,6 +1436,12 @@ namespace DuneVector
             string identitySuffix,
             Action<TraversalRing> ringActivated)
         {
+            float minimumRingSeparation = Mathf.Max(0f, ringTuning.MinimumRingSeparation);
+            if (IsNearAny(local, exclusions, minimumRingSeparation))
+            {
+                return;
+            }
+
             double logicalX = originX + local.x;
             double logicalZ = originZ + local.y;
             float terrainHeight = (float)heightField.SampleHeight(logicalX, logicalZ);
