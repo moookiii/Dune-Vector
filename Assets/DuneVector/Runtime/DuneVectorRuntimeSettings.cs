@@ -2370,6 +2370,9 @@ namespace DuneVector
     [System.Serializable]
     public sealed class DesertWeatherAtmosphereTuning
     {
+        [Header("Desert Sun")]
+        [Range(0f, 1f)] public float SunShadowDimmer = 0.75f;
+
         [Header("Visibility")]
         [Min(10f)] public float ClearVisibilityDistance = 330f;
         [Min(10f)] public float StormVisibilityDistance = 72f;

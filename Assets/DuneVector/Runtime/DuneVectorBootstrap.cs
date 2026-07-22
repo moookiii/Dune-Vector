@@ -549,6 +549,7 @@ namespace DuneVector
             }
             sunData.SetShadowResolutionOverride(false);
             sunData.SetShadowResolutionLevel(3);
+            sunData.shadowDimmer = Mathf.Clamp01(WeatherSettings.Atmosphere.SunShadowDimmer);
             sun.lightUnit = LightUnit.Lux;
             sun.intensity = 76f;
 
