@@ -208,7 +208,7 @@ namespace DuneVector
 
         private void UpdateCooldown()
         {
-            if (_stateTime >= _settings.Cooldown)
+            if (_stateTime >= _settings.EvaluateCooldown(DuneVectorContractRisk.CurrentRisk))
             {
                 _attackTimer = GetAttackInterval();
                 SetState(StormPyramidState.IdleHovering);

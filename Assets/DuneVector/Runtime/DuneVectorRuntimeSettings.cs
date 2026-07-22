@@ -1709,7 +1709,12 @@ namespace DuneVector
         [Tooltip("Charge duration for a straight-down ground strike.")]
         [InspectorName("Ground Strike Charge Time")]
         [Min(0.1f)] public float ChargeTime = 1.15f;
+        [Tooltip("Post-strike cooldown at risk 0.")]
         [Min(0f)] public float Cooldown = 2.4f;
+        [Tooltip("Post-strike cooldown at the cooldown risk ceiling.")]
+        [Min(0f)] public float CooldownAtRiskCeiling = 0f;
+        [Tooltip("Risk at which the storm pyramid reaches Cooldown At Risk Ceiling.")]
+        [Min(1)] public int CooldownRiskCeiling = 20;
         [Min(0f)] public float LightningDamage = 32f;
         public string LightningDeathMessage = "Struck by Storm Pyramid ground lightning.";
         [Tooltip("Ground strike radius at risk 0.")]
@@ -1793,6 +1798,13 @@ namespace DuneVector
             float riskProgress = Mathf.Clamp01(
                 risk / (float)Mathf.Max(1, StrikeRadiusRiskCeiling));
             return Mathf.Lerp(StrikeRadius, StrikeRadiusAtRiskCeiling, riskProgress);
+        }
+
+        public float EvaluateCooldown(int risk)
+        {
+            float riskProgress = Mathf.Clamp01(
+                risk / (float)Mathf.Max(1, CooldownRiskCeiling));
+            return Mathf.Max(0f, Mathf.Lerp(Cooldown, CooldownAtRiskCeiling, riskProgress));
         }
     }
 
