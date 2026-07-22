@@ -245,19 +245,30 @@ namespace DuneVector
 
         public bool Open(DeliveryMessageAsset message, Action completed)
         {
-            return OpenInternal(message, completed, allowCancel: false, showFirstUseHint: true);
+            return OpenInternal(
+                message,
+                completed,
+                allowCancel: false,
+                showFirstUseHint: true,
+                delayFirstPage: true);
         }
 
         public bool OpenReplay(DeliveryMessageAsset message, Action closed)
         {
-            return OpenInternal(message, closed, allowCancel: true, showFirstUseHint: false);
+            return OpenInternal(
+                message,
+                closed,
+                allowCancel: true,
+                showFirstUseHint: false,
+                delayFirstPage: false);
         }
 
         private bool OpenInternal(
             DeliveryMessageAsset message,
             Action completed,
             bool allowCancel,
-            bool showFirstUseHint)
+            bool showFirstUseHint,
+            bool delayFirstPage)
         {
             if (IsOpen || message == null)
             {
@@ -278,10 +289,16 @@ namespace DuneVector
             _emissiveVisibleCharacterCount = -1;
             _openedFrame = Time.frameCount;
             _completionSent = false;
-            _phase = PagePresentationPhase.OpeningDelay;
+            _phase = delayFirstPage
+                ? PagePresentationPhase.OpeningDelay
+                : PagePresentationPhase.Presenting;
             _allowCancel = allowCancel;
             _showFirstUseHint = showFirstUseHint && !_hasAcknowledgedInputHint;
             IsOpen = true;
+            if (!delayFirstPage)
+            {
+                BeginCurrentPage();
+            }
             return true;
         }
 
