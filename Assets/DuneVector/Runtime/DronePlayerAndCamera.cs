@@ -66,6 +66,8 @@ namespace DuneVector
         public DroneRawInputFrame AutomatedInput { get; private set; }
         public bool InputEnabled { get; private set; } = true;
 
+        private Quaternion _disabledMovementRotation = Quaternion.identity;
+
         private void Start()
         {
             Cursor.lockState = InputEnabled ? CursorLockMode.Locked : CursorLockMode.None;
@@ -156,8 +158,36 @@ namespace DuneVector
             InputEnabled = enabled;
             if (!enabled)
             {
+                CaptureDisabledMovementRotation();
                 ClearCharacterInput();
             }
+        }
+
+        private void CaptureDisabledMovementRotation()
+        {
+            if (Character == null || Character.Motor == null)
+            {
+                _disabledMovementRotation = Quaternion.identity;
+                return;
+            }
+
+            Vector3 direction = Character.CurrentMode == DroneTraversalMode.Flight
+                ? Character.Motor.BaseVelocity
+                : Character.Motor.CharacterForward;
+            if (direction.sqrMagnitude < 0.0001f)
+            {
+                direction = Character.Motor.CharacterForward;
+            }
+
+            direction.Normalize();
+            Vector3 up = Character.Motor.CharacterUp;
+            if (Mathf.Abs(Vector3.Dot(direction, up)) > 0.999f)
+            {
+                up = Mathf.Abs(Vector3.Dot(direction, Vector3.up)) < 0.999f
+                    ? Vector3.up
+                    : Vector3.forward;
+            }
+            _disabledMovementRotation = Quaternion.LookRotation(direction, up);
         }
 
         private void ClearCharacterInput()
@@ -167,7 +197,10 @@ namespace DuneVector
                 return;
             }
 
-            DroneControlInput input = default;
+            DroneControlInput input = new DroneControlInput
+            {
+                CameraRotation = _disabledMovementRotation,
+            };
             Stamina?.Tick(false, Time.deltaTime);
             Character.SetInputs(in input);
         }
