@@ -839,8 +839,6 @@ namespace DuneVector
                 "Upgrade Pad Collider (circle.glb)",
                 Vector3.up,
                 upgradePad.localScale.x * 0.5f);
-            HubPart(PrimitiveType.Cube, "Upgrade Gantry", upgradeArea, new Vector3(0f, 5f, 2.5f),
-                new Vector3(8f, 10f, 1f), Quaternion.identity, _hubMetalMaterial, true);
             _upgradeEnergyOrbit = new GameObject("Upgrade Calibration Arms").transform;
             _upgradeEnergyOrbit.SetParent(upgradeArea, false);
             _upgradeEnergyOrbit.localPosition = Vector3.up * 1.2f;
