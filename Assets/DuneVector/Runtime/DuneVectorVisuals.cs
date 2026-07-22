@@ -562,7 +562,9 @@ namespace DuneVector
 
     public static class DuneVectorVisuals
     {
+        private const string CactusResourcePath = "cacti";
         private static readonly Dictionary<string, Mesh> MeshCache = new Dictionary<string, Mesh>();
+        private static GameObject[] _cactusModels;
 
         public static Transform CreateDroneVisual(
             Transform parent,
@@ -775,6 +777,12 @@ namespace DuneVector
             Material bodyMaterial,
             Material blossomMaterial)
         {
+            Transform resourceCactus = CreateResourceCactus(parent, localPosition, height, yaw, seed, settings);
+            if (resourceCactus != null)
+            {
+                return resourceCactus;
+            }
+
             GameObject rootObject = new GameObject("Cactus");
             Transform root = rootObject.transform;
             root.SetParent(parent, false);
@@ -835,6 +843,125 @@ namespace DuneVector
             }
 
             return root;
+        }
+
+        private static Transform CreateResourceCactus(
+            Transform parent,
+            Vector3 localPosition,
+            float height,
+            float yaw,
+            int seed,
+            CactusTuning settings)
+        {
+            GameObject[] models = GetCactusModels();
+            if (models.Length == 0)
+            {
+                return null;
+            }
+
+            int modelIndex = (int)((uint)seed % (uint)models.Length);
+            GameObject model = UnityEngine.Object.Instantiate(models[modelIndex], parent, false);
+            model.name = $"Cactus ({models[modelIndex].name})";
+            Transform root = model.transform;
+            root.localPosition = localPosition;
+
+            CactusTuning cacti = settings ?? new CactusTuning();
+            float maximumLean = Mathf.Max(0f, cacti.MaximumLeanDegrees);
+            float lean = DuneVectorMath.HashRange(seed, modelIndex, seed, 13, 0f, maximumLean);
+            float leanDirection = DuneVectorMath.HashRange(seed, modelIndex, seed, 19, 0f, 360f) * Mathf.Deg2Rad;
+            root.localRotation = Quaternion.Euler(
+                Mathf.Cos(leanDirection) * lean,
+                yaw,
+                Mathf.Sin(leanDirection) * lean);
+            root.localScale = Vector3.one;
+
+            MeshRenderer[] renderers = model.GetComponentsInChildren<MeshRenderer>(true);
+            if (!TryCalculateLocalMeshBounds(root, renderers, out Bounds localBounds))
+            {
+                UnityEngine.Object.Destroy(model);
+                return null;
+            }
+
+            float modelHeight = Mathf.Max(0.0001f, localBounds.size.y);
+            float uniformScale = Mathf.Max(0.1f, height) / modelHeight;
+            root.localScale = Vector3.one * uniformScale;
+
+            Bounds worldBounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                worldBounds.Encapsulate(renderers[i].bounds);
+            }
+            float intendedGroundHeight = parent != null
+                ? parent.TransformPoint(localPosition).y
+                : localPosition.y;
+            root.position += Vector3.up * (intendedGroundHeight - worldBounds.min.y);
+
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Material[] materials = renderers[i].sharedMaterials;
+                for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    if (materials[materialIndex] != null)
+                    {
+                        materials[materialIndex].enableInstancing = true;
+                    }
+                }
+            }
+
+            CapsuleCollider collider = model.AddComponent<CapsuleCollider>();
+            collider.direction = 1;
+            collider.center = localBounds.center;
+            collider.height = localBounds.size.y;
+            collider.radius = Mathf.Max(localBounds.extents.x, localBounds.extents.z);
+
+            DuneVectorSpatialInstancing.Capture(model, false);
+            return root;
+        }
+
+        private static GameObject[] GetCactusModels()
+        {
+            if (_cactusModels != null)
+            {
+                return _cactusModels;
+            }
+
+            _cactusModels = Resources.LoadAll<GameObject>(CactusResourcePath);
+            Array.Sort(_cactusModels, (left, right) =>
+                string.CompareOrdinal(left != null ? left.name : string.Empty, right != null ? right.name : string.Empty));
+            return _cactusModels;
+        }
+
+        private static bool TryCalculateLocalMeshBounds(
+            Transform root,
+            IReadOnlyList<MeshRenderer> renderers,
+            out Bounds bounds)
+        {
+            bounds = default;
+            bool hasBounds = false;
+            Matrix4x4 worldToRoot = root.worldToLocalMatrix;
+            for (int i = 0; i < renderers.Count; i++)
+            {
+                MeshRenderer renderer = renderers[i];
+                MeshFilter filter = renderer != null ? renderer.GetComponent<MeshFilter>() : null;
+                if (filter == null || filter.sharedMesh == null)
+                {
+                    continue;
+                }
+
+                Bounds rendererBounds = DuneVectorSpatialInstancing.TransformBounds(
+                    worldToRoot * renderer.transform.localToWorldMatrix,
+                    filter.sharedMesh.bounds);
+                if (!hasBounds)
+                {
+                    bounds = rendererBounds;
+                    hasBounds = true;
+                }
+                else
+                {
+                    bounds.Encapsulate(rendererBounds);
+                }
+            }
+            return hasBounds;
         }
 
         private static void CreateCactusSegment(
