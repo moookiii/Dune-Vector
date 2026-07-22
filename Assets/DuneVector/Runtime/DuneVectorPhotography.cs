@@ -398,7 +398,7 @@ namespace DuneVector
             {
                 DesertAtlasSiteDefinition site = _atlas.Sites[siteIndex];
                 if (site == null || string.IsNullOrWhiteSpace(site.PersistentId)) continue;
-                GeoglyphArtworkPlacement artwork = FindArtwork(site, siteIndex);
+                GeoglyphArtworkPlacement artwork = FindArtwork(site);
                 if (artwork == null) continue;
                 BuildSamples(site, artwork);
                 if (!TryProjectBounds(out Rect bounds, out float coverage, out float priority)) continue;
@@ -430,13 +430,8 @@ namespace DuneVector
             return new SubjectDetectionResult(true, valid, bestSubject, bestBounds, bestCoverage, visiblePercentage);
         }
 
-        private GeoglyphArtworkPlacement FindArtwork(DesertAtlasSiteDefinition site, int siteIndex)
+        private GeoglyphArtworkPlacement FindArtwork(DesertAtlasSiteDefinition site)
         {
-            if (siteIndex >= 0 && siteIndex < _geoglyphs.Placements.Count)
-            {
-                GeoglyphArtworkPlacement indexed = _geoglyphs.Placements[siteIndex];
-                if (indexed != null) return indexed;
-            }
             GeoglyphArtworkPlacement closest = null;
             float closestDistance = float.PositiveInfinity;
             for (int i = 0; i < _geoglyphs.Placements.Count; i++)
@@ -478,11 +473,18 @@ namespace DuneVector
             float minY = float.PositiveInfinity;
             float maxX = float.NegativeInfinity;
             float maxY = float.NegativeInfinity;
-            bool anyInFront = false;
+            int frontSampleCount = 0;
+            bool centerInFront = false;
             for (int i = 0; i < _worldSamples.Length; i++)
             {
                 Vector3 viewport = _camera.WorldToViewportPoint(_worldSamples[i]);
-                anyInFront |= viewport.z > 0f;
+                if (viewport.z <= _camera.nearClipPlane)
+                {
+                    continue;
+                }
+
+                frontSampleCount++;
+                centerInFront |= i == (_worldSamples.Length / 2);
                 float x = viewport.x * Screen.width;
                 float y = (1f - viewport.y) * Screen.height;
                 minX = Mathf.Min(minX, x);
@@ -490,10 +492,18 @@ namespace DuneVector
                 maxX = Mathf.Max(maxX, x);
                 maxY = Mathf.Max(maxY, y);
             }
+            if (!centerInFront || frontSampleCount < 3)
+            {
+                bounds = default;
+                coverage = 0f;
+                priority = float.PositiveInfinity;
+                return false;
+            }
+
             bounds = Rect.MinMaxRect(minX, minY, maxX, maxY);
             Rect screenRect = new Rect(0f, 0f, Screen.width, Screen.height);
             Rect intersection = Intersect(bounds, screenRect);
-            bool intersects = anyInFront && intersection.width > 0f && intersection.height > 0f;
+            bool intersects = intersection.width > 0f && intersection.height > 0f;
             coverage = intersects ? (intersection.width * intersection.height) / Mathf.Max(1f, Screen.width * Screen.height) : 0f;
             priority = Vector2.Distance(bounds.center, screenRect.center) / Mathf.Max(1f, Screen.height);
             return intersects;
@@ -864,7 +874,8 @@ namespace DuneVector
             }
             if (_detection.HasSubject)
             {
-                Rect padded = Expand(_detection.ScreenBounds, _settings.TargetBracketPadding);
+                Rect padded = ClampToViewfinder(
+                    Expand(_detection.ScreenBounds, _settings.TargetBracketPadding));
                 float blend = DuneVectorMath.Sharpness(_settings.BracketSharpness, Time.unscaledDeltaTime);
                 _animatedBounds = _hasAnimatedBounds ? Lerp(_animatedBounds, padded, blend) : padded;
                 _hasAnimatedBounds = true;
@@ -1034,8 +1045,15 @@ namespace DuneVector
                     _animatedBounds.center.x - (_settings.SubjectLabelWidth * 0.5f),
                     _settings.ScreenMargin,
                     Screen.width - _settings.ScreenMargin - _settings.SubjectLabelWidth);
-                GUI.Label(new Rect(labelLeft,
-                    Mathf.Max(_settings.ScreenMargin, _animatedBounds.yMin - _settings.SubjectLabelHeight),
+                float titleClearance = _settings.ScreenMargin + _settings.SubjectLabelHeight;
+                float labelTop = _animatedBounds.yMin - _settings.SubjectLabelHeight;
+                if (labelTop < titleClearance)
+                {
+                    labelTop = Mathf.Min(
+                        Screen.height - _settings.ScreenMargin - _settings.SubjectLabelHeight,
+                        _animatedBounds.yMax);
+                }
+                GUI.Label(new Rect(labelLeft, labelTop,
                     _settings.SubjectLabelWidth, _settings.SubjectLabelHeight), subjectLabel, _labelStyle);
             }
             string status = !_detection.HasSubject ? _settings.NeutralStatus : _detection.IsValid ? _settings.ValidStatus : _settings.InvalidStatus;
@@ -1159,6 +1177,23 @@ namespace DuneVector
         private static Rect Expand(Rect rect, float amount)
         {
             return new Rect(rect.x - amount, rect.y - amount, rect.width + (amount * 2f), rect.height + (amount * 2f));
+        }
+
+        private Rect ClampToViewfinder(Rect rect)
+        {
+            float minimumX = _settings.ScreenMargin;
+            float minimumY = _settings.ScreenMargin + _settings.SubjectLabelHeight;
+            float maximumX = Screen.width - _settings.ScreenMargin;
+            float maximumY = Screen.height - _settings.ScreenMargin;
+            float xMin = Mathf.Clamp(rect.xMin, minimumX, maximumX);
+            float yMin = Mathf.Clamp(rect.yMin, minimumY, maximumY);
+            float xMax = Mathf.Clamp(rect.xMax, minimumX, maximumX);
+            float yMax = Mathf.Clamp(rect.yMax, minimumY, maximumY);
+            return Rect.MinMaxRect(
+                Mathf.Min(xMin, xMax),
+                Mathf.Min(yMin, yMax),
+                Mathf.Max(xMin, xMax),
+                Mathf.Max(yMin, yMax));
         }
 
         private static Rect Lerp(Rect from, Rect to, float t)
