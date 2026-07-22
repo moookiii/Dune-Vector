@@ -54,7 +54,10 @@ namespace DuneVector
         [Range(0f, 1f)] public float ForceVariation = 0.22f;
         [Range(0f, 1f)] public float TurbulenceVariation = 0.16f;
         [Range(0.05f, 0.95f)] public float CoreRadius = 0.42f;
+        [Tooltip("Player acceleration response applied to crosswind, headwind, tailwind, and downdraft fields.")]
         [Min(0f)] public float PlayerForceResponse = 1f;
+        [Tooltip("Player acceleration response applied specifically to updraft fields.")]
+        [Min(0f)] public float UpdraftPlayerForceResponse = 1f;
         [Min(0f)] public float GroundedForceMultiplier = 0.32f;
         [Min(0f)] public float FlightForceMultiplier = 1f;
         [Min(0f)] public float TurbulenceForce = 4.5f;

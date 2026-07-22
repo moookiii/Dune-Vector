@@ -536,7 +536,10 @@ namespace DuneVector
                 : Motor.GroundingStatus.IsStableOnGround
                     ? _windFieldSettings.GroundedForceMultiplier
                     : _windFieldSettings.FlightForceMultiplier;
-            CurrentWindForce = sample.Force * _windFieldSettings.PlayerForceResponse * traversalMultiplier;
+            float forceResponse = sample.DominantType == WindFieldType.Updraft
+                ? _windFieldSettings.UpdraftPlayerForceResponse
+                : _windFieldSettings.PlayerForceResponse;
+            CurrentWindForce = sample.Force * forceResponse * traversalMultiplier;
             if (sample.DominantType == WindFieldType.Updraft
                 && sample.Influence >= _windFieldSettings.UpdraftLaunchInfluenceThreshold
                 && Motor.GroundingStatus.IsStableOnGround)
