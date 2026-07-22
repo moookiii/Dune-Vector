@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.IO;
 using KinematicCharacterController;
 using UnityEngine;
 
@@ -23,6 +25,16 @@ namespace DuneVector
     [RequireComponent(typeof(KinematicCharacterMotor))]
     public sealed class DroneCharacterController : MonoBehaviour, ICharacterController
     {
+        private const string FlightMeterSaveFileName = "DuneVectorFlightMeter.dat";
+        private const float FlightMeterAutosaveIntervalSeconds = 1f;
+
+        [Serializable]
+        private sealed class FlightMeterSaveData
+        {
+            public int Version = 1;
+            public float RemainingSeconds;
+        }
+
         [Header("KCC")]
         public KinematicCharacterMotor Motor;
         public Transform DroneVisualRoot;
@@ -184,6 +196,9 @@ namespace DuneVector
         private float _flightElapsedTime;
         private float _flightEntryLiftTimeRemaining;
         private bool _flightMeterInitialized;
+        private bool _flightMeterSaveDirty;
+        private float _flightMeterAutosaveTimeRemaining;
+        private string _flightMeterSavePath;
 
         private Vector3 _visualBaseLocalPosition;
         private Vector3 _lastVisualForward;
@@ -330,6 +345,19 @@ namespace DuneVector
             }
         }
 
+        private void OnDisable()
+        {
+            SaveFlightMeter();
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            if (paused)
+            {
+                SaveFlightMeter();
+            }
+        }
+
         public void ConfigureFlightMeter(float maximumSeconds, float ringRechargeSeconds, bool debugInfiniteFlight)
         {
             FlightDuration = Mathf.Max(0.1f, maximumSeconds);
@@ -337,8 +365,9 @@ namespace DuneVector
             DebugInfiniteFlight = debugInfiniteFlight;
             if (!_flightMeterInitialized)
             {
-                FlightTimeRemaining = FlightDuration;
                 _flightMeterInitialized = true;
+                _flightMeterSavePath = Path.Combine(Application.persistentDataPath, FlightMeterSaveFileName);
+                LoadFlightMeter();
             }
             else
             {
@@ -388,6 +417,8 @@ namespace DuneVector
             FlightTimeRemaining = Mathf.Min(
                 FlightDuration,
                 FlightTimeRemaining + FlightRingRechargeSeconds);
+            MarkFlightMeterDirty();
+            SaveFlightMeter();
             RequestFlight(launchDirection, speedMultiplier);
         }
 
@@ -796,12 +827,91 @@ namespace DuneVector
                 FlightTimeRemaining = DebugInfiniteFlight
                     ? FlightDuration
                     : Mathf.Max(0f, FlightTimeRemaining - deltaTime);
+                MarkFlightMeterDirty();
+                TickFlightMeterAutosave(deltaTime);
                 if (FlightTimeRemaining <= 0f)
                 {
                     FinishFlight();
                     return;
                 }
                 TryFinishFlight();
+            }
+        }
+
+        private void LoadFlightMeter()
+        {
+            FlightTimeRemaining = 0f;
+            if (!File.Exists(_flightMeterSavePath))
+            {
+                MarkFlightMeterDirty();
+                SaveFlightMeter();
+                return;
+            }
+
+            try
+            {
+                FlightMeterSaveData data = JsonUtility.FromJson<FlightMeterSaveData>(
+                    File.ReadAllText(_flightMeterSavePath));
+                if (data != null)
+                {
+                    FlightTimeRemaining = Mathf.Clamp(data.RemainingSeconds, 0f, FlightDuration);
+                }
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning(
+                    $"Could not load flight meter from '{_flightMeterSavePath}': {exception.Message}",
+                    this);
+            }
+        }
+
+        private void MarkFlightMeterDirty()
+        {
+            if (!_flightMeterInitialized)
+            {
+                return;
+            }
+
+            _flightMeterSaveDirty = true;
+        }
+
+        private void TickFlightMeterAutosave(float deltaTime)
+        {
+            if (!_flightMeterSaveDirty)
+            {
+                return;
+            }
+
+            _flightMeterAutosaveTimeRemaining -= Mathf.Max(0f, deltaTime);
+            if (_flightMeterAutosaveTimeRemaining <= 0f)
+            {
+                SaveFlightMeter();
+            }
+        }
+
+        private void SaveFlightMeter()
+        {
+            if (!_flightMeterInitialized || !_flightMeterSaveDirty || string.IsNullOrEmpty(_flightMeterSavePath))
+            {
+                return;
+            }
+
+            try
+            {
+                FlightMeterSaveData data = new FlightMeterSaveData
+                {
+                    RemainingSeconds = Mathf.Clamp(FlightTimeRemaining, 0f, FlightDuration),
+                };
+                File.WriteAllText(_flightMeterSavePath, JsonUtility.ToJson(data));
+                _flightMeterSaveDirty = false;
+                _flightMeterAutosaveTimeRemaining = FlightMeterAutosaveIntervalSeconds;
+            }
+            catch (Exception exception)
+            {
+                _flightMeterAutosaveTimeRemaining = FlightMeterAutosaveIntervalSeconds;
+                Debug.LogWarning(
+                    $"Could not save flight meter to '{_flightMeterSavePath}': {exception.Message}",
+                    this);
             }
         }
 
