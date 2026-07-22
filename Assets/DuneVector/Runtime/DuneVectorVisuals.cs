@@ -882,6 +882,10 @@ namespace DuneVector
                 return null;
             }
 
+            float modelHeight = Mathf.Max(0.0001f, localBounds.size.y);
+            float uniformScale = Mathf.Max(0.1f, height) / modelHeight;
+            root.localScale = Vector3.one * uniformScale;
+
             Bounds worldBounds = renderers[0].bounds;
             for (int i = 1; i < renderers.Length; i++)
             {
