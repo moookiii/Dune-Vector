@@ -95,6 +95,7 @@ namespace DuneVector
         private Vector3 _previousStormDirection;
         private Vector3 _smoothedStormVelocity;
         private float _smoothedStormTurn;
+        private float _stormTravelDistance;
         private bool _hasStormMotionSample;
         private GUIStyle _hudTitleStyle;
         private GUIStyle _hudStatusStyle;
@@ -406,6 +407,7 @@ namespace DuneVector
 
             Vector3 velocity = (stormPosition - _previousStormPosition) / deltaTime;
             velocity.y = 0f;
+            _stormTravelDistance += velocity.magnitude * deltaTime;
             float angularVelocity = Vector3.SignedAngle(_previousStormDirection, direction, Vector3.up) / deltaTime;
             float response = DuneVectorMath.Sharpness(_settings.StormCloudMorphResponseSharpness, deltaTime);
             _smoothedStormVelocity = Vector3.Lerp(_smoothedStormVelocity, velocity, response);
@@ -423,7 +425,8 @@ namespace DuneVector
                 float coherence = Mathf.Max(1f, _settings.StormCloudMorphCoherenceDistance);
                 Vector3 coordinate = lobe.BasePosition / coherence;
                 float phaseOffset = lobe.Phase / (Mathf.PI * 2f);
-                float morphTime = Time.time * _settings.StormCloudMorphSpeed;
+                float morphTime = (Time.time * _settings.StormCloudMorphSpeed) +
+                    (_stormTravelDistance / Mathf.Max(1f, _settings.StormCloudTravelMorphDistance));
                 float broadMorph = SignedPerlin(
                     coordinate.x + morphTime,
                     coordinate.z + (phaseOffset * 0.35f));
@@ -434,11 +437,14 @@ namespace DuneVector
                     coordinate.y + (morphTime * 0.51f),
                     coordinate.x - coordinate.z + (phaseOffset * 0.35f) + 19.3f);
                 Vector3 morphShape = new Vector3(broadMorph, verticalMorph, depthMorph);
-                targetScale += Vector3.Scale(_settings.StormCloudMorphScaleAmount, morphShape) *
-                    lobe.MotionMultiplier;
-
                 float referenceSpeed = Mathf.Max(0.1f, _settings.StormCloudMovementReferenceSpeed);
                 float movementStrength = Mathf.Clamp01(_smoothedStormVelocity.magnitude / referenceSpeed);
+                morphShape *= Mathf.Lerp(
+                    1f,
+                    Mathf.Max(1f, _settings.StormCloudMovementMorphMultiplier),
+                    movementStrength);
+                targetScale = Vector3.one +
+                    (Vector3.Scale(_settings.StormCloudMorphScaleAmount, morphShape) * lobe.MotionMultiplier);
                 Vector3 localVelocity = _stormRoot.transform.InverseTransformDirection(_smoothedStormVelocity);
                 Vector3 localDirection = localVelocity.sqrMagnitude > 0.001f
                     ? localVelocity.normalized
@@ -446,12 +452,15 @@ namespace DuneVector
                 float stretch = movementStrength * _settings.StormCloudMovementStretch;
                 targetScale.x += Mathf.Abs(localDirection.x) * stretch;
                 targetScale.z += Mathf.Abs(localDirection.z) * stretch;
-                targetScale.y += _visualBlend * _settings.StormCloudIntensityConvection;
+                targetScale.y += (_visualBlend * _settings.StormCloudIntensityConvection) +
+                    (movementStrength * _settings.StormCloudMovementVerticalGrowth);
 
                 float heightFraction = Mathf.Clamp01(
                     lobe.BasePosition.y / Mathf.Max(1f, _settings.StormfrontHeight));
                 targetOffset = morphShape *
                     (_settings.StormCloudMorphPositionAmount * lobe.MotionMultiplier);
+                targetOffset.y += Mathf.Max(0f, verticalMorph) *
+                    _settings.StormCloudMorphVerticalLift * heightFraction;
                 targetOffset -= localDirection *
                     (movementStrength * _settings.StormCloudMovementLag * heightFraction);
                 float turnStrength = Mathf.Clamp(
