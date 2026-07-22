@@ -906,6 +906,7 @@ namespace DuneVector
             _baseFieldOfView = _camera.fieldOfView;
             _zoom = _targetZoom = 1f;
             _player.SetInputEnabled(false);
+            _player.SetDisabledFlightStopEnabled(true);
             _cameraController.SetPhotographyMode(true, _settings.CameraDistance, _settings.CameraHeight);
             HidePlayerRenderers();
             Cursor.lockState = CursorLockMode.Locked;
@@ -921,6 +922,7 @@ namespace DuneVector
             _camera.fieldOfView = _baseFieldOfView;
             _cameraController.SetPhotographyMode(false, _settings.CameraDistance, _settings.CameraHeight);
             RestorePlayerRenderers();
+            _player.SetDisabledFlightStopEnabled(false);
             _player.SetInputEnabled(true);
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
@@ -1272,6 +1274,7 @@ namespace DuneVector
                     _settings != null ? _settings.CameraDistance : 0f,
                     _settings != null ? _settings.CameraHeight : 0f);
                 RestorePlayerRenderers();
+                _player?.SetDisabledFlightStopEnabled(false);
                 _player?.SetInputEnabled(true);
             }
             ReleaseCapturedTexture();

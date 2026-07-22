@@ -67,6 +67,7 @@ namespace DuneVector
         public bool InputEnabled { get; private set; } = true;
 
         private Quaternion _disabledMovementRotation = Quaternion.identity;
+        private bool _disabledFlightStopEnabled;
 
         private void Start()
         {
@@ -163,6 +164,11 @@ namespace DuneVector
             }
         }
 
+        public void SetDisabledFlightStopEnabled(bool enabled)
+        {
+            _disabledFlightStopEnabled = enabled;
+        }
+
         private void CaptureDisabledMovementRotation()
         {
             if (Character == null || Character.Motor == null)
@@ -197,9 +203,13 @@ namespace DuneVector
                 return;
             }
 
+            bool stopFlight = _disabledFlightStopEnabled &&
+                Keyboard.current != null && Keyboard.current.spaceKey.isPressed;
             DroneControlInput input = new DroneControlInput
             {
                 CameraRotation = _disabledMovementRotation,
+                JumpHeld = stopFlight,
+                StopWhenFlightBraking = stopFlight,
             };
             Stamina?.Tick(false, Time.deltaTime);
             Character.SetInputs(in input);

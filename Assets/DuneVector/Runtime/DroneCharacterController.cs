@@ -16,6 +16,7 @@ namespace DuneVector
         public Quaternion CameraRotation;
         public bool JumpPressed;
         public bool JumpHeld;
+        public bool StopWhenFlightBraking;
     }
 
     [DisallowMultipleComponent]
@@ -148,6 +149,7 @@ namespace DuneVector
 
         private Vector2 _rawMove;
         private bool _flightBrakeHeld;
+        private bool _stopWhenFlightBraking;
         private Vector3 _moveInputWorld;
         private Vector3 _cameraForward;
         private Vector3 _cameraRight;
@@ -294,6 +296,7 @@ namespace DuneVector
         {
             _rawMove = Vector2.ClampMagnitude(inputs.Move, 1f);
             _flightBrakeHeld = inputs.JumpHeld;
+            _stopWhenFlightBraking = inputs.StopWhenFlightBraking;
 
             Vector3 planarForward = Vector3.ProjectOnPlane(inputs.CameraRotation * Vector3.forward, Motor.CharacterUp);
             if (planarForward.sqrMagnitude < 0.0001f)
@@ -699,7 +702,7 @@ namespace DuneVector
             }
             if (_flightBrakeHeld)
             {
-                targetSpeed = FlightBrakeSpeed;
+                targetSpeed = _stopWhenFlightBraking ? 0f : FlightBrakeSpeed;
             }
             else
             {
