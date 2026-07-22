@@ -3446,6 +3446,8 @@ namespace DuneVector
         [Min(0.1f)] public float FlightDuration = 60f;
         [Tooltip("Seconds restored to the flight meter by each flight ring pass.")]
         [Min(0f)] public float FlightRingRechargeSeconds = 7f;
+        [Tooltip("Debug option that prevents the flight meter from depleting while flying.")]
+        public bool DebugInfiniteFlight;
         [Min(0f)] public float FlightEntryLiftDuration = 0.75f;
         [Min(0f)] public float FlightEntryLiftSpeed = 16f;
 
@@ -3494,7 +3496,7 @@ namespace DuneVector
             drone.FlightSteeringSharpness = FlightSteeringSharpness;
             drone.FlightLevelingSharpness = FlightLevelingSharpness;
             drone.FlightYawRate = FlightYawRate;
-            drone.ConfigureFlightMeter(FlightDuration, FlightRingRechargeSeconds);
+            drone.ConfigureFlightMeter(FlightDuration, FlightRingRechargeSeconds, DebugInfiniteFlight);
             drone.FlightEntryLiftDuration = FlightEntryLiftDuration;
             drone.FlightEntryLiftSpeed = FlightEntryLiftSpeed;
         }

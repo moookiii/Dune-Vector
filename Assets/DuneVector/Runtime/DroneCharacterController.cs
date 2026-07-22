@@ -106,6 +106,7 @@ namespace DuneVector
         public float FlightElapsedTime => _flightElapsedTime;
         public float FlightTimeRemaining { get; private set; }
         public float FlightTimeNormalized => FlightDuration > 0f ? Mathf.Clamp01(FlightTimeRemaining / FlightDuration) : 0f;
+        public bool DebugInfiniteFlight { get; private set; }
         public float FlightSpeedMultiplier => _flightSpeedMultiplier;
         public float CurrentMaximumFlightSpeed => MaximumFlightSpeed * _flightSpeedMultiplier * CargoSpeedMultiplier;
         public float CurrentSpeedometerMaximum
@@ -326,10 +327,11 @@ namespace DuneVector
             }
         }
 
-        public void ConfigureFlightMeter(float maximumSeconds, float ringRechargeSeconds)
+        public void ConfigureFlightMeter(float maximumSeconds, float ringRechargeSeconds, bool debugInfiniteFlight)
         {
             FlightDuration = Mathf.Max(0.1f, maximumSeconds);
             FlightRingRechargeSeconds = Mathf.Max(0f, ringRechargeSeconds);
+            DebugInfiniteFlight = debugInfiniteFlight;
             if (!_flightMeterInitialized)
             {
                 FlightTimeRemaining = FlightDuration;
@@ -788,7 +790,9 @@ namespace DuneVector
                 }
 
                 _flightElapsedTime += deltaTime;
-                FlightTimeRemaining = Mathf.Max(0f, FlightTimeRemaining - deltaTime);
+                FlightTimeRemaining = DebugInfiniteFlight
+                    ? FlightDuration
+                    : Mathf.Max(0f, FlightTimeRemaining - deltaTime);
                 if (FlightTimeRemaining <= 0f)
                 {
                     FinishFlight();
