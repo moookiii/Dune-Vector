@@ -35,7 +35,7 @@ namespace DuneVector
             public Transform BeamCore;
             public Vector3 BeamCoreBaseScale;
             public Transform BeamLocatorBands;
-            public TraversalRing ChallengeFlightRing;
+            public Transform ChallengeFlightRing;
             public ParticleSystem AmbientParticles;
             public readonly List<Transform> SlalomGates = new List<Transform>();
             public Transform DiscoveredMarker;
@@ -70,6 +70,9 @@ namespace DuneVector
         private DuneVectorCourierGame _courierGame;
         private DesertAtlasTuning _settings;
         private CompassHudTuning _compassSettings;
+        private DeliveryTuning _deliverySettings;
+        private Camera _camera;
+        private readonly DuneVectorObjectiveIndicator _relayObjectiveIndicator = new DuneVectorObjectiveIndicator();
         private Material _discoveredMaterial;
         private string _savePath;
         private DesertAtlasSiteDefinition _nearestSite;
@@ -124,7 +127,9 @@ namespace DuneVector
             DuneVectorCourierProgress progress,
             DuneVectorCourierGame courierGame,
             DesertAtlasTuning settings,
-            CompassHudTuning compassSettings)
+            CompassHudTuning compassSettings,
+            DeliveryTuning deliverySettings,
+            Camera camera)
         {
             _player = player;
             _health = health;
@@ -135,6 +140,8 @@ namespace DuneVector
             _courierGame = courierGame;
             _settings = settings ?? new DesertAtlasTuning();
             _compassSettings = compassSettings ?? new CompassHudTuning();
+            _deliverySettings = deliverySettings ?? new DeliveryTuning();
+            _camera = camera;
             _settings.EnsureInitialized();
             _activeInstance = this;
             _savePath = Path.Combine(Application.persistentDataPath, SaveFileName);
@@ -903,16 +910,13 @@ namespace DuneVector
                         : Mathf.Max(_settings.ChallengeFlightRingHeight, site.TargetHeightAboveSignal),
                     -_settings.ChallengeFlightRingDistance);
                 ringObject.transform.localRotation = Quaternion.LookRotation(Vector3.forward, Vector3.up);
-                TraversalRing flightRing = ringObject.AddComponent<TraversalRing>();
-                flightRing.Initialize(
+                DuneVectorVisuals.CreateRingVisual(
+                    ringObject.transform,
                     TraversalRingType.Flight,
-                    _player,
-                    _health,
                     _materials,
                     _settings.ChallengeFlightRingRadius,
-                    _world.Rings,
-                    $"atlas:{site.PersistentId}:flight");
-                created.ChallengeFlightRing = flightRing;
+                    _world.Rings);
+                created.ChallengeFlightRing = ringObject.transform;
             }
             _visuals.Add(site.PersistentId, created);
             return created;
@@ -1520,6 +1524,7 @@ namespace DuneVector
             }
             EnsureGui();
             DrawAtlasHud(panel);
+            DrawRelayObjectiveIndicator();
             if (Time.unscaledTime < _discoveryPresentationUntil)
             {
                 DrawDiscoveryPresentation();
@@ -1539,6 +1544,33 @@ namespace DuneVector
             }
             panel = default;
             return false;
+        }
+
+        private void DrawRelayObjectiveIndicator()
+        {
+            if (_camera == null || _deliverySettings == null || _nearestSite == null ||
+                _nearestSite.ChallengeType != DesertAtlasChallengeType.RelaySequence ||
+                !string.Equals(_scanningSiteId, _nearestSite.PersistentId, StringComparison.Ordinal) ||
+                !_visuals.TryGetValue(_nearestSite.PersistentId, out SiteVisual visual))
+            {
+                return;
+            }
+
+            Transform target = _relayStage == 1 && visual.ChallengeFlightRing != null
+                ? visual.ChallengeFlightRing
+                : visual.Root;
+            if (target == null)
+            {
+                return;
+            }
+
+            float distance = Vector3.Distance(_player.WorldCenter, target.position);
+            _relayObjectiveIndicator.Draw(
+                _camera,
+                target,
+                _settings.RelayObjectiveIndicatorLabel,
+                distance,
+                _deliverySettings);
         }
 
         private bool TryBuildVisibleHudRect(out Rect panel)

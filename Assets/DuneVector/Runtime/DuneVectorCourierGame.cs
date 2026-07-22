@@ -454,7 +454,7 @@ namespace DuneVector
             DesertAtlas = gameObject.AddComponent<DuneVectorDesertAtlas>();
             DesertAtlas.Initialize(
                 _player, _health, _world, _materials, _wallet, Progress, this,
-                _desertAtlasSettings, compassHudSettings);
+                _desertAtlasSettings, compassHudSettings, _deliverySettings, _camera);
             _messagePresenter = gameObject.AddComponent<DuneVectorDeliveryMessagePresenter>();
             _messagePresenter.Initialize(
                 _messageSettings,

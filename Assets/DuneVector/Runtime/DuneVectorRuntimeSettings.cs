@@ -1878,6 +1878,7 @@ namespace DuneVector
         public string RelayStageTwoProgressFormat = "PHASE 2/3 — STRIKE THE CORE  {0:0}%";
         public string RelayStageThreeProgressFormat = "PHASE 3/3 — HOLD ALTITUDE  {0:0.0}s / {1:0.0}s";
         public string RelayStageAdvancedFormat = "RELAY PHASE {0}/3 COMPLETE";
+        public string RelayObjectiveIndicatorLabel = "RELAY";
         public string SlalomProgressFormat = "SLALOM GATE  {0}/{1}  SPEED {2:0.0}";
         public string SkimProgressFormat = "DUNE SKIM  {0:0.0}s / {1:0.0}s  HEIGHT {2:0.0}m";
         public string DiveClimbFormat = "CLIMB TO ARM DIVE  {0:0}m / {1:0}m";
