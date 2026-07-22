@@ -1083,8 +1083,6 @@ namespace DuneVector
         [Min(0.1f)] public float MaximumHeight = 5.8f;
         [Min(0.05f)] public float MinimumThickness = 0.42f;
         [Min(0.05f)] public float MaximumThickness = 0.72f;
-        [Tooltip("Small uniform scale variation applied around each imported cactus model's authored size.")]
-        public Vector2 ModelScaleRange = new Vector2(0.9f, 1.1f);
         [Range(0f, 15f)] public float MaximumLeanDegrees = 4f;
         [Range(0.4f, 1f)] public float TrunkTipScale = 0.82f;
 

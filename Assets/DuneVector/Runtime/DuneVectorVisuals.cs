@@ -882,11 +882,6 @@ namespace DuneVector
                 return null;
             }
 
-            float minimumScale = Mathf.Max(0.01f, Mathf.Min(cacti.ModelScaleRange.x, cacti.ModelScaleRange.y));
-            float maximumScale = Mathf.Max(minimumScale, Mathf.Max(cacti.ModelScaleRange.x, cacti.ModelScaleRange.y));
-            float modelScale = DuneVectorMath.HashRange(seed, modelIndex, seed, 23, minimumScale, maximumScale);
-            root.localScale = Vector3.one * modelScale;
-
             Bounds worldBounds = renderers[0].bounds;
             for (int i = 1; i < renderers.Length; i++)
             {
