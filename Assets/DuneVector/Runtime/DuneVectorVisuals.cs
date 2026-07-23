@@ -464,6 +464,12 @@ namespace DuneVector
             material.SetFloat("_TravelPulseWidth", settings.PortalTravelPulseWidth);
             material.SetFloat("_TravelPulseBrightness", settings.PortalTravelPulseBrightness);
             material.SetFloat("_TravelPulseRingPhaseOffset", settings.PortalTravelPulseRingPhaseOffset);
+            material.SetFloat("_OuterRimBrightness", settings.PortalOuterRimBrightnessMultiplier);
+            material.SetFloat("_StructuralLineBrightness", settings.PortalStructuralLineBrightnessMultiplier);
+            material.SetFloat("_RuneBrightness", settings.PortalRuneBrightnessMultiplier);
+            material.SetFloat("_InnerRingBrightness", settings.PortalInnerRingBrightnessMultiplier);
+            material.SetFloat("_FeatureBrightness", 1f);
+            material.SetFloat("_ActivationBloomBoost", 1f);
             material.SetFloat("_PulseSpeed", settings.PortalPulseSpeed);
             material.SetFloat("_PulseAmount", settings.PortalPulseAmount);
             _ownedMaterials.Add(material);
@@ -510,6 +516,7 @@ namespace DuneVector
             material.SetFloat("_OrbitWarp", RingPortalTuning.PortalOrbitWarp);
             material.SetFloat("_CoreGlowFill", RingPortalTuning.PortalCoreGlowFill);
             material.SetFloat("_CoreEdgeFeather", RingPortalTuning.PortalCoreEdgeFeather);
+            material.SetFloat("_FeatureBrightness", RingPortalTuning.PortalCoreBrightnessMultiplier);
             _ownedMaterials.Add(material);
             _portalCoreMaterials.Add(lineMaterial, material);
             return material;
@@ -556,6 +563,7 @@ namespace DuneVector
             material.SetFloat("_Opacity", 1f);
             material.SetFloat("_BloomIntensity", RingPortalTuning.PortalSparkBloomIntensity);
             material.SetFloat("_CoreMode", 3f);
+            material.SetFloat("_FeatureBrightness", 1f);
             _ownedMaterials.Add(material);
             _portalParticleMaterials.Add(lineMaterial, material);
             return material;
@@ -1292,6 +1300,20 @@ namespace DuneVector
                 radius,
                 settings);
 
+            GameObject activationPulse = CreateMeshObject(
+                "Activation Outward Pulse",
+                parent,
+                GetPortalActivationPulseMesh(
+                    radius,
+                    settings.PortalActivationPulseLineThickness,
+                    settings.PortalCircleSegments),
+                lineMaterial);
+            activationPulse.transform.localPosition = Vector3.forward * lineLayerDepth;
+            DisableRendererShadows(activationPulse);
+            MeshRenderer activationPulseRenderer = activationPulse.GetComponent<MeshRenderer>();
+            activationPulseRenderer.sortingOrder = 3;
+            activationPulse.SetActive(false);
+
             GameObject core = CreateMeshObject(
                 "Animated Transparent Energy Core",
                 parent,
@@ -1314,8 +1336,35 @@ namespace DuneVector
                     centerLineRenderer,
                     frontLineRenderer,
                     sparkRenderer,
+                    activationPulseRenderer,
                 },
+                activationPulseRenderer,
+                activationPulse.transform,
                 settings);
+        }
+
+        private static Mesh GetPortalActivationPulseMesh(float radius, float thickness, int segmentCount)
+        {
+            int segments = Mathf.Clamp(segmentCount, 24, 192);
+            float lineThickness = Mathf.Max(0.01f, thickness);
+            string key = $"portal-activation-pulse:{radius:0.000}:{lineThickness:0.000}:{segments}";
+            if (MeshCache.TryGetValue(key, out Mesh cached) && cached != null)
+            {
+                return cached;
+            }
+
+            List<Vector3> vertices = new List<Vector3>();
+            List<Vector2> uvs = new List<Vector2>();
+            List<int> triangles = new List<int>();
+            AddPortalRing(vertices, uvs, triangles, radius, lineThickness, segments, 3f);
+
+            Mesh mesh = new Mesh { name = "Portal Activation Outward Pulse" };
+            mesh.SetVertices(vertices);
+            mesh.SetUVs(0, uvs);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateBounds();
+            MeshCache[key] = mesh;
+            return mesh;
         }
 
         private static ParticleSystemRenderer CreatePortalEdgeSparks(
@@ -2207,7 +2256,7 @@ namespace DuneVector
             int glyphCount = Mathf.Clamp(settings.PortalGlyphCount, 3, 32);
             int rayCount = Mathf.Clamp(settings.PortalExteriorRayCount, 0, 24);
             float clampedThicknessMultiplier = Mathf.Max(1f, thicknessMultiplier);
-            string key = $"portal-lines-v2:{layer}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
+            string key = $"portal-lines-v3:{layer}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
                 $"{settings.PortalOuterLineThickness:0.000}:" +
                 $"{settings.PortalInnerLineThickness:0.000}:{circleSegments}:{concentricCount}:" +
                 $"{settings.PortalInnermostRingRadiusFraction:0.000}:{spokeCount}:" +
@@ -2231,7 +2280,7 @@ namespace DuneVector
 
             if (layer == PortalLineLayer.All || layer == PortalLineLayer.Center)
             {
-                AddPortalRing(vertices, uvs, triangles, radius, outerThickness, circleSegments);
+                AddPortalRing(vertices, uvs, triangles, radius, outerThickness, circleSegments, 3f);
             }
             if (layer == PortalLineLayer.All || layer == PortalLineLayer.Rear)
             {
@@ -2353,7 +2402,8 @@ namespace DuneVector
                 triangles,
                 Point(ax, ay),
                 Point(bx, by),
-                thickness);
+                thickness,
+                -2f);
             void Node(float x, float y) => AddPortalRuneNode(
                 vertices,
                 uvs,
@@ -2443,7 +2493,8 @@ namespace DuneVector
                 center - horizontal,
                 center + vertical,
                 center + horizontal,
-                center - vertical);
+                center - vertical,
+                -2f);
         }
 
         private static void AddPortalRing(
@@ -2452,7 +2503,8 @@ namespace DuneVector
             List<int> triangles,
             float radius,
             float thickness,
-            int segments)
+            int segments,
+            float featureMarker = 2f)
         {
             float inner = Mathf.Max(0f, radius - (thickness * 0.5f));
             float outer = radius + (thickness * 0.5f);
@@ -2470,7 +2522,7 @@ namespace DuneVector
                     directionA * outer,
                     directionB * outer,
                     directionB * inner,
-                    true);
+                    featureMarker);
             }
         }
 
@@ -2480,7 +2532,8 @@ namespace DuneVector
             List<int> triangles,
             Vector2 start,
             Vector2 end,
-            float thickness)
+            float thickness,
+            float featureMarker = 0f)
         {
             Vector2 direction = end - start;
             if (direction.sqrMagnitude < 0.000001f)
@@ -2495,7 +2548,8 @@ namespace DuneVector
                 start - normal,
                 start + normal,
                 end + normal,
-                end - normal);
+                end - normal,
+                featureMarker);
         }
 
         private static void AddPortalQuad(
@@ -2506,15 +2560,16 @@ namespace DuneVector
             Vector2 b,
             Vector2 c,
             Vector2 d,
-            bool circularLine = false)
+            float featureMarker = 0f)
         {
             int firstVertex = vertices.Count;
             vertices.Add(new Vector3(a.x, a.y, 0f));
             vertices.Add(new Vector3(b.x, b.y, 0f));
             vertices.Add(new Vector3(c.x, c.y, 0f));
             vertices.Add(new Vector3(d.x, d.y, 0f));
-            float startU = circularLine ? 2f : 0f;
-            float endU = circularLine ? 2f : 1f;
+            bool markedFeature = Mathf.Abs(featureMarker) > 0.001f;
+            float startU = markedFeature ? featureMarker : 0f;
+            float endU = markedFeature ? featureMarker : 1f;
             uvs.Add(new Vector2(startU, 0f));
             uvs.Add(new Vector2(startU, 1f));
             uvs.Add(new Vector2(endU, 1f));

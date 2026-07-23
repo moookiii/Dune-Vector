@@ -13,6 +13,12 @@ Shader "DuneVector/HDRP Portal Energy"
         _TravelPulseWidth("Travel Pulse Width", Range(0.01, 0.8)) = 0.16
         _TravelPulseBrightness("Travel Pulse Brightness", Float) = 2.4
         _TravelPulseRingPhaseOffset("Travel Pulse Ring Phase Offset", Range(0, 1)) = 0.17
+        _OuterRimBrightness("Outer Rim Brightness", Float) = 1.25
+        _StructuralLineBrightness("Structural Line Brightness", Float) = 0.82
+        _RuneBrightness("Rune Brightness", Float) = 0.72
+        _InnerRingBrightness("Inner Ring Brightness", Float) = 0.58
+        _FeatureBrightness("Feature Brightness", Float) = 1
+        _ActivationBloomBoost("Activation Bloom Boost", Float) = 1
         _OrbitLineCount("Orbit Line Count", Float) = 5
         _OrbitAngularWaves("Orbit Angular Waves", Float) = 2
         _OrbitSpeed("Orbit Speed", Float) = 0.55
@@ -65,6 +71,12 @@ Shader "DuneVector/HDRP Portal Energy"
                 float _TravelPulseWidth;
                 float _TravelPulseBrightness;
                 float _TravelPulseRingPhaseOffset;
+                float _OuterRimBrightness;
+                float _StructuralLineBrightness;
+                float _RuneBrightness;
+                float _InnerRingBrightness;
+                float _FeatureBrightness;
+                float _ActivationBloomBoost;
                 float _OrbitLineCount;
                 float _OrbitAngularWaves;
                 float _OrbitSpeed;
@@ -111,6 +123,7 @@ Shader "DuneVector/HDRP Portal Energy"
                 float pulse = 1.0 + (sin((_Time.y * _PulseSpeed) + 1.7) * _PulseAmount);
                 float alpha = _Opacity * _DistanceFade;
                 float travelBrightness = 1.0;
+                float featureBrightness = _FeatureBrightness;
                 float3 particleTint = float3(1.0, 1.0, 1.0);
 
                 if (_CoreMode > 2.5)
@@ -160,6 +173,13 @@ Shader "DuneVector/HDRP Portal Energy"
                 else
                 {
                     float circularLine = step(1.5, input.uv.x);
+                    float outerRim = step(2.5, input.uv.x);
+                    float innerRing = circularLine * (1.0 - outerRim);
+                    float rune = 1.0 - step(-1.5, input.uv.x);
+                    featureBrightness *= _StructuralLineBrightness;
+                    featureBrightness = lerp(featureBrightness, _RuneBrightness, rune);
+                    featureBrightness = lerp(featureBrightness, _InnerRingBrightness, innerRing);
+                    featureBrightness = lerp(featureBrightness, _OuterRimBrightness, outerRim);
                     float portalAngle = atan2(input.portalPosition.y, input.portalPosition.x);
                     float portalAngle01 = (portalAngle / 6.2831853) + 0.5;
                     float travelPulseCount = max(1.0, _TravelPulseCount);
@@ -189,7 +209,8 @@ Shader "DuneVector/HDRP Portal Energy"
                 }
 
                 return float4(
-                    _PortalColor.rgb * pulse * _BloomIntensity * travelBrightness * particleTint,
+                    _PortalColor.rgb * pulse * _BloomIntensity * travelBrightness *
+                        featureBrightness * _ActivationBloomBoost * particleTint,
                     alpha * _PortalColor.a);
             }
             ENDHLSL

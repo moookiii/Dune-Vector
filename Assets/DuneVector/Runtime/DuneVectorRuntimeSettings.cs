@@ -2444,6 +2444,26 @@ namespace DuneVector
         [Min(0f)] public float PortalSparkBloomIntensity = 2.8f;
         [Min(1)] public int PortalSparkMaximumParticles = 12;
 
+        [Header("Portal Brightness Hierarchy")]
+        [Min(0f)] public float PortalOuterRimBrightnessMultiplier = 1.25f;
+        [Min(0f)] public float PortalStructuralLineBrightnessMultiplier = 0.82f;
+        [Min(0f)] public float PortalRuneBrightnessMultiplier = 0.72f;
+        [Min(0f)] public float PortalInnerRingBrightnessMultiplier = 0.58f;
+        [Min(0f)] public float PortalCoreBrightnessMultiplier = 0.45f;
+
+        [Header("Portal Activation Reaction")]
+        [Min(0.01f)] public float PortalActivationReactionDuration = 0.58f;
+        [Tooltip("Peak HDR brightness multiplier during a portal activation.")]
+        [Min(1f)] public float PortalActivationBloomMultiplier = 2.35f;
+        [Tooltip("Minimum camera-fade visibility temporarily preserved at the start of an activation.")]
+        [Range(0f, 1f)] public float PortalActivationMinimumVisibility = 0.45f;
+        [Tooltip("Temporary multiplier applied to the portal's normal rotation speed.")]
+        [Min(1f)] public float PortalActivationRotationMultiplier = 3.1f;
+        [Tooltip("Final scale reached by the expanding activation rim.")]
+        [Min(1f)] public float PortalActivationPulseExpansion = 1.42f;
+        [Range(0f, 1f)] public float PortalActivationPulseOpacity = 0.9f;
+        [Min(0.01f)] public float PortalActivationPulseLineThickness = 0.12f;
+
         [Header("Portal Depth Layers")]
         [Tooltip("Forward and backward spacing between selected portal linework layers.")]
         [Min(0f)] public float PortalLineLayerDepth = 0.22f;

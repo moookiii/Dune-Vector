@@ -339,6 +339,7 @@ namespace DuneVector
         private Action _onCrossed;
         private Func<bool> _canActivate;
         private Transform _visual;
+        private DuneVectorPortalVisual _portalVisual;
         private Renderer[] _renderers;
         private MaterialPropertyBlock _colorProperties;
         private DeliveryTuning _settings;
@@ -379,6 +380,7 @@ namespace DuneVector
                 isPickup ? 1 : 0);
             _spinDirection = (spinHash & 1u) == 0u ? -1f : 1f;
             _visual = DuneVectorVisuals.CreateJobRingVisual(transform, isPickup, materials, radius);
+            _portalVisual = _visual.GetComponent<DuneVectorPortalVisual>();
             _renderers = _visual.GetComponentsInChildren<Renderer>(true);
             _colorProperties = new MaterialPropertyBlock();
             UpdateRgbBlend();
@@ -430,6 +432,12 @@ namespace DuneVector
                         if (crossedOpening)
                         {
                             _activated = true;
+                            _portalVisual?.PlayActivationReaction(
+                                true,
+                                _spinSpeed * _spinDirection,
+                                Vector3.forward);
+                            _visual = null;
+                            _portalVisual = null;
                             _onCrossed?.Invoke();
                             return;
                         }
@@ -443,7 +451,11 @@ namespace DuneVector
             if (_visual != null)
             {
                 _spin = Mathf.Repeat(
-                    _spin + (_spinSpeed * _spinDirection * Time.deltaTime),
+                    _spin + (
+                        _spinSpeed *
+                        _spinDirection *
+                        (_portalVisual != null ? _portalVisual.RotationSpeedMultiplier : 1f) *
+                        Time.deltaTime),
                     360f);
                 _visual.localRotation = Quaternion.AngleAxis(_spin, Vector3.forward);
             }

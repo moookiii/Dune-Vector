@@ -36,6 +36,7 @@ namespace DuneVector
         private DroneHealth _health;
         private ITraversalRingReward _collectibleReward;
         private Transform _visualRoot;
+        private DuneVectorPortalVisual _portalVisual;
         private Vector3 _previousWorldPosition;
         private bool _hasPreviousWorldPosition;
         private bool _inside;
@@ -89,6 +90,7 @@ namespace DuneVector
                 ringTuning);
             _billboardFacingRotation = _visualRoot.rotation;
             _hasBillboardFacingRotation = true;
+            _portalVisual = _visualRoot.GetComponent<DuneVectorPortalVisual>();
             if (IsCollectible)
             {
                 _collectibleIcon = _visualRoot.Find("Collectible Icon");
@@ -238,7 +240,11 @@ namespace DuneVector
                 float scale = _modeScale * (1f + (Mathf.Sin(_pulse * Mathf.PI) * 0.085f));
                 _visualRoot.localScale = Vector3.one * scale;
                 _visualSpin = Mathf.Repeat(
-                    _visualSpin + (ClockwiseRotationSpeed * _spinDirection * deltaTime),
+                    _visualSpin + (
+                        ClockwiseRotationSpeed *
+                        _spinDirection *
+                        (_portalVisual != null ? _portalVisual.RotationSpeedMultiplier : 1f) *
+                        deltaTime),
                     360f);
                 if (IsCollectible)
                 {
@@ -325,6 +331,17 @@ namespace DuneVector
             HasActivated = true;
             ActivationCount++;
             _pulse = 1f;
+            bool detachReaction = IsCollectible;
+            _portalVisual?.PlayActivationReaction(
+                detachReaction,
+                ClockwiseRotationSpeed * _spinDirection,
+                IsCollectible ? Vector3.up : Vector3.forward);
+            if (detachReaction)
+            {
+                _visualRoot = null;
+                _collectibleIcon = null;
+                _portalVisual = null;
+            }
 
             if (RingType == TraversalRingType.GroundBoost)
             {
