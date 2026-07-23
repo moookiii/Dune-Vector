@@ -458,6 +458,11 @@ namespace DuneVector
             material.SetFloat("_CoreMode", 0f);
             material.SetFloat("_DistanceFade", 1f);
             material.SetFloat("_LineEdgeSoftness", settings.PortalLineEdgeSoftness);
+            material.SetFloat("_TravelPulseCount", settings.PortalTravelPulseCount);
+            material.SetFloat("_TravelPulseSpeed", settings.PortalTravelPulseSpeed);
+            material.SetFloat("_TravelPulseWidth", settings.PortalTravelPulseWidth);
+            material.SetFloat("_TravelPulseBrightness", settings.PortalTravelPulseBrightness);
+            material.SetFloat("_TravelPulseRingPhaseOffset", settings.PortalTravelPulseRingPhaseOffset);
             material.SetFloat("_PulseSpeed", settings.PortalPulseSpeed);
             material.SetFloat("_PulseAmount", settings.PortalPulseAmount);
             _ownedMaterials.Add(material);
@@ -2111,7 +2116,7 @@ namespace DuneVector
             int glyphCount = Mathf.Clamp(settings.PortalGlyphCount, 3, 32);
             int rayCount = Mathf.Clamp(settings.PortalExteriorRayCount, 0, 24);
             float clampedThicknessMultiplier = Mathf.Max(1f, thicknessMultiplier);
-            string key = $"portal-lines:{layer}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
+            string key = $"portal-lines-v2:{layer}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
                 $"{settings.PortalOuterLineThickness:0.000}:" +
                 $"{settings.PortalInnerLineThickness:0.000}:{circleSegments}:{concentricCount}:" +
                 $"{settings.PortalInnermostRingRadiusFraction:0.000}:{spokeCount}:" +
@@ -2373,7 +2378,8 @@ namespace DuneVector
                     directionA * inner,
                     directionA * outer,
                     directionB * outer,
-                    directionB * inner);
+                    directionB * inner,
+                    true);
             }
         }
 
@@ -2408,17 +2414,20 @@ namespace DuneVector
             Vector2 a,
             Vector2 b,
             Vector2 c,
-            Vector2 d)
+            Vector2 d,
+            bool circularLine = false)
         {
             int firstVertex = vertices.Count;
             vertices.Add(new Vector3(a.x, a.y, 0f));
             vertices.Add(new Vector3(b.x, b.y, 0f));
             vertices.Add(new Vector3(c.x, c.y, 0f));
             vertices.Add(new Vector3(d.x, d.y, 0f));
-            uvs.Add(new Vector2(0f, 0f));
-            uvs.Add(new Vector2(0f, 1f));
-            uvs.Add(new Vector2(1f, 1f));
-            uvs.Add(new Vector2(1f, 0f));
+            float startU = circularLine ? 2f : 0f;
+            float endU = circularLine ? 2f : 1f;
+            uvs.Add(new Vector2(startU, 0f));
+            uvs.Add(new Vector2(startU, 1f));
+            uvs.Add(new Vector2(endU, 1f));
+            uvs.Add(new Vector2(endU, 0f));
             triangles.Add(firstVertex);
             triangles.Add(firstVertex + 1);
             triangles.Add(firstVertex + 2);

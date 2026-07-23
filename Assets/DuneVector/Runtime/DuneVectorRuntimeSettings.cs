@@ -2413,6 +2413,18 @@ namespace DuneVector
         [Range(0, 24)] public int PortalExteriorRayCount = 9;
         [Range(0f, 0.5f)] public float PortalExteriorRayLengthFraction = 0.13f;
 
+        [Header("Portal Traveling Light Pulses")]
+        [Tooltip("Number of bright tracer segments traveling around each circular portal line.")]
+        [Range(1, 8)] public int PortalTravelPulseCount = 3;
+        [Tooltip("Tracer travel speed in complete rotations per second.")]
+        [Min(0f)] public float PortalTravelPulseSpeed = 0.22f;
+        [Tooltip("Length of each bright tracer as a fraction of the spacing between tracers.")]
+        [Range(0.01f, 0.8f)] public float PortalTravelPulseWidth = 0.16f;
+        [Tooltip("Additional HDR brightness applied at the center of a traveling tracer.")]
+        [Min(0f)] public float PortalTravelPulseBrightness = 2.4f;
+        [Tooltip("Phase difference between portal circles, preventing their tracers from lining up like spokes.")]
+        [Range(0f, 1f)] public float PortalTravelPulseRingPhaseOffset = 0.17f;
+
         [Header("Portal Depth Layers")]
         [Tooltip("Forward and backward spacing between selected portal linework layers.")]
         [Min(0f)] public float PortalLineLayerDepth = 0.22f;

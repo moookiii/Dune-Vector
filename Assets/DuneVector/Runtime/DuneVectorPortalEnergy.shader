@@ -8,6 +8,11 @@ Shader "DuneVector/HDRP Portal Energy"
         _CoreMode("Core Mode", Float) = 0
         _DistanceFade("Distance Fade", Range(0, 1)) = 1
         _LineEdgeSoftness("Line Edge Softness", Range(0.01, 0.49)) = 0.14
+        _TravelPulseCount("Travel Pulse Count", Float) = 3
+        _TravelPulseSpeed("Travel Pulse Speed", Float) = 0.22
+        _TravelPulseWidth("Travel Pulse Width", Range(0.01, 0.8)) = 0.16
+        _TravelPulseBrightness("Travel Pulse Brightness", Float) = 2.4
+        _TravelPulseRingPhaseOffset("Travel Pulse Ring Phase Offset", Range(0, 1)) = 0.17
         _OrbitLineCount("Orbit Line Count", Float) = 5
         _OrbitAngularWaves("Orbit Angular Waves", Float) = 2
         _OrbitSpeed("Orbit Speed", Float) = 0.55
@@ -55,6 +60,11 @@ Shader "DuneVector/HDRP Portal Energy"
                 float _CoreMode;
                 float _DistanceFade;
                 float _LineEdgeSoftness;
+                float _TravelPulseCount;
+                float _TravelPulseSpeed;
+                float _TravelPulseWidth;
+                float _TravelPulseBrightness;
+                float _TravelPulseRingPhaseOffset;
                 float _OrbitLineCount;
                 float _OrbitAngularWaves;
                 float _OrbitSpeed;
@@ -77,6 +87,7 @@ Shader "DuneVector/HDRP Portal Energy"
             {
                 float4 positionCS : SV_POSITION;
                 float2 uv : TEXCOORD0;
+                float2 portalPosition : TEXCOORD1;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -87,6 +98,7 @@ Shader "DuneVector/HDRP Portal Energy"
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 output.positionCS = TransformObjectToHClip(input.positionOS);
                 output.uv = input.uv;
+                output.portalPosition = input.positionOS.xy;
                 return output;
             }
 
@@ -95,6 +107,7 @@ Shader "DuneVector/HDRP Portal Energy"
                 UNITY_SETUP_INSTANCE_ID(input);
                 float pulse = 1.0 + (sin((_Time.y * _PulseSpeed) + 1.7) * _PulseAmount);
                 float alpha = _Opacity * _DistanceFade;
+                float travelBrightness = 1.0;
 
                 if (_CoreMode > 0.5 && _CoreMode < 1.5)
                 {
@@ -133,6 +146,20 @@ Shader "DuneVector/HDRP Portal Energy"
                 }
                 else
                 {
+                    float circularLine = step(1.5, input.uv.x);
+                    float portalAngle = atan2(input.portalPosition.y, input.portalPosition.x);
+                    float portalAngle01 = (portalAngle / 6.2831853) + 0.5;
+                    float travelPulseCount = max(1.0, _TravelPulseCount);
+                    float travelPhase = frac(
+                        ((portalAngle01 - (_Time.y * _TravelPulseSpeed)) * travelPulseCount) +
+                        (length(input.portalPosition) * _TravelPulseRingPhaseOffset));
+                    float travelDistance = abs(travelPhase - 0.5) * 2.0;
+                    float travelPulse = 1.0 - smoothstep(
+                        _TravelPulseWidth,
+                        min(1.0, _TravelPulseWidth * 1.8),
+                        travelDistance);
+                    travelBrightness += circularLine * travelPulse * _TravelPulseBrightness;
+
                     float distanceFromStrokeCenter = abs((input.uv.y * 2.0) - 1.0);
                     if (_CoreMode > 1.5)
                     {
@@ -149,7 +176,7 @@ Shader "DuneVector/HDRP Portal Energy"
                 }
 
                 return float4(
-                    _PortalColor.rgb * pulse * _BloomIntensity,
+                    _PortalColor.rgb * pulse * _BloomIntensity * travelBrightness,
                     alpha * _PortalColor.a);
             }
             ENDHLSL
