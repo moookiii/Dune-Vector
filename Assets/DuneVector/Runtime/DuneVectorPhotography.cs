@@ -800,20 +800,37 @@ namespace DuneVector
         private Color _animatedAccentColor;
         private Rect _animatedBounds;
         private bool _hasAnimatedBounds;
+        private bool _previousHasSubject;
+        private float _targetStateBlend;
         private bool _cameraModeActive;
         private float _baseFieldOfView;
         private float _zoom = 1f;
         private float _targetZoom = 1f;
         private float _nextValidationTime;
+        private float _hudEnteredAt;
+        private float _targetAcquiredAt;
+        private float _lastZoomInputAt;
+        private float _captureStartedAt;
+        private float _captureHoldUntil;
         private float _shutterUntil;
+        private float _hudScale = 1f;
+        private float _hudWidth;
+        private float _hudHeight;
         private float _presentationUntil;
         private float _timeScaleBeforeIdentification = 1f;
         private bool _identificationPauseActive;
         private CameraPresentationState _presentationState;
         private Texture2D _capturedTexture;
+        private Texture2D _captureHoldTexture;
         private PhotographRecord _pendingPhotograph;
         private PhotographableSubject _pendingSubject;
-        private GUIStyle _labelStyle;
+        private GUIStyle _subjectStyle;
+        private GUIStyle _targetStatusStyle;
+        private GUIStyle _modeLabelStyle;
+        private GUIStyle _metadataStyle;
+        private GUIStyle _metadataRightStyle;
+        private GUIStyle _commandStyle;
+        private GUIStyle _keyStyle;
         private GUIStyle _statusStyle;
         private GUIStyle _identificationTitleStyle;
         private GUIStyle _identificationNameStyle;
@@ -893,6 +910,11 @@ namespace DuneVector
                 return;
             }
 
+            if (_captureHoldTexture != null && Time.unscaledTime >= _captureHoldUntil)
+            {
+                ReleaseCaptureHoldTexture();
+            }
+
             if (_presentationState == CameraPresentationState.Live &&
                 ((mouse != null && mouse.rightButton.wasPressedThisFrame) ||
                  (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)))
@@ -913,6 +935,10 @@ namespace DuneVector
             float scroll = mouse != null ? mouse.scroll.ReadValue().y / 120f : 0f;
             _cameraController.UpdateWithInput(Time.unscaledDeltaTime, look, 0f);
             _player.SetDisabledMovementRotation(_camera.transform.rotation);
+            if (Mathf.Abs(scroll) > 0.001f)
+            {
+                _lastZoomInputAt = Time.unscaledTime;
+            }
             float minimumZoom = Mathf.Clamp(_settings.MinimumZoom, 0.25f, 1f);
             _targetZoom = Mathf.Clamp(
                 _targetZoom + (scroll * _settings.ZoomStep),
@@ -925,11 +951,31 @@ namespace DuneVector
             {
                 _nextValidationTime = Time.unscaledTime + Mathf.Max(0.01f, _settings.ValidationInterval);
                 _detection = _detector.Detect();
+                if (_detection.HasSubject && !_previousHasSubject)
+                {
+                    _targetAcquiredAt = Time.unscaledTime;
+                    _hasAnimatedBounds = false;
+                }
+                _previousHasSubject = _detection.HasSubject;
             }
+
+            float targetState = _detection.HasSubject && _detection.IsValid ? 1f : 0f;
+            _targetStateBlend = Mathf.Lerp(
+                _targetStateBlend,
+                targetState,
+                DuneVectorMath.Sharpness(_settings.TargetStateSharpness, Time.unscaledDeltaTime));
+            Color targetAccent = !_detection.HasSubject
+                ? _settings.NeutralColor
+                : Color.Lerp(_settings.InvalidColor, _settings.ValidColor, _targetStateBlend);
+            _animatedAccentColor = Color.Lerp(
+                _animatedAccentColor,
+                targetAccent,
+                DuneVectorMath.Sharpness(_settings.AccentColorSharpness, Time.unscaledDeltaTime));
             if (_detection.HasSubject)
             {
+                float hudScale = GetHudScale();
                 Rect padded = ClampToViewfinder(
-                    Expand(_detection.ScreenBounds, _settings.TargetBracketPadding));
+                    Expand(_detection.ScreenBounds, _settings.TargetBracketPadding * hudScale));
                 float blend = DuneVectorMath.Sharpness(_settings.BracketSharpness, Time.unscaledDeltaTime);
                 _animatedBounds = _hasAnimatedBounds ? Lerp(_animatedBounds, padded, blend) : padded;
                 _hasAnimatedBounds = true;
@@ -959,6 +1005,11 @@ namespace DuneVector
             Cursor.visible = false;
             _detection = default;
             _animatedAccentColor = _settings.NeutralColor;
+            _targetStateBlend = 0f;
+            _previousHasSubject = false;
+            _hasAnimatedBounds = false;
+            _hudEnteredAt = Time.unscaledTime;
+            _lastZoomInputAt = float.NegativeInfinity;
             _nextValidationTime = 0f;
         }
 
@@ -974,6 +1025,7 @@ namespace DuneVector
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
             ReleaseCapturedTexture();
+            ReleaseCaptureHoldTexture();
             _pendingPhotograph = null;
             _detection = default;
         }
@@ -982,16 +1034,19 @@ namespace DuneVector
         {
             Texture2D image = CaptureCameraImage();
             if (image == null) return;
+            ReleaseCaptureHoldTexture();
             bool valid = _detection.HasSubject && _detection.IsValid;
             string subjectId = valid ? _detection.Subject.SubjectId : string.Empty;
             PhotographableSubjectCategory category = valid
                 ? _detection.Subject.Category
                 : PhotographableSubjectCategory.Glyph;
             PhotographRecord record = _storage.Store(image, subjectId, category, valid);
+            _captureStartedAt = Time.unscaledTime;
             _shutterUntil = Time.unscaledTime + _settings.ShutterFlashDuration;
+            _captureHoldUntil = Time.unscaledTime + _settings.CaptureHoldDuration;
             if (!valid)
             {
-                UnityEngine.Object.Destroy(image);
+                _captureHoldTexture = image;
                 return;
             }
 
@@ -1076,78 +1131,215 @@ namespace DuneVector
             if (!_cameraModeActive || _settings == null) return;
             GUI.depth = -2000;
             EnsureStyles();
-            if (_presentationState == CameraPresentationState.Live)
+            _hudScale = GetHudScale();
+            _hudWidth = Screen.width / _hudScale;
+            _hudHeight = Screen.height / _hudScale;
+            Matrix4x4 previousMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.Scale(new Vector3(_hudScale, _hudScale, 1f));
+            try
             {
-                DrawViewfinder();
+                if (_presentationState == CameraPresentationState.Live)
+                {
+                    if (_captureHoldTexture != null && Time.unscaledTime < _captureHoldUntil)
+                    {
+                        GUI.DrawTexture(
+                            new Rect(0f, 0f, _hudWidth, _hudHeight),
+                            _captureHoldTexture,
+                            ScaleMode.ScaleAndCrop,
+                            false);
+                    }
+                    DrawSurfaceTextures();
+                    DrawViewfinder();
+                }
+                else
+                {
+                    DrawCapturePresentation();
+                }
+                if (Time.unscaledTime < _shutterUntil)
+                {
+                    float duration = Mathf.Max(0.01f, _settings.ShutterFlashDuration);
+                    float normalizedAge = Mathf.Clamp01((Time.unscaledTime - _captureStartedAt) / duration);
+                    float alpha = Mathf.Sin(normalizedAge * Mathf.PI) * _settings.CaptureFlashOpacity;
+                    Color flash = _settings.ShutterFlashColor;
+                    flash.a *= alpha;
+                    Rect screen = new Rect(0f, 0f, _hudWidth, _hudHeight);
+                    if (_settings.CaptureFlashTexture != null)
+                    {
+                        DrawTexture(screen, _settings.CaptureFlashTexture, flash, ScaleMode.StretchToFill);
+                    }
+                    else
+                    {
+                        DrawRect(screen, flash);
+                    }
+                }
             }
-            else
+            finally
             {
-                DrawCapturePresentation();
-            }
-            if (Time.unscaledTime < _shutterUntil)
-            {
-                float alpha = Mathf.Clamp01((_shutterUntil - Time.unscaledTime) / Mathf.Max(0.01f, _settings.ShutterFlashDuration));
-                Color flash = _settings.ShutterFlashColor;
-                flash.a *= alpha;
-                DrawRect(new Rect(0f, 0f, Screen.width, Screen.height), flash);
+                GUI.matrix = previousMatrix;
             }
         }
 
         private void DrawViewfinder()
         {
-            Color targetAccent = !_detection.HasSubject
-                ? _settings.NeutralColor
-                : _detection.IsValid ? _settings.ValidColor : _settings.InvalidColor;
-            _animatedAccentColor = Color.Lerp(
-                _animatedAccentColor,
-                targetAccent,
-                DuneVectorMath.Sharpness(_settings.BracketSharpness, Time.unscaledDeltaTime));
-            Color accent = _animatedAccentColor;
-            Rect frame = new Rect(_settings.ScreenMargin, _settings.ScreenMargin,
-                Screen.width - (_settings.ScreenMargin * 2f), Screen.height - (_settings.ScreenMargin * 2f));
-            DrawCorners(frame, _settings.FrameCornerLength, _settings.FrameThickness, accent);
-            Rect crosshair = new Rect(Screen.width * 0.5f - (_settings.CrosshairSize * 0.5f),
-                Screen.height * 0.5f - (_settings.CrosshairSize * 0.5f), _settings.CrosshairSize, _settings.CrosshairSize);
-            DrawCrosshair(crosshair, accent);
+            float enter = EaseOutCubic(Mathf.Clamp01(
+                (Time.unscaledTime - _hudEnteredAt) / Mathf.Max(0.01f, _settings.HudEnterDuration)));
+            float slide = (1f - enter) * _settings.HudEnterSlideDistance;
+            Color outerColor = WithAlpha(
+                _settings.NeutralColor,
+                _settings.NeutralColor.a * _settings.OuterFrameOpacity * enter);
+            Rect frame = new Rect(
+                _settings.ScreenMargin - slide,
+                _settings.ScreenMargin - slide,
+                _hudWidth - ((_settings.ScreenMargin - slide) * 2f),
+                _hudHeight - ((_settings.ScreenMargin - slide) * 2f));
+            DrawCorners(frame, _settings.FrameCornerLength, _settings.FrameThickness, outerColor);
+            Rect crosshair = new Rect(_hudWidth * 0.5f - (_settings.CrosshairSize * 0.5f),
+                _hudHeight * 0.5f - (_settings.CrosshairSize * 0.5f), _settings.CrosshairSize, _settings.CrosshairSize);
+            DrawCrosshair(crosshair, WithAlpha(
+                _settings.NeutralColor,
+                _settings.NeutralColor.a * _settings.CrosshairOpacity * enter));
+
+            float recoil = 0f;
+            if (Time.unscaledTime < _shutterUntil)
+            {
+                float recoilProgress = Mathf.Clamp01(
+                    (Time.unscaledTime - _captureStartedAt) / Mathf.Max(0.01f, _settings.ShutterFlashDuration));
+                recoil = Mathf.Sin(recoilProgress * Mathf.PI) * _settings.CaptureUiRecoil;
+            }
+
             if (_detection.HasSubject && _hasAnimatedBounds)
             {
-                DrawCorners(_animatedBounds, _settings.TargetBracketLength, _settings.TargetBracketThickness, accent);
+                Rect animatedBounds = ToHudRect(_animatedBounds);
+                float acquire = EaseOutCubic(Mathf.Clamp01(
+                    (Time.unscaledTime - _targetAcquiredAt) / Mathf.Max(0.01f, _settings.TargetAcquireDuration)));
+                float stateOffset = Mathf.Lerp(
+                    _settings.InvalidBracketExpansion,
+                    -_settings.ValidBracketInset,
+                    _targetStateBlend);
+                float acquisitionOffset = (1f - acquire) * _settings.TargetAcquireExpansion;
+                Rect targetBounds = Expand(animatedBounds, stateOffset + acquisitionOffset - recoil);
+                Color accent = WithAlpha(_animatedAccentColor, _animatedAccentColor.a * acquire * enter);
+                DrawCorners(targetBounds, _settings.TargetBracketLength, _settings.TargetBracketThickness, accent);
+                if (!_detection.IsValid)
+                {
+                    DrawFramingGuides(ToHudRect(_detection.ScreenBounds), frame, accent);
+                }
                 string subjectLabel = _storage.IsDocumented(_detection.Subject.SubjectId)
                     ? _detection.Subject.DisplayName
                     : _settings.UnknownSubjectLabel;
                 float labelLeft = Mathf.Clamp(
-                    _animatedBounds.center.x - (_settings.SubjectLabelWidth * 0.5f),
+                    targetBounds.x,
                     _settings.ScreenMargin,
-                    Screen.width - _settings.ScreenMargin - _settings.SubjectLabelWidth);
-                float titleClearance = _settings.ScreenMargin + _settings.SubjectLabelHeight;
-                float labelTop = Mathf.Clamp(
-                    _animatedBounds.center.y - (_settings.SubjectLabelHeight * 0.5f),
-                    titleClearance,
-                    Screen.height - _settings.ScreenMargin - _settings.SubjectLabelHeight);
-                GUI.Label(new Rect(labelLeft, labelTop,
-                    _settings.SubjectLabelWidth, _settings.SubjectLabelHeight), subjectLabel, _labelStyle);
+                    _hudWidth - _settings.ScreenMargin - _settings.SubjectLabelWidth);
+                float labelBlockHeight = _settings.SubjectLabelHeight + _settings.TargetStatusHeight;
+                float labelTop = targetBounds.y - _settings.TargetLabelGap - labelBlockHeight;
+                if (labelTop < _settings.ScreenMargin + _settings.SubjectLabelHeight)
+                {
+                    labelTop = targetBounds.yMax + _settings.TargetLabelGap;
+                }
+                labelTop = Mathf.Clamp(
+                    labelTop,
+                    _settings.ScreenMargin + _settings.SubjectLabelHeight,
+                    _hudHeight - _settings.ScreenMargin - labelBlockHeight - _settings.CommandBarHeight);
+                DrawRect(
+                    new Rect(
+                        labelLeft,
+                        labelTop - _settings.FrameThickness,
+                        _settings.TargetBracketLength,
+                        _settings.FrameThickness),
+                    accent);
+                DrawLabel(
+                    new Rect(labelLeft, labelTop, _settings.SubjectLabelWidth, _settings.SubjectLabelHeight),
+                    subjectLabel,
+                    _subjectStyle,
+                    WithAlpha(_settings.HudTextColor, _settings.HudTextColor.a * acquire * enter),
+                    true);
+                string targetStatus = _detection.IsValid ? _settings.ValidStatus : _settings.InvalidStatus;
+                DrawLabel(
+                    new Rect(
+                        labelLeft,
+                        labelTop + _settings.SubjectLabelHeight,
+                        _settings.SubjectLabelWidth,
+                        _settings.TargetStatusHeight),
+                    TrackText(targetStatus),
+                    _targetStatusStyle,
+                    accent,
+                    true);
             }
-            string status = !_detection.HasSubject ? _settings.NeutralStatus : _detection.IsValid ? _settings.ValidStatus : _settings.InvalidStatus;
-            GUI.Label(new Rect(_settings.ScreenMargin, _settings.ScreenMargin,
-                Screen.width - (_settings.ScreenMargin * 2f), _settings.SubjectLabelHeight), _settings.CameraTitle, _statusStyle);
-            GUI.Label(new Rect(_settings.ScreenMargin, Screen.height - _settings.ScreenMargin - _settings.SubjectLabelHeight,
-                Screen.width - (_settings.ScreenMargin * 2f), _settings.SubjectLabelHeight),
-                string.Format(_settings.StatusZoomFormat, status, _zoom), _statusStyle);
-            GUI.Label(new Rect(_settings.ScreenMargin, Screen.height - (_settings.ScreenMargin * 2f) - _settings.SubjectLabelHeight,
-                Screen.width - (_settings.ScreenMargin * 2f), _settings.SubjectLabelHeight), _settings.ExitHint, _statusStyle);
+
+            DrawLabel(
+                new Rect(
+                    _settings.ScreenMargin,
+                    _settings.ScreenMargin + slide,
+                    _hudWidth - (_settings.ScreenMargin * 2f),
+                    _settings.SubjectLabelHeight),
+                TrackText(_settings.CameraTitle),
+                _modeLabelStyle,
+                WithAlpha(_settings.HudMutedColor, _settings.HudMutedColor.a * enter),
+                true);
+
+            float bottomY = _hudHeight - _settings.ScreenMargin -
+                _settings.CommandBarHeight - _settings.BottomInterfaceOffset;
+            DrawCommandBar(bottomY, enter);
+            DrawCornerMetadata(bottomY, enter);
         }
 
         private void DrawCapturePresentation()
         {
-            DrawRect(new Rect(0f, 0f, Screen.width, Screen.height), _settings.GalleryBackdropColor);
-            Rect imageRect = new Rect(0f, 0f, Screen.width, Screen.height);
-            if (_capturedTexture != null) GUI.DrawTexture(imageRect, _capturedTexture, ScaleMode.ScaleToFit, false);
+            DrawRect(new Rect(0f, 0f, _hudWidth, _hudHeight), _settings.GalleryBackdropColor);
+            Rect imageRect = new Rect(0f, 0f, _hudWidth, _hudHeight);
+            if (_capturedTexture != null) GUI.DrawTexture(imageRect, _capturedTexture, ScaleMode.ScaleAndCrop, false);
+            DrawSurfaceTextures();
+            if (_presentationState == CameraPresentationState.Identified)
+            {
+                float toastProgress = EaseOutCubic(Mathf.Clamp01(
+                    1f - ((_presentationUntil - Time.unscaledTime) /
+                        Mathf.Max(0.01f, _settings.IdentificationHoldDuration))));
+                float toastWidth = Mathf.Min(
+                    _settings.DocumentationToastWidth,
+                    _hudWidth - (_settings.ScreenMargin * 2f));
+                Rect toast = new Rect(
+                    (_hudWidth - toastWidth) * 0.5f,
+                    _hudHeight - _settings.DocumentationToastBottomOffset -
+                        _settings.DocumentationToastHeight +
+                        ((1f - toastProgress) * _settings.HudEnterSlideDistance),
+                    toastWidth,
+                    _settings.DocumentationToastHeight);
+                DrawRect(toast, WithAlpha(
+                    _settings.CommandBackdropColor,
+                    _settings.CommandBackdropColor.a * toastProgress));
+                DrawRect(
+                    new Rect(toast.x, toast.y, toast.width, _settings.FrameThickness),
+                    WithAlpha(_settings.ValidColor, _settings.ValidColor.a * toastProgress));
+                DrawLabel(
+                    new Rect(
+                        toast.x + _settings.TargetBracketLength,
+                        toast.y + _settings.TargetLabelGap,
+                        toast.width - (_settings.TargetBracketLength * 2f),
+                        _settings.SubjectLabelHeight),
+                    TrackText(_settings.RegisteredText),
+                    _targetStatusStyle,
+                    WithAlpha(_settings.ValidColor, _settings.ValidColor.a * toastProgress),
+                    true);
+                DrawLabel(
+                    new Rect(
+                        toast.x + _settings.TargetBracketLength,
+                        toast.y + _settings.SubjectLabelHeight,
+                        toast.width - (_settings.TargetBracketLength * 2f),
+                        _settings.SubjectLabelHeight),
+                    _pendingSubject.DisplayName,
+                    _subjectStyle,
+                    WithAlpha(_settings.HudTextColor, _settings.HudTextColor.a * toastProgress),
+                    true);
+                return;
+            }
+
             if (_presentationState == CameraPresentationState.ReplacePrompt)
             {
                 DrawPhotographComparison();
             }
-            Rect panel = new Rect((Screen.width - _settings.IdentificationPanelWidth) * 0.5f,
-                Screen.height - _settings.IdentificationPanelHeight - _settings.ScreenMargin,
+            Rect panel = new Rect((_hudWidth - _settings.IdentificationPanelWidth) * 0.5f,
+                _hudHeight - _settings.IdentificationPanelHeight - _settings.ScreenMargin,
                 _settings.IdentificationPanelWidth, _settings.IdentificationPanelHeight);
             DrawRect(panel, _settings.IdentificationPanelColor);
             DrawBorder(panel, _settings.ValidColor, _settings.FrameThickness);
@@ -1159,12 +1351,6 @@ namespace DuneVector
                 _settings.SubjectLabelHeight), heading, _identificationTitleStyle);
             GUI.Label(new Rect(panel.x + padding, panel.y + padding + _settings.SubjectLabelHeight,
                 panel.width - (padding * 2f), _settings.SubjectLabelHeight), _pendingSubject.DisplayName, _identificationNameStyle);
-            if (_presentationState == CameraPresentationState.Identified)
-            {
-                GUI.Label(new Rect(panel.x + padding, panel.yMax - padding - _settings.SubjectLabelHeight,
-                    panel.width - (padding * 2f), _settings.SubjectLabelHeight), _settings.RegisteredText, _statusStyle);
-                return;
-            }
             GUI.Label(new Rect(panel.x + padding, panel.y + padding + (_settings.SubjectLabelHeight * 2f),
                 panel.width - (padding * 2f), _settings.SubjectLabelHeight), _settings.ReplacePrompt, _statusStyle);
             float buttonWidth = (panel.width - (padding * 3f)) * 0.5f;
@@ -1182,7 +1368,7 @@ namespace DuneVector
         private void DrawPhotographComparison()
         {
             float totalWidth = (_settings.ComparisonImageWidth * 2f) + _settings.ComparisonImageGap;
-            float left = (Screen.width - totalWidth) * 0.5f;
+            float left = (_hudWidth - totalWidth) * 0.5f;
             float top = _settings.ScreenMargin;
             Rect currentRect = new Rect(left, top, _settings.ComparisonImageWidth, _settings.ComparisonImageHeight);
             Rect newRect = new Rect(currentRect.xMax + _settings.ComparisonImageGap, top,
@@ -1200,27 +1386,270 @@ namespace DuneVector
                 _settings.ComparisonNewLabel, _statusStyle);
         }
 
+        private void DrawSurfaceTextures()
+        {
+            if (!_settings.SurfaceTexturesEnabled) return;
+            Rect screen = new Rect(0f, 0f, _hudWidth, _hudHeight);
+            if (_settings.FilmGrainTexture != null && _settings.FilmGrainOpacity > 0f)
+            {
+                DrawTexture(
+                    screen,
+                    _settings.FilmGrainTexture,
+                    new Color(1f, 1f, 1f, _settings.FilmGrainOpacity),
+                    ScaleMode.StretchToFill);
+            }
+            if (_settings.LensGlassTexture != null && _settings.LensGlassOpacity > 0f)
+            {
+                DrawTexture(
+                    screen,
+                    _settings.LensGlassTexture,
+                    new Color(1f, 1f, 1f, _settings.LensGlassOpacity),
+                    ScaleMode.StretchToFill);
+            }
+            if (_settings.VignetteTexture != null && _settings.VignetteOpacity > 0f)
+            {
+                DrawTexture(
+                    screen,
+                    _settings.VignetteTexture,
+                    new Color(1f, 1f, 1f, _settings.VignetteOpacity),
+                    ScaleMode.StretchToFill);
+            }
+        }
+
+        private void DrawCommandBar(float y, float enter)
+        {
+            float width = Mathf.Min(
+                _settings.CommandBarWidth,
+                _hudWidth - (_settings.ScreenMargin * 2f));
+            Rect bar = new Rect(
+                (_hudWidth - width) * 0.5f,
+                y + ((1f - enter) * _settings.HudEnterSlideDistance),
+                width,
+                _settings.CommandBarHeight);
+            DrawRect(bar, WithAlpha(
+                _settings.CommandBackdropColor,
+                _settings.CommandBackdropColor.a * enter));
+            if (_settings.SurfaceTexturesEnabled &&
+                _settings.TechnicalGridTexture != null &&
+                _settings.TechnicalGridOpacity > 0f)
+            {
+                DrawTexture(
+                    bar,
+                    _settings.TechnicalGridTexture,
+                    new Color(1f, 1f, 1f, _settings.TechnicalGridOpacity * enter),
+                    ScaleMode.StretchToFill);
+            }
+            DrawRect(
+                new Rect(bar.x, bar.y, bar.width, _settings.FrameThickness),
+                WithAlpha(
+                    _settings.NeutralColor,
+                    _settings.NeutralColor.a * _settings.OuterFrameOpacity * enter));
+
+            float groupWidth = bar.width / 3f;
+            DrawCommandGroup(
+                new Rect(bar.x, bar.y, groupWidth, bar.height),
+                _settings.ExitKey,
+                _settings.ExitAction,
+                enter);
+            DrawCommandGroup(
+                new Rect(bar.x + groupWidth, bar.y, groupWidth, bar.height),
+                _settings.CaptureKey,
+                _settings.CaptureAction,
+                enter);
+            DrawCommandGroup(
+                new Rect(bar.x + (groupWidth * 2f), bar.y, groupWidth, bar.height),
+                _settings.ZoomKey,
+                _settings.ZoomAction,
+                enter);
+        }
+
+        private void DrawCommandGroup(Rect rect, string key, string action, float enter)
+        {
+            float contentWidth = _settings.CommandKeyWidth + _settings.TargetLabelGap +
+                Mathf.Max(_settings.CommandKeyWidth, rect.width - _settings.CommandKeyWidth -
+                    (_settings.TargetLabelGap * 2f));
+            float left = rect.center.x - (contentWidth * 0.5f);
+            Rect keyRect = new Rect(
+                left,
+                rect.center.y - (_settings.CommandKeyHeight * 0.5f),
+                _settings.CommandKeyWidth,
+                _settings.CommandKeyHeight);
+            DrawRect(keyRect, WithAlpha(
+                _settings.KeycapColor,
+                _settings.KeycapColor.a * enter));
+            DrawCorners(
+                keyRect,
+                Mathf.Min(_settings.TargetStatusHeight, _settings.CommandKeyWidth * 0.5f),
+                _settings.FrameThickness,
+                WithAlpha(_settings.HudMutedColor, _settings.HudMutedColor.a * enter));
+            DrawLabel(
+                keyRect,
+                key,
+                _keyStyle,
+                WithAlpha(_settings.HudTextColor, _settings.HudTextColor.a * enter),
+                false);
+            DrawLabel(
+                new Rect(
+                    keyRect.xMax + _settings.TargetLabelGap,
+                    rect.y,
+                    rect.xMax - keyRect.xMax - _settings.TargetLabelGap,
+                    rect.height),
+                TrackText(action),
+                _commandStyle,
+                WithAlpha(_settings.HudMutedColor, _settings.HudMutedColor.a * enter),
+                false);
+        }
+
+        private void DrawCornerMetadata(float y, float enter)
+        {
+            float metadataHeight = _settings.CommandBarHeight;
+            if (_detection.HasSubject)
+            {
+                bool documented = _storage.IsDocumented(_detection.Subject.SubjectId);
+                Color documentationColor = documented ? _settings.HudMutedColor : _animatedAccentColor;
+                string documentation = documented
+                    ? _settings.DocumentedLabel
+                    : _settings.UndocumentedLabel;
+                DrawLabel(
+                    new Rect(
+                        _settings.ScreenMargin,
+                        y,
+                        _settings.CornerMetadataWidth,
+                        metadataHeight),
+                    TrackText(documentation),
+                    _metadataStyle,
+                    WithAlpha(documentationColor, documentationColor.a * enter),
+                    true);
+            }
+
+            float zoomElapsed = Time.unscaledTime - _lastZoomInputAt;
+            float zoomActive = 1f - Mathf.Clamp01(
+                zoomElapsed / Mathf.Max(0.01f, _settings.ZoomFeedbackDuration));
+            float zoomOpacity = Mathf.Lerp(
+                _settings.ZoomIdleOpacity,
+                1f,
+                EaseOutCubic(zoomActive));
+            Rect right = new Rect(
+                _hudWidth - _settings.ScreenMargin - _settings.CornerMetadataWidth,
+                y,
+                _settings.CornerMetadataWidth,
+                metadataHeight);
+            string zoomText = string.Format(_settings.ZoomFormat, _zoom);
+            string countText = string.Format(
+                _settings.PhotoCountFormat,
+                _storage.Photographs.Count,
+                _settings.MaximumGalleryPhotographs);
+            DrawLabel(
+                new Rect(right.x, right.y, right.width, right.height * 0.5f),
+                zoomText,
+                _metadataRightStyle,
+                WithAlpha(_settings.HudTextColor, _settings.HudTextColor.a * zoomOpacity * enter),
+                true);
+            DrawLabel(
+                new Rect(right.x, right.center.y, right.width, right.height * 0.5f),
+                countText,
+                _metadataRightStyle,
+                WithAlpha(_settings.HudMutedColor, _settings.HudMutedColor.a * enter),
+                true);
+            float zoomRange = Mathf.Max(0.01f, _settings.MaximumZoom - _settings.MinimumZoom);
+            float zoom01 = Mathf.Clamp01((_zoom - _settings.MinimumZoom) / zoomRange);
+            float lineWidth = right.width * zoom01;
+            DrawRect(
+                new Rect(
+                    right.xMax - lineWidth,
+                    right.yMax - _settings.FrameThickness,
+                    lineWidth,
+                    _settings.FrameThickness),
+                WithAlpha(
+                    _settings.NeutralColor,
+                    _settings.NeutralColor.a * zoomActive * enter));
+        }
+
         private void EnsureStyles()
         {
-            _labelStyle ??= CreateStyle(_settings.SubjectLabelFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
-            _statusStyle ??= CreateStyle(_settings.StatusFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
-            _identificationTitleStyle ??= CreateStyle(_settings.IdentificationTitleFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
-            _identificationNameStyle ??= CreateStyle(_settings.IdentificationNameFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
+            _subjectStyle ??= CreateStyle(
+                _settings.SubjectLabelFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleLeft,
+                Color.white,
+                _settings.HudSemiboldFont);
+            _targetStatusStyle ??= CreateStyle(
+                _settings.StatusFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleLeft,
+                Color.white,
+                _settings.HudSemiboldFont);
+            _modeLabelStyle ??= CreateStyle(
+                _settings.ModeLabelFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleCenter,
+                Color.white,
+                _settings.HudRegularFont);
+            _metadataStyle ??= CreateStyle(
+                _settings.MetadataFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleLeft,
+                Color.white,
+                _settings.HudRegularFont);
+            _metadataRightStyle ??= CreateStyle(
+                _settings.MetadataFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleRight,
+                Color.white,
+                _settings.HudRegularFont);
+            _commandStyle ??= CreateStyle(
+                _settings.CommandFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleLeft,
+                Color.white,
+                _settings.HudRegularFont);
+            _keyStyle ??= CreateStyle(
+                _settings.CommandFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleCenter,
+                Color.white,
+                _settings.HudSemiboldFont);
+            _statusStyle ??= CreateStyle(
+                _settings.StatusFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleCenter,
+                _settings.HudTextColor,
+                _settings.HudSemiboldFont);
+            _identificationTitleStyle ??= CreateStyle(
+                _settings.IdentificationTitleFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleCenter,
+                _settings.HudTextColor,
+                _settings.HudSemiboldFont);
+            _identificationNameStyle ??= CreateStyle(
+                _settings.IdentificationNameFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleCenter,
+                _settings.HudTextColor,
+                _settings.HudSemiboldFont);
             _buttonStyle ??= new GUIStyle(GUI.skin.button)
             {
                 fontSize = _settings.GalleryBodyFontSize,
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter,
+                font = _settings.HudSemiboldFont,
             };
         }
 
-        private static GUIStyle CreateStyle(int size, FontStyle style, TextAnchor anchor, Color color)
+        private static GUIStyle CreateStyle(
+            int size,
+            FontStyle style,
+            TextAnchor anchor,
+            Color color,
+            Font font = null)
         {
             return new GUIStyle(GUI.skin.label)
             {
                 fontSize = size,
                 fontStyle = style,
                 alignment = anchor,
+                font = font,
+                clipping = TextClipping.Clip,
                 normal = { textColor = color },
             };
         }
@@ -1231,6 +1660,36 @@ namespace DuneVector
                 _settings.CrosshairThickness, rect.height), color);
             DrawRect(new Rect(rect.x, rect.center.y - (_settings.CrosshairThickness * 0.5f),
                 rect.width, _settings.CrosshairThickness), color);
+        }
+
+        private void DrawFramingGuides(Rect detectedBounds, Rect outerFrame, Color color)
+        {
+            float paddedLeft = _hudWidth * _settings.ViewportEdgePadding;
+            float paddedRight = _hudWidth * (1f - _settings.ViewportEdgePadding);
+            float paddedTop = _hudHeight * _settings.ViewportEdgePadding;
+            float paddedBottom = _hudHeight * (1f - _settings.ViewportEdgePadding);
+            float length = _settings.TargetBracketLength;
+            float thickness = _settings.TargetBracketThickness;
+            if (detectedBounds.xMin < paddedLeft)
+            {
+                float y = Mathf.Clamp(detectedBounds.center.y, outerFrame.y + length, outerFrame.yMax - length);
+                DrawRect(new Rect(outerFrame.x, y - (length * 0.5f), thickness, length), color);
+            }
+            if (detectedBounds.xMax > paddedRight)
+            {
+                float y = Mathf.Clamp(detectedBounds.center.y, outerFrame.y + length, outerFrame.yMax - length);
+                DrawRect(new Rect(outerFrame.xMax - thickness, y - (length * 0.5f), thickness, length), color);
+            }
+            if (detectedBounds.yMin < paddedTop)
+            {
+                float x = Mathf.Clamp(detectedBounds.center.x, outerFrame.x + length, outerFrame.xMax - length);
+                DrawRect(new Rect(x - (length * 0.5f), outerFrame.y, length, thickness), color);
+            }
+            if (detectedBounds.yMax > paddedBottom)
+            {
+                float x = Mathf.Clamp(detectedBounds.center.x, outerFrame.x + length, outerFrame.xMax - length);
+                DrawRect(new Rect(x - (length * 0.5f), outerFrame.yMax - thickness, length, thickness), color);
+            }
         }
 
         private static void DrawCorners(Rect rect, float length, float thickness, Color color)
@@ -1258,10 +1717,12 @@ namespace DuneVector
 
         private Rect ClampToViewfinder(Rect rect)
         {
-            float minimumX = _settings.ScreenMargin;
-            float minimumY = _settings.ScreenMargin + _settings.SubjectLabelHeight;
-            float maximumX = Screen.width - _settings.ScreenMargin;
-            float maximumY = Screen.height - _settings.ScreenMargin;
+            float scale = GetHudScale();
+            float margin = _settings.ScreenMargin * scale;
+            float minimumX = margin;
+            float minimumY = margin + (_settings.SubjectLabelHeight * scale);
+            float maximumX = Screen.width - margin;
+            float maximumY = Screen.height - margin;
             float xMin = Mathf.Clamp(rect.xMin, minimumX, maximumX);
             float yMin = Mathf.Clamp(rect.yMin, minimumY, maximumY);
             float xMax = Mathf.Clamp(rect.xMax, minimumX, maximumX);
@@ -1273,6 +1734,24 @@ namespace DuneVector
                 Mathf.Max(yMin, yMax));
         }
 
+        private float GetHudScale()
+        {
+            float referenceHeight = Mathf.Max(1f, _settings.HudReferenceHeight);
+            float minimumScale = Mathf.Min(_settings.HudMinimumScale, _settings.HudMaximumScale);
+            float maximumScale = Mathf.Max(_settings.HudMinimumScale, _settings.HudMaximumScale);
+            return Mathf.Clamp(Screen.height / referenceHeight, minimumScale, maximumScale);
+        }
+
+        private Rect ToHudRect(Rect physicalRect)
+        {
+            float scale = Mathf.Max(0.01f, _hudScale);
+            return new Rect(
+                physicalRect.x / scale,
+                physicalRect.y / scale,
+                physicalRect.width / scale,
+                physicalRect.height / scale);
+        }
+
         private static Rect Lerp(Rect from, Rect to, float t)
         {
             return new Rect(
@@ -1280,6 +1759,76 @@ namespace DuneVector
                 Mathf.Lerp(from.y, to.y, t),
                 Mathf.Lerp(from.width, to.width, t),
                 Mathf.Lerp(from.height, to.height, t));
+        }
+
+        private string TrackText(string value)
+        {
+            if (string.IsNullOrEmpty(value) || string.IsNullOrEmpty(_settings.TextTrackingSpacer))
+            {
+                return value;
+            }
+
+            System.Text.StringBuilder tracked = new System.Text.StringBuilder(
+                value.Length * (1 + _settings.TextTrackingSpacer.Length));
+            for (int i = 0; i < value.Length; i++)
+            {
+                char current = value[i];
+                tracked.Append(current);
+                if (i >= value.Length - 1 ||
+                    char.IsWhiteSpace(current) ||
+                    char.IsWhiteSpace(value[i + 1]))
+                {
+                    continue;
+                }
+                tracked.Append(_settings.TextTrackingSpacer);
+            }
+            return tracked.ToString();
+        }
+
+        private void DrawLabel(
+            Rect rect,
+            string text,
+            GUIStyle style,
+            Color color,
+            bool shadow)
+        {
+            Color previous = GUI.color;
+            if (shadow && _settings.HudShadowColor.a > 0f)
+            {
+                GUI.color = WithAlpha(
+                    _settings.HudShadowColor,
+                    _settings.HudShadowColor.a * color.a);
+                Rect shadowRect = new Rect(
+                    rect.x + _settings.HudShadowOffset.x,
+                    rect.y + _settings.HudShadowOffset.y,
+                    rect.width,
+                    rect.height);
+                GUI.Label(shadowRect, text, style);
+            }
+            GUI.color = color;
+            GUI.Label(rect, text, style);
+            GUI.color = previous;
+        }
+
+        private static void DrawTexture(Rect rect, Texture texture, Color color, ScaleMode scaleMode)
+        {
+            if (texture == null) return;
+            Color previous = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(rect, texture, scaleMode, true);
+            GUI.color = previous;
+        }
+
+        private static Color WithAlpha(Color color, float alpha)
+        {
+            color.a = Mathf.Clamp01(alpha);
+            return color;
+        }
+
+        private static float EaseOutCubic(float value)
+        {
+            float inverse = 1f - Mathf.Clamp01(value);
+            return 1f - (inverse * inverse * inverse);
         }
 
         private static void DrawRect(Rect rect, Color color)
@@ -1303,6 +1852,13 @@ namespace DuneVector
             if (_capturedTexture == null) return;
             UnityEngine.Object.Destroy(_capturedTexture);
             _capturedTexture = null;
+        }
+
+        private void ReleaseCaptureHoldTexture()
+        {
+            if (_captureHoldTexture == null) return;
+            UnityEngine.Object.Destroy(_captureHoldTexture);
+            _captureHoldTexture = null;
         }
 
         private void HidePlayerRenderers()
@@ -1349,6 +1905,7 @@ namespace DuneVector
                 _player?.SetInputEnabled(true);
             }
             ReleaseCapturedTexture();
+            ReleaseCaptureHoldTexture();
             _storage?.Dispose();
         }
     }

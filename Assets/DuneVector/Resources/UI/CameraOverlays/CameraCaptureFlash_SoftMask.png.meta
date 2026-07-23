@@ -27,8 +27,8 @@ TextureImporter:
   nPOTScale: 0
   compressionQuality: 100
   spriteMode: 0
-  alphaUsage: 0
-  alphaIsTransparency: 0
+  alphaUsage: 1
+  alphaIsTransparency: 1
   textureType: 0
   textureShape: 1
   singleChannelComponent: 0
