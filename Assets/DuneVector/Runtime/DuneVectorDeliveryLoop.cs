@@ -349,6 +349,7 @@ namespace DuneVector
         private bool _activated;
         private float _spin;
         private float _spinSpeed;
+        private float _spinDirection = 1f;
 
         public void Initialize(
             DroneCharacterController player,
@@ -371,6 +372,12 @@ namespace DuneVector
                 materials.RingPortalTuning);
             _innerRadius = Mathf.Max(0.5f, visualRadius - 0.38f);
             _spinSpeed = materials.RingPortalTuning.ClockwiseRotationSpeed;
+            uint spinHash = DuneVectorMath.Hash(
+                Mathf.RoundToInt(transform.position.x),
+                Mathf.RoundToInt(transform.position.z),
+                Mathf.RoundToInt(transform.position.y),
+                isPickup ? 1 : 0);
+            _spinDirection = (spinHash & 1u) == 0u ? -1f : 1f;
             _visual = DuneVectorVisuals.CreateJobRingVisual(transform, isPickup, materials, radius);
             _renderers = _visual.GetComponentsInChildren<Renderer>(true);
             _colorProperties = new MaterialPropertyBlock();
@@ -435,7 +442,9 @@ namespace DuneVector
 
             if (_visual != null)
             {
-                _spin = Mathf.Repeat(_spin + (_spinSpeed * Time.deltaTime), 360f);
+                _spin = Mathf.Repeat(
+                    _spin + (_spinSpeed * _spinDirection * Time.deltaTime),
+                    360f);
                 _visual.localRotation = Quaternion.AngleAxis(_spin, Vector3.forward);
             }
         }

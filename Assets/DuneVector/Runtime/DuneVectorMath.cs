@@ -88,6 +88,23 @@ namespace DuneVector
             return Mathf.Lerp(minimum, maximum, Hash01(x, z, seed, salt));
         }
 
+        public static uint StableHash(string value)
+        {
+            unchecked
+            {
+                uint hash = 2166136261u;
+                if (!string.IsNullOrEmpty(value))
+                {
+                    for (int i = 0; i < value.Length; i++)
+                    {
+                        hash ^= value[i];
+                        hash *= 16777619u;
+                    }
+                }
+                return hash;
+            }
+        }
+
         public static double ValueNoise(double x, double z, int seed, int salt = 0)
         {
             long x0 = (long)Math.Floor(x);

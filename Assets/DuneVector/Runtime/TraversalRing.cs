@@ -43,6 +43,7 @@ namespace DuneVector
         private float _pulse;
         private float _modeScale = 1f;
         private float _visualSpin;
+        private float _spinDirection = 1f;
         private Camera _billboardCamera;
         private Quaternion _billboardFacingRotation;
         private bool _hasBillboardFacingRotation;
@@ -72,6 +73,13 @@ namespace DuneVector
             float visualRadius = DuneVectorVisuals.CalculatePortalVisualRadius(majorRadius, ringTuning);
             InnerRadius = Mathf.Max(0.1f, visualRadius - 0.58f);
             ProceduralIdentity = identity;
+            uint spinHash = !string.IsNullOrEmpty(ProceduralIdentity)
+                ? DuneVectorMath.StableHash(ProceduralIdentity)
+                : DuneVectorMath.Hash(
+                    Mathf.RoundToInt(_cachedTransform.position.x),
+                    Mathf.RoundToInt(_cachedTransform.position.z),
+                    Mathf.RoundToInt(_cachedTransform.position.y));
+            _spinDirection = (spinHash & 1u) == 0u ? -1f : 1f;
             _restingLocalPosition = _cachedTransform.localPosition;
             _visualRoot = DuneVectorVisuals.CreateRingVisual(
                 _cachedTransform,
@@ -230,7 +238,7 @@ namespace DuneVector
                 float scale = _modeScale * (1f + (Mathf.Sin(_pulse * Mathf.PI) * 0.085f));
                 _visualRoot.localScale = Vector3.one * scale;
                 _visualSpin = Mathf.Repeat(
-                    _visualSpin - (ClockwiseRotationSpeed * deltaTime),
+                    _visualSpin + (ClockwiseRotationSpeed * _spinDirection * deltaTime),
                     360f);
                 if (IsCollectible)
                 {
