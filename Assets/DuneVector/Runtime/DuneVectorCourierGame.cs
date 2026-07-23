@@ -2255,7 +2255,7 @@ namespace DuneVector
                     DrawHubHUD();
                 }
             }
-            else if (IsContractActive)
+            else if (IsContractActive && !IsGameplayHudSuppressed)
             {
                 DrawContractHUD();
                 if (_environmentalHazards == null || !_environmentalHazards.IsElectricalInterferenceActive)
@@ -2269,7 +2269,7 @@ namespace DuneVector
             {
                 DrawTeleportFade();
             }
-            if (!IsTerminalOpen && Time.unscaledTime < _statusMessageUntil)
+            if (!IsTerminalOpen && !IsGameplayHudSuppressed && Time.unscaledTime < _statusMessageUntil)
             {
                 GUI.Label(new Rect(0f, Screen.height * 0.18f, Screen.width, 42f), _statusMessage, _statusStyle);
             }

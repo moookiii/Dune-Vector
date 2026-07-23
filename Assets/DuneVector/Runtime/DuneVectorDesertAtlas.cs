@@ -1656,6 +1656,7 @@ namespace DuneVector
         private bool TryBuildVisibleHudRect(out Rect panel)
         {
             if (_settings == null || !IsUnlocked || _courierGame == null ||
+                DuneVectorCourierGame.IsGameplayHudSuppressed ||
                 _courierGame.State != CourierRunState.FreeRoam || _courierGame.IsTerminalOpen)
             {
                 panel = default;
