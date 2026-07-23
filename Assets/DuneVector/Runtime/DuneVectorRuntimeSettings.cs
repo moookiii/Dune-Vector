@@ -1394,6 +1394,16 @@ namespace DuneVector
     [System.Serializable]
     public sealed class DroneVisualTuning
     {
+        [Header("Prefab")]
+        [Tooltip("Resources path of the drone prefab used for player and courier visuals.")]
+        public string PrefabResourcePath = "dronePrefab";
+        [Tooltip("Local position applied to the instantiated drone prefab.")]
+        public Vector3 PrefabLocalPosition = Vector3.zero;
+        [Tooltip("Local Euler rotation applied to the instantiated drone prefab.")]
+        public Vector3 PrefabLocalEulerAngles = Vector3.zero;
+        [Tooltip("Local scale applied to the instantiated drone prefab.")]
+        public Vector3 PrefabLocalScale = Vector3.one * 0.15f;
+
         [Header("Materials")]
         [ColorUsage(false)] public Color BodyColor = new Color(0.68f, 0.72f, 0.74f);
         [Range(0f, 1f)] public float BodySmoothness = 0.72f;
@@ -1444,7 +1454,8 @@ namespace DuneVector
         [Min(0.02f)] public float RotorBladeLength = 0.72f;
         [Min(0.005f)] public float RotorBladeWidth = 0.055f;
         [Min(0.005f)] public float RotorBladeThickness = 0.018f;
-        [Min(0f)] public float RotorSpinSpeed = 860f;
+        [Tooltip("Propeller rotation speed in degrees per second. The authored value matches the reference hover animation.")]
+        [Min(0f)] public float RotorSpinSpeed = 1630f;
         [Range(0f, 0.25f)] public float RotorPulseAmount = 0.045f;
         [Min(0f)] public float RotorPulseSpeed = 4.5f;
 

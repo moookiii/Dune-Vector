@@ -719,6 +719,38 @@ namespace DuneVector
             visual.SetParent(parent, false);
             visual.localPosition = Vector3.up * settings.CourierVisualHeight;
 
+            GameObject dronePrefab = Resources.Load<GameObject>(settings.PrefabResourcePath);
+            if (dronePrefab != null)
+            {
+                GameObject model = UnityEngine.Object.Instantiate(dronePrefab, visual);
+                model.name = dronePrefab.name;
+                model.transform.localPosition = settings.PrefabLocalPosition;
+                model.transform.localRotation = Quaternion.Euler(settings.PrefabLocalEulerAngles);
+                model.transform.localScale = settings.PrefabLocalScale;
+                DisableImportedAnimationPlayback(model);
+
+                CreateTrail(
+                    visual,
+                    new Vector3(-settings.TrailPosition.x, settings.TrailPosition.y, settings.TrailPosition.z),
+                    materials.Trail,
+                    settings);
+                CreateTrail(visual, settings.TrailPosition, materials.Trail, settings);
+
+                Transform[] propellers = FindNamedDescendants(
+                    model.transform,
+                    "Propeller.1",
+                    "Propeller.2",
+                    "Propeller.3",
+                    "Propeller.4");
+                DroneVisualAnimator prefabAnimator = visualObject.AddComponent<DroneVisualAnimator>();
+                prefabAnimator.Initialize(propellers, Array.Empty<Transform>(), settings, false);
+                return visual;
+            }
+
+            Debug.LogError(
+                $"Drone visual prefab was not found at Resources/{settings.PrefabResourcePath}. " +
+                "Using the procedural fallback.");
+
             Material topMaterial = faction switch
             {
                 CourierDroneFaction.Rival => materials.RivalDroneTop,
@@ -862,6 +894,49 @@ namespace DuneVector
             DroneVisualAnimator animator = visualObject.AddComponent<DroneVisualAnimator>();
             animator.Initialize(bladeRotors, glowRings, settings);
             return visual;
+        }
+
+        private static void DisableImportedAnimationPlayback(GameObject model)
+        {
+            Animator[] animators = model.GetComponentsInChildren<Animator>(true);
+            for (int i = 0; i < animators.Length; i++)
+            {
+                animators[i].enabled = false;
+            }
+
+            Animation[] animations = model.GetComponentsInChildren<Animation>(true);
+            for (int i = 0; i < animations.Length; i++)
+            {
+                animations[i].enabled = false;
+            }
+        }
+
+        private static Transform[] FindNamedDescendants(Transform root, params string[] names)
+        {
+            Transform[] results = new Transform[names.Length];
+            Transform[] descendants = root.GetComponentsInChildren<Transform>(true);
+            for (int descendantIndex = 0; descendantIndex < descendants.Length; descendantIndex++)
+            {
+                Transform descendant = descendants[descendantIndex];
+                for (int nameIndex = 0; nameIndex < names.Length; nameIndex++)
+                {
+                    if (results[nameIndex] == null && descendant.name == names[nameIndex])
+                    {
+                        results[nameIndex] = descendant;
+                        break;
+                    }
+                }
+            }
+
+            for (int i = 0; i < results.Length; i++)
+            {
+                if (results[i] == null)
+                {
+                    Debug.LogError($"Drone prefab is missing the required {names[i]} transform.");
+                }
+            }
+
+            return results;
         }
 
         private static void CreateDroneWing(
@@ -3019,12 +3094,23 @@ namespace DuneVector
         private Transform[] _glowRings;
         private Vector3[] _glowBaseScales;
         private DroneVisualTuning _settings;
+        private bool _alternateDirections;
 
         public void Initialize(Transform[] bladeRotors, Transform[] glowRings, DroneVisualTuning settings)
+        {
+            Initialize(bladeRotors, glowRings, settings, true);
+        }
+
+        public void Initialize(
+            Transform[] bladeRotors,
+            Transform[] glowRings,
+            DroneVisualTuning settings,
+            bool alternateDirections)
         {
             _bladeRotors = bladeRotors;
             _glowRings = glowRings;
             _settings = settings;
+            _alternateDirections = alternateDirections;
             _glowBaseScales = new Vector3[_glowRings.Length];
             for (int i = 0; i < _glowRings.Length; i++)
             {
@@ -3045,7 +3131,7 @@ namespace DuneVector
                 Transform bladeRotor = _bladeRotors[i];
                 if (bladeRotor != null)
                 {
-                    float direction = (i & 1) == 0 ? 1f : -1f;
+                    float direction = _alternateDirections && (i & 1) != 0 ? -1f : 1f;
                     bladeRotor.Rotate(Vector3.up, rotationStep * direction, Space.Self);
                 }
             }
