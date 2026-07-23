@@ -1908,6 +1908,8 @@ namespace DuneVector
         [Header("Fly-Through Destruction")]
         [Tooltip("Fraction of the visible ring opening that counts as flying through its center.")]
         [Range(0.1f, 1f)] public float FlyThroughRadiusMultiplier = 0.78f;
+        [Tooltip("World-space distance at which the ring stops turning while an airborne drone commits to a fly-through.")]
+        [Min(0f)] public float FlyThroughFacingLockDistance = 75f;
         [Min(0.05f)] public float FlyThroughExplosionDuration = 0.7f;
         [Min(0.1f)] public float FlyThroughFlashStartScale = 1.5f;
         [Min(0.1f)] public float FlyThroughFlashMaximumScale = 24f;

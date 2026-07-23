@@ -1056,9 +1056,13 @@ namespace DuneVector
 
         private void FacePosition(Vector3 target)
         {
-            if (!_facingLockedForClosePass && _player != null)
+            if (!_facingLockedForClosePass
+                && _player != null
+                && _player.CurrentMode == DroneTraversalMode.Flight)
             {
-                float facingLockDistance = _settings.OrbitRadius * _settings.VisualScale;
+                float facingLockDistance = Mathf.Max(
+                    0f,
+                    _settings.FlyThroughFacingLockDistance);
                 _facingLockedForClosePass =
                     (_player.WorldCenter - transform.position).sqrMagnitude
                     <= facingLockDistance * facingLockDistance;
