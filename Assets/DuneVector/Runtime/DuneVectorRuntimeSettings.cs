@@ -1200,7 +1200,9 @@ namespace DuneVector
     public sealed class PyramidTuning
     {
         [Min(0f)] public float DensityPerChunk = 0.22f;
+        [Tooltip("Minimum generated pyramid footprint half-width in world meters.")]
         [Min(0.1f)] public float MinimumScale = 2f;
+        [Tooltip("Maximum generated pyramid footprint half-width in world meters.")]
         [Min(0.1f)] public float MaximumScale = 4.4f;
         [Range(0f, 89f)] public float MaximumPlacementSlope = 24f;
         [Min(0f)] public float MinimumBurialDepth = 0.75f;

@@ -1186,12 +1186,14 @@ namespace DuneVector
             root.transform.SetParent(parent, false);
             root.transform.localPosition = localPosition;
             root.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
-            root.transform.localScale = Vector3.one * scale;
+            root.transform.localScale = Vector3.one;
 
             Mesh mesh = GetPyramidMesh();
+            float targetHalfExtent = Mathf.Max(0.1f, scale);
 
             if (model == null)
             {
+                root.transform.localScale = Vector3.one * targetHalfExtent;
                 MeshCollider collider = root.AddComponent<MeshCollider>();
                 collider.sharedMesh = mesh;
                 MeshFilter filter = root.AddComponent<MeshFilter>();
@@ -1217,6 +1219,7 @@ namespace DuneVector
             if (!TryCalculateLocalMeshBounds(root.transform, renderers, out Bounds bounds))
             {
                 UnityEngine.Object.Destroy(visual);
+                root.transform.localScale = Vector3.one * targetHalfExtent;
                 MeshCollider collider = root.AddComponent<MeshCollider>();
                 collider.sharedMesh = mesh;
                 MeshFilter filter = root.AddComponent<MeshFilter>();
@@ -1231,7 +1234,7 @@ namespace DuneVector
             float horizontalHalfExtent = Mathf.Max(bounds.extents.x, bounds.extents.z);
             if (horizontalHalfExtent > 0.0001f)
             {
-                visual.transform.localScale *= 1f / horizontalHalfExtent;
+                visual.transform.localScale *= targetHalfExtent / horizontalHalfExtent;
                 TryCalculateLocalMeshBounds(root.transform, renderers, out bounds);
             }
             visual.transform.localPosition += new Vector3(-bounds.center.x, -bounds.min.y, -bounds.center.z);
@@ -1239,7 +1242,10 @@ namespace DuneVector
             GameObject colliderObject = new GameObject("Pyramid Collider");
             colliderObject.transform.SetParent(root.transform, false);
             float colliderHeight = Mathf.Max(0.0001f, mesh.bounds.size.y);
-            colliderObject.transform.localScale = new Vector3(1f, bounds.size.y / colliderHeight, 1f);
+            colliderObject.transform.localScale = new Vector3(
+                targetHalfExtent,
+                bounds.size.y / colliderHeight,
+                targetHalfExtent);
             MeshCollider modelCollider = colliderObject.AddComponent<MeshCollider>();
             modelCollider.sharedMesh = mesh;
 
