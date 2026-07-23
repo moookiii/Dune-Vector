@@ -5,10 +5,13 @@ Shader "DuneVector/HDRP Portal Energy"
         [HDR] _PortalColor("Portal Color", Color) = (4, 1.5, 0.05, 1)
         _Opacity("Opacity", Range(0, 1)) = 0.8
         _CoreMode("Core Mode", Float) = 0
-        _SwirlArmCount("Swirl Arm Count", Float) = 5
-        _SwirlDensity("Swirl Density", Float) = 12
-        _SwirlSpeed("Swirl Speed", Float) = 1.1
-        _SwirlLineWidth("Swirl Line Width", Range(0.005, 0.25)) = 0.065
+        _DistanceFade("Distance Fade", Range(0, 1)) = 1
+        _LineEdgeSoftness("Line Edge Softness", Range(0.01, 0.49)) = 0.14
+        _OrbitLineCount("Orbit Line Count", Float) = 5
+        _OrbitAngularWaves("Orbit Angular Waves", Float) = 2
+        _OrbitSpeed("Orbit Speed", Float) = 0.55
+        _OrbitLineWidth("Orbit Line Width", Range(0.005, 0.25)) = 0.09
+        _OrbitWarp("Orbit Warp", Range(0, 0.2)) = 0.045
         _CoreGlowFill("Core Glow Fill", Range(0, 1)) = 0.08
         _CoreEdgeFeather("Core Edge Feather", Range(0.01, 0.5)) = 0.16
         _PulseSpeed("Pulse Speed", Float) = 1.35
@@ -48,10 +51,13 @@ Shader "DuneVector/HDRP Portal Energy"
                 float4 _PortalColor;
                 float _Opacity;
                 float _CoreMode;
-                float _SwirlArmCount;
-                float _SwirlDensity;
-                float _SwirlSpeed;
-                float _SwirlLineWidth;
+                float _DistanceFade;
+                float _LineEdgeSoftness;
+                float _OrbitLineCount;
+                float _OrbitAngularWaves;
+                float _OrbitSpeed;
+                float _OrbitLineWidth;
+                float _OrbitWarp;
                 float _CoreGlowFill;
                 float _CoreEdgeFeather;
                 float _PulseSpeed;
@@ -86,38 +92,58 @@ Shader "DuneVector/HDRP Portal Energy"
             {
                 UNITY_SETUP_INSTANCE_ID(input);
                 float pulse = 1.0 + (sin((_Time.y * _PulseSpeed) + 1.7) * _PulseAmount);
-                float alpha = _Opacity;
+                float alpha = _Opacity * _DistanceFade;
 
-                if (_CoreMode > 0.5)
+                if (_CoreMode > 0.5 && _CoreMode < 1.5)
                 {
                     float2 centered = (input.uv * 2.0) - 1.0;
                     float radius = length(centered);
                     clip(1.0 - radius);
 
                     float angle = atan2(centered.y, centered.x);
-                    float rotatingAngle = angle + (_Time.y * _SwirlSpeed);
-                    float spiralPhase = ((rotatingAngle * _SwirlArmCount) -
-                        (radius * _SwirlDensity)) / 6.2831853;
-                    float spiralDistance = abs(frac(spiralPhase + 0.5) - 0.5) * 2.0;
-                    float spiral = 1.0 - smoothstep(
-                        _SwirlLineWidth,
-                        _SwirlLineWidth * 2.2,
-                        spiralDistance);
+                    float orbitTime = _Time.y * _OrbitSpeed;
+                    float angularPhase = (angle * _OrbitAngularWaves) + orbitTime;
+                    float bentRadius = radius +
+                        (sin(angularPhase + (radius * 8.0)) * _OrbitWarp);
+                    float orbitCoordinate = (bentRadius - 0.08) * _OrbitLineCount;
+                    float orbitDistance = abs(frac(orbitCoordinate + 0.5) - 0.5) * 2.0;
+                    float orbitLines = 1.0 - smoothstep(
+                        _OrbitLineWidth,
+                        _OrbitLineWidth * 2.2,
+                        orbitDistance);
 
-                    float ringPhase = frac((radius * (_SwirlDensity * 0.42)) -
-                        (_Time.y * _SwirlSpeed * 0.16));
-                    float ringDistance = abs(ringPhase - 0.5) * 2.0;
-                    float energyRings = 1.0 - smoothstep(
-                        _SwirlLineWidth * 0.65,
-                        _SwirlLineWidth * 1.7,
-                        ringDistance);
+                    float orbitIndex = floor(orbitCoordinate + 0.5);
+                    float arcVariation = sin(
+                        (angle * (2.0 + fmod(abs(orbitIndex), 3.0))) -
+                        (orbitTime * 0.35) +
+                        (orbitIndex * 2.17));
+                    float arcBrightness = lerp(
+                        0.38,
+                        1.0,
+                        smoothstep(-0.65, 0.35, arcVariation));
                     float edgeFade = 1.0 - smoothstep(
                         1.0 - _CoreEdgeFeather,
                         1.0,
                         radius);
-                    float centerFade = smoothstep(0.035, 0.18, radius);
-                    float lineEnergy = saturate(spiral + (energyRings * 0.42));
+                    float centerFade = smoothstep(0.08, 0.2, radius);
+                    float lineEnergy = orbitLines * arcBrightness;
                     alpha *= saturate(_CoreGlowFill + lineEnergy) * edgeFade * centerFade;
+                }
+                else
+                {
+                    float distanceFromStrokeCenter = abs((input.uv.y * 2.0) - 1.0);
+                    if (_CoreMode > 1.5)
+                    {
+                        float halo = saturate(1.0 - distanceFromStrokeCenter);
+                        alpha *= halo * halo;
+                    }
+                    else
+                    {
+                        alpha *= 1.0 - smoothstep(
+                            1.0 - _LineEdgeSoftness,
+                            1.0,
+                            distanceFromStrokeCenter);
+                    }
                 }
 
                 return float4(_PortalColor.rgb * pulse, alpha * _PortalColor.a);

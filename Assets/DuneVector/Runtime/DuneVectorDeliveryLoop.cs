@@ -366,7 +366,10 @@ namespace DuneVector
             _canActivate = canActivate;
             _settings = settings;
             _isPickup = isPickup;
-            _innerRadius = Mathf.Max(0.5f, radius - 0.38f);
+            float visualRadius = DuneVectorVisuals.CalculatePortalVisualRadius(
+                radius,
+                materials.RingPortalTuning);
+            _innerRadius = Mathf.Max(0.5f, visualRadius - 0.38f);
             _spinSpeed = materials.RingPortalTuning.ClockwiseRotationSpeed;
             _visual = DuneVectorVisuals.CreateJobRingVisual(transform, isPickup, materials, radius);
             _renderers = _visual.GetComponentsInChildren<Renderer>(true);

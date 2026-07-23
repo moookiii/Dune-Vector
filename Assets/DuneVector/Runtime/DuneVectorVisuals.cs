@@ -66,6 +66,7 @@ namespace DuneVector
         private readonly List<Material> _shrubMaterials = new List<Material>();
         private readonly List<GeoglyphMaterialBatch> _geoglyphBatches = new List<GeoglyphMaterialBatch>();
         private readonly Dictionary<Material, Material> _portalCoreMaterials = new Dictionary<Material, Material>();
+        private readonly Dictionary<Material, Material> _portalHaloMaterials = new Dictionary<Material, Material>();
         private readonly Material[] _sandOnlyTerrainMaterials;
 
         public DuneVectorMaterials(
@@ -452,9 +453,30 @@ namespace DuneVector
             material.SetColor("_PortalColor", color);
             material.SetFloat("_Opacity", settings.PortalLineOpacity);
             material.SetFloat("_CoreMode", 0f);
+            material.SetFloat("_DistanceFade", 1f);
+            material.SetFloat("_LineEdgeSoftness", settings.PortalLineEdgeSoftness);
             material.SetFloat("_PulseSpeed", settings.PortalPulseSpeed);
             material.SetFloat("_PulseAmount", settings.PortalPulseAmount);
             _ownedMaterials.Add(material);
+            return material;
+        }
+
+        public Material CreatePortalHaloMaterial(Material lineMaterial)
+        {
+            if (_portalHaloMaterials.TryGetValue(lineMaterial, out Material existing) && existing != null)
+            {
+                return existing;
+            }
+
+            Material material = new Material(lineMaterial)
+            {
+                name = $"{lineMaterial.name} - Soft Halo",
+                enableInstancing = true,
+            };
+            material.SetFloat("_Opacity", RingPortalTuning.PortalHaloOpacity);
+            material.SetFloat("_CoreMode", 2f);
+            _ownedMaterials.Add(material);
+            _portalHaloMaterials.Add(lineMaterial, material);
             return material;
         }
 
@@ -472,10 +494,11 @@ namespace DuneVector
             };
             material.SetFloat("_Opacity", RingPortalTuning.PortalCoreOpacity);
             material.SetFloat("_CoreMode", 1f);
-            material.SetFloat("_SwirlArmCount", RingPortalTuning.PortalSwirlArmCount);
-            material.SetFloat("_SwirlDensity", RingPortalTuning.PortalSwirlDensity);
-            material.SetFloat("_SwirlSpeed", RingPortalTuning.PortalSwirlSpeed);
-            material.SetFloat("_SwirlLineWidth", RingPortalTuning.PortalSwirlLineWidth);
+            material.SetFloat("_OrbitLineCount", RingPortalTuning.PortalOrbitLineCount);
+            material.SetFloat("_OrbitAngularWaves", RingPortalTuning.PortalOrbitAngularWaves);
+            material.SetFloat("_OrbitSpeed", RingPortalTuning.PortalOrbitSpeed);
+            material.SetFloat("_OrbitLineWidth", RingPortalTuning.PortalOrbitLineWidth);
+            material.SetFloat("_OrbitWarp", RingPortalTuning.PortalOrbitWarp);
             material.SetFloat("_CoreGlowFill", RingPortalTuning.PortalCoreGlowFill);
             material.SetFloat("_CoreEdgeFeather", RingPortalTuning.PortalCoreEdgeFeather);
             _ownedMaterials.Add(material);
@@ -1092,6 +1115,13 @@ namespace DuneVector
             return root.transform;
         }
 
+        public static float CalculatePortalVisualRadius(float authoredRadius, RingTuning settings)
+        {
+            float minimum = Mathf.Max(0.5f, settings.PortalMinimumVisualRadius);
+            float maximum = Mathf.Max(minimum, settings.PortalMaximumVisualRadius);
+            return Mathf.Clamp(authoredRadius * settings.PortalVisualRadiusMultiplier, minimum, maximum);
+        }
+
         public static Transform CreateRingVisual(
             Transform parent,
             TraversalRingType type,
@@ -1117,7 +1147,8 @@ namespace DuneVector
                 geometryParent.SetParent(visualRoot.transform, false);
                 geometryParent.localRotation = Quaternion.Euler(90f, 0f, 0f);
             }
-            CreatePortalGeometry(geometryParent, materials, material, majorRadius, settings);
+            float visualRadius = CalculatePortalVisualRadius(majorRadius, settings);
+            CreatePortalGeometry(geometryParent, materials, material, visualRadius, settings);
 
             if (type == TraversalRingType.Health)
             {
@@ -1149,12 +1180,23 @@ namespace DuneVector
             float radius,
             RingTuning settings)
         {
+            GameObject halo = CreateMeshObject(
+                "Soft Portal Halo",
+                parent,
+                GetPortalLineMesh(radius, settings, settings.PortalHaloWidthMultiplier),
+                materials.CreatePortalHaloMaterial(lineMaterial));
+            halo.transform.localPosition = Vector3.back * (settings.PortalLayerDepth * 0.5f);
+            DisableRendererShadows(halo);
+            MeshRenderer haloRenderer = halo.GetComponent<MeshRenderer>();
+            haloRenderer.sortingOrder = -2;
+
             GameObject linework = CreateMeshObject(
                 "Transparent Portal Linework",
                 parent,
-                GetPortalLineMesh(radius, settings),
+                GetPortalLineMesh(radius, settings, 1f),
                 lineMaterial);
             DisableRendererShadows(linework);
+            MeshRenderer lineRenderer = linework.GetComponent<MeshRenderer>();
 
             GameObject core = CreateMeshObject(
                 "Animated Transparent Energy Core",
@@ -1162,10 +1204,16 @@ namespace DuneVector
                 GetPortalCoreQuadMesh(),
                 materials.CreatePortalCoreMaterial(lineMaterial));
             float coreRadius = Mathf.Max(0.1f, radius * settings.PortalCoreRadiusFraction);
-            core.transform.localPosition = Vector3.forward * settings.PortalLayerDepth;
+            core.transform.localPosition = Vector3.back * settings.PortalLayerDepth;
             core.transform.localScale = new Vector3(coreRadius, coreRadius, 1f);
             DisableRendererShadows(core);
-            core.GetComponent<MeshRenderer>().sortingOrder = -1;
+            MeshRenderer coreRenderer = core.GetComponent<MeshRenderer>();
+            coreRenderer.sortingOrder = -1;
+
+            DuneVectorPortalVisual portalVisual = parent.gameObject.AddComponent<DuneVectorPortalVisual>();
+            portalVisual.Initialize(
+                new Renderer[] { haloRenderer, coreRenderer, lineRenderer },
+                settings);
         }
 
         private static Transform CreateCollectibleModelVisual(
@@ -1245,11 +1293,12 @@ namespace DuneVector
             GameObject visualRoot = new GameObject(isPickup ? "Pickup Ring Visual" : "Delivery Ring Visual");
             visualRoot.transform.SetParent(parent, false);
 
+            float visualRadius = CalculatePortalVisualRadius(radius, materials.RingPortalTuning);
             CreatePortalGeometry(
                 visualRoot.transform,
                 materials,
                 material,
-                radius,
+                visualRadius,
                 materials.RingPortalTuning);
 
             return visualRoot.transform;
@@ -1981,17 +2030,19 @@ namespace DuneVector
             return mesh;
         }
 
-        private static Mesh GetPortalLineMesh(float radius, RingTuning settings)
+        private static Mesh GetPortalLineMesh(float radius, RingTuning settings, float thicknessMultiplier)
         {
             int concentricCount = Mathf.Clamp(settings.PortalConcentricRingCount, 1, 6);
             int circleSegments = Mathf.Clamp(settings.PortalCircleSegments, 24, 192);
             int spokeCount = Mathf.Clamp(settings.PortalSpokeCount, 3, 32);
             int glyphCount = Mathf.Clamp(settings.PortalGlyphCount, 3, 32);
             int rayCount = Mathf.Clamp(settings.PortalExteriorRayCount, 0, 24);
-            string key = $"portal-lines:{radius:0.000}:{settings.PortalOuterLineThickness:0.000}:" +
+            float clampedThicknessMultiplier = Mathf.Max(1f, thicknessMultiplier);
+            string key = $"portal-lines:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
+                $"{settings.PortalOuterLineThickness:0.000}:" +
                 $"{settings.PortalInnerLineThickness:0.000}:{circleSegments}:{concentricCount}:" +
                 $"{settings.PortalInnermostRingRadiusFraction:0.000}:{spokeCount}:" +
-                $"{settings.PortalSpokeThickness:0.000}:{glyphCount}:" +
+                $"{settings.PortalSpokeInnerRadiusFraction:0.000}:{settings.PortalSpokeThickness:0.000}:{glyphCount}:" +
                 $"{settings.PortalGlyphRadiusFraction:0.000}:{settings.PortalGlyphStrokeThickness:0.000}:" +
                 $"{settings.PortalGlyphSizeFraction:0.000}:{rayCount}:" +
                 $"{settings.PortalExteriorRayLengthFraction:0.000}";
@@ -2003,13 +2054,14 @@ namespace DuneVector
             List<Vector3> vertices = new List<Vector3>();
             List<Vector2> uvs = new List<Vector2>();
             List<int> triangles = new List<int>();
-            float outerThickness = Mathf.Max(0.01f, settings.PortalOuterLineThickness);
-            float innerThickness = Mathf.Max(0.01f, settings.PortalInnerLineThickness);
+            float outerThickness = Mathf.Max(0.01f, settings.PortalOuterLineThickness) * clampedThicknessMultiplier;
+            float innerThickness = Mathf.Max(0.01f, settings.PortalInnerLineThickness) * clampedThicknessMultiplier;
             float innermostRadius = Mathf.Max(
                 outerThickness * 2f,
                 radius * Mathf.Clamp(settings.PortalInnermostRingRadiusFraction, 0.1f, 0.9f));
 
             AddPortalRing(vertices, uvs, triangles, radius, outerThickness, circleSegments);
+            AddPortalRing(vertices, uvs, triangles, innermostRadius, innerThickness, circleSegments);
             for (int ringIndex = 0; ringIndex < concentricCount; ringIndex++)
             {
                 float interpolation = (ringIndex + 1f) / (concentricCount + 1f);
@@ -2017,8 +2069,14 @@ namespace DuneVector
                 AddPortalRing(vertices, uvs, triangles, ringRadius, innerThickness, circleSegments);
             }
 
-            float spokeInnerRadius = innermostRadius + (innerThickness * 1.5f);
             float spokeOuterRadius = radius - (outerThickness * 1.5f);
+            float requestedSpokeInnerRadius = radius * Mathf.Clamp(
+                settings.PortalSpokeInnerRadiusFraction,
+                0.1f,
+                0.9f);
+            float spokeInnerRadius = Mathf.Min(
+                spokeOuterRadius - innerThickness,
+                Mathf.Max(innermostRadius + (innerThickness * 1.5f), requestedSpokeInnerRadius));
             for (int spokeIndex = 0; spokeIndex < spokeCount; spokeIndex++)
             {
                 float angle = ((spokeIndex + 0.5f) / spokeCount) * Mathf.PI * 2f;
@@ -2032,34 +2090,28 @@ namespace DuneVector
                     triangles,
                     start,
                     end,
-                    Mathf.Max(0.01f, settings.PortalSpokeThickness));
+                    Mathf.Max(0.01f, settings.PortalSpokeThickness) * clampedThicknessMultiplier);
             }
 
             float glyphRadius = radius * Mathf.Clamp(settings.PortalGlyphRadiusFraction, 0.1f, 0.95f);
             float glyphSize = Mathf.Max(0.03f, radius * settings.PortalGlyphSizeFraction);
-            float glyphThickness = Mathf.Max(0.01f, settings.PortalGlyphStrokeThickness);
+            float glyphThickness = Mathf.Max(0.01f, settings.PortalGlyphStrokeThickness) * clampedThicknessMultiplier;
             for (int glyphIndex = 0; glyphIndex < glyphCount; glyphIndex++)
             {
                 float angle = ((glyphIndex + 0.25f) / glyphCount) * Mathf.PI * 2f;
                 Vector2 radial = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
                 Vector2 tangent = new Vector2(-radial.y, radial.x);
                 Vector2 center = radial * glyphRadius;
-                float handedness = glyphIndex % 2 == 0 ? 1f : -1f;
-                Vector2 left = center - (tangent * glyphSize);
-                Vector2 peak = center + (radial * glyphSize * handedness);
-                Vector2 right = center + (tangent * glyphSize);
-                AddPortalStroke(vertices, uvs, triangles, left, peak, glyphThickness);
-                AddPortalStroke(vertices, uvs, triangles, peak, right, glyphThickness);
-                if (glyphIndex % 3 == 0)
-                {
-                    AddPortalStroke(
-                        vertices,
-                        uvs,
-                        triangles,
-                        center - (radial * glyphSize * 0.65f),
-                        center + (radial * glyphSize * 0.65f),
-                        glyphThickness);
-                }
+                AddPortalRune(
+                    vertices,
+                    uvs,
+                    triangles,
+                    glyphIndex,
+                    center,
+                    tangent,
+                    radial,
+                    glyphSize,
+                    glyphThickness);
             }
 
             float rayLength = Mathf.Max(0f, radius * settings.PortalExteriorRayLengthFraction);
@@ -2084,6 +2136,117 @@ namespace DuneVector
             mesh.RecalculateBounds();
             MeshCache[key] = mesh;
             return mesh;
+        }
+
+        private static void AddPortalRune(
+            List<Vector3> vertices,
+            List<Vector2> uvs,
+            List<int> triangles,
+            int runeIndex,
+            Vector2 center,
+            Vector2 tangent,
+            Vector2 radial,
+            float size,
+            float thickness)
+        {
+            Vector2 Point(float x, float y) => center + (tangent * x * size) + (radial * y * size);
+            void Stroke(float ax, float ay, float bx, float by) => AddPortalStroke(
+                vertices,
+                uvs,
+                triangles,
+                Point(ax, ay),
+                Point(bx, by),
+                thickness);
+            void Node(float x, float y) => AddPortalRuneNode(
+                vertices,
+                uvs,
+                triangles,
+                Point(x, y),
+                thickness * 1.8f);
+
+            switch (runeIndex % 8)
+            {
+                case 0: // Triangle constellation.
+                    Stroke(-0.78f, -0.62f, 0f, 0.82f);
+                    Stroke(0f, 0.82f, 0.78f, -0.62f);
+                    Stroke(0.78f, -0.62f, -0.78f, -0.62f);
+                    Node(0f, 0.82f);
+                    break;
+                case 1: // Diamond with a trailing star point.
+                    Stroke(0f, 0.92f, 0.72f, 0f);
+                    Stroke(0.72f, 0f, 0f, -0.92f);
+                    Stroke(0f, -0.92f, -0.72f, 0f);
+                    Stroke(-0.72f, 0f, 0f, 0.92f);
+                    Stroke(0f, -0.92f, 0f, -1.25f);
+                    Node(0f, -1.25f);
+                    break;
+                case 2: // Branching fork.
+                    Stroke(0f, -0.98f, 0f, 0.05f);
+                    Stroke(0f, 0.05f, -0.76f, 0.82f);
+                    Stroke(0f, 0.05f, 0.76f, 0.82f);
+                    Stroke(0f, 0.42f, 0.42f, 0.12f);
+                    Node(-0.76f, 0.82f);
+                    Node(0.76f, 0.82f);
+                    break;
+                case 3: // Lightning zigzag.
+                    Stroke(-0.82f, 0.78f, -0.28f, 0.18f);
+                    Stroke(-0.28f, 0.18f, 0.24f, 0.68f);
+                    Stroke(0.24f, 0.68f, 0.08f, -0.12f);
+                    Stroke(0.08f, -0.12f, 0.82f, -0.78f);
+                    break;
+                case 4: // Uneven celestial cross.
+                    Stroke(0f, -0.98f, 0f, 0.98f);
+                    Stroke(-0.82f, 0.18f, 0.7f, 0.18f);
+                    Stroke(0.38f, 0.18f, 0.7f, 0.62f);
+                    Node(-0.82f, 0.18f);
+                    Node(0f, -0.98f);
+                    break;
+                case 5: // Stepped hook.
+                    Stroke(-0.82f, 0.78f, -0.22f, 0.78f);
+                    Stroke(-0.22f, 0.78f, -0.22f, 0.08f);
+                    Stroke(-0.22f, 0.08f, 0.42f, 0.08f);
+                    Stroke(0.42f, 0.08f, 0.42f, -0.72f);
+                    Stroke(0.42f, -0.72f, 0.82f, -0.72f);
+                    break;
+                case 6: // Box rune with split center.
+                    Stroke(-0.72f, -0.82f, -0.72f, 0.82f);
+                    Stroke(-0.72f, 0.82f, 0.72f, 0.82f);
+                    Stroke(0.72f, 0.82f, 0.72f, -0.82f);
+                    Stroke(0.72f, -0.82f, -0.72f, -0.82f);
+                    Stroke(-0.72f, -0.82f, 0.72f, 0.82f);
+                    Node(0f, 0f);
+                    break;
+                default: // Branching constellation path.
+                    Stroke(-0.78f, -0.72f, -0.18f, -0.12f);
+                    Stroke(-0.18f, -0.12f, 0.18f, 0.62f);
+                    Stroke(0.18f, 0.62f, 0.76f, 0.84f);
+                    Stroke(-0.18f, -0.12f, 0.68f, -0.58f);
+                    Stroke(0.18f, 0.62f, -0.52f, 0.82f);
+                    Node(-0.78f, -0.72f);
+                    Node(0.76f, 0.84f);
+                    Node(0.68f, -0.58f);
+                    Node(-0.52f, 0.82f);
+                    break;
+            }
+        }
+
+        private static void AddPortalRuneNode(
+            List<Vector3> vertices,
+            List<Vector2> uvs,
+            List<int> triangles,
+            Vector2 center,
+            float size)
+        {
+            Vector2 horizontal = new Vector2(size, 0f);
+            Vector2 vertical = new Vector2(0f, size);
+            AddPortalQuad(
+                vertices,
+                uvs,
+                triangles,
+                center - horizontal,
+                center + vertical,
+                center + horizontal,
+                center - vertical);
         }
 
         private static void AddPortalRing(

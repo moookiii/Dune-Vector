@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Serialization;
 
 namespace DuneVector
 {
@@ -2375,34 +2376,54 @@ namespace DuneVector
 
         [Header("Portal Linework")]
         [Tooltip("Opacity of the emissive rings, spokes, glyphs, and exterior rays. Empty space remains fully transparent.")]
-        [Range(0f, 1f)] public float PortalLineOpacity = 0.82f;
-        [Min(0.01f)] public float PortalOuterLineThickness = 0.13f;
-        [Min(0.01f)] public float PortalInnerLineThickness = 0.075f;
+        [Range(0f, 1f)] public float PortalLineOpacity = 0.9f;
+        [Tooltip("Scales authored gameplay radii before drawing and testing the visible portal opening.")]
+        [Range(0.25f, 1.5f)] public float PortalVisualRadiusMultiplier = 0.82f;
+        [Min(0.5f)] public float PortalMinimumVisualRadius = 3.2f;
+        [Min(0.5f)] public float PortalMaximumVisualRadius = 6.8f;
+        [Min(0.01f)] public float PortalOuterLineThickness = 0.11f;
+        [Min(0.01f)] public float PortalInnerLineThickness = 0.055f;
+        [Range(0.01f, 0.49f)] public float PortalLineEdgeSoftness = 0.14f;
+        [Range(1f, 8f)] public float PortalHaloWidthMultiplier = 3.2f;
+        [Range(0f, 1f)] public float PortalHaloOpacity = 0.18f;
         [Range(24, 192)] public int PortalCircleSegments = 96;
-        [Range(1, 6)] public int PortalConcentricRingCount = 3;
-        [Range(0.1f, 0.9f)] public float PortalInnermostRingRadiusFraction = 0.4f;
+        [Range(1, 6)] public int PortalConcentricRingCount = 2;
+        [Range(0.1f, 0.9f)] public float PortalInnermostRingRadiusFraction = 0.38f;
         [Range(3, 32)] public int PortalSpokeCount = 12;
-        [Min(0.01f)] public float PortalSpokeThickness = 0.055f;
+        [Range(0.1f, 0.9f)] public float PortalSpokeInnerRadiusFraction = 0.6f;
+        [Min(0.01f)] public float PortalSpokeThickness = 0.045f;
         [Range(3, 32)] public int PortalGlyphCount = 16;
-        [Range(0.1f, 0.95f)] public float PortalGlyphRadiusFraction = 0.72f;
-        [Min(0.01f)] public float PortalGlyphStrokeThickness = 0.045f;
-        [Range(0.01f, 0.25f)] public float PortalGlyphSizeFraction = 0.065f;
-        [Range(0, 24)] public int PortalExteriorRayCount = 10;
-        [Range(0f, 0.5f)] public float PortalExteriorRayLengthFraction = 0.16f;
+        [Range(0.1f, 0.95f)] public float PortalGlyphRadiusFraction = 0.74f;
+        [Min(0.01f)] public float PortalGlyphStrokeThickness = 0.035f;
+        [Range(0.01f, 0.25f)] public float PortalGlyphSizeFraction = 0.052f;
+        [Range(0, 24)] public int PortalExteriorRayCount = 9;
+        [Range(0f, 0.5f)] public float PortalExteriorRayLengthFraction = 0.13f;
+
+        [Header("Portal Camera Fade")]
+        [Tooltip("Portal energy is invisible this close to the rendering camera, preventing giant screen-filling linework.")]
+        [Min(0f)] public float PortalCameraFadeStartDistance = 5f;
+        [Tooltip("Portal energy reaches full opacity at this camera distance.")]
+        [Min(0f)] public float PortalCameraFadeEndDistance = 14f;
 
         [Header("Portal Energy Core")]
-        [Tooltip("Radius of the transparent animated swirl relative to the gameplay ring radius.")]
-        [Range(0.1f, 1f)] public float PortalCoreRadiusFraction = 0.78f;
-        [Range(0f, 1f)] public float PortalCoreOpacity = 0.3f;
-        [Range(1f, 12f)] public float PortalSwirlArmCount = 5f;
-        [Range(1f, 30f)] public float PortalSwirlDensity = 12f;
-        [Min(0f)] public float PortalSwirlSpeed = 1.1f;
-        [Range(0.005f, 0.25f)] public float PortalSwirlLineWidth = 0.065f;
-        [Range(0f, 1f)] public float PortalCoreGlowFill = 0.08f;
-        [Range(0.01f, 0.5f)] public float PortalCoreEdgeFeather = 0.16f;
-        [Min(0f)] public float PortalPulseSpeed = 1.35f;
-        [Range(0f, 0.5f)] public float PortalPulseAmount = 0.12f;
-        [Min(0f)] public float PortalLayerDepth = 0.055f;
+        [Tooltip("Radius of the transparent animated orbital lines relative to the gameplay ring radius.")]
+        [Range(0.1f, 1f)] public float PortalCoreRadiusFraction = 0.46f;
+        [Range(0f, 1f)] public float PortalCoreOpacity = 0.38f;
+        [FormerlySerializedAs("PortalSwirlArmCount")]
+        [Range(2f, 10f)] public float PortalOrbitLineCount = 5f;
+        [FormerlySerializedAs("PortalSwirlDensity")]
+        [Range(1f, 8f)] public float PortalOrbitAngularWaves = 2f;
+        [FormerlySerializedAs("PortalSwirlSpeed")]
+        [Min(0f)] public float PortalOrbitSpeed = 0.55f;
+        [FormerlySerializedAs("PortalSwirlLineWidth")]
+        [Range(0.005f, 0.25f)] public float PortalOrbitLineWidth = 0.09f;
+        [Tooltip("Amount that the circular energy lines gently bend as they orbit.")]
+        [Range(0f, 0.2f)] public float PortalOrbitWarp = 0.045f;
+        [Range(0f, 1f)] public float PortalCoreGlowFill = 0.015f;
+        [Range(0.01f, 0.5f)] public float PortalCoreEdgeFeather = 0.24f;
+        [Min(0f)] public float PortalPulseSpeed = 1f;
+        [Range(0f, 0.5f)] public float PortalPulseAmount = 0.08f;
+        [Min(0f)] public float PortalLayerDepth = 0.08f;
 
         [Header("Upper Flight Ring Unlock")]
         [Tooltip("Number of distinct blue flight rings the player must cross before the upper-layer ring appears.")]
@@ -2418,7 +2439,7 @@ namespace DuneVector
         [Header("Upper Flight Ring Appearance")]
         [ColorUsage(false, true)] public Color UpperFlightRingBaseColor = new Color(0.24f, 0.015f, 0.42f);
         [ColorUsage(false, true)] public Color UpperFlightRingEmissionColor = new Color(4.8f, 0.08f, 8f);
-        [Min(1f)] public float UpperFlightRingActiveScale = 3f;
+        [Min(1f)] public float UpperFlightRingActiveScale = 1.35f;
         [Min(0f)] public float UpperFlightRingScaleSharpness = 4.5f;
         [Min(0f)] public float UpperFlightRingRotationSpeed = 56f;
 
@@ -2530,9 +2551,9 @@ namespace DuneVector
         [Min(0f)] public float FlightRingMaximumHeight = 8f;
 
         [Header("Active Size")]
-        [Min(1f)] public float BoostRingActiveScale = 1.45f;
+        [Min(1f)] public float BoostRingActiveScale = 1.25f;
         [InspectorName("Flight Ring Active Scale")]
-        [Min(1f)] public float FlightModeScale = 1.45f;
+        [Min(1f)] public float FlightModeScale = 1.3f;
         [Min(0f)] public float ScaleSharpness = 4.5f;
 
         [Header("Rotation")]

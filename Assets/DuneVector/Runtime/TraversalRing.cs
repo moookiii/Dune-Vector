@@ -67,7 +67,8 @@ namespace DuneVector
             _materials = materials;
             _ringTuning = ringTuning;
             _cachedTransform = transform;
-            InnerRadius = majorRadius - 0.58f;
+            float visualRadius = DuneVectorVisuals.CalculatePortalVisualRadius(majorRadius, ringTuning);
+            InnerRadius = Mathf.Max(0.1f, visualRadius - 0.58f);
             ProceduralIdentity = identity;
             _restingLocalPosition = _cachedTransform.localPosition;
             _visualRoot = DuneVectorVisuals.CreateRingVisual(
