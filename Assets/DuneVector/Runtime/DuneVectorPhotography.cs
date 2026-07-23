@@ -1235,14 +1235,20 @@ namespace DuneVector
 
         private static void DrawCorners(Rect rect, float length, float thickness, Color color)
         {
-            DrawRect(new Rect(rect.x, rect.y, length, thickness), color);
-            DrawRect(new Rect(rect.x, rect.y, thickness, length), color);
-            DrawRect(new Rect(rect.xMax - length, rect.y, length, thickness), color);
-            DrawRect(new Rect(rect.xMax - thickness, rect.y, thickness, length), color);
-            DrawRect(new Rect(rect.x, rect.yMax - thickness, length, thickness), color);
-            DrawRect(new Rect(rect.x, rect.yMax - length, thickness, length), color);
-            DrawRect(new Rect(rect.xMax - length, rect.yMax - thickness, length, thickness), color);
-            DrawRect(new Rect(rect.xMax - thickness, rect.yMax - length, thickness, length), color);
+            // Keep opposite corner arms separated when a detected subject becomes tiny on screen.
+            // Horizontal and vertical arms need separate limits because the bounds can be very narrow
+            // in only one dimension.
+            float horizontalLength = Mathf.Min(length, Mathf.Max(0f, (rect.width - thickness) * 0.5f));
+            float verticalLength = Mathf.Min(length, Mathf.Max(0f, (rect.height - thickness) * 0.5f));
+
+            DrawRect(new Rect(rect.x, rect.y, horizontalLength, thickness), color);
+            DrawRect(new Rect(rect.x, rect.y, thickness, verticalLength), color);
+            DrawRect(new Rect(rect.xMax - horizontalLength, rect.y, horizontalLength, thickness), color);
+            DrawRect(new Rect(rect.xMax - thickness, rect.y, thickness, verticalLength), color);
+            DrawRect(new Rect(rect.x, rect.yMax - thickness, horizontalLength, thickness), color);
+            DrawRect(new Rect(rect.x, rect.yMax - verticalLength, thickness, verticalLength), color);
+            DrawRect(new Rect(rect.xMax - horizontalLength, rect.yMax - thickness, horizontalLength, thickness), color);
+            DrawRect(new Rect(rect.xMax - thickness, rect.yMax - verticalLength, thickness, verticalLength), color);
         }
 
         private static Rect Expand(Rect rect, float amount)
