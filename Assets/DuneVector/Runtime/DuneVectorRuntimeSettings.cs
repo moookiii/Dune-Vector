@@ -3700,6 +3700,12 @@ namespace DuneVector
         [ColorUsage(false)] public Color ShadowColor = new Color(0f, 0f, 0f, 0.7f);
     }
 
+    [System.Serializable]
+    public sealed class LaunchHudTuning
+    {
+        [Min(0f)] public float GapBelowCompass = 18f;
+    }
+
     [CreateAssetMenu(fileName = "Dune Vector Runtime Settings", menuName = "Dune Vector/Runtime Settings", order = 0)]
     public sealed class DuneVectorRuntimeSettings : ScriptableObject
     {
@@ -3712,6 +3718,9 @@ namespace DuneVector
 
         [Tooltip("Top-center heading ribbon driven by the gameplay camera's yaw.")]
         public CompassHudTuning CompassHud = new CompassHudTuning();
+
+        [Tooltip("Opening control reminder panel displayed beneath the compass.")]
+        public LaunchHudTuning LaunchHud = new LaunchHudTuning();
 
         [Tooltip("Shared player, rival, and neutral drone model, materials, rotor animation, and trails.")]
         public DroneVisualTuning DroneVisuals = new DroneVisualTuning();

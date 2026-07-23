@@ -684,6 +684,7 @@ namespace DuneVector
             DebugHUD.CameraController = DroneCamera;
             DebugHUD.World = World;
             DebugHUD.Health = DroneHealth;
+            DebugHUD.Initialize(RuntimeSettings.LaunchHud, RuntimeSettings.CompassHud);
 
             DroneHealthHUD healthHUD = gameObject.AddComponent<DroneHealthHUD>();
             healthHUD.Health = DroneHealth;
@@ -898,10 +899,18 @@ namespace DuneVector
         public DroneHealth Health;
         public bool ShowDebugInformation;
 
+        private LaunchHudTuning _launchHudSettings;
+        private CompassHudTuning _compassHudSettings;
         private GUIStyle _titleStyle;
         private GUIStyle _bodyStyle;
         private GUIStyle _hintStyle;
         private float _startTime;
+
+        public void Initialize(LaunchHudTuning launchHudSettings, CompassHudTuning compassHudSettings)
+        {
+            _launchHudSettings = launchHudSettings;
+            _compassHudSettings = compassHudSettings;
+        }
 
         private void Awake()
         {
@@ -966,7 +975,15 @@ namespace DuneVector
                 Color previous = GUI.color;
                 GUI.color = new Color(1f, 1f, 1f, alpha);
                 float panelWidth = Mathf.Min(600f, Mathf.Max(280f, Screen.width - 32f));
-                Rect panel = new Rect((Screen.width - panelWidth) * 0.5f, 20f, panelWidth, 104f);
+                float compassScale = Mathf.Clamp(
+                    Screen.height / Mathf.Max(1f, _compassHudSettings.ReferenceHeight),
+                    Mathf.Min(_compassHudSettings.MinimumScale, _compassHudSettings.MaximumScale),
+                    Mathf.Max(_compassHudSettings.MinimumScale, _compassHudSettings.MaximumScale));
+                float panelTop = (Screen.height - Screen.safeArea.yMax)
+                    + ((_compassHudSettings.TopMargin
+                        + _compassHudSettings.Height
+                        + _launchHudSettings.GapBelowCompass) * compassScale);
+                Rect panel = new Rect((Screen.width - panelWidth) * 0.5f, panelTop, panelWidth, 104f);
                 GUI.Box(panel, GUIContent.none);
                 Rect content = new Rect(panel.x + 14f, panel.y, panel.width - 28f, panel.height);
                 GUI.Label(new Rect(content.x, panel.y + 8f, content.width, 30f), "DUNE VECTOR", _titleStyle);
