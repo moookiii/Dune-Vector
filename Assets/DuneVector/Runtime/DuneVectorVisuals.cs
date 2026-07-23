@@ -71,7 +71,6 @@ namespace DuneVector
         private readonly Dictionary<Material, Material> _portalRearLineMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalFrontLineMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalParticleMaterials = new Dictionary<Material, Material>();
-        private readonly Dictionary<Material, Material> _portalCenterBrokenArcMaterials = new Dictionary<Material, Material>();
         private readonly Material[] _sandOnlyTerrainMaterials;
 
         public DuneVectorMaterials(
@@ -550,31 +549,6 @@ namespace DuneVector
             material.SetFloat("_FeatureBrightness", 1f);
             _ownedMaterials.Add(material);
             _portalParticleMaterials.Add(lineMaterial, material);
-            return material;
-        }
-
-        public Material CreatePortalCenterBrokenArcMaterial(Material lineMaterial)
-        {
-            if (_portalCenterBrokenArcMaterials.TryGetValue(lineMaterial, out Material existing)
-                && existing != null)
-            {
-                return existing;
-            }
-
-            Material material = new Material(lineMaterial)
-            {
-                name = $"{lineMaterial.name} - Center Broken Arcs",
-                enableInstancing = true,
-            };
-            material.SetFloat(
-                "_Opacity",
-                RingPortalTuning.PortalLineOpacity *
-                Mathf.Clamp01(RingPortalTuning.PortalCenterBrokenArcOpacityMultiplier));
-            material.SetFloat(
-                "_InnerRingBrightness",
-                RingPortalTuning.PortalCenterBrokenArcBrightnessMultiplier);
-            _ownedMaterials.Add(material);
-            _portalCenterBrokenArcMaterials.Add(lineMaterial, material);
             return material;
         }
 
@@ -1468,75 +1442,11 @@ namespace DuneVector
             MeshRenderer frontLineRenderer = frontLinework.GetComponent<MeshRenderer>();
             frontLineRenderer.sortingOrder = 1;
 
-            List<Renderer> portalRenderers = new List<Renderer>
-            {
-                haloRenderer,
-                rearLineRenderer,
-                centerLineRenderer,
-                frontLineRenderer,
-            };
-            int brokenArcLayerCount = Mathf.Clamp(settings.PortalCenterBrokenArcLayerCount, 1, 6);
-            Transform[] brokenArcLayers = new Transform[brokenArcLayerCount];
-            float[] brokenArcRotationSpeeds = new float[brokenArcLayerCount];
-            float brokenArcMiddle = (brokenArcLayerCount - 1f) * 0.5f;
-            float brokenArcInnerRadius = radius * Mathf.Clamp(
-                settings.PortalCenterBrokenArcInnerRadiusFraction,
-                0.1f,
-                0.8f);
-            float brokenArcOuterRadius = radius * Mathf.Clamp(
-                settings.PortalCenterBrokenArcOuterRadiusFraction,
-                settings.PortalCenterBrokenArcInnerRadiusFraction,
-                0.9f);
-            Material brokenArcMaterial = materials.CreatePortalCenterBrokenArcMaterial(lineMaterial);
-            for (int layerIndex = 0; layerIndex < brokenArcLayerCount; layerIndex++)
-            {
-                float layerProgress = brokenArcLayerCount > 1
-                    ? layerIndex / (float)(brokenArcLayerCount - 1)
-                    : 0.5f;
-                float centeredLayer = (layerProgress * 2f) - 1f;
-                float arcRadius = Mathf.Lerp(
-                    brokenArcInnerRadius,
-                    brokenArcOuterRadius,
-                    layerProgress);
-                float phaseRadians =
-                    layerIndex *
-                    settings.PortalCenterBrokenArcPhaseOffset *
-                    Mathf.PI *
-                    2f;
-                GameObject brokenArcLayer = CreateMeshObject(
-                    $"Rotating Broken Center Arc {layerIndex + 1}",
-                    parent,
-                    GetPortalCenterBrokenArcMesh(
-                        arcRadius,
-                        settings.PortalCenterBrokenArcLineThickness,
-                        settings.PortalCircleSegments,
-                        settings.PortalCenterBrokenArcSegmentCount,
-                        settings.PortalCenterBrokenArcFill,
-                        phaseRadians),
-                    brokenArcMaterial);
-                brokenArcLayer.transform.localPosition =
-                    (Vector3.back * settings.PortalCenterBrokenArcBaseDepth) +
-                    (Vector3.forward * (
-                        (layerIndex - brokenArcMiddle) *
-                        settings.PortalCenterBrokenArcDepthSpacing));
-                DisableRendererShadows(brokenArcLayer);
-                MeshRenderer brokenArcRenderer = brokenArcLayer.GetComponent<MeshRenderer>();
-                brokenArcRenderer.sortingOrder = -1;
-                portalRenderers.Add(brokenArcRenderer);
-                brokenArcLayers[layerIndex] = brokenArcLayer.transform;
-                brokenArcRotationSpeeds[layerIndex] =
-                    settings.PortalCenterBrokenArcRotationSpeed *
-                    (1f + (
-                        centeredLayer *
-                        settings.PortalCenterBrokenArcSpeedVariation));
-            }
-
             ParticleSystemRenderer sparkRenderer = CreatePortalEdgeSparks(
                 parent,
                 materials.CreatePortalParticleMaterial(lineMaterial),
                 radius,
                 settings);
-            portalRenderers.Add(sparkRenderer);
 
             GameObject activationPulse = CreateMeshObject(
                 "Activation Outward Pulse",
@@ -1551,82 +1461,21 @@ namespace DuneVector
             MeshRenderer activationPulseRenderer = activationPulse.GetComponent<MeshRenderer>();
             activationPulseRenderer.sortingOrder = 3;
             activationPulse.SetActive(false);
-            portalRenderers.Add(activationPulseRenderer);
 
             DuneVectorPortalVisual portalVisual = parent.gameObject.AddComponent<DuneVectorPortalVisual>();
             portalVisual.Initialize(
-                portalRenderers.ToArray(),
+                new Renderer[]
+                {
+                    haloRenderer,
+                    rearLineRenderer,
+                    centerLineRenderer,
+                    frontLineRenderer,
+                    sparkRenderer,
+                    activationPulseRenderer,
+                },
                 activationPulseRenderer,
                 activationPulse.transform,
                 settings);
-            DuneVectorPortalCenterArcs arcController =
-                parent.gameObject.AddComponent<DuneVectorPortalCenterArcs>();
-            arcController.Initialize(brokenArcLayers, brokenArcRotationSpeeds);
-        }
-
-        private static Mesh GetPortalCenterBrokenArcMesh(
-            float radius,
-            float thickness,
-            int circleSegmentCount,
-            int brokenSegmentCount,
-            float fill,
-            float phaseRadians)
-        {
-            int circleSegments = Mathf.Clamp(circleSegmentCount, 24, 192);
-            int arcCount = Mathf.Clamp(brokenSegmentCount, 1, 8);
-            float clampedFill = Mathf.Clamp(fill, 0.1f, 0.9f);
-            float lineThickness = Mathf.Max(0.01f, thickness);
-            string key =
-                $"portal-center-broken-arc:{radius:0.000}:{lineThickness:0.000}:" +
-                $"{circleSegments}:{arcCount}:{clampedFill:0.000}:{phaseRadians:0.000}";
-            if (MeshCache.TryGetValue(key, out Mesh cached) && cached != null)
-            {
-                return cached;
-            }
-
-            List<Vector3> vertices = new List<Vector3>();
-            List<Vector2> uvs = new List<Vector2>();
-            List<int> triangles = new List<int>();
-            float innerRadius = Mathf.Max(0f, radius - (lineThickness * 0.5f));
-            float outerRadius = radius + (lineThickness * 0.5f);
-            float arcSlotRadians = (Mathf.PI * 2f) / arcCount;
-            float arcSpanRadians = arcSlotRadians * clampedFill;
-            int subdivisions = Mathf.Max(
-                3,
-                Mathf.CeilToInt((circleSegments / (float)arcCount) * clampedFill));
-            for (int arcIndex = 0; arcIndex < arcCount; arcIndex++)
-            {
-                float startRadians =
-                    phaseRadians +
-                    (arcIndex * arcSlotRadians) +
-                    ((arcSlotRadians - arcSpanRadians) * 0.5f);
-                for (int subdivision = 0; subdivision < subdivisions; subdivision++)
-                {
-                    float interpolationA = subdivision / (float)subdivisions;
-                    float interpolationB = (subdivision + 1f) / subdivisions;
-                    float angleA = startRadians + (arcSpanRadians * interpolationA);
-                    float angleB = startRadians + (arcSpanRadians * interpolationB);
-                    Vector2 directionA = new Vector2(Mathf.Cos(angleA), Mathf.Sin(angleA));
-                    Vector2 directionB = new Vector2(Mathf.Cos(angleB), Mathf.Sin(angleB));
-                    AddPortalQuad(
-                        vertices,
-                        uvs,
-                        triangles,
-                        directionA * innerRadius,
-                        directionA * outerRadius,
-                        directionB * outerRadius,
-                        directionB * innerRadius,
-                        2f);
-                }
-            }
-
-            Mesh mesh = new Mesh { name = "Perfectly Curved Broken Portal Center Arc" };
-            mesh.SetVertices(vertices);
-            mesh.SetUVs(0, uvs);
-            mesh.SetTriangles(triangles, 0);
-            mesh.RecalculateBounds();
-            MeshCache[key] = mesh;
-            return mesh;
         }
 
         private static Mesh GetPortalActivationPulseMesh(float radius, float thickness, int segmentCount)

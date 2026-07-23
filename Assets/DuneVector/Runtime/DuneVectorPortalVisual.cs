@@ -213,48 +213,4 @@ namespace DuneVector
             }
         }
     }
-
-    [DisallowMultipleComponent]
-    public sealed class DuneVectorPortalCenterArcs : MonoBehaviour
-    {
-        private Transform[] _layers;
-        private float[] _rotationSpeeds;
-        private float[] _angles;
-        private DuneVectorPortalVisual _portalVisual;
-
-        public void Initialize(Transform[] layers, float[] rotationSpeeds)
-        {
-            _layers = layers;
-            _rotationSpeeds = rotationSpeeds;
-            _angles = layers != null ? new float[layers.Length] : null;
-            _portalVisual = GetComponent<DuneVectorPortalVisual>();
-        }
-
-        private void LateUpdate()
-        {
-            if (_layers == null || _rotationSpeeds == null || _angles == null)
-            {
-                return;
-            }
-
-            float reactionMultiplier = _portalVisual != null
-                ? _portalVisual.RotationSpeedMultiplier
-                : 1f;
-            int layerCount = Mathf.Min(_layers.Length, _rotationSpeeds.Length);
-            for (int layerIndex = 0; layerIndex < layerCount; layerIndex++)
-            {
-                Transform layer = _layers[layerIndex];
-                if (layer == null)
-                {
-                    continue;
-                }
-
-                _angles[layerIndex] = Mathf.Repeat(
-                    _angles[layerIndex] +
-                    (_rotationSpeeds[layerIndex] * reactionMultiplier * Time.deltaTime),
-                    360f);
-                layer.localRotation = Quaternion.AngleAxis(_angles[layerIndex], Vector3.forward);
-            }
-        }
-    }
 }
