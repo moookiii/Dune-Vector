@@ -460,6 +460,9 @@ namespace DuneVector
             cameraData.renderingPathCustomFrameSettingsOverrideMask.mask[(uint)FrameSettingsField.Distortion] = true;
             ConfigureCameraAntiAliasing(cameraData, PlayerTuning);
 
+            LensFlareComponentSRP lensFlare = cameraObject.AddComponent<LensFlareComponentSRP>();
+            lensFlare.lensFlareData = RuntimeSettings.RuntimeCameraLensFlare;
+
             DroneCamera = cameraObject.AddComponent<DroneCameraController>();
             DroneCamera.Camera = camera;
             DroneCamera.SpeedSource = Drone;

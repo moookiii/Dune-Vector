@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
 using UnityEngine.Serialization;
 
 namespace DuneVector
@@ -3632,6 +3633,10 @@ namespace DuneVector
     [CreateAssetMenu(fileName = "Dune Vector Runtime Settings", menuName = "Dune Vector/Runtime Settings", order = 0)]
     public sealed class DuneVectorRuntimeSettings : ScriptableObject
     {
+        [Header("Runtime Camera Rendering")]
+        [Tooltip("Data-driven SRP lens flare assigned to the dynamically created gameplay camera.")]
+        public LensFlareDataSRP RuntimeCameraLensFlare;
+
         [Tooltip("Movement, flight, boost, and camera controls for the drone.")]
         public DroneTuning PlayerTuning = new DroneTuning();
 
