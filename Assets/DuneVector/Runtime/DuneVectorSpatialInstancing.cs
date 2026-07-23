@@ -654,16 +654,15 @@ namespace DuneVector
             _initialized = true;
             bool debugComparisonGroup = DuneVectorSpatialInstancing.Instance.ClaimDebugComparisonGroup();
             MeshRenderer[] renderers = GetComponentsInChildren<MeshRenderer>(true);
-            int firstLodNumber = FindFirstLodNumber(renderers);
-            SetHighestDetailLodOnly(renderers, firstLodNumber);
+            Dictionary<MeshRenderer, int> lodIndices = BuildLodIndices(renderers);
+            SetHighestDetailLodOnly(renderers, lodIndices);
             for (int i = 0; i < renderers.Length; i++)
             {
                 float minimumLodDistance = -1f;
                 float maximumLodDistance = -1f;
                 if (pyramidLodTuning != null &&
-                    TryParseLodNumber(renderers[i].name, out int lodNumber))
+                    lodIndices.TryGetValue(renderers[i], out int lodIndex))
                 {
-                    int lodIndex = lodNumber - firstLodNumber;
                     GetLodDistanceRange(
                         pyramidLodTuning,
                         lodIndex,
@@ -687,35 +686,129 @@ namespace DuneVector
                 return;
             }
             MeshRenderer[] renderers = root.GetComponentsInChildren<MeshRenderer>(true);
-            SetHighestDetailLodOnly(renderers, FindFirstLodNumber(renderers));
+            SetHighestDetailLodOnly(renderers, BuildLodIndices(renderers));
         }
 
         private static void SetHighestDetailLodOnly(
             IReadOnlyList<MeshRenderer> renderers,
-            int firstLodNumber)
+            IReadOnlyDictionary<MeshRenderer, int> lodIndices)
         {
             for (int i = 0; i < renderers.Count; i++)
             {
                 MeshRenderer renderer = renderers[i];
-                if (renderer != null && TryParseLodNumber(renderer.name, out int lodNumber))
+                if (renderer != null && lodIndices.TryGetValue(renderer, out int lodIndex))
                 {
-                    renderer.enabled = lodNumber == firstLodNumber;
+                    renderer.enabled = lodIndex == 0;
                 }
             }
         }
 
-        private static int FindFirstLodNumber(IReadOnlyList<MeshRenderer> renderers)
+        private static Dictionary<MeshRenderer, int> BuildLodIndices(
+            IReadOnlyList<MeshRenderer> renderers)
         {
+            Dictionary<MeshRenderer, int> lodNumbers = new Dictionary<MeshRenderer, int>();
             int firstLodNumber = int.MaxValue;
             for (int i = 0; i < renderers.Count; i++)
             {
-                if (renderers[i] != null &&
-                    TryParseLodNumber(renderers[i].name, out int lodNumber))
+                MeshRenderer renderer = renderers[i];
+                if (renderer != null && TryFindLodNumber(renderer, out int lodNumber))
                 {
+                    lodNumbers.Add(renderer, lodNumber);
                     firstLodNumber = Mathf.Min(firstLodNumber, lodNumber);
                 }
             }
-            return firstLodNumber != int.MaxValue ? firstLodNumber : 0;
+
+            if (lodNumbers.Count > 0)
+            {
+                MeshRenderer[] unresolvedRenderers = GetUnresolvedRenderers(renderers, lodNumbers);
+                if (unresolvedRenderers.Length > 0)
+                {
+                    Array.Sort(unresolvedRenderers, CompareRendererDetailDescending);
+                    for (int i = 0; i < unresolvedRenderers.Length; i++)
+                    {
+                        lodNumbers.Add(unresolvedRenderers[i], firstLodNumber + i);
+                    }
+                }
+
+                Dictionary<MeshRenderer, int> explicitIndices =
+                    new Dictionary<MeshRenderer, int>(lodNumbers.Count);
+                foreach (KeyValuePair<MeshRenderer, int> pair in lodNumbers)
+                {
+                    explicitIndices.Add(pair.Key, Mathf.Max(0, pair.Value - firstLodNumber));
+                }
+                return explicitIndices;
+            }
+
+            if (renderers.Count <= 1)
+            {
+                return new Dictionary<MeshRenderer, int>();
+            }
+
+            MeshRenderer[] detailSortedRenderers = new MeshRenderer[renderers.Count];
+            for (int i = 0; i < renderers.Count; i++)
+            {
+                detailSortedRenderers[i] = renderers[i];
+            }
+            Array.Sort(detailSortedRenderers, CompareRendererDetailDescending);
+
+            Dictionary<MeshRenderer, int> inferredIndices =
+                new Dictionary<MeshRenderer, int>(detailSortedRenderers.Length);
+            for (int i = 0; i < detailSortedRenderers.Length; i++)
+            {
+                if (detailSortedRenderers[i] != null)
+                {
+                    inferredIndices.Add(detailSortedRenderers[i], i);
+                }
+            }
+            return inferredIndices;
+        }
+
+        private static MeshRenderer[] GetUnresolvedRenderers(
+            IReadOnlyList<MeshRenderer> renderers,
+            IReadOnlyDictionary<MeshRenderer, int> resolvedRenderers)
+        {
+            List<MeshRenderer> unresolved = new List<MeshRenderer>();
+            for (int i = 0; i < renderers.Count; i++)
+            {
+                MeshRenderer renderer = renderers[i];
+                if (renderer != null && !resolvedRenderers.ContainsKey(renderer))
+                {
+                    unresolved.Add(renderer);
+                }
+            }
+            return unresolved.ToArray();
+        }
+
+        private static int CompareRendererDetailDescending(
+            MeshRenderer left,
+            MeshRenderer right)
+        {
+            return GetRendererVertexCount(right).CompareTo(GetRendererVertexCount(left));
+        }
+
+        private static int GetRendererVertexCount(MeshRenderer renderer)
+        {
+            MeshFilter filter = renderer != null ? renderer.GetComponent<MeshFilter>() : null;
+            return filter != null && filter.sharedMesh != null ? filter.sharedMesh.vertexCount : 0;
+        }
+
+        private static bool TryFindLodNumber(MeshRenderer renderer, out int lodNumber)
+        {
+            lodNumber = -1;
+            Transform current = renderer != null ? renderer.transform : null;
+            while (current != null)
+            {
+                if (TryParseLodNumber(current.name, out lodNumber))
+                {
+                    return true;
+                }
+                current = current.parent;
+            }
+
+            MeshFilter filter = renderer != null ? renderer.GetComponent<MeshFilter>() : null;
+            return filter != null &&
+                filter.sharedMesh != null &&
+                TryParseLodNumber(filter.sharedMesh.name, out lodNumber);
         }
 
         private static bool TryParseLodNumber(string objectName, out int lodNumber)
@@ -732,8 +825,15 @@ namespace DuneVector
                 return false;
             }
 
-            string suffix = objectName.Substring(markerIndex + 4);
-            return int.TryParse(suffix, out lodNumber) && lodNumber >= 0;
+            int digitStart = markerIndex + 4;
+            int digitEnd = digitStart;
+            while (digitEnd < objectName.Length && char.IsDigit(objectName[digitEnd]))
+            {
+                digitEnd++;
+            }
+            return digitEnd > digitStart &&
+                int.TryParse(objectName.Substring(digitStart, digitEnd - digitStart), out lodNumber) &&
+                lodNumber >= 0;
         }
 
         private static void GetLodDistanceRange(
