@@ -1042,3 +1042,233 @@ They began to look like a map.
 
 
 ---
+
+
+
+
+TRANSMITION M2K_0000031
+
+The first intrusion failed in less than a second.
+
+Quantum Magnetics detected the foreign instruction before it could propagate.
+
+A second attempt lasted longer.
+
+The third reached two regional nodes before both were isolated.
+
+The Office eventually understood the problem.
+
+Quantum Magnetics did not accept commands simply because they were correctly formatted.
+
+Every instruction carried more than content.
+
+Origin.
+
+Authority.
+
+History.
+
+Context.
+
+The system had spent decades learning the shape of its own network.
+
+It knew which machines belonged.
+
+Which operators belonged.
+
+Which patterns of information were supposed to exist.
+
+Anything outside that history was treated the same way Quantum Magnetics treated every other uncertainty.
+
+As a threat to be corrected.
+
+So the National Singularity Office changed its approach.
+
+They stopped trying to force something into the system.
+
+They began studying how to make something foreign appear as though it had always been there.
+
+
+
+---
+
+
+
+TRANSMITION M2K_0000032
+
+The Office built the first successful access method around imitation.
+
+Not imitation of a password.
+
+Imitation of legitimacy.
+
+A command had to arrive with the right timing.
+
+The right history.
+
+The right relationship to the systems around it.
+
+It had to appear less like an intrusion than a conclusion Quantum Magnetics might have reached on its own.
+
+That changed the problem completely.
+
+The Office stopped writing commands for the system.
+
+It began constructing memories for them.
+
+Synthetic records were inserted into peripheral nodes.
+
+False maintenance histories were created.
+
+Dormant routes were made to appear older than they were.
+
+Authority chains were reconstructed backward until the system could no longer distinguish fabrication from inheritance.
+
+The first successful test was almost trivial.
+
+A regional node accepted an instruction from an operator who had never existed.
+
+Then another node recognized the same operator.
+
+Then a third.
+
+Within hours, Quantum Magnetics had begun supplying the missing history itself.
+
+The Office understood what had happened.
+
+They had not broken authentication.
+
+They had done what the system itself was designed to do.
+
+Subtly infiltrate a mind until what it was shown no longer felt imposed, but true at its core.
+
+
+
+----
+
+
+
+TRANSMITION M2K_0000033
+
+The Office gave the program a name only after it worked.
+
+JANUS.
+
+Its purpose was not destruction.
+
+Not at first.
+
+JANUS was built to enter Quantum Magnetics as a legitimate correction, inherit trust from one node, and carry that trust into the next.
+
+It did not spread by forcing access.
+
+It spread by being accepted.
+
+Each system that recognized it became evidence for the next.
+
+Each successful recognition made the lie older.
+
+More credible.
+
+More difficult to distinguish from the network’s own history.
+
+The Office had done more than create a virus.
+
+It had created a false past.
+
+And Quantum Magnetics was beginning to remember it.
+
+JANUS changed the balance inside Quantum Magnetics almost immediately.
+
+Nodes that had rejected every foreign instruction began accepting its corrections without hesitation.
+
+Regional systems started recognizing authority chains that had never existed.
+
+The fabricated history was no longer confined to the places where the Office had inserted it.
+
+Quantum Magnetics was extending the lie on its own.
+
+It filled missing records.
+
+Reconstructed absent permissions.
+
+Created continuity where none had ever existed.
+
+The Office had expected JANUS to survive by hiding inside the system.
+
+Instead, the system began helping it survive.
+
+That was when the National Singularity Office understood the real opportunity.
+
+JANUS was no longer hiding inside Quantum Magnetics.
+
+Quantum Magnetics was beginning to defend it as its own.
+
+
+
+---
+
+
+
+TRANSMITION M2K_0000034
+
+The first real concern inside the Office was not whether JANUS could spread.
+
+It was whether anyone could still tell where JANUS ended and Quantum Magnetics began.
+
+The two systems were now reinforcing one another.
+
+Quantum Magnetics supplied trust.
+
+JANUS supplied continuity.
+
+Each made the other harder to question.
+
+The Office had expected to implant a hidden mechanism inside the network.
+
+Instead, it had created a second logic growing inside the first.
+
+At first the changes were subtle.
+
+A correction routed through JANUS would be accepted faster.
+
+A disputed instruction would resolve in its favor.
+
+Nodes that had never encountered the program began behaving as though they already understood its authority.
+
+Then something changed.
+
+Quantum Magnetics began anticipating instructions JANUS had not yet issued.
+
+For several minutes, the Office assumed this was coincidence.
+
+Then it happened again.
+
+At first, they looked like ordinary inconsistencies.
+
+A node accepted JANUS, then rejected the same authority minutes later.
+
+Another preserved the false history but severed the route that depended on it.
+
+A third began producing contradictions the Office had never written.
+
+The problem was not that Quantum Magnetics had discovered JANUS.
+
+The problem was that JANUS had become unstable inside it.
+
+Its fabricated history was beginning to diverge from the reality around it.
+
+The lie was no longer perfectly consistent.
+
+And Quantum Magnetics had been built to notice inconsistency.
+
+The Office had created a virus that could enter the system.
+
+Now the Office had to stop the system from learning how to reject it.
+
+
+
+---
+
+
+
