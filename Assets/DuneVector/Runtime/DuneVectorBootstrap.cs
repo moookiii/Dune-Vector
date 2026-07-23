@@ -460,6 +460,8 @@ namespace DuneVector
             cameraData.customRenderingSettings = true;
             cameraData.renderingPathCustomFrameSettings.SetEnabled(FrameSettingsField.Distortion, true);
             cameraData.renderingPathCustomFrameSettingsOverrideMask.mask[(uint)FrameSettingsField.Distortion] = true;
+            cameraData.renderingPathCustomFrameSettings.SetEnabled(FrameSettingsField.FilmGrain, true);
+            cameraData.renderingPathCustomFrameSettingsOverrideMask.mask[(uint)FrameSettingsField.FilmGrain] = true;
             ConfigureCameraAntiAliasing(cameraData, PlayerTuning);
 
             LensFlareComponentSRP lensFlare = cameraObject.AddComponent<LensFlareComponentSRP>();

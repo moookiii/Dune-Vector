@@ -112,6 +112,20 @@ namespace DuneVector
         RarePhenomenon,
     }
 
+    public enum PhotographyFilmGrainPreset
+    {
+        Thin1,
+        Thin2,
+        Medium1,
+        Medium2,
+        Medium3,
+        Medium4,
+        Medium5,
+        Medium6,
+        Large01,
+        Large02,
+    }
+
     [System.Serializable]
     public sealed class PhotographyTuning
     {
@@ -212,6 +226,11 @@ namespace DuneVector
 
         [Header("Viewfinder Surface Textures")]
         public bool SurfaceTexturesEnabled = true;
+        public bool UseHdrpFilmGrain = true;
+        public bool UseCustomFilmGrainTexture;
+        public PhotographyFilmGrainPreset FilmGrainPreset = PhotographyFilmGrainPreset.Thin1;
+        [Range(0f, 1f)] public float HdrpFilmGrainIntensity = 0.267f;
+        [Range(0f, 1f)] public float HdrpFilmGrainResponse = 0.8f;
         public Texture2D FilmGrainTexture;
         public Texture2D LensGlassTexture;
         public Texture2D VignetteTexture;

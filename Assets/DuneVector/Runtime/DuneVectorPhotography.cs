@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.HighDefinition;
 
 namespace DuneVector
 {
@@ -822,6 +824,17 @@ namespace DuneVector
         private CameraPresentationState _presentationState;
         private Texture2D _capturedTexture;
         private Texture2D _captureHoldTexture;
+        private FilmGrain _cameraFilmGrain;
+        private bool _cameraFilmGrainApplied;
+        private bool _filmGrainActiveBeforeCamera;
+        private bool _filmGrainTypeOverrideBeforeCamera;
+        private FilmGrainLookup _filmGrainTypeBeforeCamera;
+        private bool _filmGrainIntensityOverrideBeforeCamera;
+        private float _filmGrainIntensityBeforeCamera;
+        private bool _filmGrainResponseOverrideBeforeCamera;
+        private float _filmGrainResponseBeforeCamera;
+        private bool _filmGrainTextureOverrideBeforeCamera;
+        private Texture _filmGrainTextureBeforeCamera;
         private PhotographRecord _pendingPhotograph;
         private PhotographableSubject _pendingSubject;
         private GUIStyle _subjectStyle;
@@ -1001,6 +1014,7 @@ namespace DuneVector
             _player.SetDisabledFlightStopEnabled(true);
             _cameraController.SetPhotographyMode(true, _settings.CameraDistance, _settings.CameraHeight);
             HidePlayerRenderers();
+            EnableCameraFilmGrain();
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
             _detection = default;
@@ -1020,6 +1034,7 @@ namespace DuneVector
             _camera.fieldOfView = _baseFieldOfView;
             _cameraController.SetPhotographyMode(false, _settings.CameraDistance, _settings.CameraHeight);
             RestorePlayerRenderers();
+            RestoreCameraFilmGrain();
             _player.SetDisabledFlightStopEnabled(false);
             _player.SetInputEnabled(true);
             Cursor.lockState = CursorLockMode.Locked;
@@ -1390,7 +1405,9 @@ namespace DuneVector
         {
             if (!_settings.SurfaceTexturesEnabled) return;
             Rect screen = new Rect(0f, 0f, _hudWidth, _hudHeight);
-            if (_settings.FilmGrainTexture != null && _settings.FilmGrainOpacity > 0f)
+            if (!_cameraFilmGrainApplied &&
+                _settings.FilmGrainTexture != null &&
+                _settings.FilmGrainOpacity > 0f)
             {
                 DrawTexture(
                     screen,
@@ -1414,6 +1431,92 @@ namespace DuneVector
                     new Color(1f, 1f, 1f, _settings.VignetteOpacity),
                     ScaleMode.StretchToFill);
             }
+        }
+
+        private void EnableCameraFilmGrain()
+        {
+            RestoreCameraFilmGrain();
+            if (!_settings.UseHdrpFilmGrain) return;
+
+            Volume selectedVolume = null;
+            float selectedPriority = float.NegativeInfinity;
+            Volume[] volumes = FindObjectsByType<Volume>();
+            for (int i = 0; i < volumes.Length; i++)
+            {
+                Volume candidate = volumes[i];
+                if (candidate == null ||
+                    !candidate.enabled ||
+                    !candidate.isGlobal ||
+                    candidate.weight <= 0f ||
+                    candidate.sharedProfile == null ||
+                    candidate.priority < selectedPriority ||
+                    !candidate.sharedProfile.TryGet(out FilmGrain _))
+                {
+                    continue;
+                }
+                selectedVolume = candidate;
+                selectedPriority = candidate.priority;
+            }
+            if (selectedVolume == null ||
+                selectedVolume.profile == null ||
+                !selectedVolume.profile.TryGet(out _cameraFilmGrain))
+            {
+                return;
+            }
+
+            _filmGrainActiveBeforeCamera = _cameraFilmGrain.active;
+            _filmGrainTypeOverrideBeforeCamera = _cameraFilmGrain.type.overrideState;
+            _filmGrainTypeBeforeCamera = _cameraFilmGrain.type.value;
+            _filmGrainIntensityOverrideBeforeCamera = _cameraFilmGrain.intensity.overrideState;
+            _filmGrainIntensityBeforeCamera = _cameraFilmGrain.intensity.value;
+            _filmGrainResponseOverrideBeforeCamera = _cameraFilmGrain.response.overrideState;
+            _filmGrainResponseBeforeCamera = _cameraFilmGrain.response.value;
+            _filmGrainTextureOverrideBeforeCamera = _cameraFilmGrain.texture.overrideState;
+            _filmGrainTextureBeforeCamera = _cameraFilmGrain.texture.value;
+
+            _cameraFilmGrain.active = true;
+            _cameraFilmGrain.type.overrideState = true;
+            bool useCustomTexture =
+                _settings.UseCustomFilmGrainTexture &&
+                _settings.FilmGrainTexture != null;
+            _cameraFilmGrain.type.value = useCustomTexture
+                ? FilmGrainLookup.Custom
+                : (FilmGrainLookup)Mathf.Clamp(
+                    (int)_settings.FilmGrainPreset,
+                    (int)FilmGrainLookup.Thin1,
+                    (int)FilmGrainLookup.Large02);
+            _cameraFilmGrain.texture.overrideState = useCustomTexture;
+            if (useCustomTexture)
+            {
+                _cameraFilmGrain.texture.value = _settings.FilmGrainTexture;
+            }
+            _cameraFilmGrain.intensity.overrideState = true;
+            _cameraFilmGrain.intensity.value = Mathf.Clamp01(_settings.HdrpFilmGrainIntensity);
+            _cameraFilmGrain.response.overrideState = true;
+            _cameraFilmGrain.response.value = Mathf.Clamp01(_settings.HdrpFilmGrainResponse);
+            _cameraFilmGrainApplied = true;
+        }
+
+        private void RestoreCameraFilmGrain()
+        {
+            if (!_cameraFilmGrainApplied || _cameraFilmGrain == null)
+            {
+                _cameraFilmGrain = null;
+                _cameraFilmGrainApplied = false;
+                return;
+            }
+
+            _cameraFilmGrain.active = _filmGrainActiveBeforeCamera;
+            _cameraFilmGrain.type.overrideState = _filmGrainTypeOverrideBeforeCamera;
+            _cameraFilmGrain.type.value = _filmGrainTypeBeforeCamera;
+            _cameraFilmGrain.intensity.overrideState = _filmGrainIntensityOverrideBeforeCamera;
+            _cameraFilmGrain.intensity.value = _filmGrainIntensityBeforeCamera;
+            _cameraFilmGrain.response.overrideState = _filmGrainResponseOverrideBeforeCamera;
+            _cameraFilmGrain.response.value = _filmGrainResponseBeforeCamera;
+            _cameraFilmGrain.texture.overrideState = _filmGrainTextureOverrideBeforeCamera;
+            _cameraFilmGrain.texture.value = _filmGrainTextureBeforeCamera;
+            _cameraFilmGrain = null;
+            _cameraFilmGrainApplied = false;
         }
 
         private void DrawCommandBar(float y, float enter)
@@ -1906,6 +2009,7 @@ namespace DuneVector
             }
             ReleaseCapturedTexture();
             ReleaseCaptureHoldTexture();
+            RestoreCameraFilmGrain();
             _storage?.Dispose();
         }
     }
