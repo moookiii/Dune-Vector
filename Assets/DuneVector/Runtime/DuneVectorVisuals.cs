@@ -736,12 +736,7 @@ namespace DuneVector
                     settings);
                 CreateTrail(visual, settings.TrailPosition, materials.Trail, settings);
 
-                Transform[] propellers = FindNamedDescendants(
-                    model.transform,
-                    "Propeller.1",
-                    "Propeller.2",
-                    "Propeller.3",
-                    "Propeller.4");
+                Transform[] propellers = FindPropellerRotors(model.transform);
                 DroneVisualAnimator prefabAnimator = visualObject.AddComponent<DroneVisualAnimator>();
                 prefabAnimator.Initialize(propellers, Array.Empty<Transform>(), settings, false);
                 return visual;
@@ -911,19 +906,29 @@ namespace DuneVector
             }
         }
 
-        private static Transform[] FindNamedDescendants(Transform root, params string[] names)
+        private static Transform[] FindPropellerRotors(Transform root)
         {
-            Transform[] results = new Transform[names.Length];
+            const int propellerCount = 4;
+            Transform[] results = new Transform[propellerCount];
+            Transform[] namedFallbacks = new Transform[propellerCount];
             Transform[] descendants = root.GetComponentsInChildren<Transform>(true);
             for (int descendantIndex = 0; descendantIndex < descendants.Length; descendantIndex++)
             {
                 Transform descendant = descendants[descendantIndex];
-                for (int nameIndex = 0; nameIndex < names.Length; nameIndex++)
+                for (int propellerIndex = 0; propellerIndex < propellerCount; propellerIndex++)
                 {
-                    if (results[nameIndex] == null && descendant.name == names[nameIndex])
+                    int propellerNumber = propellerIndex + 1;
+                    if (descendant.name.StartsWith(
+                        $"prop_{propellerNumber}_jnt",
+                        StringComparison.OrdinalIgnoreCase))
                     {
-                        results[nameIndex] = descendant;
+                        results[propellerIndex] = descendant;
                         break;
+                    }
+
+                    if (descendant.name == $"Propeller.{propellerNumber}")
+                    {
+                        namedFallbacks[propellerIndex] = descendant;
                     }
                 }
             }
@@ -932,7 +937,13 @@ namespace DuneVector
             {
                 if (results[i] == null)
                 {
-                    Debug.LogError($"Drone prefab is missing the required {names[i]} transform.");
+                    results[i] = namedFallbacks[i];
+                }
+
+                if (results[i] == null)
+                {
+                    Debug.LogError(
+                        $"Drone prefab is missing Propeller.{i + 1} and its prop_{i + 1}_jnt skeletal joint.");
                 }
             }
 
