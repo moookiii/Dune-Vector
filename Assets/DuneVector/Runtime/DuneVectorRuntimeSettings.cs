@@ -2456,22 +2456,26 @@ namespace DuneVector
 
         [Header("Portal Edge Sparks")]
         [Tooltip("Average number of sparks emitted from each portal per second.")]
-        [Min(0f)] public float PortalSparkEmissionRate = 0.55f;
-        [Min(0.01f)] public float PortalSparkMinimumLifetime = 0.35f;
-        [Min(0.01f)] public float PortalSparkMaximumLifetime = 0.8f;
-        [Min(0f)] public float PortalSparkMinimumSpeed = 0.35f;
-        [Min(0f)] public float PortalSparkMaximumSpeed = 1.1f;
-        [Min(0.001f)] public float PortalSparkMinimumSize = 0.035f;
-        [Min(0.001f)] public float PortalSparkMaximumSize = 0.09f;
+        [Min(0f)] public float PortalSparkEmissionRate = 1.1f;
+        [Min(0.01f)] public float PortalSparkMinimumLifetime = 0.55f;
+        [Min(0.01f)] public float PortalSparkMaximumLifetime = 1.1f;
+        [Min(0f)] public float PortalSparkMinimumSpeed = 0.7f;
+        [Min(0f)] public float PortalSparkMaximumSpeed = 1.8f;
+        [Min(0.001f)] public float PortalSparkMinimumSize = 0.08f;
+        [Min(0.001f)] public float PortalSparkMaximumSize = 0.16f;
         [Tooltip("Distance outside the portal rim where sparks originate.")]
-        [Min(0f)] public float PortalSparkEdgeOffset = 0.04f;
+        [Min(0f)] public float PortalSparkEdgeOffset = 0.08f;
         [Tooltip("Normalized lifetime at which sparks begin fading.")]
-        [Range(0f, 1f)] public float PortalSparkFadeStart = 0.18f;
+        [Range(0f, 1f)] public float PortalSparkFadeStart = 0.25f;
         [Tooltip("Variation applied to the outward launch direction.")]
-        [Range(0f, 1f)] public float PortalSparkDirectionRandomness = 0.16f;
+        [Range(0f, 1f)] public float PortalSparkDirectionRandomness = 0.24f;
         [Tooltip("HDR brightness multiplier applied only to portal sparks.")]
-        [Min(0f)] public float PortalSparkBloomIntensity = 2.8f;
-        [Min(1)] public int PortalSparkMaximumParticles = 12;
+        [Min(0f)] public float PortalSparkBloomIntensity = 4.2f;
+        [Tooltip("Length multiplier for the velocity-stretched spark streak.")]
+        [Min(0f)] public float PortalSparkLengthScale = 2.4f;
+        [Tooltip("Additional stretching contributed by each spark's velocity.")]
+        [Min(0f)] public float PortalSparkVelocityScale = 0.3f;
+        [Min(1)] public int PortalSparkMaximumParticles = 16;
 
         [Header("Portal Brightness Hierarchy")]
         [Min(0f)] public float PortalOuterRimBrightnessMultiplier = 1.25f;

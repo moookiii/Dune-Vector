@@ -1597,7 +1597,10 @@ namespace DuneVector
             colorOverLifetime.color = fade;
 
             ParticleSystemRenderer renderer = sparkObject.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.lengthScale = Mathf.Max(0f, settings.PortalSparkLengthScale);
+            renderer.velocityScale = Mathf.Max(0f, settings.PortalSparkVelocityScale);
+            renderer.cameraVelocityScale = 0f;
             renderer.sharedMaterial = material;
             renderer.sortingOrder = 2;
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
