@@ -37,17 +37,23 @@ namespace DuneVector
         public readonly Vector3 TargetPosition;
         public readonly float SecondsRemaining;
         public readonly float ChargeNormalized;
+        public readonly Vector3 ThreatOrigin;
+        public readonly float ThreatRange;
 
         public StormPyramidThreatWarning(
             StormLightningAttackType type,
             Vector3 targetPosition,
             float secondsRemaining,
-            float chargeNormalized)
+            float chargeNormalized,
+            Vector3 threatOrigin = default,
+            float threatRange = 0f)
         {
             Type = type;
             TargetPosition = targetPosition;
             SecondsRemaining = secondsRemaining;
             ChargeNormalized = chargeNormalized;
+            ThreatOrigin = threatOrigin;
+            ThreatRange = threatRange;
         }
     }
 
@@ -1168,7 +1174,9 @@ namespace DuneVector
                     StormLightningAttackType.PlayerStrike,
                     _trackedTarget,
                     Mathf.Max(0f, _settings.TrackingDuration - _stateTime) + chargeDuration,
-                    Mathf.Clamp01(_stateTime / totalDuration));
+                    Mathf.Clamp01(_stateTime / totalDuration),
+                    transform.position,
+                    _settings.EvaluateDetectionRange(DuneVectorContractRisk.CurrentRisk));
                 return true;
             }
 
@@ -1180,7 +1188,9 @@ namespace DuneVector
                     StormLightningAttackType.PlayerStrike,
                     _lightning.TargetPosition,
                     _lightning.ChargeSecondsRemaining,
-                    Mathf.Clamp01((_settings.TrackingDuration + elapsedCharge) / totalDuration));
+                    Mathf.Clamp01((_settings.TrackingDuration + elapsedCharge) / totalDuration),
+                    transform.position,
+                    _settings.EvaluateDetectionRange(DuneVectorContractRisk.CurrentRisk));
                 return true;
             }
 
@@ -1912,11 +1922,20 @@ namespace DuneVector
             GUI.DrawTexture(new Rect(marker.xMax - (3f * scale), marker.y, 3f * scale, marker.height), Texture2D.whiteTexture);
             GUI.color = previousColor;
 
-            float distance = Vector3.Distance(_player.WorldCenter, threat.TargetPosition);
+            bool isStrikeOrb = threat.Type == StormLightningAttackType.PlayerStrike
+                && threat.ThreatRange > 0f;
+            float distance = Vector3.Distance(
+                _player.WorldCenter,
+                isStrikeOrb ? threat.ThreatOrigin : threat.TargetPosition);
+            string markerText = isStrikeOrb
+                ? distance > threat.ThreatRange
+                    ? "CLEAR"
+                    : $"{distance:0} m"
+                : $"STRIKE  {distance:0} m";
             _markerStyle.normal.textColor = warningColor;
             GUI.Label(
                 new Rect(markerPosition.x - (75f * scale), markerPosition.y + (24f * scale), 150f * scale, 24f * scale),
-                $"STRIKE  {distance:0} m",
+                markerText,
                 _markerStyle);
         }
     }
