@@ -1413,21 +1413,49 @@ namespace DuneVector
             float radius,
             RingTuning settings)
         {
-            GameObject halo = CreateMeshObject(
-                "Soft Portal Halo",
+            float lineLayerDepth = Mathf.Max(0f, settings.PortalLineLayerDepth);
+            Material haloMaterial = materials.CreatePortalHaloMaterial(lineMaterial);
+            GameObject rearHalo = CreateMeshObject(
+                "Recessed Portal Halo",
                 parent,
                 GetPortalLineMesh(
                     radius,
                     settings,
                     settings.PortalHaloWidthMultiplier,
-                    PortalLineLayer.All),
-                materials.CreatePortalHaloMaterial(lineMaterial));
-            halo.transform.localPosition = Vector3.back * (settings.PortalLayerDepth * 0.5f);
-            DisableRendererShadows(halo);
-            MeshRenderer haloRenderer = halo.GetComponent<MeshRenderer>();
-            haloRenderer.sortingOrder = -2;
+                    PortalLineLayer.Rear),
+                haloMaterial);
+            rearHalo.transform.localPosition = Vector3.back * lineLayerDepth;
+            DisableRendererShadows(rearHalo);
+            MeshRenderer rearHaloRenderer = rearHalo.GetComponent<MeshRenderer>();
+            rearHaloRenderer.sortingOrder = -2;
 
-            float lineLayerDepth = Mathf.Max(0f, settings.PortalLineLayerDepth);
+            GameObject centerHalo = CreateMeshObject(
+                "Center Portal Halo",
+                parent,
+                GetPortalLineMesh(
+                    radius,
+                    settings,
+                    settings.PortalHaloWidthMultiplier,
+                    PortalLineLayer.Center),
+                haloMaterial);
+            DisableRendererShadows(centerHalo);
+            MeshRenderer centerHaloRenderer = centerHalo.GetComponent<MeshRenderer>();
+            centerHaloRenderer.sortingOrder = -2;
+
+            GameObject frontHalo = CreateMeshObject(
+                "Forward Portal Halo",
+                parent,
+                GetPortalLineMesh(
+                    radius,
+                    settings,
+                    settings.PortalHaloWidthMultiplier,
+                    PortalLineLayer.Front),
+                haloMaterial);
+            frontHalo.transform.localPosition = Vector3.forward * lineLayerDepth;
+            DisableRendererShadows(frontHalo);
+            MeshRenderer frontHaloRenderer = frontHalo.GetComponent<MeshRenderer>();
+            frontHaloRenderer.sortingOrder = -2;
+
             GameObject rearLinework = CreateMeshObject(
                 "Recessed Portal Linework",
                 parent,
@@ -1480,7 +1508,9 @@ namespace DuneVector
             portalVisual.Initialize(
                 new Renderer[]
                 {
-                    haloRenderer,
+                    rearHaloRenderer,
+                    centerHaloRenderer,
+                    frontHaloRenderer,
                     rearLineRenderer,
                     centerLineRenderer,
                     frontLineRenderer,
