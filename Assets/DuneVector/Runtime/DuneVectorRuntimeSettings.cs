@@ -2373,6 +2373,37 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color FlightRingBaseColor = new Color(0.004f, 0.19f, 0.32f);
         [ColorUsage(false, true)] public Color FlightRingEmissionColor = new Color(0f, 2f, 3.6f);
 
+        [Header("Portal Linework")]
+        [Tooltip("Opacity of the emissive rings, spokes, glyphs, and exterior rays. Empty space remains fully transparent.")]
+        [Range(0f, 1f)] public float PortalLineOpacity = 0.82f;
+        [Min(0.01f)] public float PortalOuterLineThickness = 0.13f;
+        [Min(0.01f)] public float PortalInnerLineThickness = 0.075f;
+        [Range(24, 192)] public int PortalCircleSegments = 96;
+        [Range(1, 6)] public int PortalConcentricRingCount = 3;
+        [Range(0.1f, 0.9f)] public float PortalInnermostRingRadiusFraction = 0.4f;
+        [Range(3, 32)] public int PortalSpokeCount = 12;
+        [Min(0.01f)] public float PortalSpokeThickness = 0.055f;
+        [Range(3, 32)] public int PortalGlyphCount = 16;
+        [Range(0.1f, 0.95f)] public float PortalGlyphRadiusFraction = 0.72f;
+        [Min(0.01f)] public float PortalGlyphStrokeThickness = 0.045f;
+        [Range(0.01f, 0.25f)] public float PortalGlyphSizeFraction = 0.065f;
+        [Range(0, 24)] public int PortalExteriorRayCount = 10;
+        [Range(0f, 0.5f)] public float PortalExteriorRayLengthFraction = 0.16f;
+
+        [Header("Portal Energy Core")]
+        [Tooltip("Radius of the transparent animated swirl relative to the gameplay ring radius.")]
+        [Range(0.1f, 1f)] public float PortalCoreRadiusFraction = 0.78f;
+        [Range(0f, 1f)] public float PortalCoreOpacity = 0.3f;
+        [Range(1f, 12f)] public float PortalSwirlArmCount = 5f;
+        [Range(1f, 30f)] public float PortalSwirlDensity = 12f;
+        [Min(0f)] public float PortalSwirlSpeed = 1.1f;
+        [Range(0.005f, 0.25f)] public float PortalSwirlLineWidth = 0.065f;
+        [Range(0f, 1f)] public float PortalCoreGlowFill = 0.08f;
+        [Range(0.01f, 0.5f)] public float PortalCoreEdgeFeather = 0.16f;
+        [Min(0f)] public float PortalPulseSpeed = 1.35f;
+        [Range(0f, 0.5f)] public float PortalPulseAmount = 0.12f;
+        [Min(0f)] public float PortalLayerDepth = 0.055f;
+
         [Header("Upper Flight Ring Unlock")]
         [Tooltip("Number of distinct blue flight rings the player must cross before the upper-layer ring appears.")]
         [Min(1)] public int UpperFlightRingRequiredPasses = 5;

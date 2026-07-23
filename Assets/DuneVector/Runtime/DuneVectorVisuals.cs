@@ -60,10 +60,12 @@ namespace DuneVector
         public Material PlayerStrikeOrbExplosionBlue { get; }
         public Material Lightning { get; }
         public Material LightningWarning { get; }
+        public RingTuning RingPortalTuning { get; }
 
         private readonly List<Material> _ownedMaterials = new List<Material>();
         private readonly List<Material> _shrubMaterials = new List<Material>();
         private readonly List<GeoglyphMaterialBatch> _geoglyphBatches = new List<GeoglyphMaterialBatch>();
+        private readonly Dictionary<Material, Material> _portalCoreMaterials = new Dictionary<Material, Material>();
         private readonly Material[] _sandOnlyTerrainMaterials;
 
         public DuneVectorMaterials(
@@ -81,6 +83,7 @@ namespace DuneVector
             PlayerStrikeOrbTuning playerStrikeOrbTuning = null)
         {
             RingTuning rings = ringTuning ?? new RingTuning();
+            RingPortalTuning = rings;
             DeliveryTuning delivery = deliveryTuning ?? new DeliveryTuning();
             CloudTuning clouds = cloudTuning ?? new CloudTuning();
             DynamicCourierTuning couriers = dynamicCourierTuning ?? new DynamicCourierTuning();
@@ -184,20 +187,10 @@ namespace DuneVector
                 LandmarkInterior = DroneDark;
                 LandmarkAccent = DroneAccent;
             }
-            BoostRing = CreateLit("Ring - Boost Amber", rings.BoostRingBaseColor, 0.65f, 0.4f, rings.BoostRingEmissionColor);
-            FlightRing = CreateLit("Ring - Flight Cyan", rings.FlightRingBaseColor, 0.7f, 0.5f, rings.FlightRingEmissionColor);
-            UpperFlightRing = CreateLit(
-                "Ring - Upper Flight Violet",
-                rings.UpperFlightRingBaseColor,
-                0.7f,
-                0.5f,
-                rings.UpperFlightRingEmissionColor);
-            HealthRing = CreateLit(
-                "Ring - Health Crimson",
-                rings.HealthRingBaseColor,
-                rings.HealthMaterialSmoothness,
-                rings.HealthMaterialMetallic,
-                rings.HealthRingEmissionColor);
+            BoostRing = CreatePortal("Portal - Boost Amber", rings.BoostRingEmissionColor, rings);
+            FlightRing = CreatePortal("Portal - Flight Cyan", rings.FlightRingEmissionColor, rings);
+            UpperFlightRing = CreatePortal("Portal - Upper Flight Violet", rings.UpperFlightRingEmissionColor, rings);
+            HealthRing = CreatePortal("Portal - Health Crimson", rings.HealthRingEmissionColor, rings);
             HealthHeart = CreateLit(
                 "Ring - Health Heart",
                 rings.HealthHeartBaseColor,
@@ -209,12 +202,7 @@ namespace DuneVector
             {
                 Debug.LogError("Health rings require Assets/DuneVector/Resources/heartpiece.glb.");
             }
-            CoinRing = CreateLit(
-                "Ring - Coin Gold",
-                rings.CoinRingBaseColor,
-                rings.CoinMaterialSmoothness,
-                rings.CoinMaterialMetallic,
-                rings.CoinRingEmissionColor);
+            CoinRing = CreatePortal("Portal - Coin Gold", rings.CoinRingEmissionColor, rings);
             Coin = CreateLit(
                 "Ring - Coin Icon",
                 rings.CoinBaseColor,
@@ -243,8 +231,8 @@ namespace DuneVector
                 clouds.MaterialSmoothness,
                 clouds.MaterialMetallic);
             Package = CreateLit("Delivery Package", new Color(0.72f, 0.24f, 0.035f), 0.34f, 0.05f, new Color(1.4f, 0.2f, 0.01f));
-            PickupRing = CreateLit("Job Ring - Pickup", delivery.PickupRingBaseColor, 0.72f, 0.32f, delivery.PickupRingEmissionColor);
-            DeliveryRing = CreateLit("Job Ring - Delivery", delivery.DeliveryRingBaseColor, 0.68f, 0.28f, delivery.DeliveryRingEmissionColor);
+            PickupRing = CreatePortal("Portal - Job Pickup", delivery.PickupRingEmissionColor, rings);
+            DeliveryRing = CreatePortal("Portal - Job Delivery", delivery.DeliveryRingEmissionColor, rings);
             EnemyBody = CreateLit("Sky Piercer - Body", new Color(0.13f, 0.025f, 0.035f), 0.48f, 0.72f, new Color(1.7f, 0.035f, 0.06f));
             EnemyCore = CreateLit("Sky Piercer - Core", new Color(0.008f, 0.004f, 0.012f), 0.82f, 0.18f, new Color(3.2f, 0.02f, 0.55f));
             GroundEnemyBody = CreateLit("Ground Exploder - Body", new Color(0.055f, 0.045f, 0.04f), 0.5f, 0.78f, new Color(0.16f, 0.025f, 0.005f));
@@ -448,6 +436,50 @@ namespace DuneVector
                 material.SetFloat("_EmissiveExposureWeight", 0f);
             }
             _ownedMaterials.Add(material);
+            return material;
+        }
+
+        private Material CreatePortal(string name, Color color, RingTuning settings)
+        {
+            Shader shader = Shader.Find("DuneVector/HDRP Portal Energy");
+            if (shader == null)
+            {
+                throw new InvalidOperationException(
+                    "Portal rings require Assets/DuneVector/Runtime/DuneVectorPortalEnergy.shader.");
+            }
+
+            Material material = new Material(shader) { name = name, enableInstancing = true };
+            material.SetColor("_PortalColor", color);
+            material.SetFloat("_Opacity", settings.PortalLineOpacity);
+            material.SetFloat("_CoreMode", 0f);
+            material.SetFloat("_PulseSpeed", settings.PortalPulseSpeed);
+            material.SetFloat("_PulseAmount", settings.PortalPulseAmount);
+            _ownedMaterials.Add(material);
+            return material;
+        }
+
+        public Material CreatePortalCoreMaterial(Material lineMaterial)
+        {
+            if (_portalCoreMaterials.TryGetValue(lineMaterial, out Material existing) && existing != null)
+            {
+                return existing;
+            }
+
+            Material material = new Material(lineMaterial)
+            {
+                name = $"{lineMaterial.name} - Energy Core",
+                enableInstancing = true,
+            };
+            material.SetFloat("_Opacity", RingPortalTuning.PortalCoreOpacity);
+            material.SetFloat("_CoreMode", 1f);
+            material.SetFloat("_SwirlArmCount", RingPortalTuning.PortalSwirlArmCount);
+            material.SetFloat("_SwirlDensity", RingPortalTuning.PortalSwirlDensity);
+            material.SetFloat("_SwirlSpeed", RingPortalTuning.PortalSwirlSpeed);
+            material.SetFloat("_SwirlLineWidth", RingPortalTuning.PortalSwirlLineWidth);
+            material.SetFloat("_CoreGlowFill", RingPortalTuning.PortalCoreGlowFill);
+            material.SetFloat("_CoreEdgeFeather", RingPortalTuning.PortalCoreEdgeFeather);
+            _ownedMaterials.Add(material);
+            _portalCoreMaterials.Add(lineMaterial, material);
             return material;
         }
 
@@ -1085,49 +1117,7 @@ namespace DuneVector
                 geometryParent.SetParent(visualRoot.transform, false);
                 geometryParent.localRotation = Quaternion.Euler(90f, 0f, 0f);
             }
-            const float arcStart = -65f;
-            const float arcSweep = 310f;
-            const float tubeRadius = 0.31f;
-            GameObject primary = CreateMeshObject(
-                "Open Outer Arc",
-                geometryParent,
-                GetArcTorusMesh(majorRadius, tubeRadius, 46, 8, arcStart, arcSweep),
-                material);
-            DisableRendererShadows(primary);
-
-            float[] endpointAngles = { arcStart, arcStart + arcSweep };
-            for (int i = 0; i < endpointAngles.Length; i++)
-            {
-                float angle = endpointAngles[i] * Mathf.Deg2Rad;
-                Transform cap = CreatePart(
-                    PrimitiveType.Sphere,
-                    $"Rounded Arc End {i + 1}",
-                    geometryParent,
-                    new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * majorRadius,
-                    Vector3.one * (tubeRadius * 2f),
-                    Quaternion.identity,
-                    material);
-                DisableRendererShadows(cap.gameObject);
-            }
-
-            float dashRadius = Mathf.Max(0.5f, majorRadius - 0.62f);
-            const int dashCount = 7;
-            for (int i = 0; i < dashCount; i++)
-            {
-                float t = (i + 0.7f) / (dashCount + 0.4f);
-                float angleDegrees = arcStart + (arcSweep * t);
-                float angle = angleDegrees * Mathf.Deg2Rad;
-                Vector3 dashPosition = new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0f) * dashRadius;
-                Transform dash = CreatePart(
-                    PrimitiveType.Cube,
-                    $"Inner Dash {i + 1}",
-                    geometryParent,
-                    dashPosition,
-                    new Vector3(0.58f, 0.1f, 0.15f),
-                    Quaternion.Euler(0f, 0f, angleDegrees + 90f),
-                    material);
-                DisableRendererShadows(dash.gameObject);
-            }
+            CreatePortalGeometry(geometryParent, materials, material, majorRadius, settings);
 
             if (type == TraversalRingType.Health)
             {
@@ -1150,6 +1140,32 @@ namespace DuneVector
                     settings.CoinModelEulerAngles);
             }
             return visualRoot.transform;
+        }
+
+        private static void CreatePortalGeometry(
+            Transform parent,
+            DuneVectorMaterials materials,
+            Material lineMaterial,
+            float radius,
+            RingTuning settings)
+        {
+            GameObject linework = CreateMeshObject(
+                "Transparent Portal Linework",
+                parent,
+                GetPortalLineMesh(radius, settings),
+                lineMaterial);
+            DisableRendererShadows(linework);
+
+            GameObject core = CreateMeshObject(
+                "Animated Transparent Energy Core",
+                parent,
+                GetPortalCoreQuadMesh(),
+                materials.CreatePortalCoreMaterial(lineMaterial));
+            float coreRadius = Mathf.Max(0.1f, radius * settings.PortalCoreRadiusFraction);
+            core.transform.localPosition = Vector3.forward * settings.PortalLayerDepth;
+            core.transform.localScale = new Vector3(coreRadius, coreRadius, 1f);
+            DisableRendererShadows(core);
+            core.GetComponent<MeshRenderer>().sortingOrder = -1;
         }
 
         private static Transform CreateCollectibleModelVisual(
@@ -1229,54 +1245,12 @@ namespace DuneVector
             GameObject visualRoot = new GameObject(isPickup ? "Pickup Ring Visual" : "Delivery Ring Visual");
             visualRoot.transform.SetParent(parent, false);
 
-            const float jobArcStart = -65f;
-            const float jobArcSweep = 310f;
-            const float jobTubeRadius = 0.26f;
-            GameObject primary = CreateMeshObject(
-                "Open Outer Ring",
+            CreatePortalGeometry(
                 visualRoot.transform,
-                GetArcTorusMesh(radius, jobTubeRadius, 46, 8, jobArcStart, jobArcSweep),
-                material);
-            DisableRendererShadows(primary);
-
-            float[] jobEndpointAngles = { jobArcStart, jobArcStart + jobArcSweep };
-            for (int i = 0; i < jobEndpointAngles.Length; i++)
-            {
-                float endpointAngle = jobEndpointAngles[i] * Mathf.Deg2Rad;
-                Transform cap = CreatePart(
-                    PrimitiveType.Sphere,
-                    $"Rounded Job Arc End {i + 1}",
-                    visualRoot.transform,
-                    new Vector3(Mathf.Cos(endpointAngle), Mathf.Sin(endpointAngle), 0f) * radius,
-                    Vector3.one * (jobTubeRadius * 2f),
-                    Quaternion.identity,
-                    material);
-                DisableRendererShadows(cap.gameObject);
-            }
-
-            if (isPickup)
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    float angle = i * 90f;
-                    Vector3 position = Quaternion.Euler(0f, 0f, angle) * new Vector3(0f, radius + 0.48f, 0f);
-                    Transform bracket = CreatePart(
-                        PrimitiveType.Cube,
-                        $"Pickup Bracket {i + 1}",
-                        visualRoot.transform,
-                        position,
-                        new Vector3(0.52f, 0.14f, 0.18f),
-                        Quaternion.Euler(0f, 0f, angle),
-                        material);
-                    DisableRendererShadows(bracket.gameObject);
-                }
-            }
-            else
-            {
-                GameObject inner = CreateMeshObject("Inner Delivery Ring", visualRoot.transform, GetTorusMesh(Mathf.Max(0.4f, radius - 0.48f), 0.09f, 48, 6), material);
-                inner.transform.localRotation = Quaternion.Euler(0f, 0f, 12f);
-                DisableRendererShadows(inner);
-            }
+                materials,
+                material,
+                radius,
+                materials.RingPortalTuning);
 
             return visualRoot.transform;
         }
@@ -2002,6 +1976,217 @@ namespace DuneVector
             mesh.vertices = vertices;
             mesh.triangles = triangles;
             mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            MeshCache[key] = mesh;
+            return mesh;
+        }
+
+        private static Mesh GetPortalLineMesh(float radius, RingTuning settings)
+        {
+            int concentricCount = Mathf.Clamp(settings.PortalConcentricRingCount, 1, 6);
+            int circleSegments = Mathf.Clamp(settings.PortalCircleSegments, 24, 192);
+            int spokeCount = Mathf.Clamp(settings.PortalSpokeCount, 3, 32);
+            int glyphCount = Mathf.Clamp(settings.PortalGlyphCount, 3, 32);
+            int rayCount = Mathf.Clamp(settings.PortalExteriorRayCount, 0, 24);
+            string key = $"portal-lines:{radius:0.000}:{settings.PortalOuterLineThickness:0.000}:" +
+                $"{settings.PortalInnerLineThickness:0.000}:{circleSegments}:{concentricCount}:" +
+                $"{settings.PortalInnermostRingRadiusFraction:0.000}:{spokeCount}:" +
+                $"{settings.PortalSpokeThickness:0.000}:{glyphCount}:" +
+                $"{settings.PortalGlyphRadiusFraction:0.000}:{settings.PortalGlyphStrokeThickness:0.000}:" +
+                $"{settings.PortalGlyphSizeFraction:0.000}:{rayCount}:" +
+                $"{settings.PortalExteriorRayLengthFraction:0.000}";
+            if (MeshCache.TryGetValue(key, out Mesh cached) && cached != null)
+            {
+                return cached;
+            }
+
+            List<Vector3> vertices = new List<Vector3>();
+            List<Vector2> uvs = new List<Vector2>();
+            List<int> triangles = new List<int>();
+            float outerThickness = Mathf.Max(0.01f, settings.PortalOuterLineThickness);
+            float innerThickness = Mathf.Max(0.01f, settings.PortalInnerLineThickness);
+            float innermostRadius = Mathf.Max(
+                outerThickness * 2f,
+                radius * Mathf.Clamp(settings.PortalInnermostRingRadiusFraction, 0.1f, 0.9f));
+
+            AddPortalRing(vertices, uvs, triangles, radius, outerThickness, circleSegments);
+            for (int ringIndex = 0; ringIndex < concentricCount; ringIndex++)
+            {
+                float interpolation = (ringIndex + 1f) / (concentricCount + 1f);
+                float ringRadius = Mathf.Lerp(innermostRadius, radius, interpolation);
+                AddPortalRing(vertices, uvs, triangles, ringRadius, innerThickness, circleSegments);
+            }
+
+            float spokeInnerRadius = innermostRadius + (innerThickness * 1.5f);
+            float spokeOuterRadius = radius - (outerThickness * 1.5f);
+            for (int spokeIndex = 0; spokeIndex < spokeCount; spokeIndex++)
+            {
+                float angle = ((spokeIndex + 0.5f) / spokeCount) * Mathf.PI * 2f;
+                Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                float shortened = spokeIndex % 3 == 0 ? 0.18f : 0f;
+                Vector2 start = direction * Mathf.Lerp(spokeInnerRadius, spokeOuterRadius, shortened);
+                Vector2 end = direction * spokeOuterRadius;
+                AddPortalStroke(
+                    vertices,
+                    uvs,
+                    triangles,
+                    start,
+                    end,
+                    Mathf.Max(0.01f, settings.PortalSpokeThickness));
+            }
+
+            float glyphRadius = radius * Mathf.Clamp(settings.PortalGlyphRadiusFraction, 0.1f, 0.95f);
+            float glyphSize = Mathf.Max(0.03f, radius * settings.PortalGlyphSizeFraction);
+            float glyphThickness = Mathf.Max(0.01f, settings.PortalGlyphStrokeThickness);
+            for (int glyphIndex = 0; glyphIndex < glyphCount; glyphIndex++)
+            {
+                float angle = ((glyphIndex + 0.25f) / glyphCount) * Mathf.PI * 2f;
+                Vector2 radial = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                Vector2 tangent = new Vector2(-radial.y, radial.x);
+                Vector2 center = radial * glyphRadius;
+                float handedness = glyphIndex % 2 == 0 ? 1f : -1f;
+                Vector2 left = center - (tangent * glyphSize);
+                Vector2 peak = center + (radial * glyphSize * handedness);
+                Vector2 right = center + (tangent * glyphSize);
+                AddPortalStroke(vertices, uvs, triangles, left, peak, glyphThickness);
+                AddPortalStroke(vertices, uvs, triangles, peak, right, glyphThickness);
+                if (glyphIndex % 3 == 0)
+                {
+                    AddPortalStroke(
+                        vertices,
+                        uvs,
+                        triangles,
+                        center - (radial * glyphSize * 0.65f),
+                        center + (radial * glyphSize * 0.65f),
+                        glyphThickness);
+                }
+            }
+
+            float rayLength = Mathf.Max(0f, radius * settings.PortalExteriorRayLengthFraction);
+            for (int rayIndex = 0; rayIndex < rayCount; rayIndex++)
+            {
+                float angle = ((rayIndex + 0.15f) / Mathf.Max(1, rayCount)) * Mathf.PI * 2f;
+                Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                float variation = 0.55f + (((rayIndex * 37) % 11) / 20f);
+                AddPortalStroke(
+                    vertices,
+                    uvs,
+                    triangles,
+                    direction * (radius + outerThickness),
+                    direction * (radius + outerThickness + (rayLength * variation)),
+                    innerThickness);
+            }
+
+            Mesh mesh = new Mesh { name = "Procedural Transparent Portal Linework" };
+            mesh.SetVertices(vertices);
+            mesh.SetUVs(0, uvs);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateBounds();
+            MeshCache[key] = mesh;
+            return mesh;
+        }
+
+        private static void AddPortalRing(
+            List<Vector3> vertices,
+            List<Vector2> uvs,
+            List<int> triangles,
+            float radius,
+            float thickness,
+            int segments)
+        {
+            float inner = Mathf.Max(0f, radius - (thickness * 0.5f));
+            float outer = radius + (thickness * 0.5f);
+            for (int segment = 0; segment < segments; segment++)
+            {
+                float angleA = (segment / (float)segments) * Mathf.PI * 2f;
+                float angleB = ((segment + 1f) / segments) * Mathf.PI * 2f;
+                Vector2 directionA = new Vector2(Mathf.Cos(angleA), Mathf.Sin(angleA));
+                Vector2 directionB = new Vector2(Mathf.Cos(angleB), Mathf.Sin(angleB));
+                AddPortalQuad(
+                    vertices,
+                    uvs,
+                    triangles,
+                    directionA * inner,
+                    directionA * outer,
+                    directionB * outer,
+                    directionB * inner);
+            }
+        }
+
+        private static void AddPortalStroke(
+            List<Vector3> vertices,
+            List<Vector2> uvs,
+            List<int> triangles,
+            Vector2 start,
+            Vector2 end,
+            float thickness)
+        {
+            Vector2 direction = end - start;
+            if (direction.sqrMagnitude < 0.000001f)
+            {
+                return;
+            }
+            Vector2 normal = new Vector2(-direction.y, direction.x).normalized * (thickness * 0.5f);
+            AddPortalQuad(
+                vertices,
+                uvs,
+                triangles,
+                start - normal,
+                start + normal,
+                end + normal,
+                end - normal);
+        }
+
+        private static void AddPortalQuad(
+            List<Vector3> vertices,
+            List<Vector2> uvs,
+            List<int> triangles,
+            Vector2 a,
+            Vector2 b,
+            Vector2 c,
+            Vector2 d)
+        {
+            int firstVertex = vertices.Count;
+            vertices.Add(new Vector3(a.x, a.y, 0f));
+            vertices.Add(new Vector3(b.x, b.y, 0f));
+            vertices.Add(new Vector3(c.x, c.y, 0f));
+            vertices.Add(new Vector3(d.x, d.y, 0f));
+            uvs.Add(new Vector2(0f, 0f));
+            uvs.Add(new Vector2(0f, 1f));
+            uvs.Add(new Vector2(1f, 1f));
+            uvs.Add(new Vector2(1f, 0f));
+            triangles.Add(firstVertex);
+            triangles.Add(firstVertex + 1);
+            triangles.Add(firstVertex + 2);
+            triangles.Add(firstVertex);
+            triangles.Add(firstVertex + 2);
+            triangles.Add(firstVertex + 3);
+        }
+
+        private static Mesh GetPortalCoreQuadMesh()
+        {
+            const string key = "portal-core-quad";
+            if (MeshCache.TryGetValue(key, out Mesh cached) && cached != null)
+            {
+                return cached;
+            }
+
+            Mesh mesh = new Mesh { name = "Portal Energy Core Quad" };
+            mesh.vertices = new[]
+            {
+                new Vector3(-1f, -1f, 0f),
+                new Vector3(-1f, 1f, 0f),
+                new Vector3(1f, 1f, 0f),
+                new Vector3(1f, -1f, 0f),
+            };
+            mesh.uv = new[]
+            {
+                new Vector2(0f, 0f),
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(1f, 0f),
+            };
+            mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
             mesh.RecalculateBounds();
             MeshCache[key] = mesh;
             return mesh;
