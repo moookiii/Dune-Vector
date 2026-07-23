@@ -44,6 +44,8 @@ namespace DuneVector
         private float _modeScale = 1f;
         private float _visualSpin;
         private Camera _billboardCamera;
+        private Quaternion _billboardFacingRotation;
+        private bool _hasBillboardFacingRotation;
         private Vector3 _restingLocalPosition;
         private Transform _collectibleIcon;
         private Quaternion _collectibleIconBaseRotation = Quaternion.identity;
@@ -77,6 +79,8 @@ namespace DuneVector
                 materials,
                 majorRadius,
                 ringTuning);
+            _billboardFacingRotation = _visualRoot.rotation;
+            _hasBillboardFacingRotation = true;
             if (IsCollectible)
             {
                 _collectibleIcon = _visualRoot.Find("Collectible Icon");
@@ -271,30 +275,30 @@ namespace DuneVector
             float billboardDisableRadius = _ringTuning != null
                 ? Mathf.Max(0f, _ringTuning.BillboardDisableRadius)
                 : 0f;
-            if (_controller != null
+            bool freezeBillboardFacing = _controller != null
                 && billboardDisableRadius > 0f
                 && (_controller.WorldCenter - _visualRoot.position).sqrMagnitude
-                    <= billboardDisableRadius * billboardDisableRadius)
+                    <= billboardDisableRadius * billboardDisableRadius;
+            if (!freezeBillboardFacing)
+            {
+                Vector3 toCamera = _billboardCamera.transform.position - _visualRoot.position;
+                if (toCamera.sqrMagnitude >= 0.001f)
+                {
+                    _billboardFacingRotation = IsCollectible
+                        ? Quaternion.FromToRotation(Vector3.up, toCamera.normalized)
+                        : Quaternion.LookRotation(toCamera.normalized, Vector3.up);
+                    _hasBillboardFacingRotation = true;
+                }
+            }
+
+            if (!_hasBillboardFacingRotation)
             {
                 return;
             }
 
-            Vector3 toCamera = _billboardCamera.transform.position - _visualRoot.position;
-            if (toCamera.sqrMagnitude < 0.001f)
-            {
-                return;
-            }
-
-            if (IsCollectible)
-            {
-                _visualRoot.rotation = Quaternion.FromToRotation(Vector3.up, toCamera.normalized)
-                    * Quaternion.AngleAxis(_visualSpin, Vector3.up);
-            }
-            else
-            {
-                _visualRoot.rotation = Quaternion.LookRotation(toCamera.normalized, Vector3.up)
-                    * Quaternion.AngleAxis(_visualSpin, Vector3.forward);
-            }
+            Vector3 spinAxis = IsCollectible ? Vector3.up : Vector3.forward;
+            _visualRoot.rotation = _billboardFacingRotation
+                * Quaternion.AngleAxis(_visualSpin, spinAxis);
         }
 
         private void TryActivate()
