@@ -28,6 +28,7 @@ namespace DuneVector
         public Material CactusBlossom { get; }
         public IReadOnlyList<Material> Shrubs => _shrubMaterials;
         public Material Sandstone { get; }
+        public GameObject PyramidModel { get; }
         public Material LandmarkStone { get; }
         public Material LandmarkMetal { get; }
         public Material LandmarkSecondary { get; }
@@ -154,6 +155,13 @@ namespace DuneVector
                 }
             }
             Sandstone = CreateLit("Pyramid - Sandstone", new Color(0.58f, 0.31f, 0.13f), 0.18f, 0f);
+            PyramidModel = Resources.Load<GameObject>("miniature_hieroglyphic_pyramid");
+            if (PyramidModel == null)
+            {
+                Debug.LogError(
+                    "World generation pyramids require " +
+                    "Assets/DuneVector/Resources/miniature_hieroglyphic_pyramid.glb.");
+            }
             if (landmarkTuning != null)
             {
                 LandmarkStone = CreateLit(
@@ -1166,7 +1174,13 @@ namespace DuneVector
                 material);
         }
 
-        public static Transform CreatePyramid(Transform parent, Vector3 localPosition, float scale, float yaw, Material material)
+        public static Transform CreatePyramid(
+            Transform parent,
+            Vector3 localPosition,
+            float scale,
+            float yaw,
+            GameObject model,
+            Material fallbackMaterial)
         {
             GameObject root = new GameObject("Small Pyramid");
             root.transform.SetParent(parent, false);
@@ -1175,14 +1189,66 @@ namespace DuneVector
             root.transform.localScale = Vector3.one * scale;
 
             Mesh mesh = GetPyramidMesh();
-            MeshFilter filter = root.AddComponent<MeshFilter>();
-            filter.sharedMesh = mesh;
-            MeshRenderer renderer = root.AddComponent<MeshRenderer>();
-            renderer.sharedMaterial = material;
-            renderer.shadowCastingMode = ShadowCastingMode.On;
-            renderer.receiveShadows = true;
             MeshCollider collider = root.AddComponent<MeshCollider>();
             collider.sharedMesh = mesh;
+
+            if (model == null)
+            {
+                MeshFilter filter = root.AddComponent<MeshFilter>();
+                filter.sharedMesh = mesh;
+                MeshRenderer renderer = root.AddComponent<MeshRenderer>();
+                renderer.sharedMaterial = fallbackMaterial;
+                renderer.shadowCastingMode = ShadowCastingMode.On;
+                renderer.receiveShadows = true;
+                return root.transform;
+            }
+
+            GameObject visual = UnityEngine.Object.Instantiate(model, root.transform, false);
+            visual.name = "Miniature Hieroglyphic Pyramid Visual";
+
+            Collider[] importedColliders = visual.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < importedColliders.Length; i++)
+            {
+                importedColliders[i].enabled = false;
+                UnityEngine.Object.Destroy(importedColliders[i]);
+            }
+
+            MeshRenderer[] renderers = visual.GetComponentsInChildren<MeshRenderer>(true);
+            if (!TryCalculateLocalMeshBounds(root.transform, renderers, out Bounds bounds))
+            {
+                UnityEngine.Object.Destroy(visual);
+                MeshFilter filter = root.AddComponent<MeshFilter>();
+                filter.sharedMesh = mesh;
+                MeshRenderer renderer = root.AddComponent<MeshRenderer>();
+                renderer.sharedMaterial = fallbackMaterial;
+                renderer.shadowCastingMode = ShadowCastingMode.On;
+                renderer.receiveShadows = true;
+                return root.transform;
+            }
+
+            float horizontalHalfExtent = Mathf.Max(bounds.extents.x, bounds.extents.z);
+            if (horizontalHalfExtent > 0.0001f)
+            {
+                visual.transform.localScale *= 1f / horizontalHalfExtent;
+                TryCalculateLocalMeshBounds(root.transform, renderers, out bounds);
+            }
+            visual.transform.localPosition += new Vector3(-bounds.center.x, -bounds.min.y, -bounds.center.z);
+
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                renderers[i].shadowCastingMode = ShadowCastingMode.On;
+                renderers[i].receiveShadows = true;
+                Material[] materials = renderers[i].sharedMaterials;
+                for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    if (materials[materialIndex] != null)
+                    {
+                        materials[materialIndex].enableInstancing = true;
+                    }
+                }
+            }
+
+            DuneVectorSpatialInstancing.Capture(root, false);
             return root.transform;
         }
 

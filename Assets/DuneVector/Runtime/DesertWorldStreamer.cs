@@ -1289,7 +1289,13 @@ namespace DuneVector
                     scale,
                     yaw);
                 float y = footprintFloor - burial;
-                DuneVectorVisuals.CreatePyramid(Root, new Vector3(local.x, y, local.y), scale, yaw, materials.Sandstone);
+                DuneVectorVisuals.CreatePyramid(
+                    Root,
+                    new Vector3(local.x, y, local.y),
+                    scale,
+                    yaw,
+                    materials.PyramidModel,
+                    materials.Sandstone);
                 sceneryExclusions.Add(local);
             }
 
