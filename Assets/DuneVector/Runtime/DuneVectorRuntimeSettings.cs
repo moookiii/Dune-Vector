@@ -1395,6 +1395,8 @@ namespace DuneVector
     public sealed class DroneVisualTuning
     {
         [Header("Prefab")]
+        [Tooltip("Use the Resources drone prefab. Disable this to use the original procedural drone visual.")]
+        public bool UsePrefabVisual = true;
         [Tooltip("Resources path of the drone prefab used for player and courier visuals.")]
         public string PrefabResourcePath = "dronePrefab";
         [Tooltip("Local position applied to the instantiated drone prefab.")]

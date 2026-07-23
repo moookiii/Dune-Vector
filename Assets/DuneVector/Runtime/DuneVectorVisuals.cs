@@ -719,7 +719,9 @@ namespace DuneVector
             visual.SetParent(parent, false);
             visual.localPosition = Vector3.up * settings.CourierVisualHeight;
 
-            GameObject dronePrefab = Resources.Load<GameObject>(settings.PrefabResourcePath);
+            GameObject dronePrefab = settings.UsePrefabVisual
+                ? Resources.Load<GameObject>(settings.PrefabResourcePath)
+                : null;
             if (dronePrefab != null)
             {
                 GameObject model = UnityEngine.Object.Instantiate(dronePrefab, visual);
@@ -742,9 +744,12 @@ namespace DuneVector
                 return visual;
             }
 
-            Debug.LogError(
-                $"Drone visual prefab was not found at Resources/{settings.PrefabResourcePath}. " +
-                "Using the procedural fallback.");
+            if (settings.UsePrefabVisual)
+            {
+                Debug.LogError(
+                    $"Drone visual prefab was not found at Resources/{settings.PrefabResourcePath}. " +
+                    "Using the procedural fallback.");
+            }
 
             Material topMaterial = faction switch
             {
