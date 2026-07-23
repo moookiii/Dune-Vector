@@ -67,7 +67,6 @@ namespace DuneVector
         private readonly List<Material> _ownedMaterials = new List<Material>();
         private readonly List<Material> _shrubMaterials = new List<Material>();
         private readonly List<GeoglyphMaterialBatch> _geoglyphBatches = new List<GeoglyphMaterialBatch>();
-        private readonly Dictionary<Material, Material> _portalCoreMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalHaloMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalRearLineMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalFrontLineMaterials = new Dictionary<Material, Material>();
@@ -503,33 +502,6 @@ namespace DuneVector
             material.SetFloat("_CoreMode", 2f);
             _ownedMaterials.Add(material);
             _portalHaloMaterials.Add(lineMaterial, material);
-            return material;
-        }
-
-        public Material CreatePortalCoreMaterial(Material lineMaterial)
-        {
-            if (_portalCoreMaterials.TryGetValue(lineMaterial, out Material existing) && existing != null)
-            {
-                return existing;
-            }
-
-            Material material = new Material(lineMaterial)
-            {
-                name = $"{lineMaterial.name} - Energy Core",
-                enableInstancing = true,
-            };
-            material.SetFloat("_Opacity", RingPortalTuning.PortalCoreOpacity);
-            material.SetFloat("_CoreMode", 1f);
-            material.SetFloat("_OrbitLineCount", RingPortalTuning.PortalOrbitLineCount);
-            material.SetFloat("_OrbitAngularWaves", RingPortalTuning.PortalOrbitAngularWaves);
-            material.SetFloat("_OrbitSpeed", RingPortalTuning.PortalOrbitSpeed);
-            material.SetFloat("_OrbitLineWidth", RingPortalTuning.PortalOrbitLineWidth);
-            material.SetFloat("_OrbitWarp", RingPortalTuning.PortalOrbitWarp);
-            material.SetFloat("_CoreGlowFill", RingPortalTuning.PortalCoreGlowFill);
-            material.SetFloat("_CoreEdgeFeather", RingPortalTuning.PortalCoreEdgeFeather);
-            material.SetFloat("_FeatureBrightness", RingPortalTuning.PortalCoreBrightnessMultiplier);
-            _ownedMaterials.Add(material);
-            _portalCoreMaterials.Add(lineMaterial, material);
             return material;
         }
 
@@ -1490,24 +1462,11 @@ namespace DuneVector
             activationPulseRenderer.sortingOrder = 3;
             activationPulse.SetActive(false);
 
-            GameObject core = CreateMeshObject(
-                "Animated Transparent Energy Core",
-                parent,
-                GetPortalCoreQuadMesh(),
-                materials.CreatePortalCoreMaterial(lineMaterial));
-            float coreRadius = Mathf.Max(0.1f, radius * settings.PortalCoreRadiusFraction);
-            core.transform.localPosition = Vector3.back * settings.PortalLayerDepth;
-            core.transform.localScale = new Vector3(coreRadius, coreRadius, 1f);
-            DisableRendererShadows(core);
-            MeshRenderer coreRenderer = core.GetComponent<MeshRenderer>();
-            coreRenderer.sortingOrder = -1;
-
             DuneVectorPortalVisual portalVisual = parent.gameObject.AddComponent<DuneVectorPortalVisual>();
             portalVisual.Initialize(
                 new Renderer[]
                 {
                     haloRenderer,
-                    coreRenderer,
                     rearLineRenderer,
                     centerLineRenderer,
                     frontLineRenderer,
@@ -2802,35 +2761,6 @@ namespace DuneVector
             triangles.Add(firstVertex);
             triangles.Add(firstVertex + 2);
             triangles.Add(firstVertex + 3);
-        }
-
-        private static Mesh GetPortalCoreQuadMesh()
-        {
-            const string key = "portal-core-quad";
-            if (MeshCache.TryGetValue(key, out Mesh cached) && cached != null)
-            {
-                return cached;
-            }
-
-            Mesh mesh = new Mesh { name = "Portal Energy Core Quad" };
-            mesh.vertices = new[]
-            {
-                new Vector3(-1f, -1f, 0f),
-                new Vector3(-1f, 1f, 0f),
-                new Vector3(1f, 1f, 0f),
-                new Vector3(1f, -1f, 0f),
-            };
-            mesh.uv = new[]
-            {
-                new Vector2(0f, 0f),
-                new Vector2(0f, 1f),
-                new Vector2(1f, 1f),
-                new Vector2(1f, 0f),
-            };
-            mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
-            mesh.RecalculateBounds();
-            MeshCache[key] = mesh;
-            return mesh;
         }
 
         private static Mesh GetArcTorusMesh(

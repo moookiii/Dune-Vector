@@ -2492,7 +2492,6 @@ namespace DuneVector
         [Min(0f)] public float PortalStructuralLineBrightnessMultiplier = 0.82f;
         [Min(0f)] public float PortalRuneBrightnessMultiplier = 0.72f;
         [Min(0f)] public float PortalInnerRingBrightnessMultiplier = 0.58f;
-        [Min(0f)] public float PortalCoreBrightnessMultiplier = 0.45f;
 
         [Header("Portal Activation Reaction")]
         [Min(0.01f)] public float PortalActivationReactionDuration = 0.58f;
@@ -2521,22 +2520,7 @@ namespace DuneVector
         [Tooltip("Portal energy reaches full opacity at this camera distance.")]
         [Min(0f)] public float PortalCameraFadeEndDistance = 14f;
 
-        [Header("Portal Energy Core")]
-        [Tooltip("Radius of the transparent animated orbital lines relative to the gameplay ring radius.")]
-        [Range(0.1f, 1f)] public float PortalCoreRadiusFraction = 0.46f;
-        [Range(0f, 1f)] public float PortalCoreOpacity = 0.38f;
-        [FormerlySerializedAs("PortalSwirlArmCount")]
-        [Range(2f, 10f)] public float PortalOrbitLineCount = 5f;
-        [FormerlySerializedAs("PortalSwirlDensity")]
-        [Range(1f, 8f)] public float PortalOrbitAngularWaves = 2f;
-        [FormerlySerializedAs("PortalSwirlSpeed")]
-        [Min(0f)] public float PortalOrbitSpeed = 0.55f;
-        [FormerlySerializedAs("PortalSwirlLineWidth")]
-        [Range(0.005f, 0.25f)] public float PortalOrbitLineWidth = 0.09f;
-        [Tooltip("Amount that the circular energy lines gently bend as they orbit.")]
-        [Range(0f, 0.2f)] public float PortalOrbitWarp = 0.045f;
-        [Range(0f, 1f)] public float PortalCoreGlowFill = 0.015f;
-        [Range(0.01f, 0.5f)] public float PortalCoreEdgeFeather = 0.24f;
+        [Header("Portal Animation and Layering")]
         [Min(0f)] public float PortalPulseSpeed = 1f;
         [Range(0f, 0.5f)] public float PortalPulseAmount = 0.08f;
         [Min(0f)] public float PortalLayerDepth = 0.32f;

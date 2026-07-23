@@ -19,13 +19,6 @@ Shader "DuneVector/HDRP Portal Energy"
         _InnerRingBrightness("Inner Ring Brightness", Float) = 0.58
         _FeatureBrightness("Feature Brightness", Float) = 1
         _ActivationBloomBoost("Activation Bloom Boost", Float) = 1
-        _OrbitLineCount("Orbit Line Count", Float) = 5
-        _OrbitAngularWaves("Orbit Angular Waves", Float) = 2
-        _OrbitSpeed("Orbit Speed", Float) = 0.55
-        _OrbitLineWidth("Orbit Line Width", Range(0.005, 0.25)) = 0.09
-        _OrbitWarp("Orbit Warp", Range(0, 0.2)) = 0.045
-        _CoreGlowFill("Core Glow Fill", Range(0, 1)) = 0.08
-        _CoreEdgeFeather("Core Edge Feather", Range(0.01, 0.5)) = 0.16
         _PulseSpeed("Pulse Speed", Float) = 1.35
         _PulseAmount("Pulse Amount", Range(0, 0.5)) = 0.12
     }
@@ -77,13 +70,6 @@ Shader "DuneVector/HDRP Portal Energy"
                 float _InnerRingBrightness;
                 float _FeatureBrightness;
                 float _ActivationBloomBoost;
-                float _OrbitLineCount;
-                float _OrbitAngularWaves;
-                float _OrbitSpeed;
-                float _OrbitLineWidth;
-                float _OrbitWarp;
-                float _CoreGlowFill;
-                float _CoreEdgeFeather;
                 float _PulseSpeed;
                 float _PulseAmount;
             CBUFFER_END
@@ -134,41 +120,6 @@ Shader "DuneVector/HDRP Portal Energy"
                     float particleFade = 1.0 - smoothstep(0.15, 1.0, particleRadius);
                     alpha *= particleFade * input.color.a;
                     particleTint = input.color.rgb;
-                }
-                else if (_CoreMode > 0.5 && _CoreMode < 1.5)
-                {
-                    float2 centered = (input.uv * 2.0) - 1.0;
-                    float radius = length(centered);
-                    clip(1.0 - radius);
-
-                    float angle = atan2(centered.y, centered.x);
-                    float orbitTime = _Time.y * _OrbitSpeed;
-                    float angularPhase = (angle * _OrbitAngularWaves) + orbitTime;
-                    float bentRadius = radius +
-                        (sin(angularPhase + (radius * 8.0)) * _OrbitWarp);
-                    float orbitCoordinate = (bentRadius - 0.08) * _OrbitLineCount;
-                    float orbitDistance = abs(frac(orbitCoordinate + 0.5) - 0.5) * 2.0;
-                    float orbitLines = 1.0 - smoothstep(
-                        _OrbitLineWidth,
-                        _OrbitLineWidth * 2.2,
-                        orbitDistance);
-
-                    float orbitIndex = floor(orbitCoordinate + 0.5);
-                    float arcVariation = sin(
-                        (angle * (2.0 + fmod(abs(orbitIndex), 3.0))) -
-                        (orbitTime * 0.35) +
-                        (orbitIndex * 2.17));
-                    float arcBrightness = lerp(
-                        0.38,
-                        1.0,
-                        smoothstep(-0.65, 0.35, arcVariation));
-                    float edgeFade = 1.0 - smoothstep(
-                        1.0 - _CoreEdgeFeather,
-                        1.0,
-                        radius);
-                    float centerFade = smoothstep(0.08, 0.2, radius);
-                    float lineEnergy = orbitLines * arcBrightness;
-                    alpha *= saturate(_CoreGlowFill + lineEnergy) * edgeFade * centerFade;
                 }
                 else
                 {
