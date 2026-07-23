@@ -2435,13 +2435,16 @@ namespace DuneVector
             int glyphCount = Mathf.Clamp(settings.PortalGlyphCount, 3, 32);
             int rayCount = Mathf.Clamp(settings.PortalExteriorRayCount, 0, 24);
             float clampedThicknessMultiplier = Mathf.Max(1f, thicknessMultiplier);
-            string key = $"portal-lines-v3:{layer}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
+            string key = $"portal-lines-v4:{layer}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
                 $"{settings.PortalOuterLineThickness:0.000}:" +
                 $"{settings.PortalInnerLineThickness:0.000}:{circleSegments}:{concentricCount}:" +
                 $"{settings.PortalInnermostRingRadiusFraction:0.000}:{spokeCount}:" +
                 $"{settings.PortalSpokeInnerRadiusFraction:0.000}:{settings.PortalSpokeThickness:0.000}:{glyphCount}:" +
                 $"{settings.PortalGlyphRadiusFraction:0.000}:{settings.PortalGlyphStrokeThickness:0.000}:" +
-                $"{settings.PortalGlyphSizeFraction:0.000}:{rayCount}:" +
+                $"{settings.PortalGlyphSizeFraction:0.000}:{settings.PortalRuneSizeVariation:0.000}:" +
+                $"{settings.PortalRuneSpacingVariation:0.000}:" +
+                $"{settings.PortalRuneRotationVariationDegrees:0.000}:" +
+                $"{settings.PortalRuneBrightnessVariation:0.000}:{rayCount}:" +
                 $"{settings.PortalExteriorRayLengthFraction:0.000}";
             if (MeshCache.TryGetValue(key, out Mesh cached) && cached != null)
             {
@@ -2508,6 +2511,7 @@ namespace DuneVector
             float glyphRadius = radius * Mathf.Clamp(settings.PortalGlyphRadiusFraction, 0.1f, 0.95f);
             float glyphSize = Mathf.Max(0.03f, radius * settings.PortalGlyphSizeFraction);
             float glyphThickness = Mathf.Max(0.01f, settings.PortalGlyphStrokeThickness) * clampedThicknessMultiplier;
+            int variationSeed = Mathf.RoundToInt(radius * 100f);
             for (int glyphIndex = 0; glyphIndex < glyphCount; glyphIndex++)
             {
                 PortalLineLayer glyphLayer = (glyphIndex % 3) switch
@@ -2520,20 +2524,56 @@ namespace DuneVector
                 {
                     continue;
                 }
-                float angle = ((glyphIndex + 0.25f) / glyphCount) * Mathf.PI * 2f;
+                float slotAngle = (Mathf.PI * 2f) / glyphCount;
+                float spacingVariation = DuneVectorMath.HashRange(
+                    glyphIndex,
+                    glyphCount,
+                    variationSeed,
+                    101,
+                    -1f,
+                    1f);
+                float angle = (((glyphIndex + 0.25f) / glyphCount) * Mathf.PI * 2f)
+                    + (spacingVariation * slotAngle * settings.PortalRuneSpacingVariation);
                 Vector2 radial = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
                 Vector2 tangent = new Vector2(-radial.y, radial.x);
+                float rotationVariation = DuneVectorMath.HashRange(
+                    glyphIndex,
+                    glyphCount,
+                    variationSeed,
+                    211,
+                    -settings.PortalRuneRotationVariationDegrees,
+                    settings.PortalRuneRotationVariationDegrees) * Mathf.Deg2Rad;
+                float rotationCosine = Mathf.Cos(rotationVariation);
+                float rotationSine = Mathf.Sin(rotationVariation);
+                Vector2 runeTangent = (tangent * rotationCosine) + (radial * rotationSine);
+                Vector2 runeRadial = (-tangent * rotationSine) + (radial * rotationCosine);
                 Vector2 center = radial * glyphRadius;
+                float sizeVariation = DuneVectorMath.HashRange(
+                    glyphIndex,
+                    glyphCount,
+                    variationSeed,
+                    307,
+                    -settings.PortalRuneSizeVariation,
+                    settings.PortalRuneSizeVariation);
+                float brightnessVariation = DuneVectorMath.HashRange(
+                    glyphIndex,
+                    glyphCount,
+                    variationSeed,
+                    401,
+                    -settings.PortalRuneBrightnessVariation,
+                    settings.PortalRuneBrightnessVariation);
+                float runeFeatureMarker = -2f - brightnessVariation;
                 AddPortalRune(
                     vertices,
                     uvs,
                     triangles,
                     glyphIndex,
                     center,
-                    tangent,
-                    radial,
-                    glyphSize,
-                    glyphThickness);
+                    runeTangent,
+                    runeRadial,
+                    glyphSize * (1f + sizeVariation),
+                    glyphThickness,
+                    runeFeatureMarker);
             }
 
             float rayLength = Mathf.Max(0f, radius * settings.PortalExteriorRayLengthFraction);
@@ -2572,7 +2612,8 @@ namespace DuneVector
             Vector2 tangent,
             Vector2 radial,
             float size,
-            float thickness)
+            float thickness,
+            float featureMarker)
         {
             Vector2 Point(float x, float y) => center + (tangent * x * size) + (radial * y * size);
             void Stroke(float ax, float ay, float bx, float by) => AddPortalStroke(
@@ -2582,13 +2623,14 @@ namespace DuneVector
                 Point(ax, ay),
                 Point(bx, by),
                 thickness,
-                -2f);
+                featureMarker);
             void Node(float x, float y) => AddPortalRuneNode(
                 vertices,
                 uvs,
                 triangles,
                 Point(x, y),
-                thickness * 1.8f);
+                thickness * 1.8f,
+                featureMarker);
 
             switch (runeIndex % 8)
             {
@@ -2661,7 +2703,8 @@ namespace DuneVector
             List<Vector2> uvs,
             List<int> triangles,
             Vector2 center,
-            float size)
+            float size,
+            float featureMarker)
         {
             Vector2 horizontal = new Vector2(size, 0f);
             Vector2 vertical = new Vector2(0f, size);
@@ -2673,7 +2716,7 @@ namespace DuneVector
                 center + vertical,
                 center + horizontal,
                 center - vertical,
-                -2f);
+                featureMarker);
         }
 
         private static void AddPortalRing(

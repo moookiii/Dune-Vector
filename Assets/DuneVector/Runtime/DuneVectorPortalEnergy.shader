@@ -176,8 +176,12 @@ Shader "DuneVector/HDRP Portal Energy"
                     float outerRim = step(2.5, input.uv.x);
                     float innerRing = circularLine * (1.0 - outerRim);
                     float rune = 1.0 - step(-1.5, input.uv.x);
+                    float runeBrightnessScale = max(0.0, 1.0 + ((-input.uv.x) - 2.0));
                     featureBrightness *= _StructuralLineBrightness;
-                    featureBrightness = lerp(featureBrightness, _RuneBrightness, rune);
+                    featureBrightness = lerp(
+                        featureBrightness,
+                        _RuneBrightness * runeBrightnessScale,
+                        rune);
                     featureBrightness = lerp(featureBrightness, _InnerRingBrightness, innerRing);
                     featureBrightness = lerp(featureBrightness, _OuterRimBrightness, outerRim);
                     float portalAngle = atan2(input.portalPosition.y, input.portalPosition.x);

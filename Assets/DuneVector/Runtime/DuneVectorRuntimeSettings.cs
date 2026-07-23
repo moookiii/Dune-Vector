@@ -2439,6 +2439,16 @@ namespace DuneVector
         [Range(0.1f, 0.95f)] public float PortalGlyphRadiusFraction = 0.74f;
         [Min(0.01f)] public float PortalGlyphStrokeThickness = 0.035f;
         [Range(0.01f, 0.25f)] public float PortalGlyphSizeFraction = 0.052f;
+        [Header("Portal Rune Variation")]
+        [Tooltip("Maximum proportional size difference above or below the base rune size.")]
+        [Range(0f, 0.5f)] public float PortalRuneSizeVariation = 0.22f;
+        [Tooltip("Maximum angular offset as a fraction of one evenly spaced rune slot.")]
+        [Range(0f, 0.45f)] public float PortalRuneSpacingVariation = 0.24f;
+        [Tooltip("Maximum clockwise or counterclockwise tilt from the rune's radial alignment.")]
+        [Range(0f, 45f)] public float PortalRuneRotationVariationDegrees = 18f;
+        [Tooltip("Maximum proportional brightness difference above or below the base rune brightness.")]
+        [Range(0f, 0.4f)] public float PortalRuneBrightnessVariation = 0.18f;
+        [Header("Portal Exterior Rays")]
         [Range(0, 24)] public int PortalExteriorRayCount = 9;
         [Range(0f, 0.5f)] public float PortalExteriorRayLengthFraction = 0.13f;
 
