@@ -41,6 +41,7 @@ namespace DuneVector
         private bool _hasPreviousWorldPosition;
         private bool _inside;
         private float _nextActivationTime;
+        private float _nextFlightMeterRewardTime;
         private float _pulse;
         private float _modeScale = 1f;
         private float _visualSpin;
@@ -354,7 +355,16 @@ namespace DuneVector
                     float speedMultiplier = RingType == TraversalRingType.UpperFlight
                         ? _ringTuning.UpperFlightSpeedMultiplier
                         : 1f;
-                    _controller.RequestFlightFromRing(transform.forward, speedMultiplier);
+                    if (Time.time >= _nextFlightMeterRewardTime)
+                    {
+                        _nextFlightMeterRewardTime = Time.time
+                            + Mathf.Max(0f, _ringTuning.FlightMeterRewardCooldown);
+                        _controller.RequestFlightFromRing(transform.forward, speedMultiplier);
+                    }
+                    else
+                    {
+                        _controller.RequestFlight(transform.forward, speedMultiplier);
+                    }
                 }
                 else
                 {

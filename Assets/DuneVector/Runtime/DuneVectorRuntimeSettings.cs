@@ -2371,6 +2371,8 @@ namespace DuneVector
         [Min(1f)] public float FlightRingAmountMultiplierAtMinimumMeter = 5f;
         [Tooltip("Multiplier for the expected number of procedurally generated blue flight rings when the flight meter is full.")]
         [Min(1f)] public float FlightRingAmountMultiplierAtMaximumMeter = 1f;
+        [Tooltip("Seconds before the same flight ring can restore the flight meter again.")]
+        [Min(0f)] public float FlightMeterRewardCooldown = 5f;
 
         public float GetFlightRingAmountMultiplier(float flightMeterNormalized)
         {
