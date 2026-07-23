@@ -69,6 +69,7 @@ namespace DuneVector
         private float _stateTime;
         private float _attackTimer;
         private int _identity;
+        private bool _gameplayActive = true;
 
         public void Initialize(
             DroneCharacterController player,
@@ -132,6 +133,13 @@ namespace DuneVector
             }
 
             float deltaTime = Time.deltaTime;
+            if (!_gameplayActive)
+            {
+                _movement.Tick(deltaTime);
+                UpdatePresentation(deltaTime);
+                return;
+            }
+
             _stateTime += deltaTime;
 
             bool mayDrift = CurrentState == StormPyramidState.IdleHovering
@@ -261,6 +269,7 @@ namespace DuneVector
 
         public void SetGameplayActive(bool active)
         {
+            _gameplayActive = active;
             if (!active)
             {
                 _lightning?.CancelAttack();
@@ -271,8 +280,6 @@ namespace DuneVector
             {
                 _attackTimer = Mathf.Min(_attackTimer, GetAttackInterval());
             }
-
-            enabled = active;
         }
 
         private float GetAttackInterval()
@@ -816,6 +823,7 @@ namespace DuneVector
         private bool _hasPreviousPlayerPosition;
         private bool _flyThroughTriggered;
         private bool _facingLockedForClosePass;
+        private bool _gameplayActive = true;
 
         public void Initialize(
             DroneCharacterController player,
@@ -884,7 +892,7 @@ namespace DuneVector
             }
 
             Vector3 playerPosition = _player.WorldCenter;
-            if (TryDestroyFromFlyThrough(playerPosition))
+            if (_gameplayActive && TryDestroyFromFlyThrough(playerPosition))
             {
                 return;
             }
@@ -892,6 +900,13 @@ namespace DuneVector
             _hasPreviousPlayerPosition = true;
 
             float deltaTime = Time.deltaTime;
+            if (!_gameplayActive)
+            {
+                _movement.Tick(deltaTime);
+                UpdatePresentation(deltaTime);
+                return;
+            }
+
             _stateTime += deltaTime;
             bool mayDrift = CurrentState == StormPyramidState.IdleHovering
                 || CurrentState == StormPyramidState.TrackingPlayer
@@ -1058,6 +1073,29 @@ namespace DuneVector
             _facingLockedForClosePass = false;
             _attackTimer = Mathf.Max(0.1f, _settings.AttackInterval);
             SetState(StormPyramidState.IdleHovering);
+        }
+
+        public void SetGameplayActive(bool active)
+        {
+            _gameplayActive = active;
+            if (!active)
+            {
+                _lightning?.CancelAttack();
+                _attackTimer = Mathf.Max(0.1f, _settings.AttackInterval);
+                SetState(StormPyramidState.IdleHovering);
+            }
+            else
+            {
+                _attackTimer = Mathf.Min(
+                    _attackTimer,
+                    Mathf.Max(0.1f, _settings.AttackInterval));
+            }
+
+            if (_player != null)
+            {
+                _previousPlayerPosition = _player.WorldCenter;
+                _hasPreviousPlayerPosition = true;
+            }
         }
 
         private bool TryDestroyFromFlyThrough(Vector3 playerPosition)
@@ -2055,7 +2093,7 @@ namespace DuneVector
             {
                 if (_orbEnemies[i] != null)
                 {
-                    _orbEnemies[i].enabled = active;
+                    _orbEnemies[i].SetGameplayActive(active);
                 }
             }
             if (_warningHud != null)
