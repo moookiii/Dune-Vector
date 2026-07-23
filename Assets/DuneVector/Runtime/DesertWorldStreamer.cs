@@ -1093,8 +1093,10 @@ namespace DuneVector
                     CreateRing(position, forward, TraversalRingType.GroundBoost, ringTuning.GroundRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "boost", ringActivated);
                 }
 
+                float flightMeterNormalized = player != null ? player.FlightTimeNormalized : 0f;
+                float flightRingAmountMultiplier = ringTuning.GetFlightRingAmountMultiplier(flightMeterNormalized);
                 float additionalFlightDensity = aerialRingDensity
-                    * Mathf.Max(0f, ringTuning.FlightRingAmountMultiplier - 1f);
+                    * Mathf.Max(0f, flightRingAmountMultiplier - 1f);
                 int additionalFlightRingCount = CountFromDensity(
                     additionalFlightDensity,
                     coordinate,

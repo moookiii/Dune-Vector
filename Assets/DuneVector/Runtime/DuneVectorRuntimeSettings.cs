@@ -2366,8 +2366,19 @@ namespace DuneVector
         [Min(0f)] public float BillboardDisableRadius = 14f;
 
         [Header("Blue Flight Ring Generation")]
-        [Tooltip("Multiplier for the expected number of procedurally generated blue flight rings. One preserves the base amount; values above one add blue rings without adding boost rings.")]
-        [Min(1f)] public float FlightRingAmountMultiplier = 1f;
+        [Tooltip("Multiplier for the expected number of procedurally generated blue flight rings when the flight meter is empty.")]
+        [FormerlySerializedAs("FlightRingAmountMultiplier")]
+        [Min(1f)] public float FlightRingAmountMultiplierAtMinimumMeter = 5f;
+        [Tooltip("Multiplier for the expected number of procedurally generated blue flight rings when the flight meter is full.")]
+        [Min(1f)] public float FlightRingAmountMultiplierAtMaximumMeter = 1f;
+
+        public float GetFlightRingAmountMultiplier(float flightMeterNormalized)
+        {
+            return Mathf.Lerp(
+                Mathf.Max(1f, FlightRingAmountMultiplierAtMinimumMeter),
+                Mathf.Max(1f, FlightRingAmountMultiplierAtMaximumMeter),
+                Mathf.Clamp01(flightMeterNormalized));
+        }
 
         [Header("Boost and Flight Ring Appearance")]
         [ColorUsage(false, true)] public Color BoostRingBaseColor = new Color(0.42f, 0.09f, 0.008f);
