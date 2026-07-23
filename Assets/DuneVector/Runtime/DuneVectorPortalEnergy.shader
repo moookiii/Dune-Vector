@@ -80,6 +80,7 @@ Shader "DuneVector/HDRP Portal Energy"
             {
                 float3 positionOS : POSITION;
                 float2 uv : TEXCOORD0;
+                float4 color : COLOR;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -88,6 +89,7 @@ Shader "DuneVector/HDRP Portal Energy"
                 float4 positionCS : SV_POSITION;
                 float2 uv : TEXCOORD0;
                 float2 portalPosition : TEXCOORD1;
+                float4 color : COLOR;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
@@ -99,6 +101,7 @@ Shader "DuneVector/HDRP Portal Energy"
                 output.positionCS = TransformObjectToHClip(input.positionOS);
                 output.uv = input.uv;
                 output.portalPosition = input.positionOS.xy;
+                output.color = input.color;
                 return output;
             }
 
@@ -108,8 +111,18 @@ Shader "DuneVector/HDRP Portal Energy"
                 float pulse = 1.0 + (sin((_Time.y * _PulseSpeed) + 1.7) * _PulseAmount);
                 float alpha = _Opacity * _DistanceFade;
                 float travelBrightness = 1.0;
+                float3 particleTint = float3(1.0, 1.0, 1.0);
 
-                if (_CoreMode > 0.5 && _CoreMode < 1.5)
+                if (_CoreMode > 2.5)
+                {
+                    float2 centered = (input.uv * 2.0) - 1.0;
+                    float particleRadius = length(centered);
+                    clip(1.0 - particleRadius);
+                    float particleFade = 1.0 - smoothstep(0.15, 1.0, particleRadius);
+                    alpha *= particleFade * input.color.a;
+                    particleTint = input.color.rgb;
+                }
+                else if (_CoreMode > 0.5 && _CoreMode < 1.5)
                 {
                     float2 centered = (input.uv * 2.0) - 1.0;
                     float radius = length(centered);
@@ -176,7 +189,7 @@ Shader "DuneVector/HDRP Portal Energy"
                 }
 
                 return float4(
-                    _PortalColor.rgb * pulse * _BloomIntensity * travelBrightness,
+                    _PortalColor.rgb * pulse * _BloomIntensity * travelBrightness * particleTint,
                     alpha * _PortalColor.a);
             }
             ENDHLSL

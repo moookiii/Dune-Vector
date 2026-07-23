@@ -2425,6 +2425,25 @@ namespace DuneVector
         [Tooltip("Phase difference between portal circles, preventing their tracers from lining up like spokes.")]
         [Range(0f, 1f)] public float PortalTravelPulseRingPhaseOffset = 0.17f;
 
+        [Header("Portal Edge Sparks")]
+        [Tooltip("Average number of sparks emitted from each portal per second.")]
+        [Min(0f)] public float PortalSparkEmissionRate = 0.55f;
+        [Min(0.01f)] public float PortalSparkMinimumLifetime = 0.35f;
+        [Min(0.01f)] public float PortalSparkMaximumLifetime = 0.8f;
+        [Min(0f)] public float PortalSparkMinimumSpeed = 0.35f;
+        [Min(0f)] public float PortalSparkMaximumSpeed = 1.1f;
+        [Min(0.001f)] public float PortalSparkMinimumSize = 0.035f;
+        [Min(0.001f)] public float PortalSparkMaximumSize = 0.09f;
+        [Tooltip("Distance outside the portal rim where sparks originate.")]
+        [Min(0f)] public float PortalSparkEdgeOffset = 0.04f;
+        [Tooltip("Normalized lifetime at which sparks begin fading.")]
+        [Range(0f, 1f)] public float PortalSparkFadeStart = 0.18f;
+        [Tooltip("Variation applied to the outward launch direction.")]
+        [Range(0f, 1f)] public float PortalSparkDirectionRandomness = 0.16f;
+        [Tooltip("HDR brightness multiplier applied only to portal sparks.")]
+        [Min(0f)] public float PortalSparkBloomIntensity = 2.8f;
+        [Min(1)] public int PortalSparkMaximumParticles = 12;
+
         [Header("Portal Depth Layers")]
         [Tooltip("Forward and backward spacing between selected portal linework layers.")]
         [Min(0f)] public float PortalLineLayerDepth = 0.22f;

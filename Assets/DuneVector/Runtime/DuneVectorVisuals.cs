@@ -69,6 +69,7 @@ namespace DuneVector
         private readonly Dictionary<Material, Material> _portalHaloMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalRearLineMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalFrontLineMaterials = new Dictionary<Material, Material>();
+        private readonly Dictionary<Material, Material> _portalParticleMaterials = new Dictionary<Material, Material>();
         private readonly Material[] _sandOnlyTerrainMaterials;
 
         public DuneVectorMaterials(
@@ -537,6 +538,26 @@ namespace DuneVector
                 RingPortalTuning.PortalLineOpacity * Mathf.Clamp01(opacityMultiplier));
             _ownedMaterials.Add(material);
             materials.Add(lineMaterial, material);
+            return material;
+        }
+
+        public Material CreatePortalParticleMaterial(Material lineMaterial)
+        {
+            if (_portalParticleMaterials.TryGetValue(lineMaterial, out Material existing) && existing != null)
+            {
+                return existing;
+            }
+
+            Material material = new Material(lineMaterial)
+            {
+                name = $"{lineMaterial.name} - Edge Sparks",
+                enableInstancing = true,
+            };
+            material.SetFloat("_Opacity", 1f);
+            material.SetFloat("_BloomIntensity", RingPortalTuning.PortalSparkBloomIntensity);
+            material.SetFloat("_CoreMode", 3f);
+            _ownedMaterials.Add(material);
+            _portalParticleMaterials.Add(lineMaterial, material);
             return material;
         }
 
@@ -1265,6 +1286,12 @@ namespace DuneVector
             MeshRenderer frontLineRenderer = frontLinework.GetComponent<MeshRenderer>();
             frontLineRenderer.sortingOrder = 1;
 
+            ParticleSystemRenderer sparkRenderer = CreatePortalEdgeSparks(
+                parent,
+                materials.CreatePortalParticleMaterial(lineMaterial),
+                radius,
+                settings);
+
             GameObject core = CreateMeshObject(
                 "Animated Transparent Energy Core",
                 parent,
@@ -1286,8 +1313,72 @@ namespace DuneVector
                     rearLineRenderer,
                     centerLineRenderer,
                     frontLineRenderer,
+                    sparkRenderer,
                 },
                 settings);
+        }
+
+        private static ParticleSystemRenderer CreatePortalEdgeSparks(
+            Transform parent,
+            Material material,
+            float radius,
+            RingTuning settings)
+        {
+            GameObject sparkObject = new GameObject("Sparse Portal Edge Sparks");
+            Transform sparkTransform = sparkObject.transform;
+            sparkTransform.SetParent(parent, false);
+            sparkTransform.localPosition = Vector3.forward * Mathf.Max(0f, settings.PortalLineLayerDepth);
+
+            ParticleSystem particles = sparkObject.AddComponent<ParticleSystem>();
+            ParticleSystem.MainModule main = particles.main;
+            main.loop = true;
+            main.playOnAwake = true;
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            main.maxParticles = Mathf.Max(1, settings.PortalSparkMaximumParticles);
+            main.startLifetime = new ParticleSystem.MinMaxCurve(
+                Mathf.Max(0.01f, settings.PortalSparkMinimumLifetime),
+                Mathf.Max(settings.PortalSparkMinimumLifetime, settings.PortalSparkMaximumLifetime));
+            main.startSpeed = new ParticleSystem.MinMaxCurve(
+                Mathf.Max(0f, settings.PortalSparkMinimumSpeed),
+                Mathf.Max(settings.PortalSparkMinimumSpeed, settings.PortalSparkMaximumSpeed));
+            main.startSize = new ParticleSystem.MinMaxCurve(
+                Mathf.Max(0.001f, settings.PortalSparkMinimumSize),
+                Mathf.Max(settings.PortalSparkMinimumSize, settings.PortalSparkMaximumSize));
+
+            ParticleSystem.EmissionModule emission = particles.emission;
+            emission.rateOverTime = Mathf.Max(0f, settings.PortalSparkEmissionRate);
+
+            ParticleSystem.ShapeModule shape = particles.shape;
+            shape.shapeType = ParticleSystemShapeType.Circle;
+            shape.radius = radius + Mathf.Max(0f, settings.PortalSparkEdgeOffset);
+            shape.radiusThickness = 0f;
+            shape.randomDirectionAmount = Mathf.Clamp01(settings.PortalSparkDirectionRandomness);
+
+            Gradient fade = new Gradient();
+            fade.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f),
+                },
+                new[]
+                {
+                    new GradientAlphaKey(1f, 0f),
+                    new GradientAlphaKey(1f, Mathf.Clamp01(settings.PortalSparkFadeStart)),
+                    new GradientAlphaKey(0f, 1f),
+                });
+            ParticleSystem.ColorOverLifetimeModule colorOverLifetime = particles.colorOverLifetime;
+            colorOverLifetime.enabled = true;
+            colorOverLifetime.color = fade;
+
+            ParticleSystemRenderer renderer = sparkObject.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Billboard;
+            renderer.sharedMaterial = material;
+            renderer.sortingOrder = 2;
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            particles.Play();
+            return renderer;
         }
 
         private static Transform CreateCollectibleModelVisual(
