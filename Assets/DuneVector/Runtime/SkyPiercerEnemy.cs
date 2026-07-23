@@ -142,7 +142,9 @@ namespace DuneVector
         private void BeginDive(Vector3 playerPosition)
         {
             float terrainHeight = _world.SampleHeightAtLocal(playerPosition.x, playerPosition.z);
-            float stuckCenterHeight = terrainHeight + (_settings.VisualScale * 1.05f);
+            float stuckCenterHeight = terrainHeight
+                + (_settings.VisualScale * _settings.StuckCenterHeightPerVisualScale)
+                - _settings.AttackGroundPenetrationDepth;
             _strikePoint = new Vector3(_cachedTransform.position.x, stuckCenterHeight, _cachedTransform.position.z);
             SetState(SkyPiercerState.AttackDive);
         }

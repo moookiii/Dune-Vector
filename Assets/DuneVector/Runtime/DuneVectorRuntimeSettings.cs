@@ -1690,6 +1690,13 @@ namespace DuneVector
         [Min(1)] public int SpeedRiskScalingCeiling = 20;
         [Min(0.1f)] public float AttackCooldown = 3.5f;
         [Min(0.25f)] public float AttackAlignmentDistance = 4f;
+
+        [Header("Attack Ground Contact")]
+        [Tooltip("Baseline height of the enemy root above the sampled terrain, multiplied by Visual Scale.")]
+        [Min(0f)] public float StuckCenterHeightPerVisualScale = 1.05f;
+        [Tooltip("Additional world-space depth pushed into the terrain during the attack dive and stuck state. Hovering is unaffected.")]
+        [Min(0f)] public float AttackGroundPenetrationDepth = 0.75f;
+
         [Min(0f)] public float ImpactDamage = 25f;
         public string ImpactDeathMessage = "Destroyed by a Sky Piecer impact.";
         [Min(0.1f)] public float ImpactRadius = 3.4f;
