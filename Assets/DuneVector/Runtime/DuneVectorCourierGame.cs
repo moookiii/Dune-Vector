@@ -959,6 +959,12 @@ namespace DuneVector
             Vector3 planarOffset = Vector3.ProjectOnPlane(hubOffset, Vector3.up);
             bool positionChanged = false;
 
+            float platformSurfaceY = _hubRoot.position.y + (_hubSettings.PlatformThickness * 0.5f);
+            if (planarOffset.sqrMagnitude <= safeRadius * safeRadius)
+            {
+                _player.TryFinishFlightOnSurface(platformSurfaceY, Vector3.up);
+            }
+
             if (planarOffset.sqrMagnitude > safeRadius * safeRadius)
             {
                 Vector3 outward = planarOffset.sqrMagnitude > 0f ? planarOffset.normalized : Vector3.forward;
@@ -971,7 +977,6 @@ namespace DuneVector
                 positionChanged = true;
             }
 
-            float platformSurfaceY = _hubRoot.position.y + (_hubSettings.PlatformThickness * 0.5f);
             float platformRecoveryY = platformSurfaceY - _hubSettings.PlatformThickness;
             if (position.y < platformRecoveryY)
             {

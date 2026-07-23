@@ -917,19 +917,28 @@ namespace DuneVector
 
         private void TryFinishFlight()
         {
-            if (_flightElapsedTime < MinimumFlightTime || World == null)
+            if (World == null)
             {
                 return;
             }
 
             float terrainHeight = World.SampleHeightAtLocal(Motor.TransientPosition.x, Motor.TransientPosition.z);
-            float clearance = Motor.TransientPosition.y - terrainHeight;
             Vector3 terrainNormal = World.SampleNormalAtLocal(Motor.TransientPosition.x, Motor.TransientPosition.z);
-            float terrainAngle = Vector3.Angle(terrainNormal, Vector3.up);
+            TryFinishFlightOnSurface(terrainHeight, terrainNormal);
+        }
 
+        public void TryFinishFlightOnSurface(float surfaceHeight, Vector3 surfaceNormal)
+        {
+            if (CurrentMode != DroneTraversalMode.Flight || _flightElapsedTime < MinimumFlightTime)
+            {
+                return;
+            }
+
+            float clearance = Motor.TransientPosition.y - surfaceHeight;
+            float surfaceAngle = Vector3.Angle(surfaceNormal, Vector3.up);
             if (clearance <= AcceptableLandingDistance
                 && Motor.BaseVelocity.y <= MaximumLandingVerticalSpeed
-                && terrainAngle <= MaximumLandingAngle)
+                && surfaceAngle <= MaximumLandingAngle)
             {
                 FinishFlight();
             }
