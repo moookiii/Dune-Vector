@@ -551,23 +551,22 @@ namespace DuneVector
 
         private void PrepareFreeRoamDeployment()
         {
-            LogicalPosition hub = new LogicalPosition(
-                DesertWorldStreamer.StartingLogicalPosition.x,
-                DesertWorldStreamer.StartingLogicalPosition.y);
             float headingRadians = _hubSettings.FreeRoamDeploymentHeadingDegrees * Mathf.Deg2Rad;
             Vector3 heading = new Vector3(
                 Mathf.Cos(headingRadians),
                 0f,
                 Mathf.Sin(headingRadians));
-            double deploymentDistance = _hubSettings.FreeRoamDeploymentDistance;
-            LogicalPosition deployment = new LogicalPosition(
-                hub.X + (heading.x * deploymentDistance),
-                hub.Z + (heading.z * deploymentDistance));
-            float terrainHeight = (float)_world.HeightField.SampleHeight(deployment.X, deployment.Z);
-            _desertSpawn = _world.LogicalToLocal(
-                deployment.X,
+            Vector3 hubPosition = _hubRoot != null
+                ? _hubRoot.position
+                : _world.LogicalToLocal(
+                    DesertWorldStreamer.StartingLogicalPosition.x,
+                    0f,
+                    DesertWorldStreamer.StartingLogicalPosition.y);
+            float terrainHeight = _world.SampleHeightAtLocal(hubPosition.x, hubPosition.z);
+            _desertSpawn = new Vector3(
+                hubPosition.x,
                 terrainHeight + _hubSettings.DesertInsertionHeight,
-                deployment.Z);
+                hubPosition.z);
             _desertRotation = Quaternion.LookRotation(heading, Vector3.up);
         }
 

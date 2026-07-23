@@ -787,7 +787,6 @@ namespace DuneVector
         [Min(1f)] public float ArchiveTerminalInteractionRadius = 6f;
         [Min(0f)] public float FreeRoamTerminalLeftOffset = 11f;
         [Min(1f)] public float FreeRoamTerminalInteractionRadius = 6f;
-        [Min(0f)] public float FreeRoamDeploymentDistance = 320f;
         public float FreeRoamDeploymentHeadingDegrees = 90f;
         [Min(0f)] public float UpgradeAreaSideOffset = 13f;
         [Min(0f)] public float PlayerSpawnHeight = 2.2f;
