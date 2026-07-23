@@ -1207,6 +1207,16 @@ namespace DuneVector
         [Range(0f, 89f)] public float MaximumPlacementSlope = 24f;
         [Min(0f)] public float MinimumBurialDepth = 0.75f;
         [Min(0f)] public float MaximumBurialDepth = 1.25f;
+
+        [Header("GPU-Instanced LOD")]
+        [Tooltip("Maximum camera distance for the highest-detail imported pyramid mesh.")]
+        [Min(0.1f)] public float Lod1MaximumDistance = 120f;
+        [Tooltip("Maximum camera distance for the second imported pyramid LOD.")]
+        [Min(0.1f)] public float Lod2MaximumDistance = 240f;
+        [Tooltip("Maximum camera distance for the third imported pyramid LOD.")]
+        [Min(0.1f)] public float Lod3MaximumDistance = 420f;
+        [Tooltip("Maximum camera distance for the lowest-detail imported pyramid mesh. Pyramids are culled beyond this distance.")]
+        [Min(0.1f)] public float Lod4MaximumDistance = 700f;
     }
 
     [System.Serializable]

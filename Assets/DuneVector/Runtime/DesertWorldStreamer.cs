@@ -1295,7 +1295,8 @@ namespace DuneVector
                     scale,
                     yaw,
                     materials.PyramidModel,
-                    materials.Sandstone);
+                    materials.Sandstone,
+                    materials.PyramidLodTuning);
                 sceneryExclusions.Add(local);
             }
 

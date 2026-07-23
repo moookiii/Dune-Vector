@@ -90,14 +90,21 @@ namespace DuneVector
             public bool Dynamic;
             public bool Active;
             public Vector3 DebugOffset;
+            public bool UsesDistanceLod;
+            public float MinimumLodDistanceSquared;
+            public float MaximumLodDistanceSquared;
         }
 
         private sealed class Cell
         {
             public readonly List<int> SourceHandles = new List<int>(128);
+            public readonly List<int> LodSourceHandles = new List<int>(16);
             public readonly Dictionary<RenderKey, Batch> BatchesByKey =
                 new Dictionary<RenderKey, Batch>();
             public readonly List<Batch> ActiveBatches = new List<Batch>();
+            public readonly Dictionary<RenderKey, Batch> LodBatchesByKey =
+                new Dictionary<RenderKey, Batch>();
+            public readonly List<Batch> ActiveLodBatches = new List<Batch>();
             public Bounds WorldBounds;
             public bool HasBounds;
             public bool Dirty;
@@ -108,6 +115,8 @@ namespace DuneVector
             public readonly RenderKey Key;
             public readonly List<InstanceData> Instances = new List<InstanceData>(128);
             public RenderParams RenderParams;
+            public Bounds WorldBounds;
+            public bool HasWorldBounds;
 
             public Batch(RenderKey key)
             {
@@ -151,10 +160,17 @@ namespace DuneVector
             Backend = DuneVectorInstanceRenderBackend.RenderMeshInstanced;
         }
 
-        public static DuneVectorInstancedVisualGroup Capture(GameObject root, bool dynamicTransforms)
+        public static DuneVectorInstancedVisualGroup Capture(
+            GameObject root,
+            bool dynamicTransforms,
+            PyramidTuning pyramidLodTuning = null)
         {
             if (root == null || Instance == null || Instance._settings == null || !Instance._settings.Enabled)
             {
+                if (root != null && pyramidLodTuning != null)
+                {
+                    DuneVectorInstancedVisualGroup.ShowHighestDetailLodOnly(root);
+                }
                 return null;
             }
 
@@ -163,7 +179,7 @@ namespace DuneVector
             {
                 group = root.AddComponent<DuneVectorInstancedVisualGroup>();
             }
-            group.Initialize(dynamicTransforms);
+            group.Initialize(dynamicTransforms, pyramidLodTuning);
             return group;
         }
 
@@ -199,7 +215,9 @@ namespace DuneVector
             MeshRenderer renderer,
             bool dynamicTransforms,
             bool debugComparisonGroup,
-            List<int> handles)
+            List<int> handles,
+            float minimumLodDistance = -1f,
+            float maximumLodDistance = -1f)
         {
             if (renderer == null || handles == null)
             {
@@ -246,9 +264,17 @@ namespace DuneVector
                         Dynamic = dynamicTransforms,
                         Active = renderer.gameObject.activeInHierarchy,
                         DebugOffset = debugOffset,
+                        UsesDistanceLod = minimumLodDistance >= 0f && maximumLodDistance >= 0f,
+                        MinimumLodDistanceSquared = minimumLodDistance * minimumLodDistance,
+                        MaximumLodDistanceSquared = maximumLodDistance * maximumLodDistance,
                     };
                     _sources.Add(handle, source);
-                    GetOrCreateCell(source.CellKey).SourceHandles.Add(handle);
+                    Cell cell = GetOrCreateCell(source.CellKey);
+                    cell.SourceHandles.Add(handle);
+                    if (source.UsesDistanceLod)
+                    {
+                        cell.LodSourceHandles.Add(handle);
+                    }
                     handles.Add(handle);
                 }
 
@@ -279,6 +305,10 @@ namespace DuneVector
                 if (_cells.TryGetValue(source.CellKey, out Cell cell))
                 {
                     cell.SourceHandles.Remove(handle);
+                    if (source.UsesDistanceLod)
+                    {
+                        cell.LodSourceHandles.Remove(handle);
+                    }
                     MarkCellDirty(cell);
                     if (cell.SourceHandles.Count == 0)
                     {
@@ -342,13 +372,22 @@ namespace DuneVector
                         if (_cells.TryGetValue(oldCellKey, out Cell oldCell))
                         {
                             oldCell.SourceHandles.Remove(source.Handle);
+                            if (source.UsesDistanceLod)
+                            {
+                                oldCell.LodSourceHandles.Remove(source.Handle);
+                            }
                             MarkCellDirty(oldCell);
                             if (oldCell.SourceHandles.Count == 0)
                             {
                                 _cells.Remove(oldCellKey);
                             }
                         }
-                        GetOrCreateCell(source.CellKey).SourceHandles.Add(source.Handle);
+                        Cell newCell = GetOrCreateCell(source.CellKey);
+                        newCell.SourceHandles.Add(source.Handle);
+                        if (source.UsesDistanceLod)
+                        {
+                            newCell.LodSourceHandles.Add(source.Handle);
+                        }
                     }
                     else if (_cells.TryGetValue(source.CellKey, out Cell cell))
                     {
@@ -375,7 +414,9 @@ namespace DuneVector
 
                     for (int i = 0; i < cell.SourceHandles.Count; i++)
                     {
-                        if (!_sources.TryGetValue(cell.SourceHandles[i], out Source source) || !source.Active)
+                        if (!_sources.TryGetValue(cell.SourceHandles[i], out Source source) ||
+                            !source.Active ||
+                            source.UsesDistanceLod)
                         {
                             continue;
                         }
@@ -422,31 +463,101 @@ namespace DuneVector
             using (Markers.SubmitBatches.Auto())
             {
                 int maximum = MaximumInstancesPerDraw;
+                Camera lodCamera = Camera.main;
+                Vector3 lodCameraPosition = lodCamera != null ? lodCamera.transform.position : Vector3.zero;
                 foreach (Cell cell in _cells.Values)
                 {
-                    if (!cell.HasBounds)
+                    if (cell.HasBounds)
                     {
-                        continue;
-                    }
-
-                    for (int batchIndex = 0; batchIndex < cell.ActiveBatches.Count; batchIndex++)
-                    {
-                        Batch batch = cell.ActiveBatches[batchIndex];
-                        List<InstanceData> instances = batch.Instances;
-
-                        for (int start = 0; start < instances.Count; start += maximum)
+                        for (int batchIndex = 0; batchIndex < cell.ActiveBatches.Count; batchIndex++)
                         {
-                            int count = Mathf.Min(maximum, instances.Count - start);
-                            Graphics.RenderMeshInstanced(
-                                batch.RenderParams,
-                                batch.Key.Mesh,
-                                batch.Key.SubmeshIndex,
-                                instances,
-                                count,
-                                start);
+                            SubmitBatch(cell.ActiveBatches[batchIndex], maximum);
                         }
                     }
+
+                    PrepareLodBatches(cell, lodCameraPosition, lodCamera != null);
+                    for (int batchIndex = 0; batchIndex < cell.ActiveLodBatches.Count; batchIndex++)
+                    {
+                        SubmitBatch(cell.ActiveLodBatches[batchIndex], maximum);
+                    }
                 }
+            }
+        }
+
+        private void PrepareLodBatches(Cell cell, Vector3 cameraPosition, bool hasCamera)
+        {
+            for (int i = 0; i < cell.ActiveLodBatches.Count; i++)
+            {
+                Batch previousBatch = cell.ActiveLodBatches[i];
+                previousBatch.Instances.Clear();
+                previousBatch.HasWorldBounds = false;
+            }
+            cell.ActiveLodBatches.Clear();
+
+            for (int i = 0; i < cell.LodSourceHandles.Count; i++)
+            {
+                if (!_sources.TryGetValue(cell.LodSourceHandles[i], out Source source) ||
+                    !source.Active ||
+                    !source.UsesDistanceLod)
+                {
+                    continue;
+                }
+
+                Vector3 center = source.ObjectToWorld.MultiplyPoint3x4(source.LocalBounds.center);
+                float distanceSquared = hasCamera ? (center - cameraPosition).sqrMagnitude : 0f;
+                if (distanceSquared < source.MinimumLodDistanceSquared ||
+                    distanceSquared >= source.MaximumLodDistanceSquared)
+                {
+                    continue;
+                }
+
+                if (!cell.LodBatchesByKey.TryGetValue(source.Key, out Batch batch))
+                {
+                    batch = new Batch(source.Key);
+                    cell.LodBatchesByKey.Add(source.Key, batch);
+                }
+                if (batch.Instances.Count == 0)
+                {
+                    cell.ActiveLodBatches.Add(batch);
+                }
+                batch.Instances.Add(new InstanceData
+                {
+                    objectToWorld = source.ObjectToWorld,
+                    renderingLayerMask = source.Key.RenderingLayerMask,
+                });
+
+                Bounds worldBounds = TransformBounds(source.ObjectToWorld, source.LocalBounds);
+                if (batch.HasWorldBounds)
+                {
+                    batch.WorldBounds.Encapsulate(worldBounds);
+                }
+                else
+                {
+                    batch.WorldBounds = worldBounds;
+                    batch.HasWorldBounds = true;
+                }
+            }
+
+            for (int i = 0; i < cell.ActiveLodBatches.Count; i++)
+            {
+                Batch batch = cell.ActiveLodBatches[i];
+                batch.RenderParams = CreateRenderParams(batch.Key, batch.WorldBounds);
+            }
+        }
+
+        private static void SubmitBatch(Batch batch, int maximumInstancesPerDraw)
+        {
+            List<InstanceData> instances = batch.Instances;
+            for (int start = 0; start < instances.Count; start += maximumInstancesPerDraw)
+            {
+                int count = Mathf.Min(maximumInstancesPerDraw, instances.Count - start);
+                Graphics.RenderMeshInstanced(
+                    batch.RenderParams,
+                    batch.Key.Mesh,
+                    batch.Key.SubmeshIndex,
+                    instances,
+                    count,
+                    start);
             }
         }
 
@@ -533,7 +644,7 @@ namespace DuneVector
         private readonly List<int> _handles = new List<int>();
         private bool _initialized;
 
-        internal void Initialize(bool dynamicTransforms)
+        internal void Initialize(bool dynamicTransforms, PyramidTuning pyramidLodTuning)
         {
             if (_initialized || DuneVectorSpatialInstancing.Instance == null)
             {
@@ -543,13 +654,117 @@ namespace DuneVector
             _initialized = true;
             bool debugComparisonGroup = DuneVectorSpatialInstancing.Instance.ClaimDebugComparisonGroup();
             MeshRenderer[] renderers = GetComponentsInChildren<MeshRenderer>(true);
+            int firstLodNumber = FindFirstLodNumber(renderers);
+            SetHighestDetailLodOnly(renderers, firstLodNumber);
             for (int i = 0; i < renderers.Length; i++)
             {
+                float minimumLodDistance = -1f;
+                float maximumLodDistance = -1f;
+                if (pyramidLodTuning != null &&
+                    TryParseLodNumber(renderers[i].name, out int lodNumber))
+                {
+                    int lodIndex = lodNumber - firstLodNumber;
+                    GetLodDistanceRange(
+                        pyramidLodTuning,
+                        lodIndex,
+                        out minimumLodDistance,
+                        out maximumLodDistance);
+                }
                 DuneVectorSpatialInstancing.Instance.RegisterRenderer(
                     renderers[i],
                     dynamicTransforms,
                     debugComparisonGroup,
-                    _handles);
+                    _handles,
+                    minimumLodDistance,
+                    maximumLodDistance);
+            }
+        }
+
+        internal static void ShowHighestDetailLodOnly(GameObject root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+            MeshRenderer[] renderers = root.GetComponentsInChildren<MeshRenderer>(true);
+            SetHighestDetailLodOnly(renderers, FindFirstLodNumber(renderers));
+        }
+
+        private static void SetHighestDetailLodOnly(
+            IReadOnlyList<MeshRenderer> renderers,
+            int firstLodNumber)
+        {
+            for (int i = 0; i < renderers.Count; i++)
+            {
+                MeshRenderer renderer = renderers[i];
+                if (renderer != null && TryParseLodNumber(renderer.name, out int lodNumber))
+                {
+                    renderer.enabled = lodNumber == firstLodNumber;
+                }
+            }
+        }
+
+        private static int FindFirstLodNumber(IReadOnlyList<MeshRenderer> renderers)
+        {
+            int firstLodNumber = int.MaxValue;
+            for (int i = 0; i < renderers.Count; i++)
+            {
+                if (renderers[i] != null &&
+                    TryParseLodNumber(renderers[i].name, out int lodNumber))
+                {
+                    firstLodNumber = Mathf.Min(firstLodNumber, lodNumber);
+                }
+            }
+            return firstLodNumber != int.MaxValue ? firstLodNumber : 0;
+        }
+
+        private static bool TryParseLodNumber(string objectName, out int lodNumber)
+        {
+            lodNumber = -1;
+            if (string.IsNullOrEmpty(objectName))
+            {
+                return false;
+            }
+
+            int markerIndex = objectName.LastIndexOf("_LOD", StringComparison.OrdinalIgnoreCase);
+            if (markerIndex < 0)
+            {
+                return false;
+            }
+
+            string suffix = objectName.Substring(markerIndex + 4);
+            return int.TryParse(suffix, out lodNumber) && lodNumber >= 0;
+        }
+
+        private static void GetLodDistanceRange(
+            PyramidTuning tuning,
+            int lodIndex,
+            out float minimumDistance,
+            out float maximumDistance)
+        {
+            float lod1Maximum = Mathf.Max(0.1f, tuning.Lod1MaximumDistance);
+            float lod2Maximum = Mathf.Max(lod1Maximum, tuning.Lod2MaximumDistance);
+            float lod3Maximum = Mathf.Max(lod2Maximum, tuning.Lod3MaximumDistance);
+            float lod4Maximum = Mathf.Max(lod3Maximum, tuning.Lod4MaximumDistance);
+
+            switch (lodIndex)
+            {
+                case 0:
+                    minimumDistance = 0f;
+                    maximumDistance = lod1Maximum;
+                    break;
+                case 1:
+                    minimumDistance = lod1Maximum;
+                    maximumDistance = lod2Maximum;
+                    break;
+                case 2:
+                    minimumDistance = lod2Maximum;
+                    maximumDistance = lod3Maximum;
+                    break;
+                default:
+                    minimumDistance = lod3Maximum;
+                    maximumDistance = lod4Maximum;
+                    break;
             }
         }
 

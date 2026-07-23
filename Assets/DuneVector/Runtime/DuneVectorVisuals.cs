@@ -62,6 +62,7 @@ namespace DuneVector
         public Material Lightning { get; }
         public Material LightningWarning { get; }
         public RingTuning RingPortalTuning { get; }
+        public PyramidTuning PyramidLodTuning { get; }
 
         private readonly List<Material> _ownedMaterials = new List<Material>();
         private readonly List<Material> _shrubMaterials = new List<Material>();
@@ -85,7 +86,8 @@ namespace DuneVector
             DroneVisualTuning droneVisualTuning = null,
             GeoglyphSystemTuning geoglyphTuning = null,
             LandmarkSystemTuning landmarkTuning = null,
-            PlayerStrikeOrbTuning playerStrikeOrbTuning = null)
+            PlayerStrikeOrbTuning playerStrikeOrbTuning = null,
+            PyramidTuning pyramidLodTuning = null)
         {
             RingTuning rings = ringTuning ?? new RingTuning();
             RingPortalTuning = rings;
@@ -95,6 +97,7 @@ namespace DuneVector
             CactusTuning cacti = cactusTuning ?? new CactusTuning();
             DroneVisualTuning droneVisuals = droneVisualTuning ?? new DroneVisualTuning();
             PlayerStrikeOrbTuning strikeOrbs = playerStrikeOrbTuning ?? new PlayerStrikeOrbTuning();
+            PyramidLodTuning = pyramidLodTuning ?? new PyramidTuning();
             Sand = CreateLit("Sand - Textured Dunes", Color.white, 0.14f, 0f);
             ConfigureDuneTexture(Sand, duneTexture, duneTextureTileSize);
             _sandOnlyTerrainMaterials = new[] { Sand };
@@ -1271,7 +1274,8 @@ namespace DuneVector
             float scale,
             float yaw,
             GameObject model,
-            Material fallbackMaterial)
+            Material fallbackMaterial,
+            PyramidTuning pyramidLodTuning)
         {
             GameObject root = new GameObject("Small Pyramid");
             root.transform.SetParent(parent, false);
@@ -1354,7 +1358,7 @@ namespace DuneVector
                 }
             }
 
-            DuneVectorSpatialInstancing.Capture(root, false);
+            DuneVectorSpatialInstancing.Capture(root, false, pyramidLodTuning);
             return root.transform;
         }
 
