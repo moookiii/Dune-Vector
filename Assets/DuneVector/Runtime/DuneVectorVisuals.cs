@@ -72,7 +72,6 @@ namespace DuneVector
         private readonly Dictionary<Material, Material> _portalRearLineMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalFrontLineMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalParticleMaterials = new Dictionary<Material, Material>();
-        private readonly Dictionary<Material, Material[]> _portalCenterArcMaterials = new Dictionary<Material, Material[]>();
         private readonly Material[] _sandOnlyTerrainMaterials;
 
         public DuneVectorMaterials(
@@ -523,10 +522,7 @@ namespace DuneVector
             material.SetFloat("_CoreMode", 1f);
             material.SetFloat("_OrbitLineCount", RingPortalTuning.PortalOrbitLineCount);
             material.SetFloat("_OrbitAngularWaves", RingPortalTuning.PortalOrbitAngularWaves);
-            material.SetFloat(
-                "_OrbitSpeed",
-                RingPortalTuning.PortalOrbitSpeed *
-                RingPortalTuning.PortalCoreRotationSpeedMultiplier);
+            material.SetFloat("_OrbitSpeed", RingPortalTuning.PortalOrbitSpeed);
             material.SetFloat("_OrbitLineWidth", RingPortalTuning.PortalOrbitLineWidth);
             material.SetFloat("_OrbitWarp", RingPortalTuning.PortalOrbitWarp);
             material.SetFloat("_CoreGlowFill", RingPortalTuning.PortalCoreGlowFill);
@@ -582,56 +578,6 @@ namespace DuneVector
             _ownedMaterials.Add(material);
             _portalParticleMaterials.Add(lineMaterial, material);
             return material;
-        }
-
-        public Material[] CreatePortalCenterArcMaterials(Material lineMaterial)
-        {
-            if (_portalCenterArcMaterials.TryGetValue(lineMaterial, out Material[] existing)
-                && existing != null)
-            {
-                return existing;
-            }
-
-            int layerCount = Mathf.Clamp(RingPortalTuning.PortalCenterArcLayerCount, 1, 6);
-            Material[] materials = new Material[layerCount];
-            float baseSpeed = RingPortalTuning.PortalOrbitSpeed *
-                RingPortalTuning.PortalCoreRotationSpeedMultiplier;
-            for (int layerIndex = 0; layerIndex < layerCount; layerIndex++)
-            {
-                float layerProgress = layerCount > 1
-                    ? layerIndex / (float)(layerCount - 1)
-                    : 0.5f;
-                float centeredLayer = (layerProgress * 2f) - 1f;
-                Material material = new Material(lineMaterial)
-                {
-                    name = $"{lineMaterial.name} - Center Arc Layer {layerIndex + 1}",
-                    enableInstancing = true,
-                };
-                material.SetFloat("_Opacity", RingPortalTuning.PortalCenterArcOpacity);
-                material.SetFloat("_CoreMode", 4f);
-                material.SetFloat("_FeatureBrightness", RingPortalTuning.PortalCenterArcBrightnessMultiplier);
-                material.SetFloat(
-                    "_CenterArcRadius",
-                    Mathf.Lerp(
-                        RingPortalTuning.PortalCenterArcInnerRadius,
-                        RingPortalTuning.PortalCenterArcOuterRadius,
-                        layerProgress));
-                material.SetFloat("_CenterArcLineWidth", RingPortalTuning.PortalCenterArcLineWidth);
-                material.SetFloat(
-                    "_CenterArcDashCount",
-                    RingPortalTuning.PortalCenterArcDashCount + layerIndex);
-                material.SetFloat("_CenterArcDashFill", RingPortalTuning.PortalCenterArcDashFill);
-                material.SetFloat("_CenterArcPhaseOffset", layerProgress);
-                material.SetFloat(
-                    "_CenterArcRotationSpeed",
-                    baseSpeed * (
-                        1f +
-                        (centeredLayer * RingPortalTuning.PortalCenterArcSpeedVariation)));
-                _ownedMaterials.Add(material);
-                materials[layerIndex] = material;
-            }
-            _portalCenterArcMaterials.Add(lineMaterial, materials);
-            return materials;
         }
 
         private Material[] CreateGeoglyphOverlays(GeoglyphSystemTuning tuning)
@@ -1556,39 +1502,18 @@ namespace DuneVector
             MeshRenderer coreRenderer = core.GetComponent<MeshRenderer>();
             coreRenderer.sortingOrder = -1;
 
-            List<Renderer> portalRenderers = new List<Renderer>
-            {
-                haloRenderer,
-                coreRenderer,
-                rearLineRenderer,
-                centerLineRenderer,
-                frontLineRenderer,
-                sparkRenderer,
-                activationPulseRenderer,
-            };
-            Material[] centerArcMaterials = materials.CreatePortalCenterArcMaterials(lineMaterial);
-            float centerArcMiddle = (centerArcMaterials.Length - 1f) * 0.5f;
-            float centerArcDepthSpacing = Mathf.Max(0f, settings.PortalCenterArcDepthSpacing);
-            for (int layerIndex = 0; layerIndex < centerArcMaterials.Length; layerIndex++)
-            {
-                GameObject arcLayer = CreateMeshObject(
-                    $"Broken Center Arc Layer {layerIndex + 1}",
-                    parent,
-                    GetPortalCoreQuadMesh(),
-                    centerArcMaterials[layerIndex]);
-                arcLayer.transform.localPosition =
-                    (Vector3.back * settings.PortalLayerDepth) +
-                    (Vector3.forward * ((layerIndex - centerArcMiddle) * centerArcDepthSpacing));
-                arcLayer.transform.localScale = new Vector3(coreRadius, coreRadius, 1f);
-                DisableRendererShadows(arcLayer);
-                MeshRenderer arcRenderer = arcLayer.GetComponent<MeshRenderer>();
-                arcRenderer.sortingOrder = -1;
-                portalRenderers.Add(arcRenderer);
-            }
-
             DuneVectorPortalVisual portalVisual = parent.gameObject.AddComponent<DuneVectorPortalVisual>();
             portalVisual.Initialize(
-                portalRenderers.ToArray(),
+                new Renderer[]
+                {
+                    haloRenderer,
+                    coreRenderer,
+                    rearLineRenderer,
+                    centerLineRenderer,
+                    frontLineRenderer,
+                    sparkRenderer,
+                    activationPulseRenderer,
+                },
                 activationPulseRenderer,
                 activationPulse.transform,
                 settings);

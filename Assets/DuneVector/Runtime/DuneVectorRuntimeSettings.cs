@@ -2531,8 +2531,6 @@ namespace DuneVector
         [Range(1f, 8f)] public float PortalOrbitAngularWaves = 2f;
         [FormerlySerializedAs("PortalSwirlSpeed")]
         [Min(0f)] public float PortalOrbitSpeed = 0.55f;
-        [Tooltip("Multiplier applied to the animated center and its broken arc layers.")]
-        [Min(0f)] public float PortalCoreRotationSpeedMultiplier = 3f;
         [FormerlySerializedAs("PortalSwirlLineWidth")]
         [Range(0.005f, 0.25f)] public float PortalOrbitLineWidth = 0.09f;
         [Tooltip("Amount that the circular energy lines gently bend as they orbit.")]
@@ -2542,21 +2540,6 @@ namespace DuneVector
         [Min(0f)] public float PortalPulseSpeed = 1f;
         [Range(0f, 0.5f)] public float PortalPulseAmount = 0.08f;
         [Min(0f)] public float PortalLayerDepth = 0.32f;
-
-        [Header("Portal Center Arc Layers")]
-        [Tooltip("Number of depth-offset broken circular lines surrounding the animated center.")]
-        [Range(1, 6)] public int PortalCenterArcLayerCount = 3;
-        [Range(0.1f, 0.9f)] public float PortalCenterArcInnerRadius = 0.34f;
-        [Range(0.1f, 0.95f)] public float PortalCenterArcOuterRadius = 0.84f;
-        [Range(0.005f, 0.15f)] public float PortalCenterArcLineWidth = 0.026f;
-        [Range(2f, 16f)] public float PortalCenterArcDashCount = 7f;
-        [Range(0.05f, 0.95f)] public float PortalCenterArcDashFill = 0.58f;
-        [Range(0f, 1f)] public float PortalCenterArcOpacity = 0.42f;
-        [Min(0f)] public float PortalCenterArcBrightnessMultiplier = 0.68f;
-        [Tooltip("Local depth separation between consecutive broken arc layers.")]
-        [Min(0f)] public float PortalCenterArcDepthSpacing = 0.055f;
-        [Tooltip("Proportional speed difference between the innermost and outermost arc layers.")]
-        [Range(0f, 0.75f)] public float PortalCenterArcSpeedVariation = 0.18f;
 
         [Header("Upper Flight Ring Unlock")]
         [Tooltip("Number of distinct blue flight rings the player must cross before the upper-layer ring appears.")]
