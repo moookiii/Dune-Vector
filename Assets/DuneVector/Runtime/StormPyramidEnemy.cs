@@ -157,7 +157,7 @@ namespace DuneVector
 
             bool mayReposition = CurrentState != StormPyramidState.ChargingAttack
                 && CurrentState != StormPyramidState.FiringLightning;
-            if (mayReposition && _movement.DistanceFromPlayer > _settings.RepositionDistance)
+            if (mayReposition && _movement.HorizontalDistanceFromPlayer > _settings.RepositionDistance)
             {
                 RepositionNearPlayer();
             }
@@ -362,9 +362,19 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class StormPyramidMovement : MonoBehaviour
     {
-        public float DistanceFromPlayer => _player != null
-            ? Vector3.Distance(transform.position, _player.WorldCenter)
-            : 0f;
+        public float HorizontalDistanceFromPlayer
+        {
+            get
+            {
+                if (_player == null)
+                {
+                    return 0f;
+                }
+
+                Vector3 offset = transform.position - _player.WorldCenter;
+                return new Vector2(offset.x, offset.z).magnitude;
+            }
+        }
 
         private DroneCharacterController _player;
         private DesertWorldStreamer _world;
@@ -924,7 +934,7 @@ namespace DuneVector
 
             bool mayReposition = CurrentState != StormPyramidState.ChargingAttack
                 && CurrentState != StormPyramidState.FiringLightning;
-            if (mayReposition && _movement.DistanceFromPlayer > _settings.RepositionDistance)
+            if (mayReposition && _movement.HorizontalDistanceFromPlayer > _settings.RepositionDistance)
             {
                 RepositionNearPlayer();
             }
@@ -1293,9 +1303,19 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class PlayerStrikeOrbMovement : MonoBehaviour
     {
-        public float DistanceFromPlayer => _player != null
-            ? Vector3.Distance(transform.position, _player.WorldCenter)
-            : 0f;
+        public float HorizontalDistanceFromPlayer
+        {
+            get
+            {
+                if (_player == null)
+                {
+                    return 0f;
+                }
+
+                Vector3 offset = transform.position - _player.WorldCenter;
+                return new Vector2(offset.x, offset.z).magnitude;
+            }
+        }
 
         private DroneCharacterController _player;
         private DesertWorldStreamer _world;
