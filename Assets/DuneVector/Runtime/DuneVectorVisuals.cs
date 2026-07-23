@@ -452,6 +452,7 @@ namespace DuneVector
             Material material = new Material(shader) { name = name, enableInstancing = true };
             material.SetColor("_PortalColor", color);
             material.SetFloat("_Opacity", settings.PortalLineOpacity);
+            material.SetFloat("_BloomIntensity", settings.PortalBloomIntensity);
             material.SetFloat("_CoreMode", 0f);
             material.SetFloat("_DistanceFade", 1f);
             material.SetFloat("_LineEdgeSoftness", settings.PortalLineEdgeSoftness);

@@ -2377,6 +2377,8 @@ namespace DuneVector
         [Header("Portal Linework")]
         [Tooltip("Opacity of the emissive rings, spokes, glyphs, and exterior rays. Empty space remains fully transparent.")]
         [Range(0f, 1f)] public float PortalLineOpacity = 0.9f;
+        [Tooltip("HDR brightness multiplier applied only to portal energy, pushing its lines and halo into bloom without brightening the rest of the scene.")]
+        [Min(0f)] public float PortalBloomIntensity = 2f;
         [Tooltip("Scales authored gameplay radii before drawing and testing the visible portal opening.")]
         [Range(0.25f, 1.5f)] public float PortalVisualRadiusMultiplier = 0.82f;
         [Min(0.5f)] public float PortalMinimumVisualRadius = 3.2f;

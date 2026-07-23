@@ -4,6 +4,7 @@ Shader "DuneVector/HDRP Portal Energy"
     {
         [HDR] _PortalColor("Portal Color", Color) = (4, 1.5, 0.05, 1)
         _Opacity("Opacity", Range(0, 1)) = 0.8
+        _BloomIntensity("Bloom Intensity", Float) = 2
         _CoreMode("Core Mode", Float) = 0
         _DistanceFade("Distance Fade", Range(0, 1)) = 1
         _LineEdgeSoftness("Line Edge Softness", Range(0.01, 0.49)) = 0.14
@@ -50,6 +51,7 @@ Shader "DuneVector/HDRP Portal Energy"
             CBUFFER_START(UnityPerMaterial)
                 float4 _PortalColor;
                 float _Opacity;
+                float _BloomIntensity;
                 float _CoreMode;
                 float _DistanceFade;
                 float _LineEdgeSoftness;
@@ -146,7 +148,9 @@ Shader "DuneVector/HDRP Portal Energy"
                     }
                 }
 
-                return float4(_PortalColor.rgb * pulse, alpha * _PortalColor.a);
+                return float4(
+                    _PortalColor.rgb * pulse * _BloomIntensity,
+                    alpha * _PortalColor.a);
             }
             ENDHLSL
         }
