@@ -91,7 +91,7 @@ namespace DuneVector
                 ringTuning);
             _billboardFacingRotation = _visualRoot.rotation;
             _hasBillboardFacingRotation = true;
-            _portalVisual = _visualRoot.GetComponent<DuneVectorPortalVisual>();
+            _portalVisual = _visualRoot.GetComponentInChildren<DuneVectorPortalVisual>();
             if (IsCollectible)
             {
                 _collectibleIcon = _visualRoot.Find("Collectible Icon");

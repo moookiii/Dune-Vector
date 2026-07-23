@@ -26,6 +26,12 @@ Shader "DuneVector/HDRP Portal Energy"
         _OrbitWarp("Orbit Warp", Range(0, 0.2)) = 0.045
         _CoreGlowFill("Core Glow Fill", Range(0, 1)) = 0.08
         _CoreEdgeFeather("Core Edge Feather", Range(0.01, 0.5)) = 0.16
+        _CenterArcRadius("Center Arc Radius", Range(0.1, 0.95)) = 0.6
+        _CenterArcLineWidth("Center Arc Line Width", Range(0.005, 0.15)) = 0.026
+        _CenterArcDashCount("Center Arc Dash Count", Float) = 7
+        _CenterArcDashFill("Center Arc Dash Fill", Range(0.05, 0.95)) = 0.58
+        _CenterArcPhaseOffset("Center Arc Phase Offset", Range(0, 1)) = 0
+        _CenterArcRotationSpeed("Center Arc Rotation Speed", Float) = 1.65
         _PulseSpeed("Pulse Speed", Float) = 1.35
         _PulseAmount("Pulse Amount", Range(0, 0.5)) = 0.12
     }
@@ -84,6 +90,12 @@ Shader "DuneVector/HDRP Portal Energy"
                 float _OrbitWarp;
                 float _CoreGlowFill;
                 float _CoreEdgeFeather;
+                float _CenterArcRadius;
+                float _CenterArcLineWidth;
+                float _CenterArcDashCount;
+                float _CenterArcDashFill;
+                float _CenterArcPhaseOffset;
+                float _CenterArcRotationSpeed;
                 float _PulseSpeed;
                 float _PulseAmount;
             CBUFFER_END
@@ -126,7 +138,31 @@ Shader "DuneVector/HDRP Portal Energy"
                 float featureBrightness = _FeatureBrightness;
                 float3 particleTint = float3(1.0, 1.0, 1.0);
 
-                if (_CoreMode > 2.5)
+                if (_CoreMode > 3.5)
+                {
+                    float2 centered = (input.uv * 2.0) - 1.0;
+                    float radius = length(centered);
+                    clip(1.0 - radius);
+
+                    float ringDistance = abs(radius - _CenterArcRadius);
+                    float circularArc = 1.0 - smoothstep(
+                        _CenterArcLineWidth,
+                        _CenterArcLineWidth * 2.2,
+                        ringDistance);
+                    float angle = atan2(centered.y, centered.x);
+                    float angle01 = (angle / 6.2831853) + 0.5;
+                    float rotation = (_Time.y * _CenterArcRotationSpeed) / 6.2831853;
+                    float dashPhase = frac(
+                        ((angle01 - rotation) * max(1.0, _CenterArcDashCount)) +
+                        _CenterArcPhaseOffset);
+                    float dashDistance = abs(dashPhase - 0.5) * 2.0;
+                    float brokenArc = 1.0 - smoothstep(
+                        _CenterArcDashFill,
+                        min(1.0, _CenterArcDashFill + 0.12),
+                        dashDistance);
+                    alpha *= circularArc * brokenArc;
+                }
+                else if (_CoreMode > 2.5)
                 {
                     float2 centered = (input.uv * 2.0) - 1.0;
                     float particleRadius = length(centered);
