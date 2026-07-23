@@ -10,6 +10,7 @@ Shader "DuneVector/HDRP World Geoglyph Overlay"
         [NoScaleOffset] _DVGeoglyphMask5("Geoglyph Mask 5", 2D) = "black" {}
         [NoScaleOffset] _DVGeoglyphMask6("Geoglyph Mask 6", 2D) = "black" {}
         [NoScaleOffset] _DVGeoglyphMask7("Geoglyph Mask 7", 2D) = "black" {}
+        [HideInInspector][HDR] _DVGeoglyphBloomEmissionColor("Geoglyph Bloom Emission", Color) = (0, 0, 0, 1)
     }
 
     SubShader
@@ -61,6 +62,7 @@ Shader "DuneVector/HDRP World Geoglyph Overlay"
                 float4 _DVGeoglyphMaskSettings[DV_MAX_GEOGLYPHS];
                 float4 _DVGeoglyphSlope[DV_MAX_GEOGLYPHS];
                 float4 _DVGeoglyphLineColor[DV_MAX_GEOGLYPHS];
+                float4 _DVGeoglyphBloomEmissionColor;
             CBUFFER_END
 
             struct Attributes
@@ -150,7 +152,9 @@ Shader "DuneVector/HDRP World Geoglyph Overlay"
                         maskSample);
                     float layerAlpha = saturate(lineMask * rotation.z * _DVGeoglyphLineColor[i].a);
                     float remainingAlpha = 1.0 - accumulatedAlpha;
-                    accumulatedPremultipliedColor += _DVGeoglyphLineColor[i].rgb * layerAlpha * remainingAlpha;
+                    float3 bloomEmission = max(0.0, _DVGeoglyphBloomEmissionColor.rgb);
+                    float3 luminousLineColor = _DVGeoglyphLineColor[i].rgb + bloomEmission;
+                    accumulatedPremultipliedColor += luminousLineColor * layerAlpha * remainingAlpha;
                     accumulatedAlpha += layerAlpha * remainingAlpha;
                 }
 

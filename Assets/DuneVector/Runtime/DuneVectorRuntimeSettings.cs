@@ -86,6 +86,10 @@ namespace DuneVector
     {
         public bool Enabled = true;
 
+        [ColorUsage(false, true)]
+        [Tooltip("HDR emission added to geoglyph linework. Values above 1 drive the HDRP bloom post-process.")]
+        public Color BloomEmissionColor = new Color(2.4f, 2.55f, 3f, 1f);
+
         [Tooltip("Unique persistent geoglyph landmarks. Entries are never spawned, tiled, randomized, or repeated by chunks.")]
         public List<GeoglyphArtworkPlacement> Placements = new List<GeoglyphArtworkPlacement>();
 

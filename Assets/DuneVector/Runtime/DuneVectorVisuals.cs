@@ -485,7 +485,12 @@ namespace DuneVector
             for (int batchStart = 0; batchStart < placements.Count; batchStart += MaximumGeoglyphPlacements)
             {
                 int batchCount = Mathf.Min(MaximumGeoglyphPlacements, placements.Count - batchStart);
-                materials.Add(CreateGeoglyphOverlayBatch(shader, placements, batchStart, batchCount));
+                materials.Add(CreateGeoglyphOverlayBatch(
+                    shader,
+                    placements,
+                    batchStart,
+                    batchCount,
+                    tuning.BloomEmissionColor));
             }
             return materials.ToArray();
         }
@@ -494,7 +499,8 @@ namespace DuneVector
             Shader shader,
             List<GeoglyphArtworkPlacement> placements,
             int batchStart,
-            int count)
+            int count,
+            Color bloomEmissionColor)
         {
             Vector4[] transforms = new Vector4[MaximumGeoglyphPlacements];
             Vector4[] rotations = new Vector4[MaximumGeoglyphPlacements];
@@ -553,6 +559,7 @@ namespace DuneVector
             material.SetVectorArray("_DVGeoglyphMaskSettings", masks);
             material.SetVectorArray("_DVGeoglyphSlope", slopes);
             material.SetVectorArray("_DVGeoglyphLineColor", colors);
+            material.SetColor("_DVGeoglyphBloomEmissionColor", bloomEmissionColor);
             material.SetVector("_DVGeoglyphOriginOffset", Vector4.zero);
             _ownedMaterials.Add(material);
             _geoglyphBatches.Add(batch);
