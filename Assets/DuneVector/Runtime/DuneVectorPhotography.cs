@@ -807,6 +807,8 @@ namespace DuneVector
         private float _nextValidationTime;
         private float _shutterUntil;
         private float _presentationUntil;
+        private float _timeScaleBeforeIdentification = 1f;
+        private bool _identificationPauseActive;
         private CameraPresentationState _presentationState;
         private Texture2D _capturedTexture;
         private PhotographRecord _pendingPhotograph;
@@ -962,6 +964,7 @@ namespace DuneVector
 
         private void ExitCameraMode()
         {
+            EndIdentificationPause();
             _cameraModeActive = false;
             _camera.fieldOfView = _baseFieldOfView;
             _cameraController.SetPhotographyMode(false, _settings.CameraDistance, _settings.CameraHeight);
@@ -1001,6 +1004,7 @@ namespace DuneVector
                 _storage.Document(subjectId, category, record.PhotographId);
                 _presentationState = CameraPresentationState.Identified;
                 _presentationUntil = Time.unscaledTime + _settings.IdentificationHoldDuration;
+                BeginIdentificationPause();
             }
             else
             {
@@ -1044,11 +1048,27 @@ namespace DuneVector
 
         private void ReturnToLiveCamera()
         {
+            EndIdentificationPause();
             _presentationState = CameraPresentationState.Live;
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
             ReleaseCapturedTexture();
             _pendingPhotograph = null;
+        }
+
+        private void BeginIdentificationPause()
+        {
+            if (_identificationPauseActive) return;
+            _timeScaleBeforeIdentification = Time.timeScale;
+            _identificationPauseActive = true;
+            Time.timeScale = 0f;
+        }
+
+        private void EndIdentificationPause()
+        {
+            if (!_identificationPauseActive) return;
+            Time.timeScale = _timeScaleBeforeIdentification;
+            _identificationPauseActive = false;
         }
 
         private void OnGUI()
@@ -1309,6 +1329,7 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            EndIdentificationPause();
             if (Active == this) Active = null;
             if (_cameraModeActive)
             {
