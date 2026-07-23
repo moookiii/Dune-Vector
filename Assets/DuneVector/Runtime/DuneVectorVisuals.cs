@@ -1189,11 +1189,11 @@ namespace DuneVector
             root.transform.localScale = Vector3.one * scale;
 
             Mesh mesh = GetPyramidMesh();
-            MeshCollider collider = root.AddComponent<MeshCollider>();
-            collider.sharedMesh = mesh;
 
             if (model == null)
             {
+                MeshCollider collider = root.AddComponent<MeshCollider>();
+                collider.sharedMesh = mesh;
                 MeshFilter filter = root.AddComponent<MeshFilter>();
                 filter.sharedMesh = mesh;
                 MeshRenderer renderer = root.AddComponent<MeshRenderer>();
@@ -1217,6 +1217,8 @@ namespace DuneVector
             if (!TryCalculateLocalMeshBounds(root.transform, renderers, out Bounds bounds))
             {
                 UnityEngine.Object.Destroy(visual);
+                MeshCollider collider = root.AddComponent<MeshCollider>();
+                collider.sharedMesh = mesh;
                 MeshFilter filter = root.AddComponent<MeshFilter>();
                 filter.sharedMesh = mesh;
                 MeshRenderer renderer = root.AddComponent<MeshRenderer>();
@@ -1233,6 +1235,13 @@ namespace DuneVector
                 TryCalculateLocalMeshBounds(root.transform, renderers, out bounds);
             }
             visual.transform.localPosition += new Vector3(-bounds.center.x, -bounds.min.y, -bounds.center.z);
+
+            GameObject colliderObject = new GameObject("Pyramid Collider");
+            colliderObject.transform.SetParent(root.transform, false);
+            float colliderHeight = Mathf.Max(0.0001f, mesh.bounds.size.y);
+            colliderObject.transform.localScale = new Vector3(1f, bounds.size.y / colliderHeight, 1f);
+            MeshCollider modelCollider = colliderObject.AddComponent<MeshCollider>();
+            modelCollider.sharedMesh = mesh;
 
             for (int i = 0; i < renderers.Length; i++)
             {
