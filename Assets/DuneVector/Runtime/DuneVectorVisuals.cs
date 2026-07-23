@@ -50,7 +50,6 @@ namespace DuneVector
         public Material PickupRing { get; }
         public Material DeliveryRing { get; }
         public Material EnemyBody { get; }
-        public Material EnemyArmor { get; }
         public Material EnemyCore { get; }
         public Material GroundEnemyBody { get; }
         public Material GroundEnemyWarning { get; }
@@ -64,7 +63,6 @@ namespace DuneVector
         public Material LightningWarning { get; }
         public RingTuning RingPortalTuning { get; }
         public PyramidTuning PyramidLodTuning { get; }
-        public FlyingEnemyTuning FlyingEnemyVisualTuning { get; }
 
         private readonly List<Material> _ownedMaterials = new List<Material>();
         private readonly List<Material> _shrubMaterials = new List<Material>();
@@ -88,8 +86,7 @@ namespace DuneVector
             GeoglyphSystemTuning geoglyphTuning = null,
             LandmarkSystemTuning landmarkTuning = null,
             PlayerStrikeOrbTuning playerStrikeOrbTuning = null,
-            PyramidTuning pyramidLodTuning = null,
-            FlyingEnemyTuning flyingEnemyTuning = null)
+            PyramidTuning pyramidLodTuning = null)
         {
             RingTuning rings = ringTuning ?? new RingTuning();
             RingPortalTuning = rings;
@@ -99,8 +96,6 @@ namespace DuneVector
             CactusTuning cacti = cactusTuning ?? new CactusTuning();
             DroneVisualTuning droneVisuals = droneVisualTuning ?? new DroneVisualTuning();
             PlayerStrikeOrbTuning strikeOrbs = playerStrikeOrbTuning ?? new PlayerStrikeOrbTuning();
-            FlyingEnemyTuning flyingEnemies = flyingEnemyTuning ?? new FlyingEnemyTuning();
-            FlyingEnemyVisualTuning = flyingEnemies;
             PyramidLodTuning = pyramidLodTuning ?? new PyramidTuning();
             Sand = CreateLit("Sand - Textured Dunes", Color.white, 0.14f, 0f);
             ConfigureDuneTexture(Sand, duneTexture, duneTextureTileSize);
@@ -252,22 +247,8 @@ namespace DuneVector
             Package = CreateLit("Delivery Package", new Color(0.72f, 0.24f, 0.035f), 0.34f, 0.05f, new Color(1.4f, 0.2f, 0.01f));
             PickupRing = CreatePortal("Portal - Job Pickup", delivery.PickupRingEmissionColor, rings);
             DeliveryRing = CreatePortal("Portal - Job Delivery", delivery.DeliveryRingEmissionColor, rings);
-            EnemyBody = CreateLit(
-                "Sky Piercer - Weathered Metal",
-                flyingEnemies.WeatheredMetalColor,
-                flyingEnemies.WeatheredMetalSmoothness,
-                flyingEnemies.WeatheredMetalMetallic);
-            EnemyArmor = CreateLit(
-                "Sky Piercer - Ceramic Armor",
-                flyingEnemies.CeramicArmorColor,
-                flyingEnemies.CeramicArmorSmoothness,
-                flyingEnemies.CeramicArmorMetallic);
-            EnemyCore = CreateLit(
-                "Sky Piercer - Hostile Warning",
-                flyingEnemies.WarningLightColor,
-                flyingEnemies.WarningLightSmoothness,
-                flyingEnemies.WarningLightMetallic,
-                flyingEnemies.WarningLightEmission);
+            EnemyBody = CreateLit("Sky Piercer - Body", new Color(0.13f, 0.025f, 0.035f), 0.48f, 0.72f, new Color(1.7f, 0.035f, 0.06f));
+            EnemyCore = CreateLit("Sky Piercer - Core", new Color(0.008f, 0.004f, 0.012f), 0.82f, 0.18f, new Color(3.2f, 0.02f, 0.55f));
             GroundEnemyBody = CreateLit("Ground Exploder - Body", new Color(0.055f, 0.045f, 0.04f), 0.5f, 0.78f, new Color(0.16f, 0.025f, 0.005f));
             GroundEnemyWarning = CreateLit("Ground Exploder - Warning", new Color(0.46f, 0.055f, 0.008f), 0.62f, 0.3f, new Color(5.2f, 0.32f, 0.015f));
             StormPyramidBody = CreateLit("Storm Pyramid - Body", new Color(0.025f, 0.035f, 0.09f), 0.58f, 0.82f, new Color(0.08f, 0.12f, 0.55f));
@@ -1688,27 +1669,7 @@ namespace DuneVector
             return root;
         }
 
-        public static Transform CreateFlyingEnemyVisual(
-            Transform parent,
-            DuneVectorMaterials materials,
-            FlyingEnemyTuning settings)
-        {
-            return CreateFlyingEnemyVisual(parent, materials, settings, settings.VisualScale);
-        }
-
-        public static Transform CreateFlyingEnemyVisual(
-            Transform parent,
-            DuneVectorMaterials materials,
-            float scale)
-        {
-            return CreateFlyingEnemyVisual(parent, materials, materials.FlyingEnemyVisualTuning, scale);
-        }
-
-        private static Transform CreateFlyingEnemyVisual(
-            Transform parent,
-            DuneVectorMaterials materials,
-            FlyingEnemyTuning settings,
-            float scale)
+        public static Transform CreateFlyingEnemyVisual(Transform parent, DuneVectorMaterials materials, float scale)
         {
             GameObject rootObject = new GameObject("Sky Piercer Visual");
             Transform root = rootObject.transform;
@@ -1718,7 +1679,7 @@ namespace DuneVector
             GameObject body = CreateMeshObject("Pointed Body", root, GetEnemyBodyMesh(), materials.EnemyBody);
             body.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.On;
 
-            GameObject crown = CreateMeshObject("Ceramic Circular Crown", root, GetTorusMesh(0.66f, 0.13f, 36, 7), materials.EnemyArmor);
+            GameObject crown = CreateMeshObject("Circular Crown", root, GetTorusMesh(0.66f, 0.13f, 36, 7), materials.EnemyBody);
             crown.transform.localPosition = new Vector3(0f, 1.48f, 0f);
 
             CreatePart(
@@ -1730,38 +1691,12 @@ namespace DuneVector
                 Quaternion.identity,
                 materials.EnemyBody);
 
-            for (int side = -1; side <= 1; side += 2)
-            {
-                Vector3 panelPosition = settings.CeramicPanelOffset;
-                panelPosition.x = Mathf.Abs(panelPosition.x) * side;
-                CreatePart(
-                    PrimitiveType.Sphere,
-                    side < 0 ? "Ceramic Armor Plate Left" : "Ceramic Armor Plate Right",
-                    root,
-                    panelPosition,
-                    settings.CeramicPanelScale,
-                    Quaternion.identity,
-                    materials.EnemyArmor);
-
-                Vector3 lightPosition = settings.WarningLightOffset;
-                lightPosition.x = Mathf.Abs(lightPosition.x) * side;
-                Transform warningLight = CreatePart(
-                    PrimitiveType.Sphere,
-                    side < 0 ? "Hostile Warning Light Left" : "Hostile Warning Light Right",
-                    root,
-                    lightPosition,
-                    settings.WarningLightScale,
-                    Quaternion.identity,
-                    materials.EnemyCore);
-                DisableRendererShadows(warningLight.gameObject);
-            }
-
             Transform core = CreatePart(
                 PrimitiveType.Sphere,
                 "Recessed Core",
                 root,
-                settings.CoreOffset,
-                settings.CoreScale,
+                new Vector3(0f, -0.12f, 0.24f),
+                new Vector3(0.36f, 0.42f, 0.1f),
                 Quaternion.identity,
                 materials.EnemyCore);
             core.gameObject.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;

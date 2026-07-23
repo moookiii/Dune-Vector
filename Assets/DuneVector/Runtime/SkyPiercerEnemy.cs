@@ -46,7 +46,7 @@ namespace DuneVector
             _identity = identity;
             _cachedTransform = transform;
             _hoverPhase = identity * 1.73f;
-            _visual = DuneVectorVisuals.CreateFlyingEnemyVisual(_cachedTransform, materials, settings);
+            _visual = DuneVectorVisuals.CreateFlyingEnemyVisual(_cachedTransform, materials, settings.VisualScale);
             _core = _visual.Find("Recessed Core");
             EnemyHealth enemyHealth = gameObject.AddComponent<EnemyHealth>();
             enemyHealth.Initialize(settings.MaximumHealth);
