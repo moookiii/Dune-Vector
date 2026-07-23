@@ -1698,6 +1698,18 @@ namespace DuneVector
         [Min(20f)] public float RepositionDistance = 240f;
         [Min(0.1f)] public float VisualScale = 1.35f;
 
+        [Header("Visual Model")]
+        [Tooltip("Use the original runtime-generated Sky Piercer visual instead of the imported kunai model.")]
+        public bool UseProceduralVisualFallback;
+        [Tooltip("Resources-relative path to the imported flying-enemy model.")]
+        public string KunaiResourcePath = "Kunai";
+        [Tooltip("Local position applied to the imported model beneath the flying-enemy visual root.")]
+        public Vector3 KunaiLocalPosition = new Vector3(0f, 0.68f, 0f);
+        [Tooltip("Local rotation applied to the imported model beneath the flying-enemy visual root.")]
+        public Vector3 KunaiLocalEulerAngles = Vector3.zero;
+        [Tooltip("Local scale applied before the shared flying-enemy Visual Scale.")]
+        public Vector3 KunaiLocalScale = Vector3.one * 2.7f;
+
         public float EvaluateFollowSpeed(int risk)
         {
             return Mathf.Lerp(FollowSpeed, FollowSpeedAtRiskCeiling, EvaluateSpeedRisk(risk));

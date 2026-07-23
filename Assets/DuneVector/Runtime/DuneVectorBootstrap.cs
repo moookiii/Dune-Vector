@@ -335,7 +335,8 @@ namespace DuneVector
                 RuntimeSettings.Geoglyphs,
                 RuntimeSettings.Landmarks,
                 PlayerStrikeOrbs,
-                Pyramids);
+                Pyramids,
+                FlyingEnemies);
             _materials.ConfigureStormPyramid(StormPyramids);
             _materials.ConfigurePlayerStrikeOrb(PlayerStrikeOrbs);
 

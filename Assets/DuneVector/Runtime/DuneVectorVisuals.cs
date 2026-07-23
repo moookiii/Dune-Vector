@@ -63,6 +63,8 @@ namespace DuneVector
         public Material LightningWarning { get; }
         public RingTuning RingPortalTuning { get; }
         public PyramidTuning PyramidLodTuning { get; }
+        public FlyingEnemyTuning FlyingEnemyVisualTuning { get; }
+        public GameObject FlyingEnemyModel { get; }
 
         private readonly List<Material> _ownedMaterials = new List<Material>();
         private readonly List<Material> _shrubMaterials = new List<Material>();
@@ -86,7 +88,8 @@ namespace DuneVector
             GeoglyphSystemTuning geoglyphTuning = null,
             LandmarkSystemTuning landmarkTuning = null,
             PlayerStrikeOrbTuning playerStrikeOrbTuning = null,
-            PyramidTuning pyramidLodTuning = null)
+            PyramidTuning pyramidLodTuning = null,
+            FlyingEnemyTuning flyingEnemyTuning = null)
         {
             RingTuning rings = ringTuning ?? new RingTuning();
             RingPortalTuning = rings;
@@ -97,6 +100,17 @@ namespace DuneVector
             DroneVisualTuning droneVisuals = droneVisualTuning ?? new DroneVisualTuning();
             PlayerStrikeOrbTuning strikeOrbs = playerStrikeOrbTuning ?? new PlayerStrikeOrbTuning();
             PyramidLodTuning = pyramidLodTuning ?? new PyramidTuning();
+            FlyingEnemyVisualTuning = flyingEnemyTuning ?? new FlyingEnemyTuning();
+            if (!FlyingEnemyVisualTuning.UseProceduralVisualFallback)
+            {
+                FlyingEnemyModel = Resources.Load<GameObject>(FlyingEnemyVisualTuning.KunaiResourcePath);
+                if (FlyingEnemyModel == null)
+                {
+                    Debug.LogError(
+                        $"Flying enemy model was not found at Resources/{FlyingEnemyVisualTuning.KunaiResourcePath}. " +
+                        "Using the procedural fallback.");
+                }
+            }
             Sand = CreateLit("Sand - Textured Dunes", Color.white, 0.14f, 0f);
             ConfigureDuneTexture(Sand, duneTexture, duneTextureTileSize);
             _sandOnlyTerrainMaterials = new[] { Sand };
@@ -1675,6 +1689,18 @@ namespace DuneVector
             Transform root = rootObject.transform;
             root.SetParent(parent, false);
             root.localScale = Vector3.one * scale;
+
+            FlyingEnemyTuning settings = materials.FlyingEnemyVisualTuning;
+            if (!settings.UseProceduralVisualFallback && materials.FlyingEnemyModel != null)
+            {
+                GameObject model = UnityEngine.Object.Instantiate(materials.FlyingEnemyModel, root);
+                model.name = materials.FlyingEnemyModel.name;
+                model.transform.localPosition = settings.KunaiLocalPosition;
+                model.transform.localRotation = Quaternion.Euler(settings.KunaiLocalEulerAngles);
+                model.transform.localScale = settings.KunaiLocalScale;
+                DisableImportedAnimationPlayback(model);
+                return root;
+            }
 
             GameObject body = CreateMeshObject("Pointed Body", root, GetEnemyBodyMesh(), materials.EnemyBody);
             body.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.On;
