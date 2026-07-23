@@ -2525,6 +2525,25 @@ namespace DuneVector
         [Range(0f, 0.5f)] public float PortalPulseAmount = 0.08f;
         [Min(0f)] public float PortalLayerDepth = 0.32f;
 
+        [Header("Portal Center Broken Arcs")]
+        [Tooltip("Number of concentric broken circular tracks around the empty portal center.")]
+        [Range(1, 6)] public int PortalCenterBrokenArcLayerCount = 3;
+        [Range(0.1f, 0.8f)] public float PortalCenterBrokenArcInnerRadiusFraction = 0.31f;
+        [Range(0.1f, 0.9f)] public float PortalCenterBrokenArcOuterRadiusFraction = 0.54f;
+        [Range(1, 8)] public int PortalCenterBrokenArcSegmentCount = 3;
+        [Tooltip("Fraction of each circular segment slot occupied by a curved line.")]
+        [Range(0.1f, 0.9f)] public float PortalCenterBrokenArcFill = 0.64f;
+        [Min(0.01f)] public float PortalCenterBrokenArcLineThickness = 0.065f;
+        [Tooltip("Relative angular offset between consecutive arc layers.")]
+        [Range(0f, 1f)] public float PortalCenterBrokenArcPhaseOffset = 0.14f;
+        [Min(0f)] public float PortalCenterBrokenArcRotationSpeed = 96f;
+        [Tooltip("Proportional speed difference between the innermost and outermost arc layers.")]
+        [Range(0f, 0.75f)] public float PortalCenterBrokenArcSpeedVariation = 0.16f;
+        [Min(0f)] public float PortalCenterBrokenArcBaseDepth = 0.08f;
+        [Min(0f)] public float PortalCenterBrokenArcDepthSpacing = 0.045f;
+        [Range(0f, 1f)] public float PortalCenterBrokenArcOpacityMultiplier = 0.82f;
+        [Min(0f)] public float PortalCenterBrokenArcBrightnessMultiplier = 0.9f;
+
         [Header("Upper Flight Ring Unlock")]
         [Tooltip("Number of distinct blue flight rings the player must cross before the upper-layer ring appears.")]
         [Min(1)] public int UpperFlightRingRequiredPasses = 5;
