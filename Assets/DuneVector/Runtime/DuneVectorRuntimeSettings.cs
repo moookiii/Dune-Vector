@@ -1698,6 +1698,38 @@ namespace DuneVector
         [Min(20f)] public float RepositionDistance = 240f;
         [Min(0.1f)] public float VisualScale = 1.35f;
 
+        [Header("Visual Materials")]
+        [ColorUsage(false)]
+        [Tooltip("Dark, sun-weathered metal used by the flying enemy's structural hull.")]
+        public Color WeatheredMetalColor = new Color(0.105f, 0.085f, 0.07f, 1f);
+        [Range(0f, 1f)] public float WeatheredMetalSmoothness = 0.34f;
+        [Range(0f, 1f)] public float WeatheredMetalMetallic = 0.76f;
+
+        [ColorUsage(false)]
+        [Tooltip("Pale heat-resistant ceramic used to break up the flying enemy silhouette.")]
+        public Color CeramicArmorColor = new Color(0.72f, 0.65f, 0.52f, 1f);
+        [Range(0f, 1f)] public float CeramicArmorSmoothness = 0.28f;
+        [Range(0f, 1f)] public float CeramicArmorMetallic = 0.04f;
+
+        [ColorUsage(false)]
+        [Tooltip("Base color of compact hostile identification lights and the recessed core.")]
+        public Color WarningLightColor = new Color(0.62f, 0.015f, 0.008f, 1f);
+        [Range(0f, 1f)] public float WarningLightSmoothness = 0.62f;
+        [Range(0f, 1f)] public float WarningLightMetallic = 0.18f;
+        [ColorUsage(false, true)]
+        [Tooltip("HDR emission from hostile identification lights. Keep this red so it reads clearly against the desert.")]
+        public Color WarningLightEmission = new Color(5.2f, 0.045f, 0.012f, 1f);
+
+        [Header("Visual Armor and Lights")]
+        [Tooltip("Mirrored local offset for the two ceramic face plates. The X component is mirrored.")]
+        public Vector3 CeramicPanelOffset = new Vector3(0.47f, 0.27f, 0.24f);
+        public Vector3 CeramicPanelScale = new Vector3(0.42f, 0.5f, 0.075f);
+        [Tooltip("Mirrored local offset for the compact hostile warning lights. The X component is mirrored.")]
+        public Vector3 WarningLightOffset = new Vector3(0.61f, 0.35f, 0.315f);
+        public Vector3 WarningLightScale = new Vector3(0.075f, 0.11f, 0.035f);
+        public Vector3 CoreOffset = new Vector3(0f, -0.12f, 0.24f);
+        public Vector3 CoreScale = new Vector3(0.3f, 0.34f, 0.085f);
+
         public float EvaluateFollowSpeed(int risk)
         {
             return Mathf.Lerp(FollowSpeed, FollowSpeedAtRiskCeiling, EvaluateSpeedRisk(risk));
