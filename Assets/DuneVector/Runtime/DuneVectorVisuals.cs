@@ -67,6 +67,8 @@ namespace DuneVector
         private readonly List<GeoglyphMaterialBatch> _geoglyphBatches = new List<GeoglyphMaterialBatch>();
         private readonly Dictionary<Material, Material> _portalCoreMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalHaloMaterials = new Dictionary<Material, Material>();
+        private readonly Dictionary<Material, Material> _portalRearLineMaterials = new Dictionary<Material, Material>();
+        private readonly Dictionary<Material, Material> _portalFrontLineMaterials = new Dictionary<Material, Material>();
         private readonly Material[] _sandOnlyTerrainMaterials;
 
         public DuneVectorMaterials(
@@ -507,6 +509,32 @@ namespace DuneVector
             return material;
         }
 
+        public Material CreatePortalDepthLineMaterial(Material lineMaterial, bool frontLayer)
+        {
+            Dictionary<Material, Material> materials = frontLayer
+                ? _portalFrontLineMaterials
+                : _portalRearLineMaterials;
+            if (materials.TryGetValue(lineMaterial, out Material existing) && existing != null)
+            {
+                return existing;
+            }
+
+            Material material = new Material(lineMaterial)
+            {
+                name = $"{lineMaterial.name} - {(frontLayer ? "Front" : "Rear")} Depth Layer",
+                enableInstancing = true,
+            };
+            float opacityMultiplier = frontLayer
+                ? RingPortalTuning.PortalFrontLayerOpacityMultiplier
+                : RingPortalTuning.PortalRearLayerOpacityMultiplier;
+            material.SetFloat(
+                "_Opacity",
+                RingPortalTuning.PortalLineOpacity * Mathf.Clamp01(opacityMultiplier));
+            _ownedMaterials.Add(material);
+            materials.Add(lineMaterial, material);
+            return material;
+        }
+
         private Material[] CreateGeoglyphOverlays(GeoglyphSystemTuning tuning)
         {
             if (tuning == null || !tuning.Enabled || tuning.Placements == null)
@@ -625,6 +653,14 @@ namespace DuneVector
 
     public static class DuneVectorVisuals
     {
+        private enum PortalLineLayer
+        {
+            All,
+            Rear,
+            Center,
+            Front,
+        }
+
         private const string CactusResourcePath = "cacti";
         private static readonly Dictionary<string, Mesh> MeshCache = new Dictionary<string, Mesh>();
         private static GameObject[] _cactusModels;
@@ -1184,20 +1220,45 @@ namespace DuneVector
             GameObject halo = CreateMeshObject(
                 "Soft Portal Halo",
                 parent,
-                GetPortalLineMesh(radius, settings, settings.PortalHaloWidthMultiplier),
+                GetPortalLineMesh(
+                    radius,
+                    settings,
+                    settings.PortalHaloWidthMultiplier,
+                    PortalLineLayer.All),
                 materials.CreatePortalHaloMaterial(lineMaterial));
             halo.transform.localPosition = Vector3.back * (settings.PortalLayerDepth * 0.5f);
             DisableRendererShadows(halo);
             MeshRenderer haloRenderer = halo.GetComponent<MeshRenderer>();
             haloRenderer.sortingOrder = -2;
 
-            GameObject linework = CreateMeshObject(
-                "Transparent Portal Linework",
+            float lineLayerDepth = Mathf.Max(0f, settings.PortalLineLayerDepth);
+            GameObject rearLinework = CreateMeshObject(
+                "Recessed Portal Linework",
                 parent,
-                GetPortalLineMesh(radius, settings, 1f),
+                GetPortalLineMesh(radius, settings, 1f, PortalLineLayer.Rear),
+                materials.CreatePortalDepthLineMaterial(lineMaterial, false));
+            rearLinework.transform.localPosition = Vector3.back * lineLayerDepth;
+            DisableRendererShadows(rearLinework);
+            MeshRenderer rearLineRenderer = rearLinework.GetComponent<MeshRenderer>();
+            rearLineRenderer.sortingOrder = -1;
+
+            GameObject centerLinework = CreateMeshObject(
+                "Center Portal Linework",
+                parent,
+                GetPortalLineMesh(radius, settings, 1f, PortalLineLayer.Center),
                 lineMaterial);
-            DisableRendererShadows(linework);
-            MeshRenderer lineRenderer = linework.GetComponent<MeshRenderer>();
+            DisableRendererShadows(centerLinework);
+            MeshRenderer centerLineRenderer = centerLinework.GetComponent<MeshRenderer>();
+
+            GameObject frontLinework = CreateMeshObject(
+                "Forward Portal Linework",
+                parent,
+                GetPortalLineMesh(radius, settings, 1f, PortalLineLayer.Front),
+                materials.CreatePortalDepthLineMaterial(lineMaterial, true));
+            frontLinework.transform.localPosition = Vector3.forward * lineLayerDepth;
+            DisableRendererShadows(frontLinework);
+            MeshRenderer frontLineRenderer = frontLinework.GetComponent<MeshRenderer>();
+            frontLineRenderer.sortingOrder = 1;
 
             GameObject core = CreateMeshObject(
                 "Animated Transparent Energy Core",
@@ -1213,7 +1274,14 @@ namespace DuneVector
 
             DuneVectorPortalVisual portalVisual = parent.gameObject.AddComponent<DuneVectorPortalVisual>();
             portalVisual.Initialize(
-                new Renderer[] { haloRenderer, coreRenderer, lineRenderer },
+                new Renderer[]
+                {
+                    haloRenderer,
+                    coreRenderer,
+                    rearLineRenderer,
+                    centerLineRenderer,
+                    frontLineRenderer,
+                },
                 settings);
         }
 
@@ -2031,7 +2099,11 @@ namespace DuneVector
             return mesh;
         }
 
-        private static Mesh GetPortalLineMesh(float radius, RingTuning settings, float thicknessMultiplier)
+        private static Mesh GetPortalLineMesh(
+            float radius,
+            RingTuning settings,
+            float thicknessMultiplier,
+            PortalLineLayer layer)
         {
             int concentricCount = Mathf.Clamp(settings.PortalConcentricRingCount, 1, 6);
             int circleSegments = Mathf.Clamp(settings.PortalCircleSegments, 24, 192);
@@ -2039,7 +2111,7 @@ namespace DuneVector
             int glyphCount = Mathf.Clamp(settings.PortalGlyphCount, 3, 32);
             int rayCount = Mathf.Clamp(settings.PortalExteriorRayCount, 0, 24);
             float clampedThicknessMultiplier = Mathf.Max(1f, thicknessMultiplier);
-            string key = $"portal-lines:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
+            string key = $"portal-lines:{layer}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
                 $"{settings.PortalOuterLineThickness:0.000}:" +
                 $"{settings.PortalInnerLineThickness:0.000}:{circleSegments}:{concentricCount}:" +
                 $"{settings.PortalInnermostRingRadiusFraction:0.000}:{spokeCount}:" +
@@ -2061,13 +2133,25 @@ namespace DuneVector
                 outerThickness * 2f,
                 radius * Mathf.Clamp(settings.PortalInnermostRingRadiusFraction, 0.1f, 0.9f));
 
-            AddPortalRing(vertices, uvs, triangles, radius, outerThickness, circleSegments);
-            AddPortalRing(vertices, uvs, triangles, innermostRadius, innerThickness, circleSegments);
+            if (layer == PortalLineLayer.All || layer == PortalLineLayer.Center)
+            {
+                AddPortalRing(vertices, uvs, triangles, radius, outerThickness, circleSegments);
+            }
+            if (layer == PortalLineLayer.All || layer == PortalLineLayer.Rear)
+            {
+                AddPortalRing(vertices, uvs, triangles, innermostRadius, innerThickness, circleSegments);
+            }
             for (int ringIndex = 0; ringIndex < concentricCount; ringIndex++)
             {
                 float interpolation = (ringIndex + 1f) / (concentricCount + 1f);
                 float ringRadius = Mathf.Lerp(innermostRadius, radius, interpolation);
-                AddPortalRing(vertices, uvs, triangles, ringRadius, innerThickness, circleSegments);
+                PortalLineLayer ringLayer = ringIndex % 2 == 0
+                    ? PortalLineLayer.Rear
+                    : PortalLineLayer.Front;
+                if (layer == PortalLineLayer.All || layer == ringLayer)
+                {
+                    AddPortalRing(vertices, uvs, triangles, ringRadius, innerThickness, circleSegments);
+                }
             }
 
             float spokeOuterRadius = radius - (outerThickness * 1.5f);
@@ -2078,20 +2162,23 @@ namespace DuneVector
             float spokeInnerRadius = Mathf.Min(
                 spokeOuterRadius - innerThickness,
                 Mathf.Max(innermostRadius + (innerThickness * 1.5f), requestedSpokeInnerRadius));
-            for (int spokeIndex = 0; spokeIndex < spokeCount; spokeIndex++)
+            if (layer == PortalLineLayer.All || layer == PortalLineLayer.Center)
             {
-                float angle = ((spokeIndex + 0.5f) / spokeCount) * Mathf.PI * 2f;
-                Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-                float shortened = spokeIndex % 3 == 0 ? 0.18f : 0f;
-                Vector2 start = direction * Mathf.Lerp(spokeInnerRadius, spokeOuterRadius, shortened);
-                Vector2 end = direction * spokeOuterRadius;
-                AddPortalStroke(
-                    vertices,
-                    uvs,
-                    triangles,
-                    start,
-                    end,
-                    Mathf.Max(0.01f, settings.PortalSpokeThickness) * clampedThicknessMultiplier);
+                for (int spokeIndex = 0; spokeIndex < spokeCount; spokeIndex++)
+                {
+                    float angle = ((spokeIndex + 0.5f) / spokeCount) * Mathf.PI * 2f;
+                    Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                    float shortened = spokeIndex % 3 == 0 ? 0.18f : 0f;
+                    Vector2 start = direction * Mathf.Lerp(spokeInnerRadius, spokeOuterRadius, shortened);
+                    Vector2 end = direction * spokeOuterRadius;
+                    AddPortalStroke(
+                        vertices,
+                        uvs,
+                        triangles,
+                        start,
+                        end,
+                        Mathf.Max(0.01f, settings.PortalSpokeThickness) * clampedThicknessMultiplier);
+                }
             }
 
             float glyphRadius = radius * Mathf.Clamp(settings.PortalGlyphRadiusFraction, 0.1f, 0.95f);
@@ -2099,6 +2186,16 @@ namespace DuneVector
             float glyphThickness = Mathf.Max(0.01f, settings.PortalGlyphStrokeThickness) * clampedThicknessMultiplier;
             for (int glyphIndex = 0; glyphIndex < glyphCount; glyphIndex++)
             {
+                PortalLineLayer glyphLayer = (glyphIndex % 3) switch
+                {
+                    0 => PortalLineLayer.Rear,
+                    1 => PortalLineLayer.Center,
+                    _ => PortalLineLayer.Front,
+                };
+                if (layer != PortalLineLayer.All && layer != glyphLayer)
+                {
+                    continue;
+                }
                 float angle = ((glyphIndex + 0.25f) / glyphCount) * Mathf.PI * 2f;
                 Vector2 radial = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
                 Vector2 tangent = new Vector2(-radial.y, radial.x);
@@ -2116,21 +2213,24 @@ namespace DuneVector
             }
 
             float rayLength = Mathf.Max(0f, radius * settings.PortalExteriorRayLengthFraction);
-            for (int rayIndex = 0; rayIndex < rayCount; rayIndex++)
+            if (layer == PortalLineLayer.All || layer == PortalLineLayer.Front)
             {
-                float angle = ((rayIndex + 0.15f) / Mathf.Max(1, rayCount)) * Mathf.PI * 2f;
-                Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-                float variation = 0.55f + (((rayIndex * 37) % 11) / 20f);
-                AddPortalStroke(
-                    vertices,
-                    uvs,
-                    triangles,
-                    direction * (radius + outerThickness),
-                    direction * (radius + outerThickness + (rayLength * variation)),
-                    innerThickness);
+                for (int rayIndex = 0; rayIndex < rayCount; rayIndex++)
+                {
+                    float angle = ((rayIndex + 0.15f) / Mathf.Max(1, rayCount)) * Mathf.PI * 2f;
+                    Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+                    float variation = 0.55f + (((rayIndex * 37) % 11) / 20f);
+                    AddPortalStroke(
+                        vertices,
+                        uvs,
+                        triangles,
+                        direction * (radius + outerThickness),
+                        direction * (radius + outerThickness + (rayLength * variation)),
+                        innerThickness);
+                }
             }
 
-            Mesh mesh = new Mesh { name = "Procedural Transparent Portal Linework" };
+            Mesh mesh = new Mesh { name = $"Procedural Transparent Portal Linework - {layer}" };
             mesh.SetVertices(vertices);
             mesh.SetUVs(0, uvs);
             mesh.SetTriangles(triangles, 0);

@@ -2413,6 +2413,14 @@ namespace DuneVector
         [Range(0, 24)] public int PortalExteriorRayCount = 9;
         [Range(0f, 0.5f)] public float PortalExteriorRayLengthFraction = 0.13f;
 
+        [Header("Portal Depth Layers")]
+        [Tooltip("Forward and backward spacing between selected portal linework layers.")]
+        [Min(0f)] public float PortalLineLayerDepth = 0.22f;
+        [Tooltip("Opacity multiplier for the recessed circles and runes.")]
+        [Range(0f, 1f)] public float PortalRearLayerOpacityMultiplier = 0.62f;
+        [Tooltip("Opacity multiplier for the forward circles, runes, and exterior rays.")]
+        [Range(0f, 1f)] public float PortalFrontLayerOpacityMultiplier = 0.82f;
+
         [Header("Portal Camera Fade")]
         [Tooltip("Portal energy is invisible this close to the rendering camera, preventing giant screen-filling linework.")]
         [Min(0f)] public float PortalCameraFadeStartDistance = 5f;
@@ -2437,7 +2445,7 @@ namespace DuneVector
         [Range(0.01f, 0.5f)] public float PortalCoreEdgeFeather = 0.24f;
         [Min(0f)] public float PortalPulseSpeed = 1f;
         [Range(0f, 0.5f)] public float PortalPulseAmount = 0.08f;
-        [Min(0f)] public float PortalLayerDepth = 0.08f;
+        [Min(0f)] public float PortalLayerDepth = 0.32f;
 
         [Header("Upper Flight Ring Unlock")]
         [Tooltip("Number of distinct blue flight rings the player must cross before the upper-layer ring appears.")]
