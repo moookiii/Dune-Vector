@@ -1294,7 +1294,7 @@ namespace DuneVector
                     new Vector3(local.x, y, local.y),
                     scale,
                     yaw,
-                    materials.PyramidModel,
+                    materials.PyramidPrefab,
                     materials.Sandstone,
                     materials.PyramidLodTuning);
                 sceneryExclusions.Add(local);

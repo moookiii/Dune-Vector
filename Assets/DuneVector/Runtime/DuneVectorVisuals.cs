@@ -28,7 +28,7 @@ namespace DuneVector
         public Material CactusBlossom { get; }
         public IReadOnlyList<Material> Shrubs => _shrubMaterials;
         public Material Sandstone { get; }
-        public GameObject PyramidModel { get; }
+        public GameObject PyramidPrefab { get; }
         public Material LandmarkStone { get; }
         public Material LandmarkMetal { get; }
         public Material LandmarkSecondary { get; }
@@ -158,12 +158,12 @@ namespace DuneVector
                 }
             }
             Sandstone = CreateLit("Pyramid - Sandstone", new Color(0.58f, 0.31f, 0.13f), 0.18f, 0f);
-            PyramidModel = Resources.Load<GameObject>("miniature_hieroglyphic_pyramid");
-            if (PyramidModel == null)
+            PyramidPrefab = Resources.Load<GameObject>("PyramidPrefab");
+            if (PyramidPrefab == null)
             {
                 Debug.LogError(
                     "World generation pyramids require " +
-                    "Assets/DuneVector/Resources/miniature_hieroglyphic_pyramid.glb.");
+                    "Assets/DuneVector/Resources/PyramidPrefab.prefab.");
             }
             if (landmarkTuning != null)
             {
