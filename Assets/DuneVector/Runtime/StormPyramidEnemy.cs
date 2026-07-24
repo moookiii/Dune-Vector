@@ -830,6 +830,7 @@ namespace DuneVector
         private DuneVectorMaterials _materials;
         private Transform _visual;
         private Transform[] _orbPivots;
+        private TrailRenderer[] _orbTrails;
         private Vector3 _trackedTarget;
         private float _stateTime;
         private float _attackTimer;
@@ -863,6 +864,7 @@ namespace DuneVector
             {
                 _orbPivots[i] = _visual.Find($"Orbiting Orb Pivot {i + 1}");
             }
+            _orbTrails = _visual.GetComponentsInChildren<TrailRenderer>(true);
             Transform halo = _visual.Find("Charge Halo");
             Transform lightningOrigin = _visual.Find("Lightning Origin");
 
@@ -1097,6 +1099,7 @@ namespace DuneVector
         {
             _lightning.CancelAttack();
             _movement.RepositionNearPlayer();
+            ClearOrbTrails();
             _facingLockedForClosePass = false;
             _attackTimer = Mathf.Max(0.1f, _settings.AttackInterval);
             SetState(StormPyramidState.IdleHovering);
@@ -1222,11 +1225,25 @@ namespace DuneVector
         public void ApplyWorldShift(Vector3 shift)
         {
             _movement.ApplyWorldShift(shift);
+            ClearOrbTrails();
             _trackedTarget += shift;
             _lightning.ApplyWorldShift(shift);
             if (_hasPreviousPlayerPosition)
             {
                 _previousPlayerPosition += shift;
+            }
+        }
+
+        private void ClearOrbTrails()
+        {
+            if (_orbTrails == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < _orbTrails.Length; i++)
+            {
+                _orbTrails[i]?.Clear();
             }
         }
     }

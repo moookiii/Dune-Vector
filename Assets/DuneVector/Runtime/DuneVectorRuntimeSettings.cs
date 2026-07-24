@@ -2072,6 +2072,14 @@ namespace DuneVector
         [Min(0.05f)] public float OrbitingOrbRadius = 0.3f;
         [Min(0.1f)] public float OrbitRadius = 2.2f;
         public PlayerStrikeOrbSatelliteTuning[] OrbitingOrbs;
+        [Header("Orbiting Orb Trails")]
+        [Min(0.01f)] public float OrbTrailDuration;
+        [Min(0.001f)] public float OrbTrailStartWidth;
+        [Min(0f)] public float OrbTrailEndWidth;
+        [Min(0.001f)] public float OrbTrailMinimumVertexDistance;
+        [Range(0, 8)] public int OrbTrailCornerVertices;
+        [ColorUsage(false, true)] public Color OrbTrailColor;
+        [ColorUsage(false, true)] public Color OrbTrailEmission;
         [Min(0.1f)] public float ChargeHaloRadius = 1.9f;
         [Min(0.01f)] public float ChargeHaloThickness = 0.075f;
         [Min(0f)] public float RingRotationSpeed = 18f;

@@ -57,6 +57,7 @@ namespace DuneVector
         public Material StormPyramidCore { get; }
         public Material PlayerStrikeOrbBody { get; }
         public Material PlayerStrikeOrbCore { get; }
+        public Material PlayerStrikeOrbTrail { get; }
         public Material PlayerStrikeOrbExplosionWhite { get; }
         public Material PlayerStrikeOrbExplosionBlue { get; }
         public Material Lightning { get; }
@@ -269,6 +270,10 @@ namespace DuneVector
             StormPyramidCore = CreateLit("Storm Pyramid - Core", new Color(0.01f, 0.08f, 0.14f), 0.76f, 0.22f, new Color(0.15f, 3.6f, 6.5f));
             PlayerStrikeOrbBody = CreateLit("Strike Orb - Body", strikeOrbs.BodyColor, 0.64f, 0.76f, strikeOrbs.BodyEmission);
             PlayerStrikeOrbCore = CreateStrikeOrbGradient(strikeOrbs);
+            PlayerStrikeOrbTrail = CreateUnlit(
+                "Strike Orb - Satellite Trails",
+                strikeOrbs.OrbTrailColor,
+                strikeOrbs.OrbTrailEmission);
             PlayerStrikeOrbExplosionWhite = CreateUnlit(
                 "Strike Orb Explosion - White",
                 strikeOrbs.FlyThroughExplosionWhiteColor,
@@ -382,6 +387,10 @@ namespace DuneVector
 
             ConfigureLitColors(PlayerStrikeOrbBody, settings.BodyColor, settings.BodyEmission);
             ConfigureStrikeOrbGradient(PlayerStrikeOrbCore, settings);
+            ConfigureLitColors(
+                PlayerStrikeOrbTrail,
+                settings.OrbTrailColor,
+                settings.OrbTrailEmission);
             ConfigureLitColors(
                 PlayerStrikeOrbExplosionWhite,
                 settings.FlyThroughExplosionWhiteColor,
@@ -1978,7 +1987,9 @@ namespace DuneVector
                         orb.StartAngle,
                         settings.OrbitRadius,
                         settings.OrbitingOrbRadius,
-                        materials.PlayerStrikeOrbCore);
+                        materials.PlayerStrikeOrbCore,
+                        materials.PlayerStrikeOrbTrail,
+                        settings);
                 }
             }
 
@@ -2052,7 +2063,9 @@ namespace DuneVector
             float startAngle,
             float orbitRadius,
             float orbRadius,
-            Material material)
+            Material orbMaterial,
+            Material trailMaterial,
+            PlayerStrikeOrbTuning settings)
         {
             GameObject pivotObject = new GameObject(pivotName);
             Transform pivot = pivotObject.transform;
@@ -2065,8 +2078,22 @@ namespace DuneVector
                 Vector3.right * orbitRadius,
                 Vector3.one * orbRadius,
                 Quaternion.identity,
-                material);
+                orbMaterial);
             DisableRendererShadows(orb.gameObject);
+
+            TrailRenderer trail = orb.gameObject.AddComponent<TrailRenderer>();
+            trail.sharedMaterial = trailMaterial;
+            trail.time = settings.OrbTrailDuration;
+            trail.startWidth = settings.OrbTrailStartWidth * settings.VisualScale;
+            trail.endWidth = settings.OrbTrailEndWidth * settings.VisualScale;
+            trail.minVertexDistance =
+                settings.OrbTrailMinimumVertexDistance * settings.VisualScale;
+            trail.numCornerVertices = settings.OrbTrailCornerVertices;
+            trail.alignment = LineAlignment.View;
+            trail.textureMode = LineTextureMode.Stretch;
+            trail.shadowCastingMode = ShadowCastingMode.Off;
+            trail.receiveShadows = false;
+            trail.emitting = true;
         }
 
         private static void CreateStormPyramidEnergyBand(
