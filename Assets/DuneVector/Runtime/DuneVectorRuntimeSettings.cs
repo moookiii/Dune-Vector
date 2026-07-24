@@ -2078,8 +2078,9 @@ namespace DuneVector
         [Min(0f)] public float FacingSharpness = 9f;
         [ColorUsage(false)] public Color BodyColor = new Color(0.018f, 0.028f, 0.07f);
         [ColorUsage(false, true)] public Color BodyEmission = new Color(0.08f, 0.18f, 0.8f);
-        [ColorUsage(false)] public Color OrbColor = new Color(0.08f, 0.3f, 0.48f);
-        [ColorUsage(false, true)] public Color OrbEmission = new Color(0.35f, 3.5f, 6.8f);
+        [ColorUsage(false, true)] public Color OrbInnerColor;
+        [ColorUsage(false, true)] public Color OrbOuterColor;
+        [Range(0.01f, 1f)] public float OrbGradientWidth;
 
         public float EvaluateDetectionRange(int rank)
         {

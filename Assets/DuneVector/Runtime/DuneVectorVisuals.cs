@@ -268,7 +268,7 @@ namespace DuneVector
             StormPyramidBody = CreateLit("Storm Pyramid - Body", new Color(0.025f, 0.035f, 0.09f), 0.58f, 0.82f, new Color(0.08f, 0.12f, 0.55f));
             StormPyramidCore = CreateLit("Storm Pyramid - Core", new Color(0.01f, 0.08f, 0.14f), 0.76f, 0.22f, new Color(0.15f, 3.6f, 6.5f));
             PlayerStrikeOrbBody = CreateLit("Strike Orb - Body", strikeOrbs.BodyColor, 0.64f, 0.76f, strikeOrbs.BodyEmission);
-            PlayerStrikeOrbCore = CreateLit("Strike Orb - Satellites", strikeOrbs.OrbColor, 0.78f, 0.28f, strikeOrbs.OrbEmission);
+            PlayerStrikeOrbCore = CreateStrikeOrbGradient(strikeOrbs);
             PlayerStrikeOrbExplosionWhite = CreateUnlit(
                 "Strike Orb Explosion - White",
                 strikeOrbs.FlyThroughExplosionWhiteColor,
@@ -381,7 +381,7 @@ namespace DuneVector
             }
 
             ConfigureLitColors(PlayerStrikeOrbBody, settings.BodyColor, settings.BodyEmission);
-            ConfigureLitColors(PlayerStrikeOrbCore, settings.OrbColor, settings.OrbEmission);
+            ConfigureStrikeOrbGradient(PlayerStrikeOrbCore, settings);
             ConfigureLitColors(
                 PlayerStrikeOrbExplosionWhite,
                 settings.FlyThroughExplosionWhiteColor,
@@ -465,6 +465,39 @@ namespace DuneVector
             }
             _ownedMaterials.Add(material);
             return material;
+        }
+
+        private Material CreateStrikeOrbGradient(PlayerStrikeOrbTuning settings)
+        {
+            Shader shader = Resources.Load<Shader>("DuneVectorStrikeOrbGradient");
+            if (shader == null)
+            {
+                throw new InvalidOperationException(
+                    "Strike orb satellites require Assets/DuneVector/Resources/DuneVectorStrikeOrbGradient.shader.");
+            }
+
+            Material material = new Material(shader)
+            {
+                name = "Strike Orb - Satellites",
+                enableInstancing = true,
+            };
+            ConfigureStrikeOrbGradient(material, settings);
+            _ownedMaterials.Add(material);
+            return material;
+        }
+
+        private static void ConfigureStrikeOrbGradient(
+            Material material,
+            PlayerStrikeOrbTuning settings)
+        {
+            if (material == null || settings == null)
+            {
+                return;
+            }
+
+            material.SetColor("_InnerColor", settings.OrbInnerColor);
+            material.SetColor("_OuterColor", settings.OrbOuterColor);
+            material.SetFloat("_GradientWidth", settings.OrbGradientWidth);
         }
 
         private Material CreatePortal(string name, Color color, RingTuning settings)
