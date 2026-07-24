@@ -2450,7 +2450,7 @@ namespace DuneVector
             int glyphCount = Mathf.Clamp(settings.PortalGlyphCount, 3, 32);
             int rayCount = Mathf.Clamp(settings.PortalExteriorRayCount, 0, 24);
             float clampedThicknessMultiplier = Mathf.Max(1f, thicknessMultiplier);
-            string key = $"portal-lines-v5:{layer}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
+            string key = $"portal-lines-v4:{layer}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
                 $"{settings.PortalOuterLineThickness:0.000}:" +
                 $"{settings.PortalInnerLineThickness:0.000}:{circleSegments}:{concentricCount}:" +
                 $"{settings.PortalInnermostRingRadiusFraction:0.000}:{spokeCount}:" +
@@ -2474,37 +2474,6 @@ namespace DuneVector
             float innermostRadius = Mathf.Max(
                 outerThickness * 2f,
                 radius * Mathf.Clamp(settings.PortalInnermostRingRadiusFraction, 0.1f, 0.9f));
-            float glyphRadius = radius * Mathf.Clamp(settings.PortalGlyphRadiusFraction, 0.1f, 0.95f);
-            float glyphSize = Mathf.Max(0.03f, radius * settings.PortalGlyphSizeFraction);
-            float glyphThickness = Mathf.Max(0.01f, settings.PortalGlyphStrokeThickness)
-                * clampedThicknessMultiplier;
-            int variationSeed = Mathf.RoundToInt(radius * 100f);
-            List<Vector2> runeClearanceCenters = new List<Vector2>(glyphCount);
-            List<float> runeClearanceRadii = new List<float>(glyphCount);
-            for (int glyphIndex = 0; glyphIndex < glyphCount; glyphIndex++)
-            {
-                float slotAngle = (Mathf.PI * 2f) / glyphCount;
-                float spacingVariation = DuneVectorMath.HashRange(
-                    glyphIndex,
-                    glyphCount,
-                    variationSeed,
-                    101,
-                    -1f,
-                    1f);
-                float angle = (((glyphIndex + 0.25f) / glyphCount) * Mathf.PI * 2f)
-                    + (spacingVariation * slotAngle * settings.PortalRuneSpacingVariation);
-                float sizeVariation = DuneVectorMath.HashRange(
-                    glyphIndex,
-                    glyphCount,
-                    variationSeed,
-                    307,
-                    -settings.PortalRuneSizeVariation,
-                    settings.PortalRuneSizeVariation);
-                runeClearanceCenters.Add(
-                    new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * glyphRadius);
-                runeClearanceRadii.Add(
-                    (glyphSize * (1f + sizeVariation) * 1.25f) + (glyphThickness * 1.8f));
-            }
 
             if (layer == PortalLineLayer.All || layer == PortalLineLayer.Center)
             {
@@ -2523,16 +2492,7 @@ namespace DuneVector
                     : PortalLineLayer.Front;
                 if (layer == PortalLineLayer.All || layer == ringLayer)
                 {
-                    AddPortalRing(
-                        vertices,
-                        uvs,
-                        triangles,
-                        ringRadius,
-                        innerThickness,
-                        circleSegments,
-                        2f,
-                        runeClearanceCenters,
-                        runeClearanceRadii);
+                    AddPortalRing(vertices, uvs, triangles, ringRadius, innerThickness, circleSegments);
                 }
             }
 
@@ -2544,13 +2504,6 @@ namespace DuneVector
             float spokeInnerRadius = Mathf.Min(
                 spokeOuterRadius - innerThickness,
                 Mathf.Max(innermostRadius + (innerThickness * 1.5f), requestedSpokeInnerRadius));
-            float runeClearance = 0f;
-            for (int runeIndex = 0; runeIndex < runeClearanceRadii.Count; runeIndex++)
-            {
-                runeClearance = Mathf.Max(runeClearance, runeClearanceRadii[runeIndex]);
-            }
-            float runeBandInnerRadius = glyphRadius - runeClearance;
-            float runeBandOuterRadius = glyphRadius + runeClearance;
             if (layer == PortalLineLayer.All || layer == PortalLineLayer.Center)
             {
                 for (int spokeIndex = 0; spokeIndex < spokeCount; spokeIndex++)
@@ -2558,34 +2511,22 @@ namespace DuneVector
                     float angle = ((spokeIndex + 0.5f) / spokeCount) * Mathf.PI * 2f;
                     Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
                     float shortened = spokeIndex % 3 == 0 ? 0.18f : 0f;
-                    float startRadius = Mathf.Lerp(spokeInnerRadius, spokeOuterRadius, shortened);
-                    float spokeThickness = Mathf.Max(0.01f, settings.PortalSpokeThickness)
-                        * clampedThicknessMultiplier;
-                    float innerEndRadius = Mathf.Min(spokeOuterRadius, runeBandInnerRadius);
-                    if (innerEndRadius > startRadius)
-                    {
-                        AddPortalStroke(
-                            vertices,
-                            uvs,
-                            triangles,
-                            direction * startRadius,
-                            direction * innerEndRadius,
-                            spokeThickness);
-                    }
-                    float outerStartRadius = Mathf.Max(startRadius, runeBandOuterRadius);
-                    if (spokeOuterRadius > outerStartRadius)
-                    {
-                        AddPortalStroke(
-                            vertices,
-                            uvs,
-                            triangles,
-                            direction * outerStartRadius,
-                            direction * spokeOuterRadius,
-                            spokeThickness);
-                    }
+                    Vector2 start = direction * Mathf.Lerp(spokeInnerRadius, spokeOuterRadius, shortened);
+                    Vector2 end = direction * spokeOuterRadius;
+                    AddPortalStroke(
+                        vertices,
+                        uvs,
+                        triangles,
+                        start,
+                        end,
+                        Mathf.Max(0.01f, settings.PortalSpokeThickness) * clampedThicknessMultiplier);
                 }
             }
 
+            float glyphRadius = radius * Mathf.Clamp(settings.PortalGlyphRadiusFraction, 0.1f, 0.95f);
+            float glyphSize = Mathf.Max(0.03f, radius * settings.PortalGlyphSizeFraction);
+            float glyphThickness = Mathf.Max(0.01f, settings.PortalGlyphStrokeThickness) * clampedThicknessMultiplier;
+            int variationSeed = Mathf.RoundToInt(radius * 100f);
             for (int glyphIndex = 0; glyphIndex < glyphCount; glyphIndex++)
             {
                 PortalLineLayer glyphLayer = (glyphIndex % 3) switch
@@ -2800,9 +2741,7 @@ namespace DuneVector
             float radius,
             float thickness,
             int segments,
-            float featureMarker = 2f,
-            IReadOnlyList<Vector2> clearanceCenters = null,
-            IReadOnlyList<float> clearanceRadii = null)
+            float featureMarker = 2f)
         {
             float inner = Mathf.Max(0f, radius - (thickness * 0.5f));
             float outer = radius + (thickness * 0.5f);
@@ -2812,29 +2751,6 @@ namespace DuneVector
                 float angleB = ((segment + 1f) / segments) * Mathf.PI * 2f;
                 Vector2 directionA = new Vector2(Mathf.Cos(angleA), Mathf.Sin(angleA));
                 Vector2 directionB = new Vector2(Mathf.Cos(angleB), Mathf.Sin(angleB));
-                Vector2 centerlineA = directionA * radius;
-                Vector2 centerlineB = directionB * radius;
-                bool intersectsClearance = false;
-                if (clearanceCenters != null && clearanceRadii != null)
-                {
-                    int clearanceCount = Mathf.Min(clearanceCenters.Count, clearanceRadii.Count);
-                    for (int clearanceIndex = 0; clearanceIndex < clearanceCount; clearanceIndex++)
-                    {
-                        float requiredDistance = clearanceRadii[clearanceIndex] + (thickness * 0.5f);
-                        if (DistanceSquaredToSegment(
-                                clearanceCenters[clearanceIndex],
-                                centerlineA,
-                                centerlineB) <= requiredDistance * requiredDistance)
-                        {
-                            intersectsClearance = true;
-                            break;
-                        }
-                    }
-                }
-                if (intersectsClearance)
-                {
-                    continue;
-                }
                 AddPortalQuad(
                     vertices,
                     uvs,
@@ -2845,20 +2761,6 @@ namespace DuneVector
                     directionB * inner,
                     featureMarker);
             }
-        }
-
-        private static float DistanceSquaredToSegment(Vector2 point, Vector2 start, Vector2 end)
-        {
-            Vector2 segment = end - start;
-            float segmentLengthSquared = segment.sqrMagnitude;
-            if (segmentLengthSquared <= 0.000001f)
-            {
-                return (point - start).sqrMagnitude;
-            }
-
-            float interpolation = Mathf.Clamp01(Vector2.Dot(point - start, segment) / segmentLengthSquared);
-            Vector2 closestPoint = start + (segment * interpolation);
-            return (point - closestPoint).sqrMagnitude;
         }
 
         private static void AddPortalStroke(
