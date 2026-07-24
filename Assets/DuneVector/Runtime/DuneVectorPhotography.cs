@@ -845,6 +845,7 @@ namespace DuneVector
         private GUIStyle _commandStyle;
         private GUIStyle _keyStyle;
         private GUIStyle _statusStyle;
+        private GUIStyle _comparisonLabelStyle;
         private GUIStyle _identificationTitleStyle;
         private GUIStyle _identificationNameStyle;
         private GUIStyle _buttonStyle;
@@ -1401,9 +1402,9 @@ namespace DuneVector
             if (current != null) GUI.DrawTexture(currentRect, current, ScaleMode.ScaleToFit, false);
             if (_capturedTexture != null) GUI.DrawTexture(newRect, _capturedTexture, ScaleMode.ScaleToFit, false);
             GUI.Label(new Rect(currentRect.x, currentRect.yMax, currentRect.width, _settings.SubjectLabelHeight),
-                _settings.ComparisonCurrentLabel, _statusStyle);
+                _settings.ComparisonCurrentLabel, _comparisonLabelStyle);
             GUI.Label(new Rect(newRect.x, newRect.yMax, newRect.width, _settings.SubjectLabelHeight),
-                _settings.ComparisonNewLabel, _statusStyle);
+                _settings.ComparisonNewLabel, _comparisonLabelStyle);
         }
 
         private void DrawSurfaceTextures()
@@ -1722,6 +1723,12 @@ namespace DuneVector
                 FontStyle.Normal,
                 TextAnchor.MiddleCenter,
                 _settings.HudTextColor,
+                _settings.HudSemiboldFont);
+            _comparisonLabelStyle ??= CreateStyle(
+                _settings.StatusFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleCenter,
+                _settings.ComparisonLabelColor,
                 _settings.HudSemiboldFont);
             _identificationTitleStyle ??= CreateStyle(
                 _settings.IdentificationTitleFontSize,
