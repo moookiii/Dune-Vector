@@ -829,8 +829,7 @@ namespace DuneVector
         private EnemyHealth _enemyHealth;
         private DuneVectorMaterials _materials;
         private Transform _visual;
-        private Transform _firstOrbPivot;
-        private Transform _secondOrbPivot;
+        private Transform[] _orbPivots;
         private Vector3 _trackedTarget;
         private float _stateTime;
         private float _attackTimer;
@@ -856,8 +855,14 @@ namespace DuneVector
             _identity = identity;
 
             _visual = DuneVectorVisuals.CreatePlayerStrikeOrbVisual(transform, materials, settings);
-            _firstOrbPivot = _visual.Find("First Orb Pivot");
-            _secondOrbPivot = _visual.Find("Second Orb Pivot");
+            int orbitingOrbCount = settings.OrbitingOrbs != null
+                ? settings.OrbitingOrbs.Length
+                : 0;
+            _orbPivots = new Transform[orbitingOrbCount];
+            for (int i = 0; i < orbitingOrbCount; i++)
+            {
+                _orbPivots[i] = _visual.Find($"Orbiting Orb Pivot {i + 1}");
+            }
             Transform halo = _visual.Find("Charge Halo");
             Transform lightningOrigin = _visual.Find("Lightning Origin");
 
@@ -1044,13 +1049,15 @@ namespace DuneVector
             {
                 _visual.Rotate(0f, 0f, _settings.RingRotationSpeed * deltaTime, Space.Self);
             }
-            if (_firstOrbPivot != null)
+            int orbitingOrbCount = _orbPivots != null ? _orbPivots.Length : 0;
+            for (int i = 0; i < orbitingOrbCount; i++)
             {
-                _firstOrbPivot.Rotate(0f, 0f, _settings.FirstOrbOrbitSpeed * deltaTime, Space.Self);
-            }
-            if (_secondOrbPivot != null)
-            {
-                _secondOrbPivot.Rotate(0f, 0f, _settings.SecondOrbOrbitSpeed * deltaTime, Space.Self);
+                Transform pivot = _orbPivots[i];
+                PlayerStrikeOrbSatelliteTuning orb = _settings.OrbitingOrbs[i];
+                if (pivot != null && orb != null)
+                {
+                    pivot.Rotate(0f, 0f, orb.OrbitSpeed * deltaTime, Space.Self);
+                }
             }
         }
 
@@ -1131,7 +1138,7 @@ namespace DuneVector
 
             float visibleOpeningRadius = Mathf.Max(
                 0.1f,
-                (_settings.RingRadius - (_settings.RingThickness * 1.7f)) * _settings.VisualScale);
+                _settings.FlyThroughOpeningRadius * _settings.VisualScale);
             float triggerRadius = visibleOpeningRadius
                 * Mathf.Clamp01(_settings.FlyThroughRadiusMultiplier);
             Vector3 segment = playerPosition - _previousPlayerPosition;

@@ -1916,43 +1916,38 @@ namespace DuneVector
             root.SetParent(parent, false);
             root.localScale = Vector3.one * settings.VisualScale;
 
-            GameObject ring = CreateMeshObject(
-                "Central Energy Ring",
-                root,
-                GetTorusMesh(settings.RingRadius, settings.RingThickness, 52, 8),
-                materials.PlayerStrikeOrbBody);
-            DisableRendererShadows(ring);
+            if (settings.RingPrefab != null)
+            {
+                GameObject ring = UnityEngine.Object.Instantiate(settings.RingPrefab, root, false);
+                ring.name = "Superman Ring";
+                ring.transform.localPosition = settings.RingPrefabLocalPosition;
+                ring.transform.localRotation = Quaternion.Euler(settings.RingPrefabLocalEulerAngles);
+                ring.transform.localScale = Vector3.one * settings.RingPrefabScale;
+                DisableRendererShadowsRecursively(ring);
+            }
 
-            GameObject innerRing = CreateMeshObject(
-                "Inner Energy Ring",
-                root,
-                GetTorusMesh(
-                    Mathf.Max(0.1f, settings.RingRadius - (settings.RingThickness * 1.7f)),
-                    settings.InnerRingThickness,
-                    48,
-                    6),
-                materials.PlayerStrikeOrbCore);
-            innerRing.transform.localPosition = new Vector3(0f, 0f, 0.015f);
-            DisableRendererShadows(innerRing);
+            PlayerStrikeOrbSatelliteTuning[] orbitingOrbs = settings.OrbitingOrbs;
+            if (orbitingOrbs != null)
+            {
+                for (int i = 0; i < orbitingOrbs.Length; i++)
+                {
+                    PlayerStrikeOrbSatelliteTuning orb = orbitingOrbs[i];
+                    if (orb == null)
+                    {
+                        continue;
+                    }
 
-            CreateOrbitingOrb(
-                root,
-                "First Orb Pivot",
-                "First Orbiting Orb",
-                settings.FirstOrbOrbitTilt,
-                settings.FirstOrbStartAngle,
-                settings.OrbitRadius,
-                settings.OrbitingOrbRadius,
-                materials.PlayerStrikeOrbCore);
-            CreateOrbitingOrb(
-                root,
-                "Second Orb Pivot",
-                "Second Orbiting Orb",
-                settings.SecondOrbOrbitTilt,
-                settings.SecondOrbStartAngle,
-                settings.OrbitRadius,
-                settings.OrbitingOrbRadius,
-                materials.PlayerStrikeOrbCore);
+                    CreateOrbitingOrb(
+                        root,
+                        $"Orbiting Orb Pivot {i + 1}",
+                        $"Orbiting Orb {i + 1}",
+                        orb.OrbitTilt,
+                        orb.StartAngle,
+                        settings.OrbitRadius,
+                        settings.OrbitingOrbRadius,
+                        materials.PlayerStrikeOrbCore);
+                }
+            }
 
             GameObject halo = CreateMeshObject(
                 "Charge Halo",
@@ -2328,6 +2323,16 @@ namespace DuneVector
             {
                 renderer.shadowCastingMode = ShadowCastingMode.Off;
                 renderer.receiveShadows = false;
+            }
+        }
+
+        private static void DisableRendererShadowsRecursively(GameObject gameObject)
+        {
+            Renderer[] renderers = gameObject.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                renderers[i].shadowCastingMode = ShadowCastingMode.Off;
+                renderers[i].receiveShadows = false;
             }
         }
 

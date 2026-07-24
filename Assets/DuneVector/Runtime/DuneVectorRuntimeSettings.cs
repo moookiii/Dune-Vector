@@ -1976,6 +1976,14 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class PlayerStrikeOrbSatelliteTuning
+    {
+        public float OrbitSpeed;
+        [Range(0f, 360f)] public float StartAngle;
+        [Range(-85f, 85f)] public float OrbitTilt;
+    }
+
+    [System.Serializable]
     public sealed class PlayerStrikeOrbTuning
     {
         public bool Enabled = true;
@@ -2035,6 +2043,8 @@ namespace DuneVector
         [Header("Fly-Through Destruction")]
         [Tooltip("Fraction of the visible ring opening that counts as flying through its center.")]
         [Range(0.1f, 1f)] public float FlyThroughRadiusMultiplier = 0.78f;
+        [Tooltip("Local-space radius of the opening inside the imported strike-orb ring.")]
+        [Min(0.1f)] public float FlyThroughOpeningRadius;
         [Tooltip("World-space distance at which the ring stops turning while an airborne drone commits to a fly-through.")]
         [Min(0f)] public float FlyThroughFacingLockDistance = 75f;
         [Min(0.05f)] public float FlyThroughExplosionDuration = 0.7f;
@@ -2055,16 +2065,13 @@ namespace DuneVector
         [Header("Presentation")]
         [Min(0.1f)] public float VisualScale = 2.35f;
         [Min(0.1f)] public float RingRadius = 1.55f;
-        [Min(0.01f)] public float RingThickness = 0.2f;
-        [Min(0.01f)] public float InnerRingThickness = 0.055f;
+        public GameObject RingPrefab;
+        public Vector3 RingPrefabLocalPosition;
+        public Vector3 RingPrefabLocalEulerAngles;
+        [Min(0.001f)] public float RingPrefabScale;
         [Min(0.05f)] public float OrbitingOrbRadius = 0.3f;
         [Min(0.1f)] public float OrbitRadius = 2.2f;
-        public float FirstOrbOrbitSpeed = 58f;
-        public float SecondOrbOrbitSpeed = -91f;
-        [Range(0f, 360f)] public float FirstOrbStartAngle = 35f;
-        [Range(0f, 360f)] public float SecondOrbStartAngle = 215f;
-        [Range(-85f, 85f)] public float FirstOrbOrbitTilt = 24f;
-        [Range(-85f, 85f)] public float SecondOrbOrbitTilt = -38f;
+        public PlayerStrikeOrbSatelliteTuning[] OrbitingOrbs;
         [Min(0.1f)] public float ChargeHaloRadius = 1.9f;
         [Min(0.01f)] public float ChargeHaloThickness = 0.075f;
         [Min(0f)] public float RingRotationSpeed = 18f;
