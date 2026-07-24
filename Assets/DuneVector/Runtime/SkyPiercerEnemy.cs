@@ -302,7 +302,7 @@ namespace DuneVector
             _settings = settings;
             _world.WorldShifted += HandleWorldShift;
 
-            System.Random random = new System.Random(unchecked(world.WorldSeed ^ 0x51f2a9d));
+            System.Random random = new System.Random(unchecked(world.EnemySpawnSeed ^ 0x51f2a9d));
             int count = Mathf.Max(1, settings.EnemyCount);
             for (int i = 0; i < count; i++)
             {
@@ -356,7 +356,7 @@ namespace DuneVector
             }
 
             int multiplierSeed = Mathf.RoundToInt(DuneVectorContractRisk.EnemySpawnMultiplier * 1000f);
-            System.Random random = new System.Random(unchecked(_world.WorldSeed ^ 0x4d31ac7 ^ multiplierSeed));
+            System.Random random = new System.Random(unchecked(_world.EnemySpawnSeed ^ 0x4d31ac7 ^ multiplierSeed));
             for (int i = 0; i < bonusCount; i++)
             {
                 float angle = (float)(random.NextDouble() * Mathf.PI * 2f);

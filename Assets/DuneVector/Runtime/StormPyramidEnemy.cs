@@ -2003,7 +2003,7 @@ namespace DuneVector
             _settings = settings;
             _orbSettings = orbSettings;
             _world.WorldShifted += HandleWorldShift;
-            System.Random random = new System.Random(unchecked(world.WorldSeed ^ 0x2749a31));
+            System.Random random = new System.Random(unchecked(world.EnemySpawnSeed ^ 0x2749a31));
             if (settings.Enabled)
             {
                 int count = Mathf.Max(1, settings.EnemyCount);
@@ -2034,7 +2034,7 @@ namespace DuneVector
             {
                 return;
             }
-            System.Random random = new System.Random(unchecked(seed ^ _world.WorldSeed ^ 0x6f18d2b));
+            System.Random random = new System.Random(unchecked(seed ^ _world.EnemySpawnSeed ^ 0x6f18d2b));
             for (int i = 0; i < count; i++)
             {
                 StormPyramidEnemy enemy = SpawnEnemy(
@@ -2157,7 +2157,7 @@ namespace DuneVector
             ClearRiskEnemies();
             float bonusMultiplier = Mathf.Max(0f, DuneVectorContractRisk.EnemySpawnMultiplier - 1f);
             int multiplierSeed = Mathf.RoundToInt(DuneVectorContractRisk.EnemySpawnMultiplier * 1000f);
-            System.Random random = new System.Random(unchecked(_world.WorldSeed ^ 0x38bde17 ^ multiplierSeed));
+            System.Random random = new System.Random(unchecked(_world.EnemySpawnSeed ^ 0x38bde17 ^ multiplierSeed));
 
             if (_settings.Enabled)
             {

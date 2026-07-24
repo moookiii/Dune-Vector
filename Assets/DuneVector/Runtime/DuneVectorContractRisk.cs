@@ -107,7 +107,7 @@ namespace DuneVector
                 return;
             }
 
-            _random = new System.Random(unchecked(seed ^ (_risk * 7919) ^ _world.WorldSeed));
+            _random = new System.Random(unchecked(seed ^ (_risk * 7919) ^ _world.EnemySpawnSeed));
             _spawnTimer = Mathf.Max(0f, _settings.SandAmbusherInitialDelay);
             enabled = true;
         }

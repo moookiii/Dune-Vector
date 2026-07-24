@@ -65,6 +65,7 @@ namespace DuneVector
         public bool DrawChunkBounds;
 
         public DuneHeightField HeightField { get; private set; }
+        public int EnemySpawnSeed { get; private set; }
         public int ActiveChunkCount => _chunks.Count;
         public int GeneratedChunkCount { get; private set; }
         public int UnloadedChunkCount { get; private set; }
@@ -145,6 +146,7 @@ namespace DuneVector
             _materials = materials ?? throw new ArgumentNullException(nameof(materials));
             _materials.SetGeoglyphLogicalOrigin(OriginOffsetX, OriginOffsetZ);
             _coinRingSeed = Guid.NewGuid().GetHashCode();
+            EnemySpawnSeed = Guid.NewGuid().GetHashCode();
             Rings ??= new RingTuning();
             GroundExploders ??= new GroundExploderTuning();
             Dunes.WorldSeed = WorldSeed;
@@ -229,8 +231,8 @@ namespace DuneVector
             int attempts = Mathf.Max(count * 12, count);
             for (int attempt = 0; attempt < attempts && spawned < count; attempt++)
             {
-                float angle = DuneVectorMath.HashRange(seed, attempt, WorldSeed, 1249, 0f, Mathf.PI * 2f);
-                float distance = DuneVectorMath.HashRange(seed, attempt, WorldSeed, 1259, minimum, maximum);
+                float angle = DuneVectorMath.HashRange(seed, attempt, EnemySpawnSeed, 1249, 0f, Mathf.PI * 2f);
+                float distance = DuneVectorMath.HashRange(seed, attempt, EnemySpawnSeed, 1259, minimum, maximum);
                 double logicalX = playerLogical.X + (Math.Cos(angle) * distance);
                 double logicalZ = playerLogical.Z + (Math.Sin(angle) * distance);
                 Vector2Int coordinate = LogicalToChunk(logicalX, logicalZ);
@@ -260,7 +262,7 @@ namespace DuneVector
                     local.x,
                     (float)HeightField.SampleHeight(logicalX, logicalZ),
                     local.y);
-                float yaw = DuneVectorMath.HashRange(seed, attempt, WorldSeed, 1277, 0f, 360f);
+                float yaw = DuneVectorMath.HashRange(seed, attempt, EnemySpawnSeed, 1277, 0f, 360f);
                 enemyObject.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
                 GroundExploderEnemy enemy = enemyObject.AddComponent<GroundExploderEnemy>();
                 enemy.Initialize(
@@ -272,7 +274,7 @@ namespace DuneVector
                     ChunkSize,
                     _materials,
                     GroundExploders,
-                    unchecked((int)DuneVectorMath.Hash(seed, attempt, WorldSeed, 1289)));
+                    unchecked((int)DuneVectorMath.Hash(seed, attempt, EnemySpawnSeed, 1289)));
                 _contractGroundExploders.Add(new ContractGroundExploderSpawn
                 {
                     ChunkCoordinate = coordinate,
@@ -696,6 +698,7 @@ namespace DuneVector
                     _playerHealth,
                     WorldSeed,
                     _coinRingSeed,
+                    EnemySpawnSeed,
                     Cacti,
                     PyramidDensity,
                     PyramidMinimumScale,
@@ -916,6 +919,7 @@ namespace DuneVector
             DroneHealth playerHealth,
             int worldSeed,
             int coinRingSeed,
+            int enemySpawnSeed,
             CactusTuning cactusTuning,
             float pyramidDensity,
             float pyramidMinimumScale,
@@ -957,6 +961,7 @@ namespace DuneVector
                     playerHealth,
                     worldSeed,
                     coinRingSeed,
+                    enemySpawnSeed,
                     cactusTuning,
                     pyramidDensity,
                     pyramidMinimumScale,
@@ -1314,6 +1319,7 @@ namespace DuneVector
             DroneHealth playerHealth,
             int worldSeed,
             int coinRingSeed,
+            int enemySpawnSeed,
             CactusTuning cactusTuning,
             float pyramidDensity,
             float pyramidMinimumScale,
@@ -1579,7 +1585,7 @@ namespace DuneVector
                 materials,
                 player,
                 playerHealth,
-                worldSeed,
+                enemySpawnSeed,
                 originX,
                 originZ,
                 ringExclusions,
@@ -1634,7 +1640,7 @@ namespace DuneVector
             DuneVectorMaterials materials,
             DroneCharacterController player,
             DroneHealth playerHealth,
-            int worldSeed,
+            int enemySpawnSeed,
             double originX,
             double originZ,
             List<Vector2> exclusions,
@@ -1646,13 +1652,13 @@ namespace DuneVector
                 return;
             }
 
-            int count = CountFromDensity(settings.DensityPerChunk, coordinate, worldSeed, 1201);
+            int count = CountFromDensity(settings.DensityPerChunk, coordinate, enemySpawnSeed, 1201);
             count = Mathf.CeilToInt(count * DuneVectorContractRisk.EnemySpawnMultiplier);
             for (int i = 0; i < count; i++)
             {
                 Vector2 local = new Vector2(
-                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 1211 + (i * 23), 10f, chunkSize - 10f),
-                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 1217 + (i * 23), 10f, chunkSize - 10f));
+                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, enemySpawnSeed, 1211 + (i * 23), 10f, chunkSize - 10f),
+                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, enemySpawnSeed, 1217 + (i * 23), 10f, chunkSize - 10f));
                 if (IsNearAny(local, exclusions, Mathf.Max(10f, settings.DetectionRadius * 0.7f)))
                 {
                     continue;
@@ -1669,7 +1675,7 @@ namespace DuneVector
                 float yaw = DuneVectorMath.HashRange(
                     coordinate.x,
                     coordinate.y,
-                    worldSeed,
+                    enemySpawnSeed,
                     1223 + (i * 23),
                     0f,
                     360f);
@@ -1682,7 +1688,7 @@ namespace DuneVector
                 int identity = unchecked((int)DuneVectorMath.Hash(
                     coordinate.x,
                     coordinate.y,
-                    worldSeed,
+                    enemySpawnSeed,
                     1231 + (i * 23)));
                 GroundExploderEnemy enemy = enemyObject.AddComponent<GroundExploderEnemy>();
                 enemy.Initialize(
