@@ -320,8 +320,8 @@ namespace DuneVector
             }
             RuntimeSettings.EnsureInitialized();
 
-            QualitySettings.vSyncCount = 1;
-            Application.targetFrameRate = -1;
+            QualitySettings.vSyncCount = Mathf.Clamp(RuntimeSettings.Performance.VSyncCount, 0, 4);
+            Application.targetFrameRate = Mathf.Clamp(RuntimeSettings.Performance.TargetFrameRate, -1, 360);
             _materials = new DuneVectorMaterials(
                 RuntimeSettings.DuneTexture,
                 RuntimeSettings.DuneTextureTileSize,
@@ -383,6 +383,12 @@ namespace DuneVector
             World.PreloadRadius = WorldStreaming.PreloadRadius;
             World.UnloadRadius = WorldStreaming.UnloadRadius;
             World.ChunksGeneratedPerFrame = WorldStreaming.ChunksGeneratedPerFrame;
+            World.GenerationTimeBudgetMilliseconds = WorldStreaming.GenerationTimeBudgetMilliseconds;
+            World.CollisionPredictionSeconds = WorldStreaming.CollisionPredictionSeconds;
+            World.CollisionPreloadRadius = WorldStreaming.CollisionPreloadRadius;
+            World.CollisionActiveRadius = WorldStreaming.CollisionActiveRadius;
+            World.SimulationRadius = WorldStreaming.SimulationRadius;
+            World.CollisionMeshResolution = WorldStreaming.CollisionMeshResolution;
             World.FloatingOriginThreshold = WorldStreaming.FloatingOriginThreshold;
             World.Cacti = Cacti;
             World.PyramidDensity = Pyramids.DensityPerChunk;

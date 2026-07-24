@@ -143,6 +143,11 @@ namespace DuneVector
         private int _nextHandle = 1;
         private bool _forceTransformRefresh;
         private bool _debugComparisonClaimed;
+        private bool _lodBatchesDirty = true;
+        private bool _hasLodCameraPosition;
+        private float _nextLodRefreshTime;
+        private Vector3 _lastLodCameraPosition;
+        private Camera _lodCamera;
 
         public static DuneVectorSpatialInstancing Instance { get; private set; }
         public DuneVectorInstanceRenderBackend Backend { get; private set; } =
@@ -463,8 +468,13 @@ namespace DuneVector
             using (Markers.SubmitBatches.Auto())
             {
                 int maximum = MaximumInstancesPerDraw;
-                Camera lodCamera = Camera.main;
+                if (_lodCamera == null || !_lodCamera.isActiveAndEnabled)
+                {
+                    _lodCamera = Camera.main;
+                }
+                Camera lodCamera = _lodCamera;
                 Vector3 lodCameraPosition = lodCamera != null ? lodCamera.transform.position : Vector3.zero;
+                bool refreshLods = ShouldRefreshLodBatches(lodCameraPosition, lodCamera != null);
                 foreach (Cell cell in _cells.Values)
                 {
                     if (cell.HasBounds)
@@ -475,13 +485,37 @@ namespace DuneVector
                         }
                     }
 
-                    PrepareLodBatches(cell, lodCameraPosition, lodCamera != null);
+                    if (refreshLods)
+                    {
+                        PrepareLodBatches(cell, lodCameraPosition, lodCamera != null);
+                    }
                     for (int batchIndex = 0; batchIndex < cell.ActiveLodBatches.Count; batchIndex++)
                     {
                         SubmitBatch(cell.ActiveLodBatches[batchIndex], maximum);
                     }
                 }
+                if (refreshLods)
+                {
+                    _lodBatchesDirty = false;
+                    _hasLodCameraPosition = lodCamera != null;
+                    _lastLodCameraPosition = lodCameraPosition;
+                    _nextLodRefreshTime = Time.unscaledTime + Mathf.Max(0.02f, _settings.LodRefreshInterval);
+                }
             }
+        }
+
+        private bool ShouldRefreshLodBatches(Vector3 cameraPosition, bool hasCamera)
+        {
+            if (_lodBatchesDirty || !_hasLodCameraPosition || !hasCamera)
+            {
+                return true;
+            }
+            if (Time.unscaledTime < _nextLodRefreshTime)
+            {
+                return false;
+            }
+            float movementThreshold = Mathf.Max(0.1f, _settings.LodCameraMovementThreshold);
+            return (cameraPosition - _lastLodCameraPosition).sqrMagnitude >= movementThreshold * movementThreshold;
         }
 
         private void PrepareLodBatches(Cell cell, Vector3 cameraPosition, bool hasCamera)
@@ -591,6 +625,7 @@ namespace DuneVector
 
         private void MarkCellDirty(Cell cell)
         {
+            _lodBatchesDirty = true;
             if (cell == null || cell.Dirty)
             {
                 return;

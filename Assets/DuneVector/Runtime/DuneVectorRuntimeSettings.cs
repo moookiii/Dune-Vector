@@ -1415,6 +1415,16 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class RuntimePerformanceTuning
+    {
+        [Tooltip("Vertical-sync interval. Use zero for uncapped high-refresh rendering.")]
+        [Range(0, 4)] public int VSyncCount;
+
+        [Tooltip("Requested player frame-rate cap. Use -1 for the platform default.")]
+        [Range(-1, 360)] public int TargetFrameRate = 165;
+    }
+
+    [System.Serializable]
     public sealed class WorldStreamingTuning
     {
         [Tooltip("Chunk radius kept active around the player.")]
@@ -1425,6 +1435,18 @@ namespace DuneVector
         [Range(2, 12)] public int UnloadRadius = 4;
         [Tooltip("Maximum terrain chunks generated during one frame.")]
         [Range(1, 4)] public int ChunksGeneratedPerFrame = 1;
+        [Tooltip("Main-thread time budget for queued chunk work. A single indivisible stage may exceed this budget.")]
+        [Range(0.25f, 8f)] public float GenerationTimeBudgetMilliseconds = 1.25f;
+        [Tooltip("Seconds of current planar velocity used to preload collision terrain ahead of the drone.")]
+        [Range(0f, 5f)] public float CollisionPredictionSeconds = 2.5f;
+        [Tooltip("Chunk radius around the predicted flight position prepared for collision.")]
+        [Range(0, 2)] public int CollisionPreloadRadius = 1;
+        [Tooltip("Chunk radius around the player that keeps terrain colliders enabled.")]
+        [Range(1, 4)] public int CollisionActiveRadius = 2;
+        [Tooltip("Chunk radius around the player in which streamed rings and enemies are simulated.")]
+        [Range(1, 4)] public int SimulationRadius = 2;
+        [Tooltip("Resolution of the terrain collision mesh. Keep lower than the visual terrain mesh to reduce cooking cost.")]
+        [Range(8, 64)] public int CollisionMeshResolution = 24;
         [Tooltip("Local distance at which the world recenters around the drone.")]
         [Min(50f)] public float FloatingOriginThreshold = 520f;
     }
@@ -1453,6 +1475,12 @@ namespace DuneVector
 
         [Tooltip("Maximum instances submitted by one RenderMeshInstanced call. Kept below Unity's theoretical limit for reliable custom instance data.")]
         [Range(1, 1023)] public int MaximumInstancesPerDraw = 500;
+
+        [Tooltip("Minimum time between static distance-LOD batch rebuilds.")]
+        [Range(0.02f, 1f)] public float LodRefreshInterval = 0.12f;
+
+        [Tooltip("Camera movement required before static distance-LOD batches are rebuilt.")]
+        [Range(0.1f, 32f)] public float LodCameraMovementThreshold = 4f;
 
         [Tooltip("Keep one captured source renderer visible and offset its instanced copy for visual transform comparison.")]
         public bool EnableDebugComparison;
@@ -3911,6 +3939,9 @@ namespace DuneVector
         [Tooltip("Clustered, biome-weighted, instanced desert shrub generation and silhouettes.")]
         public DesertShrubTuning DesertShrubs = new DesertShrubTuning();
 
+        [Tooltip("Frame pacing and high-refresh runtime target.")]
+        public RuntimePerformanceTuning Performance = new RuntimePerformanceTuning();
+
         [Tooltip("Chunk loading, unloading, and floating-origin behavior.")]
         public WorldStreamingTuning WorldStreaming = new WorldStreamingTuning();
 
@@ -3996,6 +4027,7 @@ namespace DuneVector
             Cacti ??= new CactusTuning();
             DesertShrubs ??= new DesertShrubTuning();
             DesertShrubs.EnsureInitialized();
+            Performance ??= new RuntimePerformanceTuning();
             WorldStreaming ??= new WorldStreamingTuning();
             RendererFrustumCulling ??= new RendererFrustumCullingTuning();
             SpatialGpuInstancing ??= new SpatialGpuInstancingTuning();

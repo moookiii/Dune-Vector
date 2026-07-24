@@ -1,5 +1,25 @@
 # Fast-Flight Streaming Performance Audit
 
+## Implementation status
+
+The optimization pass following this audit implemented:
+
+- Collision-only emergency chunks at an independently authored resolution
+- Separate collision, visual-terrain, and decorative-content stages
+- Velocity-directed collision preloading
+- A main-thread generation time budget
+- Cached padded height grids for seam-safe terrain normals
+- Reused terrain build buffers
+- Distance-limited collider activation and streamed gameplay simulation
+- Cached spatial-instancing LOD batches
+- Streaming profiler markers
+- Authored 165 FPS frame pacing with VSync disabled
+
+The current authored active radius is 3 rather than 14, collision resolution is 24
+rather than visual resolution 52, and full chunk content now advances one stage per
+frame. A GTX 1080 player-build capture is still required to verify the 165 FPS
+hardware target and tune GPU-bound effects.
+
 ## Executive finding
 
 Fast flight exposes a synchronous chunk-generation path that bypasses the configured
@@ -88,9 +108,10 @@ Relevant code:
 
 ### 5. Reduce persistent loaded-world cost
 
-With `PreloadRadius = 3`, scheduling considers radius 4 and `UnloadRadius = 4`, so
-steady state can retain 81 chunks. `ActiveRadius = 14` does not control this result
-because the scheduling radius is capped at `PreloadRadius + 1`.
+The original `PreloadRadius = 3` scheduling path considered radius 4 and
+`UnloadRadius = 4`, allowing up to 81 retained chunks. `ActiveRadius = 14` did not
+control that result because scheduling capped it at `PreloadRadius + 1`. The
+implementation now gives `ActiveRadius` its direct meaning and authors it to 3.
 
 Separate authored radii for:
 

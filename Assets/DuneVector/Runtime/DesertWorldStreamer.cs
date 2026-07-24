@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using KinematicCharacterController;
 using UnityEngine;
+using Unity.Profiling;
 using UnityEngine.Rendering;
 
 namespace DuneVector
@@ -25,6 +26,12 @@ namespace DuneVector
         [Range(1, 9)] public int PreloadRadius = 3;
         [Range(2, 12)] public int UnloadRadius = 4;
         [Range(1, 4)] public int ChunksGeneratedPerFrame = 1;
+        [Range(0.25f, 8f)] public float GenerationTimeBudgetMilliseconds = 1.25f;
+        [Range(0f, 5f)] public float CollisionPredictionSeconds = 2.5f;
+        [Range(0, 2)] public int CollisionPreloadRadius = 1;
+        [Range(1, 4)] public int CollisionActiveRadius = 2;
+        [Range(1, 4)] public int SimulationRadius = 2;
+        [Range(8, 64)] public int CollisionMeshResolution = 24;
         [Min(50f)] public float FloatingOriginThreshold = 520f;
 
         [Header("Dunes")]
@@ -88,11 +95,15 @@ namespace DuneVector
         private readonly Dictionary<Vector2Int, DesertChunk> _chunks = new Dictionary<Vector2Int, DesertChunk>();
         private readonly Queue<Vector2Int> _generationQueue = new Queue<Vector2Int>();
         private readonly HashSet<Vector2Int> _queuedCoordinates = new HashSet<Vector2Int>();
+        private readonly Queue<Vector2Int> _collisionQueue = new Queue<Vector2Int>();
+        private readonly HashSet<Vector2Int> _queuedCollisionCoordinates = new HashSet<Vector2Int>();
         private readonly List<Vector2Int> _candidateCoordinates = new List<Vector2Int>();
         private readonly List<Vector2Int> _removalBuffer = new List<Vector2Int>();
         private readonly HashSet<string> _activatedFlightRingIdentities = new HashSet<string>();
         private readonly List<ContractGroundExploderSpawn> _contractGroundExploders = new List<ContractGroundExploderSpawn>();
         private Vector2Int _candidateSortCenter;
+        private Vector2Int _predictedCollisionChunk;
+        private bool _hasPredictedCollisionChunk;
 
         private DuneVectorMaterials _materials;
         private Transform _chunkRoot;
@@ -106,6 +117,22 @@ namespace DuneVector
         private float _streamingRefreshTimer;
         private int _coinRingSeed;
         private bool _initialized;
+
+        internal static class Markers
+        {
+            public static readonly ProfilerMarker StreamingUpdate =
+                new ProfilerMarker("DuneVector.Streaming.Update");
+            public static readonly ProfilerMarker CollisionChunk =
+                new ProfilerMarker("DuneVector.Streaming.CollisionChunk");
+            public static readonly ProfilerMarker CompleteChunk =
+                new ProfilerMarker("DuneVector.Streaming.CompleteChunk");
+            public static readonly ProfilerMarker TerrainMesh =
+                new ProfilerMarker("DuneVector.Streaming.TerrainMesh");
+            public static readonly ProfilerMarker ColliderAssignment =
+                new ProfilerMarker("DuneVector.Streaming.ColliderAssignment");
+            public static readonly ProfilerMarker ChunkContent =
+                new ProfilerMarker("DuneVector.Streaming.ChunkContent");
+        }
 
         public void Initialize(DuneVectorMaterials materials)
         {
@@ -137,7 +164,7 @@ namespace DuneVector
             {
                 for (int x = -1; x <= 1; x++)
                 {
-                    GenerateChunkImmediate(initialChunk + new Vector2Int(x, z));
+                    GenerateChunkFullyImmediate(initialChunk + new Vector2Int(x, z));
                 }
             }
             CurrentLogicalChunk = initialChunk;
@@ -276,28 +303,73 @@ namespace DuneVector
                 return;
             }
 
-            float deltaTime = Time.deltaTime;
-            _streamingRefreshTimer -= deltaTime;
-            Vector2Int playerChunk = GetPlayerLogicalChunk();
-            if (_streamingRefreshTimer <= 0f || playerChunk != _lastScheduledChunk)
+            using (Markers.StreamingUpdate.Auto())
             {
-                _streamingRefreshTimer = 0.18f;
-                ScheduleStreaming(force: playerChunk != _lastScheduledChunk);
-            }
-
-            int generated = 0;
-            while (generated < ChunksGeneratedPerFrame && _generationQueue.Count > 0)
-            {
-                Vector2Int coordinate = _generationQueue.Dequeue();
-                _queuedCoordinates.Remove(coordinate);
-                int distance = ChebyshevDistance(coordinate, playerChunk);
-                if (_chunks.ContainsKey(coordinate) || distance > PreloadRadius + 1)
+                float deltaTime = Time.deltaTime;
+                _streamingRefreshTimer -= deltaTime;
+                Vector2Int playerChunk = GetPlayerLogicalChunk();
+                if (_streamingRefreshTimer <= 0f || playerChunk != _lastScheduledChunk)
                 {
-                    continue;
+                    _streamingRefreshTimer = 0.18f;
+                    ScheduleStreaming(force: playerChunk != _lastScheduledChunk);
                 }
 
-                GenerateChunkImmediate(coordinate);
-                generated++;
+                ProcessQueuedGeneration(playerChunk);
+            }
+        }
+
+        private void ProcessQueuedGeneration(Vector2Int playerChunk)
+        {
+            int generated = 0;
+            double startTime = Time.realtimeSinceStartupAsDouble;
+            double budgetSeconds = Mathf.Max(0.25f, GenerationTimeBudgetMilliseconds) * 0.001;
+            while (generated < Mathf.Max(1, ChunksGeneratedPerFrame))
+            {
+                bool didWork = false;
+                while (_collisionQueue.Count > 0)
+                {
+                    Vector2Int collisionCoordinate = _collisionQueue.Dequeue();
+                    _queuedCollisionCoordinates.Remove(collisionCoordinate);
+                    if (_chunks.ContainsKey(collisionCoordinate) ||
+                        ChebyshevDistance(collisionCoordinate, playerChunk) > Mathf.Max(UnloadRadius, PreloadRadius + 2))
+                    {
+                        continue;
+                    }
+                    GenerateChunkImmediate(collisionCoordinate, false);
+                    generated++;
+                    didWork = true;
+                    break;
+                }
+
+                if (!didWork)
+                {
+                    while (_generationQueue.Count > 0)
+                    {
+                        Vector2Int coordinate = _generationQueue.Dequeue();
+                        _queuedCoordinates.Remove(coordinate);
+                        int distance = ChebyshevDistance(coordinate, playerChunk);
+                        if (distance > PreloadRadius + 1 ||
+                            (_chunks.TryGetValue(coordinate, out DesertChunk queuedChunk) && queuedChunk.IsContentReady))
+                        {
+                            continue;
+                        }
+                        GenerateChunkImmediate(coordinate, true);
+                        if (_chunks.TryGetValue(coordinate, out DesertChunk advancedChunk) &&
+                            !advancedChunk.IsContentReady &&
+                            _queuedCoordinates.Add(coordinate))
+                        {
+                            _generationQueue.Enqueue(coordinate);
+                        }
+                        generated++;
+                        didWork = true;
+                        break;
+                    }
+                }
+
+                if (!didWork || Time.realtimeSinceStartupAsDouble - startTime >= budgetSeconds)
+                {
+                    break;
+                }
             }
         }
 
@@ -308,9 +380,13 @@ namespace DuneVector
                 return;
             }
 
+            Vector2Int playerChunk = GetPlayerLogicalChunk();
             foreach (DesertChunk chunk in _chunks.Values)
             {
-                chunk.Tick(deltaTime);
+                if (ChebyshevDistance(chunk.Coordinate, playerChunk) <= SimulationRadius)
+                {
+                    chunk.Tick(deltaTime);
+                }
             }
             PruneContractGroundExploders();
             for (int i = 0; i < _contractGroundExploders.Count; i++)
@@ -326,9 +402,13 @@ namespace DuneVector
                 return;
             }
 
+            Vector2Int playerChunk = GetPlayerLogicalChunk();
             foreach (DesertChunk chunk in _chunks.Values)
             {
-                chunk.FixedTick(fixedDeltaTime);
+                if (ChebyshevDistance(chunk.Coordinate, playerChunk) <= SimulationRadius)
+                {
+                    chunk.FixedTick(fixedDeltaTime);
+                }
             }
             PruneContractGroundExploders();
             for (int i = 0; i < _contractGroundExploders.Count; i++)
@@ -441,16 +521,18 @@ namespace DuneVector
         {
             Vector2Int playerChunk = GetPlayerLogicalChunk();
             CurrentLogicalChunk = playerChunk;
-            if (!force && playerChunk == _lastScheduledChunk)
+            bool centerChanged = force || playerChunk != _lastScheduledChunk;
+            if (centerChanged)
+            {
+                _lastScheduledChunk = playerChunk;
+                EnsureCollisionNeighborhood(playerChunk);
+            }
+            QueuePredictedCollisionNeighborhood();
+            RefreshChunkActivity(playerChunk);
+            if (!centerChanged)
             {
                 return;
             }
-            _lastScheduledChunk = playerChunk;
-
-            // The normal generation queue is intentionally throttled, but terrain collision cannot be.
-            // A fast flight can cross a chunk boundary before the queued chunk receives a MeshCollider,
-            // so keep the player's chunk and every chunk touching it available synchronously.
-            EnsureCollisionNeighborhood(playerChunk);
 
             if (force)
             {
@@ -459,15 +541,14 @@ namespace DuneVector
             }
 
             _candidateCoordinates.Clear();
-            int radius = Mathf.Min(
-                Mathf.Max(ActiveRadius, PreloadRadius),
-                Mathf.Max(1, PreloadRadius) + 1);
+            int radius = Mathf.Max(1, Mathf.Max(ActiveRadius, PreloadRadius));
             for (int z = -radius; z <= radius; z++)
             {
                 for (int x = -radius; x <= radius; x++)
                 {
                     Vector2Int coordinate = playerChunk + new Vector2Int(x, z);
-                    if (!_chunks.ContainsKey(coordinate) && !_queuedCoordinates.Contains(coordinate))
+                    bool needsContent = !_chunks.TryGetValue(coordinate, out DesertChunk chunk) || !chunk.IsContentReady;
+                    if (needsContent && !_queuedCoordinates.Contains(coordinate))
                     {
                         _candidateCoordinates.Add(coordinate);
                     }
@@ -496,6 +577,7 @@ namespace DuneVector
                 _chunks.Remove(coordinate);
                 UnloadedChunkCount++;
             }
+            RefreshChunkActivity(playerChunk);
         }
 
         private void EnsureCollisionNeighborhood(Vector2Int playerChunk)
@@ -504,54 +586,135 @@ namespace DuneVector
             {
                 for (int x = -1; x <= 1; x++)
                 {
-                    GenerateChunkImmediate(playerChunk + new Vector2Int(x, z));
+                    GenerateChunkImmediate(playerChunk + new Vector2Int(x, z), false);
                 }
             }
         }
 
-        private void GenerateChunkImmediate(Vector2Int coordinate)
+        private void QueuePredictedCollisionNeighborhood()
         {
-            if (_chunks.ContainsKey(coordinate))
+            if (_motor == null)
             {
                 return;
             }
-
-            DesertChunk chunk = new DesertChunk(
-                coordinate,
-                _chunkRoot,
-                OriginOffsetX,
-                OriginOffsetZ,
-                ChunkSize,
-                ChunkResolution,
-                HeightField,
-                _materials,
-                Clouds,
-                GetCloudDensityPerChunk(),
-                _player,
-                _playerHealth,
-                WorldSeed,
-                _coinRingSeed,
-                Cacti,
-                PyramidDensity,
-                PyramidMinimumScale,
-                PyramidMaximumScale,
-                PyramidMaximumPlacementSlope,
-                PyramidMinimumBurialDepth,
-                PyramidMaximumBurialDepth,
-                GroundRingDensity,
-                AerialRingDensity,
-                Rings,
-                GroundExploders,
-                Shrubs,
-                Landmarks,
-                HandleTraversalRingActivated);
-            _chunks.Add(coordinate, chunk);
-            if (IsUpperFlightRingUnlocked)
+            Vector3 velocity = _motor.Velocity;
+            LogicalPosition player = LogicalPlayerPosition;
+            Vector2Int predictedChunk = LogicalToChunk(
+                player.X + (velocity.x * Mathf.Max(0f, CollisionPredictionSeconds)),
+                player.Z + (velocity.z * Mathf.Max(0f, CollisionPredictionSeconds)));
+            _predictedCollisionChunk = predictedChunk;
+            _hasPredictedCollisionChunk = true;
+            int radius = Mathf.Clamp(CollisionPreloadRadius, 0, 2);
+            for (int z = -radius; z <= radius; z++)
             {
-                chunk.SpawnUpperFlightLayers();
+                for (int x = -radius; x <= radius; x++)
+                {
+                    Vector2Int coordinate = predictedChunk + new Vector2Int(x, z);
+                    if (!_chunks.ContainsKey(coordinate) && _queuedCollisionCoordinates.Add(coordinate))
+                    {
+                        _collisionQueue.Enqueue(coordinate);
+                    }
+                }
+            }
+        }
+
+        private void RefreshChunkActivity(Vector2Int playerChunk)
+        {
+            int collisionRadius = Mathf.Max(1, CollisionActiveRadius);
+            foreach (DesertChunk chunk in _chunks.Values)
+            {
+                bool nearPlayer = ChebyshevDistance(chunk.Coordinate, playerChunk) <= collisionRadius;
+                bool nearPrediction = _hasPredictedCollisionChunk &&
+                    ChebyshevDistance(chunk.Coordinate, _predictedCollisionChunk) <= CollisionPreloadRadius;
+                chunk.SetCollisionActive(nearPlayer || nearPrediction);
+            }
+        }
+
+        private void GenerateChunkImmediate(Vector2Int coordinate, bool completeContent = true)
+        {
+            if (_chunks.TryGetValue(coordinate, out DesertChunk existing))
+            {
+                if (completeContent && !existing.IsContentReady)
+                {
+                    AdvanceChunkContent(existing);
+                }
+                return;
+            }
+
+            DesertChunk chunk;
+            using (Markers.CollisionChunk.Auto())
+            {
+                chunk = new DesertChunk(
+                    coordinate,
+                    _chunkRoot,
+                    OriginOffsetX,
+                    OriginOffsetZ,
+                    ChunkSize,
+                    ChunkResolution,
+                    CollisionMeshResolution,
+                    HeightField,
+                    _materials);
+            }
+            _chunks.Add(coordinate, chunk);
+            if (completeContent)
+            {
+                AdvanceChunkContent(chunk);
             }
             GeneratedChunkCount++;
             PeakActiveChunkCount = Mathf.Max(PeakActiveChunkCount, _chunks.Count);
+        }
+
+        private void GenerateChunkFullyImmediate(Vector2Int coordinate)
+        {
+            GenerateChunkImmediate(coordinate, false);
+            if (_chunks.TryGetValue(coordinate, out DesertChunk chunk))
+            {
+                chunk.BuildVisualTerrain();
+                CompleteChunkContent(chunk);
+            }
+        }
+
+        private void AdvanceChunkContent(DesertChunk chunk)
+        {
+            if (!chunk.IsVisualReady)
+            {
+                chunk.BuildVisualTerrain();
+                return;
+            }
+            CompleteChunkContent(chunk);
+        }
+
+        private void CompleteChunkContent(DesertChunk chunk)
+        {
+            using (Markers.CompleteChunk.Auto())
+            {
+                chunk.CompleteContent(
+                    _materials,
+                    Clouds,
+                    GetCloudDensityPerChunk(),
+                    _player,
+                    _playerHealth,
+                    WorldSeed,
+                    _coinRingSeed,
+                    Cacti,
+                    PyramidDensity,
+                    PyramidMinimumScale,
+                    PyramidMaximumScale,
+                    PyramidMaximumPlacementSlope,
+                    PyramidMinimumBurialDepth,
+                    PyramidMaximumBurialDepth,
+                    GroundRingDensity,
+                    AerialRingDensity,
+                    Rings,
+                    GroundExploders,
+                    Shrubs,
+                    Landmarks,
+                    HandleTraversalRingActivated);
+                if (IsUpperFlightRingUnlocked)
+                {
+                    chunk.SpawnUpperFlightLayers();
+                }
+            }
         }
 
         private float GetCloudDensityPerChunk()
@@ -662,20 +825,47 @@ namespace DuneVector
 
     internal sealed class DesertChunk : IDisposable
     {
+        private sealed class TerrainBuildBuffers
+        {
+            public readonly Vector3[] Vertices;
+            public readonly Vector3[] Normals;
+            public readonly Vector2[] Uvs;
+            public readonly float[] PaddedHeights;
+
+            public TerrainBuildBuffers(int resolution)
+            {
+                int row = resolution + 1;
+                int paddedRow = row + 2;
+                Vertices = new Vector3[row * row];
+                Normals = new Vector3[row * row];
+                Uvs = new Vector2[row * row];
+                PaddedHeights = new float[paddedRow * paddedRow];
+            }
+        }
+
         private static readonly Dictionary<int, int[]> TriangleIndicesByResolution = new Dictionary<int, int[]>();
+        private static readonly Dictionary<int, TerrainBuildBuffers> BuildBuffersByResolution =
+            new Dictionary<int, TerrainBuildBuffers>();
 
         public Vector2Int Coordinate { get; }
         public Transform Root { get; }
 
         private readonly List<TraversalRing> _rings = new List<TraversalRing>();
         private readonly List<GroundExploderEnemy> _groundExploders = new List<GroundExploderEnemy>();
-        private readonly Mesh _terrainMesh;
+        private Mesh _terrainMesh;
+        private readonly Mesh _collisionMesh;
+        private readonly MeshCollider _terrainCollider;
+        private readonly MeshFilter _terrainFilter;
+        private readonly int _visualResolution;
+        private readonly int _collisionResolution;
         private readonly float _chunkSize;
         private readonly DuneHeightField _heightField;
-        private readonly int _worldSeed;
-        private readonly RingTuning _ringTuning;
+        private int _worldSeed;
+        private RingTuning _ringTuning;
         private DuneVectorCloudField _cloudField;
         private DesertShrubField _shrubs;
+        public bool IsVisualReady { get; private set; }
+        public bool IsContentReady { get; private set; }
 
         public DesertChunk(
             Vector2Int coordinate,
@@ -684,7 +874,41 @@ namespace DuneVector
             double originOffsetZ,
             float chunkSize,
             int resolution,
+            int collisionResolution,
             DuneHeightField heightField,
+            DuneVectorMaterials materials)
+        {
+            Coordinate = coordinate;
+            _chunkSize = chunkSize;
+            _heightField = heightField;
+            _visualResolution = Mathf.Max(8, resolution);
+            GameObject rootObject = new GameObject($"Desert Chunk [{coordinate.x}, {coordinate.y}]");
+            Root = rootObject.transform;
+            Root.SetParent(parent, false);
+            Reposition(originOffsetX, originOffsetZ, chunkSize);
+
+            _collisionResolution = Mathf.Clamp(collisionResolution, 8, _visualResolution);
+            using (DesertWorldStreamer.Markers.TerrainMesh.Auto())
+            {
+                _collisionMesh = BuildTerrainMesh(coordinate, chunkSize, _collisionResolution, heightField);
+            }
+            _terrainMesh = _collisionMesh;
+            IsVisualReady = _visualResolution == _collisionResolution;
+            _terrainFilter = rootObject.AddComponent<MeshFilter>();
+            _terrainFilter.sharedMesh = _terrainMesh;
+            MeshRenderer renderer = rootObject.AddComponent<MeshRenderer>();
+            renderer.sharedMaterials = materials.GetTerrainMaterials(coordinate, chunkSize);
+            renderer.shadowCastingMode = ShadowCastingMode.On;
+            renderer.receiveShadows = true;
+
+            using (DesertWorldStreamer.Markers.ColliderAssignment.Auto())
+            {
+                _terrainCollider = rootObject.AddComponent<MeshCollider>();
+                _terrainCollider.sharedMesh = _collisionMesh;
+            }
+        }
+
+        public void CompleteContent(
             DuneVectorMaterials materials,
             CloudTuning cloudTuning,
             float cloudDensity,
@@ -707,56 +931,61 @@ namespace DuneVector
             LandmarkSystemTuning landmarkTuning,
             Action<TraversalRing> ringActivated)
         {
-            Coordinate = coordinate;
-            _chunkSize = chunkSize;
-            _heightField = heightField;
+            if (IsContentReady)
+            {
+                return;
+            }
+            IsContentReady = true;
             _worldSeed = worldSeed;
             _ringTuning = ringTuning;
-            GameObject rootObject = new GameObject($"Desert Chunk [{coordinate.x}, {coordinate.y}]");
-            Root = rootObject.transform;
-            Root.SetParent(parent, false);
-            Reposition(originOffsetX, originOffsetZ, chunkSize);
-
-            _terrainMesh = BuildTerrainMesh(coordinate, chunkSize, resolution, heightField);
-            MeshFilter filter = rootObject.AddComponent<MeshFilter>();
-            filter.sharedMesh = _terrainMesh;
-            MeshRenderer renderer = rootObject.AddComponent<MeshRenderer>();
-            renderer.sharedMaterials = materials.GetTerrainMaterials(coordinate, chunkSize);
-            renderer.shadowCastingMode = ShadowCastingMode.On;
-            renderer.receiveShadows = true;
-            MeshCollider collider = rootObject.AddComponent<MeshCollider>();
-            collider.sharedMesh = _terrainMesh;
-            SpawnClouds(
-                coordinate,
-                chunkSize,
+            using (DesertWorldStreamer.Markers.ChunkContent.Auto())
+            {
+                SpawnClouds(
+                Coordinate,
+                _chunkSize,
                 materials.Cloud,
                 materials.CloudUnderbelly,
                 worldSeed,
                 cloudTuning,
                 cloudDensity);
-            SpawnContent(
-                coordinate,
-                chunkSize,
-                heightField,
-                materials,
-                player,
-                playerHealth,
-                worldSeed,
-                coinRingSeed,
-                cactusTuning,
-                pyramidDensity,
-                pyramidMinimumScale,
-                pyramidMaximumScale,
-                pyramidMaximumPlacementSlope,
-                pyramidMinimumBurialDepth,
-                pyramidMaximumBurialDepth,
-                groundRingDensity,
-                aerialRingDensity,
-                ringTuning,
-                groundExploderTuning,
-                shrubTuning,
-                landmarkTuning,
-                ringActivated);
+                SpawnContent(
+                    Coordinate,
+                    _chunkSize,
+                    _heightField,
+                    materials,
+                    player,
+                    playerHealth,
+                    worldSeed,
+                    coinRingSeed,
+                    cactusTuning,
+                    pyramidDensity,
+                    pyramidMinimumScale,
+                    pyramidMaximumScale,
+                    pyramidMaximumPlacementSlope,
+                    pyramidMinimumBurialDepth,
+                    pyramidMaximumBurialDepth,
+                    groundRingDensity,
+                    aerialRingDensity,
+                    ringTuning,
+                    groundExploderTuning,
+                    shrubTuning,
+                    landmarkTuning,
+                    ringActivated);
+            }
+        }
+
+        public void BuildVisualTerrain()
+        {
+            if (IsVisualReady)
+            {
+                return;
+            }
+            using (DesertWorldStreamer.Markers.TerrainMesh.Auto())
+            {
+                _terrainMesh = BuildTerrainMesh(Coordinate, _chunkSize, _visualResolution, _heightField);
+            }
+            _terrainFilter.sharedMesh = _terrainMesh;
+            IsVisualReady = true;
         }
 
         private void SpawnClouds(
@@ -944,6 +1173,14 @@ namespace DuneVector
             _shrubs?.RebuildWorldMatrices();
         }
 
+        public void SetCollisionActive(bool active)
+        {
+            if (_terrainCollider != null && _terrainCollider.enabled != active)
+            {
+                _terrainCollider.enabled = active;
+            }
+        }
+
         public void Dispose()
         {
             _shrubs?.Dispose();
@@ -956,6 +1193,10 @@ namespace DuneVector
             {
                 UnityEngine.Object.Destroy(_terrainMesh);
             }
+            if (_collisionMesh != null && _collisionMesh != _terrainMesh)
+            {
+                UnityEngine.Object.Destroy(_collisionMesh);
+            }
         }
 
         private static Mesh BuildTerrainMesh(Vector2Int coordinate, float chunkSize, int resolution, DuneHeightField heightField)
@@ -963,15 +1204,29 @@ namespace DuneVector
             resolution = Mathf.Max(8, resolution);
             int row = resolution + 1;
             int vertexCount = row * row;
-            Vector3[] vertices = new Vector3[vertexCount];
-            Vector3[] normals = new Vector3[vertexCount];
-            Vector2[] uvs = new Vector2[vertexCount];
+            TerrainBuildBuffers buffers = GetBuildBuffers(resolution);
+            Vector3[] vertices = buffers.Vertices;
+            Vector3[] normals = buffers.Normals;
+            Vector2[] uvs = buffers.Uvs;
             int[] triangles = GetTriangleIndices(resolution);
             double logicalOriginX = coordinate.x * (double)chunkSize;
             double logicalOriginZ = coordinate.y * (double)chunkSize;
             float step = chunkSize / resolution;
+            int paddedRow = row + 2;
+            float[] paddedHeights = buffers.PaddedHeights;
             float minimumHeight = float.PositiveInfinity;
             float maximumHeight = float.NegativeInfinity;
+
+            int paddedVertex = 0;
+            for (int z = -1; z <= resolution + 1; z++)
+            {
+                for (int x = -1; x <= resolution + 1; x++)
+                {
+                    paddedHeights[paddedVertex++] = (float)heightField.SampleHeight(
+                        logicalOriginX + (x * step),
+                        logicalOriginZ + (z * step));
+                }
+            }
 
             int vertex = 0;
             for (int z = 0; z <= resolution; z++)
@@ -980,9 +1235,16 @@ namespace DuneVector
                 {
                     double logicalX = logicalOriginX + (x * step);
                     double logicalZ = logicalOriginZ + (z * step);
-                    float height = (float)heightField.SampleHeight(logicalX, logicalZ);
+                    int paddedIndex = ((z + 1) * paddedRow) + x + 1;
+                    float height = paddedHeights[paddedIndex];
+                    float left = paddedHeights[paddedIndex - 1];
+                    float right = paddedHeights[paddedIndex + 1];
+                    float back = paddedHeights[paddedIndex - paddedRow];
+                    float forward = paddedHeights[paddedIndex + paddedRow];
                     vertices[vertex] = new Vector3(x * step, height, z * step);
-                    normals[vertex] = heightField.SampleNormal(logicalX, logicalZ);
+                    Vector3 tangentX = new Vector3(step * 2f, right - left, 0f);
+                    Vector3 tangentZ = new Vector3(0f, forward - back, step * 2f);
+                    normals[vertex] = Vector3.Cross(tangentZ, tangentX).normalized;
                     uvs[vertex] = new Vector2((float)logicalX, (float)logicalZ);
                     minimumHeight = Mathf.Min(minimumHeight, height);
                     maximumHeight = Mathf.Max(maximumHeight, height);
@@ -1003,6 +1265,16 @@ namespace DuneVector
                 new Vector3(chunkSize * 0.5f, (minimumHeight + maximumHeight) * 0.5f, chunkSize * 0.5f),
                 new Vector3(chunkSize, maximumHeight - minimumHeight, chunkSize));
             return mesh;
+        }
+
+        private static TerrainBuildBuffers GetBuildBuffers(int resolution)
+        {
+            if (!BuildBuffersByResolution.TryGetValue(resolution, out TerrainBuildBuffers buffers))
+            {
+                buffers = new TerrainBuildBuffers(resolution);
+                BuildBuffersByResolution.Add(resolution, buffers);
+            }
+            return buffers;
         }
 
         private static int[] GetTriangleIndices(int resolution)
