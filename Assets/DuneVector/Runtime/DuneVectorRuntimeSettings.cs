@@ -294,7 +294,8 @@ namespace DuneVector
         public string DeleteCancelButton = "CANCEL";
 
         [Header("Atlas Integration")]
-        public string PhotographRequiredText = "DOCUMENT THIS GLYPH WITH YOUR CAMERA FIRST";
+        public string PhotographRequiredText = "PHOTOGRAPH THIS GLYPH TO CATALOGUE IT";
+        public string AtlasAvailableGlyphFormat = "{0}  /  PHOTOGRAPH THE GLYPH TO CATALOGUE IT";
         public string PauseMenuButtonLabel = "GALLERY";
         public string AtlasNewMarker = "NEW";
         public string AtlasNewTitleSuffix = "  ●";
@@ -2117,6 +2118,7 @@ namespace DuneVector
         public Key ScanKey = Key.E;
         public string ScanInterruptedText = "SIGNAL ANALYSIS INTERRUPTED";
         public string DiscoveryStatusFormat = "ATLAS UPDATED — {0}  +{1} GOLD  /  MASTERY +{2}";
+        public string PhotographedDiscoveryStatusFormat = "ATLAS UPDATED — {0}  +{1} GOLD";
         [Min(1)] public int MilestoneInterval = 5;
         [Min(0)] public int MilestoneGoldReward = 300;
         public string MilestoneStatusFormat = "{0}\nSURVEY MILESTONE {1}/{2} — +{3} GOLD";
@@ -2356,7 +2358,7 @@ namespace DuneVector
         [Min(0f)] public float HudActivePulseSpeed = 3f;
         [Range(0f, 1f)] public float HudActivePulseAmount = 0.18f;
         public string HudSignalLabel = "ACTIVE SIGNAL";
-        public string HudChallengeLabel = "LIVE CHALLENGE";
+        public string HudChallengeLabel = "GLYPH DOCUMENTATION";
         public string HudCountFormat = "{0} / {1}";
         public string HudDistanceFormat = "{0:0} m";
         public string HudNoSignalLabel = "ATLAS NETWORK";

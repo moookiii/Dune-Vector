@@ -1069,6 +1069,10 @@ namespace DuneVector
             _capturedTexture = image;
             _pendingPhotograph = record;
             _pendingSubject = _detection.Subject;
+            if (category == PhotographableSubjectCategory.Glyph)
+            {
+                DuneVectorDesertAtlas.TryCatalogPhotographedGlyph(subjectId);
+            }
             if (!_storage.IsDocumented(subjectId))
             {
                 _storage.Document(subjectId, category, record.PhotographId);

@@ -162,6 +162,11 @@ namespace DuneVector
                 DiscoveredCount >= Mathf.Max(0, site.RequiredDiscoveries);
         }
 
+        public static bool TryCatalogPhotographedGlyph(string glyphId)
+        {
+            return _activeInstance != null && _activeInstance.TryCatalogGlyph(glyphId);
+        }
+
         public string GetTerminalPrompt()
         {
             if (IsUnlocked)
@@ -188,8 +193,6 @@ namespace DuneVector
             }
 
             UpdateSites();
-            UpdateScanning();
-            AnimateVisuals();
         }
 
         private void UpdateSites()
@@ -199,8 +202,6 @@ namespace DuneVector
             _nearestDiscoveredSite = null;
             _nearestDiscoveredDistance = float.PositiveInfinity;
             Vector3 playerPosition = _player.WorldCenter;
-            float spawnDistance = Mathf.Max(1f, _settings.SiteVisualSpawnDistance);
-            float despawnDistance = Mathf.Max(spawnDistance, _settings.SiteVisualDespawnDistance);
 
             for (int i = 0; i < _settings.Sites.Count; i++)
             {
@@ -213,30 +214,39 @@ namespace DuneVector
                 float distance = Vector3.Distance(playerPosition, sitePosition);
                 bool discovered = IsDiscovered(site);
                 bool available = IsSiteAvailable(site);
-                bool documentationMissing = DuneVectorPhotographySystem.RequiresGlyphDocumentation &&
-                    !DuneVectorPhotographySystem.IsGlyphDocumented(site.PersistentId);
-                if ((available || (discovered && documentationMissing)) && distance < _nearestDistance)
+                if (available && distance < _nearestDistance)
                 {
                     _nearestSite = site;
                     _nearestDistance = distance;
                 }
-                if (discovered && !documentationMissing && distance < _nearestDiscoveredDistance)
+                if (discovered && distance < _nearestDiscoveredDistance)
                 {
                     _nearestDiscoveredSite = site;
                     _nearestDiscoveredDistance = distance;
                 }
+            }
+        }
 
-                if ((available || discovered) && distance <= spawnDistance)
+        private bool TryCatalogGlyph(string glyphId)
+        {
+            if (string.IsNullOrWhiteSpace(glyphId) || !IsUnlocked ||
+                _courierGame == null || _courierGame.State != CourierRunState.FreeRoam)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < _settings.Sites.Count; i++)
+            {
+                DesertAtlasSiteDefinition site = _settings.Sites[i];
+                if (site != null &&
+                    string.Equals(site.PersistentId, glyphId, StringComparison.Ordinal) &&
+                    IsSiteAvailable(site))
                 {
-                    SiteVisual visual = GetOrCreateVisual(site);
-                    visual.Root.position = sitePosition;
-                    visual.Root.gameObject.SetActive(true);
-                }
-                else if (distance >= despawnDistance && _visuals.TryGetValue(site.PersistentId, out SiteVisual visual))
-                {
-                    visual.Root.gameObject.SetActive(false);
+                    CompleteDiscovery(site);
+                    return true;
                 }
             }
+            return false;
         }
 
         private void UpdateScanning()
@@ -775,28 +785,14 @@ namespace DuneVector
                 return;
             }
             int baseReward = Mathf.Max(0, site.GoldReward);
-            bool earnedMasteryBonus = site.BonusTimeLimit > 0f &&
-                Time.unscaledTime - _challengeStartedAt <= site.BonusTimeLimit;
-            int masteryReward = earnedMasteryBonus ? Mathf.Max(0, site.BonusGoldReward) : 0;
-            _wallet?.AddGold(baseReward + masteryReward);
+            _wallet?.AddGold(baseReward);
             _statusText = FormatDesignerText(
-                _settings.DiscoveryStatusFormat,
+                _settings.PhotographedDiscoveryStatusFormat,
                 site.DisplayName,
-                baseReward,
-                masteryReward);
+                baseReward);
             _statusUntil = Time.unscaledTime + _settings.DiscoveryStatusDuration;
             _discoveryPresentationStartedAt = Time.unscaledTime;
             _discoveryPresentationUntil = Time.unscaledTime + _settings.DiscoveryPresentationDuration;
-            if (_visuals.TryGetValue(site.PersistentId, out SiteVisual visual))
-            {
-                ApplyMaterial(visual.Root, _discoveredMaterial);
-                ApplySpecialBeamMaterials(visual);
-                if (visual.DiscoveredMarker != null)
-                {
-                    visual.DiscoveredMarker.gameObject.SetActive(true);
-                }
-                EmitCompletionBurst(visual, site.SignalColor);
-            }
             int milestoneInterval = Mathf.Max(1, _settings.MilestoneInterval);
             if (DiscoveredCount < TotalSiteCount && DiscoveredCount % milestoneInterval == 0)
             {
@@ -1546,24 +1542,14 @@ namespace DuneVector
                 }
                 else if (available)
                 {
-                    if (!documented)
-                    {
-                        body = DuneVectorPhotographySystem.Active.Tuning.PhotographRequiredText;
-                    }
-                    else
-                    {
                     string availability = site.IsFinalSignal
                         ? _settings.TerminalFinalSignalStatus
                         : _settings.TerminalAvailableStatus;
-                    body = site.BonusTimeLimit > 0f && site.BonusGoldReward > 0
+                    body = DuneVectorPhotographySystem.Active != null
                         ? FormatDesignerText(
-                            _settings.TerminalChallengeWithBonusFormat,
-                            availability,
-                            site.ChallengeInstruction,
-                            site.BonusTimeLimit,
-                            site.BonusGoldReward)
-                        : FormatDesignerText(_settings.TerminalChallengeFormat, availability, site.ChallengeInstruction);
-                    }
+                            DuneVectorPhotographySystem.Active.Tuning.AtlasAvailableGlyphFormat,
+                            availability)
+                        : availability;
                 }
                 else
                 {
@@ -1667,8 +1653,8 @@ namespace DuneVector
             float panelWidth = Mathf.Min(_settings.HudWidth, availableWidth);
             bool discoveredLoreActive = _nearestDiscoveredSite != null &&
                 _nearestDiscoveredDistance <= _settings.DiscoveredLoreRadius;
-            bool challengeActive = _nearestSite != null && IsWithinChallengeActivation(_nearestSite);
-            float desiredHeight = discoveredLoreActive || challengeActive
+            bool photographyActive = IsWithinPhotographyPromptRange();
+            float desiredHeight = discoveredLoreActive || photographyActive
                 ? _settings.HudExpandedHeight
                 : _settings.HudHeight;
             float panelHeight = Mathf.Min(desiredHeight, availableHeight);
@@ -1736,7 +1722,7 @@ namespace DuneVector
                 FormatDesignerText(_settings.HudCountFormat, DiscoveredCount, TotalSiteCount),
                 _hudCountStyle);
 
-            bool challengeActive = _nearestSite != null && IsWithinChallengeActivation(_nearestSite);
+            bool photographyActive = IsWithinPhotographyPromptRange();
             if (discoveredLoreActive)
             {
                 DrawAtlasDiscoveredState(panel, padding);
@@ -1745,7 +1731,7 @@ namespace DuneVector
             {
                 DrawAtlasEmptyState(panel, padding);
             }
-            else if (challengeActive)
+            else if (photographyActive)
             {
                 DrawAtlasChallengeState(panel, padding);
             }
@@ -1842,8 +1828,6 @@ namespace DuneVector
 
         private void DrawAtlasChallengeState(Rect panel, float padding)
         {
-            bool photoRequired = DuneVectorPhotographySystem.RequiresGlyphDocumentation &&
-                !DuneVectorPhotographySystem.IsGlyphDocumented(_nearestSite.PersistentId);
             PhotographyTuning photography = DuneVectorPhotographySystem.Active != null
                 ? DuneVectorPhotographySystem.Active.Tuning
                 : null;
@@ -1861,7 +1845,7 @@ namespace DuneVector
                     panel.y + _settings.HudChallengeBodyTop,
                     panel.width - (padding * 2f),
                     _settings.HudChallengeBodyHeight),
-                photoRequired && photography != null ? photography.PhotographRequiredText : _nearestSite.ChallengeInstruction,
+                photography != null ? photography.PhotographRequiredText : _settings.HudSignalLabel,
                 _hudBodyStyle);
             GUI.Label(
                 new Rect(
@@ -1869,17 +1853,13 @@ namespace DuneVector
                     panel.y + _settings.HudChallengeProgressTop,
                     panel.width - (padding * 2f),
                     _settings.HudChallengeProgressHeight),
-                photoRequired ? string.Empty : GetChallengeProgressText(_nearestSite),
+                string.Empty,
                 _hudMetaStyle);
-            Rect scanBar = new Rect(
-                panel.x + padding,
-                panel.yMax - _settings.HudScanBarBottomOffset - _settings.ScanBarHeight,
-                panel.width - (padding * 2f),
-                _settings.ScanBarHeight);
-            DrawRect(scanBar, _settings.ScanBarBackgroundColor);
-            DrawRect(
-                new Rect(scanBar.x, scanBar.y, scanBar.width * _scanProgress, scanBar.height),
-                _settings.HudAccentColor);
+        }
+
+        private bool IsWithinPhotographyPromptRange()
+        {
+            return _nearestSite != null && _nearestDistance <= Mathf.Max(1f, _settings.ScanRadius);
         }
 
         private void DrawAtlasSurveyProgress(Rect panel, Color accentColor)
