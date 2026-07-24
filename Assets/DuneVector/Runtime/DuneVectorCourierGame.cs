@@ -2124,7 +2124,9 @@ namespace DuneVector
             }
             _desertSpawn += shift;
             _objectiveRing?.ApplyWorldShift(shift);
-            if (State == CourierRunState.FindPackage && _package != null)
+            if ((State == CourierRunState.TeleportingToDesert ||
+                 State == CourierRunState.FindPackage) &&
+                _package != null)
             {
                 _package.position += shift;
             }

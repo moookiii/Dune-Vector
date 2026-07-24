@@ -298,6 +298,15 @@ namespace DuneVector
             Check(accepted && courier.State == CourierRunState.TeleportingToDesert,
                 "Accepting a terminal contract starts the desert teleport sequence",
                 $"Accept returned {accepted} and state became {courier.State}.");
+            Vector3 pickupBeforeDeploymentRebase = courier.ActiveObjective != null
+                ? courier.ActiveObjective.position
+                : Vector3.zero;
+            Vector3 deploymentRebase = new Vector3(bootstrap.World.ChunkSize, 0f, 0f);
+            bootstrap.World.RebaseNow(deploymentRebase);
+            Check(courier.ActiveObjective != null &&
+                  (courier.ActiveObjective.position - (pickupBeforeDeploymentRebase - deploymentRebase)).sqrMagnitude < 0.001f,
+                "Pending pickup cargo follows floating-origin shifts during deployment",
+                "Pickup cargo detached from its ring when the world rebased during deployment.");
 
             float deployTimeout = Time.realtimeSinceStartup + 8f;
             while (Time.realtimeSinceStartup < deployTimeout && courier.State == CourierRunState.TeleportingToDesert)
