@@ -1083,6 +1083,7 @@ namespace DuneVector
             else
             {
                 _presentationState = CameraPresentationState.ReplacePrompt;
+                BeginIdentificationPause();
                 Cursor.lockState = CursorLockMode.None;
                 Cursor.visible = true;
             }
