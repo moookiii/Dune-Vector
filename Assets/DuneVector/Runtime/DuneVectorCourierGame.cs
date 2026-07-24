@@ -276,6 +276,8 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorCourierGame : MonoBehaviour
     {
+        private const string HubRuneRingResourcePath = "rune_ringPrefab";
+
         private enum HubTerminalMode
         {
             None,
@@ -298,6 +300,7 @@ namespace DuneVector
         public Transform MessageArchiveTerminal => _messageArchiveTerminal;
         public Transform FreeRoamTerminal => _freeRoamTerminal;
         public Transform DesertAtlasTerminal => _desertAtlasTerminal;
+        public Transform HubRuneRing => _hubRuneRing;
         public DuneVectorDesertAtlas DesertAtlas { get; private set; }
         public int ArchivedMessageCount => GetArchivedMessageCount();
         public static bool IsGameplayHudSuppressed
@@ -347,6 +350,7 @@ namespace DuneVector
         private DuneVectorSandAmbusherSystem _sandAmbusherSystem;
 
         private Transform _hubRoot;
+        private Transform _hubRuneRing;
         private Transform _terminal;
         private Transform _messageArchiveTerminal;
         private Transform _freeRoamTerminal;
@@ -744,6 +748,7 @@ namespace DuneVector
             _hubRoot = hubObject.transform;
             _hubRoot.SetParent(transform, false);
             _hubRoot.position = _world.LogicalToLocal(hubLogical.X, platformY, hubLogical.Z);
+            BuildHubRuneRing();
 
             HubPart(PrimitiveType.Cylinder, "Main Teleport Platform", _hubRoot, Vector3.zero,
                 new Vector3(_hubSettings.PlatformRadius, _hubSettings.PlatformThickness * 0.5f, _hubSettings.PlatformRadius),
@@ -854,6 +859,31 @@ namespace DuneVector
 
             _teleportPlatform = _hubRoot;
             _hubSpawn = _hubRoot.position + Vector3.up * (_hubSettings.PlayerSpawnHeight + (_hubSettings.PlatformThickness * 0.5f));
+        }
+
+        private void BuildHubRuneRing()
+        {
+            if (_hubRuneRing != null)
+            {
+                return;
+            }
+
+            GameObject runeRingPrefab = Resources.Load<GameObject>(HubRuneRingResourcePath);
+            if (runeRingPrefab == null)
+            {
+                Debug.LogError(
+                    $"World hub requires Assets/DuneVector/Resources/{HubRuneRingResourcePath}.prefab.",
+                    this);
+                return;
+            }
+
+            GameObject runeRing = Instantiate(runeRingPrefab);
+            runeRing.name = runeRingPrefab.name;
+            _hubRuneRing = runeRing.transform;
+
+            // Preserve the prefab-authored world position, rotation, and scale, then make the
+            // ring part of the hub so floating-origin shifts cannot leave copies in the desert.
+            _hubRuneRing.SetParent(_hubRoot, true);
         }
 
         private Transform BuildPhysicalTerminal(string objectName, Vector3 localPosition, Quaternion localRotation)
