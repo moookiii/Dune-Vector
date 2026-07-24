@@ -2538,7 +2538,7 @@ namespace DuneVector
         [Range(0.01f, 0.25f)] public float PortalGlyphSizeFraction = 0.052f;
         [Header("Portal Rune Variation")]
         [Tooltip("Maximum proportional size difference above or below the base rune size.")]
-        [Range(0f, 0.5f)] public float PortalRuneSizeVariation = 0.44f;
+        [Range(0f, 0.5f)] public float PortalRuneSizeVariation = 0.22f;
         [Tooltip("Maximum angular offset as a fraction of one evenly spaced rune slot.")]
         [Range(0f, 0.45f)] public float PortalRuneSpacingVariation = 0.24f;
         [Tooltip("Maximum clockwise or counterclockwise tilt from the rune's radial alignment.")]
