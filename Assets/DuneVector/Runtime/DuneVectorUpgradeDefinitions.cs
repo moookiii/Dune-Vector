@@ -139,6 +139,8 @@ namespace DuneVector
         [Min(0.01f)] public float TierAnimationDuration = 0.28f;
         [Min(0.01f)] public float RecentPurchaseDuration = 0.9f;
         [Min(0.01f)] public float GoldDeductionDuration = 0.8f;
+        [Tooltip("Additional displayed gold counted per second for every gold of difference from the wallet balance.")]
+        [Min(0f)] public float GoldCountDistanceSpeedMultiplier = 6f;
         [Min(1f)] public float GoldCountAnimationSpeed = 800f;
         [Min(0f)] public float ValuePulseAmount = 0.12f;
         [Min(0f)] public float ValuePulseSpeed = 8f;

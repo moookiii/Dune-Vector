@@ -370,10 +370,14 @@ namespace DuneVector
                 _displayedGold = _wallet.Gold;
                 _hasDisplayedGold = true;
             }
+
+            float goldDifference = Mathf.Max(0f, _displayedGold - _wallet.Gold);
+            float goldAnimationSpeed = Mathf.Max(1f, _visuals.GoldCountAnimationSpeed)
+                + (goldDifference * Mathf.Max(0f, _visuals.GoldCountDistanceSpeedMultiplier));
             _displayedGold = Mathf.MoveTowards(
                 _displayedGold,
                 _wallet.Gold,
-                Mathf.Max(1f, _visuals.GoldCountAnimationSpeed) * Time.unscaledDeltaTime);
+                goldAnimationSpeed * Time.unscaledDeltaTime);
 
             float tierSpeed = 1f / Mathf.Max(0.01f, _visuals.TierAnimationDuration);
             IReadOnlyList<DroneUpgradeDefinition> definitions = _upgrades.Definitions;
