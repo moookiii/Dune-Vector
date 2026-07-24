@@ -539,6 +539,13 @@ namespace DuneVector
 
         private void BuildAudio()
         {
+            if (DuneVectorAudioManager.Instance != null)
+            {
+                AudioManager = DuneVectorAudioManager.Instance;
+                AudioManager.Initialize(AudioSettings, DroneHealth);
+                return;
+            }
+
             GameObject audioObject = new GameObject("FMOD Audio and Background Music");
             audioObject.transform.SetParent(transform, false);
             AudioManager = audioObject.AddComponent<DuneVectorAudioManager>();

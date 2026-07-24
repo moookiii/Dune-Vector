@@ -13,6 +13,8 @@ namespace DuneVector
     {
         private const string AudioPreferencesFileName = "DuneVectorAudio.dat";
 
+        public static DuneVectorAudioManager Instance { get; private set; }
+
         [Serializable]
         private sealed class AudioPreferencesData
         {
@@ -39,11 +41,24 @@ namespace DuneVector
         private float _masterTargetVolume = 1f;
         private string _preferencesPath;
         private bool _preferencesDirty;
+        private bool _initialized;
+
+        private void Awake()
+        {
+            if (Instance != null && Instance != this)
+            {
+                Destroy(gameObject);
+                return;
+            }
+
+            Instance = this;
+            transform.SetParent(null, true);
+            DontDestroyOnLoad(gameObject);
+        }
 
         public void Initialize(AudioTuning settings, DroneHealth health)
         {
             _settings = settings;
-            _health = health;
             if (_settings == null)
             {
                 Debug.LogError("Dune Vector audio requires Audio Tuning in the Runtime Settings asset.", this);
@@ -51,6 +66,14 @@ namespace DuneVector
                 return;
             }
 
+            BindHealth(health);
+            if (_initialized)
+            {
+                enabled = true;
+                return;
+            }
+
+            _initialized = true;
             _preferencesPath = Path.Combine(Application.persistentDataPath, AudioPreferencesFileName);
             LoadStoredVolumes();
 
@@ -64,6 +87,16 @@ namespace DuneVector
             _hasSoundEffectsBus = TryGetBus(_settings.SoundEffectsBusPath, out _soundEffectsBus);
             ApplyMixerVolumes();
             StartBackgroundMusic();
+        }
+
+        private void BindHealth(DroneHealth health)
+        {
+            if (_health != null)
+            {
+                _health.Damaged -= HandleDroneDamaged;
+            }
+
+            _health = health;
             if (_health != null)
             {
                 _health.Damaged += HandleDroneDamaged;
@@ -358,6 +391,10 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            if (Instance == this)
+            {
+                Instance = null;
+            }
             if (_lockOnController != null)
             {
                 _lockOnController.StateChanged -= HandleLockOnStateChanged;
