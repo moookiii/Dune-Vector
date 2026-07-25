@@ -386,7 +386,7 @@ namespace DuneVector
         private float _statusMessageUntil;
         private Vector3 _droneVisualOriginalScale;
         private Material _hubMetalMaterial;
-        private Material _hubFloorMaterial;
+        private Material _hubFloorInlayMaterial;
         private Material _hubEnergyMaterial;
 
         private GUIStyle _terminalTitleStyle;
@@ -738,16 +738,15 @@ namespace DuneVector
                 "World Hub Metal",
                 _hubSettings.HubMetalColor,
                 Color.black);
-            _hubFloorMaterial = CreateHubMaterial(
-                _materials.DroneDark,
-                "World Hub Floor",
-                _hubSettings.HubMetalColor,
-                Color.black);
             _hubEnergyMaterial = CreateHubMaterial(
                 _materials.DroneAccent,
                 "World Hub Energy",
                 new Color(_hubSettings.HubEnergyColor.r * 0.12f, _hubSettings.HubEnergyColor.g * 0.12f, _hubSettings.HubEnergyColor.b * 0.12f),
                 _hubSettings.HubEnergyColor);
+            _hubFloorInlayMaterial = new Material(_hubEnergyMaterial)
+            {
+                name = "World Hub RGB Floor Inlay",
+            };
             LogicalPosition hubLogical = new LogicalPosition(
                 DesertWorldStreamer.StartingLogicalPosition.x,
                 DesertWorldStreamer.StartingLogicalPosition.y);
@@ -761,7 +760,7 @@ namespace DuneVector
 
             HubPart(PrimitiveType.Cylinder, "Main Teleport Platform", _hubRoot, Vector3.zero,
                 new Vector3(_hubSettings.PlatformRadius, _hubSettings.PlatformThickness * 0.5f, _hubSettings.PlatformRadius),
-                Quaternion.identity, _hubFloorMaterial, false);
+                Quaternion.identity, _hubMetalMaterial, false);
             BuildCircleModelCollider(
                 _hubRoot,
                 "Main Teleport Platform Collider (circle.glb)",
@@ -771,7 +770,7 @@ namespace DuneVector
             HubPart(PrimitiveType.Cylinder, "Energy Inlay", _hubRoot,
                 new Vector3(0f, (_hubSettings.PlatformThickness * 0.5f) + 0.08f, 0f),
                 new Vector3(_hubSettings.PlatformRadius * 0.72f, 0.08f, _hubSettings.PlatformRadius * 0.72f),
-                Quaternion.identity, _hubEnergyMaterial, false);
+                Quaternion.identity, _hubFloorInlayMaterial, false);
 
             _hubEnergyOrbit = new GameObject("Rotating Platform Energy Lanes").transform;
             _hubEnergyOrbit.SetParent(_hubRoot, false);
@@ -1057,7 +1056,7 @@ namespace DuneVector
 
         private void AnimateUnlockedHubFloor()
         {
-            if (_hubFloorMaterial == null ||
+            if (_hubFloorInlayMaterial == null ||
                 _permanentUpgrades == null ||
                 !_permanentUpgrades.IsHubRgbFloorUnlocked)
             {
@@ -1077,7 +1076,7 @@ namespace DuneVector
                     ? Color.Lerp(tuning.Green, tuning.Blue, phase - 1f)
                     : Color.Lerp(tuning.Blue, tuning.Red, phase - 2f);
             SetHubMaterialColors(
-                _hubFloorMaterial,
+                _hubFloorInlayMaterial,
                 ScaleRgb(blended, Mathf.Clamp01(tuning.BaseColorIntensity)),
                 ScaleRgb(blended, Mathf.Max(0f, tuning.EmissionIntensity)));
         }
@@ -3256,7 +3255,7 @@ namespace DuneVector
             if (_world != null) _world.WorldShifted -= HandleWorldShift;
             DestroyTeleportParticles();
             if (_hubMetalMaterial != null) Destroy(_hubMetalMaterial);
-            if (_hubFloorMaterial != null) Destroy(_hubFloorMaterial);
+            if (_hubFloorInlayMaterial != null) Destroy(_hubFloorInlayMaterial);
             if (_hubEnergyMaterial != null) Destroy(_hubEnergyMaterial);
             if (_terminalPanelTexture != null) Destroy(_terminalPanelTexture);
             if (_terminalCardTexture != null) Destroy(_terminalCardTexture);
