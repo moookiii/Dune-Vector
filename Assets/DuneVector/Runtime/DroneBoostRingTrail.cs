@@ -28,6 +28,8 @@ namespace DuneVector
         private Mesh _mesh;
         private Material _material;
         private MaterialPropertyBlock _properties;
+        private Transform _visualRoot;
+        private Vector3 _visualCenterLocalPosition;
         private int _activeCount;
         private int _nextHueIndex;
         private Vector3 _lastEmissionPosition;
@@ -44,6 +46,7 @@ namespace DuneVector
             _camera = targetCamera;
             _material = portalMaterial;
             _tuning = tuning;
+            CacheVisualCenter();
 
             int capacity = tuning != null ? Mathf.Clamp(tuning.MaximumRingCount, 4, 128) : 4;
             _rings = new TrailRing[capacity];
@@ -108,8 +111,8 @@ namespace DuneVector
 
         private void EmitAlongFlightPath()
         {
-            Vector3 position = _drone.DroneVisualRoot != null
-                ? _drone.DroneVisualRoot.position
+            Vector3 position = _visualRoot != null
+                ? _visualRoot.TransformPoint(_visualCenterLocalPosition)
                 : _drone.WorldCenter;
             Vector3 velocity = _drone.Motor != null ? _drone.Motor.Velocity : Vector3.zero;
             Vector3 direction = velocity.sqrMagnitude > 0.01f
@@ -252,6 +255,69 @@ namespace DuneVector
                 ? _drone.transform.right
                 : Vector3.up;
             return Quaternion.LookRotation(direction, up);
+        }
+
+        private void CacheVisualCenter()
+        {
+            _visualRoot = _drone != null ? _drone.DroneVisualRoot : null;
+            _visualCenterLocalPosition = Vector3.zero;
+            if (_visualRoot == null)
+            {
+                return;
+            }
+
+            Renderer[] renderers = _visualRoot.GetComponentsInChildren<Renderer>(true);
+            Bounds combinedBounds = default;
+            bool hasBounds = false;
+            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            {
+                Renderer renderer = renderers[rendererIndex];
+                Bounds sourceBounds;
+                if (renderer is SkinnedMeshRenderer skinnedRenderer)
+                {
+                    sourceBounds = skinnedRenderer.localBounds;
+                }
+                else if (renderer is MeshRenderer)
+                {
+                    MeshFilter filter = renderer.GetComponent<MeshFilter>();
+                    if (filter == null || filter.sharedMesh == null)
+                    {
+                        continue;
+                    }
+
+                    sourceBounds = filter.sharedMesh.bounds;
+                }
+                else
+                {
+                    continue;
+                }
+
+                for (int cornerIndex = 0; cornerIndex < 8; cornerIndex++)
+                {
+                    Vector3 corner = sourceBounds.center + Vector3.Scale(
+                        sourceBounds.extents,
+                        new Vector3(
+                            (cornerIndex & 1) == 0 ? -1f : 1f,
+                            (cornerIndex & 2) == 0 ? -1f : 1f,
+                            (cornerIndex & 4) == 0 ? -1f : 1f));
+                    Vector3 localCorner = _visualRoot.InverseTransformPoint(
+                        renderer.transform.TransformPoint(corner));
+                    if (!hasBounds)
+                    {
+                        combinedBounds = new Bounds(localCorner, Vector3.zero);
+                        hasBounds = true;
+                    }
+                    else
+                    {
+                        combinedBounds.Encapsulate(localCorner);
+                    }
+                }
+            }
+
+            if (hasBounds)
+            {
+                _visualCenterLocalPosition = combinedBounds.center;
+            }
         }
 
         private void HandleWorldShift(Vector3 worldShift)
