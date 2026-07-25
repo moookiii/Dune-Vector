@@ -2693,7 +2693,7 @@ namespace DuneVector
 
         [Header("Upper Flight Ring Unlock")]
         [Tooltip("Number of distinct blue flight rings the player must cross before the upper-layer ring appears.")]
-        [Min(1)] public int UpperFlightRingRequiredPasses = 5;
+        [Min(1)] public int UpperFlightRingRequiredPasses = 100;
 
         [Header("Upper Flight Ring Generation")]
         [Tooltip("Independent procedural salt used for upper-layer positions, altitudes, rotations, and movement.")]

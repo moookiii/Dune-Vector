@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using KinematicCharacterController;
 using UnityEngine;
 using Unity.Profiling;
@@ -11,6 +12,15 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DesertWorldStreamer : MonoBehaviour
     {
+        private const string FlightRingProgressSaveFileName = "DuneVectorFlightRingProgress.dat";
+
+        [Serializable]
+        private sealed class FlightRingProgressSaveData
+        {
+            public int Version = 1;
+            public string[] ActivatedRingIdentities = new string[0];
+        }
+
         private sealed class ContractGroundExploderSpawn
         {
             public Vector2Int ChunkCoordinate;
@@ -133,6 +143,7 @@ namespace DuneVector
         private Vector2Int _lastScheduledChunk = new Vector2Int(int.MinValue, int.MinValue);
         private float _streamingRefreshTimer;
         private int _coinRingSeed;
+        private string _flightRingProgressSavePath;
         private bool _initialized;
 
         internal static class Markers
@@ -164,6 +175,10 @@ namespace DuneVector
             _coinRingSeed = Guid.NewGuid().GetHashCode();
             EnemySpawnSeed = Guid.NewGuid().GetHashCode();
             Rings ??= new RingTuning();
+            _flightRingProgressSavePath = Path.Combine(
+                Application.persistentDataPath,
+                FlightRingProgressSaveFileName);
+            LoadFlightRingProgress();
             GroundExploders ??= new GroundExploderTuning();
             Dunes.WorldSeed = WorldSeed;
             HeightField = new DuneHeightField(Dunes);
@@ -931,15 +946,78 @@ namespace DuneVector
             if (ring == null
                 || ring.RingType != TraversalRingType.Flight
                 || string.IsNullOrEmpty(ring.ProceduralIdentity)
+                || IsUpperFlightRingUnlocked
                 || !_activatedFlightRingIdentities.Add(ring.ProceduralIdentity))
             {
                 return;
             }
 
+            SaveFlightRingProgress();
             int requiredPasses = Mathf.Max(1, Rings.UpperFlightRingRequiredPasses);
             if (_activatedFlightRingIdentities.Count >= requiredPasses)
             {
                 SpawnUpperFlightLayersForLoadedChunks();
+            }
+        }
+
+        private void LoadFlightRingProgress()
+        {
+            _activatedFlightRingIdentities.Clear();
+            if (!File.Exists(_flightRingProgressSavePath))
+            {
+                SaveFlightRingProgress();
+                return;
+            }
+
+            try
+            {
+                FlightRingProgressSaveData data = JsonUtility.FromJson<FlightRingProgressSaveData>(
+                    File.ReadAllText(_flightRingProgressSavePath));
+                if (data?.ActivatedRingIdentities == null)
+                {
+                    return;
+                }
+
+                for (int i = 0; i < data.ActivatedRingIdentities.Length; i++)
+                {
+                    string identity = data.ActivatedRingIdentities[i];
+                    if (!string.IsNullOrEmpty(identity))
+                    {
+                        _activatedFlightRingIdentities.Add(identity);
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning(
+                    $"Could not load flight ring progress from '{_flightRingProgressSavePath}': {exception.Message}",
+                    this);
+            }
+        }
+
+        private void SaveFlightRingProgress()
+        {
+            if (string.IsNullOrEmpty(_flightRingProgressSavePath))
+            {
+                return;
+            }
+
+            try
+            {
+                string[] identities = new string[_activatedFlightRingIdentities.Count];
+                _activatedFlightRingIdentities.CopyTo(identities);
+                Array.Sort(identities, StringComparer.Ordinal);
+                FlightRingProgressSaveData data = new FlightRingProgressSaveData
+                {
+                    ActivatedRingIdentities = identities,
+                };
+                File.WriteAllText(_flightRingProgressSavePath, JsonUtility.ToJson(data));
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning(
+                    $"Could not save flight ring progress to '{_flightRingProgressSavePath}': {exception.Message}",
+                    this);
             }
         }
 
