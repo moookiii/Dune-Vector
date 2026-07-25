@@ -34,6 +34,7 @@ namespace DuneVector
         private Texture2D _maximumButtonTexture;
         private Texture2D _backButtonTexture;
         private Texture2D _backButtonHoverTexture;
+        private Texture2D _hubRgbTerminalIcon;
         private Vector2 _scrollPosition;
         private float _styledScale = -1f;
         private float _displayedGold;
@@ -233,11 +234,8 @@ namespace DuneVector
             float iconSize = _visuals.IconSize * scale;
             Rect iconPanel = new Rect(row.x + columnGap, row.y + ((row.height - iconSize) * 0.5f), iconSize, iconSize);
             DrawSolidRect(iconPanel, _visuals.RowColor);
-            float third = iconPanel.width / 3f;
-            DrawSolidRect(new Rect(iconPanel.x, iconPanel.y, third, iconPanel.height), NormalizeGuiColor(tuning.Red));
-            DrawSolidRect(new Rect(iconPanel.x + third, iconPanel.y, third, iconPanel.height), NormalizeGuiColor(tuning.Green));
-            DrawSolidRect(new Rect(iconPanel.x + (third * 2f), iconPanel.y, iconPanel.width - (third * 2f), iconPanel.height), NormalizeGuiColor(tuning.Blue));
             DrawBorder(iconPanel, WithAlpha(groupColor, _visuals.IconBorderOpacity), Mathf.Max(1f, _visuals.BorderThickness * scale));
+            GUI.DrawTexture(iconPanel, GetHubRgbTerminalIcon(tuning), ScaleMode.ScaleToFit, true);
 
             float detailsX = iconPanel.xMax + columnGap;
             float detailsWidth = _visuals.DetailsColumnWidth * scale;
@@ -673,6 +671,23 @@ namespace DuneVector
             return texture;
         }
 
+        private Texture2D GetHubRgbTerminalIcon(HubRgbTerminalUnlockTuning tuning)
+        {
+            if (_hubRgbTerminalIcon != null)
+            {
+                return _hubRgbTerminalIcon;
+            }
+
+            _hubRgbTerminalIcon = DuneVectorUpgradeIconFactory.CreateRgbHubTerminals(
+                Mathf.Max(16, _visuals.IconTextureSize),
+                Mathf.Max(1, _visuals.IconLineThickness),
+                NormalizeGuiColor(tuning.Red),
+                NormalizeGuiColor(tuning.Green),
+                NormalizeGuiColor(tuning.Blue),
+                _visuals.PrimaryTextColor);
+            return _hubRgbTerminalIcon;
+        }
+
         private Color GetGroupColor(DroneUpgradeGroup group)
         {
             return group switch
@@ -747,6 +762,7 @@ namespace DuneVector
             DestroyTexture(_maximumButtonTexture);
             DestroyTexture(_backButtonTexture);
             DestroyTexture(_backButtonHoverTexture);
+            DestroyTexture(_hubRgbTerminalIcon);
         }
 
         private static void DestroyTexture(Texture2D texture)
@@ -760,6 +776,39 @@ namespace DuneVector
 
     internal static class DuneVectorUpgradeIconFactory
     {
+        public static Texture2D CreateRgbHubTerminals(
+            int size,
+            int thickness,
+            Color panelColor,
+            Color leftAntennaColor,
+            Color rightAntennaColor,
+            Color frameColor)
+        {
+            Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
+            {
+                name = "Upgrade Icon - RGB Hub Terminals",
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            texture.SetPixels(new Color[size * size]);
+
+            IconCanvas frame = new IconCanvas(texture, size, thickness, frameColor);
+            frame.Polyline((0.2f, 0.22f), (0.8f, 0.22f), (0.8f, 0.62f), (0.2f, 0.62f), (0.2f, 0.22f));
+            frame.Line(0.32f, 0.62f, 0.22f, 0.88f);
+            frame.Line(0.68f, 0.62f, 0.78f, 0.88f);
+
+            IconCanvas panel = new IconCanvas(texture, size, thickness, panelColor);
+            IconCanvas leftAntenna = new IconCanvas(texture, size, thickness, leftAntennaColor);
+            IconCanvas rightAntenna = new IconCanvas(texture, size, thickness, rightAntennaColor);
+            panel.Circle(0.5f, 0.42f, 0.11f);
+            leftAntenna.Circle(0.22f, 0.88f, 0.07f);
+            rightAntenna.Circle(0.78f, 0.88f, 0.07f);
+
+            texture.Apply(false, true);
+            return texture;
+        }
+
         public static Texture2D Create(DroneUpgradeId id, int size, int thickness, Color color)
         {
             Texture2D texture = new Texture2D(size, size, TextureFormat.RGBA32, false)
