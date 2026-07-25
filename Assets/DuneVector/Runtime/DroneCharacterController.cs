@@ -44,6 +44,7 @@ namespace DuneVector
         [Min(0f)] public float MaxGroundSpeed = 18f;
         [Min(0f)] public float GroundMovementSharpness = 8.5f;
         [Min(0f)] public float GroundBrakingSharpness = 5.5f;
+        [Min(0f)] public float GroundIdleStopSpeed;
         [Min(0f)] public float RotationSharpness = 11f;
         [Min(0f)] public float AirAcceleration = 17f;
         [Min(0f)] public float MaxAirSpeed = 22f;
@@ -728,6 +729,13 @@ namespace DuneVector
 
                 Vector3 targetVelocity = targetDirection * targetSpeed;
                 currentVelocity = Vector3.Lerp(currentVelocity, targetVelocity, DuneVectorMath.Sharpness(sharpness, deltaTime));
+                if (_rawMove.sqrMagnitude <= 0.001f
+                    && currentVelocity.sqrMagnitude <= GroundIdleStopSpeed * GroundIdleStopSpeed
+                    && CurrentWindForce.sqrMagnitude <= Mathf.Epsilon
+                    && CurrentDustDevilForce.sqrMagnitude <= Mathf.Epsilon)
+                {
+                    currentVelocity = Vector3.zero;
+                }
             }
             else
             {

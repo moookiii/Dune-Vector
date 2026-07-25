@@ -3874,6 +3874,8 @@ namespace DuneVector
         [Min(0f)] public float MaxGroundSpeed = 18f;
         [Min(0f)] public float GroundMovementSharpness = 8.5f;
         [Min(0f)] public float GroundBrakingSharpness = 5.5f;
+        [Tooltip("Ground speed below which the drone stops completely when there is no movement input or environmental force.")]
+        [Min(0f)] public float GroundIdleStopSpeed = 0.15f;
         [Min(0f)] public float GroundSteeringSharpness = 11f;
         [Min(0f)] public float TrailMinimumSpeed = 0.35f;
 
@@ -3949,6 +3951,7 @@ namespace DuneVector
             drone.MaxGroundSpeed = MaxGroundSpeed;
             drone.GroundMovementSharpness = GroundMovementSharpness;
             drone.GroundBrakingSharpness = GroundBrakingSharpness;
+            drone.GroundIdleStopSpeed = GroundIdleStopSpeed;
             drone.RotationSharpness = GroundSteeringSharpness;
             drone.TrailMinimumSpeed = TrailMinimumSpeed;
             drone.JumpSpeed = JumpSpeed;
