@@ -4040,16 +4040,18 @@ namespace DuneVector
         [Tooltip("World-space width of one persistent explored-map cell. Smaller cells create a finer tunnel edge but consume more memory.")]
         [Min(1f)] public float ExplorationCellSize = 12f;
         [Tooltip("Distance traveled before the drone paints another reveal-radius stamp into persistent exploration.")]
-        [Min(0.1f)] public float ExplorationUpdateMovement = 3f;
+        [Min(0.1f)] public float ExplorationUpdateMovement = 6f;
         [Tooltip("Persistent exploration filename. Map memory is always stored as a .dat file.")]
         public string ExplorationFileName = "DuneVectorMapExploration.dat";
         [Tooltip("Seconds between background saves when new map cells have been discovered.")]
         [Min(1f)] public float ExplorationSaveInterval = 10f;
-        [Range(32, 256)] public int ScanTextureResolution = 128;
+        [Range(32, 256)] public int ScanTextureResolution = 96;
+        [Tooltip("Texture rows procedurally sampled per rendered frame. Lower values reduce frame spikes while taking longer to complete a refresh.")]
+        [Range(1, 32)] public int ScanRowsPerFrame = 4;
         [Tooltip("Seconds between procedural terrain resamples. Cached map pixels still scroll every rendered frame.")]
-        [Min(0.02f)] public float ScanRefreshInterval = 0.12f;
+        [Min(0.02f)] public float ScanRefreshInterval = 0.3f;
         [Tooltip("Distance traveled before the cached terrain scan is regenerated. Cached pixels translate smoothly below this threshold.")]
-        [Min(0f)] public float ScanRefreshMovement = 3f;
+        [Min(0f)] public float ScanRefreshMovement = 8f;
         [Min(0.01f)] public float RadiusLineThickness = 5f;
         [Min(0.01f)] public float ContourSpacing = 4f;
         [Min(0f)] public float ContourThickness = 0.35f;
@@ -4095,7 +4097,7 @@ namespace DuneVector
         [Tooltip("Hide points of interest until the drone has explored the cell containing them.")]
         public bool OnlyShowExploredIcons = true;
         [Tooltip("Seconds between lightweight point-of-interest cache refreshes.")]
-        [Min(0.1f)] public float IconRefreshInterval = 0.5f;
+        [Min(0.1f)] public float IconRefreshInterval = 1f;
         [Range(0.25f, 2f)] public float MinimapIconScale = 0.85f;
         [Min(8)] public int RingIconFontSize = 22;
         [Min(8)] public int LandmarkIconFontSize = 20;

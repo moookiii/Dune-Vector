@@ -40,7 +40,6 @@ namespace DuneVector
         private GeoglyphSystemTuning _geoglyphs;
         private Texture2D _scanTexture;
         private Color[] _scanPixels;
-        private float[] _heightSamples;
         private readonly HashSet<long> _exploredCells = new HashSet<long>();
         private readonly List<MapIconRecord> _mapIcons = new List<MapIconRecord>();
         private GUIStyle _minimapTitleStyle;
@@ -66,6 +65,11 @@ namespace DuneVector
         private float _nextIconRefreshTime;
         private bool _explorationDirty;
         private bool _forceScanRefresh;
+        private bool _scanBuildActive;
+        private int _scanBuildRow;
+        private double _scanBuildCenterX;
+        private double _scanBuildCenterZ;
+        private float _scanBuildWorldSize;
 
         private const int ExplorationFileMagic = 0x44564D50;
         private const int ExplorationFileVersion = 2;
@@ -127,6 +131,7 @@ namespace DuneVector
             {
                 RefreshScan(_forceScanRefresh);
                 _forceScanRefresh = false;
+                ProcessScanBuild();
             }
         }
 
@@ -229,8 +234,15 @@ namespace DuneVector
                 (_textureWorldSize / Mathf.Max(1f, displayedWorldSize));
             LogicalPosition currentCenter = _world.LogicalPlayerPosition;
             float pixelsPerWorldUnit = mapRect.width / Mathf.Max(1f, displayedWorldSize);
-            float scanOffsetX = (float)(_lastScanX - currentCenter.X) * pixelsPerWorldUnit;
-            float scanOffsetY = (float)(currentCenter.Z - _lastScanZ) * pixelsPerWorldUnit;
+            bool hasCompletedScan =
+                !double.IsInfinity(_lastScanX) &&
+                !double.IsInfinity(_lastScanZ);
+            float scanOffsetX = hasCompletedScan
+                ? (float)(_lastScanX - currentCenter.X) * pixelsPerWorldUnit
+                : 0f;
+            float scanOffsetY = hasCompletedScan
+                ? (float)(currentCenter.Z - _lastScanZ) * pixelsPerWorldUnit
+                : 0f;
             Rect localScanRect = new Rect(
                 ((mapRect.width - scanSize) * 0.5f) + scanOffsetX,
                 ((mapRect.height - scanSize) * 0.5f) + scanOffsetY,
@@ -494,6 +506,15 @@ namespace DuneVector
                 ? Mathf.Max(1f, _settings.WorldMapWorldSize)
                 : Mathf.Max(1f, _settings.MinimapWorldSize);
             force |= !Mathf.Approximately(_textureWorldSize, desiredWorldSize);
+            if (_scanBuildActive)
+            {
+                if (force && !Mathf.Approximately(_scanBuildWorldSize, desiredWorldSize))
+                {
+                    BeginScanBuild(center, desiredWorldSize);
+                }
+                return;
+            }
+
             double dx = center.X - _lastScanX;
             double dz = center.Z - _lastScanZ;
             double movementThreshold = _settings.ScanRefreshMovement;
@@ -503,35 +524,31 @@ namespace DuneVector
                 return;
             }
 
+            BeginScanBuild(center, desiredWorldSize);
+        }
+
+        private void BeginScanBuild(LogicalPosition center, float desiredWorldSize)
+        {
             EnsureTexture();
-            int resolution = _scanTexture.width;
-            float radius = Mathf.Max(1f, _settings.DroneRevealRadius);
-            float diameter = desiredWorldSize;
+            _scanBuildCenterX = center.X;
+            _scanBuildCenterZ = center.Z;
+            _scanBuildWorldSize = desiredWorldSize;
+            _scanBuildRow = 0;
+            _scanBuildActive = true;
+        }
 
-            for (int y = 0; y < resolution; y++)
+        private void ProcessScanBuild()
+        {
+            if (!_scanBuildActive || _scanTexture == null)
             {
-                float normalizedY = (y + 0.5f) / resolution;
-                float offsetZ = (normalizedY - 0.5f) * diameter;
-                for (int x = 0; x < resolution; x++)
-                {
-                    int index = (y * resolution) + x;
-                    float normalizedX = (x + 0.5f) / resolution;
-                    float offsetX = (normalizedX - 0.5f) * diameter;
-                    double logicalX = center.X + offsetX;
-                    double logicalZ = center.Z + offsetZ;
-                    if (!IsExplored(logicalX, logicalZ))
-                    {
-                        _heightSamples[index] = float.NaN;
-                        continue;
-                    }
-
-                    float height = (float)_world.HeightField.SampleHeight(
-                        logicalX,
-                        logicalZ);
-                    _heightSamples[index] = height;
-                }
+                return;
             }
 
+            int resolution = _scanTexture.width;
+            int rowsPerFrame = Mathf.Clamp(_settings.ScanRowsPerFrame, 1, resolution);
+            int finalRow = Mathf.Min(resolution, _scanBuildRow + rowsPerFrame);
+            float radius = Mathf.Max(1f, _settings.DroneRevealRadius);
+            float diameter = _scanBuildWorldSize;
             float minimumHeight = Mathf.Min(
                 _settings.TerrainHeightMinimum,
                 _settings.TerrainHeightMaximum);
@@ -540,22 +557,27 @@ namespace DuneVector
                 _settings.TerrainHeightMaximum);
             float heightRange = Mathf.Max(Mathf.Epsilon, maximumHeight - minimumHeight);
             float contourSpacing = Mathf.Max(0.01f, _settings.ContourSpacing);
-            for (int y = 0; y < resolution; y++)
+
+            for (int y = _scanBuildRow; y < finalRow; y++)
             {
                 float normalizedY = (y + 0.5f) / resolution;
                 float offsetZ = (normalizedY - 0.5f) * diameter;
                 for (int x = 0; x < resolution; x++)
                 {
                     int index = (y * resolution) + x;
-                    float height = _heightSamples[index];
-                    if (float.IsNaN(height))
+                    float normalizedX = (x + 0.5f) / resolution;
+                    float offsetX = (normalizedX - 0.5f) * diameter;
+                    double logicalX = _scanBuildCenterX + offsetX;
+                    double logicalZ = _scanBuildCenterZ + offsetZ;
+                    if (!IsExplored(logicalX, logicalZ))
                     {
                         _scanPixels[index] = _settings.UnexploredColor;
                         continue;
                     }
 
-                    float normalizedX = (x + 0.5f) / resolution;
-                    float offsetX = (normalizedX - 0.5f) * diameter;
+                    float height = (float)_world.HeightField.SampleHeight(
+                        logicalX,
+                        logicalZ);
                     float distance = Mathf.Sqrt((offsetX * offsetX) + (offsetZ * offsetZ));
                     if (Mathf.Abs(distance - radius) <= _settings.RadiusLineThickness)
                     {
@@ -586,12 +608,19 @@ namespace DuneVector
                 }
             }
 
+            _scanBuildRow = finalRow;
+            if (_scanBuildRow < resolution)
+            {
+                return;
+            }
+
             _scanTexture.SetPixels(_scanPixels);
             _scanTexture.Apply(false, false);
-            _lastScanX = center.X;
-            _lastScanZ = center.Z;
-            _textureWorldSize = desiredWorldSize;
+            _lastScanX = _scanBuildCenterX;
+            _lastScanZ = _scanBuildCenterZ;
+            _textureWorldSize = _scanBuildWorldSize;
             _nextScanTime = Time.unscaledTime + _settings.ScanRefreshInterval;
+            _scanBuildActive = false;
         }
 
         private void RevealAroundPlayer(bool force)
@@ -775,7 +804,12 @@ namespace DuneVector
                 hideFlags = HideFlags.DontSave,
             };
             _scanPixels = new Color[resolution * resolution];
-            _heightSamples = new float[resolution * resolution];
+            for (int index = 0; index < _scanPixels.Length; index++)
+            {
+                _scanPixels[index] = _settings.UnexploredColor;
+            }
+            _scanTexture.SetPixels(_scanPixels);
+            _scanTexture.Apply(false, false);
         }
 
         private void EnsureStyles()
