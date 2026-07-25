@@ -908,6 +908,7 @@ namespace DuneVector
                 {
                     chunk.SpawnUpperFlightLayers();
                 }
+                chunk.SetCoinRingsUnlocked(IsUpperFlightRingUnlocked);
             }
         }
 
@@ -947,6 +948,7 @@ namespace DuneVector
             foreach (DesertChunk chunk in _chunks.Values)
             {
                 chunk.SpawnUpperFlightLayers();
+                chunk.SetCoinRingsUnlocked(true);
             }
         }
 
@@ -1429,6 +1431,18 @@ namespace DuneVector
             if (_terrainCollider != null && _terrainCollider.enabled != active)
             {
                 _terrainCollider.enabled = active;
+            }
+        }
+
+        public void SetCoinRingsUnlocked(bool unlocked)
+        {
+            for (int i = 0; i < _rings.Count; i++)
+            {
+                TraversalRing ring = _rings[i];
+                if (ring != null && ring.RingType == TraversalRingType.Coin)
+                {
+                    ring.SetAvailable(unlocked);
+                }
             }
         }
 
@@ -1983,14 +1997,14 @@ namespace DuneVector
                 TraversalRingType.GroundBoost => ringTuning.GroundRingMinimumHeight,
                 TraversalRingType.Flight => ringTuning.FlightRingMinimumHeight,
                 TraversalRingType.Health => ringTuning.HealthRingMinimumHeight,
-                _ => ringTuning.CoinRingMinimumHeight,
+                _ => ringTuning.UpperFlightRingMinimumHeight,
             };
             float maximumHeight = type switch
             {
                 TraversalRingType.GroundBoost => ringTuning.GroundRingMaximumHeight,
                 TraversalRingType.Flight => ringTuning.FlightRingMaximumHeight,
                 TraversalRingType.Health => ringTuning.HealthRingMaximumHeight,
-                _ => ringTuning.CoinRingMaximumHeight,
+                _ => ringTuning.UpperFlightRingMaximumHeight,
             };
             maximumHeight = Mathf.Max(minimumHeight, maximumHeight);
             int heightSalt = unchecked(

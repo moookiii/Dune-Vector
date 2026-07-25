@@ -1709,14 +1709,20 @@ namespace DuneVector
                 return null;
             }
 
-            GameObject heartObject = UnityEngine.Object.Instantiate(model, parent, false);
-            heartObject.name = "Collectible Icon";
-            Transform heart = heartObject.transform;
-            heart.localPosition = Vector3.zero;
-            heart.localRotation = Quaternion.Euler(localEulerAngles);
-            heart.localScale = Vector3.one;
+            GameObject pivotObject = new GameObject("Collectible Icon");
+            Transform pivot = pivotObject.transform;
+            pivot.SetParent(parent, false);
+            pivot.localPosition = localOffset;
+            pivot.localRotation = Quaternion.Euler(localEulerAngles);
 
-            Renderer[] renderers = heartObject.GetComponentsInChildren<Renderer>(true);
+            GameObject modelObject = UnityEngine.Object.Instantiate(model, pivot, false);
+            modelObject.name = "Collectible Model";
+            Transform modelTransform = modelObject.transform;
+            modelTransform.localPosition = Vector3.zero;
+            modelTransform.localRotation = Quaternion.identity;
+            modelTransform.localScale = Vector3.one;
+
+            Renderer[] renderers = modelObject.GetComponentsInChildren<Renderer>(true);
             Bounds bounds = default;
             bool hasBounds = false;
             for (int i = 0; i < renderers.Length; i++)
@@ -1741,7 +1747,7 @@ namespace DuneVector
                 }
             }
 
-            Collider[] colliders = heartObject.GetComponentsInChildren<Collider>(true);
+            Collider[] colliders = modelObject.GetComponentsInChildren<Collider>(true);
             for (int i = 0; i < colliders.Length; i++)
             {
                 colliders[i].enabled = false;
@@ -1753,18 +1759,17 @@ namespace DuneVector
                 float largestDimension = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
                 if (largestDimension > 0.0001f)
                 {
-                    heart.localScale = Vector3.one * (Mathf.Max(0.1f, targetSize) / largestDimension);
+                    modelTransform.localScale = Vector3.one * (Mathf.Max(0.1f, targetSize) / largestDimension);
 
                     Bounds scaledBounds = renderers[0].bounds;
                     for (int i = 1; i < renderers.Length; i++)
                     {
                         scaledBounds.Encapsulate(renderers[i].bounds);
                     }
-                    heart.position += parent.position - scaledBounds.center;
+                    modelTransform.position += pivot.position - scaledBounds.center;
                 }
             }
-            heart.localPosition += localOffset;
-            return heart;
+            return pivot;
         }
 
         public static Transform CreateJobRingVisual(Transform parent, bool isPickup, DuneVectorMaterials materials, float radius)

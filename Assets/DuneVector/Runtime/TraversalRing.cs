@@ -118,6 +118,13 @@ namespace DuneVector
             _collectibleReward?.BindTargets(_health, _controller != null ? _controller.GetComponent<DroneGoldWallet>() : null);
         }
 
+        public void SetAvailable(bool available)
+        {
+            gameObject.SetActive(available);
+            _inside = false;
+            _hasPreviousWorldPosition = false;
+        }
+
         public void BindTargets(DroneCharacterController controller, DroneHealth health)
         {
             _controller = controller;
@@ -176,7 +183,7 @@ namespace DuneVector
 
         private void TickSelf(float deltaTime)
         {
-            if (_controller == null)
+            if (!isActiveAndEnabled || _controller == null)
             {
                 return;
             }
@@ -269,7 +276,7 @@ namespace DuneVector
 
         private void LateTickSelf(Camera viewCamera)
         {
-            if (_visualRoot == null)
+            if (!isActiveAndEnabled || _visualRoot == null)
             {
                 return;
             }
