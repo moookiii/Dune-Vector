@@ -194,7 +194,7 @@ namespace DuneVector
             }
 
             int hueSteps = Mathf.Clamp(_tuning.HueStepCount, 2, 64);
-            float fadeInFraction = Mathf.Clamp(_tuning.FadeInFraction, 0.01f, 0.49f);
+            float fadeInFraction = Mathf.Clamp(_tuning.FadeInFraction, 0f, 0.49f);
             float fadeOutFraction = Mathf.Clamp(_tuning.FadeOutFraction, 0.01f, 0.99f);
             RenderParams renderParams = new RenderParams(_material)
             {
@@ -212,7 +212,9 @@ namespace DuneVector
             {
                 TrailRing ring = _rings[i];
                 float lifetime01 = Mathf.Clamp01(ring.Age / ring.Lifetime);
-                float fadeIn = Mathf.SmoothStep(0f, 1f, lifetime01 / fadeInFraction);
+                float fadeIn = fadeInFraction > 0f
+                    ? Mathf.SmoothStep(0f, 1f, lifetime01 / fadeInFraction)
+                    : 1f;
                 float fadeOut = 1f - Mathf.SmoothStep(
                     0f,
                     1f,

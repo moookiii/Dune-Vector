@@ -3741,7 +3741,8 @@ namespace DuneVector
         [Min(0f)] public float ColorIntensity = 3.2f;
         [Min(0f)] public float BloomIntensity = 1.8f;
         [Range(0f, 1f)] public float Opacity = 0.86f;
-        [Range(0.01f, 0.49f)] public float FadeInFraction = 0.08f;
+        [Tooltip("Fraction of lifetime spent fading in. Set to 0 for immediate visibility.")]
+        [Range(0f, 0.49f)] public float FadeInFraction = 0f;
         [Range(0.01f, 0.99f)] public float FadeOutFraction = 0.62f;
     }
 
