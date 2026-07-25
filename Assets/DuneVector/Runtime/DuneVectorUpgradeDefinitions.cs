@@ -191,8 +191,10 @@ namespace DuneVector
         [Min(0.01f)] public float ColorCycleSpeed = 0.6f;
         [Tooltip("Cycle phase added between successive hub terminals so each starts on a different color.")]
         [Min(0f)] public float StartingPhaseOffset = 0.75f;
-        [Tooltip("Additional cycle phase applied to both antennae so they start on a different color than their terminal panel.")]
-        [Min(0f)] public float AntennaStartingPhaseOffset = 1f;
+        [Tooltip("Additional cycle phase applied to the left antenna so it starts on a different color than the panel.")]
+        [Min(0f)] public float LeftAntennaStartingPhaseOffset = 1f;
+        [Tooltip("Additional cycle phase applied to the right antenna so all three terminal lights start on different colors.")]
+        [Min(0f)] public float RightAntennaStartingPhaseOffset = 2f;
         [ColorUsage(false, true)] public Color Red = new Color(3.2f, 0.04f, 0.02f, 1f);
         [ColorUsage(false, true)] public Color Green = new Color(0.02f, 3.2f, 0.08f, 1f);
         [ColorUsage(false, true)] public Color Blue = new Color(0.02f, 0.12f, 3.2f, 1f);

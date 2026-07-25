@@ -388,7 +388,8 @@ namespace DuneVector
         private Material _hubMetalMaterial;
         private Material _hubEnergyMaterial;
         private readonly List<Material> _hubTerminalPanelMaterials = new List<Material>();
-        private readonly List<Material> _hubTerminalAntennaMaterials = new List<Material>();
+        private readonly List<Material> _hubTerminalLeftAntennaMaterials = new List<Material>();
+        private readonly List<Material> _hubTerminalRightAntennaMaterials = new List<Material>();
         private bool _hubRgbTerminalsApplied;
 
         private GUIStyle _terminalTitleStyle;
@@ -901,12 +902,17 @@ namespace DuneVector
             {
                 name = $"{objectName} RGB Panel",
             };
-            Material terminalAntennaMaterial = new Material(_hubEnergyMaterial)
+            Material terminalLeftAntennaMaterial = new Material(_hubEnergyMaterial)
             {
-                name = $"{objectName} RGB Antennae",
+                name = $"{objectName} RGB Left Antenna",
+            };
+            Material terminalRightAntennaMaterial = new Material(_hubEnergyMaterial)
+            {
+                name = $"{objectName} RGB Right Antenna",
             };
             _hubTerminalPanelMaterials.Add(terminalPanelMaterial);
-            _hubTerminalAntennaMaterials.Add(terminalAntennaMaterial);
+            _hubTerminalLeftAntennaMaterials.Add(terminalLeftAntennaMaterial);
+            _hubTerminalRightAntennaMaterials.Add(terminalRightAntennaMaterial);
             HubPart(
                 PrimitiveType.Cube,
                 "Terminal Pedestal",
@@ -945,7 +951,7 @@ namespace DuneVector
                     mastPosition,
                     _hubSettings.TerminalSignalMastScale,
                     Quaternion.identity,
-                    terminalAntennaMaterial,
+                    side < 0 ? terminalLeftAntennaMaterial : terminalRightAntennaMaterial,
                     false);
             }
             return terminal;
@@ -1088,12 +1094,25 @@ namespace DuneVector
                 float panelPhase = Mathf.Repeat(basePhase + (index * tuning.StartingPhaseOffset), 3f);
                 ApplyRgbPhase(_hubTerminalPanelMaterials[index], tuning, panelPhase);
 
-                if (index < _hubTerminalAntennaMaterials.Count)
+                if (index < _hubTerminalLeftAntennaMaterials.Count)
                 {
-                    float antennaPhase = Mathf.Repeat(
-                        panelPhase + tuning.AntennaStartingPhaseOffset,
+                    float leftAntennaPhase = Mathf.Repeat(
+                        panelPhase + tuning.LeftAntennaStartingPhaseOffset,
                         3f);
-                    ApplyRgbPhase(_hubTerminalAntennaMaterials[index], tuning, antennaPhase);
+                    ApplyRgbPhase(
+                        _hubTerminalLeftAntennaMaterials[index],
+                        tuning,
+                        leftAntennaPhase);
+                }
+                if (index < _hubTerminalRightAntennaMaterials.Count)
+                {
+                    float rightAntennaPhase = Mathf.Repeat(
+                        panelPhase + tuning.RightAntennaStartingPhaseOffset,
+                        3f);
+                    ApplyRgbPhase(
+                        _hubTerminalRightAntennaMaterials[index],
+                        tuning,
+                        rightAntennaPhase);
                 }
             }
             _hubRgbTerminalsApplied = true;
@@ -1124,7 +1143,8 @@ namespace DuneVector
             }
 
             ResetHubTerminalEnergyMaterials(_hubTerminalPanelMaterials);
-            ResetHubTerminalEnergyMaterials(_hubTerminalAntennaMaterials);
+            ResetHubTerminalEnergyMaterials(_hubTerminalLeftAntennaMaterials);
+            ResetHubTerminalEnergyMaterials(_hubTerminalRightAntennaMaterials);
             _hubRgbTerminalsApplied = false;
         }
 
@@ -3328,7 +3348,8 @@ namespace DuneVector
             DestroyTeleportParticles();
             if (_hubMetalMaterial != null) Destroy(_hubMetalMaterial);
             DestroyHubTerminalMaterials(_hubTerminalPanelMaterials);
-            DestroyHubTerminalMaterials(_hubTerminalAntennaMaterials);
+            DestroyHubTerminalMaterials(_hubTerminalLeftAntennaMaterials);
+            DestroyHubTerminalMaterials(_hubTerminalRightAntennaMaterials);
             if (_hubEnergyMaterial != null) Destroy(_hubEnergyMaterial);
             if (_terminalPanelTexture != null) Destroy(_terminalPanelTexture);
             if (_terminalCardTexture != null) Destroy(_terminalCardTexture);
