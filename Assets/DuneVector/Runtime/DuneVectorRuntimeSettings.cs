@@ -1445,7 +1445,7 @@ namespace DuneVector
         [Tooltip("Chunk radius around the player that keeps terrain colliders enabled.")]
         [Range(1, 4)] public int CollisionActiveRadius = 2;
         [Tooltip("Chunk radius around the player in which streamed rings and enemies are simulated.")]
-        [Range(1, 4)] public int SimulationRadius = 2;
+        [Range(1, 4)] public int SimulationRadius = 3;
         [Tooltip("Resolution of the terrain collision mesh. Keep lower than the visual terrain mesh to reduce cooking cost.")]
         [Range(8, 64)] public int CollisionMeshResolution = 24;
         [Tooltip("Local distance at which the world recenters around the drone.")]

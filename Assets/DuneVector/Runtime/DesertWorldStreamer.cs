@@ -30,7 +30,7 @@ namespace DuneVector
         [Range(0f, 5f)] public float CollisionPredictionSeconds = 2.5f;
         [Range(0, 2)] public int CollisionPreloadRadius = 1;
         [Range(1, 4)] public int CollisionActiveRadius = 2;
-        [Range(1, 4)] public int SimulationRadius = 2;
+        [Range(1, 4)] public int SimulationRadius = 3;
         [Range(8, 64)] public int CollisionMeshResolution = 24;
         [Min(50f)] public float FloatingOriginThreshold = 520f;
 
