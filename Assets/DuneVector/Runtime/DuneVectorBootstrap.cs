@@ -38,6 +38,7 @@ namespace DuneVector
         public DesertShrubTuning DesertShrubs => RuntimeSettings.DesertShrubs;
         public WorldStreamingTuning WorldStreaming => RuntimeSettings.WorldStreaming;
         public PlayerHealthTuning HealthSettings => RuntimeSettings.HealthSettings;
+        public MapHudTuning MapHudSettings => RuntimeSettings.MapHud;
         public EnergyLauncherTuning EnergyLauncherSettings => RuntimeSettings.EnergyLauncher;
         public FlyingEnemyTuning FlyingEnemies => RuntimeSettings.FlyingEnemies;
         public StormPyramidTuning StormPyramids => RuntimeSettings.StormPyramids;
@@ -72,6 +73,7 @@ namespace DuneVector
         public DroneCameraController DroneCamera { get; private set; }
         public DronePlayer Player { get; private set; }
         public DuneVectorDebugHUD DebugHUD { get; private set; }
+        public DuneVectorMapHUD MapHUD { get; private set; }
         public DuneVectorDeliveryLoop DeliveryLoop { get; private set; }
         public DuneVectorLandmarkDirector LandmarkDirector { get; private set; }
         public DuneVectorCourierGame CourierGame { get; private set; }
@@ -728,6 +730,8 @@ namespace DuneVector
             staminaHUD.Initialize(Drone, DroneCamera.Camera, Player.Stamina, PlayerTuning.StaminaBoost);
             DuneVectorCompassHUD compassHUD = gameObject.AddComponent<DuneVectorCompassHUD>();
             compassHUD.Initialize(DroneCamera.Camera, RuntimeSettings.CompassHud);
+            MapHUD = gameObject.AddComponent<DuneVectorMapHUD>();
+            MapHUD.Initialize(Drone, World, RuntimeSettings.BottomHud, RuntimeSettings.MapHud);
             GameOverController = gameObject.AddComponent<DuneVectorGameOverController>();
             GameOverController.Initialize(DroneHealth);
             PauseMenu = gameObject.AddComponent<DuneVectorPauseMenu>();

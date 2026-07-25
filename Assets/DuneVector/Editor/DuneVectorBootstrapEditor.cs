@@ -109,6 +109,7 @@ namespace DuneVector.Editor
         private int _selectedTab;
         private SerializedProperty _player;
         private SerializedProperty _bottomHud;
+        private SerializedProperty _mapHud;
         private SerializedProperty _droneVisuals;
         private SerializedProperty _flightSwooshes;
         private SerializedProperty _boostRingTrail;
@@ -148,6 +149,7 @@ namespace DuneVector.Editor
         {
             _player = serializedObject.FindProperty("PlayerTuning");
             _bottomHud = serializedObject.FindProperty("BottomHud");
+            _mapHud = serializedObject.FindProperty("MapHud");
             _droneVisuals = serializedObject.FindProperty("DroneVisuals");
             _flightSwooshes = serializedObject.FindProperty("FlightSwooshes");
             _boostRingTrail = serializedObject.FindProperty("BoostRingTrail");
@@ -245,6 +247,10 @@ namespace DuneVector.Editor
                 "Bottom HUD",
                 "Responsive layout, typography, labels, and palette shared by velocity, flight reserve, and hull integrity.",
                 _bottomHud);
+            DuneVectorSettingsInspector.DrawSection(
+                "World Map & Minimap",
+                "M/N controls, default visibility, drone scan radius, black fog, terrain contours, and responsive layout.",
+                _mapHud);
             DuneVectorSettingsInspector.DrawSection(
                 "Lock-On Energy Launcher",
                 "View-centered target acquisition, homing energy shots, feedback, and targeting HUD.",

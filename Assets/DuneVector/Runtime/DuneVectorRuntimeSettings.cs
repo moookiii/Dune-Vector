@@ -4024,6 +4024,68 @@ namespace DuneVector
         [ColorUsage(false)] public Color HealthLowColor = new Color(1f, 0.2f, 0.1f, 1f);
     }
 
+    [System.Serializable]
+    public sealed class MapHudTuning
+    {
+        [Header("Controls")]
+        public bool Enabled = true;
+        public Key WorldMapKey = Key.M;
+        public Key MinimapKey = Key.N;
+        public bool MinimapVisibleByDefault = true;
+
+        [Header("Drone Scan")]
+        [Min(1f)] public float DroneRevealRadius = 240f;
+        [Range(32, 256)] public int ScanTextureResolution = 128;
+        [Min(0.02f)] public float ScanRefreshInterval = 0.2f;
+        [Min(0f)] public float ScanRefreshMovement = 2f;
+        [Min(0.01f)] public float RadiusLineThickness = 5f;
+        [Min(0.01f)] public float ContourSpacing = 4f;
+        [Min(0f)] public float ContourThickness = 0.35f;
+        [Range(0f, 1f)] public float ContourStrength = 0.32f;
+        [Min(0.01f)] public float HeightContrast = 1.15f;
+
+        [Header("Minimap Layout")]
+        [Min(80f)] public float MinimapSize = 270f;
+        [Min(0f)] public float GapAboveSpeedometer = 18f;
+        [Min(1f)] public float MinimapWorldSize = 620f;
+
+        [Header("World Map Layout")]
+        [Min(160f)] public float WorldMapMaximumSize = 780f;
+        [Min(0f)] public float WorldMapScreenPadding = 42f;
+        [Min(1f)] public float WorldMapWorldSize = 3200f;
+        [Range(0f, 1f)] public float OverlayOpacity = 0.96f;
+
+        [Header("Panel")]
+        [Min(0f)] public float ContentPadding = 12f;
+        [Min(1f)] public float BorderThickness = 2f;
+        [Min(12f)] public float TitleHeight = 34f;
+        [Min(8)] public int MinimapTitleFontSize = 11;
+        [Min(8)] public int WorldMapTitleFontSize = 20;
+        [Min(8)] public int DetailFontSize = 12;
+        [Min(8)] public int DroneMarkerFontSize = 24;
+        [Min(12f)] public float DroneMarkerBoxSize = 42f;
+        [Range(0.25f, 0.75f)] public float DetailSplitFraction = 0.58f;
+        public string MinimapTitle = "LOCAL SCAN";
+        public string WorldMapTitle = "WORLD MAP";
+        public string NorthLabel = "↑ N";
+        public string DroneGlyph = "▲";
+        public string WorldMapHint = "M  CLOSE    •    N  MINIMAP";
+        public string CoordinateFormat = "X {0:0}   Z {1:0}   •   SCAN RADIUS {2:0} m";
+
+        [Header("Palette")]
+        [ColorUsage(false)] public Color UnexploredColor = Color.black;
+        [ColorUsage(false)] public Color OverlayColor = new Color(0f, 0f, 0f, 1f);
+        [ColorUsage(false)] public Color PanelColor = new Color(0.005f, 0.012f, 0.016f, 1f);
+        [ColorUsage(false)] public Color BorderColor = new Color(0.08f, 0.7f, 0.82f, 0.9f);
+        [ColorUsage(false)] public Color TerrainLowColor = new Color(0.18f, 0.11f, 0.045f, 1f);
+        [ColorUsage(false)] public Color TerrainHighColor = new Color(0.92f, 0.62f, 0.2f, 1f);
+        [ColorUsage(false)] public Color ContourColor = new Color(1f, 0.82f, 0.42f, 1f);
+        [ColorUsage(false)] public Color RadiusLineColor = new Color(0f, 0.9f, 1f, 1f);
+        [ColorUsage(false)] public Color DroneMarkerColor = new Color(0.92f, 1f, 1f, 1f);
+        [ColorUsage(false)] public Color TitleColor = new Color(0.72f, 0.94f, 1f, 1f);
+        [ColorUsage(false)] public Color DetailColor = new Color(0.45f, 0.72f, 0.78f, 1f);
+    }
+
     [CreateAssetMenu(fileName = "Dune Vector Runtime Settings", menuName = "Dune Vector/Runtime Settings", order = 0)]
     public sealed class DuneVectorRuntimeSettings : ScriptableObject
     {
@@ -4042,6 +4104,9 @@ namespace DuneVector
 
         [Tooltip("Shared responsive layout, typography, and palette for the speed, flight reserve, and health panels.")]
         public BottomHudTuning BottomHud = new BottomHudTuning();
+
+        [Tooltip("Drone-centered world map, minimap, terrain scan radius, controls, layout, and presentation.")]
+        public MapHudTuning MapHud = new MapHudTuning();
 
         [Tooltip("Shared player, rival, and neutral drone model, materials, rotor animation, and trails.")]
         public DroneVisualTuning DroneVisuals = new DroneVisualTuning();
@@ -4169,6 +4234,7 @@ namespace DuneVector
             CompassHud ??= new CompassHudTuning();
             LaunchHud ??= new LaunchHudTuning();
             BottomHud ??= new BottomHudTuning();
+            MapHud ??= new MapHudTuning();
             DroneVisuals ??= new DroneVisualTuning();
             FlightSwooshes ??= new FlightSwooshTuning();
             BoostRingTrail ??= new BoostRingTrailTuning();
