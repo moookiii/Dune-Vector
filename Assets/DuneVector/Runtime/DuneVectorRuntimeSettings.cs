@@ -4036,8 +4036,10 @@ namespace DuneVector
         [Header("Drone Scan")]
         [Min(1f)] public float DroneRevealRadius = 240f;
         [Range(32, 256)] public int ScanTextureResolution = 128;
-        [Min(0.02f)] public float ScanRefreshInterval = 0.2f;
-        [Min(0f)] public float ScanRefreshMovement = 2f;
+        [Tooltip("Seconds between procedural terrain resamples. Cached map pixels still scroll every rendered frame.")]
+        [Min(0.02f)] public float ScanRefreshInterval = 0.12f;
+        [Tooltip("Distance traveled before the cached terrain scan is regenerated. Cached pixels translate smoothly below this threshold.")]
+        [Min(0f)] public float ScanRefreshMovement = 3f;
         [Min(0.01f)] public float RadiusLineThickness = 5f;
         [Min(0.01f)] public float ContourSpacing = 4f;
         [Min(0f)] public float ContourThickness = 0.35f;

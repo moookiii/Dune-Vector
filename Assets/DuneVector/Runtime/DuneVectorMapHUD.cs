@@ -173,9 +173,13 @@ namespace DuneVector
 
             float scanSize = mapRect.width *
                 ((_settings.DroneRevealRadius * 2f) / Mathf.Max(1f, displayedWorldSize));
+            LogicalPosition currentCenter = _world.LogicalPlayerPosition;
+            float pixelsPerWorldUnit = mapRect.width / Mathf.Max(1f, displayedWorldSize);
+            float scanOffsetX = (float)(_lastScanX - currentCenter.X) * pixelsPerWorldUnit;
+            float scanOffsetY = (float)(currentCenter.Z - _lastScanZ) * pixelsPerWorldUnit;
             Rect localScanRect = new Rect(
-                (mapRect.width - scanSize) * 0.5f,
-                (mapRect.height - scanSize) * 0.5f,
+                ((mapRect.width - scanSize) * 0.5f) + scanOffsetX,
+                ((mapRect.height - scanSize) * 0.5f) + scanOffsetY,
                 scanSize,
                 scanSize);
 
@@ -202,11 +206,10 @@ namespace DuneVector
 
             if (showDetails)
             {
-                LogicalPosition logical = _world.LogicalPlayerPosition;
                 string coordinates = string.Format(
                     _settings.CoordinateFormat,
-                    logical.X,
-                    logical.Z,
+                    currentCenter.X,
+                    currentCenter.Z,
                     _settings.DroneRevealRadius);
                 float detailWidth = mapRect.width - (padding * 2f);
                 float splitX = detailWidth * _settings.DetailSplitFraction;
