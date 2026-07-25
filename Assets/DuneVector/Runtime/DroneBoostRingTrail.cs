@@ -54,6 +54,10 @@ namespace DuneVector
                     tuning.LineThicknessMultiplier,
                     portalTuning)
                 : null;
+            if (_drone != null && _drone.World != null)
+            {
+                _drone.World.WorldShifted += HandleWorldShift;
+            }
 
             enabled = tuning != null &&
                 tuning.Enabled &&
@@ -250,10 +254,33 @@ namespace DuneVector
             return Quaternion.LookRotation(direction, up);
         }
 
+        private void HandleWorldShift(Vector3 worldShift)
+        {
+            for (int i = 0; i < _activeCount; i++)
+            {
+                TrailRing ring = _rings[i];
+                ring.Position += worldShift;
+                _rings[i] = ring;
+            }
+
+            if (_emitting)
+            {
+                _lastEmissionPosition += worldShift;
+            }
+        }
+
         private void OnDisable()
         {
             _activeCount = 0;
             _emitting = false;
+        }
+
+        private void OnDestroy()
+        {
+            if (_drone != null && _drone.World != null)
+            {
+                _drone.World.WorldShifted -= HandleWorldShift;
+            }
         }
     }
 }
