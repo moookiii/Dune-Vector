@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -16,6 +19,7 @@ namespace DuneVector
         private Texture2D _scanTexture;
         private Color[] _scanPixels;
         private float[] _heightSamples;
+        private readonly HashSet<long> _exploredCells = new HashSet<long>();
         private GUIStyle _minimapTitleStyle;
         private GUIStyle _worldMapTitleStyle;
         private GUIStyle _detailStyle;
@@ -25,7 +29,16 @@ namespace DuneVector
         private bool _minimapVisible;
         private double _lastScanX = double.PositiveInfinity;
         private double _lastScanZ = double.PositiveInfinity;
+        private double _lastRevealX = double.PositiveInfinity;
+        private double _lastRevealZ = double.PositiveInfinity;
+        private float _textureWorldSize;
         private float _nextScanTime;
+        private float _nextExplorationSaveTime;
+        private bool _explorationDirty;
+        private bool _forceScanRefresh;
+
+        private const int ExplorationFileMagic = 0x44564D50;
+        private const int ExplorationFileVersion = 2;
 
         public void Initialize(
             DroneCharacterController drone,
@@ -38,6 +51,8 @@ namespace DuneVector
             _bottomHud = bottomHud;
             _settings = settings;
             _minimapVisible = settings != null && settings.MinimapVisibleByDefault;
+            LoadExploration();
+            RevealAroundPlayer(true);
             RefreshScan(true);
         }
 
@@ -61,18 +76,24 @@ namespace DuneVector
                     keyboard[_settings.WorldMapKey].wasPressedThisFrame)
                 {
                     _worldMapVisible = !_worldMapVisible;
+                    _forceScanRefresh = true;
                 }
 
                 if (_settings.MinimapKey != Key.None &&
                     keyboard[_settings.MinimapKey].wasPressedThisFrame)
                 {
                     _minimapVisible = !_minimapVisible;
+                    _forceScanRefresh = true;
                 }
             }
 
+            RevealAroundPlayer(false);
+            SaveExplorationIfDue();
+
             if (_worldMapVisible || _minimapVisible)
             {
-                RefreshScan(false);
+                RefreshScan(_forceScanRefresh);
+                _forceScanRefresh = false;
             }
         }
 
@@ -172,7 +193,7 @@ namespace DuneVector
                 Mathf.Max(1f, _settings.BorderThickness * scale));
 
             float scanSize = mapRect.width *
-                ((_settings.DroneRevealRadius * 2f) / Mathf.Max(1f, displayedWorldSize));
+                (_textureWorldSize / Mathf.Max(1f, displayedWorldSize));
             LogicalPosition currentCenter = _world.LogicalPlayerPosition;
             float pixelsPerWorldUnit = mapRect.width / Mathf.Max(1f, displayedWorldSize);
             float scanOffsetX = (float)(_lastScanX - currentCenter.X) * pixelsPerWorldUnit;
@@ -261,6 +282,10 @@ namespace DuneVector
             }
 
             LogicalPosition center = _world.LogicalPlayerPosition;
+            float desiredWorldSize = _worldMapVisible
+                ? Mathf.Max(1f, _settings.WorldMapWorldSize)
+                : Mathf.Max(1f, _settings.MinimapWorldSize);
+            force |= !Mathf.Approximately(_textureWorldSize, desiredWorldSize);
             double dx = center.X - _lastScanX;
             double dz = center.Z - _lastScanZ;
             double movementThreshold = _settings.ScanRefreshMovement;
@@ -273,9 +298,7 @@ namespace DuneVector
             EnsureTexture();
             int resolution = _scanTexture.width;
             float radius = Mathf.Max(1f, _settings.DroneRevealRadius);
-            float diameter = radius * 2f;
-            float minimumHeight = float.PositiveInfinity;
-            float maximumHeight = float.NegativeInfinity;
+            float diameter = desiredWorldSize;
 
             for (int y = 0; y < resolution; y++)
             {
@@ -286,22 +309,27 @@ namespace DuneVector
                     int index = (y * resolution) + x;
                     float normalizedX = (x + 0.5f) / resolution;
                     float offsetX = (normalizedX - 0.5f) * diameter;
-                    float distance = Mathf.Sqrt((offsetX * offsetX) + (offsetZ * offsetZ));
-                    if (distance > radius)
+                    double logicalX = center.X + offsetX;
+                    double logicalZ = center.Z + offsetZ;
+                    if (!IsExplored(logicalX, logicalZ))
                     {
                         _heightSamples[index] = float.NaN;
                         continue;
                     }
 
                     float height = (float)_world.HeightField.SampleHeight(
-                        center.X + offsetX,
-                        center.Z + offsetZ);
+                        logicalX,
+                        logicalZ);
                     _heightSamples[index] = height;
-                    minimumHeight = Mathf.Min(minimumHeight, height);
-                    maximumHeight = Mathf.Max(maximumHeight, height);
                 }
             }
 
+            float minimumHeight = Mathf.Min(
+                _settings.TerrainHeightMinimum,
+                _settings.TerrainHeightMaximum);
+            float maximumHeight = Mathf.Max(
+                _settings.TerrainHeightMinimum,
+                _settings.TerrainHeightMaximum);
             float heightRange = Mathf.Max(Mathf.Epsilon, maximumHeight - minimumHeight);
             float contourSpacing = Mathf.Max(0.01f, _settings.ContourSpacing);
             for (int y = 0; y < resolution; y++)
@@ -321,7 +349,7 @@ namespace DuneVector
                     float normalizedX = (x + 0.5f) / resolution;
                     float offsetX = (normalizedX - 0.5f) * diameter;
                     float distance = Mathf.Sqrt((offsetX * offsetX) + (offsetZ * offsetZ));
-                    if (distance >= radius - _settings.RadiusLineThickness)
+                    if (Mathf.Abs(distance - radius) <= _settings.RadiusLineThickness)
                     {
                         _scanPixels[index] = _settings.RadiusLineColor;
                         continue;
@@ -354,7 +382,164 @@ namespace DuneVector
             _scanTexture.Apply(false, false);
             _lastScanX = center.X;
             _lastScanZ = center.Z;
+            _textureWorldSize = desiredWorldSize;
             _nextScanTime = Time.unscaledTime + _settings.ScanRefreshInterval;
+        }
+
+        private void RevealAroundPlayer(bool force)
+        {
+            if (_settings == null || !_settings.Enabled || _world == null)
+            {
+                return;
+            }
+
+            LogicalPosition center = _world.LogicalPlayerPosition;
+            double dx = center.X - _lastRevealX;
+            double dz = center.Z - _lastRevealZ;
+            double threshold = Mathf.Max(0.1f, _settings.ExplorationUpdateMovement);
+            if (!force && ((dx * dx) + (dz * dz)) < threshold * threshold)
+            {
+                return;
+            }
+
+            double cellSize = Mathf.Max(1f, _settings.ExplorationCellSize);
+            double radius = Mathf.Max(1f, _settings.DroneRevealRadius);
+            int minimumX = Mathf.FloorToInt((float)((center.X - radius) / cellSize));
+            int maximumX = Mathf.FloorToInt((float)((center.X + radius) / cellSize));
+            int minimumZ = Mathf.FloorToInt((float)((center.Z - radius) / cellSize));
+            int maximumZ = Mathf.FloorToInt((float)((center.Z + radius) / cellSize));
+            double radiusSquared = radius * radius;
+            bool discoveredAny = false;
+
+            for (int cellZ = minimumZ; cellZ <= maximumZ; cellZ++)
+            {
+                double sampleZ = (cellZ + 0.5d) * cellSize;
+                double cellDz = sampleZ - center.Z;
+                for (int cellX = minimumX; cellX <= maximumX; cellX++)
+                {
+                    double sampleX = (cellX + 0.5d) * cellSize;
+                    double cellDx = sampleX - center.X;
+                    if ((cellDx * cellDx) + (cellDz * cellDz) > radiusSquared)
+                    {
+                        continue;
+                    }
+
+                    discoveredAny |= _exploredCells.Add(PackCell(cellX, cellZ));
+                }
+            }
+
+            _lastRevealX = center.X;
+            _lastRevealZ = center.Z;
+            if (discoveredAny)
+            {
+                _explorationDirty = true;
+            }
+        }
+
+        private bool IsExplored(double logicalX, double logicalZ)
+        {
+            double cellSize = Mathf.Max(1f, _settings.ExplorationCellSize);
+            int cellX = Mathf.FloorToInt((float)(logicalX / cellSize));
+            int cellZ = Mathf.FloorToInt((float)(logicalZ / cellSize));
+            return _exploredCells.Contains(PackCell(cellX, cellZ));
+        }
+
+        private static long PackCell(int x, int z)
+        {
+            return ((long)x << 32) | (uint)z;
+        }
+
+        private string GetExplorationPath()
+        {
+            string fileName = string.IsNullOrWhiteSpace(_settings.ExplorationFileName)
+                ? "DuneVectorMapExploration.dat"
+                : Path.GetFileName(_settings.ExplorationFileName);
+            if (!fileName.EndsWith(".dat", StringComparison.OrdinalIgnoreCase))
+            {
+                fileName += ".dat";
+            }
+            return Path.Combine(Application.persistentDataPath, fileName);
+        }
+
+        private void LoadExploration()
+        {
+            if (_settings == null || !_settings.Enabled)
+            {
+                return;
+            }
+
+            string path = GetExplorationPath();
+            if (!File.Exists(path))
+            {
+                return;
+            }
+
+            try
+            {
+                using FileStream stream = File.OpenRead(path);
+                using BinaryReader reader = new BinaryReader(stream);
+                if (reader.ReadInt32() != ExplorationFileMagic ||
+                    reader.ReadInt32() != ExplorationFileVersion)
+                {
+                    return;
+                }
+
+                float savedCellSize = reader.ReadSingle();
+                if (!Mathf.Approximately(savedCellSize, _settings.ExplorationCellSize))
+                {
+                    return;
+                }
+                int count = reader.ReadInt32();
+                for (int index = 0; index < count && stream.Position < stream.Length; index++)
+                {
+                    _exploredCells.Add(reader.ReadInt64());
+                }
+            }
+            catch (IOException exception)
+            {
+                Debug.LogWarning($"Unable to load map exploration: {exception.Message}");
+            }
+        }
+
+        private void SaveExplorationIfDue()
+        {
+            if (!_explorationDirty || Time.unscaledTime < _nextExplorationSaveTime)
+            {
+                return;
+            }
+            SaveExploration();
+        }
+
+        private void SaveExploration()
+        {
+            if (!_explorationDirty || _settings == null)
+            {
+                return;
+            }
+
+            try
+            {
+                string path = GetExplorationPath();
+                using FileStream stream = File.Create(path);
+                using BinaryWriter writer = new BinaryWriter(stream);
+                writer.Write(ExplorationFileMagic);
+                writer.Write(ExplorationFileVersion);
+                writer.Write(_settings.ExplorationCellSize);
+                writer.Write(_exploredCells.Count);
+                foreach (long cell in _exploredCells)
+                {
+                    writer.Write(cell);
+                }
+                _explorationDirty = false;
+                _nextExplorationSaveTime =
+                    Time.unscaledTime + Mathf.Max(1f, _settings.ExplorationSaveInterval);
+            }
+            catch (IOException exception)
+            {
+                Debug.LogWarning($"Unable to save map exploration: {exception.Message}");
+                _nextExplorationSaveTime =
+                    Time.unscaledTime + Mathf.Max(1f, _settings.ExplorationSaveInterval);
+            }
         }
 
         private void EnsureTexture()
@@ -456,10 +641,24 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            SaveExploration();
             if (_scanTexture != null)
             {
                 Destroy(_scanTexture);
             }
+        }
+
+        private void OnApplicationPause(bool paused)
+        {
+            if (paused)
+            {
+                SaveExploration();
+            }
+        }
+
+        private void OnApplicationQuit()
+        {
+            SaveExploration();
         }
     }
 }

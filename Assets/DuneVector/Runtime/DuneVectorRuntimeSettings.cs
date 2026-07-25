@@ -4037,6 +4037,14 @@ namespace DuneVector
 
         [Header("Drone Scan")]
         [Min(1f)] public float DroneRevealRadius = 240f;
+        [Tooltip("World-space width of one persistent explored-map cell. Smaller cells create a finer tunnel edge but consume more memory.")]
+        [Min(1f)] public float ExplorationCellSize = 12f;
+        [Tooltip("Distance traveled before the drone paints another reveal-radius stamp into persistent exploration.")]
+        [Min(0.1f)] public float ExplorationUpdateMovement = 3f;
+        [Tooltip("Persistent exploration filename. Map memory is always stored as a .dat file.")]
+        public string ExplorationFileName = "DuneVectorMapExploration.dat";
+        [Tooltip("Seconds between background saves when new map cells have been discovered.")]
+        [Min(1f)] public float ExplorationSaveInterval = 10f;
         [Range(32, 256)] public int ScanTextureResolution = 128;
         [Tooltip("Seconds between procedural terrain resamples. Cached map pixels still scroll every rendered frame.")]
         [Min(0.02f)] public float ScanRefreshInterval = 0.12f;
@@ -4047,6 +4055,10 @@ namespace DuneVector
         [Min(0f)] public float ContourThickness = 0.35f;
         [Range(0f, 1f)] public float ContourStrength = 0.32f;
         [Min(0.01f)] public float HeightContrast = 1.15f;
+        [Tooltip("Terrain height mapped to the low map color.")]
+        public float TerrainHeightMinimum = -20f;
+        [Tooltip("Terrain height mapped to the high map color.")]
+        public float TerrainHeightMaximum = 45f;
 
         [Header("Minimap Layout")]
         [Min(80f)] public float MinimapSize = 270f;
