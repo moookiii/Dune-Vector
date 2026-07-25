@@ -402,7 +402,13 @@ namespace DuneVector
                     mapRect.height * (0.5f - ((float)deltaZ / displayedWorldSize)));
                 if (icon.Kind == MapIconKind.Geoglyph)
                 {
-                    DrawGeoglyphArtwork(icon.Artwork, position, mapRect, displayedWorldSize);
+                    DrawGeoglyphArtwork(
+                        icon.Artwork,
+                        position,
+                        mapRect,
+                        displayedWorldSize,
+                        !worldMap,
+                        scale);
                     continue;
                 }
 
@@ -484,7 +490,9 @@ namespace DuneVector
             GeoglyphArtworkPlacement artwork,
             Vector2 position,
             Rect mapRect,
-            float displayedWorldSize)
+            float displayedWorldSize,
+            bool emphasizeForMinimap,
+            float scale)
         {
             if (artwork == null ||
                 !_geoglyphMapTextures.TryGetValue(artwork, out Texture2D mapTexture) ||
@@ -504,6 +512,46 @@ namespace DuneVector
                 width,
                 height);
 
+            if (emphasizeForMinimap)
+            {
+                float strokeWidth = Mathf.Max(
+                    0f,
+                    _settings.GeoglyphMinimapStrokeWidth * scale);
+                DrawOffsetGeoglyphTexture(artworkRect, mapTexture, -strokeWidth, 0f);
+                DrawOffsetGeoglyphTexture(artworkRect, mapTexture, strokeWidth, 0f);
+                DrawOffsetGeoglyphTexture(artworkRect, mapTexture, 0f, -strokeWidth);
+                DrawOffsetGeoglyphTexture(artworkRect, mapTexture, 0f, strokeWidth);
+                DrawOffsetGeoglyphTexture(
+                    artworkRect,
+                    mapTexture,
+                    -strokeWidth,
+                    -strokeWidth);
+                DrawOffsetGeoglyphTexture(
+                    artworkRect,
+                    mapTexture,
+                    strokeWidth,
+                    -strokeWidth);
+                DrawOffsetGeoglyphTexture(
+                    artworkRect,
+                    mapTexture,
+                    -strokeWidth,
+                    strokeWidth);
+                DrawOffsetGeoglyphTexture(
+                    artworkRect,
+                    mapTexture,
+                    strokeWidth,
+                    strokeWidth);
+            }
+            GUI.DrawTexture(artworkRect, mapTexture, ScaleMode.StretchToFill, true);
+        }
+
+        private static void DrawOffsetGeoglyphTexture(
+            Rect artworkRect,
+            Texture2D mapTexture,
+            float offsetX,
+            float offsetY)
+        {
+            artworkRect.position += new Vector2(offsetX, offsetY);
             GUI.DrawTexture(artworkRect, mapTexture, ScaleMode.StretchToFill, true);
         }
 

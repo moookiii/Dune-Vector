@@ -4194,6 +4194,8 @@ namespace DuneVector
         [ColorUsage(false)] public Color LandmarkIconColor = new Color(1f, 0.67f, 0.18f, 1f);
         [ColorUsage(false)] public Color GeoglyphMapColor = Color.white;
         [Range(0f, 1f)] public float GeoglyphMapOpacity = 0.9f;
+        [Tooltip("Screen-space expansion of geoglyph linework on the minimap so thin source-mask lines survive downsampling.")]
+        [Range(0f, 4f)] public float GeoglyphMinimapStrokeWidth = 1.5f;
         [Tooltip("Maximum width or height of each cached transparent geoglyph map texture.")]
         [Range(64, 512)] public int GeoglyphMapTextureResolution = 256;
         [Tooltip("Number of geoglyph map textures converted from source masks per frame.")]
