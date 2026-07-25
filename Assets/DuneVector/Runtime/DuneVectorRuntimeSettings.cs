@@ -1881,6 +1881,8 @@ namespace DuneVector
         public bool UsePrefabModel = true;
         [Tooltip("Body prefab used when Use Prefab Model is enabled. If this is missing, the original procedural pyramid is used automatically.")]
         public GameObject StormPyramidPrefab;
+        [Tooltip("Resources-relative path used if the direct prefab reference is missing.")]
+        public string PrefabResourcePath = "annuitcopetisPrefab";
         [Tooltip("Local position applied to the instantiated body prefab.")]
         public Vector3 PrefabLocalPosition = Vector3.zero;
         [Tooltip("Local Euler rotation applied to the instantiated body prefab.")]
