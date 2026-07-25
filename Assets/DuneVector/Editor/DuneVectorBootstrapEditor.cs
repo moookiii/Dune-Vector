@@ -108,6 +108,7 @@ namespace DuneVector.Editor
 
         private int _selectedTab;
         private SerializedProperty _player;
+        private SerializedProperty _bottomHud;
         private SerializedProperty _droneVisuals;
         private SerializedProperty _flightSwooshes;
         private SerializedProperty _boostRingTrail;
@@ -146,6 +147,7 @@ namespace DuneVector.Editor
         private void OnEnable()
         {
             _player = serializedObject.FindProperty("PlayerTuning");
+            _bottomHud = serializedObject.FindProperty("BottomHud");
             _droneVisuals = serializedObject.FindProperty("DroneVisuals");
             _flightSwooshes = serializedObject.FindProperty("FlightSwooshes");
             _boostRingTrail = serializedObject.FindProperty("BoostRingTrail");
@@ -239,6 +241,10 @@ namespace DuneVector.Editor
                 "Player Health",
                 "Hull capacity and the grace period between damage events.",
                 _health);
+            DuneVectorSettingsInspector.DrawSection(
+                "Bottom HUD",
+                "Responsive layout, typography, labels, and palette shared by velocity, flight reserve, and hull integrity.",
+                _bottomHud);
             DuneVectorSettingsInspector.DrawSection(
                 "Lock-On Energy Launcher",
                 "View-centered target acquisition, homing energy shots, feedback, and targeting HUD.",

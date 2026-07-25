@@ -124,12 +124,17 @@ namespace DuneVector
     {
         public DroneHealth Health;
 
-        private GUIStyle _labelStyle;
-        private GUIStyle _valueStyle;
+        private BottomHudTuning _settings;
         private GUIStyle _pickupStyle;
         private DroneHealth _observedHealth;
         private float _healthRestored;
         private float _feedbackUntil;
+
+        public void Initialize(DroneHealth health, BottomHudTuning settings)
+        {
+            Health = health;
+            _settings = settings;
+        }
 
         private void OnDestroy()
         {
@@ -152,40 +157,17 @@ namespace DuneVector
 
             ObserveHealth();
 
-            _labelStyle ??= new GUIStyle(GUI.skin.label)
+            if (_settings != null)
             {
-                alignment = TextAnchor.MiddleLeft,
-                fontSize = 14,
-                fontStyle = FontStyle.Bold,
-                wordWrap = false,
-                richText = false,
-                clipping = TextClipping.Clip,
-                padding = new RectOffset(0, 0, 0, 0),
-                normal = { textColor = Color.white },
-            };
-            _valueStyle ??= new GUIStyle(_labelStyle)
-            {
-                alignment = TextAnchor.MiddleRight,
-                fontStyle = FontStyle.Normal,
-            };
-
-            Rect panel = new Rect(Screen.width - 244f, Screen.height - 82f, 220f, 50f);
-            GUI.Box(panel, GUIContent.none);
-            Rect textRow = new Rect(panel.x + 12f, panel.y + 4f, panel.width - 24f, 21f);
-            GUI.Label(new Rect(textRow.x, textRow.y, 72f, textRow.height), "HEALTH", _labelStyle);
-            GUI.Label(
-                new Rect(textRow.x + 76f, textRow.y, textRow.width - 76f, textRow.height),
-                $"{Mathf.CeilToInt(Health.CurrentHealth)} / {Mathf.CeilToInt(Health.MaximumHealth)}",
-                _valueStyle);
-
-            Rect bar = new Rect(panel.x + 12f, panel.y + 29f, panel.width - 24f, 9f);
-            GUI.Box(bar, GUIContent.none);
-            Color oldColor = GUI.color;
-            GUI.color = Color.Lerp(new Color(0.9f, 0.08f, 0.03f), new Color(0.05f, 0.9f, 0.72f), Health.NormalizedHealth);
-            GUI.DrawTexture(
-                new Rect(bar.x + 1f, bar.y + 1f, (bar.width - 2f) * Health.NormalizedHealth, bar.height - 2f),
-                Texture2D.whiteTexture);
-            GUI.color = oldColor;
+                float health01 = Health.NormalizedHealth;
+                DuneVectorBottomHud.DrawMeterPanel(
+                    DuneVectorBottomHud.GetPanelRect(_settings, DuneVectorBottomHudPanel.Health),
+                    _settings.HealthLabel,
+                    $"{Mathf.CeilToInt(Health.CurrentHealth)} / {Mathf.CeilToInt(Health.MaximumHealth)}",
+                    health01,
+                    Color.Lerp(_settings.HealthLowColor, _settings.HealthFullColor, health01),
+                    _settings);
+            }
 
             RingTuning ringSettings = DuneVectorBootstrap.Instance != null
                 ? DuneVectorBootstrap.Instance.Rings

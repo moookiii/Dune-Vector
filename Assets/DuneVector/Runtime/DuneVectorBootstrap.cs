@@ -720,10 +720,10 @@ namespace DuneVector
             DebugHUD.CameraController = DroneCamera;
             DebugHUD.World = World;
             DebugHUD.Health = DroneHealth;
-            DebugHUD.Initialize(RuntimeSettings.LaunchHud, RuntimeSettings.CompassHud);
+            DebugHUD.Initialize(RuntimeSettings.LaunchHud, RuntimeSettings.CompassHud, RuntimeSettings.BottomHud);
 
             DroneHealthHUD healthHUD = gameObject.AddComponent<DroneHealthHUD>();
-            healthHUD.Health = DroneHealth;
+            healthHUD.Initialize(DroneHealth, RuntimeSettings.BottomHud);
             DroneStaminaHUD staminaHUD = gameObject.AddComponent<DroneStaminaHUD>();
             staminaHUD.Initialize(Drone, DroneCamera.Camera, Player.Stamina, PlayerTuning.StaminaBoost);
             DuneVectorCompassHUD compassHUD = gameObject.AddComponent<DuneVectorCompassHUD>();
@@ -937,15 +937,20 @@ namespace DuneVector
 
         private LaunchHudTuning _launchHudSettings;
         private CompassHudTuning _compassHudSettings;
+        private BottomHudTuning _bottomHudSettings;
         private GUIStyle _titleStyle;
         private GUIStyle _bodyStyle;
         private GUIStyle _hintStyle;
         private float _startTime;
 
-        public void Initialize(LaunchHudTuning launchHudSettings, CompassHudTuning compassHudSettings)
+        public void Initialize(
+            LaunchHudTuning launchHudSettings,
+            CompassHudTuning compassHudSettings,
+            BottomHudTuning bottomHudSettings)
         {
             _launchHudSettings = launchHudSettings;
             _compassHudSettings = compassHudSettings;
+            _bottomHudSettings = bottomHudSettings;
         }
 
         private void Awake()
@@ -1028,31 +1033,34 @@ namespace DuneVector
                 GUI.color = previous;
             }
 
-            float speed01 = Mathf.Clamp01(Drone.Speed / Mathf.Max(1f, Drone.CurrentSpeedometerMaximum));
-            Rect speedPanel = new Rect(24f, Screen.height - 82f, 310f, 48f);
-            GUI.Box(speedPanel, GUIContent.none);
-            GUI.Label(new Rect(speedPanel.x + 12f, speedPanel.y + 5f, 150f, 20f), $"{Drone.CurrentMode.ToString().ToUpperInvariant()}  {Drone.Speed:0.0} m/s", _bodyStyle);
-            Rect bar = new Rect(speedPanel.x + 12f, speedPanel.y + 29f, speedPanel.width - 24f, 8f);
-            GUI.Box(bar, GUIContent.none);
-            Color oldColor = GUI.color;
-            GUI.color = Drone.CurrentMode == DroneTraversalMode.Flight ? new Color(0f, 0.8f, 1f) : new Color(1f, 0.48f, 0.05f);
-            GUI.DrawTexture(new Rect(bar.x + 1f, bar.y + 1f, (bar.width - 2f) * speed01, bar.height - 2f), Texture2D.whiteTexture);
-            GUI.color = oldColor;
+            if (_bottomHudSettings != null)
+            {
+                float speed01 = Mathf.Clamp01(Drone.Speed / Mathf.Max(1f, Drone.CurrentSpeedometerMaximum));
+                bool isFlying = Drone.CurrentMode == DroneTraversalMode.Flight;
+                DuneVectorBottomHud.DrawMeterPanel(
+                    DuneVectorBottomHud.GetPanelRect(_bottomHudSettings, DuneVectorBottomHudPanel.Speed),
+                    isFlying
+                        ? _bottomHudSettings.FlightSpeedLabel
+                        : _bottomHudSettings.GroundSpeedLabel,
+                    $"{Drone.Speed:0.0} {_bottomHudSettings.SpeedUnit}",
+                    speed01,
+                    isFlying
+                        ? _bottomHudSettings.FlightSpeedColor
+                        : _bottomHudSettings.GroundSpeedColor,
+                    _bottomHudSettings);
 
-            Rect flightPanel = new Rect((Screen.width * 0.5f) - 180f, Screen.height - 86f, 360f, 52f);
-            GUI.Box(flightPanel, GUIContent.none);
-            GUI.Label(
-                new Rect(flightPanel.x + 12f, flightPanel.y + 4f, flightPanel.width - 24f, 22f),
-                $"FLIGHT  {Drone.FlightTimeRemaining:0.0}s",
-                _hintStyle);
-            Rect flightBar = new Rect(flightPanel.x + 12f, flightPanel.y + 31f, flightPanel.width - 24f, 10f);
-            GUI.Box(flightBar, GUIContent.none);
-            float flight01 = Drone.FlightTimeNormalized;
-            GUI.color = Color.Lerp(new Color(1f, 0.2f, 0.08f), new Color(0f, 0.85f, 1f), flight01);
-            GUI.DrawTexture(
-                new Rect(flightBar.x + 1f, flightBar.y + 1f, (flightBar.width - 2f) * flight01, flightBar.height - 2f),
-                Texture2D.whiteTexture);
-            GUI.color = oldColor;
+                float flight01 = Drone.FlightTimeNormalized;
+                DuneVectorBottomHud.DrawMeterPanel(
+                    DuneVectorBottomHud.GetPanelRect(_bottomHudSettings, DuneVectorBottomHudPanel.FlightReserve),
+                    _bottomHudSettings.FlightTimeLabel,
+                    $"{Drone.FlightTimeRemaining:0.0} {_bottomHudSettings.FlightTimeUnit}",
+                    flight01,
+                    Color.Lerp(
+                        _bottomHudSettings.FlightReserveLowColor,
+                        _bottomHudSettings.FlightReserveFullColor,
+                        flight01),
+                    _bottomHudSettings);
+            }
 
             if (!ShowDebugInformation)
             {

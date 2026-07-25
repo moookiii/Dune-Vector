@@ -3947,6 +3947,68 @@ namespace DuneVector
         [Min(0f)] public float GapBelowCompass = 18f;
     }
 
+    [System.Serializable]
+    public sealed class BottomHudTuning
+    {
+        [Header("Responsive Layout")]
+        [Min(320f)] public float ReferenceWidth = 1600f;
+        [Min(240f)] public float ReferenceHeight = 900f;
+        [Range(0.25f, 2f)] public float MinimumScale = 0.58f;
+        [Range(0.25f, 2f)] public float MaximumScale = 1.15f;
+        [Min(0f)] public float SideMargin = 30f;
+        [Min(0f)] public float BottomMargin = 32f;
+        [Min(0f)] public float MinimumPanelGap = 18f;
+        [Min(48f)] public float PanelHeight = 72f;
+        [Min(140f)] public float SpeedPanelWidth = 360f;
+        [Min(140f)] public float FlightPanelWidth = 400f;
+        [Min(140f)] public float HealthPanelWidth = 300f;
+        public Vector2 ShadowOffset = new Vector2(5f, 6f);
+
+        [Header("Panel Structure")]
+        [Min(0f)] public float ContentPadding = 14f;
+        [Min(1f)] public float BorderThickness = 1f;
+        [Min(1f)] public float AccentWidth = 4f;
+        [Min(1f)] public float TopRuleHeight = 2f;
+        [Range(0f, 1f)] public float TopRuleOpacity = 0.55f;
+        [Min(2f)] public float MeterHeight = 10f;
+        [Min(0f)] public float MeterBottomPadding = 12f;
+        [Min(0f)] public float MeterInset = 2f;
+        [Range(0f, 1f)] public float MeterHighlightFraction = 0.5f;
+        [Range(0, 12)] public int MeterDivisionCount = 5;
+        [Min(0.5f)] public float MeterDivisionWidth = 1f;
+
+        [Header("Typography")]
+        [Min(8)] public int LabelFontSize = 12;
+        [Min(8)] public int ValueFontSize = 17;
+        [Min(10f)] public float TextRowHeight = 28f;
+        [Min(0f)] public float TextTopPadding = 6f;
+        [Range(0.25f, 0.8f)] public float LabelWidthFraction = 0.58f;
+        public string GroundSpeedLabel = "GROUND VELOCITY";
+        public string FlightSpeedLabel = "FLIGHT VELOCITY";
+        public string FlightTimeLabel = "FLIGHT RESERVE";
+        public string HealthLabel = "HULL INTEGRITY";
+        public string SpeedUnit = "m/s";
+        public string FlightTimeUnit = "sec";
+
+        [Header("Shared Palette")]
+        [ColorUsage(false)] public Color ShadowColor = new Color(0f, 0f, 0f, 0.42f);
+        [ColorUsage(false)] public Color PanelColor = new Color(0.012f, 0.032f, 0.05f, 0.92f);
+        [ColorUsage(false)] public Color BorderColor = new Color(0.14f, 0.32f, 0.4f, 0.78f);
+        [ColorUsage(false)] public Color TrackColor = new Color(0.025f, 0.075f, 0.095f, 1f);
+        [ColorUsage(false)] public Color MeterDivisionColor = new Color(0.42f, 0.65f, 0.7f, 0.24f);
+        [ColorUsage(false)] public Color MeterHighlightColor = new Color(1f, 1f, 1f, 0.2f);
+        [ColorUsage(false)] public Color LabelColor = new Color(0.5f, 0.72f, 0.78f, 1f);
+        [ColorUsage(false)] public Color ValueColor = new Color(0.92f, 0.98f, 1f, 1f);
+
+        [Header("Meter Colors")]
+        [ColorUsage(false)] public Color GroundSpeedColor = new Color(1f, 0.63f, 0.16f, 1f);
+        [ColorUsage(false)] public Color FlightSpeedColor = new Color(0.08f, 0.82f, 1f, 1f);
+        [ColorUsage(false)] public Color FlightReserveFullColor = new Color(0.08f, 0.82f, 1f, 1f);
+        [ColorUsage(false)] public Color FlightReserveLowColor = new Color(1f, 0.24f, 0.12f, 1f);
+        [ColorUsage(false)] public Color HealthFullColor = new Color(0.16f, 0.95f, 0.7f, 1f);
+        [ColorUsage(false)] public Color HealthLowColor = new Color(1f, 0.2f, 0.1f, 1f);
+    }
+
     [CreateAssetMenu(fileName = "Dune Vector Runtime Settings", menuName = "Dune Vector/Runtime Settings", order = 0)]
     public sealed class DuneVectorRuntimeSettings : ScriptableObject
     {
@@ -3962,6 +4024,9 @@ namespace DuneVector
 
         [Tooltip("Opening control reminder panel displayed beneath the compass.")]
         public LaunchHudTuning LaunchHud = new LaunchHudTuning();
+
+        [Tooltip("Shared responsive layout, typography, and palette for the speed, flight reserve, and health panels.")]
+        public BottomHudTuning BottomHud = new BottomHudTuning();
 
         [Tooltip("Shared player, rival, and neutral drone model, materials, rotor animation, and trails.")]
         public DroneVisualTuning DroneVisuals = new DroneVisualTuning();
@@ -4086,6 +4151,9 @@ namespace DuneVector
         {
             PlayerTuning ??= new DroneTuning();
             PlayerTuning.EnsureInitialized();
+            CompassHud ??= new CompassHudTuning();
+            LaunchHud ??= new LaunchHudTuning();
+            BottomHud ??= new BottomHudTuning();
             DroneVisuals ??= new DroneVisualTuning();
             FlightSwooshes ??= new FlightSwooshTuning();
             BoostRingTrail ??= new BoostRingTrailTuning();
