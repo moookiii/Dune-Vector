@@ -3992,7 +3992,7 @@ namespace DuneVector
 
         [Header("Shared Palette")]
         [ColorUsage(false)] public Color ShadowColor = new Color(0f, 0f, 0f, 0.42f);
-        [ColorUsage(false)] public Color PanelColor = new Color(0.012f, 0.032f, 0.05f, 0.92f);
+        [ColorUsage(false)] public Color PanelColor = new Color(0.012f, 0.032f, 0.05f, 0.62f);
         [ColorUsage(false)] public Color BorderColor = new Color(0.14f, 0.32f, 0.4f, 0.78f);
         [ColorUsage(false)] public Color TrackColor = new Color(0.025f, 0.075f, 0.095f, 1f);
         [ColorUsage(false)] public Color MeterDivisionColor = new Color(0.42f, 0.65f, 0.7f, 0.24f);
