@@ -656,6 +656,8 @@ namespace DuneVector
         [Tooltip("Minimum angle above the horizon for a Sand Ambusher aimed at a grounded drone.")]
         [Range(0f, 90f)] public float SandAmbusherGroundedMinimumAttackAngle = 65f;
         [Min(0f)] public float SandAmbusherWarningDuration = 1.15f;
+        [Tooltip("FMOD one-shot event played at the terrain rupture when a Sand Ambusher emerges.")]
+        public string SandAmbusherEmergenceEvent = "event:/Explosion_Sand_Ambusher";
         [Min(0.1f)] public float SandAmbusherBuriedDepth = 8f;
         [Min(0.1f)] public float SandAmbusherAttackSpeed = 48f;
         [Min(0f)] public float SandAmbusherAttackOvershoot = 5f;

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using FMODUnity;
 using UnityEngine;
 
 namespace DuneVector
@@ -203,6 +204,13 @@ namespace DuneVector
             ambusher.Root.transform.rotation = Quaternion.FromToRotation(Vector3.up, attackDirection);
             ambusher.Emergence?.Burst();
             ambusher.Visual?.BeginEmergence();
+            if (!string.IsNullOrWhiteSpace(_settings.SandAmbusherEmergenceEvent))
+            {
+                Vector3 emergencePosition = ambusher.Emergence != null
+                    ? ambusher.Emergence.transform.position
+                    : ambusher.Root.transform.position;
+                RuntimeManager.PlayOneShot(_settings.SandAmbusherEmergenceEvent, emergencePosition);
+            }
             ambusher.CombatTarget?.SetTargetable(true);
             ambusher.State = AmbushState.Attacking;
             ambusher.StateTime = 0f;
