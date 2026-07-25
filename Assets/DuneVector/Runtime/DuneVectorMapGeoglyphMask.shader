@@ -20,7 +20,7 @@ Shader "Hidden/DuneVector/Map Geoglyph Mask"
         Cull Off
         ZWrite Off
         ZTest Always
-        Blend SrcAlpha OneMinusSrcAlpha
+        Blend Off
 
         Pass
         {

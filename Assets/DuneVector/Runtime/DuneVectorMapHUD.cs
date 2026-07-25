@@ -80,7 +80,9 @@ namespace DuneVector
         private readonly HashSet<long> _exploredCells = new HashSet<long>();
         private readonly List<MapIconRecord> _mapIcons = new List<MapIconRecord>();
         private readonly List<MapIconRecord> _upperFlightMapIcons = new List<MapIconRecord>();
-        private readonly Dictionary<GeoglyphArtworkPlacement, Texture2D> _geoglyphMapTextures =
+        private readonly Dictionary<GeoglyphArtworkPlacement, Texture2D> _geoglyphWorldMapTextures =
+            new Dictionary<GeoglyphArtworkPlacement, Texture2D>();
+        private readonly Dictionary<GeoglyphArtworkPlacement, Texture2D> _geoglyphMinimapTextures =
             new Dictionary<GeoglyphArtworkPlacement, Texture2D>();
         private readonly Queue<GeoglyphArtworkPlacement> _geoglyphTextureBuildQueue =
             new Queue<GeoglyphArtworkPlacement>();
@@ -406,7 +408,8 @@ namespace DuneVector
                         icon.Artwork,
                         position,
                         mapRect,
-                        displayedWorldSize);
+                        displayedWorldSize,
+                        worldMap);
                     continue;
                 }
 
@@ -488,10 +491,13 @@ namespace DuneVector
             GeoglyphArtworkPlacement artwork,
             Vector2 position,
             Rect mapRect,
-            float displayedWorldSize)
+            float displayedWorldSize,
+            bool worldMap)
         {
+            Dictionary<GeoglyphArtworkPlacement, Texture2D> textureVariants =
+                worldMap ? _geoglyphWorldMapTextures : _geoglyphMinimapTextures;
             if (artwork == null ||
-                !_geoglyphMapTextures.TryGetValue(artwork, out Texture2D mapTexture) ||
+                !textureVariants.TryGetValue(artwork, out Texture2D mapTexture) ||
                 mapTexture == null)
             {
                 return;
@@ -612,7 +618,8 @@ namespace DuneVector
                         {
                             _exploredGeoglyphs.Add(placement);
                         }
-                        if (!_geoglyphMapTextures.ContainsKey(placement) &&
+                        if ((!_geoglyphWorldMapTextures.ContainsKey(placement) ||
+                            !_geoglyphMinimapTextures.ContainsKey(placement)) &&
                             !_queuedGeoglyphTextures.Contains(placement))
                         {
                             pendingTextureBuilds.Add(placement);
@@ -644,7 +651,8 @@ namespace DuneVector
         {
             if (artwork == null ||
                 artwork.Mask == null ||
-                _geoglyphMapTextures.ContainsKey(artwork) ||
+                (_geoglyphWorldMapTextures.ContainsKey(artwork) &&
+                    _geoglyphMinimapTextures.ContainsKey(artwork)) ||
                 !_queuedGeoglyphTextures.Add(artwork))
             {
                 return;
@@ -669,15 +677,29 @@ namespace DuneVector
             {
                 GeoglyphArtworkPlacement artwork = _geoglyphTextureBuildQueue.Dequeue();
                 _queuedGeoglyphTextures.Remove(artwork);
-                Texture2D texture = BuildGeoglyphMapTexture(artwork);
-                if (texture != null)
+                Texture2D worldMapTexture = BuildGeoglyphMapTexture(
+                    artwork,
+                    _settings.GeoglyphMapTextureResolution,
+                    "World Map");
+                Texture2D minimapTexture = BuildGeoglyphMapTexture(
+                    artwork,
+                    _settings.GeoglyphMinimapTextureResolution,
+                    "Minimap");
+                if (worldMapTexture != null)
                 {
-                    _geoglyphMapTextures[artwork] = texture;
+                    _geoglyphWorldMapTextures[artwork] = worldMapTexture;
+                }
+                if (minimapTexture != null)
+                {
+                    _geoglyphMinimapTextures[artwork] = minimapTexture;
                 }
             }
         }
 
-        private Texture2D BuildGeoglyphMapTexture(GeoglyphArtworkPlacement artwork)
+        private Texture2D BuildGeoglyphMapTexture(
+            GeoglyphArtworkPlacement artwork,
+            int requestedResolution,
+            string variantName)
         {
             if (artwork == null || artwork.Mask == null || _geoglyphMapMaterial == null)
             {
@@ -685,7 +707,7 @@ namespace DuneVector
             }
 
             int maximumResolution = Mathf.Clamp(
-                _settings.GeoglyphMapTextureResolution,
+                requestedResolution,
                 64,
                 512);
             GetRotatedGeoglyphSize(artwork, out float rotatedWorldWidth, out float rotatedWorldHeight);
@@ -737,7 +759,7 @@ namespace DuneVector
                 TextureFormat.RGBA32,
                 true)
             {
-                name = $"Map Geoglyph - {artwork.Mask.name}",
+                name = $"Map Geoglyph {variantName} - {artwork.Mask.name}",
                 filterMode = FilterMode.Trilinear,
                 wrapMode = TextureWrapMode.Clamp,
                 anisoLevel = 0,
@@ -1224,14 +1246,22 @@ namespace DuneVector
             {
                 Destroy(_geoglyphMapMaterial);
             }
-            foreach (Texture2D texture in _geoglyphMapTextures.Values)
+            foreach (Texture2D texture in _geoglyphWorldMapTextures.Values)
             {
                 if (texture != null)
                 {
                     Destroy(texture);
                 }
             }
-            _geoglyphMapTextures.Clear();
+            foreach (Texture2D texture in _geoglyphMinimapTextures.Values)
+            {
+                if (texture != null)
+                {
+                    Destroy(texture);
+                }
+            }
+            _geoglyphWorldMapTextures.Clear();
+            _geoglyphMinimapTextures.Clear();
         }
 
         private void OnApplicationPause(bool paused)

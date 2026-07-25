@@ -4193,9 +4193,11 @@ namespace DuneVector
         [ColorUsage(false)] public Color PurplePortalColor = new Color(0.74f, 0.32f, 1f, 1f);
         [ColorUsage(false)] public Color LandmarkIconColor = new Color(1f, 0.67f, 0.18f, 1f);
         [ColorUsage(false)] public Color GeoglyphMapColor = Color.white;
-        [Range(0f, 1f)] public float GeoglyphMapOpacity = 0.9f;
-        [Tooltip("Maximum width or height of each cached transparent geoglyph map texture.")]
+        [Range(0f, 1f)] public float GeoglyphMapOpacity = 1f;
+        [Tooltip("Maximum width or height of each cached world-map geoglyph texture.")]
         [Range(64, 512)] public int GeoglyphMapTextureResolution = 512;
+        [Tooltip("Maximum width or height of the separately cached minimap version of each geoglyph.")]
+        [Range(64, 512)] public int GeoglyphMinimapTextureResolution = 256;
         [Tooltip("Number of geoglyph map textures converted from source masks per frame.")]
         [Range(1, 4)] public int GeoglyphTextureBuildsPerFrame = 1;
         [ColorUsage(false)] public Color IconShadowColor = new Color(0f, 0f, 0f, 0.85f);
