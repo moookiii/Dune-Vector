@@ -962,7 +962,7 @@ namespace DuneVector
                         break;
                     }
 
-                    if (descendant.name == $"Propeller.{propellerNumber}")
+                    if (HasPropellerName(descendant, propellerNumber))
                     {
                         namedFallbacks[propellerIndex] = descendant;
                     }
@@ -984,6 +984,28 @@ namespace DuneVector
             }
 
             return results;
+        }
+
+        private static bool HasPropellerName(Transform candidate, int propellerNumber)
+        {
+            string expectedName = $"Propeller.{propellerNumber}";
+            if (string.Equals(candidate.name, expectedName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            MeshFilter meshFilter = candidate.GetComponent<MeshFilter>();
+            if (meshFilter != null
+                && meshFilter.sharedMesh != null
+                && string.Equals(meshFilter.sharedMesh.name, expectedName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+
+            SkinnedMeshRenderer skinnedRenderer = candidate.GetComponent<SkinnedMeshRenderer>();
+            return skinnedRenderer != null
+                && skinnedRenderer.sharedMesh != null
+                && string.Equals(skinnedRenderer.sharedMesh.name, expectedName, StringComparison.OrdinalIgnoreCase);
         }
 
         private static void CreateDroneWing(
