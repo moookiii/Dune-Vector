@@ -1146,22 +1146,35 @@ namespace DuneVector
             float triggerRadius = visibleOpeningRadius
                 * Mathf.Clamp01(_settings.FlyThroughRadiusMultiplier);
             Vector3 segment = playerPosition - _previousPlayerPosition;
-            float segmentLengthSquared = segment.sqrMagnitude;
-            if (segmentLengthSquared <= Mathf.Epsilon)
+            if (segment.sqrMagnitude <= Mathf.Epsilon)
             {
                 return false;
             }
 
-            float previousDistanceSquared = (_previousPlayerPosition - transform.position).sqrMagnitude;
-            if (previousDistanceSquared <= triggerRadius * triggerRadius)
+            Vector3 ringNormal = _visual != null ? _visual.forward : transform.forward;
+            float previousPlaneDistance = Vector3.Dot(
+                _previousPlayerPosition - transform.position,
+                ringNormal);
+            float currentPlaneDistance = Vector3.Dot(
+                playerPosition - transform.position,
+                ringNormal);
+            if (previousPlaneDistance * currentPlaneDistance > 0f)
             {
                 return false;
             }
 
-            float closestTime = Mathf.Clamp01(
-                Vector3.Dot(transform.position - _previousPlayerPosition, segment) / segmentLengthSquared);
-            Vector3 closestPoint = _previousPlayerPosition + (segment * closestTime);
-            if ((closestPoint - transform.position).sqrMagnitude > triggerRadius * triggerRadius)
+            float planeDistanceDelta = previousPlaneDistance - currentPlaneDistance;
+            if (Mathf.Abs(planeDistanceDelta) <= Mathf.Epsilon)
+            {
+                return false;
+            }
+
+            float crossingTime = Mathf.Clamp01(previousPlaneDistance / planeDistanceDelta);
+            Vector3 crossingPoint = _previousPlayerPosition + (segment * crossingTime);
+            Vector3 openingOffset = Vector3.ProjectOnPlane(
+                crossingPoint - transform.position,
+                ringNormal);
+            if (openingOffset.sqrMagnitude > triggerRadius * triggerRadius)
             {
                 return false;
             }
