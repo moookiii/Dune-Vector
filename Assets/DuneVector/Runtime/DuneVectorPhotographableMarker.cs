@@ -473,7 +473,10 @@ namespace DuneVector
                 viewport.y,
                 detailWidth,
                 viewport.height);
-            float cellWidth = (gridViewport.width - ((columns - 1) * gap)) / columns;
+            float scrollContentWidth = Mathf.Max(
+                1f,
+                gridViewport.width - _settings.CompendiumScrollbarReserve);
+            float cellWidth = (scrollContentWidth - ((columns - 1) * gap)) / columns;
             float slotHeight = cellWidth *
                 (_settings.CompendiumSlotHeight / Mathf.Max(1f, _settings.CompendiumSlotWidth));
             float cellHeight = slotHeight + _settings.CompendiumSlotLabelHeight + gap;
@@ -481,7 +484,7 @@ namespace DuneVector
             Rect content = new Rect(
                 0f,
                 0f,
-                gridViewport.width - gap,
+                scrollContentWidth,
                 Mathf.Max(gridViewport.height, rows * cellHeight));
             _scroll = GUI.BeginScrollView(gridViewport, _scroll, content);
             int visibleIndex = 0;
