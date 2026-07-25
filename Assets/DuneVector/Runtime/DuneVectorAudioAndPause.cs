@@ -28,6 +28,7 @@ namespace DuneVector
 
         private AudioTuning _settings;
         private EventInstance _musicInstance;
+        private EventInstance _flightBoostInstance;
         private Bus _masterBus;
         private Bus _musicBus;
         private Bus _soundEffectsBus;
@@ -35,6 +36,7 @@ namespace DuneVector
         private bool _hasMusicBus;
         private bool _hasSoundEffectsBus;
         private DroneHealth _health;
+        private DroneCharacterController _drone;
         private DroneLockOnController _lockOnController;
         private float _masterFullVolume = 1f;
         private float _masterCurrentVolume = 1f;
@@ -56,7 +58,10 @@ namespace DuneVector
             DontDestroyOnLoad(gameObject);
         }
 
-        public void Initialize(AudioTuning settings, DroneHealth health)
+        public void Initialize(
+            AudioTuning settings,
+            DroneHealth health,
+            DroneCharacterController drone)
         {
             _settings = settings;
             if (_settings == null)
@@ -67,6 +72,7 @@ namespace DuneVector
             }
 
             BindHealth(health);
+            BindDrone(drone);
             if (_initialized)
             {
                 enabled = true;
@@ -103,19 +109,90 @@ namespace DuneVector
             }
         }
 
+        private void BindDrone(DroneCharacterController drone)
+        {
+            if (_drone != drone)
+            {
+                StopFlightBoostAudio();
+            }
+            _drone = drone;
+        }
+
         private void Update()
         {
             UpdatePauseDucking();
-            if (!_musicInstance.isValid())
+            UpdateFlightBoostAudio();
+            if (_musicInstance.isValid()
+                && _musicInstance.getPlaybackState(out PLAYBACK_STATE playbackState) == FMOD.RESULT.OK
+                && playbackState == PLAYBACK_STATE.STOPPED)
+            {
+                _musicInstance.start();
+            }
+        }
+
+        private void UpdateFlightBoostAudio()
+        {
+            bool shouldPlay = _drone != null
+                && _drone.CurrentMode == DroneTraversalMode.Flight
+                && _drone.IsBoosting;
+            if (!shouldPlay)
+            {
+                StopFlightBoostAudio();
+                return;
+            }
+
+            if (!_flightBoostInstance.isValid())
+            {
+                StartFlightBoostAudio();
+                return;
+            }
+
+            if (_flightBoostInstance.getPlaybackState(out PLAYBACK_STATE playbackState) == FMOD.RESULT.OK
+                && playbackState == PLAYBACK_STATE.STOPPED)
+            {
+                _flightBoostInstance.setTimelinePosition(0);
+                _flightBoostInstance.start();
+            }
+        }
+
+        private void StartFlightBoostAudio()
+        {
+            if (string.IsNullOrWhiteSpace(_settings.DroneFlightBoostEvent))
             {
                 return;
             }
 
-            if (_musicInstance.getPlaybackState(out PLAYBACK_STATE playbackState) == FMOD.RESULT.OK &&
-                playbackState == PLAYBACK_STATE.STOPPED)
+            try
             {
-                _musicInstance.start();
+                _flightBoostInstance = RuntimeManager.CreateInstance(_settings.DroneFlightBoostEvent);
+                RuntimeManager.AttachInstanceToGameObject(_flightBoostInstance, _drone.gameObject);
+                if (_flightBoostInstance.getDescription(out EventDescription description) == FMOD.RESULT.OK
+                    && description.getLength(out int lengthMilliseconds) == FMOD.RESULT.OK
+                    && lengthMilliseconds > 1)
+                {
+                    _flightBoostInstance.setTimelinePosition(UnityEngine.Random.Range(0, lengthMilliseconds));
+                }
+                _flightBoostInstance.start();
             }
+            catch (EventNotFoundException exception)
+            {
+                Debug.LogWarning(
+                    $"FMOD flight boost event '{_settings.DroneFlightBoostEvent}' was not found. {exception.Message}",
+                    this);
+                StopFlightBoostAudio();
+            }
+        }
+
+        private void StopFlightBoostAudio()
+        {
+            if (!_flightBoostInstance.isValid())
+            {
+                return;
+            }
+
+            _flightBoostInstance.stop(FMOD.Studio.STOP_MODE.IMMEDIATE);
+            _flightBoostInstance.release();
+            _flightBoostInstance.clearHandle();
         }
 
         public void SetPausedDucking(bool paused)
@@ -409,6 +486,7 @@ namespace DuneVector
                 _musicInstance.release();
                 _musicInstance.clearHandle();
             }
+            StopFlightBoostAudio();
             if (_hasMasterBus && _masterBus.isValid())
             {
                 _masterBus.setVolume(_masterFullVolume);

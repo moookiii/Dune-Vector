@@ -3583,6 +3583,8 @@ namespace DuneVector
         public string DroneDamageEvent = "event:/Drone_Damage";
         [Tooltip("One-shot event played when the drone successfully launches an energy shot.")]
         public string DroneFireEvent = "event:/Drone_Fire";
+        [Tooltip("Looped event played while the drone uses its stamina boost in flight mode.")]
+        public string DroneFlightBoostEvent = "event:/Drone_Boost";
         [Tooltip("One-shot event played when a new lock-on target is initially detected.")]
         public string LockOnEvent = "event:/Lock_On";
         [Tooltip("One-shot event played when lock-on acquisition becomes fully locked.")]
