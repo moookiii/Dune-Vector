@@ -3721,7 +3721,7 @@ namespace DuneVector
         [Min(0.05f)] public float Lifetime = 1.35f;
 
         [Header("Portal Shape")]
-        [Tooltip("World-space radius passed to the rune-free portal mesh builder.")]
+        [Tooltip("World-space outer portal radius used to derive the trail's innermost ring radius.")]
         [Min(0.25f)] public float Radius = 3.1f;
         [Tooltip("Multiplier applied to the portal line thicknesses.")]
         [Min(1f)] public float LineThicknessMultiplier = 1.15f;

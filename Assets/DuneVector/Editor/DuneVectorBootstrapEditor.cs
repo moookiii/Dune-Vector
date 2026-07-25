@@ -233,7 +233,7 @@ namespace DuneVector.Editor
                 _flightSwooshes);
             DuneVectorSettingsInspector.DrawSection(
                 "Flight Stamina Boost Ring Trail",
-                "Rune-free portal ring spacing, lifetime, shape, ordered RGB hues, and fade.",
+                "Innermost portal ring spacing, lifetime, shape, ordered RGB hues, and fade.",
                 _boostRingTrail);
             DuneVectorSettingsInspector.DrawSection(
                 "Player Health",

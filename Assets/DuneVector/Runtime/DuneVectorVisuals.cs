@@ -1397,17 +1397,43 @@ namespace DuneVector
             return Mathf.Clamp(authoredRadius * settings.PortalVisualRadiusMultiplier, minimum, maximum);
         }
 
-        public static Mesh GetRuneFreePortalMesh(
+        public static Mesh GetInnermostPortalRingMesh(
             float radius,
             float thicknessMultiplier,
             RingTuning settings)
         {
-            return GetPortalLineMesh(
-                Mathf.Max(0.25f, radius),
-                settings,
-                Mathf.Max(1f, thicknessMultiplier),
-                PortalLineLayer.All,
-                false);
+            float portalRadius = Mathf.Max(0.25f, radius);
+            float lineThickness = Mathf.Max(0.01f, settings.PortalInnerLineThickness) *
+                Mathf.Max(1f, thicknessMultiplier);
+            float innermostRadius = Mathf.Max(
+                lineThickness * 2f,
+                portalRadius * Mathf.Clamp(settings.PortalInnermostRingRadiusFraction, 0.1f, 0.9f));
+            int segments = Mathf.Clamp(settings.PortalCircleSegments, 24, 192);
+            string key = $"portal-innermost-ring:{innermostRadius:0.000}:" +
+                $"{lineThickness:0.000}:{segments}";
+            if (MeshCache.TryGetValue(key, out Mesh cached) && cached != null)
+            {
+                return cached;
+            }
+
+            List<Vector3> vertices = new List<Vector3>();
+            List<Vector2> uvs = new List<Vector2>();
+            List<int> triangles = new List<int>();
+            AddPortalRing(
+                vertices,
+                uvs,
+                triangles,
+                innermostRadius,
+                lineThickness,
+                segments);
+
+            Mesh mesh = new Mesh { name = "Procedural Portal Innermost Ring" };
+            mesh.SetVertices(vertices);
+            mesh.SetUVs(0, uvs);
+            mesh.SetTriangles(triangles, 0);
+            mesh.RecalculateBounds();
+            MeshCache[key] = mesh;
+            return mesh;
         }
 
         public static Transform CreateRingVisual(

@@ -49,7 +49,7 @@ namespace DuneVector
             _rings = new TrailRing[capacity];
             _properties = new MaterialPropertyBlock();
             _mesh = tuning != null && portalTuning != null
-                ? DuneVectorVisuals.GetRuneFreePortalMesh(
+                ? DuneVectorVisuals.GetInnermostPortalRingMesh(
                     tuning.Radius,
                     tuning.LineThicknessMultiplier,
                     portalTuning)
