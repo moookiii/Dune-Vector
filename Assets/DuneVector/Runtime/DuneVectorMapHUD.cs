@@ -9,6 +9,27 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorMapHUD : MonoBehaviour
     {
+        private enum MapIconKind
+        {
+            Ring,
+            Landmark,
+            Geoglyph,
+        }
+
+        private readonly struct MapIconRecord
+        {
+            public readonly double X;
+            public readonly double Z;
+            public readonly MapIconKind Kind;
+
+            public MapIconRecord(double x, double z, MapIconKind kind)
+            {
+                X = x;
+                Z = z;
+                Kind = kind;
+            }
+        }
+
         public bool IsWorldMapVisible => _worldMapVisible;
         public bool IsMinimapVisible => _minimapVisible;
 
@@ -16,15 +37,23 @@ namespace DuneVector
         private DesertWorldStreamer _world;
         private BottomHudTuning _bottomHud;
         private MapHudTuning _settings;
+        private GeoglyphSystemTuning _geoglyphs;
         private Texture2D _scanTexture;
         private Color[] _scanPixels;
         private float[] _heightSamples;
         private readonly HashSet<long> _exploredCells = new HashSet<long>();
+        private readonly List<MapIconRecord> _mapIcons = new List<MapIconRecord>();
         private GUIStyle _minimapTitleStyle;
         private GUIStyle _worldMapTitleStyle;
         private GUIStyle _detailStyle;
         private GUIStyle _hintStyle;
         private GUIStyle _markerStyle;
+        private GUIStyle _ringIconStyle;
+        private GUIStyle _landmarkIconStyle;
+        private GUIStyle _geoglyphIconStyle;
+        private GUIStyle _ringIconShadowStyle;
+        private GUIStyle _landmarkIconShadowStyle;
+        private GUIStyle _geoglyphIconShadowStyle;
         private bool _worldMapVisible;
         private bool _minimapVisible;
         private double _lastScanX = double.PositiveInfinity;
@@ -34,6 +63,7 @@ namespace DuneVector
         private float _textureWorldSize;
         private float _nextScanTime;
         private float _nextExplorationSaveTime;
+        private float _nextIconRefreshTime;
         private bool _explorationDirty;
         private bool _forceScanRefresh;
 
@@ -44,12 +74,14 @@ namespace DuneVector
             DroneCharacterController drone,
             DesertWorldStreamer world,
             BottomHudTuning bottomHud,
-            MapHudTuning settings)
+            MapHudTuning settings,
+            GeoglyphSystemTuning geoglyphs)
         {
             _drone = drone;
             _world = world;
             _bottomHud = bottomHud;
             _settings = settings;
+            _geoglyphs = geoglyphs;
             _minimapVisible = settings != null && settings.MinimapVisibleByDefault;
             LoadExploration();
             RevealAroundPlayer(true);
@@ -89,6 +121,7 @@ namespace DuneVector
 
             RevealAroundPlayer(false);
             SaveExplorationIfDue();
+            RefreshMapIconsIfDue();
 
             if (_worldMapVisible || _minimapVisible)
             {
@@ -206,6 +239,7 @@ namespace DuneVector
 
             GUI.BeginGroup(mapRect);
             GUI.DrawTexture(localScanRect, _scanTexture, ScaleMode.StretchToFill, false);
+            DrawMapIcons(mapRect, displayedWorldSize, currentCenter, showDetails, scale);
             DrawDroneMarker(
                 new Vector2(mapRect.width * 0.5f, mapRect.height * 0.5f),
                 scale);
@@ -253,6 +287,180 @@ namespace DuneVector
             }
 
             GUI.EndGroup();
+        }
+
+        private void DrawMapIcons(
+            Rect mapRect,
+            float displayedWorldSize,
+            LogicalPosition center,
+            bool worldMap,
+            float scale)
+        {
+            float iconScale = scale * (worldMap ? 1f : _settings.MinimapIconScale);
+            float halfWorldSize = displayedWorldSize * 0.5f;
+            float boxSize = _settings.IconBoxSize * iconScale;
+            Vector2 shadowOffset = _settings.IconShadowOffset * iconScale;
+            UpdateIconStyles(iconScale);
+
+            for (int index = 0; index < _mapIcons.Count; index++)
+            {
+                MapIconRecord icon = _mapIcons[index];
+                if (_settings.OnlyShowExploredIcons && !IsExplored(icon.X, icon.Z))
+                {
+                    continue;
+                }
+
+                double deltaX = icon.X - center.X;
+                double deltaZ = icon.Z - center.Z;
+                if (Math.Abs(deltaX) > halfWorldSize || Math.Abs(deltaZ) > halfWorldSize)
+                {
+                    continue;
+                }
+
+                Vector2 position = new Vector2(
+                    mapRect.width * (0.5f + ((float)deltaX / displayedWorldSize)),
+                    mapRect.height * (0.5f - ((float)deltaZ / displayedWorldSize)));
+                Rect iconRect = new Rect(
+                    position.x - (boxSize * 0.5f),
+                    position.y - (boxSize * 0.5f),
+                    boxSize,
+                    boxSize);
+                string glyph = GetIconGlyph(icon.Kind);
+                GUI.Label(
+                    new Rect(
+                        iconRect.x + shadowOffset.x,
+                        iconRect.y + shadowOffset.y,
+                        iconRect.width,
+                        iconRect.height),
+                    glyph,
+                    GetIconShadowStyle(icon.Kind));
+                GUI.Label(iconRect, glyph, GetIconStyle(icon.Kind));
+            }
+        }
+
+        private string GetIconGlyph(MapIconKind kind)
+        {
+            return kind switch
+            {
+                MapIconKind.Ring => _settings.RingIcon,
+                MapIconKind.Landmark => _settings.LandmarkIcon,
+                _ => _settings.GeoglyphIcon,
+            };
+        }
+
+        private GUIStyle GetIconStyle(MapIconKind kind)
+        {
+            return kind switch
+            {
+                MapIconKind.Ring => _ringIconStyle,
+                MapIconKind.Landmark => _landmarkIconStyle,
+                _ => _geoglyphIconStyle,
+            };
+        }
+
+        private GUIStyle GetIconShadowStyle(MapIconKind kind)
+        {
+            return kind switch
+            {
+                MapIconKind.Ring => _ringIconShadowStyle,
+                MapIconKind.Landmark => _landmarkIconShadowStyle,
+                _ => _geoglyphIconShadowStyle,
+            };
+        }
+
+        private void UpdateIconStyles(float iconScale)
+        {
+            _ringIconStyle.fontSize = Mathf.Max(
+                8,
+                Mathf.RoundToInt(_settings.RingIconFontSize * iconScale));
+            _ringIconShadowStyle.fontSize = _ringIconStyle.fontSize;
+            _landmarkIconStyle.fontSize = Mathf.Max(
+                8,
+                Mathf.RoundToInt(_settings.LandmarkIconFontSize * iconScale));
+            _landmarkIconShadowStyle.fontSize = _landmarkIconStyle.fontSize;
+            _geoglyphIconStyle.fontSize = Mathf.Max(
+                8,
+                Mathf.RoundToInt(_settings.GeoglyphIconFontSize * iconScale));
+            _geoglyphIconShadowStyle.fontSize = _geoglyphIconStyle.fontSize;
+        }
+
+        private void RefreshMapIconsIfDue()
+        {
+            if (_settings == null || Time.unscaledTime < _nextIconRefreshTime)
+            {
+                return;
+            }
+
+            _nextIconRefreshTime =
+                Time.unscaledTime + Mathf.Max(0.1f, _settings.IconRefreshInterval);
+            _mapIcons.Clear();
+
+            if (_settings.ShowRings)
+            {
+                foreach (TraversalRing ring in TraversalRing.ActiveRings)
+                {
+                    if (ring == null || ring.RingType == TraversalRingType.UpperFlight)
+                    {
+                        continue;
+                    }
+
+                    Vector3 position = ring.transform.position;
+                    _mapIcons.Add(new MapIconRecord(
+                        _world.OriginOffsetX + position.x,
+                        _world.OriginOffsetZ + position.z,
+                        MapIconKind.Ring));
+                }
+            }
+
+            if (_settings.ShowLandmarks)
+            {
+                DuneVectorLandmarkDirector director =
+                    DuneVectorBootstrap.Instance != null
+                        ? DuneVectorBootstrap.Instance.LandmarkDirector
+                        : null;
+                if (director != null)
+                {
+                    foreach (DuneLandmarkPlacementRecord record in director.PlacementRecords.Values)
+                    {
+                        if (record != null)
+                        {
+                            _mapIcons.Add(new MapIconRecord(
+                                record.LogicalPosition.X,
+                                record.LogicalPosition.Z,
+                                MapIconKind.Landmark));
+                        }
+                    }
+
+                    IReadOnlyList<DuneVectorLandmarkInstance> contractLandmarks =
+                        director.ContractLandmarks;
+                    for (int index = 0; index < contractLandmarks.Count; index++)
+                    {
+                        DuneVectorLandmarkInstance landmark = contractLandmarks[index];
+                        if (landmark != null && landmark.PlacementRecord == null)
+                        {
+                            _mapIcons.Add(new MapIconRecord(
+                                landmark.LogicalPosition.X,
+                                landmark.LogicalPosition.Z,
+                                MapIconKind.Landmark));
+                        }
+                    }
+                }
+            }
+
+            if (_settings.ShowGeoglyphs && _geoglyphs != null && _geoglyphs.Enabled)
+            {
+                for (int index = 0; index < _geoglyphs.Placements.Count; index++)
+                {
+                    GeoglyphArtworkPlacement placement = _geoglyphs.Placements[index];
+                    if (placement != null && placement.Mask != null)
+                    {
+                        _mapIcons.Add(new MapIconRecord(
+                            placement.WorldCenter.x,
+                            placement.WorldCenter.y,
+                            MapIconKind.Geoglyph));
+                    }
+                }
+            }
         }
 
         private void DrawDroneMarker(Vector2 center, float scale)
@@ -577,6 +785,12 @@ namespace DuneVector
             _detailStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.UpperLeft);
             _hintStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.UpperRight);
             _markerStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
+            _ringIconStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
+            _landmarkIconStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
+            _geoglyphIconStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
+            _ringIconShadowStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
+            _landmarkIconShadowStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
+            _geoglyphIconShadowStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
 
             float scale = GetMapScale();
             _minimapTitleStyle.fontSize = Mathf.Max(
@@ -599,6 +813,13 @@ namespace DuneVector
                 8,
                 Mathf.RoundToInt(_settings.DroneMarkerFontSize * scale));
             _markerStyle.normal.textColor = _settings.DroneMarkerColor;
+            _ringIconStyle.normal.textColor = _settings.RingIconColor;
+            _landmarkIconStyle.normal.textColor = _settings.LandmarkIconColor;
+            _geoglyphIconStyle.normal.textColor = _settings.GeoglyphIconColor;
+            _ringIconShadowStyle.normal.textColor = _settings.IconShadowColor;
+            _landmarkIconShadowStyle.normal.textColor = _settings.IconShadowColor;
+            _geoglyphIconShadowStyle.normal.textColor = _settings.IconShadowColor;
+            UpdateIconStyles(scale);
         }
 
         private float GetMapScale()

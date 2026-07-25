@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace DuneVector
@@ -15,6 +16,10 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class TraversalRing : MonoBehaviour
     {
+        private static readonly HashSet<TraversalRing> ActiveRingSet = new HashSet<TraversalRing>();
+
+        public static IReadOnlyCollection<TraversalRing> ActiveRings => ActiveRingSet;
+
         public TraversalRingType RingType;
         [Min(0.1f)] public float InnerRadius = 2.75f;
         [Min(0.05f)] public float TriggerDepth = 0.65f;
@@ -56,6 +61,16 @@ namespace DuneVector
         private RingTuning _ringTuning;
         private TraversalRing _upperLayerRing;
         private Transform _cachedTransform;
+
+        private void OnEnable()
+        {
+            ActiveRingSet.Add(this);
+        }
+
+        private void OnDisable()
+        {
+            ActiveRingSet.Remove(this);
+        }
 
         public void Initialize(
             TraversalRingType type,

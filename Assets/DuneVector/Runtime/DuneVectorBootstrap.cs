@@ -731,7 +731,12 @@ namespace DuneVector
             DuneVectorCompassHUD compassHUD = gameObject.AddComponent<DuneVectorCompassHUD>();
             compassHUD.Initialize(DroneCamera.Camera, RuntimeSettings.CompassHud);
             MapHUD = gameObject.AddComponent<DuneVectorMapHUD>();
-            MapHUD.Initialize(Drone, World, RuntimeSettings.BottomHud, RuntimeSettings.MapHud);
+            MapHUD.Initialize(
+                Drone,
+                World,
+                RuntimeSettings.BottomHud,
+                RuntimeSettings.MapHud,
+                RuntimeSettings.Geoglyphs);
             GameOverController = gameObject.AddComponent<DuneVectorGameOverController>();
             GameOverController.Initialize(DroneHealth);
             PauseMenu = gameObject.AddComponent<DuneVectorPauseMenu>();

@@ -4088,6 +4088,28 @@ namespace DuneVector
         public string WorldMapHint = "M  CLOSE    •    N  MINIMAP";
         public string CoordinateFormat = "X {0:0}   Z {1:0}   •   SCAN RADIUS {2:0} m";
 
+        [Header("Map Icons")]
+        public bool ShowRings = true;
+        public bool ShowLandmarks = true;
+        public bool ShowGeoglyphs = true;
+        [Tooltip("Hide points of interest until the drone has explored the cell containing them.")]
+        public bool OnlyShowExploredIcons = true;
+        [Tooltip("Seconds between lightweight point-of-interest cache refreshes.")]
+        [Min(0.1f)] public float IconRefreshInterval = 0.5f;
+        [Range(0.25f, 2f)] public float MinimapIconScale = 0.85f;
+        [Min(8)] public int RingIconFontSize = 22;
+        [Min(8)] public int LandmarkIconFontSize = 20;
+        [Min(8)] public int GeoglyphIconFontSize = 22;
+        [Min(12f)] public float IconBoxSize = 34f;
+        public Vector2 IconShadowOffset = new Vector2(1f, 2f);
+        public string RingIcon = "○";
+        public string LandmarkIcon = "◆";
+        public string GeoglyphIcon = "✦";
+        [ColorUsage(false)] public Color RingIconColor = new Color(0.12f, 0.9f, 1f, 1f);
+        [ColorUsage(false)] public Color LandmarkIconColor = new Color(1f, 0.67f, 0.18f, 1f);
+        [ColorUsage(false)] public Color GeoglyphIconColor = new Color(0.88f, 0.45f, 1f, 1f);
+        [ColorUsage(false)] public Color IconShadowColor = new Color(0f, 0f, 0f, 0.85f);
+
         [Header("Palette")]
         [ColorUsage(false)] public Color UnexploredColor = Color.black;
         [ColorUsage(false)] public Color OverlayColor = new Color(0f, 0f, 0f, 1f);
