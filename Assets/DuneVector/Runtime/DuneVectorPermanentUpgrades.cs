@@ -304,6 +304,7 @@ namespace DuneVector
         private readonly DroneUpgradePurchaseValidator _purchaseValidator = new DroneUpgradePurchaseValidator();
         private readonly Dictionary<DroneUpgradeId, float> _tierZeroValues = new Dictionary<DroneUpgradeId, float>();
         private DronePermanentUpgradeTuning _tuning;
+        private EnergyLauncherTuning _energyLauncherTuning;
         private DroneUpgradeSaveRepository _saveRepository;
         private DroneUpgradeStatApplicator _statApplicator;
 
@@ -322,6 +323,7 @@ namespace DuneVector
 
             runtimeSettings.EnsureInitialized();
             _tuning = runtimeSettings.PermanentUpgrades;
+            _energyLauncherTuning = runtimeSettings.EnergyLauncher;
             Wallet = wallet;
             _saveRepository = new DroneUpgradeSaveRepository(this);
             _statApplicator = new DroneUpgradeStatApplicator(drone, health, stamina, boostSpeed);
@@ -368,6 +370,34 @@ namespace DuneVector
         public float GetTier15Value(DroneUpgradeId id)
         {
             return GetValueAtTier(id, MaximumPurchasableTier);
+        }
+
+        public float GetCurrentEnergyProjectileSpeed()
+        {
+            return GetEnergyProjectileSpeedAtTier(GetPurchasedTier(DroneUpgradeId.EnergyShotCooldown));
+        }
+
+        public float GetNextEnergyProjectileSpeed()
+        {
+            int tier = GetPurchasedTier(DroneUpgradeId.EnergyShotCooldown);
+            return GetEnergyProjectileSpeedAtTier(Mathf.Min(MaximumPurchasableTier, tier + 1));
+        }
+
+        public float GetEnergyProjectileSpeedAtTier(int tier)
+        {
+            if (_energyLauncherTuning == null)
+            {
+                return 0f;
+            }
+
+            DroneUpgradeDefinition definition = GetDefinition(DroneUpgradeId.EnergyShotCooldown);
+            float progress = definition != null
+                ? definition.EvaluateProgress(tier, MaximumPurchasableTier)
+                : 0f;
+            float maximumMultiplier = Mathf.Max(
+                1f,
+                _energyLauncherTuning.ProjectileSpeedAtMaximumFireRateTierMultiplier);
+            return _energyLauncherTuning.ProjectileSpeed * Mathf.Lerp(1f, maximumMultiplier, progress);
         }
 
         public float GetValueAtTier(DroneUpgradeId id, int tier)

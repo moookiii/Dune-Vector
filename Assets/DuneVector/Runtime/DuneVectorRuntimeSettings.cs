@@ -1752,6 +1752,8 @@ namespace DuneVector
 
         [Header("Energy Shot")]
         [Min(1f)] public float ProjectileSpeed = 155f;
+        [Tooltip("Projectile speed multiplier reached at the maximum Energy Shot Cooldown upgrade tier. Intermediate tiers use the upgrade's progression curve.")]
+        [Min(1f)] public float ProjectileSpeedAtMaximumFireRateTierMultiplier = 1.75f;
         [Tooltip("Maximum homing direction change in degrees per second.")]
         [Min(0f)] public float HomingTurnStrength = 430f;
         [Min(0f)] public float Damage = 45f;

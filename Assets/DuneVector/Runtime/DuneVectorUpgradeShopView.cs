@@ -371,8 +371,8 @@ namespace DuneVector
             bool maximum = currentTier >= DronePermanentUpgradeSystem.MaximumPurchasableTier;
             float currentValue = _upgrades.GetCurrentValue(definition.Id);
             float nextValue = _upgrades.GetNextValue(definition.Id);
-            string currentLabel = $"CURRENT  {FormatValue(definition, currentValue)}";
-            string nextLabel = maximum ? "CAPACITY COMPLETE" : $"NEXT  {FormatValue(definition, nextValue)}";
+            string currentLabel = $"CURRENT  {FormatUpgradeValue(definition, currentValue, false)}";
+            string nextLabel = maximum ? "CAPACITY COMPLETE" : $"NEXT  {FormatUpgradeValue(definition, nextValue, true)}";
             Color previousValueColor = _valueStyle.normal.textColor;
             if (recent)
             {
@@ -713,6 +713,20 @@ namespace DuneVector
                 DroneUpgradeValueFormat.TwoDecimalSeconds => $"{value:0.00}s",
                 _ => value.ToString("0.0"),
             };
+        }
+
+        private string FormatUpgradeValue(DroneUpgradeDefinition definition, float value, bool nextTier)
+        {
+            string formattedValue = FormatValue(definition, value);
+            if (definition.Id != DroneUpgradeId.EnergyShotCooldown)
+            {
+                return formattedValue;
+            }
+
+            float projectileSpeed = nextTier
+                ? _upgrades.GetNextEnergyProjectileSpeed()
+                : _upgrades.GetCurrentEnergyProjectileSpeed();
+            return $"{formattedValue} / {projectileSpeed:0} M/S";
         }
 
         private static Texture2D CreateSolidTexture(string textureName, Color color)

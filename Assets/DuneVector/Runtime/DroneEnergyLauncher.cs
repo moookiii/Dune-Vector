@@ -495,7 +495,8 @@ namespace DuneVector
                 _world,
                 _energyMaterial,
                 _settings,
-                GetCurrentDamage());
+                GetCurrentDamage(),
+                GetCurrentProjectileSpeed());
 
             EnergyPulseFeedback.Spawn(
                 muzzlePosition,
@@ -522,6 +523,13 @@ namespace DuneVector
                 ? _upgrades.GetCurrentValue(DroneUpgradeId.EnergyShotCooldown)
                 : _settings.FireCooldown;
             return baseCooldown * _environmentalCooldownMultiplier;
+        }
+
+        private float GetCurrentProjectileSpeed()
+        {
+            return _upgrades != null
+                ? _upgrades.GetCurrentEnergyProjectileSpeed()
+                : _settings.ProjectileSpeed;
         }
 
         private void HandleUpgradePurchased(DroneUpgradeId id, int purchasedTier, int goldCost)
@@ -578,6 +586,7 @@ namespace DuneVector
         private Material _material;
         private EnergyLauncherTuning _settings;
         private float _damage;
+        private float _projectileSpeed;
         private TrailRenderer _trail;
         private Vector3 _velocity;
         private float _age;
@@ -589,7 +598,8 @@ namespace DuneVector
             DesertWorldStreamer world,
             Material material,
             EnergyLauncherTuning settings,
-            float damage)
+            float damage,
+            float projectileSpeed)
         {
             _target = target;
             _owner = owner;
@@ -597,7 +607,8 @@ namespace DuneVector
             _material = material;
             _settings = settings;
             _damage = Mathf.Max(0f, damage);
-            _velocity = direction.normalized * settings.ProjectileSpeed;
+            _projectileSpeed = Mathf.Max(1f, projectileSpeed);
+            _velocity = direction.normalized * _projectileSpeed;
             CreateVisual();
             if (_world != null)
             {
@@ -620,7 +631,7 @@ namespace DuneVector
                 Vector3 toTarget = _target.AimPoint - transform.position;
                 float travelTime = Mathf.Min(
                     _settings.LeadPredictionTime,
-                    toTarget.magnitude / Mathf.Max(Mathf.Epsilon, _settings.ProjectileSpeed));
+                    toTarget.magnitude / _projectileSpeed);
                 Vector3 targetVelocity = Vector3.ClampMagnitude(_target.Velocity, _settings.MaximumLeadSpeed);
                 Vector3 predictedPoint = _target.AimPoint + (targetVelocity * travelTime);
                 Vector3 desiredDirection = predictedPoint - transform.position;
@@ -632,7 +643,7 @@ namespace DuneVector
                         desiredDirection.normalized,
                         maximumTurn,
                         0f);
-                    _velocity = steeredDirection * _settings.ProjectileSpeed;
+                    _velocity = steeredDirection * _projectileSpeed;
                 }
             }
             else

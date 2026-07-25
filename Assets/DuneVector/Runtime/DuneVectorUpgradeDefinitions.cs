@@ -56,17 +56,26 @@ namespace DuneVector
 
         public float Evaluate(float tierZeroValue, int purchasedTier, int maximumTier)
         {
-            int clampedTier = Mathf.Clamp(purchasedTier, 0, maximumTier);
-            if (clampedTier == 0 || maximumTier <= 0)
+            float curvedTier = EvaluateProgress(purchasedTier, maximumTier);
+            if (curvedTier <= 0f)
             {
                 return tierZeroValue;
             }
 
-            float normalizedTier = clampedTier / (float)maximumTier;
-            float curvedTier = Mathf.Pow(normalizedTier, Mathf.Max(0.1f, ProgressionExponent));
             float tier15Value = tierZeroValue * Mathf.Max(0.01f, Tier15Multiplier);
             float evaluated = Mathf.Lerp(tierZeroValue, tier15Value, curvedTier);
             return Mathf.Clamp(evaluated, Mathf.Min(tierZeroValue, tier15Value), Mathf.Max(tierZeroValue, tier15Value));
+        }
+
+        public float EvaluateProgress(int purchasedTier, int maximumTier)
+        {
+            if (maximumTier <= 0)
+            {
+                return 0f;
+            }
+
+            float normalizedTier = Mathf.Clamp(purchasedTier, 0, maximumTier) / (float)maximumTier;
+            return Mathf.Pow(normalizedTier, Mathf.Max(0.1f, ProgressionExponent));
         }
 
         public int GetGoldCost(int targetTier, int maximumTier, int roundingIncrement)
@@ -247,7 +256,7 @@ namespace DuneVector
                 Create(DroneUpgradeId.MaximumStamina, DroneUpgradeGroup.Core, "Maximum Stamina", DroneUpgradeValueFormat.WholeNumber, 1.75f, 0.78f, 75, 1.18f),
                 Create(DroneUpgradeId.BoostMaximumSpeed, DroneUpgradeGroup.Core, "Boost Speed", DroneUpgradeValueFormat.WholeNumber, 1.3f, 1.12f, 120, 1.2f),
                 Create(DroneUpgradeId.EnergyShotDamage, DroneUpgradeGroup.Core, "Energy Shot Damage", DroneUpgradeValueFormat.OneDecimal, 2f, 0.95f, 120, 1.21f),
-                Create(DroneUpgradeId.EnergyShotCooldown, DroneUpgradeGroup.Core, "Energy Shot Cooldown", DroneUpgradeValueFormat.TwoDecimalSeconds, 0.58f, 0.72f, 150, 1.21f),
+                Create(DroneUpgradeId.EnergyShotCooldown, DroneUpgradeGroup.Core, "Fire Rate + Beam Speed", DroneUpgradeValueFormat.TwoDecimalSeconds, 0.58f, 0.72f, 150, 1.21f),
                 Create(DroneUpgradeId.LockOnSpeed, DroneUpgradeGroup.Core, "Lock-On Speed", DroneUpgradeValueFormat.TwoDecimalSeconds, 0.45f, 0.7f, 145, 1.2f),
                 Create(DroneUpgradeId.GroundMaximumSpeed, DroneUpgradeGroup.Ground, "Maximum Speed", DroneUpgradeValueFormat.OneDecimal, 1.5f, 1.08f, 90, 1.19f),
                 Create(DroneUpgradeId.GroundAcceleration, DroneUpgradeGroup.Ground, "Acceleration", DroneUpgradeValueFormat.OneDecimal, 1.7f, 0.88f, 75, 1.18f),
