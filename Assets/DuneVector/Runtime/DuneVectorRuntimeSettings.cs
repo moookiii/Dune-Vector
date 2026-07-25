@@ -1889,8 +1889,6 @@ namespace DuneVector
         public Vector3 PrefabLocalEulerAngles = Vector3.zero;
         [Tooltip("Local scale applied to the instantiated body prefab before the overall Visual Scale.")]
         public Vector3 PrefabLocalScale = Vector3.one;
-        [Tooltip("Additional height above the imported model's renderer bounds for the preserved light-blue hub and rings.")]
-        public float PrefabHubHeightOffset = 0f;
 
         [Header("Spawning")]
         [Range(1, 10)] public int EnemyCount = 2;
