@@ -110,6 +110,16 @@ namespace DuneVector
         Plant,
         AncientStructure,
         RarePhenomenon,
+        Misc,
+    }
+
+    [System.Serializable]
+    public sealed class CompendiumEntryDefinition
+    {
+        [Tooltip("Stable identifier shared by the camera subject marker and persistent photography archive.")]
+        public string SubjectId;
+        public string DisplayName;
+        public PhotographableSubjectCategory Category;
     }
 
     public enum PhotographyFilmGrainPreset
@@ -308,6 +318,49 @@ namespace DuneVector
         public string AtlasDocumentationProgressFormat = "GLYPHS  {0} / {1}   /   SURVEYED  {2} / {1}";
         [Min(80f)] public float AtlasPhotoWidth = 190f;
         [Min(45f)] public float AtlasPhotoHeight = 107f;
+
+        [Header("Compendium Catalog")]
+        [Tooltip("Non-glyph compendium entries. Glyph entries are sourced from the authored Desert Atlas sites.")]
+        public List<CompendiumEntryDefinition> CompendiumEntries = new List<CompendiumEntryDefinition>();
+        [Range(0.001f, 1f)] public float CompendiumMinimumPhotoScreenCoverage = 0.01f;
+        [Range(0.001f, 1f)] public float CompendiumMaximumPhotoScreenCoverage = 0.92f;
+        [Range(0f, 1f)] public float CompendiumRequiredVisiblePercentage = 0.6f;
+        public string CompendiumPauseMenuButtonLabel = "COMPENDIUM";
+        public string CompendiumTitle = "DESERT COMPENDIUM";
+        public string CompendiumUnknownLabel = "???";
+        public string CompendiumGlyphTabLabel = "GLYPHS";
+        public string CompendiumLandmarkTabLabel = "LANDMARKS";
+        public string CompendiumEnemyTabLabel = "ENEMIES";
+        public string CompendiumMiscTabLabel = "MISC";
+
+        [Header("Compendium Layout")]
+        [Min(400f)] public float CompendiumPanelWidth = 1420f;
+        [Min(300f)] public float CompendiumPanelHeight = 860f;
+        [Min(20f)] public float CompendiumHeaderHeight = 72f;
+        [Min(28f)] public float CompendiumTabHeight = 58f;
+        [Min(12f)] public float CompendiumTabIconSize = 26f;
+        [Range(2, 8)] public int CompendiumColumns = 4;
+        [Min(80f)] public float CompendiumSlotWidth = 300f;
+        [Min(45f)] public float CompendiumSlotHeight = 190f;
+        [Min(16f)] public float CompendiumSlotLabelHeight = 38f;
+        [Min(180f)] public float CompendiumDetailPanelWidth = 390f;
+        [Min(100f)] public float CompendiumDetailImageHeight = 260f;
+        [Min(20f)] public float CompendiumDetailTitleHeight = 52f;
+        [Min(0f)] public float CompendiumGap = 18f;
+        [Min(1f)] public float CompendiumIconStrokeWidth = 2f;
+        [Min(8)] public int CompendiumUnknownFontSize = 30;
+        [Min(8)] public int CompendiumTabFontSize = 15;
+        [ColorUsage(false)] public Color CompendiumLockedColor = new Color(0.19f, 0.21f, 0.23f, 1f);
+        [ColorUsage(false)] public Color CompendiumLockedOverlayColor = new Color(0.08f, 0.09f, 0.1f, 0.72f);
+        [ColorUsage(false)] public Color CompendiumTabColor = new Color(0.06f, 0.11f, 0.15f, 1f);
+        [ColorUsage(false)] public Color CompendiumSelectedTabColor = new Color(0.12f, 0.36f, 0.44f, 1f);
+        [ColorUsage(false)] public Color CompendiumIconColor = new Color(0.72f, 0.94f, 1f, 1f);
+        [ColorUsage(false)] public Color CompendiumActiveAccentColor = new Color(1f, 0.62f, 0.16f, 1f);
+
+        public void EnsureInitialized()
+        {
+            CompendiumEntries ??= new List<CompendiumEntryDefinition>();
+        }
     }
 
     [System.Serializable]
@@ -4328,6 +4381,7 @@ namespace DuneVector
             DesertAtlas ??= new DesertAtlasTuning();
             DesertAtlas.EnsureInitialized();
             Photography ??= new PhotographyTuning();
+            Photography.EnsureInitialized();
             RouteEncounters ??= new RouteEncounterTuning();
             DynamicCouriers ??= new DynamicCourierTuning();
             Pyramids ??= new PyramidTuning();

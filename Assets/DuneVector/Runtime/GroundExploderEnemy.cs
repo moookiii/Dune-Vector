@@ -63,6 +63,10 @@ namespace DuneVector
             ApplyRiskScaling();
             BindTargets(player, playerHealth);
             SetState(GroundExploderState.Patrolling);
+            DuneVectorPhotographableMarker.Register(
+                gameObject,
+                DuneVectorCompendiumSubjectIds.GroundExploder,
+                PhotographableSubjectCategory.Enemy);
         }
 
         public void BindTargets(DroneCharacterController player, DroneHealth playerHealth)

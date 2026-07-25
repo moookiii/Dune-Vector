@@ -57,6 +57,10 @@ namespace DuneVector
             _hoverAnchor = _cachedTransform.position;
             SetState(SkyPiercerState.IdleFloating);
             _attackCooldown = settings.AttackCooldown * Mathf.Repeat((identity * 0.37f) + 0.3f, 1f);
+            DuneVectorPhotographableMarker.Register(
+                gameObject,
+                DuneVectorCompendiumSubjectIds.SkyPiercer,
+                PhotographableSubjectCategory.Enemy);
         }
 
         private void Update()

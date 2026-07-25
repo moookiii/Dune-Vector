@@ -56,7 +56,12 @@ namespace DuneVector
             {
                 for (int i = 0; i < _data.Documentation.Count; i++)
                 {
-                    if (_data.Documentation[i].IsNew) return true;
+                    if (_data.Documentation[i].IsNew &&
+                        _data.Documentation[i].SubjectCategory ==
+                        (int)PhotographableSubjectCategory.Glyph)
+                    {
+                        return true;
+                    }
                 }
                 return false;
             }
@@ -335,6 +340,7 @@ namespace DuneVector
         public readonly PhotographableSubjectCategory Category;
         public readonly DesertAtlasSiteDefinition AtlasSite;
         public readonly GeoglyphArtworkPlacement Artwork;
+        public readonly DuneVectorPhotographableMarker Marker;
 
         public PhotographableSubject(DesertAtlasSiteDefinition site, GeoglyphArtworkPlacement artwork)
         {
@@ -343,6 +349,19 @@ namespace DuneVector
             Category = PhotographableSubjectCategory.Glyph;
             AtlasSite = site;
             Artwork = artwork;
+            Marker = null;
+        }
+
+        public PhotographableSubject(
+            DuneVectorPhotographableMarker marker,
+            string displayName)
+        {
+            SubjectId = marker != null ? marker.SubjectId : string.Empty;
+            DisplayName = displayName;
+            Category = marker != null ? marker.Category : PhotographableSubjectCategory.Misc;
+            AtlasSite = null;
+            Artwork = null;
+            Marker = marker;
         }
     }
 
@@ -387,7 +406,7 @@ namespace DuneVector
 
         public SubjectDetectionResult Detect()
         {
-            if (_camera == null || _world == null || _geoglyphs?.Placements == null || _atlas?.Sites == null)
+            if (_camera == null)
             {
                 return default;
             }
@@ -395,42 +414,138 @@ namespace DuneVector
             bool found = false;
             PhotographableSubject bestSubject = default;
             Rect bestBounds = default;
-            float bestPriority = float.PositiveInfinity;
-            float bestCoverage = 0f;
-            for (int siteIndex = 0; siteIndex < _atlas.Sites.Count; siteIndex++)
+            Bounds bestWorldBounds = default;
+            float bestCenterPriority = float.PositiveInfinity;
+            float bestCoverage = -1f;
+            if (_world != null && _geoglyphs?.Placements != null && _atlas?.Sites != null)
             {
-                DesertAtlasSiteDefinition site = _atlas.Sites[siteIndex];
-                if (site == null || string.IsNullOrWhiteSpace(site.PersistentId)) continue;
-                GeoglyphArtworkPlacement artwork = FindArtwork(site);
-                if (artwork == null) continue;
-                BuildSamples(site, artwork);
-                if (!TryProjectBounds(out Rect bounds, out float coverage, out float priority)) continue;
-                if (priority >= bestPriority) continue;
-                bestPriority = priority;
-                bestBounds = bounds;
-                bestCoverage = coverage;
-                bestSubject = new PhotographableSubject(site, artwork);
+                for (int siteIndex = 0; siteIndex < _atlas.Sites.Count; siteIndex++)
+                {
+                    DesertAtlasSiteDefinition site = _atlas.Sites[siteIndex];
+                    if (site == null || string.IsNullOrWhiteSpace(site.PersistentId)) continue;
+                    GeoglyphArtworkPlacement artwork = FindArtwork(site);
+                    if (artwork == null) continue;
+                    BuildSamples(site, artwork);
+                    if (!TryProjectBounds(out Rect bounds, out float coverage, out float priority)) continue;
+                    if (!IsBetterCandidate(coverage, priority, bestCoverage, bestCenterPriority)) continue;
+                    bestCenterPriority = priority;
+                    bestBounds = bounds;
+                    bestCoverage = coverage;
+                    bestSubject = new PhotographableSubject(site, artwork);
+                    found = true;
+                }
+            }
+
+            foreach (DuneVectorPhotographableMarker marker in DuneVectorPhotographableMarker.ActiveMarkers)
+            {
+                if (marker == null ||
+                    !TryResolveDisplayName(marker.SubjectId, out string displayName) ||
+                    !marker.TryGetScreenBounds(
+                        _camera,
+                        out Rect markerBounds,
+                        out float markerCoverage,
+                        out Bounds markerWorldBounds))
+                {
+                    continue;
+                }
+
+                float centerPriority = Vector2.Distance(
+                    markerBounds.center,
+                    new Vector2(Screen.width * 0.5f, Screen.height * 0.5f)) /
+                    Mathf.Max(1f, Screen.height);
+                if (!IsBetterCandidate(
+                        markerCoverage,
+                        centerPriority,
+                        bestCoverage,
+                        bestCenterPriority))
+                {
+                    continue;
+                }
+                bestCenterPriority = centerPriority;
+                bestBounds = markerBounds;
+                bestCoverage = markerCoverage;
+                bestWorldBounds = markerWorldBounds;
+                bestSubject = new PhotographableSubject(marker, displayName);
                 found = true;
             }
             if (!found) return default;
 
-            BuildSamples(bestSubject.AtlasSite, bestSubject.Artwork);
-            float visiblePercentage = CalculateVisiblePercentage(bestSubject.AtlasSite);
-            DesertAtlasSiteDefinition definition = bestSubject.AtlasSite;
-            float minimumCoverage = Mathf.Min(definition.MinimumPhotoScreenCoverage, definition.MaximumPhotoScreenCoverage);
-            float maximumCoverage = Mathf.Max(definition.MinimumPhotoScreenCoverage, definition.MaximumPhotoScreenCoverage);
-            float readableAngle = Vector3.Dot(_camera.transform.forward.normalized, Vector3.down);
             bool fullyFramed = bestBounds.xMin >= Screen.width * _settings.ViewportEdgePadding &&
                 bestBounds.xMax <= Screen.width * (1f - _settings.ViewportEdgePadding) &&
                 bestBounds.yMin >= Screen.height * _settings.ViewportEdgePadding &&
                 bestBounds.yMax <= Screen.height * (1f - _settings.ViewportEdgePadding);
-            float requiredVisibility = definition.AllowPartialPhotoOcclusion
-                ? definition.RequiredPhotoVisiblePercentage
-                : 1f;
-            bool visibilityValid = visiblePercentage >= requiredVisibility;
-            bool valid = fullyFramed && bestCoverage >= minimumCoverage && bestCoverage <= maximumCoverage &&
-                readableAngle >= definition.MinimumPhotoReadableAngle && visibilityValid;
+
+            float visiblePercentage;
+            bool valid;
+            if (bestSubject.Category == PhotographableSubjectCategory.Glyph)
+            {
+                BuildSamples(bestSubject.AtlasSite, bestSubject.Artwork);
+                visiblePercentage = CalculateVisiblePercentage(bestSubject.AtlasSite);
+                DesertAtlasSiteDefinition definition = bestSubject.AtlasSite;
+                float minimumCoverage = Mathf.Min(
+                    definition.MinimumPhotoScreenCoverage,
+                    definition.MaximumPhotoScreenCoverage);
+                float maximumCoverage = Mathf.Max(
+                    definition.MinimumPhotoScreenCoverage,
+                    definition.MaximumPhotoScreenCoverage);
+                float readableAngle = Vector3.Dot(_camera.transform.forward.normalized, Vector3.down);
+                float requiredVisibility = definition.AllowPartialPhotoOcclusion
+                    ? definition.RequiredPhotoVisiblePercentage
+                    : 1f;
+                valid = fullyFramed &&
+                    bestCoverage >= minimumCoverage &&
+                    bestCoverage <= maximumCoverage &&
+                    readableAngle >= definition.MinimumPhotoReadableAngle &&
+                    visiblePercentage >= requiredVisibility;
+            }
+            else
+            {
+                visiblePercentage = bestSubject.Marker != null
+                    ? bestSubject.Marker.CalculateVisiblePercentage(_camera, bestWorldBounds, _settings)
+                    : 0f;
+                float minimumCoverage = Mathf.Min(
+                    _settings.CompendiumMinimumPhotoScreenCoverage,
+                    _settings.CompendiumMaximumPhotoScreenCoverage);
+                float maximumCoverage = Mathf.Max(
+                    _settings.CompendiumMinimumPhotoScreenCoverage,
+                    _settings.CompendiumMaximumPhotoScreenCoverage);
+                valid = fullyFramed &&
+                    bestCoverage >= minimumCoverage &&
+                    bestCoverage <= maximumCoverage &&
+                    visiblePercentage >= _settings.CompendiumRequiredVisiblePercentage;
+            }
             return new SubjectDetectionResult(true, valid, bestSubject, bestBounds, bestCoverage, visiblePercentage);
+        }
+
+        private bool TryResolveDisplayName(string subjectId, out string displayName)
+        {
+            if (_settings?.CompendiumEntries != null)
+            {
+                for (int i = 0; i < _settings.CompendiumEntries.Count; i++)
+                {
+                    CompendiumEntryDefinition definition = _settings.CompendiumEntries[i];
+                    if (definition != null &&
+                        string.Equals(definition.SubjectId, subjectId, StringComparison.Ordinal))
+                    {
+                        displayName = definition.DisplayName;
+                        return true;
+                    }
+                }
+            }
+            displayName = string.Empty;
+            return false;
+        }
+
+        private static bool IsBetterCandidate(
+            float coverage,
+            float centerPriority,
+            float bestCoverage,
+            float bestCenterPriority)
+        {
+            const float coverageTieTolerance = 0.0001f;
+            return coverage > bestCoverage + coverageTieTolerance ||
+                (Mathf.Abs(coverage - bestCoverage) <= coverageTieTolerance &&
+                 centerPriority < bestCenterPriority);
         }
 
         private GeoglyphArtworkPlacement FindArtwork(DesertAtlasSiteDefinition site)
@@ -791,6 +906,7 @@ namespace DuneVector
         public static bool RequiresGlyphDocumentation => Active != null && Active._settings != null && Active._settings.Enabled;
         public PhotographyTuning Tuning => _settings;
         private static bool _closeGalleryRequested;
+        private static bool _closeCompendiumRequested;
 
         private DronePlayer _player;
         private DroneCameraController _cameraController;
@@ -799,6 +915,7 @@ namespace DuneVector
         private DuneVectorPhotographStorage _storage;
         private DuneVectorSubjectDetector _detector;
         private DuneVectorGalleryView _gallery;
+        private DuneVectorCompendiumView _compendium;
         private SubjectDetectionResult _detection;
         private Color _animatedAccentColor;
         private Rect _animatedBounds;
@@ -868,6 +985,7 @@ namespace DuneVector
             _storage = new DuneVectorPhotographStorage(_settings);
             _detector = new DuneVectorSubjectDetector(_camera, world, geoglyphs, atlas, _settings);
             _gallery = new DuneVectorGalleryView(_storage, _settings);
+            _compendium = new DuneVectorCompendiumView(_storage, _settings, atlas);
             Active = this;
         }
 
@@ -906,6 +1024,18 @@ namespace DuneVector
             _closeGalleryRequested = false;
             _gallery?.Draw();
             return _closeGalleryRequested;
+        }
+
+        public static void RequestCloseCompendium()
+        {
+            _closeCompendiumRequested = true;
+        }
+
+        public bool DrawCompendium()
+        {
+            _closeCompendiumRequested = false;
+            _compendium?.Draw();
+            return _closeCompendiumRequested;
         }
 
         private void Update()
@@ -2042,6 +2172,7 @@ namespace DuneVector
             ReleaseCapturedTexture();
             ReleaseCaptureHoldTexture();
             RestoreCameraFilmGrain();
+            _compendium?.Dispose();
             _storage?.Dispose();
         }
     }

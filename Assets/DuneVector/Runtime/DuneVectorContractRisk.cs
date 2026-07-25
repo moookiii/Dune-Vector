@@ -316,6 +316,10 @@ namespace DuneVector
             int visualSeed = _random.Next();
             DuneVectorSandAmbusherVisual visual = root.AddComponent<DuneVectorSandAmbusherVisual>();
             visual.Initialize(_settings, _palette, visualSeed);
+            DuneVectorPhotographableMarker.Register(
+                root,
+                DuneVectorCompendiumSubjectIds.SandAmbusher,
+                PhotographableSubjectCategory.Enemy);
 
             EnemyHealth enemyHealth = root.AddComponent<EnemyHealth>();
             enemyHealth.Initialize(Mathf.Max(0.1f, _settings.SandAmbusherHealth));

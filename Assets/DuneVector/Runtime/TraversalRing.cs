@@ -123,6 +123,10 @@ namespace DuneVector
                 TraversalRingType.Health => "Health Ring",
                 _ => "Coin Ring",
             };
+            DuneVectorPhotographableMarker.Register(
+                gameObject,
+                DuneVectorCompendiumSubjectIds.ForRing(type),
+                PhotographableSubjectCategory.Misc);
         }
 
         private bool IsCollectible => RingType == TraversalRingType.Health || RingType == TraversalRingType.Coin;

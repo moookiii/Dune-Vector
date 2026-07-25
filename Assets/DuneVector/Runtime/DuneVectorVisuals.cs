@@ -1387,6 +1387,10 @@ namespace DuneVector
             root.transform.localPosition = localPosition;
             root.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
             root.transform.localScale = Vector3.one;
+            DuneVectorPhotographableMarker.Register(
+                root,
+                DuneVectorCompendiumSubjectIds.Pyramid,
+                PhotographableSubjectCategory.Misc);
 
             Mesh mesh = GetPyramidMesh();
             float targetHalfExtent = Mathf.Max(0.1f, scale);

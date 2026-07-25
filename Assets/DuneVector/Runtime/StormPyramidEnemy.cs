@@ -129,6 +129,10 @@ namespace DuneVector
                 1f,
                 Mathf.Repeat((identity * 0.417f) + 0.21f, 1f));
             SetState(StormPyramidState.IdleHovering);
+            DuneVectorPhotographableMarker.Register(
+                gameObject,
+                DuneVectorCompendiumSubjectIds.StormPyramid,
+                PhotographableSubjectCategory.Enemy);
         }
 
         private void Update()
@@ -905,6 +909,10 @@ namespace DuneVector
             _flyThroughTriggered = false;
             _facingLockedForClosePass = false;
             SetState(StormPyramidState.IdleHovering);
+            DuneVectorPhotographableMarker.Register(
+                gameObject,
+                DuneVectorCompendiumSubjectIds.PlayerStrikeOrb,
+                PhotographableSubjectCategory.Enemy);
         }
 
         private void Update()

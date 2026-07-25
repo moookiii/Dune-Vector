@@ -865,6 +865,10 @@ namespace DuneVector
 
             _teleportPlatform = _hubRoot;
             _hubSpawn = _hubRoot.position + Vector3.up * (_hubSettings.PlayerSpawnHeight + (_hubSettings.PlatformThickness * 0.5f));
+            DuneVectorPhotographableMarker.Register(
+                hubObject,
+                DuneVectorCompendiumSubjectIds.Hub,
+                PhotographableSubjectCategory.Misc);
         }
 
         private void BuildHubRuneRing()

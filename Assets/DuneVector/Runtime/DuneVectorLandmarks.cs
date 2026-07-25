@@ -633,6 +633,10 @@ namespace DuneVector
                     break;
             }
             instance.PositionDeliverySocketAboveVisuals(_settings.DeliveryRingClearance);
+            DuneVectorPhotographableMarker.Register(
+                landmarkObject,
+                DuneVectorCompendiumSubjectIds.ForLandmark(type),
+                PhotographableSubjectCategory.Landmark);
             return instance;
         }
 

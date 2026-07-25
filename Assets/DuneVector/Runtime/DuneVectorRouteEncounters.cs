@@ -640,6 +640,10 @@ namespace DuneVector
             _shotLine.enabled = false;
             _shotTimer = settings.ShotInterval * _shotIntervalMultiplier * 0.5f;
             SetState(FormationEnemyState.FormationApproach);
+            DuneVectorPhotographableMarker.Register(
+                gameObject,
+                DuneVectorCompendiumSubjectIds.FormationEnemy,
+                PhotographableSubjectCategory.Enemy);
         }
 
         private void LateUpdate()

@@ -603,6 +603,7 @@ namespace DuneVector
         private DuneVectorPhotographySystem _photography;
         private bool _showShop;
         private bool _showGallery;
+        private bool _showCompendium;
 
         private GUIStyle _titleStyle;
         private GUIStyle _subtitleStyle;
@@ -682,6 +683,10 @@ namespace DuneVector
                 {
                     _showGallery = false;
                 }
+                else if (IsPaused && _showCompendium)
+                {
+                    _showCompendium = false;
+                }
                 else
                 {
                     SetPaused(!IsPaused);
@@ -706,6 +711,7 @@ namespace DuneVector
             {
                 _showShop = false;
                 _showGallery = false;
+                _showCompendium = false;
                 _audio?.FlushPreferences();
             }
         }
@@ -715,6 +721,7 @@ namespace DuneVector
             IsPaused = false;
             _showShop = false;
             _showGallery = false;
+            _showCompendium = false;
             _audio?.SetPausedDucking(false);
             _player?.SetInputEnabled(false);
         }
@@ -745,6 +752,14 @@ namespace DuneVector
                 if (_photography == null || _photography.DrawGallery())
                 {
                     _showGallery = false;
+                }
+                return;
+            }
+            if (_showCompendium)
+            {
+                if (_photography == null || _photography.DrawCompendium())
+                {
+                    _showCompendium = false;
                 }
                 return;
             }
@@ -816,6 +831,18 @@ namespace DuneVector
             if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), galleryButtonLabel, _secondaryButtonStyle))
             {
                 _showGallery = true;
+            }
+            y += buttonHeight + gap;
+
+            string compendiumButtonLabel = _photography != null && _photography.Tuning != null
+                ? _photography.Tuning.CompendiumPauseMenuButtonLabel
+                : string.Empty;
+            if (GUI.Button(
+                    new Rect(content.x, y, content.width, buttonHeight),
+                    compendiumButtonLabel,
+                    _secondaryButtonStyle))
+            {
+                _showCompendium = true;
             }
             y += buttonHeight + gap;
 
