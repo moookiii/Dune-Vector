@@ -1388,23 +1388,42 @@ namespace DuneVector
 
         private void DrawPhotographComparison()
         {
-            float totalWidth = (_settings.ComparisonImageWidth * 2f) + _settings.ComparisonImageGap;
+            float cardWidth = _settings.ComparisonImageWidth + (_settings.ComparisonCardPadding * 2f);
+            float cardHeight = _settings.ComparisonImageHeight + _settings.ComparisonLabelHeight +
+                (_settings.ComparisonCardPadding * 3f);
+            float totalWidth = (cardWidth * 2f) + _settings.ComparisonImageGap;
             float left = (_hudWidth - totalWidth) * 0.5f;
             float top = _settings.ScreenMargin;
-            Rect currentRect = new Rect(left, top, _settings.ComparisonImageWidth, _settings.ComparisonImageHeight);
-            Rect newRect = new Rect(currentRect.xMax + _settings.ComparisonImageGap, top,
-                _settings.ComparisonImageWidth, _settings.ComparisonImageHeight);
-            Texture2D current = _storage.GetCanonicalTexture(_pendingSubject.SubjectId);
-            DrawRect(currentRect, _settings.IdentificationPanelColor);
-            DrawRect(newRect, _settings.IdentificationPanelColor);
-            DrawBorder(currentRect, _settings.NeutralColor, _settings.FrameThickness);
-            DrawBorder(newRect, _settings.ValidColor, _settings.FrameThickness);
-            if (current != null) GUI.DrawTexture(currentRect, current, ScaleMode.ScaleToFit, false);
-            if (_capturedTexture != null) GUI.DrawTexture(newRect, _capturedTexture, ScaleMode.ScaleToFit, false);
-            GUI.Label(new Rect(currentRect.x, currentRect.yMax, currentRect.width, _settings.SubjectLabelHeight),
-                _settings.ComparisonCurrentLabel, _comparisonLabelStyle);
-            GUI.Label(new Rect(newRect.x, newRect.yMax, newRect.width, _settings.SubjectLabelHeight),
-                _settings.ComparisonNewLabel, _comparisonLabelStyle);
+            Rect currentCard = new Rect(left, top, cardWidth, cardHeight);
+            Rect newCard = new Rect(currentCard.xMax + _settings.ComparisonImageGap, top, cardWidth, cardHeight);
+            DrawComparisonCard(currentCard, _storage.GetCanonicalTexture(_pendingSubject.SubjectId),
+                _settings.ComparisonCurrentLabel, _settings.NeutralColor);
+            DrawComparisonCard(newCard, _capturedTexture, _settings.ComparisonNewLabel, _settings.ValidColor);
+        }
+
+        private void DrawComparisonCard(Rect card, Texture texture, string label, Color accent)
+        {
+            DrawRect(card, _settings.ComparisonCardColor);
+            DrawBorder(card, accent, _settings.FrameThickness);
+
+            float padding = _settings.ComparisonCardPadding;
+            Rect imageRect = new Rect(
+                card.x + padding,
+                card.y + padding,
+                _settings.ComparisonImageWidth,
+                _settings.ComparisonImageHeight);
+            DrawRect(imageRect, _settings.GalleryBackdropColor);
+            DrawBorder(imageRect, accent, _settings.FrameThickness);
+            if (texture != null) GUI.DrawTexture(imageRect, texture, ScaleMode.ScaleToFit, false);
+
+            Rect labelRect = new Rect(
+                card.x + padding,
+                imageRect.yMax + padding,
+                _settings.ComparisonImageWidth,
+                _settings.ComparisonLabelHeight);
+            DrawRect(labelRect, _settings.ComparisonLabelPanelColor);
+            DrawBorder(labelRect, accent, _settings.FrameThickness);
+            GUI.Label(labelRect, label, _comparisonLabelStyle);
         }
 
         private void DrawSurfaceTextures()
@@ -1725,7 +1744,7 @@ namespace DuneVector
                 _settings.HudTextColor,
                 _settings.HudSemiboldFont);
             _comparisonLabelStyle ??= CreateStyle(
-                _settings.StatusFontSize,
+                _settings.ComparisonLabelFontSize,
                 FontStyle.Normal,
                 TextAnchor.MiddleCenter,
                 _settings.ComparisonLabelColor,

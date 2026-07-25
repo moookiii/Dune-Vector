@@ -255,10 +255,15 @@ namespace DuneVector
         public string ReplacePrompt = "REPLACE ATLAS PHOTOGRAPH?";
         public string ComparisonNewLabel = "NEW";
         public string ComparisonCurrentLabel = "CURRENT";
-        [ColorUsage(false)] public Color ComparisonLabelColor = Color.black;
+        [ColorUsage(false)] public Color ComparisonLabelColor = new Color(0.9f, 0.88f, 0.8f, 1f);
+        [ColorUsage(false)] public Color ComparisonCardColor = new Color(0.015f, 0.05f, 0.075f, 0.95f);
+        [ColorUsage(false)] public Color ComparisonLabelPanelColor = new Color(0.01f, 0.025f, 0.035f, 0.98f);
         [Min(120f)] public float ComparisonImageWidth = 520f;
         [Min(68f)] public float ComparisonImageHeight = 292f;
         [Min(0f)] public float ComparisonImageGap = 24f;
+        [Min(0f)] public float ComparisonCardPadding = 12f;
+        [Min(24f)] public float ComparisonLabelHeight = 54f;
+        [Min(8)] public int ComparisonLabelFontSize = 28;
         public string ReplaceButton = "REPLACE";
         public string KeepButton = "KEEP CURRENT";
 
