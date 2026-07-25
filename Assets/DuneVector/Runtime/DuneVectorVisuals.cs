@@ -1942,74 +1942,86 @@ namespace DuneVector
             float bodyWidth = Mathf.Max(0.1f, settings.BodyWidth);
             float bodyHeight = Mathf.Max(0.1f, settings.BodyHeight);
             float bodyHalfWidth = bodyWidth * 0.5f;
+            float cornerCut = Mathf.Clamp(settings.BodyCornerCut, 0f, bodyHalfWidth * 0.9f);
             int finCount = Mathf.Max(3, settings.CrownFinCount);
-            bool usingPrefabModel = settings.UsePrefabModel && settings.StormPyramidPrefab != null;
-            if (usingPrefabModel)
+            bool createdPrefabHull = false;
+            if (settings.UsePrefabModel && settings.StormPyramidPrefab != null)
             {
-                GameObject model = UnityEngine.Object.Instantiate(settings.StormPyramidPrefab, armorRotor);
-                model.name = "Storm Pyramid Prefab Model";
-                model.transform.localPosition = settings.PrefabLocalPosition;
-                model.transform.localRotation = Quaternion.Euler(settings.PrefabLocalEulerAngles);
-                model.transform.localScale = settings.PrefabLocalScale;
+                UnityEngine.Object clone = UnityEngine.Object.Instantiate(
+                    (UnityEngine.Object)settings.StormPyramidPrefab,
+                    armorRotor);
+                GameObject model = clone as GameObject;
+                if (model != null)
+                {
+                    model.name = "Storm Pyramid Prefab Hull";
+                    model.transform.localPosition = settings.PrefabLocalPosition;
+                    model.transform.localRotation = Quaternion.Euler(settings.PrefabLocalEulerAngles);
+                    model.transform.localScale = settings.PrefabLocalScale;
+                    createdPrefabHull = true;
+                }
+                else if (clone != null)
+                {
+                    UnityEngine.Object.Destroy(clone);
+                }
             }
-            else
+
+            if (!createdPrefabHull)
             {
-                float cornerCut = Mathf.Clamp(settings.BodyCornerCut, 0f, bodyHalfWidth * 0.9f);
                 CreateMeshObject(
                     "Faceted Inverted Pyramid Hull",
                     armorRotor,
                     GetStormPyramidMesh(bodyWidth, bodyHeight, cornerCut),
                     materials.StormPyramidBody);
+            }
 
-                int bandCount = Mathf.Max(1, settings.EnergyBandCount);
-                float bandStart = Mathf.Clamp01(Mathf.Min(settings.EnergyBandStart, settings.EnergyBandEnd));
-                float bandEnd = Mathf.Clamp01(Mathf.Max(settings.EnergyBandStart, settings.EnergyBandEnd));
-                float bandThickness = Mathf.Max(0.005f, settings.EnergyBandThickness);
-                for (int i = 0; i < bandCount; i++)
-                {
-                    float band01 = bandCount > 1 ? i / (float)(bandCount - 1) : 0.5f;
-                    float depth01 = Mathf.Lerp(bandStart, bandEnd, band01);
-                    float halfWidth = bodyHalfWidth * (1f - depth01);
-                    CreateStormPyramidEnergyBand(
-                        armorRotor,
-                        i,
-                        -bodyHeight * depth01,
-                        halfWidth,
-                        bandThickness,
-                        materials.StormPyramidCore);
-                }
+            int bandCount = Mathf.Max(1, settings.EnergyBandCount);
+            float bandStart = Mathf.Clamp01(Mathf.Min(settings.EnergyBandStart, settings.EnergyBandEnd));
+            float bandEnd = Mathf.Clamp01(Mathf.Max(settings.EnergyBandStart, settings.EnergyBandEnd));
+            float bandThickness = Mathf.Max(0.005f, settings.EnergyBandThickness);
+            for (int i = 0; i < bandCount; i++)
+            {
+                float band01 = bandCount > 1 ? i / (float)(bandCount - 1) : 0.5f;
+                float depth01 = Mathf.Lerp(bandStart, bandEnd, band01);
+                float halfWidth = bodyHalfWidth * (1f - depth01);
+                CreateStormPyramidEnergyBand(
+                    armorRotor,
+                    i,
+                    -bodyHeight * depth01,
+                    halfWidth,
+                    bandThickness,
+                    materials.StormPyramidCore);
+            }
 
-                float conduitRadius = Mathf.Max(0.005f, settings.EdgeConduitRadius);
-                float conduitTop = bodyHalfWidth - (cornerCut * 0.5f);
-                Vector3 tip = new Vector3(0f, -bodyHeight, 0f);
-                for (int i = 0; i < 4; i++)
-                {
-                    float x = i == 0 || i == 3 ? -conduitTop : conduitTop;
-                    float z = i < 2 ? -conduitTop : conduitTop;
-                    Transform conduit = CreateBeamBetween(
-                        $"Edge Conduit {i + 1}",
-                        armorRotor,
-                        new Vector3(x, 0f, z),
-                        tip,
-                        conduitRadius,
-                        materials.StormPyramidCore);
-                    DisableRendererShadows(conduit.gameObject);
-                }
+            float conduitRadius = Mathf.Max(0.005f, settings.EdgeConduitRadius);
+            float conduitTop = bodyHalfWidth - (cornerCut * 0.5f);
+            Vector3 tip = new Vector3(0f, -bodyHeight, 0f);
+            for (int i = 0; i < 4; i++)
+            {
+                float x = i == 0 || i == 3 ? -conduitTop : conduitTop;
+                float z = i < 2 ? -conduitTop : conduitTop;
+                Transform conduit = CreateBeamBetween(
+                    $"Edge Conduit {i + 1}",
+                    armorRotor,
+                    new Vector3(x, 0f, z),
+                    tip,
+                    conduitRadius,
+                    materials.StormPyramidCore);
+                DisableRendererShadows(conduit.gameObject);
+            }
 
-                for (int i = 0; i < finCount; i++)
-                {
-                    float degrees = (360f * i) / finCount;
-                    float radians = degrees * Mathf.Deg2Rad;
-                    Vector3 radial = new Vector3(Mathf.Sin(radians), 0f, Mathf.Cos(radians));
-                    CreatePart(
-                        PrimitiveType.Cube,
-                        $"Crown Fin {i + 1}",
-                        armorRotor,
-                        (radial * settings.CrownFinRadius) + (Vector3.up * settings.CrownHeight),
-                        settings.CrownFinSize,
-                        Quaternion.Euler(settings.CrownFinOutwardTilt, degrees, 0f),
-                        materials.StormPyramidBody);
-                }
+            for (int i = 0; i < finCount; i++)
+            {
+                float degrees = (360f * i) / finCount;
+                float radians = degrees * Mathf.Deg2Rad;
+                Vector3 radial = new Vector3(Mathf.Sin(radians), 0f, Mathf.Cos(radians));
+                CreatePart(
+                    PrimitiveType.Cube,
+                    $"Crown Fin {i + 1}",
+                    armorRotor,
+                    (radial * settings.CrownFinRadius) + (Vector3.up * settings.CrownHeight),
+                    settings.CrownFinSize,
+                    Quaternion.Euler(settings.CrownFinOutwardTilt, degrees, 0f),
+                    materials.StormPyramidBody);
             }
 
             Transform core = CreatePart(

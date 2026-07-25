@@ -1879,7 +1879,7 @@ namespace DuneVector
         [Header("Model")]
         [Tooltip("Uses Storm Pyramid Prefab for the body while preserving the procedural light-blue rings and combat effects. Disable to use the original procedural pyramid.")]
         public bool UsePrefabModel = true;
-        [Tooltip("Body prefab used when Use Prefab Model is enabled. If this is missing, the original procedural pyramid is used automatically.")]
+        [Tooltip("Optional GameObject prefab used only for the storm pyramid hull. Assign a prefab through this Inspector slot. If empty or invalid, the original procedural hull is used.")]
         public GameObject StormPyramidPrefab;
         [Tooltip("Local position applied to the instantiated body prefab.")]
         public Vector3 PrefabLocalPosition = Vector3.zero;
