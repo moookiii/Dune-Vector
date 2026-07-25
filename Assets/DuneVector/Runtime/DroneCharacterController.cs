@@ -204,6 +204,15 @@ namespace DuneVector
         private Vector3 _lastVisualForward;
         private float _currentVisualBank;
         private float _currentVisualPitch;
+        private float _flightLandingVisualBlendStartClearance;
+        private float _flightLandingVisualBlendCompleteClearance;
+        private bool _flightLandingVisualActive;
+        private bool _flightLandingSurfaceValid;
+        private float _flightLandingSurfaceHeight;
+        private int _flightLandingSurfaceUpdatedFrame = -1;
+        private float _flightLandingActualBlendStartClearance;
+        private float _flightLandingStartBank;
+        private float _flightLandingStartPitch;
         private TrailRenderer[] _trailRenderers;
         private bool _trailsVisible = true;
 
@@ -288,6 +297,9 @@ namespace DuneVector
             _flightSpeedMultiplier = 1f;
             _requestedFlightSpeedMultiplier = 1f;
             _flightEntryLiftTimeRemaining = 0f;
+            _flightLandingVisualActive = false;
+            _flightLandingSurfaceValid = false;
+            _flightLandingSurfaceUpdatedFrame = -1;
             _ringBoostTimeRemaining = 0f;
             _ringBurstTimeRemaining = 0f;
             _jumpRequested = false;
@@ -380,6 +392,17 @@ namespace DuneVector
             }
         }
 
+        public void ConfigureFlightLandingVisual(
+            float blendStartClearance,
+            float blendCompleteClearance)
+        {
+            _flightLandingVisualBlendStartClearance = Mathf.Max(0f, blendStartClearance);
+            _flightLandingVisualBlendCompleteClearance = Mathf.Clamp(
+                blendCompleteClearance,
+                0f,
+                _flightLandingVisualBlendStartClearance);
+        }
+
         public void ActivateBoost()
         {
             _ringBoostTimeRemaining = RingBoostDuration;
@@ -445,6 +468,9 @@ namespace DuneVector
                 _flightSpeedMultiplier = _requestedFlightSpeedMultiplier;
                 _flightJustEntered = true;
                 _flightEntryLiftTimeRemaining = FlightEntryLiftDuration;
+                _flightLandingVisualActive = false;
+                _flightLandingSurfaceValid = false;
+                _flightLandingSurfaceUpdatedFrame = -1;
                 _jumpRequested = false;
                 _jumpConsumed = true;
                 Motor.ForceUnground(0.2f);
@@ -934,6 +960,7 @@ namespace DuneVector
 
         public void TryFinishFlightOnSurface(float surfaceHeight, Vector3 surfaceNormal)
         {
+            UpdateFlightLandingSurface(surfaceHeight);
             if (CurrentMode != DroneTraversalMode.Flight || _flightElapsedTime < MinimumFlightTime)
             {
                 return;
@@ -951,6 +978,7 @@ namespace DuneVector
 
         private void FinishFlight()
         {
+            BeginFlightLandingVisual();
             Vector3 landingForward = Vector3.ProjectOnPlane(Motor.CharacterForward, Vector3.up);
             if (landingForward.sqrMagnitude < 0.001f)
             {
@@ -971,6 +999,44 @@ namespace DuneVector
             _requestedFlightSpeedMultiplier = 1f;
             _flightEntryLiftTimeRemaining = 0f;
             _timeSinceStableGround = float.PositiveInfinity;
+        }
+
+        private void BeginFlightLandingVisual()
+        {
+            if (_flightLandingVisualActive)
+            {
+                return;
+            }
+
+            _flightLandingVisualActive = true;
+            _flightLandingStartBank = _currentVisualBank;
+            _flightLandingStartPitch = _currentVisualPitch;
+            float currentClearance = _flightLandingSurfaceValid
+                ? Motor.TransientPosition.y - _flightLandingSurfaceHeight
+                : _flightLandingVisualBlendStartClearance;
+            _flightLandingActualBlendStartClearance = Mathf.Clamp(
+                currentClearance,
+                _flightLandingVisualBlendCompleteClearance,
+                _flightLandingVisualBlendStartClearance);
+        }
+
+        private void UpdateFlightLandingSurface(float surfaceHeight)
+        {
+            if (!_flightLandingVisualActive && CurrentMode != DroneTraversalMode.Flight)
+            {
+                return;
+            }
+
+            if (!_flightLandingSurfaceValid || _flightLandingSurfaceUpdatedFrame != Time.frameCount)
+            {
+                _flightLandingSurfaceHeight = surfaceHeight;
+            }
+            else
+            {
+                _flightLandingSurfaceHeight = Mathf.Max(_flightLandingSurfaceHeight, surfaceHeight);
+            }
+            _flightLandingSurfaceValid = true;
+            _flightLandingSurfaceUpdatedFrame = Time.frameCount;
         }
 
         private void StartRingBurst()
@@ -1031,15 +1097,60 @@ namespace DuneVector
                 targetPitch = -Mathf.Max(0f, _rawMove.y) * GroundVisualPitch;
             }
 
-            float bankSharpness = Mathf.Abs(targetBank) > Mathf.Abs(_currentVisualBank) ? BankSharpness : BankRecoverySharpness;
-            _currentVisualBank = Mathf.Lerp(_currentVisualBank, targetBank, DuneVectorMath.Sharpness(bankSharpness, deltaTime));
-            _currentVisualPitch = Mathf.Lerp(_currentVisualPitch, targetPitch, DuneVectorMath.Sharpness(BankRecoverySharpness, deltaTime));
+            if (_flightLandingVisualActive)
+            {
+                UpdateFlightLandingVisual();
+            }
+            else
+            {
+                float bankSharpness = Mathf.Abs(targetBank) > Mathf.Abs(_currentVisualBank) ? BankSharpness : BankRecoverySharpness;
+                _currentVisualBank = Mathf.Lerp(_currentVisualBank, targetBank, DuneVectorMath.Sharpness(bankSharpness, deltaTime));
+                _currentVisualPitch = Mathf.Lerp(_currentVisualPitch, targetPitch, DuneVectorMath.Sharpness(BankRecoverySharpness, deltaTime));
+            }
             DroneVisualRoot.localRotation = Quaternion.Euler(_currentVisualPitch, 0f, _currentVisualBank);
 
             float hover = _hoverEnabled
                 ? Mathf.Sin(Time.time * HoverFrequency * Mathf.PI * 2f) * HoverAmplitude
                 : 0f;
             DroneVisualRoot.localPosition = _visualBaseLocalPosition + (Vector3.up * hover);
+        }
+
+        private void UpdateFlightLandingVisual()
+        {
+            if (World != null && _flightLandingSurfaceUpdatedFrame != Time.frameCount)
+            {
+                _flightLandingSurfaceHeight = World.SampleHeightAtLocal(
+                    Motor.TransientPosition.x,
+                    Motor.TransientPosition.z);
+                _flightLandingSurfaceValid = true;
+                _flightLandingSurfaceUpdatedFrame = Time.frameCount;
+            }
+
+            if (!_flightLandingSurfaceValid)
+            {
+                return;
+            }
+
+            float clearance = Motor.TransientPosition.y - _flightLandingSurfaceHeight;
+            float blend = _flightLandingActualBlendStartClearance
+                <= _flightLandingVisualBlendCompleteClearance
+                ? 1f
+                : Mathf.InverseLerp(
+                    _flightLandingActualBlendStartClearance,
+                    _flightLandingVisualBlendCompleteClearance,
+                    clearance);
+            blend = blend * blend * (3f - (2f * blend));
+            _currentVisualBank = Mathf.Lerp(_flightLandingStartBank, 0f, blend);
+            _currentVisualPitch = Mathf.Lerp(_flightLandingStartPitch, 0f, blend);
+
+            if (Motor.GroundingStatus.IsStableOnGround)
+            {
+                _currentVisualBank = 0f;
+                _currentVisualPitch = 0f;
+                _flightLandingVisualActive = false;
+                _flightLandingSurfaceValid = false;
+                _flightLandingSurfaceUpdatedFrame = -1;
+            }
         }
 
         public void SetHoverEnabled(bool enabled)

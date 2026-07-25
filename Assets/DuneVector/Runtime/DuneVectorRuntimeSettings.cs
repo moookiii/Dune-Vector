@@ -3835,6 +3835,12 @@ namespace DuneVector
         [Min(0f)] public float FlightEntryLiftDuration = 0.75f;
         [Min(0f)] public float FlightEntryLiftSpeed = 16f;
 
+        [Header("Flight Landing Visual")]
+        [Tooltip("Ground clearance where the drone begins easing its preserved flight pitch and roll back to rest.")]
+        [Min(0f)] public float FlightLandingVisualBlendStartClearance = 6f;
+        [Tooltip("Ground clearance where the drone has fully reached its resting pitch and roll.")]
+        [Min(0f)] public float FlightLandingVisualBlendCompleteClearance = 0.75f;
+
         [Header("Camera")]
         [Min(0f)] public float CameraLookSensitivity = 0.085f;
         [Min(0f)] public float CameraRotationSharpness = 30f;
@@ -3885,6 +3891,9 @@ namespace DuneVector
             drone.ConfigureFlightMeter(FlightDuration, FlightRingRechargeSeconds, DebugInfiniteFlight);
             drone.FlightEntryLiftDuration = FlightEntryLiftDuration;
             drone.FlightEntryLiftSpeed = FlightEntryLiftSpeed;
+            drone.ConfigureFlightLandingVisual(
+                FlightLandingVisualBlendStartClearance,
+                FlightLandingVisualBlendCompleteClearance);
         }
 
         public void ApplyTo(DroneCameraController camera)
