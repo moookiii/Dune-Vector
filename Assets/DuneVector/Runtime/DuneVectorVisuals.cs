@@ -1943,16 +1943,10 @@ namespace DuneVector
             float bodyHeight = Mathf.Max(0.1f, settings.BodyHeight);
             float bodyHalfWidth = bodyWidth * 0.5f;
             int finCount = Mathf.Max(3, settings.CrownFinCount);
-            GameObject stormPyramidPrefab = settings.StormPyramidPrefab;
-            if (stormPyramidPrefab == null && !string.IsNullOrWhiteSpace(settings.PrefabResourcePath))
-            {
-                stormPyramidPrefab = Resources.Load<GameObject>(settings.PrefabResourcePath);
-            }
-
-            bool usingPrefabModel = settings.UsePrefabModel && stormPyramidPrefab != null;
+            bool usingPrefabModel = settings.UsePrefabModel && settings.StormPyramidPrefab != null;
             if (usingPrefabModel)
             {
-                GameObject model = UnityEngine.Object.Instantiate(stormPyramidPrefab, armorRotor);
+                GameObject model = UnityEngine.Object.Instantiate(settings.StormPyramidPrefab, armorRotor);
                 model.name = "Storm Pyramid Prefab Model";
                 model.transform.localPosition = settings.PrefabLocalPosition;
                 model.transform.localRotation = Quaternion.Euler(settings.PrefabLocalEulerAngles);
