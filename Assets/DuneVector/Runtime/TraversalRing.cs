@@ -355,6 +355,10 @@ namespace DuneVector
                     float speedMultiplier = RingType == TraversalRingType.UpperFlight
                         ? _ringTuning.UpperFlightSpeedMultiplier
                         : 1f;
+                    if (RingType == TraversalRingType.UpperFlight)
+                    {
+                        _controller.RestoreStaminaToFull();
+                    }
                     if (Time.time >= _nextFlightMeterRewardTime)
                     {
                         _nextFlightMeterRewardTime = Time.time

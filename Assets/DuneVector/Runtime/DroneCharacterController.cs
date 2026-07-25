@@ -244,6 +244,11 @@ namespace DuneVector
             _boostSpeedModifier = boostSpeedModifier;
         }
 
+        public void RestoreStaminaToFull()
+        {
+            _stamina?.RestoreToFull();
+        }
+
         public void BindWindFields(DuneVectorWindFieldSystem windFields, WindFieldSystemTuning settings)
         {
             _windFields = windFields;

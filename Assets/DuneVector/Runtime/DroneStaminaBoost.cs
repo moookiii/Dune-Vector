@@ -56,6 +56,13 @@ namespace DuneVector
             _environmentalDrainMultiplier = Mathf.Max(1f, multiplier);
         }
 
+        public void RestoreToFull()
+        {
+            CurrentStamina = Mathf.Max(0.01f, MaximumStamina);
+            State = DroneStaminaState.Ready;
+            _regenDelayRemaining = 0f;
+        }
+
         public void Tick(bool boostHeld, float deltaTime)
         {
             if (_settings == null)
