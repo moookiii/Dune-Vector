@@ -343,7 +343,7 @@ namespace DuneVector
                     _jumpRequested = true;
                     _timeSinceJumpRequested = 0f;
                 }
-                else if (_jumpConsumed && !Motor.GroundingStatus.IsStableOnGround)
+                else if (!Motor.GroundingStatus.IsStableOnGround)
                 {
                     RequestFlight(_cameraForward);
                 }
