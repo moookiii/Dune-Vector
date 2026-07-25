@@ -386,8 +386,8 @@ namespace DuneVector
         private float _statusMessageUntil;
         private Vector3 _droneVisualOriginalScale;
         private Material _hubMetalMaterial;
-        private Material _hubFloorInlayMaterial;
         private Material _hubEnergyMaterial;
+        private readonly List<Material> _hubTerminalEnergyMaterials = new List<Material>();
 
         private GUIStyle _terminalTitleStyle;
         private GUIStyle _terminalBodyStyle;
@@ -743,10 +743,6 @@ namespace DuneVector
                 "World Hub Energy",
                 new Color(_hubSettings.HubEnergyColor.r * 0.12f, _hubSettings.HubEnergyColor.g * 0.12f, _hubSettings.HubEnergyColor.b * 0.12f),
                 _hubSettings.HubEnergyColor);
-            _hubFloorInlayMaterial = new Material(_hubEnergyMaterial)
-            {
-                name = "World Hub RGB Floor Inlay",
-            };
             LogicalPosition hubLogical = new LogicalPosition(
                 DesertWorldStreamer.StartingLogicalPosition.x,
                 DesertWorldStreamer.StartingLogicalPosition.y);
@@ -770,7 +766,7 @@ namespace DuneVector
             HubPart(PrimitiveType.Cylinder, "Energy Inlay", _hubRoot,
                 new Vector3(0f, (_hubSettings.PlatformThickness * 0.5f) + 0.08f, 0f),
                 new Vector3(_hubSettings.PlatformRadius * 0.72f, 0.08f, _hubSettings.PlatformRadius * 0.72f),
-                Quaternion.identity, _hubFloorInlayMaterial, false);
+                Quaternion.identity, _hubEnergyMaterial, false);
 
             _hubEnergyOrbit = new GameObject("Rotating Platform Energy Lanes").transform;
             _hubEnergyOrbit.SetParent(_hubRoot, false);
@@ -899,6 +895,11 @@ namespace DuneVector
             Transform terminal = new GameObject(objectName).transform;
             terminal.SetParent(_hubRoot, false);
             terminal.SetLocalPositionAndRotation(localPosition, localRotation);
+            Material terminalEnergyMaterial = new Material(_hubEnergyMaterial)
+            {
+                name = $"{objectName} RGB Energy",
+            };
+            _hubTerminalEnergyMaterials.Add(terminalEnergyMaterial);
             HubPart(
                 PrimitiveType.Cube,
                 "Terminal Pedestal",
@@ -915,7 +916,7 @@ namespace DuneVector
                 _hubSettings.TerminalScreenLocalPosition,
                 _hubSettings.TerminalScreenScale,
                 Quaternion.Euler(_hubSettings.TerminalScreenTilt, 0f, 0f),
-                _hubEnergyMaterial,
+                terminalEnergyMaterial,
                 false);
             HubPart(
                 PrimitiveType.Cube,
@@ -937,7 +938,7 @@ namespace DuneVector
                     mastPosition,
                     _hubSettings.TerminalSignalMastScale,
                     Quaternion.identity,
-                    _hubEnergyMaterial,
+                    terminalEnergyMaterial,
                     false);
             }
             return terminal;
@@ -1035,7 +1036,7 @@ namespace DuneVector
         private void AnimateHubPresentation()
         {
             float deltaTime = Time.unscaledDeltaTime;
-            AnimateUnlockedHubFloor();
+            AnimateUnlockedHubTerminals();
             if (_hubEnergyOrbit != null)
             {
                 _hubEnergyOrbit.Rotate(0f, _hubSettings.PlatformEnergyRotationSpeed * deltaTime, 0f, Space.Self);
@@ -1054,31 +1055,46 @@ namespace DuneVector
             }
         }
 
-        private void AnimateUnlockedHubFloor()
+        private void AnimateUnlockedHubTerminals()
         {
-            if (_hubFloorInlayMaterial == null ||
+            if (_hubTerminalEnergyMaterials.Count == 0 ||
                 _permanentUpgrades == null ||
-                !_permanentUpgrades.IsHubRgbFloorUnlocked)
+                !_permanentUpgrades.AreHubRgbTerminalsUnlocked)
             {
                 return;
             }
 
-            HubRgbFloorUnlockTuning tuning = _permanentUpgrades.HubRgbFloorTuning;
+            HubRgbTerminalUnlockTuning tuning = _permanentUpgrades.HubRgbTerminalTuning;
             if (tuning == null)
             {
                 return;
             }
 
-            float phase = Mathf.Repeat(Time.unscaledTime * Mathf.Max(0.01f, tuning.ColorCycleSpeed), 3f);
-            Color blended = phase < 1f
+            float basePhase = Time.unscaledTime * Mathf.Max(0.01f, tuning.ColorCycleSpeed);
+            for (int index = 0; index < _hubTerminalEnergyMaterials.Count; index++)
+            {
+                Material terminalMaterial = _hubTerminalEnergyMaterials[index];
+                if (terminalMaterial == null)
+                {
+                    continue;
+                }
+
+                float phase = Mathf.Repeat(basePhase + (index * tuning.StartingPhaseOffset), 3f);
+                Color blended = EvaluateRgbBlend(tuning, phase);
+                SetHubMaterialColors(
+                    terminalMaterial,
+                    ScaleRgb(blended, Mathf.Clamp01(tuning.BaseColorIntensity)),
+                    ScaleRgb(blended, Mathf.Max(0f, tuning.EmissionIntensity)));
+            }
+        }
+
+        private static Color EvaluateRgbBlend(HubRgbTerminalUnlockTuning tuning, float phase)
+        {
+            return phase < 1f
                 ? Color.Lerp(tuning.Red, tuning.Green, phase)
                 : phase < 2f
                     ? Color.Lerp(tuning.Green, tuning.Blue, phase - 1f)
                     : Color.Lerp(tuning.Blue, tuning.Red, phase - 2f);
-            SetHubMaterialColors(
-                _hubFloorInlayMaterial,
-                ScaleRgb(blended, Mathf.Clamp01(tuning.BaseColorIntensity)),
-                ScaleRgb(blended, Mathf.Max(0f, tuning.EmissionIntensity)));
         }
 
         private static Color ScaleRgb(Color color, float intensity)
@@ -3255,7 +3271,11 @@ namespace DuneVector
             if (_world != null) _world.WorldShifted -= HandleWorldShift;
             DestroyTeleportParticles();
             if (_hubMetalMaterial != null) Destroy(_hubMetalMaterial);
-            if (_hubFloorInlayMaterial != null) Destroy(_hubFloorInlayMaterial);
+            for (int index = 0; index < _hubTerminalEnergyMaterials.Count; index++)
+            {
+                if (_hubTerminalEnergyMaterials[index] != null) Destroy(_hubTerminalEnergyMaterials[index]);
+            }
+            _hubTerminalEnergyMaterials.Clear();
             if (_hubEnergyMaterial != null) Destroy(_hubEnergyMaterial);
             if (_terminalPanelTexture != null) Destroy(_terminalPanelTexture);
             if (_terminalCardTexture != null) Destroy(_terminalCardTexture);

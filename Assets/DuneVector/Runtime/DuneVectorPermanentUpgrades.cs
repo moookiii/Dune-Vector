@@ -285,10 +285,11 @@ namespace DuneVector
                 : Array.Empty<DroneUpgradeDefinition>();
 
         public event Action<DroneUpgradeId, int, int> UpgradePurchased;
-        public event Action<int> HubRgbFloorUnlocked;
+        public event Action<int> HubRgbTerminalsUnlocked;
 
-        public bool IsHubRgbFloorUnlocked => _tierState.HubRgbFloorUnlocked;
-        public HubRgbFloorUnlockTuning HubRgbFloorTuning => _tuning?.HubRgbFloor;
+        // The stored field retains its original name so existing DuneVectorUpgrades.dat files keep the unlock.
+        public bool AreHubRgbTerminalsUnlocked => _tierState.HubRgbFloorUnlocked;
+        public HubRgbTerminalUnlockTuning HubRgbTerminalTuning => _tuning?.HubRgbTerminals;
 
         private readonly DroneUpgradeTierState _tierState = new DroneUpgradeTierState();
         private readonly DroneUpgradePurchaseValidator _purchaseValidator = new DroneUpgradePurchaseValidator();
@@ -390,27 +391,27 @@ namespace DuneVector
             return Wallet != null && cost > 0 && Wallet.Gold >= cost;
         }
 
-        public int GetHubRgbFloorGoldCost()
+        public int GetHubRgbTerminalGoldCost()
         {
-            return Mathf.Max(1, HubRgbFloorTuning?.GoldCost ?? 1);
+            return Mathf.Max(1, HubRgbTerminalTuning?.GoldCost ?? 1);
         }
 
-        public bool CanUnlockHubRgbFloor()
+        public bool CanUnlockHubRgbTerminals()
         {
             return IsInitialized
-                && !IsHubRgbFloorUnlocked
+                && !AreHubRgbTerminalsUnlocked
                 && Wallet != null
-                && Wallet.Gold >= GetHubRgbFloorGoldCost();
+                && Wallet.Gold >= GetHubRgbTerminalGoldCost();
         }
 
-        public UpgradePurchaseFailure TryUnlockHubRgbFloor(out int goldCost)
+        public UpgradePurchaseFailure TryUnlockHubRgbTerminals(out int goldCost)
         {
-            goldCost = GetHubRgbFloorGoldCost();
+            goldCost = GetHubRgbTerminalGoldCost();
             if (!IsInitialized || Wallet == null || _saveRepository == null)
             {
                 return UpgradePurchaseFailure.NotInitialized;
             }
-            if (IsHubRgbFloorUnlocked)
+            if (AreHubRgbTerminalsUnlocked)
             {
                 return UpgradePurchaseFailure.MaximumTierReached;
             }
@@ -431,7 +432,7 @@ namespace DuneVector
                 return UpgradePurchaseFailure.UpgradeSaveFailed;
             }
 
-            HubRgbFloorUnlocked?.Invoke(goldCost);
+            HubRgbTerminalsUnlocked?.Invoke(goldCost);
             return UpgradePurchaseFailure.None;
         }
 

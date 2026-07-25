@@ -183,12 +183,14 @@ namespace DuneVector
     }
 
     [Serializable]
-    public sealed class HubRgbFloorUnlockTuning
+    public sealed class HubRgbTerminalUnlockTuning
     {
-        public string DisplayName = "RGB Hub Floor";
-        [TextArea] public string Description = "Continuously blends the main hub floor through red, green, and blue.";
+        public string DisplayName = "RGB Hub Terminals";
+        [TextArea] public string Description = "Cycles every hub terminal through RGB from a different starting color.";
         [Min(1)] public int GoldCost = 5000;
-        [Min(0.01f)] public float ColorCycleSpeed = 0.18f;
+        [Min(0.01f)] public float ColorCycleSpeed = 0.6f;
+        [Tooltip("Cycle phase added between successive hub terminals so each starts on a different color.")]
+        [Min(0f)] public float StartingPhaseOffset = 0.75f;
         [ColorUsage(false, true)] public Color Red = new Color(3.2f, 0.04f, 0.02f, 1f);
         [ColorUsage(false, true)] public Color Green = new Color(0.02f, 3.2f, 0.08f, 1f);
         [ColorUsage(false, true)] public Color Blue = new Color(0.02f, 0.12f, 3.2f, 1f);
@@ -202,7 +204,7 @@ namespace DuneVector
         [Tooltip("Gold prices are rounded upward to this increment.")]
         [Min(1)] public int GoldCostRounding = 5;
 
-        public HubRgbFloorUnlockTuning HubRgbFloor = new HubRgbFloorUnlockTuning();
+        public HubRgbTerminalUnlockTuning HubRgbTerminals = new HubRgbTerminalUnlockTuning();
         public List<DroneUpgradeDefinition> Definitions = CreateDefaultDefinitions();
         public UpgradeShopVisualTuning ShopVisuals = new UpgradeShopVisualTuning();
 
@@ -213,7 +215,7 @@ namespace DuneVector
             {
                 Definitions = CreateDefaultDefinitions();
             }
-            HubRgbFloor ??= new HubRgbFloorUnlockTuning();
+            HubRgbTerminals ??= new HubRgbTerminalUnlockTuning();
             ShopVisuals ??= new UpgradeShopVisualTuning();
         }
 

@@ -42,7 +42,7 @@ namespace DuneVector
         private float _recentPurchaseUntil;
         private int _lastGoldCost;
         private float _goldDeductionUntil;
-        private float _hubRgbFloorRecentUntil;
+        private float _hubRgbTerminalRecentUntil;
         private string _statusMessage;
         private float _statusUntil;
 
@@ -189,7 +189,7 @@ namespace DuneVector
 
                 if (group == DroneUpgradeGroup.Cosmetic)
                 {
-                    DrawHubRgbFloorRow(new Rect(0f, y, width, _visuals.RowHeight * scale), groupColor, scale);
+                    DrawHubRgbTerminalRow(new Rect(0f, y, width, _visuals.RowHeight * scale), groupColor, scale);
                     y += (_visuals.RowHeight + _visuals.RowGap) * scale;
                     continue;
                 }
@@ -209,16 +209,16 @@ namespace DuneVector
             }
         }
 
-        private void DrawHubRgbFloorRow(Rect row, Color groupColor, float scale)
+        private void DrawHubRgbTerminalRow(Rect row, Color groupColor, float scale)
         {
-            HubRgbFloorUnlockTuning tuning = _upgrades.HubRgbFloorTuning;
+            HubRgbTerminalUnlockTuning tuning = _upgrades.HubRgbTerminalTuning;
             if (tuning == null)
             {
                 return;
             }
 
-            bool unlocked = _upgrades.IsHubRgbFloorUnlocked;
-            bool recent = Time.unscaledTime < _hubRgbFloorRecentUntil;
+            bool unlocked = _upgrades.AreHubRgbTerminalsUnlocked;
+            bool recent = Time.unscaledTime < _hubRgbTerminalRecentUntil;
             bool hovered = row.Contains(Event.current.mousePosition);
             Color rowColor = recent ? _visuals.RecentPurchaseColor : hovered ? _visuals.RowHoverColor : _visuals.RowColor;
             DrawSolidRect(row, rowColor);
@@ -256,7 +256,7 @@ namespace DuneVector
             _valueRightStyle.normal.textColor = unlocked ? _visuals.MaximumColor : groupColor;
             GUI.Label(
                 new Rect(statusX, row.y + ((row.height - _valueRightStyle.lineHeight) * 0.5f), statusWidth, _valueRightStyle.lineHeight),
-                unlocked ? "RGB FLOOR INSTALLED" : "ONE-TIME COSMETIC UNLOCK",
+                unlocked ? "RGB TERMINALS INSTALLED" : "ONE-TIME COSMETIC UNLOCK",
                 _valueRightStyle);
 
             float actionX = row.xMax - actionWidth - columnGap;
@@ -272,8 +272,8 @@ namespace DuneVector
                 return;
             }
 
-            int cost = _upgrades.GetHubRgbFloorGoldCost();
-            bool affordable = _upgrades.CanUnlockHubRgbFloor();
+            int cost = _upgrades.GetHubRgbTerminalGoldCost();
+            bool affordable = _upgrades.CanUnlockHubRgbTerminals();
             _costStyle.normal.textColor = affordable ? _visuals.GoldColor : _visuals.MutedTextColor;
             GUI.Label(new Rect(action.x, action.y + rowPadding, action.width, _costStyle.lineHeight), $"COST  {cost:N0} GOLD", _costStyle);
             Rect purchaseButton = new Rect(
@@ -287,19 +287,19 @@ namespace DuneVector
                 affordable ? _buttonStyle : _disabledButtonStyle);
             if (purchaseRequested && affordable)
             {
-                HandleHubRgbFloorPurchase();
+                HandleHubRgbTerminalPurchase();
             }
         }
 
-        private void HandleHubRgbFloorPurchase()
+        private void HandleHubRgbTerminalPurchase()
         {
-            UpgradePurchaseFailure failure = _upgrades.TryUnlockHubRgbFloor(out int goldCost);
+            UpgradePurchaseFailure failure = _upgrades.TryUnlockHubRgbTerminals(out int goldCost);
             if (failure == UpgradePurchaseFailure.None)
             {
-                _hubRgbFloorRecentUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
+                _hubRgbTerminalRecentUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
                 _lastGoldCost = goldCost;
                 _goldDeductionUntil = Time.unscaledTime + _visuals.GoldDeductionDuration;
-                _statusMessage = "RGB HUB FLOOR INSTALLED";
+                _statusMessage = "RGB HUB TERMINALS INSTALLED";
                 _statusUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
                 return;
             }
@@ -309,7 +309,7 @@ namespace DuneVector
                 UpgradePurchaseFailure.CannotAfford => "INSUFFICIENT GOLD",
                 UpgradePurchaseFailure.CurrencySaveFailed => "CURRENCY TRANSACTION COULD NOT BE SAVED",
                 UpgradePurchaseFailure.UpgradeSaveFailed => "UPGRADE SAVE FAILED  /  GOLD REFUNDED",
-                UpgradePurchaseFailure.MaximumTierReached => "RGB HUB FLOOR ALREADY INSTALLED",
+                UpgradePurchaseFailure.MaximumTierReached => "RGB HUB TERMINALS ALREADY INSTALLED",
                 _ => "COSMETIC UNLOCK UNAVAILABLE",
             };
             _statusUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
