@@ -406,9 +406,7 @@ namespace DuneVector
                         icon.Artwork,
                         position,
                         mapRect,
-                        displayedWorldSize,
-                        !worldMap,
-                        scale);
+                        displayedWorldSize);
                     continue;
                 }
 
@@ -490,9 +488,7 @@ namespace DuneVector
             GeoglyphArtworkPlacement artwork,
             Vector2 position,
             Rect mapRect,
-            float displayedWorldSize,
-            bool emphasizeForMinimap,
-            float scale)
+            float displayedWorldSize)
         {
             if (artwork == null ||
                 !_geoglyphMapTextures.TryGetValue(artwork, out Texture2D mapTexture) ||
@@ -512,46 +508,6 @@ namespace DuneVector
                 width,
                 height);
 
-            if (emphasizeForMinimap)
-            {
-                float strokeWidth = Mathf.Max(
-                    0f,
-                    _settings.GeoglyphMinimapStrokeWidth * scale);
-                DrawOffsetGeoglyphTexture(artworkRect, mapTexture, -strokeWidth, 0f);
-                DrawOffsetGeoglyphTexture(artworkRect, mapTexture, strokeWidth, 0f);
-                DrawOffsetGeoglyphTexture(artworkRect, mapTexture, 0f, -strokeWidth);
-                DrawOffsetGeoglyphTexture(artworkRect, mapTexture, 0f, strokeWidth);
-                DrawOffsetGeoglyphTexture(
-                    artworkRect,
-                    mapTexture,
-                    -strokeWidth,
-                    -strokeWidth);
-                DrawOffsetGeoglyphTexture(
-                    artworkRect,
-                    mapTexture,
-                    strokeWidth,
-                    -strokeWidth);
-                DrawOffsetGeoglyphTexture(
-                    artworkRect,
-                    mapTexture,
-                    -strokeWidth,
-                    strokeWidth);
-                DrawOffsetGeoglyphTexture(
-                    artworkRect,
-                    mapTexture,
-                    strokeWidth,
-                    strokeWidth);
-            }
-            GUI.DrawTexture(artworkRect, mapTexture, ScaleMode.StretchToFill, true);
-        }
-
-        private static void DrawOffsetGeoglyphTexture(
-            Rect artworkRect,
-            Texture2D mapTexture,
-            float offsetX,
-            float offsetY)
-        {
-            artworkRect.position += new Vector2(offsetX, offsetY);
             GUI.DrawTexture(artworkRect, mapTexture, ScaleMode.StretchToFill, true);
         }
 
@@ -779,15 +735,16 @@ namespace DuneVector
                 width,
                 height,
                 TextureFormat.RGBA32,
-                false)
+                true)
             {
                 name = $"Map Geoglyph - {artwork.Mask.name}",
-                filterMode = FilterMode.Bilinear,
+                filterMode = FilterMode.Trilinear,
                 wrapMode = TextureWrapMode.Clamp,
+                anisoLevel = 0,
                 hideFlags = HideFlags.DontSave,
             };
             result.ReadPixels(new Rect(0f, 0f, width, height), 0, 0, false);
-            result.Apply(false, false);
+            result.Apply(true, false);
             RenderTexture.active = previous;
             RenderTexture.ReleaseTemporary(target);
             return result;
