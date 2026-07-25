@@ -4101,15 +4101,28 @@ namespace DuneVector
         [Range(0.25f, 2f)] public float MinimapIconScale = 0.85f;
         [Min(8)] public int RingIconFontSize = 22;
         [Min(8)] public int LandmarkIconFontSize = 20;
-        [Min(8)] public int GeoglyphIconFontSize = 22;
         [Min(12f)] public float IconBoxSize = 34f;
         public Vector2 IconShadowOffset = new Vector2(1f, 2f);
         public string RingIcon = "○";
-        public string LandmarkIcon = "◆";
-        public string GeoglyphIcon = "✦";
-        [ColorUsage(false)] public Color RingIconColor = new Color(0.12f, 0.9f, 1f, 1f);
+        [Header("Landmark Symbols")]
+        public string RelayStationIcon = "⌁";
+        public string CrashedCarrierIcon = "✈";
+        public string RaiderBeaconIcon = "⚑";
+        public string AncientSpireIcon = "▲";
+        public string ExcavationSiteIcon = "⛏";
+        public string OrbitalArrayIcon = "◒";
+        public string DesertMegagateIcon = "Π";
+        public string WindHarvesterIcon = "✣";
+        public string BuriedArcologyIcon = "⬢";
+        public string SandRingIcon = "◎";
+
+        [Header("Icon Colors")]
+        [ColorUsage(false)] public Color YellowRingColor = new Color(1f, 0.78f, 0.08f, 1f);
+        [ColorUsage(false)] public Color WhiteRingColor = new Color(0.95f, 0.98f, 1f, 1f);
+        [ColorUsage(false)] public Color PurplePortalColor = new Color(0.74f, 0.32f, 1f, 1f);
         [ColorUsage(false)] public Color LandmarkIconColor = new Color(1f, 0.67f, 0.18f, 1f);
-        [ColorUsage(false)] public Color GeoglyphIconColor = new Color(0.88f, 0.45f, 1f, 1f);
+        [ColorUsage(false)] public Color GeoglyphMapColor = new Color(0.88f, 0.45f, 1f, 1f);
+        [Range(0f, 1f)] public float GeoglyphMapOpacity = 0.9f;
         [ColorUsage(false)] public Color IconShadowColor = new Color(0f, 0f, 0f, 0.85f);
 
         [Header("Palette")]
