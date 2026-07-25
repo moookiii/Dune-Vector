@@ -2738,6 +2738,8 @@ namespace DuneVector
         [Min(1f)] public float UpperFlightRingHudProgressBarHeight = 8f;
         [Min(8)] public int UpperFlightRingHudTitleFontSize = 13;
         [Min(8)] public int UpperFlightRingHudStatusFontSize = 17;
+        public Vector2 UpperFlightRingHudShadowOffset = new Vector2(5f, 6f);
+        [ColorUsage(false)] public Color UpperFlightRingHudShadowColor = new Color(0f, 0f, 0f, 0.42f);
         [ColorUsage(false)] public Color UpperFlightRingHudPanelColor = new Color(0.025f, 0.07f, 0.11f, 0.9f);
         [ColorUsage(false)] public Color UpperFlightRingHudAccentColor = new Color(0f, 0.82f, 1f, 1f);
         [ColorUsage(false)] public Color UpperFlightRingHudTrackColor = new Color(0.12f, 0.24f, 0.3f, 1f);
@@ -2800,6 +2802,8 @@ namespace DuneVector
         [Min(100f)] public float GoldHudWidth = 180f;
         [Min(30f)] public float GoldHudHeight = 48f;
         [Min(8)] public int GoldHudFontSize = 18;
+        public Vector2 GoldHudShadowOffset = new Vector2(5f, 6f);
+        [ColorUsage(false)] public Color GoldHudShadowColor = new Color(0f, 0f, 0f, 0.42f);
         [Min(0.1f)] public float GoldPickupFeedbackDuration = 1.4f;
         [Min(8)] public int GoldPickupFeedbackFontSize = 28;
         [Min(0f)] public float GoldPickupFeedbackTop = 118f;

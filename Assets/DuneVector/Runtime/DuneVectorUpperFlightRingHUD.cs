@@ -38,6 +38,12 @@ namespace DuneVector
             float scale = Mathf.Clamp(Screen.height / referenceHeight, minimumScale, maximumScale);
             EnsureStyles(scale);
 
+            Rect shadow = new Rect(
+                panel.x + (_settings.UpperFlightRingHudShadowOffset.x * scale),
+                panel.y + (_settings.UpperFlightRingHudShadowOffset.y * scale),
+                panel.width,
+                panel.height);
+            DrawSolidRect(shadow, _settings.UpperFlightRingHudShadowColor);
             DrawSolidRect(panel, _settings.UpperFlightRingHudPanelColor);
 
             float accentWidth = _settings.UpperFlightRingHudAccentWidth * scale;

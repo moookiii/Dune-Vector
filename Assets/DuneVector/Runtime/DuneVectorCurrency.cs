@@ -276,6 +276,13 @@ namespace DuneVector
                 _settings.GoldHudWidth,
                 _settings.GoldHudHeight);
             Color oldColor = GUI.color;
+            Rect shadow = new Rect(
+                panel.x + _settings.GoldHudShadowOffset.x,
+                panel.y + _settings.GoldHudShadowOffset.y,
+                panel.width,
+                panel.height);
+            GUI.color = _settings.GoldHudShadowColor;
+            GUI.DrawTexture(shadow, Texture2D.whiteTexture);
             GUI.color = _settings.GoldHudPanelColor;
             GUI.DrawTexture(panel, Texture2D.whiteTexture);
             GUI.color = Color.white;
