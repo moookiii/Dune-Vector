@@ -1434,10 +1434,31 @@ namespace DuneVector
         [Range(1, 9)] public int PreloadRadius = 3;
         [Tooltip("Chunks beyond this radius are removed.")]
         [Range(2, 12)] public int UnloadRadius = 4;
+        [Tooltip("How often the desired visual terrain set is refreshed.")]
+        [Min(0.05f)] public float RefreshInterval = 0.18f;
         [Tooltip("Maximum terrain chunks generated during one frame.")]
         [Range(1, 4)] public int ChunksGeneratedPerFrame = 1;
         [Tooltip("Main-thread time budget for queued chunk work. A single indivisible stage may exceed this budget.")]
         [Range(0.25f, 8f)] public float GenerationTimeBudgetMilliseconds = 1.25f;
+        [Header("Camera Frustum Terrain")]
+        [Tooltip("Stream terrain-only chunks intersecting the aerial camera frustum without enabling their gameplay content or collision.")]
+        public bool EnableCameraFrustumTerrainStreaming = true;
+        [Tooltip("Camera height above the procedural terrain at which frustum terrain streaming begins.")]
+        [Min(0f)] public float CameraFrustumMinimumAltitude = 18f;
+        [Tooltip("Camera height above terrain at which the maximum frustum terrain distance is reached.")]
+        [Min(0.01f)] public float CameraFrustumFullDistanceAltitude = 140f;
+        [Tooltip("Frustum terrain distance when aerial streaming first activates.")]
+        [Min(1f)] public float CameraFrustumMinimumDistance = 480f;
+        [Tooltip("Maximum distance of terrain-only camera-frustum coverage.")]
+        [Min(1f)] public float CameraFrustumMaximumDistance = 1200f;
+        [Tooltip("Extra chunk widths included around the visible frustum to hide generation during camera movement.")]
+        [Range(0, 3)] public int CameraFrustumPaddingChunks = 1;
+        [Tooltip("Additional chunk widths retained outside the generation frustum to prevent churn while the camera turns.")]
+        [Range(0, 4)] public int CameraFrustumUnloadPaddingChunks = 1;
+        [Tooltip("Vertical padding applied to sampled terrain chunk bounds during frustum intersection tests.")]
+        [Min(0f)] public float CameraFrustumTerrainHeightPadding = 24f;
+        [Tooltip("Maximum terrain-only chunks selected by camera-frustum streaming. Player-radius chunks are not included in this limit.")]
+        [Range(16, 512)] public int MaximumCameraFrustumTerrainChunks = 192;
         [Tooltip("Seconds of current planar velocity used to preload collision terrain ahead of the drone.")]
         [Range(0f, 5f)] public float CollisionPredictionSeconds = 2.5f;
         [Tooltip("Chunk radius around the predicted flight position prepared for collision.")]

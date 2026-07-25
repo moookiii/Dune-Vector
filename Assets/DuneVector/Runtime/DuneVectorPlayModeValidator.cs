@@ -192,7 +192,8 @@ namespace DuneVector
             }
             Check((motor.TransientPosition - postRebaseStart).magnitude > 1f, "KCC continues simulating after rebasing", "The motor did not move after the origin shift.");
 
-            int maximumBoundedChunks = (world.UnloadRadius * 2 + 1) * (world.UnloadRadius * 2 + 1);
+            int maximumBoundedChunks = ((world.UnloadRadius * 2 + 1) * (world.UnloadRadius * 2 + 1))
+                + world.MaximumCameraFrustumTerrainChunks;
             Check(world.GeneratedChunkCount > 9, "Streaming generates chunks ahead of traversal", $"Only {world.GeneratedChunkCount} chunks were generated.");
             Check(world.ActiveChunkCount <= maximumBoundedChunks && world.PeakActiveChunkCount <= maximumBoundedChunks + 8, "Streaming keeps active chunk count bounded", $"Active/peak chunks were {world.ActiveChunkCount}/{world.PeakActiveChunkCount}.");
             Check(world.UnloadedChunkCount > 0, "Distant chunks unload behind the player", "No chunks were unloaded during multi-chunk traversal.");

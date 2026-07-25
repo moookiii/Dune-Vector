@@ -25,8 +25,18 @@ namespace DuneVector
         [Range(1, 14)] public int ActiveRadius = 3;
         [Range(1, 9)] public int PreloadRadius = 3;
         [Range(2, 12)] public int UnloadRadius = 4;
+        [Min(0.05f)] public float RefreshInterval = 0.18f;
         [Range(1, 4)] public int ChunksGeneratedPerFrame = 1;
         [Range(0.25f, 8f)] public float GenerationTimeBudgetMilliseconds = 1.25f;
+        public bool EnableCameraFrustumTerrainStreaming = true;
+        [Min(0f)] public float CameraFrustumMinimumAltitude = 18f;
+        [Min(0.01f)] public float CameraFrustumFullDistanceAltitude = 140f;
+        [Min(1f)] public float CameraFrustumMinimumDistance = 480f;
+        [Min(1f)] public float CameraFrustumMaximumDistance = 1200f;
+        [Range(0, 3)] public int CameraFrustumPaddingChunks = 1;
+        [Range(0, 4)] public int CameraFrustumUnloadPaddingChunks = 1;
+        [Min(0f)] public float CameraFrustumTerrainHeightPadding = 24f;
+        [Range(16, 512)] public int MaximumCameraFrustumTerrainChunks = 192;
         [Range(0f, 5f)] public float CollisionPredictionSeconds = 2.5f;
         [Range(0, 2)] public int CollisionPreloadRadius = 1;
         [Range(1, 4)] public int CollisionActiveRadius = 2;
@@ -99,10 +109,16 @@ namespace DuneVector
         private readonly Queue<Vector2Int> _collisionQueue = new Queue<Vector2Int>();
         private readonly HashSet<Vector2Int> _queuedCollisionCoordinates = new HashSet<Vector2Int>();
         private readonly List<Vector2Int> _candidateCoordinates = new List<Vector2Int>();
+        private readonly List<Vector2Int> _frustumCandidateCoordinates = new List<Vector2Int>();
         private readonly List<Vector2Int> _removalBuffer = new List<Vector2Int>();
+        private readonly HashSet<Vector2Int> _desiredContentCoordinates = new HashSet<Vector2Int>();
+        private readonly HashSet<Vector2Int> _desiredVisualCoordinates = new HashSet<Vector2Int>();
+        private readonly HashSet<Vector2Int> _retainedVisualCoordinates = new HashSet<Vector2Int>();
+        private readonly Plane[] _streamingFrustumPlanes = new Plane[6];
         private readonly HashSet<string> _activatedFlightRingIdentities = new HashSet<string>();
         private readonly List<ContractGroundExploderSpawn> _contractGroundExploders = new List<ContractGroundExploderSpawn>();
         private Vector2Int _candidateSortCenter;
+        private Vector2 _frustumSortCenter;
         private Vector2Int _predictedCollisionChunk;
         private bool _hasPredictedCollisionChunk;
 
@@ -312,7 +328,7 @@ namespace DuneVector
                 Vector2Int playerChunk = GetPlayerLogicalChunk();
                 if (_streamingRefreshTimer <= 0f || playerChunk != _lastScheduledChunk)
                 {
-                    _streamingRefreshTimer = 0.18f;
+                    _streamingRefreshTimer = Mathf.Max(0.05f, RefreshInterval);
                     ScheduleStreaming(force: playerChunk != _lastScheduledChunk);
                 }
 
@@ -349,15 +365,34 @@ namespace DuneVector
                     {
                         Vector2Int coordinate = _generationQueue.Dequeue();
                         _queuedCoordinates.Remove(coordinate);
-                        int distance = ChebyshevDistance(coordinate, playerChunk);
-                        if (distance > PreloadRadius + 1 ||
-                            (_chunks.TryGetValue(coordinate, out DesertChunk queuedChunk) && queuedChunk.IsContentReady))
+                        if (!_desiredVisualCoordinates.Contains(coordinate))
                         {
                             continue;
                         }
-                        GenerateChunkImmediate(coordinate, true);
+
+                        bool needsContent = _desiredContentCoordinates.Contains(coordinate);
+                        if (_chunks.TryGetValue(coordinate, out DesertChunk queuedChunk) &&
+                            (needsContent ? queuedChunk.IsContentReady : queuedChunk.IsVisualReady))
+                        {
+                            continue;
+                        }
+
+                        if (needsContent)
+                        {
+                            GenerateChunkImmediate(coordinate, true);
+                        }
+                        else if (!_chunks.TryGetValue(coordinate, out DesertChunk visualChunk))
+                        {
+                            GenerateChunkImmediate(coordinate, false, false);
+                        }
+                        else
+                        {
+                            visualChunk.BuildVisualTerrain();
+                        }
+
                         if (_chunks.TryGetValue(coordinate, out DesertChunk advancedChunk) &&
-                            !advancedChunk.IsContentReady &&
+                            !(needsContent ? advancedChunk.IsContentReady : advancedChunk.IsVisualReady) &&
+                            _desiredVisualCoordinates.Contains(coordinate) &&
                             _queuedCoordinates.Add(coordinate))
                         {
                             _generationQueue.Enqueue(coordinate);
@@ -531,17 +566,10 @@ namespace DuneVector
             }
             QueuePredictedCollisionNeighborhood();
             RefreshChunkActivity(playerChunk);
-            if (!centerChanged)
-            {
-                return;
-            }
 
-            if (force)
-            {
-                _generationQueue.Clear();
-                _queuedCoordinates.Clear();
-            }
-
+            _desiredContentCoordinates.Clear();
+            _desiredVisualCoordinates.Clear();
+            _retainedVisualCoordinates.Clear();
             _candidateCoordinates.Clear();
             int radius = Mathf.Max(1, Mathf.Max(ActiveRadius, PreloadRadius));
             for (int z = -radius; z <= radius; z++)
@@ -549,11 +577,57 @@ namespace DuneVector
                 for (int x = -radius; x <= radius; x++)
                 {
                     Vector2Int coordinate = playerChunk + new Vector2Int(x, z);
-                    bool needsContent = !_chunks.TryGetValue(coordinate, out DesertChunk chunk) || !chunk.IsContentReady;
-                    if (needsContent && !_queuedCoordinates.Contains(coordinate))
+                    _desiredContentCoordinates.Add(coordinate);
+                    _desiredVisualCoordinates.Add(coordinate);
+                }
+            }
+
+            int unloadRadius = Mathf.Max(radius, UnloadRadius);
+            for (int z = -unloadRadius; z <= unloadRadius; z++)
+            {
+                for (int x = -unloadRadius; x <= unloadRadius; x++)
+                {
+                    _retainedVisualCoordinates.Add(playerChunk + new Vector2Int(x, z));
+                }
+            }
+
+            Camera viewCamera = _camera != null ? _camera.Camera : null;
+            if (TryGetCameraFrustumDistance(viewCamera, out float frustumDistance))
+            {
+                AppendCameraFrustumCoordinates(
+                    viewCamera,
+                    frustumDistance,
+                    CameraFrustumPaddingChunks,
+                    MaximumCameraFrustumTerrainChunks,
+                    _desiredVisualCoordinates);
+
+                int retainedFrustumBudget = Mathf.Max(16, MaximumCameraFrustumTerrainChunks);
+                foreach (Vector2Int coordinate in _desiredVisualCoordinates)
+                {
+                    if (!_retainedVisualCoordinates.Contains(coordinate))
                     {
-                        _candidateCoordinates.Add(coordinate);
+                        retainedFrustumBudget--;
                     }
+                }
+                _retainedVisualCoordinates.UnionWith(_desiredVisualCoordinates);
+                AppendCameraFrustumCoordinates(
+                    viewCamera,
+                    frustumDistance + (Mathf.Max(0, CameraFrustumUnloadPaddingChunks) * ChunkSize),
+                    CameraFrustumPaddingChunks + CameraFrustumUnloadPaddingChunks,
+                    Mathf.Max(0, retainedFrustumBudget),
+                    _retainedVisualCoordinates);
+            }
+
+            _generationQueue.Clear();
+            _queuedCoordinates.Clear();
+            foreach (Vector2Int coordinate in _desiredVisualCoordinates)
+            {
+                bool needsContent = _desiredContentCoordinates.Contains(coordinate);
+                bool needsWork = !_chunks.TryGetValue(coordinate, out DesertChunk chunk) ||
+                    (needsContent ? !chunk.IsContentReady : !chunk.IsVisualReady);
+                if (needsWork)
+                {
+                    _candidateCoordinates.Add(coordinate);
                 }
             }
             _candidateSortCenter = playerChunk;
@@ -567,7 +641,7 @@ namespace DuneVector
             _removalBuffer.Clear();
             foreach (KeyValuePair<Vector2Int, DesertChunk> entry in _chunks)
             {
-                if (ChebyshevDistance(entry.Key, playerChunk) > UnloadRadius)
+                if (!_retainedVisualCoordinates.Contains(entry.Key))
                 {
                     _removalBuffer.Add(entry.Key);
                 }
@@ -580,6 +654,115 @@ namespace DuneVector
                 UnloadedChunkCount++;
             }
             RefreshChunkActivity(playerChunk);
+        }
+
+        private bool TryGetCameraFrustumDistance(Camera viewCamera, out float distance)
+        {
+            distance = 0f;
+            if (!EnableCameraFrustumTerrainStreaming || viewCamera == null || HeightField == null)
+            {
+                return false;
+            }
+
+            Vector3 cameraPosition = viewCamera.transform.position;
+            double logicalX = OriginOffsetX + cameraPosition.x;
+            double logicalZ = OriginOffsetZ + cameraPosition.z;
+            float terrainHeight = (float)HeightField.SampleHeight(logicalX, logicalZ);
+            float altitude = cameraPosition.y - terrainHeight;
+            if (altitude < Mathf.Max(0f, CameraFrustumMinimumAltitude))
+            {
+                return false;
+            }
+
+            float altitudeRange = Mathf.Max(
+                0.01f,
+                CameraFrustumFullDistanceAltitude - CameraFrustumMinimumAltitude);
+            float altitudeProgress = Mathf.Clamp01(
+                (altitude - CameraFrustumMinimumAltitude) / altitudeRange);
+            float minimumDistance = Mathf.Max(ChunkSize, CameraFrustumMinimumDistance);
+            float maximumDistance = Mathf.Max(minimumDistance, CameraFrustumMaximumDistance);
+            distance = Mathf.Lerp(minimumDistance, maximumDistance, altitudeProgress);
+            return true;
+        }
+
+        private void AppendCameraFrustumCoordinates(
+            Camera viewCamera,
+            float maximumDistance,
+            int paddingChunks,
+            int maximumChunks,
+            HashSet<Vector2Int> destination)
+        {
+            GeometryUtility.CalculateFrustumPlanes(viewCamera, _streamingFrustumPlanes);
+            _streamingFrustumPlanes[5] = new Plane(
+                -viewCamera.transform.forward,
+                viewCamera.transform.position + (viewCamera.transform.forward * maximumDistance));
+
+            Vector3 cameraPosition = viewCamera.transform.position;
+            Vector2Int cameraChunk = LogicalToChunk(
+                OriginOffsetX + cameraPosition.x,
+                OriginOffsetZ + cameraPosition.z);
+            int searchRadius = Mathf.CeilToInt(maximumDistance / ChunkSize) + Mathf.Max(0, paddingChunks) + 1;
+            float horizontalPadding = Mathf.Max(0, paddingChunks) * ChunkSize;
+            _frustumCandidateCoordinates.Clear();
+            _frustumSortCenter = new Vector2(
+                cameraPosition.x,
+                cameraPosition.z);
+
+            for (int z = -searchRadius; z <= searchRadius; z++)
+            {
+                for (int x = -searchRadius; x <= searchRadius; x++)
+                {
+                    Vector2Int coordinate = cameraChunk + new Vector2Int(x, z);
+                    if (destination.Contains(coordinate))
+                    {
+                        continue;
+                    }
+
+                    Bounds terrainBounds = CalculateChunkTerrainBounds(coordinate, horizontalPadding);
+                    if (GeometryUtility.TestPlanesAABB(_streamingFrustumPlanes, terrainBounds))
+                    {
+                        _frustumCandidateCoordinates.Add(coordinate);
+                    }
+                }
+            }
+
+            _frustumCandidateCoordinates.Sort(CompareFrustumCandidateCoordinates);
+            int selectedCount = Mathf.Min(
+                Mathf.Max(0, maximumChunks),
+                _frustumCandidateCoordinates.Count);
+            for (int i = 0; i < selectedCount; i++)
+            {
+                destination.Add(_frustumCandidateCoordinates[i]);
+            }
+        }
+
+        private Bounds CalculateChunkTerrainBounds(Vector2Int coordinate, float horizontalPadding)
+        {
+            double logicalMinX = coordinate.x * (double)ChunkSize;
+            double logicalMinZ = coordinate.y * (double)ChunkSize;
+            double logicalMaxX = logicalMinX + ChunkSize;
+            double logicalMaxZ = logicalMinZ + ChunkSize;
+            double logicalCenterX = logicalMinX + (ChunkSize * 0.5);
+            double logicalCenterZ = logicalMinZ + (ChunkSize * 0.5);
+
+            float height0 = (float)HeightField.SampleHeight(logicalMinX, logicalMinZ);
+            float height1 = (float)HeightField.SampleHeight(logicalMaxX, logicalMinZ);
+            float height2 = (float)HeightField.SampleHeight(logicalMinX, logicalMaxZ);
+            float height3 = (float)HeightField.SampleHeight(logicalMaxX, logicalMaxZ);
+            float height4 = (float)HeightField.SampleHeight(logicalCenterX, logicalCenterZ);
+            float minimumHeight = Mathf.Min(height0, height1, height2, height3, height4) -
+                Mathf.Max(0f, CameraFrustumTerrainHeightPadding);
+            float maximumHeight = Mathf.Max(height0, height1, height2, height3, height4) +
+                Mathf.Max(0f, CameraFrustumTerrainHeightPadding);
+            Vector3 center = new Vector3(
+                (float)(logicalCenterX - OriginOffsetX),
+                (minimumHeight + maximumHeight) * 0.5f,
+                (float)(logicalCenterZ - OriginOffsetZ));
+            Vector3 size = new Vector3(
+                ChunkSize + (horizontalPadding * 2f),
+                Mathf.Max(0.01f, maximumHeight - minimumHeight),
+                ChunkSize + (horizontalPadding * 2f));
+            return new Bounds(center, size);
         }
 
         private void EnsureCollisionNeighborhood(Vector2Int playerChunk)
@@ -632,10 +815,17 @@ namespace DuneVector
             }
         }
 
-        private void GenerateChunkImmediate(Vector2Int coordinate, bool completeContent = true)
+        private void GenerateChunkImmediate(
+            Vector2Int coordinate,
+            bool completeContent = true,
+            bool requireCollision = true)
         {
             if (_chunks.TryGetValue(coordinate, out DesertChunk existing))
             {
+                if (requireCollision)
+                {
+                    existing.EnsureCollisionReady();
+                }
                 if (completeContent && !existing.IsContentReady)
                 {
                     AdvanceChunkContent(existing);
@@ -655,7 +845,8 @@ namespace DuneVector
                     ChunkResolution,
                     CollisionMeshResolution,
                     HeightField,
-                    _materials);
+                    _materials,
+                    requireCollision);
             }
             _chunks.Add(coordinate, chunk);
             if (completeContent)
@@ -779,8 +970,29 @@ namespace DuneVector
 
         private int CompareCandidateCoordinates(Vector2Int left, Vector2Int right)
         {
+            bool leftNeedsContent = _desiredContentCoordinates.Contains(left);
+            bool rightNeedsContent = _desiredContentCoordinates.Contains(right);
+            if (leftNeedsContent != rightNeedsContent)
+            {
+                return leftNeedsContent ? -1 : 1;
+            }
             return ChebyshevDistance(left, _candidateSortCenter)
                 .CompareTo(ChebyshevDistance(right, _candidateSortCenter));
+        }
+
+        private int CompareFrustumCandidateCoordinates(Vector2Int left, Vector2Int right)
+        {
+            return ChunkDistanceSquared(left, _frustumSortCenter)
+                .CompareTo(ChunkDistanceSquared(right, _frustumSortCenter));
+        }
+
+        private float ChunkDistanceSquared(Vector2Int coordinate, Vector2 logicalPosition)
+        {
+            float centerX = (float)(((coordinate.x + 0.5) * ChunkSize) - OriginOffsetX);
+            float centerZ = (float)(((coordinate.y + 0.5) * ChunkSize) - OriginOffsetZ);
+            float deltaX = centerX - logicalPosition.x;
+            float deltaZ = centerZ - logicalPosition.y;
+            return (deltaX * deltaX) + (deltaZ * deltaZ);
         }
 
         private void OnDrawGizmos()
@@ -856,8 +1068,8 @@ namespace DuneVector
         private readonly List<TraversalRing> _rings = new List<TraversalRing>();
         private readonly List<GroundExploderEnemy> _groundExploders = new List<GroundExploderEnemy>();
         private Mesh _terrainMesh;
-        private readonly Mesh _collisionMesh;
-        private readonly MeshCollider _terrainCollider;
+        private Mesh _collisionMesh;
+        private MeshCollider _terrainCollider;
         private readonly MeshFilter _terrainFilter;
         private readonly int _visualResolution;
         private readonly int _collisionResolution;
@@ -879,7 +1091,8 @@ namespace DuneVector
             int resolution,
             int collisionResolution,
             DuneHeightField heightField,
-            DuneVectorMaterials materials)
+            DuneVectorMaterials materials,
+            bool createCollision)
         {
             Coordinate = coordinate;
             _chunkSize = chunkSize;
@@ -893,10 +1106,18 @@ namespace DuneVector
             _collisionResolution = Mathf.Clamp(collisionResolution, 8, _visualResolution);
             using (DesertWorldStreamer.Markers.TerrainMesh.Auto())
             {
-                _collisionMesh = BuildTerrainMesh(coordinate, chunkSize, _collisionResolution, heightField);
+                if (createCollision)
+                {
+                    _collisionMesh = BuildTerrainMesh(coordinate, chunkSize, _collisionResolution, heightField);
+                    _terrainMesh = _collisionMesh;
+                    IsVisualReady = _visualResolution == _collisionResolution;
+                }
+                else
+                {
+                    _terrainMesh = BuildTerrainMesh(coordinate, chunkSize, _visualResolution, heightField);
+                    IsVisualReady = true;
+                }
             }
-            _terrainMesh = _collisionMesh;
-            IsVisualReady = _visualResolution == _collisionResolution;
             _terrainFilter = rootObject.AddComponent<MeshFilter>();
             _terrainFilter.sharedMesh = _terrainMesh;
             MeshRenderer renderer = rootObject.AddComponent<MeshRenderer>();
@@ -904,9 +1125,34 @@ namespace DuneVector
             renderer.shadowCastingMode = ShadowCastingMode.On;
             renderer.receiveShadows = true;
 
+            if (createCollision)
+            {
+                AssignTerrainCollider();
+            }
+        }
+
+        public void EnsureCollisionReady()
+        {
+            if (_terrainCollider != null)
+            {
+                return;
+            }
+            using (DesertWorldStreamer.Markers.TerrainMesh.Auto())
+            {
+                _collisionMesh = BuildTerrainMesh(
+                    Coordinate,
+                    _chunkSize,
+                    _collisionResolution,
+                    _heightField);
+            }
+            AssignTerrainCollider();
+        }
+
+        private void AssignTerrainCollider()
+        {
             using (DesertWorldStreamer.Markers.ColliderAssignment.Auto())
             {
-                _terrainCollider = rootObject.AddComponent<MeshCollider>();
+                _terrainCollider = Root.gameObject.AddComponent<MeshCollider>();
                 _terrainCollider.sharedMesh = _collisionMesh;
             }
         }
