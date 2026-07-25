@@ -666,9 +666,10 @@ namespace DuneVector
             {
                 for (int column = 0; column < columns; column++)
                 {
-                    int index = (row * columns) + column;
-                    if (index >= _storage.Photographs.Count) break;
-                    PhotographRecord record = _storage.Photographs[index];
+                    int displayIndex = (row * columns) + column;
+                    if (displayIndex >= _storage.Photographs.Count) break;
+                    int photographIndex = _storage.Photographs.Count - 1 - displayIndex;
+                    PhotographRecord record = _storage.Photographs[photographIndex];
                     Rect cell = new Rect(column * (cellWidth + _settings.GalleryGap), row * cellHeight, cellWidth, imageHeight);
                     Texture2D texture = _storage.GetTexture(record.PhotographId);
                     if (GUI.Button(cell, GUIContent.none, GUIStyle.none))
