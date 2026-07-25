@@ -29,6 +29,9 @@ namespace DuneVector
         private AudioTuning _settings;
         private EventInstance _musicInstance;
         private EventInstance _flightBoostInstance;
+        private bool _flightBoostFadingOut;
+        private bool _flightBoostNeedsRandomSeek;
+        private float _flightBoostVolume;
         private Bus _masterBus;
         private Bus _musicBus;
         private Bus _soundEffectsBus;
@@ -113,7 +116,7 @@ namespace DuneVector
         {
             if (_drone != drone)
             {
-                StopFlightBoostAudio();
+                ReleaseFlightBoostAudio();
             }
             _drone = drone;
         }
@@ -137,7 +140,7 @@ namespace DuneVector
                 && _drone.IsBoosting;
             if (!shouldPlay)
             {
-                StopFlightBoostAudio();
+                UpdateFlightBoostFadeOut();
                 return;
             }
 
@@ -147,6 +150,13 @@ namespace DuneVector
                 return;
             }
 
+            if (_flightBoostFadingOut)
+            {
+                _flightBoostFadingOut = false;
+            }
+
+            UpdateFlightBoostFadeIn();
+            TryRandomizeFlightBoostPlaybackPosition();
             if (_flightBoostInstance.getPlaybackState(out PLAYBACK_STATE playbackState) == FMOD.RESULT.OK
                 && playbackState == PLAYBACK_STATE.STOPPED)
             {
@@ -172,19 +182,96 @@ namespace DuneVector
                 {
                     _flightBoostInstance.setTimelinePosition(UnityEngine.Random.Range(0, lengthMilliseconds));
                 }
+                _flightBoostFadingOut = false;
+                _flightBoostVolume = 0f;
+                _flightBoostInstance.setVolume(_flightBoostVolume);
                 _flightBoostInstance.start();
+                _flightBoostNeedsRandomSeek = true;
             }
             catch (EventNotFoundException exception)
             {
                 Debug.LogWarning(
                     $"FMOD flight boost event '{_settings.DroneFlightBoostEvent}' was not found. {exception.Message}",
                     this);
-                StopFlightBoostAudio();
+                ReleaseFlightBoostAudio();
             }
         }
 
-        private void StopFlightBoostAudio()
+        private void TryRandomizeFlightBoostPlaybackPosition()
         {
+            if (!_flightBoostNeedsRandomSeek
+                || _flightBoostInstance.getChannelGroup(out FMOD.ChannelGroup channelGroup) != FMOD.RESULT.OK
+                || channelGroup.getNumChannels(out int channelCount) != FMOD.RESULT.OK)
+            {
+                return;
+            }
+
+            for (int i = 0; i < channelCount; i++)
+            {
+                if (channelGroup.getChannel(i, out FMOD.Channel channel) != FMOD.RESULT.OK
+                    || channel.getCurrentSound(out FMOD.Sound sound) != FMOD.RESULT.OK
+                    || sound.getLength(out uint lengthMilliseconds, FMOD.TIMEUNIT.MS) != FMOD.RESULT.OK
+                    || lengthMilliseconds <= 1)
+                {
+                    continue;
+                }
+
+                uint randomPosition = (uint)UnityEngine.Random.Range(
+                    0,
+                    (int)Math.Min(lengthMilliseconds, int.MaxValue));
+                if (channel.setPosition(randomPosition, FMOD.TIMEUNIT.MS) == FMOD.RESULT.OK)
+                {
+                    _flightBoostNeedsRandomSeek = false;
+                    return;
+                }
+            }
+        }
+
+        private void UpdateFlightBoostFadeIn()
+        {
+            float duration = Mathf.Max(0f, _settings.DroneFlightBoostFadeInDuration);
+            _flightBoostVolume = duration <= Mathf.Epsilon
+                ? 1f
+                : Mathf.MoveTowards(
+                    _flightBoostVolume,
+                    1f,
+                    Time.unscaledDeltaTime / duration);
+            _flightBoostInstance.setVolume(_flightBoostVolume);
+        }
+
+        private void UpdateFlightBoostFadeOut()
+        {
+            if (!_flightBoostInstance.isValid())
+            {
+                _flightBoostFadingOut = false;
+                _flightBoostVolume = 0f;
+                return;
+            }
+
+            float duration = Mathf.Max(0f, _settings.DroneFlightBoostFadeOutDuration);
+            if (duration <= Mathf.Epsilon)
+            {
+                ReleaseFlightBoostAudio();
+                return;
+            }
+
+            _flightBoostFadingOut = true;
+            _flightBoostVolume = Mathf.MoveTowards(
+                _flightBoostVolume,
+                0f,
+                Time.unscaledDeltaTime / duration);
+            _flightBoostInstance.setVolume(_flightBoostVolume);
+            if (_flightBoostVolume <= Mathf.Epsilon)
+            {
+                ReleaseFlightBoostAudio();
+            }
+        }
+
+        private void ReleaseFlightBoostAudio()
+        {
+            _flightBoostFadingOut = false;
+            _flightBoostNeedsRandomSeek = false;
+            _flightBoostVolume = 0f;
             if (!_flightBoostInstance.isValid())
             {
                 return;
@@ -486,7 +573,7 @@ namespace DuneVector
                 _musicInstance.release();
                 _musicInstance.clearHandle();
             }
-            StopFlightBoostAudio();
+            ReleaseFlightBoostAudio();
             if (_hasMasterBus && _masterBus.isValid())
             {
                 _masterBus.setVolume(_masterFullVolume);
