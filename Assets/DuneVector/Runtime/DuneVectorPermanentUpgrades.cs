@@ -43,12 +43,14 @@ namespace DuneVector
 
         public bool HubRgbFloorUnlocked { get; set; }
         public bool HubRgbTerminalsEnabled { get; set; }
+        public bool AtlasGlyphBrushedMetalEnabled { get; set; }
 
         public void Initialize(IReadOnlyList<DroneUpgradeDefinition> definitions)
         {
             _purchasedTiers.Clear();
             HubRgbFloorUnlocked = false;
             HubRgbTerminalsEnabled = false;
+            AtlasGlyphBrushedMetalEnabled = false;
             for (int index = 0; index < definitions.Count; index++)
             {
                 DroneUpgradeDefinition definition = definitions[index];
@@ -97,9 +99,10 @@ namespace DuneVector
         [Serializable]
         private sealed class UpgradeSaveData
         {
-            public int Version = 3;
+            public int Version = 4;
             public bool HubRgbFloorUnlocked;
             public bool HubRgbTerminalsEnabled;
+            public bool AtlasGlyphBrushedMetalEnabled;
             public List<UpgradeTierRecord> Tiers = new List<UpgradeTierRecord>();
         }
 
@@ -130,6 +133,7 @@ namespace DuneVector
                 state.HubRgbFloorUnlocked = saveData.HubRgbFloorUnlocked;
                 state.HubRgbTerminalsEnabled = saveData.HubRgbFloorUnlocked
                     && (saveData.Version < 3 || saveData.HubRgbTerminalsEnabled);
+                state.AtlasGlyphBrushedMetalEnabled = saveData.Version >= 4 && saveData.AtlasGlyphBrushedMetalEnabled;
                 for (int index = 0; index < saveData.Tiers.Count; index++)
                 {
                     UpgradeTierRecord record = saveData.Tiers[index];
@@ -153,6 +157,7 @@ namespace DuneVector
                 {
                     HubRgbFloorUnlocked = state.HubRgbFloorUnlocked,
                     HubRgbTerminalsEnabled = state.HubRgbTerminalsEnabled,
+                    AtlasGlyphBrushedMetalEnabled = state.AtlasGlyphBrushedMetalEnabled,
                 };
                 for (int index = 0; index < definitions.Count; index++)
                 {
@@ -293,12 +298,18 @@ namespace DuneVector
         public event Action<DroneUpgradeId, int, int> UpgradePurchased;
         public event Action<int> HubRgbTerminalsUnlocked;
         public event Action<bool> HubRgbTerminalsEnabledChanged;
+        public event Action<bool> AtlasGlyphBrushedMetalEnabledChanged;
 
         // The stored field retains its original name so existing DuneVectorUpgrades.dat files keep the unlock.
         public bool AreHubRgbTerminalsUnlocked => _tierState.HubRgbFloorUnlocked;
         public bool AreHubRgbTerminalsEnabled =>
             AreHubRgbTerminalsUnlocked && _tierState.HubRgbTerminalsEnabled;
         public HubRgbTerminalUnlockTuning HubRgbTerminalTuning => _tuning?.HubRgbTerminals;
+        public AtlasGlyphMaterialUnlockTuning AtlasGlyphMaterialTuning => _tuning?.AtlasGlyphMaterial;
+        public bool IsAtlasGlyphMaterialAvailable =>
+            _desertAtlas != null && _desertAtlas.IsComplete && AtlasGlyphMaterialTuning?.GlyphMaterial != null;
+        public bool IsAtlasGlyphBrushedMetalEnabled =>
+            IsAtlasGlyphMaterialAvailable && _tierState.AtlasGlyphBrushedMetalEnabled;
 
         private readonly DroneUpgradeTierState _tierState = new DroneUpgradeTierState();
         private readonly DroneUpgradePurchaseValidator _purchaseValidator = new DroneUpgradePurchaseValidator();
@@ -307,6 +318,8 @@ namespace DuneVector
         private EnergyLauncherTuning _energyLauncherTuning;
         private DroneUpgradeSaveRepository _saveRepository;
         private DroneUpgradeStatApplicator _statApplicator;
+        private DuneVectorDesertAtlas _desertAtlas;
+        private DuneVectorMaterials _materials;
 
         public void Initialize(
             DuneVectorRuntimeSettings runtimeSettings,
@@ -502,6 +515,48 @@ namespace DuneVector
 
             HubRgbTerminalsEnabledChanged?.Invoke(enabled);
             return UpgradePurchaseFailure.None;
+        }
+
+        public void BindAtlasGlyphMaterial(DuneVectorDesertAtlas desertAtlas, DuneVectorMaterials materials)
+        {
+            _desertAtlas = desertAtlas;
+            _materials = materials;
+            ApplyAtlasGlyphMaterial();
+        }
+
+        public UpgradePurchaseFailure TrySetAtlasGlyphBrushedMetalEnabled(bool enabled)
+        {
+            if (!IsInitialized || _saveRepository == null)
+            {
+                return UpgradePurchaseFailure.NotInitialized;
+            }
+            if (!IsAtlasGlyphMaterialAvailable)
+            {
+                return UpgradePurchaseFailure.DefinitionMissing;
+            }
+            if (_tierState.AtlasGlyphBrushedMetalEnabled == enabled)
+            {
+                return UpgradePurchaseFailure.None;
+            }
+
+            bool previousEnabled = _tierState.AtlasGlyphBrushedMetalEnabled;
+            _tierState.AtlasGlyphBrushedMetalEnabled = enabled;
+            if (!_saveRepository.Save(_tierState, Definitions))
+            {
+                _tierState.AtlasGlyphBrushedMetalEnabled = previousEnabled;
+                return UpgradePurchaseFailure.UpgradeSaveFailed;
+            }
+
+            ApplyAtlasGlyphMaterial();
+            AtlasGlyphBrushedMetalEnabledChanged?.Invoke(enabled);
+            return UpgradePurchaseFailure.None;
+        }
+
+        private void ApplyAtlasGlyphMaterial()
+        {
+            _materials?.SetGeoglyphOverlayMaterial(
+                AtlasGlyphMaterialTuning?.GlyphMaterial,
+                IsAtlasGlyphBrushedMetalEnabled);
         }
 
         public UpgradePurchaseResult TryPurchase(DroneUpgradeId id)

@@ -192,6 +192,14 @@ namespace DuneVector
                 {
                     DrawHubRgbTerminalRow(new Rect(0f, y, width, _visuals.RowHeight * scale), groupColor, scale);
                     y += (_visuals.RowHeight + _visuals.RowGap) * scale;
+                    if (_upgrades.IsAtlasGlyphMaterialAvailable)
+                    {
+                        DrawAtlasGlyphMaterialRow(
+                            new Rect(0f, y, width, _visuals.RowHeight * scale),
+                            groupColor,
+                            scale);
+                        y += (_visuals.RowHeight + _visuals.RowGap) * scale;
+                    }
                     continue;
                 }
 
@@ -339,6 +347,78 @@ namespace DuneVector
                     ? "RGB TERMINAL SETTING COULD NOT BE SAVED"
                     : "RGB TERMINAL SETTING UNAVAILABLE";
             }
+            _statusUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
+        }
+
+        private void DrawAtlasGlyphMaterialRow(Rect row, Color groupColor, float scale)
+        {
+            AtlasGlyphMaterialUnlockTuning tuning = _upgrades.AtlasGlyphMaterialTuning;
+            if (tuning?.GlyphMaterial == null)
+            {
+                return;
+            }
+
+            bool enabled = _upgrades.IsAtlasGlyphBrushedMetalEnabled;
+            bool hovered = row.Contains(Event.current.mousePosition);
+            DrawSolidRect(row, hovered ? _visuals.RowHoverColor : _visuals.RowColor);
+            DrawBorder(
+                row,
+                WithAlpha(groupColor, _visuals.RowBorderOpacity),
+                Mathf.Max(1f, _visuals.BorderThickness * scale));
+            DrawSolidRect(new Rect(row.x, row.y, _visuals.RowAccentWidth * scale, row.height), groupColor);
+
+            float columnGap = _visuals.ColumnGap * scale;
+            float iconSize = _visuals.IconSize * scale;
+            Rect iconPanel = new Rect(row.x + columnGap, row.y + ((row.height - iconSize) * 0.5f), iconSize, iconSize);
+            DrawSolidRect(iconPanel, GetMaterialDisplayColor(tuning.GlyphMaterial));
+            DrawBorder(iconPanel, WithAlpha(groupColor, _visuals.IconBorderOpacity), Mathf.Max(1f, _visuals.BorderThickness * scale));
+
+            float detailsX = iconPanel.xMax + columnGap;
+            float detailsWidth = _visuals.DetailsColumnWidth * scale;
+            float rowPadding = _visuals.RowVerticalPadding * scale;
+            Rect nameRect = new Rect(detailsX, row.y + rowPadding, detailsWidth, _nameStyle.lineHeight);
+            GUI.Label(nameRect, (tuning.DisplayName ?? string.Empty).ToUpperInvariant(), _nameStyle);
+            GUI.Label(
+                new Rect(detailsX, nameRect.yMax + (_visuals.ValueLineGap * scale), detailsWidth, _valueStyle.lineHeight),
+                (tuning.Description ?? string.Empty).ToUpperInvariant(),
+                _valueStyle);
+
+            float actionWidth = _visuals.ActionColumnWidth * scale;
+            float statusX = detailsX + detailsWidth + columnGap;
+            float statusWidth = Mathf.Max(
+                _visuals.MinimumTierIndicatorWidth * scale,
+                row.xMax - statusX - actionWidth - (columnGap * 2f));
+            _valueRightStyle.normal.textColor = enabled ? _visuals.MaximumColor : _visuals.MutedTextColor;
+            GUI.Label(
+                new Rect(statusX, row.y + ((row.height - _valueRightStyle.lineHeight) * 0.5f), statusWidth, _valueRightStyle.lineHeight),
+                enabled ? "BRUSHED METAL ACTIVE" : "BRUSHED METAL DISABLED",
+                _valueRightStyle);
+
+            float actionX = row.xMax - actionWidth - columnGap;
+            Rect action = new Rect(actionX, row.y, actionWidth, row.height);
+            _costStyle.normal.textColor = enabled ? _visuals.MaximumColor : _visuals.MutedTextColor;
+            GUI.Label(
+                new Rect(action.x, action.y + rowPadding, action.width, _costStyle.lineHeight),
+                enabled ? "ACTIVE" : "DISABLED",
+                _costStyle);
+            bool toggleRequested = GUI.Button(
+                new Rect(action.x + ((action.width - (_visuals.PurchaseButtonWidth * scale)) * 0.5f), action.yMax - (_visuals.PurchaseButtonHeight * scale) - rowPadding, _visuals.PurchaseButtonWidth * scale, _visuals.PurchaseButtonHeight * scale),
+                enabled ? "DISABLE" : "ENABLE",
+                _buttonStyle);
+            if (toggleRequested)
+            {
+                HandleAtlasGlyphMaterialToggle(!enabled);
+            }
+        }
+
+        private void HandleAtlasGlyphMaterialToggle(bool enabled)
+        {
+            UpgradePurchaseFailure failure = _upgrades.TrySetAtlasGlyphBrushedMetalEnabled(enabled);
+            _statusMessage = failure == UpgradePurchaseFailure.None
+                ? enabled ? "BRUSHED METAL GLYPHS ENABLED" : "BRUSHED METAL GLYPHS DISABLED"
+                : failure == UpgradePurchaseFailure.UpgradeSaveFailed
+                    ? "GLYPH MATERIAL SETTING COULD NOT BE SAVED"
+                    : "GLYPH MATERIAL SETTING UNAVAILABLE";
             _statusUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
         }
 
@@ -555,8 +635,9 @@ namespace DuneVector
                 }
             }
 
+            int cosmeticRowCount = 1 + (_upgrades.IsAtlasGlyphMaterialAvailable ? 1 : 0);
             return ((4f * _visuals.GroupHeaderHeight)
-                + ((definitionCount + 1) * (_visuals.RowHeight + _visuals.RowGap))
+                + ((definitionCount + cosmeticRowCount) * (_visuals.RowHeight + _visuals.RowGap))
                 + (3f * _visuals.GroupGap)
                 + _visuals.RowGap) * scale;
         }
@@ -703,6 +784,14 @@ namespace DuneVector
         {
             float maximum = Mathf.Max(1f, color.r, color.g, color.b);
             return new Color(color.r / maximum, color.g / maximum, color.b / maximum, 1f);
+        }
+
+        private static Color GetMaterialDisplayColor(Material material)
+        {
+            Color color = material != null && material.HasProperty("_Color")
+                ? material.GetColor("_Color")
+                : Color.gray;
+            return NormalizeGuiColor(color);
         }
 
         private static string FormatValue(DroneUpgradeDefinition definition, float value)

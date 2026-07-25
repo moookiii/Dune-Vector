@@ -58,6 +58,7 @@ namespace DuneVector
             }
         }
         public int TotalSiteCount => _settings?.Sites?.Count ?? 0;
+        public bool IsComplete => IsUnlocked && TotalSiteCount > 0 && DiscoveredCount >= TotalSiteCount;
 
         private readonly HashSet<string> _discoveredIds = new HashSet<string>(StringComparer.Ordinal);
         private readonly Dictionary<string, SiteVisual> _visuals = new Dictionary<string, SiteVisual>(StringComparer.Ordinal);

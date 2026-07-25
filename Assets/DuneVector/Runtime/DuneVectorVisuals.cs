@@ -13,6 +13,8 @@ namespace DuneVector
         {
             public Material Material;
             public readonly List<Rect> WorldBounds = new List<Rect>();
+            public Color[] OriginalLineColors;
+            public Color OriginalBloomEmissionColor;
         }
 
         public Material Sand { get; }
@@ -476,6 +478,34 @@ namespace DuneVector
             return material;
         }
 
+        public void SetGeoglyphOverlayMaterial(Material sourceMaterial, bool enabled)
+        {
+            Color lineColor = GetMaterialColor(sourceMaterial, "_Color", "_BaseColor", Color.white);
+            Color bloomEmission = GetMaterialColor(sourceMaterial, "_EmissionColor", "_EmissiveColor", Color.black);
+            for (int index = 0; index < _geoglyphBatches.Count; index++)
+            {
+                GeoglyphMaterialBatch batch = _geoglyphBatches[index];
+                if (batch?.Material == null || batch.OriginalLineColors == null)
+                {
+                    continue;
+                }
+
+                Vector4[] colors = new Vector4[batch.OriginalLineColors.Length];
+                for (int colorIndex = 0; colorIndex < colors.Length; colorIndex++)
+                {
+                    Color original = batch.OriginalLineColors[colorIndex];
+                    Color color = enabled
+                        ? new Color(lineColor.r, lineColor.g, lineColor.b, original.a)
+                        : original;
+                    colors[colorIndex] = color;
+                }
+                batch.Material.SetVectorArray("_DVGeoglyphLineColor", colors);
+                batch.Material.SetColor(
+                    "_DVGeoglyphBloomEmissionColor",
+                    enabled ? bloomEmission : batch.OriginalBloomEmissionColor);
+            }
+        }
+
         private Material CreateStrikeOrbGradient(PlayerStrikeOrbTuning settings)
         {
             Shader shader = Resources.Load<Shader>("DuneVectorStrikeOrbGradient");
@@ -669,7 +699,12 @@ namespace DuneVector
                 name = $"Terrain - Persistent World Geoglyphs {(_geoglyphBatches.Count + 1)}",
             };
             material.enableInstancing = true;
-            GeoglyphMaterialBatch batch = new GeoglyphMaterialBatch { Material = material };
+            GeoglyphMaterialBatch batch = new GeoglyphMaterialBatch
+            {
+                Material = material,
+                OriginalLineColors = new Color[MaximumGeoglyphPlacements],
+                OriginalBloomEmissionColor = bloomEmissionColor,
+            };
 
             for (int i = 0; i < count; i++)
             {
@@ -696,6 +731,7 @@ namespace DuneVector
                     Mathf.Max(0f, placement.MaximumSlopeCorrection),
                     placement.SlopeReferenceHeight);
                 colors[i] = placement.LineColor;
+                batch.OriginalLineColors[i] = placement.LineColor;
                 material.SetTexture($"_DVGeoglyphMask{i}", placement.Mask);
 
                 Vector2 halfSize = placement.WorldSize * 0.5f;
@@ -721,6 +757,25 @@ namespace DuneVector
             _ownedMaterials.Add(material);
             _geoglyphBatches.Add(batch);
             return material;
+        }
+
+        private static Color GetMaterialColor(
+            Material material,
+            string primaryProperty,
+            string secondaryProperty,
+            Color fallback)
+        {
+            if (material == null)
+            {
+                return fallback;
+            }
+            if (material.HasProperty(primaryProperty))
+            {
+                return material.GetColor(primaryProperty);
+            }
+            return material.HasProperty(secondaryProperty)
+                ? material.GetColor(secondaryProperty)
+                : fallback;
         }
     }
 

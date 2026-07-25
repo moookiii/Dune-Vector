@@ -210,12 +210,21 @@ namespace DuneVector
     }
 
     [Serializable]
+    public sealed class AtlasGlyphMaterialUnlockTuning
+    {
+        public string DisplayName = "Brushed Metal Glyphs";
+        [TextArea] public string Description = "Recasts every discovered Atlas glyph with the BrushedMetal material finish.";
+        public Material GlyphMaterial;
+    }
+
+    [Serializable]
     public sealed class DronePermanentUpgradeTuning
     {
         [Tooltip("Gold prices are rounded upward to this increment.")]
         [Min(1)] public int GoldCostRounding = 5;
 
         public HubRgbTerminalUnlockTuning HubRgbTerminals = new HubRgbTerminalUnlockTuning();
+        public AtlasGlyphMaterialUnlockTuning AtlasGlyphMaterial = new AtlasGlyphMaterialUnlockTuning();
         public List<DroneUpgradeDefinition> Definitions = CreateDefaultDefinitions();
         public UpgradeShopVisualTuning ShopVisuals = new UpgradeShopVisualTuning();
 
@@ -227,6 +236,7 @@ namespace DuneVector
                 Definitions = CreateDefaultDefinitions();
             }
             HubRgbTerminals ??= new HubRgbTerminalUnlockTuning();
+            AtlasGlyphMaterial ??= new AtlasGlyphMaterialUnlockTuning();
             ShopVisuals ??= new UpgradeShopVisualTuning();
         }
 

@@ -795,6 +795,7 @@ namespace DuneVector
                     EnemyDirector,
                     StormPyramidDirector);
                 DesertAtlas = CourierGame.DesertAtlas;
+                PermanentUpgrades.BindAtlasGlyphMaterial(DesertAtlas, _materials);
 
                 GameObject encounterObject = new GameObject("Route Encounter Formation Director");
                 encounterObject.transform.SetParent(transform, false);
