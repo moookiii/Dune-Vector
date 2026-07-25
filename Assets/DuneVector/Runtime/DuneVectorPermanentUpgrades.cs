@@ -42,11 +42,13 @@ namespace DuneVector
         private readonly Dictionary<DroneUpgradeId, int> _purchasedTiers = new Dictionary<DroneUpgradeId, int>();
 
         public bool HubRgbFloorUnlocked { get; set; }
+        public bool HubRgbTerminalsEnabled { get; set; }
 
         public void Initialize(IReadOnlyList<DroneUpgradeDefinition> definitions)
         {
             _purchasedTiers.Clear();
             HubRgbFloorUnlocked = false;
+            HubRgbTerminalsEnabled = false;
             for (int index = 0; index < definitions.Count; index++)
             {
                 DroneUpgradeDefinition definition = definitions[index];
@@ -95,8 +97,9 @@ namespace DuneVector
         [Serializable]
         private sealed class UpgradeSaveData
         {
-            public int Version = 2;
+            public int Version = 3;
             public bool HubRgbFloorUnlocked;
+            public bool HubRgbTerminalsEnabled;
             public List<UpgradeTierRecord> Tiers = new List<UpgradeTierRecord>();
         }
 
@@ -125,6 +128,8 @@ namespace DuneVector
                 }
 
                 state.HubRgbFloorUnlocked = saveData.HubRgbFloorUnlocked;
+                state.HubRgbTerminalsEnabled = saveData.HubRgbFloorUnlocked
+                    && (saveData.Version < 3 || saveData.HubRgbTerminalsEnabled);
                 for (int index = 0; index < saveData.Tiers.Count; index++)
                 {
                     UpgradeTierRecord record = saveData.Tiers[index];
@@ -147,6 +152,7 @@ namespace DuneVector
                 UpgradeSaveData saveData = new UpgradeSaveData
                 {
                     HubRgbFloorUnlocked = state.HubRgbFloorUnlocked,
+                    HubRgbTerminalsEnabled = state.HubRgbTerminalsEnabled,
                 };
                 for (int index = 0; index < definitions.Count; index++)
                 {
@@ -286,9 +292,12 @@ namespace DuneVector
 
         public event Action<DroneUpgradeId, int, int> UpgradePurchased;
         public event Action<int> HubRgbTerminalsUnlocked;
+        public event Action<bool> HubRgbTerminalsEnabledChanged;
 
         // The stored field retains its original name so existing DuneVectorUpgrades.dat files keep the unlock.
         public bool AreHubRgbTerminalsUnlocked => _tierState.HubRgbFloorUnlocked;
+        public bool AreHubRgbTerminalsEnabled =>
+            AreHubRgbTerminalsUnlocked && _tierState.HubRgbTerminalsEnabled;
         public HubRgbTerminalUnlockTuning HubRgbTerminalTuning => _tuning?.HubRgbTerminals;
 
         private readonly DroneUpgradeTierState _tierState = new DroneUpgradeTierState();
@@ -425,14 +434,43 @@ namespace DuneVector
             }
 
             _tierState.HubRgbFloorUnlocked = true;
+            _tierState.HubRgbTerminalsEnabled = true;
             if (!_saveRepository.Save(_tierState, Definitions))
             {
                 _tierState.HubRgbFloorUnlocked = false;
+                _tierState.HubRgbTerminalsEnabled = false;
                 Wallet.AddGold(goldCost);
                 return UpgradePurchaseFailure.UpgradeSaveFailed;
             }
 
             HubRgbTerminalsUnlocked?.Invoke(goldCost);
+            return UpgradePurchaseFailure.None;
+        }
+
+        public UpgradePurchaseFailure TrySetHubRgbTerminalsEnabled(bool enabled)
+        {
+            if (!IsInitialized || _saveRepository == null)
+            {
+                return UpgradePurchaseFailure.NotInitialized;
+            }
+            if (!AreHubRgbTerminalsUnlocked)
+            {
+                return UpgradePurchaseFailure.DefinitionMissing;
+            }
+            if (_tierState.HubRgbTerminalsEnabled == enabled)
+            {
+                return UpgradePurchaseFailure.None;
+            }
+
+            bool previousEnabled = _tierState.HubRgbTerminalsEnabled;
+            _tierState.HubRgbTerminalsEnabled = enabled;
+            if (!_saveRepository.Save(_tierState, Definitions))
+            {
+                _tierState.HubRgbTerminalsEnabled = previousEnabled;
+                return UpgradePurchaseFailure.UpgradeSaveFailed;
+            }
+
+            HubRgbTerminalsEnabledChanged?.Invoke(enabled);
             return UpgradePurchaseFailure.None;
         }
 

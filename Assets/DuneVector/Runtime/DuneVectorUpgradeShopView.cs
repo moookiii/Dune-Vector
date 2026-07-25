@@ -218,6 +218,7 @@ namespace DuneVector
             }
 
             bool unlocked = _upgrades.AreHubRgbTerminalsUnlocked;
+            bool enabled = _upgrades.AreHubRgbTerminalsEnabled;
             bool recent = Time.unscaledTime < _hubRgbTerminalRecentUntil;
             bool hovered = row.Contains(Event.current.mousePosition);
             Color rowColor = recent ? _visuals.RecentPurchaseColor : hovered ? _visuals.RowHoverColor : _visuals.RowColor;
@@ -256,19 +257,28 @@ namespace DuneVector
             _valueRightStyle.normal.textColor = unlocked ? _visuals.MaximumColor : groupColor;
             GUI.Label(
                 new Rect(statusX, row.y + ((row.height - _valueRightStyle.lineHeight) * 0.5f), statusWidth, _valueRightStyle.lineHeight),
-                unlocked ? "RGB TERMINALS INSTALLED" : "ONE-TIME COSMETIC UNLOCK",
+                unlocked
+                    ? enabled ? "RGB TERMINALS ACTIVE" : "RGB TERMINALS DISABLED"
+                    : "ONE-TIME COSMETIC UNLOCK",
                 _valueRightStyle);
 
             float actionX = row.xMax - actionWidth - columnGap;
             Rect action = new Rect(actionX, row.y, actionWidth, row.height);
             if (unlocked)
             {
-                _costStyle.normal.textColor = _visuals.MaximumColor;
-                GUI.Label(new Rect(action.x, action.y + rowPadding, action.width, _costStyle.lineHeight), "OWNED", _costStyle);
-                GUI.Button(
+                _costStyle.normal.textColor = enabled ? _visuals.MaximumColor : _visuals.MutedTextColor;
+                GUI.Label(
+                    new Rect(action.x, action.y + rowPadding, action.width, _costStyle.lineHeight),
+                    enabled ? "ACTIVE" : "DISABLED",
+                    _costStyle);
+                bool toggleRequested = GUI.Button(
                     new Rect(action.x + ((action.width - (_visuals.PurchaseButtonWidth * scale)) * 0.5f), action.yMax - (_visuals.PurchaseButtonHeight * scale) - rowPadding, _visuals.PurchaseButtonWidth * scale, _visuals.PurchaseButtonHeight * scale),
-                    "INSTALLED",
-                    _maximumButtonStyle);
+                    enabled ? "DISABLE" : "ENABLE",
+                    _buttonStyle);
+                if (toggleRequested)
+                {
+                    HandleHubRgbTerminalToggle(!enabled);
+                }
                 return;
             }
 
@@ -312,6 +322,25 @@ namespace DuneVector
                 UpgradePurchaseFailure.MaximumTierReached => "RGB HUB TERMINALS ALREADY INSTALLED",
                 _ => "COSMETIC UNLOCK UNAVAILABLE",
             };
+            _statusUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
+        }
+
+        private void HandleHubRgbTerminalToggle(bool enabled)
+        {
+            UpgradePurchaseFailure failure = _upgrades.TrySetHubRgbTerminalsEnabled(enabled);
+            if (failure == UpgradePurchaseFailure.None)
+            {
+                _hubRgbTerminalRecentUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
+                _statusMessage = enabled
+                    ? "RGB HUB TERMINALS ENABLED"
+                    : "RGB HUB TERMINALS DISABLED";
+            }
+            else
+            {
+                _statusMessage = failure == UpgradePurchaseFailure.UpgradeSaveFailed
+                    ? "RGB TERMINAL SETTING COULD NOT BE SAVED"
+                    : "RGB TERMINAL SETTING UNAVAILABLE";
+            }
             _statusUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
         }
 
