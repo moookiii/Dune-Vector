@@ -78,12 +78,10 @@ namespace DuneVector
         public bool TryGetScreenBounds(
             Camera camera,
             out Rect bounds,
-            out float coverage,
-            out Bounds worldBounds)
+            out float coverage)
         {
             bounds = default;
             coverage = 0f;
-            worldBounds = default;
             if (camera == null || string.IsNullOrWhiteSpace(SubjectId))
             {
                 return false;
@@ -99,16 +97,10 @@ namespace DuneVector
             float maxX = float.NegativeInfinity;
             float maxY = float.NegativeInfinity;
             bool hasProjectedPoint = false;
-            bool hasWorldBounds = false;
             for (int rendererIndex = 0; rendererIndex < _renderers.Length; rendererIndex++)
             {
                 Renderer renderer = _renderers[rendererIndex];
-                if (renderer == null ||
-                    !renderer.enabled ||
-                    !renderer.gameObject.activeInHierarchy ||
-                    renderer is TrailRenderer ||
-                    renderer is LineRenderer ||
-                    renderer is ParticleSystemRenderer)
+                if (!IsFramingRenderer(renderer))
                 {
                     continue;
                 }
@@ -130,15 +122,6 @@ namespace DuneVector
                         (corner & 2) == 0 ? min.y : max.y,
                         (corner & 4) == 0 ? min.z : max.z);
                     Vector3 point = renderer.transform.TransformPoint(localPoint);
-                    if (hasWorldBounds)
-                    {
-                        worldBounds.Encapsulate(point);
-                    }
-                    else
-                    {
-                        worldBounds = new Bounds(point, Vector3.zero);
-                        hasWorldBounds = true;
-                    }
                     Vector3 viewport = camera.WorldToViewportPoint(point);
                     if (viewport.z <= camera.nearClipPlane)
                     {
@@ -155,7 +138,7 @@ namespace DuneVector
                 }
             }
 
-            if (!hasWorldBounds || !hasProjectedPoint || maxX <= minX || maxY <= minY)
+            if (!hasProjectedPoint || maxX <= minX || maxY <= minY)
             {
                 return false;
             }
@@ -167,7 +150,7 @@ namespace DuneVector
             return intersection.width > 0f && intersection.height > 0f;
         }
 
-        public float CalculateVisiblePercentage(Camera camera, Bounds worldBounds, PhotographyTuning settings)
+        public float CalculateVisiblePercentage(Camera camera, PhotographyTuning settings)
         {
             if (camera == null || settings == null)
             {
@@ -175,18 +158,24 @@ namespace DuneVector
             }
 
             Vector3 origin = camera.transform.position;
-            Vector3 min = worldBounds.min;
-            Vector3 max = worldBounds.max;
             int visible = 0;
-            const int sampleCount = 9;
-            for (int sample = 0; sample < sampleCount; sample++)
+            int sampleCount = 0;
+            for (int rendererIndex = 0; rendererIndex < _renderers.Length; rendererIndex++)
             {
-                Vector3 point = sample == 0
-                    ? worldBounds.center
-                    : new Vector3(
-                        ((sample - 1) & 1) == 0 ? min.x : max.x,
-                        ((sample - 1) & 2) == 0 ? min.y : max.y,
-                        ((sample - 1) & 4) == 0 ? min.z : max.z);
+                Renderer renderer = _renderers[rendererIndex];
+                if (!IsFramingRenderer(renderer) || renderer.bounds.size.sqrMagnitude <= 0.0001f)
+                {
+                    continue;
+                }
+
+                Vector3 point = renderer.transform.TransformPoint(renderer.localBounds.center);
+                Vector3 viewport = camera.WorldToViewportPoint(point);
+                if (viewport.z <= camera.nearClipPlane)
+                {
+                    continue;
+                }
+
+                sampleCount++;
                 Vector3 direction = point - origin;
                 float distance = direction.magnitude;
                 if (distance <= settings.OcclusionRayEndTolerance)
@@ -221,13 +210,23 @@ namespace DuneVector
                     visible++;
                 }
             }
-            return visible / (float)sampleCount;
+            return sampleCount > 0 ? visible / (float)sampleCount : 0f;
         }
 
         private void RefreshRenderers()
         {
             _renderers = GetComponentsInChildren<Renderer>(true);
             _nextRendererRefresh = Time.unscaledTime + 1f;
+        }
+
+        private static bool IsFramingRenderer(Renderer renderer)
+        {
+            return renderer != null &&
+                renderer.enabled &&
+                renderer.gameObject.activeInHierarchy &&
+                renderer is not TrailRenderer &&
+                renderer is not LineRenderer &&
+                renderer is not ParticleSystemRenderer;
         }
 
         private static Rect Intersect(Rect a, Rect b)

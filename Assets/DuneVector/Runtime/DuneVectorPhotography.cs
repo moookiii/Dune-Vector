@@ -414,7 +414,6 @@ namespace DuneVector
             bool found = false;
             PhotographableSubject bestSubject = default;
             Rect bestBounds = default;
-            Bounds bestWorldBounds = default;
             float bestCenterPriority = float.PositiveInfinity;
             float bestCoverage = -1f;
             if (_world != null && _geoglyphs?.Placements != null && _atlas?.Sites != null)
@@ -443,8 +442,7 @@ namespace DuneVector
                     !marker.TryGetScreenBounds(
                         _camera,
                         out Rect markerBounds,
-                        out float markerCoverage,
-                        out Bounds markerWorldBounds))
+                        out float markerCoverage))
                 {
                     continue;
                 }
@@ -464,7 +462,6 @@ namespace DuneVector
                 bestCenterPriority = centerPriority;
                 bestBounds = markerBounds;
                 bestCoverage = markerCoverage;
-                bestWorldBounds = markerWorldBounds;
                 bestSubject = new PhotographableSubject(marker, displayName);
                 found = true;
             }
@@ -501,7 +498,7 @@ namespace DuneVector
             else
             {
                 visiblePercentage = bestSubject.Marker != null
-                    ? bestSubject.Marker.CalculateVisiblePercentage(_camera, bestWorldBounds, _settings)
+                    ? bestSubject.Marker.CalculateVisiblePercentage(_camera, _settings)
                     : 0f;
                 float minimumCoverage = Mathf.Min(
                     _settings.CompendiumMinimumPhotoScreenCoverage,

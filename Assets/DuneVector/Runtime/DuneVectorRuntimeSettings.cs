@@ -322,7 +322,7 @@ namespace DuneVector
         [Header("Compendium Catalog")]
         [Tooltip("Non-glyph compendium entries. Glyph entries are sourced from the authored Desert Atlas sites.")]
         public List<CompendiumEntryDefinition> CompendiumEntries = new List<CompendiumEntryDefinition>();
-        [Range(0.001f, 1f)] public float CompendiumMinimumPhotoScreenCoverage = 0.01f;
+        [Range(0.001f, 1f)] public float CompendiumMinimumPhotoScreenCoverage = 0.001f;
         [Range(0.001f, 1f)] public float CompendiumMaximumPhotoScreenCoverage = 0.92f;
         [Range(0f, 1f)] public float CompendiumRequiredVisiblePercentage = 0.6f;
         public string CompendiumPauseMenuButtonLabel = "COMPENDIUM";
