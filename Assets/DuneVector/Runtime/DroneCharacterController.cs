@@ -1107,12 +1107,35 @@ namespace DuneVector
                 _currentVisualBank = Mathf.Lerp(_currentVisualBank, targetBank, DuneVectorMath.Sharpness(bankSharpness, deltaTime));
                 _currentVisualPitch = Mathf.Lerp(_currentVisualPitch, targetPitch, DuneVectorMath.Sharpness(BankRecoverySharpness, deltaTime));
             }
-            DroneVisualRoot.localRotation = Quaternion.Euler(_currentVisualPitch, 0f, _currentVisualBank);
+            Quaternion visualRotation = Quaternion.Euler(_currentVisualPitch, 0f, _currentVisualBank);
+            if (CurrentMode == DroneTraversalMode.Normal && Motor.GroundingStatus.IsStableOnGround)
+            {
+                visualRotation = GetGroundAlignedVisualRotation(Motor.GroundingStatus.GroundNormal);
+            }
+            DroneVisualRoot.localRotation = visualRotation;
 
             float hover = _hoverEnabled
                 ? Mathf.Sin(Time.time * HoverFrequency * Mathf.PI * 2f) * HoverAmplitude
                 : 0f;
             DroneVisualRoot.localPosition = _visualBaseLocalPosition + (Vector3.up * hover);
+        }
+
+        private Quaternion GetGroundAlignedVisualRotation(Vector3 groundNormal)
+        {
+            if (groundNormal.sqrMagnitude < 0.001f)
+            {
+                return Quaternion.identity;
+            }
+
+            groundNormal.Normalize();
+            Vector3 surfaceForward = Vector3.ProjectOnPlane(transform.forward, groundNormal);
+            if (surfaceForward.sqrMagnitude < 0.001f)
+            {
+                surfaceForward = Vector3.Cross(transform.right, groundNormal);
+            }
+
+            Quaternion surfaceRotation = Quaternion.LookRotation(surfaceForward.normalized, groundNormal);
+            return Quaternion.Inverse(transform.rotation) * surfaceRotation;
         }
 
         private void UpdateFlightLandingVisual()
