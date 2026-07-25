@@ -2047,6 +2047,8 @@ namespace DuneVector
         [Min(0.1f)] public float FlyThroughOpeningRadius;
         [Tooltip("World-space distance at which the ring stops turning while an airborne drone commits to a fly-through.")]
         [Min(0f)] public float FlyThroughFacingLockDistance = 75f;
+        [Tooltip("FMOD one-shot event played at the strike orb when a player fly-through triggers its explosion.")]
+        public string FlyThroughExplosionEvent = "event:/Explosion_Strike_Orb";
         [Min(0.05f)] public float FlyThroughExplosionDuration = 0.7f;
         [Min(0.1f)] public float FlyThroughFlashStartScale = 1.5f;
         [Min(0.1f)] public float FlyThroughFlashMaximumScale = 24f;
