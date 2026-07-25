@@ -2498,6 +2498,8 @@ namespace DuneVector
         [Tooltip("Explosion radius at the risk scaling ceiling.")]
         [Min(0.5f)] public float ExplosionRadiusAtRiskCeiling = 18.3f;
         [Min(0f)] public float MaximumDamage = 65f;
+        [Tooltip("FMOD one-shot event played at the ground exploder when it detonates.")]
+        public string ExplosionEvent = "event:/Explosion_Ground_Exploder";
         public string ExplosionDeathMessage = "Destroyed by a Ground Exploder blast.";
         [Header("Presentation")]
         [Tooltip("Visual scale at risk 0.")]

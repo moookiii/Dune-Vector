@@ -1,4 +1,5 @@
 using System;
+using FMODUnity;
 using UnityEngine;
 
 namespace DuneVector
@@ -128,6 +129,10 @@ namespace DuneVector
         private void Detonate()
         {
             SetState(GroundExploderState.Exploding);
+            if (!string.IsNullOrWhiteSpace(_settings.ExplosionEvent))
+            {
+                RuntimeManager.PlayOneShot(_settings.ExplosionEvent, transform.position);
+            }
             _damage.Detonate(
                 transform.position,
                 _explosionRadius,
