@@ -1950,6 +1950,7 @@ namespace DuneVector
             }
 
             bool usingPrefabModel = settings.UsePrefabModel && stormPyramidPrefab != null;
+            float hubBaseHeight = 0f;
             if (usingPrefabModel)
             {
                 GameObject model = UnityEngine.Object.Instantiate(stormPyramidPrefab, armorRotor);
@@ -1957,6 +1958,8 @@ namespace DuneVector
                 model.transform.localPosition = settings.PrefabLocalPosition;
                 model.transform.localRotation = Quaternion.Euler(settings.PrefabLocalEulerAngles);
                 model.transform.localScale = settings.PrefabLocalScale;
+                hubBaseHeight = GetMaximumLocalRendererHeight(model, root)
+                    + settings.PrefabHubHeightOffset;
             }
             else
             {
@@ -2022,7 +2025,7 @@ namespace DuneVector
                 PrimitiveType.Sphere,
                 "Storm Core",
                 root,
-                new Vector3(0f, settings.CoreHeight, 0f),
+                new Vector3(0f, hubBaseHeight + settings.CoreHeight, 0f),
                 settings.CoreScale,
                 Quaternion.identity,
                 materials.StormPyramidCore);
@@ -2037,7 +2040,10 @@ namespace DuneVector
                 counterRotator,
                 GetTorusMesh(settings.CrownRingRadius, settings.CrownRingThickness, 48, 6),
                 materials.StormPyramidCore);
-            crownRing.transform.localPosition = new Vector3(0f, settings.CrownHeight, 0f);
+            crownRing.transform.localPosition = new Vector3(
+                0f,
+                hubBaseHeight + settings.CrownHeight,
+                0f);
             crownRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             DisableRendererShadows(crownRing);
 
@@ -2046,7 +2052,10 @@ namespace DuneVector
                 counterRotator,
                 GetTorusMesh(settings.CoreRingRadius, settings.CoreRingThickness, 40, 6),
                 materials.LightningWarning);
-            coreRing.transform.localPosition = new Vector3(0f, settings.CoreRingHeight, 0f);
+            coreRing.transform.localPosition = new Vector3(
+                0f,
+                hubBaseHeight + settings.CoreRingHeight,
+                0f);
             coreRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             DisableRendererShadows(coreRing);
 
@@ -2061,7 +2070,8 @@ namespace DuneVector
                     PrimitiveType.Cube,
                     $"Core Orbit Node {i + 1}",
                     counterRotator,
-                    (radial * settings.CoreRingRadius) + (Vector3.up * settings.CoreRingHeight),
+                    (radial * settings.CoreRingRadius)
+                        + (Vector3.up * (hubBaseHeight + settings.CoreRingHeight)),
                     new Vector3(orbitNodeWidth, orbitNodeWidth, orbitNodeLength),
                     Quaternion.Euler(0f, degrees, 0f),
                     materials.LightningWarning);
@@ -2073,7 +2083,10 @@ namespace DuneVector
                 root,
                 GetTorusMesh(settings.ChargeHaloRadius, settings.ChargeHaloThickness, 44, 6),
                 materials.LightningWarning);
-            halo.transform.localPosition = new Vector3(0f, settings.ChargeHaloHeight, 0f);
+            halo.transform.localPosition = new Vector3(
+                0f,
+                hubBaseHeight + settings.ChargeHaloHeight,
+                0f);
             halo.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             halo.transform.localScale = Vector3.zero;
             DisableRendererShadows(halo);
@@ -2085,6 +2098,33 @@ namespace DuneVector
                 -bodyHeight - settings.LightningOriginTipOffset,
                 0f);
             return root;
+        }
+
+        private static float GetMaximumLocalRendererHeight(GameObject model, Transform reference)
+        {
+            Renderer[] renderers = model.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+            {
+                return 0f;
+            }
+
+            float maximumY = float.NegativeInfinity;
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Bounds bounds = renderers[i].bounds;
+                Vector3 center = bounds.center;
+                Vector3 extents = bounds.extents;
+                for (int corner = 0; corner < 8; corner++)
+                {
+                    Vector3 worldCorner = center + new Vector3(
+                        (corner & 1) == 0 ? -extents.x : extents.x,
+                        (corner & 2) == 0 ? -extents.y : extents.y,
+                        (corner & 4) == 0 ? -extents.z : extents.z);
+                    maximumY = Mathf.Max(maximumY, reference.InverseTransformPoint(worldCorner).y);
+                }
+            }
+
+            return float.IsNegativeInfinity(maximumY) ? 0f : maximumY;
         }
 
         public static Transform CreatePlayerStrikeOrbVisual(
