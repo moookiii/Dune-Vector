@@ -58,6 +58,16 @@ namespace DuneVector
 
         public bool IsWorldMapVisible => _worldMapVisible;
         public bool IsMinimapVisible => _minimapVisible;
+        public static bool IsWorldMapOpen
+        {
+            get
+            {
+                DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
+                return bootstrap != null &&
+                    bootstrap.MapHUD != null &&
+                    bootstrap.MapHUD._worldMapVisible;
+            }
+        }
 
         private DroneCharacterController _drone;
         private DesertWorldStreamer _world;
@@ -75,6 +85,8 @@ namespace DuneVector
         private readonly Queue<GeoglyphArtworkPlacement> _geoglyphTextureBuildQueue =
             new Queue<GeoglyphArtworkPlacement>();
         private readonly HashSet<GeoglyphArtworkPlacement> _queuedGeoglyphTextures =
+            new HashSet<GeoglyphArtworkPlacement>();
+        private readonly HashSet<GeoglyphArtworkPlacement> _exploredGeoglyphs =
             new HashSet<GeoglyphArtworkPlacement>();
         private GUIStyle _minimapTitleStyle;
         private GUIStyle _worldMapTitleStyle;
@@ -140,7 +152,7 @@ namespace DuneVector
                 return;
             }
 
-            if (DuneVectorCourierGame.IsGameplayHudSuppressed)
+            if (DuneVectorCourierGame.IsMapHudSuppressed)
             {
                 _worldMapVisible = false;
                 return;
@@ -184,7 +196,7 @@ namespace DuneVector
                 _drone == null ||
                 _world == null ||
                 _scanTexture == null ||
-                DuneVectorCourierGame.IsGameplayHudSuppressed)
+                DuneVectorCourierGame.IsMapHudSuppressed)
             {
                 return;
             }
@@ -358,14 +370,29 @@ namespace DuneVector
             for (int index = 0; index < _mapIcons.Count; index++)
             {
                 MapIconRecord icon = _mapIcons[index];
-                if (_settings.OnlyShowExploredIcons && !IsExplored(icon.X, icon.Z))
+                bool isExplored = icon.Kind == MapIconKind.Geoglyph
+                    ? _exploredGeoglyphs.Contains(icon.Artwork)
+                    : IsExplored(icon.X, icon.Z);
+                if (_settings.OnlyShowExploredIcons && !isExplored)
                 {
                     continue;
                 }
 
                 double deltaX = icon.X - center.X;
                 double deltaZ = icon.Z - center.Z;
-                if (Math.Abs(deltaX) > halfWorldSize || Math.Abs(deltaZ) > halfWorldSize)
+                float footprintHalfWidth = 0f;
+                float footprintHalfHeight = 0f;
+                if (icon.Kind == MapIconKind.Geoglyph)
+                {
+                    GetRotatedGeoglyphSize(
+                        icon.Artwork,
+                        out float footprintWidth,
+                        out float footprintHeight);
+                    footprintHalfWidth = footprintWidth * 0.5f;
+                    footprintHalfHeight = footprintHeight * 0.5f;
+                }
+                if (Math.Abs(deltaX) > halfWorldSize + footprintHalfWidth ||
+                    Math.Abs(deltaZ) > halfWorldSize + footprintHalfHeight)
                 {
                     continue;
                 }
@@ -503,6 +530,7 @@ namespace DuneVector
                 Time.unscaledTime + Mathf.Max(0.1f, _settings.IconRefreshInterval);
             _mapIcons.Clear();
             _upperFlightMapIcons.Clear();
+            _exploredGeoglyphs.Clear();
 
             if (_settings.ShowRings)
             {
@@ -574,6 +602,10 @@ namespace DuneVector
                     if (placement != null && placement.Mask != null)
                     {
                         _mapIcons.Add(new MapIconRecord(placement));
+                        if (IsGeoglyphExplored(placement))
+                        {
+                            _exploredGeoglyphs.Add(placement);
+                        }
                         QueueGeoglyphTextureBuild(placement);
                     }
                 }
@@ -913,6 +945,37 @@ namespace DuneVector
             return _exploredCells.Contains(PackCell(cellX, cellZ));
         }
 
+        private bool IsGeoglyphExplored(GeoglyphArtworkPlacement artwork)
+        {
+            if (artwork == null)
+            {
+                return false;
+            }
+
+            GetRotatedGeoglyphSize(artwork, out float width, out float height);
+            double cellSize = Mathf.Max(1f, _settings.ExplorationCellSize);
+            int minimumX = Mathf.FloorToInt(
+                (float)((artwork.WorldCenter.x - (width * 0.5f)) / cellSize));
+            int maximumX = Mathf.FloorToInt(
+                (float)((artwork.WorldCenter.x + (width * 0.5f)) / cellSize));
+            int minimumZ = Mathf.FloorToInt(
+                (float)((artwork.WorldCenter.y - (height * 0.5f)) / cellSize));
+            int maximumZ = Mathf.FloorToInt(
+                (float)((artwork.WorldCenter.y + (height * 0.5f)) / cellSize));
+
+            for (int cellZ = minimumZ; cellZ <= maximumZ; cellZ++)
+            {
+                for (int cellX = minimumX; cellX <= maximumX; cellX++)
+                {
+                    if (_exploredCells.Contains(PackCell(cellX, cellZ)))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
         private static long PackCell(int x, int z)
         {
             return ((long)x << 32) | (uint)z;
@@ -1013,7 +1076,7 @@ namespace DuneVector
 
         private void EnsureTexture()
         {
-            int resolution = Mathf.Clamp(_settings.ScanTextureResolution, 32, 256);
+            int resolution = Mathf.Clamp(_settings.ScanTextureResolution, 32, 512);
             if (_scanTexture != null && _scanTexture.width == resolution)
             {
                 return;

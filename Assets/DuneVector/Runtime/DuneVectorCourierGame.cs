@@ -307,6 +307,13 @@ namespace DuneVector
         {
             get
             {
+                return IsMapHudSuppressed || DuneVectorMapHUD.IsWorldMapOpen;
+            }
+        }
+        public static bool IsMapHudSuppressed
+        {
+            get
+            {
                 DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
                 return bootstrap != null && bootstrap.CourierGame != null &&
                     (DuneVectorPhotographySystem.IsCameraModeActive ||

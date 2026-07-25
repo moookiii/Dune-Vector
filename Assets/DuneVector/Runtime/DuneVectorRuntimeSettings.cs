@@ -4112,9 +4112,9 @@ namespace DuneVector
         public string ExplorationFileName = "DuneVectorMapExploration.dat";
         [Tooltip("Seconds between background saves when new map cells have been discovered.")]
         [Min(1f)] public float ExplorationSaveInterval = 10f;
-        [Range(32, 256)] public int ScanTextureResolution = 96;
+        [Range(32, 512)] public int ScanTextureResolution = 256;
         [Tooltip("Texture rows procedurally sampled per rendered frame. Lower values reduce frame spikes while taking longer to complete a refresh.")]
-        [Range(1, 32)] public int ScanRowsPerFrame = 4;
+        [Range(1, 32)] public int ScanRowsPerFrame = 8;
         [Tooltip("Seconds between procedural terrain resamples. Cached map pixels still scroll every rendered frame.")]
         [Min(0.02f)] public float ScanRefreshInterval = 0.3f;
         [Tooltip("Distance traveled before the cached terrain scan is regenerated. Cached pixels translate smoothly below this threshold.")]
@@ -4190,7 +4190,7 @@ namespace DuneVector
         [ColorUsage(false)] public Color WhiteRingColor = new Color(0.95f, 0.98f, 1f, 1f);
         [ColorUsage(false)] public Color PurplePortalColor = new Color(0.74f, 0.32f, 1f, 1f);
         [ColorUsage(false)] public Color LandmarkIconColor = new Color(1f, 0.67f, 0.18f, 1f);
-        [ColorUsage(false)] public Color GeoglyphMapColor = new Color(0.88f, 0.45f, 1f, 1f);
+        [ColorUsage(false)] public Color GeoglyphMapColor = Color.white;
         [Range(0f, 1f)] public float GeoglyphMapOpacity = 0.9f;
         [Tooltip("Maximum width or height of each cached transparent geoglyph map texture.")]
         [Range(64, 512)] public int GeoglyphMapTextureResolution = 256;
