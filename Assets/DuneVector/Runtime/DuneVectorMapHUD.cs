@@ -69,6 +69,7 @@ namespace DuneVector
         private Color[] _scanPixels;
         private readonly HashSet<long> _exploredCells = new HashSet<long>();
         private readonly List<MapIconRecord> _mapIcons = new List<MapIconRecord>();
+        private readonly List<MapIconRecord> _upperFlightMapIcons = new List<MapIconRecord>();
         private GUIStyle _minimapTitleStyle;
         private GUIStyle _worldMapTitleStyle;
         private GUIStyle _detailStyle;
@@ -344,7 +345,6 @@ namespace DuneVector
         {
             float iconScale = scale * (worldMap ? 1f : _settings.MinimapIconScale);
             float halfWorldSize = displayedWorldSize * 0.5f;
-            float boxSize = _settings.IconBoxSize * iconScale;
             Vector2 shadowOffset = _settings.IconShadowOffset * iconScale;
             UpdateIconStyles(iconScale);
 
@@ -372,6 +372,12 @@ namespace DuneVector
                     continue;
                 }
 
+                float recordScale =
+                    icon.Kind == MapIconKind.Ring &&
+                    icon.RingType == TraversalRingType.UpperFlight
+                        ? _settings.UpperFlightIconScale
+                        : 1f;
+                float boxSize = _settings.IconBoxSize * iconScale * recordScale;
                 Rect iconRect = new Rect(
                     position.x - (boxSize * 0.5f),
                     position.y - (boxSize * 0.5f),
@@ -381,6 +387,11 @@ namespace DuneVector
                 if (icon.Kind == MapIconKind.Ring)
                 {
                     _ringIconStyle.normal.textColor = GetRingIconColor(icon.RingType);
+                    _ringIconStyle.fontSize = Mathf.Max(
+                        8,
+                        Mathf.RoundToInt(
+                            _settings.RingIconFontSize * iconScale * recordScale));
+                    _ringIconShadowStyle.fontSize = _ringIconStyle.fontSize;
                 }
                 GUI.Label(
                     new Rect(
@@ -429,6 +440,7 @@ namespace DuneVector
             {
                 TraversalRingType.GroundBoost => _settings.YellowRingColor,
                 TraversalRingType.Coin => _settings.YellowRingColor,
+                TraversalRingType.Flight => _settings.WhiteRingColor,
                 TraversalRingType.Health => _settings.WhiteRingColor,
                 _ => _settings.PurplePortalColor,
             };
@@ -493,22 +505,33 @@ namespace DuneVector
             _nextIconRefreshTime =
                 Time.unscaledTime + Mathf.Max(0.1f, _settings.IconRefreshInterval);
             _mapIcons.Clear();
+            _upperFlightMapIcons.Clear();
 
             if (_settings.ShowRings)
             {
                 foreach (TraversalRing ring in TraversalRing.ActiveRings)
                 {
-                    if (ring == null || ring.RingType == TraversalRingType.UpperFlight)
+                    if (ring == null)
                     {
                         continue;
                     }
 
                     Vector3 position = ring.transform.position;
-                    _mapIcons.Add(new MapIconRecord(
+                    MapIconRecord record = new MapIconRecord(
                         _world.OriginOffsetX + position.x,
                         _world.OriginOffsetZ + position.z,
-                        ring.RingType));
+                        ring.RingType);
+                    if (ring.RingType == TraversalRingType.UpperFlight)
+                    {
+                        _upperFlightMapIcons.Add(record);
+                    }
+                    else
+                    {
+                        _mapIcons.Add(record);
+                    }
                 }
+
+                _mapIcons.AddRange(_upperFlightMapIcons);
             }
 
             if (_settings.ShowLandmarks)

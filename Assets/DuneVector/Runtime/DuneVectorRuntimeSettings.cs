@@ -4102,6 +4102,8 @@ namespace DuneVector
         [Min(8)] public int RingIconFontSize = 22;
         [Min(8)] public int LandmarkIconFontSize = 20;
         [Min(12f)] public float IconBoxSize = 34f;
+        [Tooltip("Scale of the purple upper-flight ring inside its white regular-flight ring icon.")]
+        [Range(0.25f, 0.9f)] public float UpperFlightIconScale = 0.62f;
         public Vector2 IconShadowOffset = new Vector2(1f, 2f);
         public string RingIcon = "○";
         [Header("Landmark Symbols")]
