@@ -2405,14 +2405,11 @@ namespace DuneVector
         [Min(9)] public int HudBodyFontSize = 11;
         [Min(9)] public int HudMetaFontSize = 9;
         [Min(9)] public int HudMetricFontSize = 22;
-        [Min(9)] public int HudBearingFontSize = 17;
         [Min(9)] public int HudCountFontSize = 11;
         [Min(0f)] public float HudContentTop = 39f;
         [Min(0f)] public float HudMetaHeight = 14f;
         [Min(0f)] public float HudMetricTop = 54f;
         [Min(0f)] public float HudMetricHeight = 30f;
-        [Min(20f)] public float HudBearingBadgeSize = 38f;
-        [Min(0f)] public float HudBearingBadgeTop = 48f;
         [Min(0f)] public float HudChallengeBodyTop = 54f;
         [Min(0f)] public float HudChallengeBodyHeight = 28f;
         [Min(0f)] public float HudChallengeProgressTop = 84f;

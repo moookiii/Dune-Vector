@@ -106,7 +106,6 @@ namespace DuneVector
         private GUIStyle _hudBodyStyle;
         private GUIStyle _hudMetaStyle;
         private GUIStyle _hudMetricStyle;
-        private GUIStyle _hudBearingStyle;
         private GUIStyle _hudCountStyle;
         private GUIStyle _hudLoreMetaStyle;
         private GUIStyle _hudLoreTitleStyle;
@@ -1807,23 +1806,10 @@ namespace DuneVector
                 new Rect(
                     panel.x + padding,
                     panel.y + _settings.HudMetricTop,
-                    panel.width - (_settings.HudBearingBadgeSize + (padding * 3f)),
+                    panel.width - (padding * 2f),
                     _settings.HudMetricHeight),
                 FormatDesignerText(_settings.HudDistanceFormat, _nearestDistance),
                 _hudMetricStyle);
-            Rect bearingBadge = new Rect(
-                panel.xMax - padding - _settings.HudBearingBadgeSize,
-                panel.y + _settings.HudBearingBadgeTop,
-                _settings.HudBearingBadgeSize,
-                _settings.HudBearingBadgeSize);
-            float pulse = (Mathf.Sin(Time.unscaledTime * _settings.HudActivePulseSpeed) + 1f) * 0.5f;
-            Color badgeColor = Color.Lerp(
-                _settings.HudBadgeColor,
-                _settings.HudAccentColor,
-                pulse * _settings.HudActivePulseAmount);
-            DrawRect(bearingBadge, badgeColor);
-            DrawBorder(bearingBadge, _settings.HudAccentColor, _settings.HudBorderThickness);
-            GUI.Label(bearingBadge, GetBearingText(_nearestSite), _hudBearingStyle);
         }
 
         private void DrawAtlasChallengeState(Rect panel, float padding)
@@ -1926,16 +1912,6 @@ namespace DuneVector
             GUI.color = previous;
         }
 
-        private string GetBearingText(DesertAtlasSiteDefinition site)
-        {
-            Vector3 direction = GetSiteLocalPosition(site) - _player.WorldCenter;
-            float angle = Mathf.Atan2(direction.x, direction.z) * Mathf.Rad2Deg;
-            if (angle < 0f) angle += 360f;
-            string[] cardinals = { "N", "NE", "E", "SE", "S", "SW", "W", "NW" };
-            int index = Mathf.RoundToInt(angle / 45f) % cardinals.Length;
-            return cardinals[index];
-        }
-
         private float GetCompassScale()
         {
             float minimumScale = Mathf.Min(_compassSettings.MinimumScale, _compassSettings.MaximumScale);
@@ -1958,7 +1934,6 @@ namespace DuneVector
             _hudBodyStyle ??= CreateStyle(_settings.HudBodyFontSize, FontStyle.Normal, TextAnchor.MiddleLeft, _settings.HudTextColor);
             _hudMetaStyle ??= CreateStyle(_settings.HudMetaFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.HudMutedColor);
             _hudMetricStyle ??= CreateStyle(_settings.HudMetricFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.HudAccentColor);
-            _hudBearingStyle ??= CreateStyle(_settings.HudBearingFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
             _hudCountStyle ??= CreateStyle(_settings.HudCountFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
             _hudLoreMetaStyle ??= CreateStyle(_settings.HudMetaFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.HudDiscoveredAccentColor);
             _hudLoreTitleStyle ??= CreateStyle(_settings.HudLoreTitleFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.HudTextColor);
