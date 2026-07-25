@@ -276,6 +276,7 @@ namespace DuneVector
         private int _selectedTab;
         private string _selectedSubjectId;
         private GUIStyle _titleStyle;
+        private GUIStyle _detailTitleStyle;
         private GUIStyle _bodyStyle;
         private GUIStyle _unknownStyle;
         private GUIStyle _tabStyle;
@@ -575,7 +576,10 @@ namespace DuneVector
                 area.width - (padding * 2f),
                 Mathf.Min(
                     _settings.CompendiumDetailImageHeight,
-                    area.height - (_settings.CompendiumDetailTitleHeight * 2f) - (padding * 3f)));
+                    area.height -
+                        _settings.CompendiumDetailTitleHeight -
+                        _settings.CompendiumSlotLabelHeight -
+                        (padding * 3f)));
             bool documented = _storage.IsDocumented(selected.SubjectId);
             Texture2D texture = documented ? _storage.GetCanonicalTexture(selected.SubjectId) : null;
             DrawRect(image, _settings.CompendiumLockedColor);
@@ -598,7 +602,7 @@ namespace DuneVector
                     image.width,
                     _settings.CompendiumDetailTitleHeight),
                 title,
-                _titleStyle);
+                _detailTitleStyle);
             GUI.Label(
                 new Rect(
                     image.x,
@@ -634,6 +638,15 @@ namespace DuneVector
                 FontStyle.Bold,
                 TextAnchor.MiddleLeft,
                 _settings.GalleryTextColor);
+            if (_detailTitleStyle == null)
+            {
+                _detailTitleStyle = CreateStyle(
+                    _settings.CompendiumDetailTitleFontSize,
+                    FontStyle.Bold,
+                    TextAnchor.UpperLeft,
+                    _settings.GalleryTextColor);
+                _detailTitleStyle.wordWrap = true;
+            }
             _bodyStyle ??= CreateStyle(
                 _settings.GalleryBodyFontSize,
                 FontStyle.Bold,

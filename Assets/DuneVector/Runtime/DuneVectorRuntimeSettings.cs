@@ -345,7 +345,8 @@ namespace DuneVector
         [Min(16f)] public float CompendiumSlotLabelHeight = 38f;
         [Min(180f)] public float CompendiumDetailPanelWidth = 390f;
         [Min(100f)] public float CompendiumDetailImageHeight = 260f;
-        [Min(20f)] public float CompendiumDetailTitleHeight = 52f;
+        [Min(20f)] public float CompendiumDetailTitleHeight = 70f;
+        [Min(8)] public int CompendiumDetailTitleFontSize = 23;
         [Min(0f)] public float CompendiumGap = 18f;
         [Min(0f)] public float CompendiumScrollbarReserve = 24f;
         [Min(1f)] public float CompendiumIconStrokeWidth = 2f;
