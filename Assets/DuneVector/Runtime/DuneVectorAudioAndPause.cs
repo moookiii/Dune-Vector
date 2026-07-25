@@ -321,6 +321,11 @@ namespace DuneVector
             PlayConfiguredOneShot(_settings != null ? _settings.DroneFireEvent : null, position, "drone-fire");
         }
 
+        public void PlayFlightRingSwoosh(Vector3 position)
+        {
+            PlayConfiguredOneShot(_settings != null ? _settings.FlightRingSwooshEvent : null, position, "flight-ring swoosh");
+        }
+
         public void BindLockOnController(DroneLockOnController lockOnController)
         {
             if (_lockOnController != null)
