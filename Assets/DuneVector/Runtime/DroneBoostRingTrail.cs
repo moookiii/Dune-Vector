@@ -127,14 +127,16 @@ namespace DuneVector
             }
 
             Vector3 segmentDirection = displacement / distance;
-            while (distance >= spacing && _activeCount < _rings.Length)
+            int emittedThisFrame = 0;
+            while (distance >= spacing && emittedThisFrame < _rings.Length)
             {
                 _lastEmissionPosition += segmentDirection * spacing;
                 SpawnRing(_lastEmissionPosition, segmentDirection);
                 distance -= spacing;
+                emittedThisFrame++;
             }
 
-            if (_activeCount >= _rings.Length)
+            if (distance >= spacing)
             {
                 _lastEmissionPosition = position;
             }
@@ -142,13 +144,18 @@ namespace DuneVector
 
         private void SpawnRing(Vector3 sampledPosition, Vector3 direction)
         {
-            if (_activeCount >= _rings.Length)
+            int ringIndex;
+            if (_activeCount < _rings.Length)
             {
-                return;
+                ringIndex = _activeCount++;
+            }
+            else
+            {
+                ringIndex = FindOldestRingIndex();
             }
 
             int hueSteps = Mathf.Clamp(_tuning.HueStepCount, 2, 64);
-            _rings[_activeCount++] = new TrailRing
+            _rings[ringIndex] = new TrailRing
             {
                 Position = sampledPosition - (direction * Mathf.Max(0f, _tuning.SpawnBehindDistance)),
                 Rotation = CreateRingRotation(direction),
@@ -157,6 +164,24 @@ namespace DuneVector
                 HueIndex = _nextHueIndex,
             };
             _nextHueIndex = (_nextHueIndex + 1) % hueSteps;
+        }
+
+        private int FindOldestRingIndex()
+        {
+            int oldestIndex = 0;
+            float oldestAge = _rings[0].Age;
+            for (int i = 1; i < _activeCount; i++)
+            {
+                if (_rings[i].Age <= oldestAge)
+                {
+                    continue;
+                }
+
+                oldestIndex = i;
+                oldestAge = _rings[i].Age;
+            }
+
+            return oldestIndex;
         }
 
         private void RenderRings()
