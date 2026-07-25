@@ -1876,6 +1876,18 @@ namespace DuneVector
         [Min(1f)] public float MaximumHealth = 135f;
         [Min(0)] public int GoldReward = 50;
 
+        [Header("Model")]
+        [Tooltip("Uses Storm Pyramid Prefab for the body while preserving the procedural light-blue rings and combat effects. Disable to use the original procedural pyramid.")]
+        public bool UsePrefabModel = true;
+        [Tooltip("Body prefab used when Use Prefab Model is enabled. If this is missing, the original procedural pyramid is used automatically.")]
+        public GameObject StormPyramidPrefab;
+        [Tooltip("Local position applied to the instantiated body prefab.")]
+        public Vector3 PrefabLocalPosition = Vector3.zero;
+        [Tooltip("Local Euler rotation applied to the instantiated body prefab.")]
+        public Vector3 PrefabLocalEulerAngles = Vector3.zero;
+        [Tooltip("Local scale applied to the instantiated body prefab before the overall Visual Scale.")]
+        public Vector3 PrefabLocalScale = Vector3.one;
+
         [Header("Spawning")]
         [Range(1, 10)] public int EnemyCount = 2;
         [Min(20f)] public float MinimumSpawnDistance = 90f;
