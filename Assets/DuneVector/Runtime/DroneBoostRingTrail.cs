@@ -104,7 +104,9 @@ namespace DuneVector
 
         private void EmitAlongFlightPath()
         {
-            Vector3 position = _drone.transform.position;
+            Vector3 position = _drone.DroneVisualRoot != null
+                ? _drone.DroneVisualRoot.position
+                : _drone.WorldCenter;
             Vector3 velocity = _drone.Motor != null ? _drone.Motor.Velocity : Vector3.zero;
             Vector3 direction = velocity.sqrMagnitude > 0.01f
                 ? velocity.normalized

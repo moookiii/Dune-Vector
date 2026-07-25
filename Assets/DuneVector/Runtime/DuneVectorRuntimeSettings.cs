@@ -3715,8 +3715,8 @@ namespace DuneVector
         [Range(4, 128)] public int MaximumRingCount = 48;
         [Tooltip("World-space distance flown between successive trail rings.")]
         [Min(0.1f)] public float SpawnSpacing = 2.5f;
-        [Tooltip("Distance behind the sampled flight position where each ring is placed.")]
-        [Min(0f)] public float SpawnBehindDistance = 1.2f;
+        [Tooltip("Optional distance behind the visible drone center where each ring is placed.")]
+        [Min(0f)] public float SpawnBehindDistance = 0f;
         [Tooltip("Seconds each emitted ring remains visible in the world.")]
         [Min(0.05f)] public float Lifetime = 1.35f;
 
