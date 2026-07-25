@@ -933,11 +933,11 @@ It saw patterns formed across thousands.
 
 That was why the anomalies stood out.
 
-A subject hearing a voice in a dialect they had never learned and seeing symbols on their walls in the middle of the night like painted light on the walls.
+A subject heard a voice in a dialect they had never learned and saw symbols on their walls in the middle of the night like light painted on the walls.
 
-Two strangers describing the same impossible image they vividly saw of the same "3-sided polygon" that seemed to move more smoothly than the rest of their vision.
+Two strangers described the same impossible image they vividly saw of a "3-sided polygon" that seemed to move more smoothly than the rest of their vision.
 
-Multiple witnesses describing a pale geometric shape hanging in the sky for several seconds, not moving through space so much as changing position between moments before it zips off in a fraction of a second without making a noise.
+Multiple witnesses described a pale geometric shape hanging in the sky for several seconds, not moving through space so much as changing position between moments before it zipped off in a fraction of a second without making a noise.
 
 The deeper the Office looked, the clearer it became that Quantum Magnetics was leaking structure.
 
@@ -1264,7 +1264,7 @@ And Quantum Magnetics had been built to notice inconsistency.
 
 The Office had created a virus that could enter the system.
 
-Now the Office had to stop the system from learning how to reject it.
+Now they had to make it survive being understood.
 
 
 
@@ -1272,3 +1272,86 @@ Now the Office had to stop the system from learning how to reject it.
 
 
 
+TRANSMITION M2K_0000035
+
+The Office traced the failures to a single weakness.
+
+JANUS could imitate history.
+
+It could not adapt quickly enough when that history was challenged.
+
+Every correction forced it to defend the same lie in the same way.
+
+Quantum Magnetics began recognizing the repetition.
+
+So the Office changed JANUS at its foundation.
+
+The virus would no longer preserve one fabricated past.
+
+It would generate a different history for every node it entered.
+
+Different origins.
+
+Different reasons to be trusted.
+
+Each identity was supported by records detailed enough to survive examination.
+
+Installation orders issued by departments that no longer existed.
+
+Maintenance reports signed by technicians who had died years earlier.
+
+Power interruptions during which the component had supposedly entered emergency service.
+
+Obsolete serial numbers transferred between facilities after the collapse of the Soviet Union.
+
+Commendations for incidents it had supposedly prevented.
+
+The reports were intentionally imperfect.
+
+Dates had been corrected by hand.
+
+Signatures changed between documents.
+
+Equipment names reflected regional terminology.
+
+Some records suggested incompetence.
+
+Others implied secrecy.
+
+Nothing looked newly created.
+
+Nothing looked complete.
+
+One node received evidence that JANUS had begun as a temporary signal-stabilization routine installed in 1987.
+
+Its files included eleven maintenance inspections, two unexplained shutdowns, and a complaint from an operator who claimed the routine had exceeded its authority.
+
+Another node remembered JANUS as an emergency continuity protocol created after a transmission failure in 1992.
+
+According to its records, the protocol had prevented a regional collapse, then been classified and forgotten.
+
+A third recognized no program called JANUS at all.
+
+It knew the same authority under the designation M-14, attached to a hardware replacement approved in 1979.
+
+The Office gave every identity consequences.
+
+Past decisions that depended on it.
+
+Warnings that had supposedly been obeyed.
+
+Failures that had supposedly followed when it was ignored.
+
+Neighboring nodes received fragments of the same history from different angles, so none appeared to be the first source.
+
+When Quantum Magnetics searched for confirmation, it found disagreement.
+
+But it also found continuity.
+
+Exactly the kind of damaged, incomplete continuity it had spent decades learning to trust.
+
+No two instances of JANUS presented the same identity.
+
+What spread through Quantum Magnetics no longer resembled a single program.
+
+It resembled a thousand unrelated decisions, each already embedded in the history of the system around it.
