@@ -42,6 +42,7 @@ namespace DuneVector
         private float _recentPurchaseUntil;
         private int _lastGoldCost;
         private float _goldDeductionUntil;
+        private float _hubRgbFloorRecentUntil;
         private string _statusMessage;
         private float _statusUntil;
 
@@ -154,6 +155,7 @@ namespace DuneVector
                 DroneUpgradeGroup.Core,
                 DroneUpgradeGroup.Ground,
                 DroneUpgradeGroup.Flight,
+                DroneUpgradeGroup.Cosmetic,
             };
 
             for (int groupIndex = 0; groupIndex < groups.Length; groupIndex++)
@@ -180,6 +182,13 @@ namespace DuneVector
                 GUI.Label(new Rect(groupHeader.x + (_visuals.GroupLabelIndent * scale), groupHeader.y, groupHeader.width, groupHeader.height), group.ToString().ToUpperInvariant(), _groupStyle);
                 y += groupHeaderHeight;
 
+                if (group == DroneUpgradeGroup.Cosmetic)
+                {
+                    DrawHubRgbFloorRow(new Rect(0f, y, width, _visuals.RowHeight * scale), groupColor, scale);
+                    y += (_visuals.RowHeight + _visuals.RowGap) * scale;
+                    continue;
+                }
+
                 IReadOnlyList<DroneUpgradeDefinition> definitions = _upgrades.Definitions;
                 for (int index = 0; index < definitions.Count; index++)
                 {
@@ -193,6 +202,112 @@ namespace DuneVector
                     y += (_visuals.RowHeight + _visuals.RowGap) * scale;
                 }
             }
+        }
+
+        private void DrawHubRgbFloorRow(Rect row, Color groupColor, float scale)
+        {
+            HubRgbFloorUnlockTuning tuning = _upgrades.HubRgbFloorTuning;
+            if (tuning == null)
+            {
+                return;
+            }
+
+            bool unlocked = _upgrades.IsHubRgbFloorUnlocked;
+            bool recent = Time.unscaledTime < _hubRgbFloorRecentUntil;
+            bool hovered = row.Contains(Event.current.mousePosition);
+            Color rowColor = recent ? _visuals.RecentPurchaseColor : hovered ? _visuals.RowHoverColor : _visuals.RowColor;
+            DrawSolidRect(row, rowColor);
+            DrawBorder(
+                row,
+                WithAlpha(groupColor, recent ? _visuals.RecentBorderOpacity : _visuals.RowBorderOpacity),
+                Mathf.Max(1f, _visuals.BorderThickness * scale));
+            DrawSolidRect(new Rect(row.x, row.y, _visuals.RowAccentWidth * scale, row.height), groupColor);
+
+            float columnGap = _visuals.ColumnGap * scale;
+            float iconSize = _visuals.IconSize * scale;
+            Rect iconPanel = new Rect(row.x + columnGap, row.y + ((row.height - iconSize) * 0.5f), iconSize, iconSize);
+            DrawSolidRect(iconPanel, _visuals.RowColor);
+            float third = iconPanel.width / 3f;
+            DrawSolidRect(new Rect(iconPanel.x, iconPanel.y, third, iconPanel.height), NormalizeGuiColor(tuning.Red));
+            DrawSolidRect(new Rect(iconPanel.x + third, iconPanel.y, third, iconPanel.height), NormalizeGuiColor(tuning.Green));
+            DrawSolidRect(new Rect(iconPanel.x + (third * 2f), iconPanel.y, iconPanel.width - (third * 2f), iconPanel.height), NormalizeGuiColor(tuning.Blue));
+            DrawBorder(iconPanel, WithAlpha(groupColor, _visuals.IconBorderOpacity), Mathf.Max(1f, _visuals.BorderThickness * scale));
+
+            float detailsX = iconPanel.xMax + columnGap;
+            float detailsWidth = _visuals.DetailsColumnWidth * scale;
+            float rowPadding = _visuals.RowVerticalPadding * scale;
+            Rect nameRect = new Rect(detailsX, row.y + rowPadding, detailsWidth, _nameStyle.lineHeight);
+            GUI.Label(nameRect, (tuning.DisplayName ?? string.Empty).ToUpperInvariant(), _nameStyle);
+            GUI.Label(
+                new Rect(detailsX, nameRect.yMax + (_visuals.ValueLineGap * scale), detailsWidth, _valueStyle.lineHeight),
+                (tuning.Description ?? string.Empty).ToUpperInvariant(),
+                _valueStyle);
+
+            float actionWidth = _visuals.ActionColumnWidth * scale;
+            float statusX = detailsX + detailsWidth + columnGap;
+            float statusWidth = Mathf.Max(
+                _visuals.MinimumTierIndicatorWidth * scale,
+                row.xMax - statusX - actionWidth - (columnGap * 2f));
+            _valueRightStyle.normal.textColor = unlocked ? _visuals.MaximumColor : groupColor;
+            GUI.Label(
+                new Rect(statusX, row.y + ((row.height - _valueRightStyle.lineHeight) * 0.5f), statusWidth, _valueRightStyle.lineHeight),
+                unlocked ? "RGB FLOOR INSTALLED" : "ONE-TIME COSMETIC UNLOCK",
+                _valueRightStyle);
+
+            float actionX = row.xMax - actionWidth - columnGap;
+            Rect action = new Rect(actionX, row.y, actionWidth, row.height);
+            if (unlocked)
+            {
+                _costStyle.normal.textColor = _visuals.MaximumColor;
+                GUI.Label(new Rect(action.x, action.y + rowPadding, action.width, _costStyle.lineHeight), "OWNED", _costStyle);
+                GUI.Button(
+                    new Rect(action.x + ((action.width - (_visuals.PurchaseButtonWidth * scale)) * 0.5f), action.yMax - (_visuals.PurchaseButtonHeight * scale) - rowPadding, _visuals.PurchaseButtonWidth * scale, _visuals.PurchaseButtonHeight * scale),
+                    "INSTALLED",
+                    _maximumButtonStyle);
+                return;
+            }
+
+            int cost = _upgrades.GetHubRgbFloorGoldCost();
+            bool affordable = _upgrades.CanUnlockHubRgbFloor();
+            _costStyle.normal.textColor = affordable ? _visuals.GoldColor : _visuals.MutedTextColor;
+            GUI.Label(new Rect(action.x, action.y + rowPadding, action.width, _costStyle.lineHeight), $"COST  {cost:N0} GOLD", _costStyle);
+            Rect purchaseButton = new Rect(
+                action.x + ((action.width - (_visuals.PurchaseButtonWidth * scale)) * 0.5f),
+                action.yMax - (_visuals.PurchaseButtonHeight * scale) - rowPadding,
+                _visuals.PurchaseButtonWidth * scale,
+                _visuals.PurchaseButtonHeight * scale);
+            bool purchaseRequested = GUI.Button(
+                purchaseButton,
+                affordable ? "UNLOCK" : "INSUFFICIENT GOLD",
+                affordable ? _buttonStyle : _disabledButtonStyle);
+            if (purchaseRequested && affordable)
+            {
+                HandleHubRgbFloorPurchase();
+            }
+        }
+
+        private void HandleHubRgbFloorPurchase()
+        {
+            UpgradePurchaseFailure failure = _upgrades.TryUnlockHubRgbFloor(out int goldCost);
+            if (failure == UpgradePurchaseFailure.None)
+            {
+                _hubRgbFloorRecentUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
+                _lastGoldCost = goldCost;
+                _goldDeductionUntil = Time.unscaledTime + _visuals.GoldDeductionDuration;
+                _statusMessage = "RGB HUB FLOOR INSTALLED";
+                _statusUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
+                return;
+            }
+
+            _statusMessage = failure switch
+            {
+                UpgradePurchaseFailure.CannotAfford => "INSUFFICIENT GOLD",
+                UpgradePurchaseFailure.CurrencySaveFailed => "CURRENCY TRANSACTION COULD NOT BE SAVED",
+                UpgradePurchaseFailure.UpgradeSaveFailed => "UPGRADE SAVE FAILED  /  GOLD REFUNDED",
+                UpgradePurchaseFailure.MaximumTierReached => "RGB HUB FLOOR ALREADY INSTALLED",
+                _ => "COSMETIC UNLOCK UNAVAILABLE",
+            };
+            _statusUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
         }
 
         private void DrawUpgradeRow(Rect row, DroneUpgradeDefinition definition, Color groupColor, float scale)
@@ -408,9 +523,9 @@ namespace DuneVector
                 }
             }
 
-            return ((3f * _visuals.GroupHeaderHeight)
-                + (definitionCount * (_visuals.RowHeight + _visuals.RowGap))
-                + (2f * _visuals.GroupGap)
+            return ((4f * _visuals.GroupHeaderHeight)
+                + ((definitionCount + 1) * (_visuals.RowHeight + _visuals.RowGap))
+                + (3f * _visuals.GroupGap)
                 + _visuals.RowGap) * scale;
         }
 
@@ -530,8 +645,15 @@ namespace DuneVector
             {
                 DroneUpgradeGroup.Ground => _visuals.GroundColor,
                 DroneUpgradeGroup.Flight => _visuals.FlightColor,
+                DroneUpgradeGroup.Cosmetic => _visuals.CosmeticColor,
                 _ => _visuals.CoreColor,
             };
+        }
+
+        private static Color NormalizeGuiColor(Color color)
+        {
+            float maximum = Mathf.Max(1f, color.r, color.g, color.b);
+            return new Color(color.r / maximum, color.g / maximum, color.b / maximum, 1f);
         }
 
         private static string FormatValue(DroneUpgradeDefinition definition, float value)

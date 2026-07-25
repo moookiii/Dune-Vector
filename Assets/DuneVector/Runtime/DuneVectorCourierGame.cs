@@ -336,6 +336,7 @@ namespace DuneVector
         private DroneCameraController _cameraController;
         private DuneVectorMaterials _materials;
         private DroneGoldWallet _wallet;
+        private DronePermanentUpgradeSystem _permanentUpgrades;
         private DuneVectorLandmarkDirector _landmarks;
         private CourierContractTuning _settings;
         private DeliveryMessageTuning _messageSettings;
@@ -385,6 +386,7 @@ namespace DuneVector
         private float _statusMessageUntil;
         private Vector3 _droneVisualOriginalScale;
         private Material _hubMetalMaterial;
+        private Material _hubFloorMaterial;
         private Material _hubEnergyMaterial;
 
         private GUIStyle _terminalTitleStyle;
@@ -426,6 +428,7 @@ namespace DuneVector
             Camera camera,
             DuneVectorMaterials materials,
             DroneGoldWallet wallet,
+            DronePermanentUpgradeSystem permanentUpgrades,
             DuneVectorLandmarkDirector landmarks,
             DeliveryTuning deliverySettings,
             CourierContractTuning settings,
@@ -444,6 +447,7 @@ namespace DuneVector
             _cameraController = camera != null ? camera.GetComponent<DroneCameraController>() : null;
             _materials = materials;
             _wallet = wallet;
+            _permanentUpgrades = permanentUpgrades;
             _landmarks = landmarks;
             _deliverySettings = deliverySettings;
             _settings = settings;
@@ -734,6 +738,11 @@ namespace DuneVector
                 "World Hub Metal",
                 _hubSettings.HubMetalColor,
                 Color.black);
+            _hubFloorMaterial = CreateHubMaterial(
+                _materials.DroneDark,
+                "World Hub Floor",
+                _hubSettings.HubMetalColor,
+                Color.black);
             _hubEnergyMaterial = CreateHubMaterial(
                 _materials.DroneAccent,
                 "World Hub Energy",
@@ -752,7 +761,7 @@ namespace DuneVector
 
             HubPart(PrimitiveType.Cylinder, "Main Teleport Platform", _hubRoot, Vector3.zero,
                 new Vector3(_hubSettings.PlatformRadius, _hubSettings.PlatformThickness * 0.5f, _hubSettings.PlatformRadius),
-                Quaternion.identity, _hubMetalMaterial, false);
+                Quaternion.identity, _hubFloorMaterial, false);
             BuildCircleModelCollider(
                 _hubRoot,
                 "Main Teleport Platform Collider (circle.glb)",
@@ -1027,6 +1036,7 @@ namespace DuneVector
         private void AnimateHubPresentation()
         {
             float deltaTime = Time.unscaledDeltaTime;
+            AnimateUnlockedHubFloor();
             if (_hubEnergyOrbit != null)
             {
                 _hubEnergyOrbit.Rotate(0f, _hubSettings.PlatformEnergyRotationSpeed * deltaTime, 0f, Space.Self);
@@ -1043,6 +1053,42 @@ namespace DuneVector
                     _hubBeacons[i].localScale = Vector3.one * (_hubSettings.HubPylonWidth * 1.45f * pulse);
                 }
             }
+        }
+
+        private void AnimateUnlockedHubFloor()
+        {
+            if (_hubFloorMaterial == null ||
+                _permanentUpgrades == null ||
+                !_permanentUpgrades.IsHubRgbFloorUnlocked)
+            {
+                return;
+            }
+
+            HubRgbFloorUnlockTuning tuning = _permanentUpgrades.HubRgbFloorTuning;
+            if (tuning == null)
+            {
+                return;
+            }
+
+            float phase = Mathf.Repeat(Time.unscaledTime * Mathf.Max(0.01f, tuning.ColorCycleSpeed), 3f);
+            Color blended = phase < 1f
+                ? Color.Lerp(tuning.Red, tuning.Green, phase)
+                : phase < 2f
+                    ? Color.Lerp(tuning.Green, tuning.Blue, phase - 1f)
+                    : Color.Lerp(tuning.Blue, tuning.Red, phase - 2f);
+            SetHubMaterialColors(
+                _hubFloorMaterial,
+                ScaleRgb(blended, Mathf.Clamp01(tuning.BaseColorIntensity)),
+                ScaleRgb(blended, Mathf.Max(0f, tuning.EmissionIntensity)));
+        }
+
+        private static Color ScaleRgb(Color color, float intensity)
+        {
+            return new Color(
+                color.r * intensity,
+                color.g * intensity,
+                color.b * intensity,
+                color.a);
         }
 
         private void EnterHubImmediate(bool openTerminal)
@@ -3191,10 +3237,15 @@ namespace DuneVector
             Color emission)
         {
             Material material = new Material(source) { name = materialName };
+            SetHubMaterialColors(material, baseColor, emission);
+            return material;
+        }
+
+        private static void SetHubMaterialColors(Material material, Color baseColor, Color emission)
+        {
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", baseColor);
             if (material.HasProperty("_UnlitColor")) material.SetColor("_UnlitColor", baseColor);
             if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", emission);
-            return material;
         }
 
         private void OnDestroy()
@@ -3205,6 +3256,7 @@ namespace DuneVector
             if (_world != null) _world.WorldShifted -= HandleWorldShift;
             DestroyTeleportParticles();
             if (_hubMetalMaterial != null) Destroy(_hubMetalMaterial);
+            if (_hubFloorMaterial != null) Destroy(_hubFloorMaterial);
             if (_hubEnergyMaterial != null) Destroy(_hubEnergyMaterial);
             if (_terminalPanelTexture != null) Destroy(_terminalPanelTexture);
             if (_terminalCardTexture != null) Destroy(_terminalCardTexture);

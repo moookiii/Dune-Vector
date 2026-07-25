@@ -25,6 +25,7 @@ namespace DuneVector
         Core,
         Ground,
         Flight,
+        Cosmetic,
     }
 
     public enum DroneUpgradeValueFormat
@@ -171,6 +172,7 @@ namespace DuneVector
         [ColorUsage(false)] public Color CoreColor = new Color(1f, 0.52f, 0.16f, 1f);
         [ColorUsage(false)] public Color GroundColor = new Color(0.32f, 0.9f, 0.66f, 1f);
         [ColorUsage(false)] public Color FlightColor = new Color(0.18f, 0.76f, 1f, 1f);
+        [ColorUsage(false)] public Color CosmeticColor = new Color(0.82f, 0.3f, 1f, 1f);
         [ColorUsage(false)] public Color TierEmptyColor = new Color(0.1f, 0.17f, 0.2f, 1f);
         [ColorUsage(false)] public Color AffordableButtonColor = new Color(0.08f, 0.38f, 0.42f, 1f);
         [ColorUsage(false)] public Color AffordableButtonHoverColor = new Color(0.11f, 0.58f, 0.62f, 1f);
@@ -180,11 +182,26 @@ namespace DuneVector
     }
 
     [Serializable]
+    public sealed class HubRgbFloorUnlockTuning
+    {
+        public string DisplayName = "RGB Hub Floor";
+        [TextArea] public string Description = "Continuously blends the main hub floor through red, green, and blue.";
+        [Min(1)] public int GoldCost = 5000;
+        [Min(0.01f)] public float ColorCycleSpeed = 0.18f;
+        [ColorUsage(false, true)] public Color Red = new Color(3.2f, 0.04f, 0.02f, 1f);
+        [ColorUsage(false, true)] public Color Green = new Color(0.02f, 3.2f, 0.08f, 1f);
+        [ColorUsage(false, true)] public Color Blue = new Color(0.02f, 0.12f, 3.2f, 1f);
+        [Range(0f, 1f)] public float BaseColorIntensity = 0.28f;
+        [Min(0f)] public float EmissionIntensity = 1f;
+    }
+
+    [Serializable]
     public sealed class DronePermanentUpgradeTuning
     {
         [Tooltip("Gold prices are rounded upward to this increment.")]
         [Min(1)] public int GoldCostRounding = 5;
 
+        public HubRgbFloorUnlockTuning HubRgbFloor = new HubRgbFloorUnlockTuning();
         public List<DroneUpgradeDefinition> Definitions = CreateDefaultDefinitions();
         public UpgradeShopVisualTuning ShopVisuals = new UpgradeShopVisualTuning();
 
@@ -195,6 +212,7 @@ namespace DuneVector
             {
                 Definitions = CreateDefaultDefinitions();
             }
+            HubRgbFloor ??= new HubRgbFloorUnlockTuning();
             ShopVisuals ??= new UpgradeShopVisualTuning();
         }
 

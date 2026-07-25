@@ -41,9 +41,12 @@ namespace DuneVector
     {
         private readonly Dictionary<DroneUpgradeId, int> _purchasedTiers = new Dictionary<DroneUpgradeId, int>();
 
+        public bool HubRgbFloorUnlocked { get; set; }
+
         public void Initialize(IReadOnlyList<DroneUpgradeDefinition> definitions)
         {
             _purchasedTiers.Clear();
+            HubRgbFloorUnlocked = false;
             for (int index = 0; index < definitions.Count; index++)
             {
                 DroneUpgradeDefinition definition = definitions[index];
@@ -92,7 +95,8 @@ namespace DuneVector
         [Serializable]
         private sealed class UpgradeSaveData
         {
-            public int Version = 1;
+            public int Version = 2;
+            public bool HubRgbFloorUnlocked;
             public List<UpgradeTierRecord> Tiers = new List<UpgradeTierRecord>();
         }
 
@@ -120,6 +124,7 @@ namespace DuneVector
                     return;
                 }
 
+                state.HubRgbFloorUnlocked = saveData.HubRgbFloorUnlocked;
                 for (int index = 0; index < saveData.Tiers.Count; index++)
                 {
                     UpgradeTierRecord record = saveData.Tiers[index];
@@ -139,7 +144,10 @@ namespace DuneVector
         {
             try
             {
-                UpgradeSaveData saveData = new UpgradeSaveData();
+                UpgradeSaveData saveData = new UpgradeSaveData
+                {
+                    HubRgbFloorUnlocked = state.HubRgbFloorUnlocked,
+                };
                 for (int index = 0; index < definitions.Count; index++)
                 {
                     DroneUpgradeDefinition definition = definitions[index];
@@ -277,6 +285,10 @@ namespace DuneVector
                 : Array.Empty<DroneUpgradeDefinition>();
 
         public event Action<DroneUpgradeId, int, int> UpgradePurchased;
+        public event Action<int> HubRgbFloorUnlocked;
+
+        public bool IsHubRgbFloorUnlocked => _tierState.HubRgbFloorUnlocked;
+        public HubRgbFloorUnlockTuning HubRgbFloorTuning => _tuning?.HubRgbFloor;
 
         private readonly DroneUpgradeTierState _tierState = new DroneUpgradeTierState();
         private readonly DroneUpgradePurchaseValidator _purchaseValidator = new DroneUpgradePurchaseValidator();
@@ -376,6 +388,51 @@ namespace DuneVector
         {
             int cost = GetNextGoldCost(id);
             return Wallet != null && cost > 0 && Wallet.Gold >= cost;
+        }
+
+        public int GetHubRgbFloorGoldCost()
+        {
+            return Mathf.Max(1, HubRgbFloorTuning?.GoldCost ?? 1);
+        }
+
+        public bool CanUnlockHubRgbFloor()
+        {
+            return IsInitialized
+                && !IsHubRgbFloorUnlocked
+                && Wallet != null
+                && Wallet.Gold >= GetHubRgbFloorGoldCost();
+        }
+
+        public UpgradePurchaseFailure TryUnlockHubRgbFloor(out int goldCost)
+        {
+            goldCost = GetHubRgbFloorGoldCost();
+            if (!IsInitialized || Wallet == null || _saveRepository == null)
+            {
+                return UpgradePurchaseFailure.NotInitialized;
+            }
+            if (IsHubRgbFloorUnlocked)
+            {
+                return UpgradePurchaseFailure.MaximumTierReached;
+            }
+            if (Wallet.Gold < goldCost)
+            {
+                return UpgradePurchaseFailure.CannotAfford;
+            }
+            if (!Wallet.TrySpendGold(goldCost))
+            {
+                return UpgradePurchaseFailure.CurrencySaveFailed;
+            }
+
+            _tierState.HubRgbFloorUnlocked = true;
+            if (!_saveRepository.Save(_tierState, Definitions))
+            {
+                _tierState.HubRgbFloorUnlocked = false;
+                Wallet.AddGold(goldCost);
+                return UpgradePurchaseFailure.UpgradeSaveFailed;
+            }
+
+            HubRgbFloorUnlocked?.Invoke(goldCost);
+            return UpgradePurchaseFailure.None;
         }
 
         public UpgradePurchaseResult TryPurchase(DroneUpgradeId id)

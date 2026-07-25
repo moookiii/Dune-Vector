@@ -775,6 +775,7 @@ namespace DuneVector
                     DroneCamera.Camera,
                     _materials,
                     GoldWallet,
+                    PermanentUpgrades,
                     LandmarkDirector,
                     Deliveries,
                     Contracts,
