@@ -1974,39 +1974,42 @@ namespace DuneVector
                     materials.StormPyramidBody);
             }
 
-            int bandCount = Mathf.Max(1, settings.EnergyBandCount);
-            float bandStart = Mathf.Clamp01(Mathf.Min(settings.EnergyBandStart, settings.EnergyBandEnd));
-            float bandEnd = Mathf.Clamp01(Mathf.Max(settings.EnergyBandStart, settings.EnergyBandEnd));
-            float bandThickness = Mathf.Max(0.005f, settings.EnergyBandThickness);
-            for (int i = 0; i < bandCount; i++)
+            if (!createdPrefabHull)
             {
-                float band01 = bandCount > 1 ? i / (float)(bandCount - 1) : 0.5f;
-                float depth01 = Mathf.Lerp(bandStart, bandEnd, band01);
-                float halfWidth = bodyHalfWidth * (1f - depth01);
-                CreateStormPyramidEnergyBand(
-                    armorRotor,
-                    i,
-                    -bodyHeight * depth01,
-                    halfWidth,
-                    bandThickness,
-                    materials.StormPyramidCore);
-            }
+                int bandCount = Mathf.Max(1, settings.EnergyBandCount);
+                float bandStart = Mathf.Clamp01(Mathf.Min(settings.EnergyBandStart, settings.EnergyBandEnd));
+                float bandEnd = Mathf.Clamp01(Mathf.Max(settings.EnergyBandStart, settings.EnergyBandEnd));
+                float bandThickness = Mathf.Max(0.005f, settings.EnergyBandThickness);
+                for (int i = 0; i < bandCount; i++)
+                {
+                    float band01 = bandCount > 1 ? i / (float)(bandCount - 1) : 0.5f;
+                    float depth01 = Mathf.Lerp(bandStart, bandEnd, band01);
+                    float halfWidth = bodyHalfWidth * (1f - depth01);
+                    CreateStormPyramidEnergyBand(
+                        armorRotor,
+                        i,
+                        -bodyHeight * depth01,
+                        halfWidth,
+                        bandThickness,
+                        materials.StormPyramidCore);
+                }
 
-            float conduitRadius = Mathf.Max(0.005f, settings.EdgeConduitRadius);
-            float conduitTop = bodyHalfWidth - (cornerCut * 0.5f);
-            Vector3 tip = new Vector3(0f, -bodyHeight, 0f);
-            for (int i = 0; i < 4; i++)
-            {
-                float x = i == 0 || i == 3 ? -conduitTop : conduitTop;
-                float z = i < 2 ? -conduitTop : conduitTop;
-                Transform conduit = CreateBeamBetween(
-                    $"Edge Conduit {i + 1}",
-                    armorRotor,
-                    new Vector3(x, 0f, z),
-                    tip,
-                    conduitRadius,
-                    materials.StormPyramidCore);
-                DisableRendererShadows(conduit.gameObject);
+                float conduitRadius = Mathf.Max(0.005f, settings.EdgeConduitRadius);
+                float conduitTop = bodyHalfWidth - (cornerCut * 0.5f);
+                Vector3 tip = new Vector3(0f, -bodyHeight, 0f);
+                for (int i = 0; i < 4; i++)
+                {
+                    float x = i == 0 || i == 3 ? -conduitTop : conduitTop;
+                    float z = i < 2 ? -conduitTop : conduitTop;
+                    Transform conduit = CreateBeamBetween(
+                        $"Edge Conduit {i + 1}",
+                        armorRotor,
+                        new Vector3(x, 0f, z),
+                        tip,
+                        conduitRadius,
+                        materials.StormPyramidCore);
+                    DisableRendererShadows(conduit.gameObject);
+                }
             }
 
             for (int i = 0; i < finCount; i++)
