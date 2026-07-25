@@ -110,6 +110,7 @@ namespace DuneVector.Editor
         private SerializedProperty _player;
         private SerializedProperty _droneVisuals;
         private SerializedProperty _flightSwooshes;
+        private SerializedProperty _boostRingTrail;
         private SerializedProperty _windFields;
         private SerializedProperty _clouds;
         private SerializedProperty _weather;
@@ -147,6 +148,7 @@ namespace DuneVector.Editor
             _player = serializedObject.FindProperty("PlayerTuning");
             _droneVisuals = serializedObject.FindProperty("DroneVisuals");
             _flightSwooshes = serializedObject.FindProperty("FlightSwooshes");
+            _boostRingTrail = serializedObject.FindProperty("BoostRingTrail");
             _windFields = serializedObject.FindProperty("WindFields");
             _clouds = serializedObject.FindProperty("Clouds");
             _weather = serializedObject.FindProperty("Weather");
@@ -229,6 +231,10 @@ namespace DuneVector.Editor
                 "Flight Speed Swooshes",
                 "Local camera-edge motion streak density, speed response, shape, spawn area, and fade.",
                 _flightSwooshes);
+            DuneVectorSettingsInspector.DrawSection(
+                "Flight Stamina Boost Ring Trail",
+                "Rune-free portal ring spacing, lifetime, shape, ordered RGB hues, and fade.",
+                _boostRingTrail);
             DuneVectorSettingsInspector.DrawSection(
                 "Player Health",
                 "Hull capacity and the grace period between damage events.",

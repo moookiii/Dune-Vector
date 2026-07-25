@@ -3706,6 +3706,45 @@ namespace DuneVector
         [Range(0.01f, 0.49f)] public float TipSoftness = 0.14f;
     }
 
+    [System.Serializable]
+    public sealed class BoostRingTrailTuning
+    {
+        public bool Enabled = true;
+
+        [Header("Pool & Emission")]
+        [Range(4, 128)] public int MaximumRingCount = 48;
+        [Tooltip("World-space distance flown between successive trail rings.")]
+        [Min(0.1f)] public float SpawnSpacing = 2.5f;
+        [Tooltip("Distance behind the sampled flight position where each ring is placed.")]
+        [Min(0f)] public float SpawnBehindDistance = 1.2f;
+        [Tooltip("Seconds each emitted ring remains visible in the world.")]
+        [Min(0.05f)] public float Lifetime = 1.35f;
+
+        [Header("Portal Shape")]
+        [Tooltip("World-space radius passed to the rune-free portal mesh builder.")]
+        [Min(0.25f)] public float Radius = 3.1f;
+        [Tooltip("Multiplier applied to the portal line thicknesses.")]
+        [Min(1f)] public float LineThicknessMultiplier = 1.15f;
+        [Tooltip("Ring scale when it first appears.")]
+        [Min(0.01f)] public float StartScale = 0.86f;
+        [Tooltip("Ring scale immediately before it expires.")]
+        [Min(0.01f)] public float EndScale = 1.12f;
+        [Tooltip("Clockwise roll applied to each stationary ring over its lifetime, in degrees per second.")]
+        public float RotationSpeed = 55f;
+
+        [Header("Ordered RGB Color Wheel")]
+        [Tooltip("Number of evenly spaced hues in the sequence. Each new ring advances by one hue.")]
+        [Range(2, 64)] public int HueStepCount = 20;
+        [Tooltip("Hue assigned to the first ring in each 20-color sequence.")]
+        [Range(0f, 1f)] public float StartingHue = 0f;
+        [Tooltip("HDR multiplier applied to the selected color-wheel hue.")]
+        [Min(0f)] public float ColorIntensity = 3.2f;
+        [Min(0f)] public float BloomIntensity = 1.8f;
+        [Range(0f, 1f)] public float Opacity = 0.86f;
+        [Range(0.01f, 0.49f)] public float FadeInFraction = 0.08f;
+        [Range(0.01f, 0.99f)] public float FadeOutFraction = 0.62f;
+    }
+
     public enum DuneVectorTaaQuality
     {
         Low,
@@ -3899,6 +3938,9 @@ namespace DuneVector
         [Tooltip("Local camera-edge anime motion streaks driven by the player drone's real flight velocity.")]
         public FlightSwooshTuning FlightSwooshes = new FlightSwooshTuning();
 
+        [Tooltip("World-space rune-free portal rings emitted in ordered RGB hues while stamina boosting in flight.")]
+        public BoostRingTrailTuning BoostRingTrail = new BoostRingTrailTuning();
+
         [Tooltip("World-space wind regions, authoritative forces, placement, falloff, and streamline presentation.")]
         public WindFieldSystemTuning WindFields = new WindFieldSystemTuning();
 
@@ -4015,6 +4057,7 @@ namespace DuneVector
             PlayerTuning.EnsureInitialized();
             DroneVisuals ??= new DroneVisualTuning();
             FlightSwooshes ??= new FlightSwooshTuning();
+            BoostRingTrail ??= new BoostRingTrailTuning();
             WindFields ??= new WindFieldSystemTuning();
             WindFields.EnsureInitialized();
             DustDevils ??= new DustDevilTuning();

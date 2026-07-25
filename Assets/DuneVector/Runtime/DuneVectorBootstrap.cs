@@ -18,6 +18,7 @@ namespace DuneVector
         public DroneTuning PlayerTuning => RuntimeSettings.PlayerTuning;
         public DroneVisualTuning DroneVisuals => RuntimeSettings.DroneVisuals;
         public FlightSwooshTuning FlightSwooshes => RuntimeSettings.FlightSwooshes;
+        public BoostRingTrailTuning BoostRingTrail => RuntimeSettings.BoostRingTrail;
         public WindFieldSystemTuning WindFieldSettings => RuntimeSettings.WindFields;
         public DustDevilTuning DustDevilSettings => RuntimeSettings.DustDevils;
         public CloudTuning Clouds => RuntimeSettings.Clouds;
@@ -479,6 +480,14 @@ namespace DuneVector
             PlayerTuning.ApplyTo(DroneCamera);
             DroneCamera.IgnoredColliders.Add(motor.Capsule);
             DroneCamera.SetFollowTransform(cameraTargetObject.transform);
+
+            DroneBoostRingTrail boostRingTrail = droneObject.AddComponent<DroneBoostRingTrail>();
+            boostRingTrail.Initialize(
+                Drone,
+                camera,
+                _materials.BoostRing,
+                Rings,
+                BoostRingTrail);
 
             DroneFlightSwooshRenderer flightSwooshes = cameraObject.AddComponent<DroneFlightSwooshRenderer>();
             flightSwooshes.Initialize(Drone, camera, FlightSwooshes);

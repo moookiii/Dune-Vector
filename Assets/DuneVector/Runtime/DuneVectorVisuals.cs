@@ -1397,6 +1397,19 @@ namespace DuneVector
             return Mathf.Clamp(authoredRadius * settings.PortalVisualRadiusMultiplier, minimum, maximum);
         }
 
+        public static Mesh GetRuneFreePortalMesh(
+            float radius,
+            float thicknessMultiplier,
+            RingTuning settings)
+        {
+            return GetPortalLineMesh(
+                Mathf.Max(0.25f, radius),
+                settings,
+                Mathf.Max(1f, thicknessMultiplier),
+                PortalLineLayer.All,
+                false);
+        }
+
         public static Transform CreateRingVisual(
             Transform parent,
             TraversalRingType type,
