@@ -6,6 +6,8 @@ Shader "Hidden/DuneVector/Map Geoglyph Mask"
         _Color ("Line Color", Color) = (1, 1, 1, 1)
         _Threshold ("Mask Threshold", Range(0, 1)) = 0.5
         _Softness ("Edge Softness", Range(0.0001, 0.25)) = 0.025
+        _RotationSinCos ("Rotation Sin Cos", Vector) = (0, 1, 0, 0)
+        _OutputToSourceScale ("Output To Source Scale", Vector) = (1, 1, 0, 0)
     }
 
     SubShader
@@ -44,6 +46,8 @@ Shader "Hidden/DuneVector/Map Geoglyph Mask"
             fixed4 _Color;
             float _Threshold;
             float _Softness;
+            float2 _RotationSinCos;
+            float2 _OutputToSourceScale;
 
             v2f vert(appdata input)
             {
@@ -55,7 +59,19 @@ Shader "Hidden/DuneVector/Map Geoglyph Mask"
 
             fixed4 frag(v2f input) : SV_Target
             {
-                float mask = tex2D(_MainTex, input.uv).r;
+                float2 outputPosition =
+                    (input.uv - 0.5) * _OutputToSourceScale;
+                float sine = _RotationSinCos.x;
+                float cosine = _RotationSinCos.y;
+                float2 sourceUv = float2(
+                    (cosine * outputPosition.x) + (sine * outputPosition.y),
+                    (-sine * outputPosition.x) + (cosine * outputPosition.y)) + 0.5;
+                float inside =
+                    step(0.0, sourceUv.x) *
+                    step(sourceUv.x, 1.0) *
+                    step(0.0, sourceUv.y) *
+                    step(sourceUv.y, 1.0);
+                float mask = tex2D(_MainTex, saturate(sourceUv)).r * inside;
                 float alpha = smoothstep(
                     _Threshold - _Softness,
                     _Threshold + _Softness,

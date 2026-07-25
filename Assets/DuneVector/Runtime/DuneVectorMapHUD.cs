@@ -70,6 +70,12 @@ namespace DuneVector
         private readonly HashSet<long> _exploredCells = new HashSet<long>();
         private readonly List<MapIconRecord> _mapIcons = new List<MapIconRecord>();
         private readonly List<MapIconRecord> _upperFlightMapIcons = new List<MapIconRecord>();
+        private readonly Dictionary<GeoglyphArtworkPlacement, Texture2D> _geoglyphMapTextures =
+            new Dictionary<GeoglyphArtworkPlacement, Texture2D>();
+        private readonly Queue<GeoglyphArtworkPlacement> _geoglyphTextureBuildQueue =
+            new Queue<GeoglyphArtworkPlacement>();
+        private readonly HashSet<GeoglyphArtworkPlacement> _queuedGeoglyphTextures =
+            new HashSet<GeoglyphArtworkPlacement>();
         private GUIStyle _minimapTitleStyle;
         private GUIStyle _worldMapTitleStyle;
         private GUIStyle _detailStyle;
@@ -161,6 +167,7 @@ namespace DuneVector
             RevealAroundPlayer(false);
             SaveExplorationIfDue();
             RefreshMapIconsIfDue();
+            BuildQueuedGeoglyphTextures();
 
             if (_worldMapVisible || _minimapVisible)
             {
@@ -452,35 +459,25 @@ namespace DuneVector
             Rect mapRect,
             float displayedWorldSize)
         {
-            if (artwork == null || artwork.Mask == null || _geoglyphMapMaterial == null)
+            if (artwork == null ||
+                !_geoglyphMapTextures.TryGetValue(artwork, out Texture2D mapTexture) ||
+                mapTexture == null)
             {
                 return;
             }
 
+            GetRotatedGeoglyphSize(artwork, out float rotatedWorldWidth, out float rotatedWorldHeight);
             float width = mapRect.width *
-                (Mathf.Max(0.01f, artwork.WorldSize.x) / displayedWorldSize);
+                (rotatedWorldWidth / displayedWorldSize);
             float height = mapRect.height *
-                (Mathf.Max(0.01f, artwork.WorldSize.y) / displayedWorldSize);
+                (rotatedWorldHeight / displayedWorldSize);
             Rect artworkRect = new Rect(
                 position.x - (width * 0.5f),
                 position.y - (height * 0.5f),
                 width,
                 height);
 
-            Color mapColor = _settings.GeoglyphMapColor;
-            mapColor.a *= _settings.GeoglyphMapOpacity;
-            _geoglyphMapMaterial.SetColor("_Color", mapColor);
-            _geoglyphMapMaterial.SetFloat(
-                "_Threshold",
-                Mathf.Clamp01(artwork.MaskThreshold));
-            _geoglyphMapMaterial.SetFloat(
-                "_Softness",
-                Mathf.Max(0.0001f, artwork.EdgeSoftness));
-
-            Matrix4x4 previousMatrix = GUI.matrix;
-            GUIUtility.RotateAroundPivot(artwork.RotationDegrees, position);
-            Graphics.DrawTexture(artworkRect, artwork.Mask, _geoglyphMapMaterial);
-            GUI.matrix = previousMatrix;
+            GUI.DrawTexture(artworkRect, mapTexture, ScaleMode.StretchToFill, true);
         }
 
         private void UpdateIconStyles(float iconScale)
@@ -577,9 +574,137 @@ namespace DuneVector
                     if (placement != null && placement.Mask != null)
                     {
                         _mapIcons.Add(new MapIconRecord(placement));
+                        QueueGeoglyphTextureBuild(placement);
                     }
                 }
             }
+        }
+
+        private void QueueGeoglyphTextureBuild(GeoglyphArtworkPlacement artwork)
+        {
+            if (artwork == null ||
+                artwork.Mask == null ||
+                _geoglyphMapTextures.ContainsKey(artwork) ||
+                !_queuedGeoglyphTextures.Add(artwork))
+            {
+                return;
+            }
+            _geoglyphTextureBuildQueue.Enqueue(artwork);
+        }
+
+        private void BuildQueuedGeoglyphTextures()
+        {
+            if (_geoglyphMapMaterial == null || _geoglyphTextureBuildQueue.Count == 0)
+            {
+                return;
+            }
+
+            int buildCount = Mathf.Clamp(
+                _settings.GeoglyphTextureBuildsPerFrame,
+                1,
+                4);
+            for (int index = 0;
+                index < buildCount && _geoglyphTextureBuildQueue.Count > 0;
+                index++)
+            {
+                GeoglyphArtworkPlacement artwork = _geoglyphTextureBuildQueue.Dequeue();
+                _queuedGeoglyphTextures.Remove(artwork);
+                Texture2D texture = BuildGeoglyphMapTexture(artwork);
+                if (texture != null)
+                {
+                    _geoglyphMapTextures[artwork] = texture;
+                }
+            }
+        }
+
+        private Texture2D BuildGeoglyphMapTexture(GeoglyphArtworkPlacement artwork)
+        {
+            if (artwork == null || artwork.Mask == null || _geoglyphMapMaterial == null)
+            {
+                return null;
+            }
+
+            int maximumResolution = Mathf.Clamp(
+                _settings.GeoglyphMapTextureResolution,
+                64,
+                512);
+            GetRotatedGeoglyphSize(artwork, out float rotatedWorldWidth, out float rotatedWorldHeight);
+            float aspect = rotatedWorldWidth / rotatedWorldHeight;
+            int width = aspect >= 1f
+                ? maximumResolution
+                : Mathf.Max(1, Mathf.RoundToInt(maximumResolution * aspect));
+            int height = aspect >= 1f
+                ? Mathf.Max(1, Mathf.RoundToInt(maximumResolution / aspect))
+                : maximumResolution;
+
+            Color mapColor = _settings.GeoglyphMapColor;
+            mapColor.a *= _settings.GeoglyphMapOpacity;
+            _geoglyphMapMaterial.SetColor("_Color", mapColor);
+            _geoglyphMapMaterial.SetFloat(
+                "_Threshold",
+                Mathf.Clamp01(artwork.MaskThreshold));
+            _geoglyphMapMaterial.SetFloat(
+                "_Softness",
+                Mathf.Max(0.0001f, artwork.EdgeSoftness));
+            float rotationRadians = artwork.RotationDegrees * Mathf.Deg2Rad;
+            _geoglyphMapMaterial.SetVector(
+                "_RotationSinCos",
+                new Vector4(
+                    Mathf.Sin(rotationRadians),
+                    Mathf.Cos(rotationRadians),
+                    0f,
+                    0f));
+            _geoglyphMapMaterial.SetVector(
+                "_OutputToSourceScale",
+                new Vector4(
+                    rotatedWorldWidth / Mathf.Max(0.01f, artwork.WorldSize.x),
+                    rotatedWorldHeight / Mathf.Max(0.01f, artwork.WorldSize.y),
+                    0f,
+                    0f));
+
+            RenderTexture target = RenderTexture.GetTemporary(
+                width,
+                height,
+                0,
+                RenderTextureFormat.ARGB32,
+                RenderTextureReadWrite.sRGB);
+            RenderTexture previous = RenderTexture.active;
+            Graphics.Blit(artwork.Mask, target, _geoglyphMapMaterial);
+            RenderTexture.active = target;
+            Texture2D result = new Texture2D(
+                width,
+                height,
+                TextureFormat.RGBA32,
+                false)
+            {
+                name = $"Map Geoglyph - {artwork.Mask.name}",
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.DontSave,
+            };
+            result.ReadPixels(new Rect(0f, 0f, width, height), 0, 0, false);
+            result.Apply(false, false);
+            RenderTexture.active = previous;
+            RenderTexture.ReleaseTemporary(target);
+            return result;
+        }
+
+        private static void GetRotatedGeoglyphSize(
+            GeoglyphArtworkPlacement artwork,
+            out float width,
+            out float height)
+        {
+            float sourceWidth = Mathf.Max(0.01f, artwork.WorldSize.x);
+            float sourceHeight = Mathf.Max(0.01f, artwork.WorldSize.y);
+            float rotationRadians = artwork.RotationDegrees * Mathf.Deg2Rad;
+            float absoluteCosine = Mathf.Abs(Mathf.Cos(rotationRadians));
+            float absoluteSine = Mathf.Abs(Mathf.Sin(rotationRadians));
+            width = Mathf.Max(
+                0.01f,
+                (sourceWidth * absoluteCosine) + (sourceHeight * absoluteSine));
+            height = Mathf.Max(
+                0.01f,
+                (sourceWidth * absoluteSine) + (sourceHeight * absoluteCosine));
         }
 
         private void DrawDroneMarker(Vector2 center, float scale)
@@ -1007,6 +1132,14 @@ namespace DuneVector
             {
                 Destroy(_geoglyphMapMaterial);
             }
+            foreach (Texture2D texture in _geoglyphMapTextures.Values)
+            {
+                if (texture != null)
+                {
+                    Destroy(texture);
+                }
+            }
+            _geoglyphMapTextures.Clear();
         }
 
         private void OnApplicationPause(bool paused)
