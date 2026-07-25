@@ -371,7 +371,7 @@ namespace DuneVector
             {
                 MapIconRecord icon = _mapIcons[index];
                 bool isExplored = icon.Kind == MapIconKind.Geoglyph
-                    ? _exploredGeoglyphs.Contains(icon.Artwork)
+                    ? !worldMap || _exploredGeoglyphs.Contains(icon.Artwork)
                     : IsExplored(icon.X, icon.Z);
                 if (_settings.OnlyShowExploredIcons && !isExplored)
                 {
@@ -596,6 +596,8 @@ namespace DuneVector
 
             if (_settings.ShowGeoglyphs && _geoglyphs != null && _geoglyphs.Enabled)
             {
+                List<GeoglyphArtworkPlacement> pendingTextureBuilds =
+                    new List<GeoglyphArtworkPlacement>();
                 for (int index = 0; index < _geoglyphs.Placements.Count; index++)
                 {
                     GeoglyphArtworkPlacement placement = _geoglyphs.Placements[index];
@@ -606,10 +608,32 @@ namespace DuneVector
                         {
                             _exploredGeoglyphs.Add(placement);
                         }
-                        QueueGeoglyphTextureBuild(placement);
+                        if (!_geoglyphMapTextures.ContainsKey(placement) &&
+                            !_queuedGeoglyphTextures.Contains(placement))
+                        {
+                            pendingTextureBuilds.Add(placement);
+                        }
                     }
                 }
+
+                LogicalPosition playerPosition = _world.LogicalPlayerPosition;
+                pendingTextureBuilds.Sort((left, right) =>
+                    GetSquaredDistance(left, playerPosition).CompareTo(
+                        GetSquaredDistance(right, playerPosition)));
+                for (int index = 0; index < pendingTextureBuilds.Count; index++)
+                {
+                    QueueGeoglyphTextureBuild(pendingTextureBuilds[index]);
+                }
             }
+        }
+
+        private static double GetSquaredDistance(
+            GeoglyphArtworkPlacement artwork,
+            LogicalPosition position)
+        {
+            double deltaX = artwork.WorldCenter.x - position.X;
+            double deltaZ = artwork.WorldCenter.y - position.Z;
+            return (deltaX * deltaX) + (deltaZ * deltaZ);
         }
 
         private void QueueGeoglyphTextureBuild(GeoglyphArtworkPlacement artwork)
