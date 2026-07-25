@@ -131,7 +131,12 @@ namespace DuneVector
                 panel.width - (padding * 2f),
                 panel.yMax - padding - header.yMax - (_visuals.RowGap * scale));
             float contentHeight = CalculateContentHeight(scale);
-            Rect scrollContent = new Rect(0f, 0f, Mathf.Max(1f, scrollViewport.width - (_visuals.ScrollbarWidth * scale)), contentHeight);
+            float scrollbarClearance = (_visuals.ScrollbarWidth + _visuals.ScrollbarContentGap) * scale;
+            Rect scrollContent = new Rect(
+                0f,
+                0f,
+                Mathf.Max(1f, scrollViewport.width - scrollbarClearance),
+                contentHeight);
             _scrollPosition = GUI.BeginScrollView(scrollViewport, _scrollPosition, scrollContent, false, true);
             DrawGroups(scrollContent.width, scale);
             GUI.EndScrollView();

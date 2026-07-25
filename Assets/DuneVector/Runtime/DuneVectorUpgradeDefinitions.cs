@@ -100,6 +100,7 @@ namespace DuneVector
         [Min(36f)] public float GoldPanelHeight = 54f;
         [Min(1f)] public float BorderThickness = 1f;
         [Min(8f)] public float ScrollbarWidth = 18f;
+        [Min(0f)] public float ScrollbarContentGap = 16f;
 
         [Header("Upgrade Rows")]
         [Min(16f)] public float GroupHeaderHeight = 34f;
