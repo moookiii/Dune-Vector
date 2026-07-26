@@ -332,6 +332,22 @@ namespace DuneVector
             Check(bootstrap.LandmarkDirector.ContractLandmarks.Count >= 2,
                 "Contract route pins authored pickup and destination landmarks",
                 $"Only {bootstrap.LandmarkDirector.ContractLandmarks.Count} route landmarks were present.");
+            bool contractUsesWorldLandmarks = true;
+            for (int landmarkIndex = 0;
+                 landmarkIndex < bootstrap.LandmarkDirector.ContractLandmarks.Count;
+                 landmarkIndex++)
+            {
+                DuneLandmarkPlacementRecord placement =
+                    bootstrap.LandmarkDirector.ContractLandmarks[landmarkIndex]?.PlacementRecord;
+                if (placement == null || !placement.PersistentId.StartsWith("DV-LM-", StringComparison.Ordinal))
+                {
+                    contractUsesWorldLandmarks = false;
+                    break;
+                }
+            }
+            Check(contractUsesWorldLandmarks,
+                "Contract route reuses persistent world landmark placements",
+                "At least one route stop was represented by a contract-created landmark.");
 
             courier.RequestReturnToHub(recordAbandonment: false);
             float returnTimeout = Time.realtimeSinceStartup + 8f;

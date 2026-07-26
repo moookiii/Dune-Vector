@@ -1086,6 +1086,8 @@ namespace DuneVector
         [Min(0f)] public float SmallMediumLandmarkExclusionRadius;
         [Min(0f)] public float LargeLandmarkExclusionRadius;
         [Min(0f)] public float RegionDefiningExclusionRadius;
+        [Tooltip("Maximum number of procedural placement cells searched from each planned contract stop when selecting an existing world landmark.")]
+        [Range(1, 64)] public int ContractLandmarkSearchRadius = 16;
         [Tooltip("Large landmark archetypes selected for rare procedural cells.")]
         public DuneLandmarkType[] RareLandmarkTypes;
         [Tooltip("Mega landmark archetypes selected for region-defining procedural cells.")]

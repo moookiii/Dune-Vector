@@ -1409,15 +1409,37 @@ namespace DuneVector
                 previous = destination;
             }
 
-            _routeLandmarks.Add(_landmarks.CreateContractLandmark(
-                contract.PickupLandmarkType, contract.PickupPosition, contract.Seed));
+            HashSet<string> routePlacementIds = new HashSet<string>();
+            DuneVectorLandmarkInstance pickupLandmark = _landmarks.PinNearestWorldLandmark(
+                contract.PickupLandmarkType, contract.PickupPosition, routePlacementIds);
+            if (pickupLandmark == null)
+            {
+                throw new InvalidOperationException("A contract route could not resolve a pickup world landmark.");
+            }
+            _routeLandmarks.Add(pickupLandmark);
+            routePlacementIds.Add(pickupLandmark.PlacementRecord.PersistentId);
+            contract.PickupPosition = pickupLandmark.LogicalPosition;
+            contract.PickupLandmarkType = pickupLandmark.Type;
+            contract.PickupName = GetContractLocationName(pickupLandmark.Type);
             for (int i = 0; i < contract.DeliveryPositions.Count; i++)
             {
                 DuneLandmarkType deliveryType = i == contract.DeliveryPositions.Count - 1
                     ? contract.DestinationLandmarkType
                     : ChooseLandmarkType(random);
-                _routeLandmarks.Add(_landmarks.CreateContractLandmark(
-                    deliveryType, contract.DeliveryPositions[i], contract.Seed + i + 1));
+                DuneVectorLandmarkInstance deliveryLandmark = _landmarks.PinNearestWorldLandmark(
+                    deliveryType, contract.DeliveryPositions[i], routePlacementIds);
+                if (deliveryLandmark == null)
+                {
+                    throw new InvalidOperationException("A contract route could not resolve a delivery world landmark.");
+                }
+                _routeLandmarks.Add(deliveryLandmark);
+                routePlacementIds.Add(deliveryLandmark.PlacementRecord.PersistentId);
+                contract.DeliveryPositions[i] = deliveryLandmark.LogicalPosition;
+                if (i == contract.DeliveryPositions.Count - 1)
+                {
+                    contract.DestinationLandmarkType = deliveryLandmark.Type;
+                    contract.DestinationName = GetContractLocationName(deliveryLandmark.Type);
+                }
             }
 
             Vector3 pickupForward = new Vector3(

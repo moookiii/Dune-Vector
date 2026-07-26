@@ -73,6 +73,11 @@ namespace DuneVector
             PlacementRecord = placementRecord;
         }
 
+        public void SetContractPinned(bool pinned)
+        {
+            IsPinnedToContract = pinned;
+        }
+
         public void Initialize(
             DuneLandmarkType type,
             DuneLandmarkRarity rarity,
@@ -325,19 +330,41 @@ namespace DuneVector
             Refresh(force: true);
         }
 
-        public DuneVectorLandmarkInstance CreateContractLandmark(
+        public DuneVectorLandmarkInstance PinNearestWorldLandmark(
             DuneLandmarkType type,
-            LogicalPosition logicalPosition,
-            int variantSeed)
+            LogicalPosition desiredPosition,
+            ISet<string> excludedPersistentIds = null)
         {
-            DuneLandmarkRarity rarity = GetRarity(type);
-            DuneVectorLandmarkInstance landmark = BuildLandmark(type, rarity, logicalPosition, variantSeed, true);
-            float rotation = Mathf.Repeat(variantSeed * 0.137f, 360f);
-            landmark.AssignPlacementRecord(new DuneLandmarkPlacementRecord(
-                $"DV-CONTRACT-{_world.WorldSeed:X8}-{variantSeed:X8}-{(int)type}",
-                LogicalToCell(logicalPosition), type, rarity, logicalPosition, variantSeed, rotation,
-                GetExclusionRadius(type)));
-            _pinned.Add(landmark);
+            DuneLandmarkPlacementRecord record = FindNearestPlacement(
+                desiredPosition, type, excludedPersistentIds, requireType: true);
+            if (record == null)
+            {
+                record = FindNearestPlacement(
+                    desiredPosition, type, excludedPersistentIds, requireType: false);
+            }
+            if (record == null)
+            {
+                Debug.LogError($"No procedural world landmark could be found near contract stop {desiredPosition}.");
+                return null;
+            }
+
+            if (!_streamed.TryGetValue(record.Cell, out DuneVectorLandmarkInstance landmark) || landmark == null)
+            {
+                landmark = BuildLandmark(
+                    record.Type,
+                    record.Rarity,
+                    record.LogicalPosition,
+                    record.VariantSeed,
+                    true,
+                    record.RotationDegrees);
+                landmark.AssignPlacementRecord(record);
+                _streamed[record.Cell] = landmark;
+            }
+            landmark.SetContractPinned(true);
+            if (!_pinned.Contains(landmark))
+            {
+                _pinned.Add(landmark);
+            }
             return landmark;
         }
 
@@ -347,10 +374,11 @@ namespace DuneVector
             {
                 if (_pinned[i] != null)
                 {
-                    Destroy(_pinned[i].gameObject);
+                    _pinned[i].SetContractPinned(false);
                 }
             }
             _pinned.Clear();
+            Refresh(force: true);
         }
 
         private void Update()
@@ -393,7 +421,8 @@ namespace DuneVector
             _removeBuffer.Clear();
             foreach (KeyValuePair<Vector2Int, DuneVectorLandmarkInstance> pair in _streamed)
             {
-                if (Mathf.Max(Mathf.Abs(pair.Key.x - center.x), Mathf.Abs(pair.Key.y - center.y)) > radius + 1)
+                if ((pair.Value == null || !pair.Value.IsPinnedToContract) &&
+                    Mathf.Max(Mathf.Abs(pair.Key.x - center.x), Mathf.Abs(pair.Key.y - center.y)) > radius + 1)
                 {
                     _removeBuffer.Add(pair.Key);
                 }
@@ -422,6 +451,55 @@ namespace DuneVector
                 record.VariantSeed, false, record.RotationDegrees);
             landmark.AssignPlacementRecord(record);
             _streamed[cell] = landmark;
+        }
+
+        private DuneLandmarkPlacementRecord FindNearestPlacement(
+            LogicalPosition desiredPosition,
+            DuneLandmarkType requestedType,
+            ISet<string> excludedPersistentIds,
+            bool requireType)
+        {
+            Vector2Int center = LogicalToCell(desiredPosition);
+            int maximumRadius = Mathf.Max(1, _settings.ContractLandmarkSearchRadius);
+            for (int radius = 0; radius <= maximumRadius; radius++)
+            {
+                DuneLandmarkPlacementRecord nearest = null;
+                double nearestDistanceSquared = double.MaxValue;
+                for (int z = -radius; z <= radius; z++)
+                {
+                    for (int x = -radius; x <= radius; x++)
+                    {
+                        if (radius > 0 && Mathf.Abs(x) != radius && Mathf.Abs(z) != radius)
+                        {
+                            continue;
+                        }
+
+                        DuneLandmarkPlacementRecord candidate =
+                            GetOrCreatePlacementRecord(center + new Vector2Int(x, z));
+                        if (candidate == null ||
+                            (requireType && candidate.Type != requestedType) ||
+                            (excludedPersistentIds != null &&
+                             excludedPersistentIds.Contains(candidate.PersistentId)))
+                        {
+                            continue;
+                        }
+
+                        double deltaX = candidate.LogicalPosition.X - desiredPosition.X;
+                        double deltaZ = candidate.LogicalPosition.Z - desiredPosition.Z;
+                        double distanceSquared = (deltaX * deltaX) + (deltaZ * deltaZ);
+                        if (distanceSquared < nearestDistanceSquared)
+                        {
+                            nearest = candidate;
+                            nearestDistanceSquared = distanceSquared;
+                        }
+                    }
+                }
+                if (nearest != null)
+                {
+                    return nearest;
+                }
+            }
+            return null;
         }
 
         private DuneLandmarkPlacementRecord GetOrCreatePlacementRecord(Vector2Int cell)
@@ -1854,10 +1932,6 @@ namespace DuneVector
             foreach (DuneVectorLandmarkInstance landmark in _streamed.Values)
             {
                 landmark?.ApplyWorldShift(shift);
-            }
-            for (int i = 0; i < _pinned.Count; i++)
-            {
-                _pinned[i]?.ApplyWorldShift(shift);
             }
         }
 

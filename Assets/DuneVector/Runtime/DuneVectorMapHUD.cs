@@ -948,10 +948,12 @@ namespace DuneVector
                         : null;
                 if (director != null)
                 {
+                    HashSet<string> mappedLandmarkIds = new HashSet<string>();
                     foreach (DuneLandmarkPlacementRecord record in director.PlacementRecords.Values)
                     {
                         if (record != null)
                         {
+                            mappedLandmarkIds.Add(record.PersistentId);
                             _mapIcons.Add(new MapIconRecord(
                                 record.LogicalPosition.X,
                                 record.LogicalPosition.Z,
@@ -964,7 +966,11 @@ namespace DuneVector
                     for (int index = 0; index < contractLandmarks.Count; index++)
                     {
                         DuneVectorLandmarkInstance landmark = contractLandmarks[index];
-                        if (landmark != null)
+                        DuneLandmarkPlacementRecord placement = landmark != null
+                            ? landmark.PlacementRecord
+                            : null;
+                        if (landmark != null &&
+                            (placement == null || mappedLandmarkIds.Add(placement.PersistentId)))
                         {
                             _mapIcons.Add(new MapIconRecord(
                                 landmark.LogicalPosition.X,
