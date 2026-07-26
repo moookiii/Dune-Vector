@@ -112,9 +112,7 @@ namespace DuneVector
         private bool _explorationDirty;
         private bool _forceScanRefresh;
         private bool _scanBuildActive;
-        private bool _worldMapPausedGame;
         private int _scanBuildRow;
-        private float _timeScaleBeforeWorldMap = 1f;
         private double _scanBuildCenterX;
         private double _scanBuildCenterZ;
         private float _scanBuildWorldSize;
@@ -153,13 +151,12 @@ namespace DuneVector
         {
             if (_settings == null || !_settings.Enabled)
             {
-                SetWorldMapVisible(false);
                 return;
             }
 
             if (DuneVectorCourierGame.IsMapHudSuppressed)
             {
-                SetWorldMapVisible(false);
+                _worldMapVisible = false;
                 return;
             }
 
@@ -169,7 +166,8 @@ namespace DuneVector
                 if (_settings.WorldMapKey != Key.None &&
                     keyboard[_settings.WorldMapKey].wasPressedThisFrame)
                 {
-                    SetWorldMapVisible(!_worldMapVisible);
+                    _worldMapVisible = !_worldMapVisible;
+                    _forceScanRefresh = true;
                 }
 
                 if (_settings.MinimapKey != Key.None &&
@@ -190,28 +188,6 @@ namespace DuneVector
                 RefreshScan(_forceScanRefresh);
                 _forceScanRefresh = false;
                 ProcessScanBuild();
-            }
-        }
-
-        private void SetWorldMapVisible(bool visible)
-        {
-            if (_worldMapVisible == visible)
-            {
-                return;
-            }
-
-            _worldMapVisible = visible;
-            _forceScanRefresh = true;
-            if (visible && _settings != null && _settings.PauseGameWhenWorldMapOpen)
-            {
-                _timeScaleBeforeWorldMap = Time.timeScale;
-                Time.timeScale = 0f;
-                _worldMapPausedGame = true;
-            }
-            else if (!visible && _worldMapPausedGame)
-            {
-                Time.timeScale = _timeScaleBeforeWorldMap;
-                _worldMapPausedGame = false;
             }
         }
 
@@ -884,10 +860,7 @@ namespace DuneVector
             }
 
             int resolution = _scanTexture.width;
-            int requestedRowsPerFrame = _worldMapVisible
-                ? _settings.WorldMapScanRowsPerFrame
-                : _settings.ScanRowsPerFrame;
-            int rowsPerFrame = Mathf.Clamp(requestedRowsPerFrame, 1, resolution);
+            int rowsPerFrame = Mathf.Clamp(_settings.ScanRowsPerFrame, 1, resolution);
             int finalRow = Mathf.Min(resolution, _scanBuildRow + rowsPerFrame);
             float radius = Mathf.Max(1f, _settings.DroneRevealRadius);
             float diameter = _scanBuildWorldSize;
@@ -1154,10 +1127,7 @@ namespace DuneVector
 
         private void EnsureTexture()
         {
-            int requestedResolution = _worldMapVisible
-                ? _settings.WorldMapScanTextureResolution
-                : _settings.ScanTextureResolution;
-            int resolution = Mathf.Clamp(requestedResolution, 32, 1024);
+            int resolution = Mathf.Clamp(_settings.ScanTextureResolution, 32, 512);
             if (_scanTexture != null && _scanTexture.width == resolution)
             {
                 return;
@@ -1267,7 +1237,6 @@ namespace DuneVector
 
         private void OnDestroy()
         {
-            SetWorldMapVisible(false);
             SaveExploration();
             if (_scanTexture != null)
             {
@@ -1293,11 +1262,6 @@ namespace DuneVector
             }
             _geoglyphWorldMapTextures.Clear();
             _geoglyphMinimapTextures.Clear();
-        }
-
-        private void OnDisable()
-        {
-            SetWorldMapVisible(false);
         }
 
         private void OnApplicationPause(bool paused)
