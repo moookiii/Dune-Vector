@@ -84,6 +84,14 @@ namespace DuneVector
                 return;
             }
 
+            if (DuneVectorMapHUD.IsWorldMapOpen)
+            {
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+                ClearCharacterInput();
+                return;
+            }
+
             if (!InputEnabled)
             {
                 ClearCharacterInput();
@@ -125,7 +133,9 @@ namespace DuneVector
 
         private void LateUpdate()
         {
-            if (!InputEnabled || (Health != null && Health.IsDead))
+            if (!InputEnabled ||
+                DuneVectorMapHUD.IsWorldMapOpen ||
+                (Health != null && Health.IsDead))
             {
                 return;
             }
