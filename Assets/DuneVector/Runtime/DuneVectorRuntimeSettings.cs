@@ -2866,6 +2866,8 @@ namespace DuneVector
         [Min(0f)] public float HealthPickupFeedbackTop = 170f;
         [Min(24f)] public float HealthPickupFeedbackHeight = 48f;
         [ColorUsage(false)] public Color HealthPickupFeedbackColor = new Color(0.22f, 1f, 0.48f, 1f);
+        [Tooltip("{0} is replaced with the amount of health restored.")]
+        public string HealthPickupFeedbackFormat = "HEALTH RESTORED: {0}";
 
         [Header("Coin Rings")]
         [Tooltip("Expected coin-ring count per streamed terrain chunk.")]

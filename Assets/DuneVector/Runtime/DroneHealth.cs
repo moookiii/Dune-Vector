@@ -189,7 +189,9 @@ namespace DuneVector
             _pickupStyle.normal.textColor = pickupColor;
             GUI.Label(
                 new Rect(0f, ringSettings.HealthPickupFeedbackTop, Screen.width, ringSettings.HealthPickupFeedbackHeight),
-                $"+{Mathf.CeilToInt(_healthRestored)} HEALTH",
+                string.Format(
+                    ringSettings.HealthPickupFeedbackFormat,
+                    Mathf.CeilToInt(Mathf.Max(0f, _healthRestored))),
                 _pickupStyle);
         }
 
