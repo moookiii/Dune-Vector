@@ -1414,7 +1414,7 @@ namespace DuneVector
             float margin = Mathf.Max(0f, _settings.WorldMapAtlasExplorationMargin);
             float viewportAspect = Mathf.Max(1f, GetWorldMapViewportAspect());
             float worldHeight = Mathf.Max(
-                _settings.WorldMapAtlasMinimumWorldHeight,
+                _settings.WorldMapMaximumWorldSize,
                 (float)(maximumZ - minimumZ) + (margin * 2f));
             float worldWidth = worldHeight * viewportAspect;
             float requiredWidth = (float)(maximumX - minimumX) + (margin * 2f);
@@ -1426,18 +1426,10 @@ namespace DuneVector
 
             double centerX = (minimumX + maximumX) * 0.5d;
             double centerZ = (minimumZ + maximumZ) * 0.5d;
-            float targetWorldUnitsPerPixel = Mathf.Max(
-                0.25f,
-                _settings.WorldMapAtlasTargetWorldUnitsPerPixel);
-            int requiredResolution = Mathf.CeilToInt(
-                worldHeight / targetWorldUnitsPerPixel);
             int resolution = Mathf.Clamp(
-                Mathf.NextPowerOfTwo(requiredResolution),
+                _settings.WorldMapAtlasTextureResolution,
                 512,
-                Mathf.Clamp(
-                    _settings.WorldMapAtlasTextureResolution,
-                    512,
-                    4096));
+                4096);
             DuneHeightField heightField = _world.HeightField;
             Color32 unexploredColor = _settings.UnexploredColor;
             Color32 terrainLowColor = _settings.TerrainLowColor;
@@ -1598,21 +1590,10 @@ namespace DuneVector
             }
 
             WorldAtlasBuildResult result = completedTask.Result;
-            bool useMipMaps = _settings.WorldMapAtlasUseMipMaps;
-            Texture2D atlasTexture = new Texture2D(
-                result.Resolution,
-                result.Resolution,
-                TextureFormat.RGB24,
-                useMipMaps)
-            {
-                name = "Dune Vector Prebuilt World Atlas",
-                filterMode = useMipMaps ? FilterMode.Trilinear : FilterMode.Bilinear,
-                wrapMode = TextureWrapMode.Clamp,
-                hideFlags = HideFlags.DontSave,
-            };
+            Texture2D atlasTexture = CreateScanTexture(result.Resolution);
+            atlasTexture.name = "Dune Vector Prebuilt World Atlas";
             atlasTexture.SetPixels32(result.Pixels);
-            atlasTexture.Apply(useMipMaps, true);
-            result.Pixels = null;
+            atlasTexture.Apply(false, true);
             if (_worldAtlasTexture != null)
             {
                 Destroy(_worldAtlasTexture);
