@@ -4218,7 +4218,7 @@ namespace DuneVector
         public string NorthLabel = "↑ N";
         public string DroneGlyph = "▲";
         public string WorldMapHint = "LMB PAN  •  WHEEL ZOOM  •  M CLOSE";
-        public string CoordinateFormat = "X {0:0}   Y {1:0}   Z {2:0}   •   SCAN RADIUS {3:0} m";
+        public string CoordinateFormat = "X: {0:0}   Y: {1:0}   Z: {2:0}   •   SCAN RADIUS {3:0} m";
 
         [Header("Map Icons")]
         public bool ShowLandmarks = true;
