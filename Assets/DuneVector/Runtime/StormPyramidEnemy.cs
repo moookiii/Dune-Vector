@@ -841,6 +841,8 @@ namespace DuneVector
         private float _attackTimer;
         private int _identity;
         private Vector3 _previousPlayerPosition;
+        private Vector3 _previousOrbPosition;
+        private Vector3 _previousRingNormal;
         private bool _hasPreviousPlayerPosition;
         private bool _flyThroughTriggered;
         private bool _facingLockedForClosePass;
@@ -904,8 +906,10 @@ namespace DuneVector
                 settings.MinimumInitialAttackDelayMultiplier,
                 1f,
                 Mathf.Repeat((identity * 0.371f) + 0.18f, 1f));
-            _previousPlayerPosition = player != null ? player.WorldCenter : Vector3.zero;
-            _hasPreviousPlayerPosition = player != null;
+            if (player != null)
+            {
+                CaptureFlyThroughPose(player.WorldCenter);
+            }
             _flyThroughTriggered = false;
             _facingLockedForClosePass = false;
             SetState(StormPyramidState.IdleHovering);
@@ -928,8 +932,7 @@ namespace DuneVector
             {
                 return;
             }
-            _previousPlayerPosition = playerPosition;
-            _hasPreviousPlayerPosition = true;
+            CaptureFlyThroughPose(playerPosition);
 
             float deltaTime = Time.deltaTime;
             if (!_gameplayActive)
@@ -1110,6 +1113,10 @@ namespace DuneVector
             _movement.RepositionNearPlayer();
             ClearOrbTrails();
             _facingLockedForClosePass = false;
+            if (_player != null)
+            {
+                CaptureFlyThroughPose(_player.WorldCenter);
+            }
             _attackTimer = Mathf.Max(0.1f, _settings.AttackInterval);
             SetState(StormPyramidState.IdleHovering);
         }
@@ -1132,8 +1139,7 @@ namespace DuneVector
 
             if (_player != null)
             {
-                _previousPlayerPosition = _player.WorldCenter;
-                _hasPreviousPlayerPosition = true;
+                CaptureFlyThroughPose(_player.WorldCenter);
             }
         }
 
@@ -1153,19 +1159,24 @@ namespace DuneVector
                 _settings.FlyThroughOpeningRadius * _settings.VisualScale);
             float triggerRadius = visibleOpeningRadius
                 * Mathf.Clamp01(_settings.FlyThroughRadiusMultiplier);
-            Vector3 segment = playerPosition - _previousPlayerPosition;
-            if (segment.sqrMagnitude <= Mathf.Epsilon)
+            Vector3 currentOrbPosition = transform.position;
+            Vector3 previousRelativePosition =
+                _previousPlayerPosition - _previousOrbPosition;
+            Vector3 currentRelativePosition = playerPosition - currentOrbPosition;
+            Vector3 relativeSegment =
+                currentRelativePosition - previousRelativePosition;
+            if (relativeSegment.sqrMagnitude <= Mathf.Epsilon)
             {
                 return false;
             }
 
-            Vector3 ringNormal = _visual != null ? _visual.forward : transform.forward;
+            Vector3 currentRingNormal = GetRingNormal();
             float previousPlaneDistance = Vector3.Dot(
-                _previousPlayerPosition - transform.position,
-                ringNormal);
+                previousRelativePosition,
+                _previousRingNormal);
             float currentPlaneDistance = Vector3.Dot(
-                playerPosition - transform.position,
-                ringNormal);
+                currentRelativePosition,
+                currentRingNormal);
             if (previousPlaneDistance * currentPlaneDistance > 0f)
             {
                 return false;
@@ -1178,10 +1189,15 @@ namespace DuneVector
             }
 
             float crossingTime = Mathf.Clamp01(previousPlaneDistance / planeDistanceDelta);
-            Vector3 crossingPoint = _previousPlayerPosition + (segment * crossingTime);
+            Vector3 crossingPoint = previousRelativePosition
+                + (relativeSegment * crossingTime);
+            Vector3 crossingNormal = Vector3.Slerp(
+                _previousRingNormal,
+                currentRingNormal,
+                crossingTime).normalized;
             Vector3 openingOffset = Vector3.ProjectOnPlane(
-                crossingPoint - transform.position,
-                ringNormal);
+                crossingPoint,
+                crossingNormal);
             if (openingOffset.sqrMagnitude > triggerRadius * triggerRadius)
             {
                 return false;
@@ -1196,6 +1212,22 @@ namespace DuneVector
                 _settings);
             _enemyHealth.TakeDamage(float.MaxValue);
             return true;
+        }
+
+        private void CaptureFlyThroughPose(Vector3 playerPosition)
+        {
+            _previousPlayerPosition = playerPosition;
+            _previousOrbPosition = transform.position;
+            _previousRingNormal = GetRingNormal();
+            _hasPreviousPlayerPosition = true;
+        }
+
+        private Vector3 GetRingNormal()
+        {
+            Vector3 ringNormal = _visual != null ? _visual.forward : transform.forward;
+            return ringNormal.sqrMagnitude > Mathf.Epsilon
+                ? ringNormal.normalized
+                : Vector3.forward;
         }
 
         private void SetState(StormPyramidState state)
@@ -1253,6 +1285,7 @@ namespace DuneVector
             if (_hasPreviousPlayerPosition)
             {
                 _previousPlayerPosition += shift;
+                _previousOrbPosition += shift;
             }
         }
 
