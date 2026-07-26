@@ -234,10 +234,6 @@ namespace DuneVector
                     IsExplored,
                     IsWorldMapTerrainTileExplored);
             }
-            if (_worldMapTileCache == null || !_worldMapTileCache.IsAvailable)
-            {
-                StartWorldAtlasBuild();
-            }
         }
 
         private void Update()
@@ -332,6 +328,10 @@ namespace DuneVector
                         Mathf.Max(1f, _settings.WorldMapPanelAspectRatio),
                     _worldMapViewHeight,
                     _settings.WorldMapTerrainPrefetchViewportPixels);
+                if (_worldMapTileCache == null || !_worldMapTileCache.IsAvailable)
+                {
+                    StartWorldAtlasBuild();
+                }
                 _cursorLockBeforeWorldMap = Cursor.lockState;
                 _cursorVisibleBeforeWorldMap = Cursor.visible;
                 Cursor.lockState = CursorLockMode.None;
