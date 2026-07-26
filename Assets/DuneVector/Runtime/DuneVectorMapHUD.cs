@@ -835,7 +835,23 @@ namespace DuneVector
             LogicalPosition center,
             float scale)
         {
-            float iconScale = scale;
+            float minimumZoomScale = Mathf.Clamp(
+                _settings.LandmarkIconMinimumZoomScale,
+                0.25f,
+                1f);
+            float maximumZoomScale = Mathf.Max(
+                minimumZoomScale,
+                _settings.LandmarkIconMaximumZoomScale);
+            float zoomRatio =
+                Mathf.Max(1f, _settings.WorldMapWorldSize) /
+                Mathf.Max(1f, displayedWorldHeight);
+            float landmarkZoomScale = Mathf.Clamp(
+                Mathf.Pow(
+                    zoomRatio,
+                    Mathf.Max(0.1f, _settings.LandmarkIconZoomScaleExponent)),
+                minimumZoomScale,
+                maximumZoomScale);
+            float iconScale = scale * landmarkZoomScale;
             float halfWorldWidth = displayedWorldWidth * 0.5f;
             float halfWorldHeight = displayedWorldHeight * 0.5f;
             Vector2 shadowOffset = _settings.IconShadowOffset * iconScale;

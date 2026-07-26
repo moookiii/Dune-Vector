@@ -4229,6 +4229,12 @@ namespace DuneVector
         [Min(0.1f)] public float IconRefreshInterval = 1f;
         [Min(8)] public int LandmarkIconFontSize = 20;
         [Min(12f)] public float IconBoxSize = 34f;
+        [Tooltip("Smallest landmark-icon multiplier reached while zooming out.")]
+        [Range(0.25f, 1f)] public float LandmarkIconMinimumZoomScale = 0.7f;
+        [Tooltip("Largest landmark-icon multiplier reached while zooming in.")]
+        [Range(1f, 3f)] public float LandmarkIconMaximumZoomScale = 1.85f;
+        [Tooltip("How strongly landmark icon size responds to world-map zoom.")]
+        [Range(0.1f, 2f)] public float LandmarkIconZoomScaleExponent = 0.45f;
         public Vector2 IconShadowOffset = new Vector2(1f, 2f);
         [Header("Landmark Symbols")]
         public string RelayStationIcon = "⌁";
