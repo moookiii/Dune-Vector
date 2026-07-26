@@ -333,6 +333,12 @@ namespace DuneVector
         public string CompendiumEnemyTabLabel = "ENEMIES";
         public string CompendiumMiscTabLabel = "MISC";
 
+        [Header("Compendium Icons")]
+        public Texture2D CompendiumGlyphTabIcon;
+        public Texture2D CompendiumLandmarkTabIcon;
+        public Texture2D CompendiumEnemyTabIcon;
+        public Texture2D CompendiumMiscTabIcon;
+
         [Header("Compendium Layout")]
         [Min(400f)] public float CompendiumPanelWidth = 1420f;
         [Min(300f)] public float CompendiumPanelHeight = 860f;
@@ -349,7 +355,6 @@ namespace DuneVector
         [Min(8)] public int CompendiumDetailTitleFontSize = 23;
         [Min(0f)] public float CompendiumGap = 18f;
         [Min(0f)] public float CompendiumScrollbarReserve = 24f;
-        [Min(1f)] public float CompendiumIconStrokeWidth = 2f;
         [Min(8)] public int CompendiumUnknownFontSize = 30;
         [Min(8)] public int CompendiumTabFontSize = 15;
         [ColorUsage(false)] public Color CompendiumLockedColor = new Color(0.19f, 0.21f, 0.23f, 1f);

@@ -289,6 +289,10 @@ namespace DuneVector
         {
             _storage = storage;
             _settings = settings;
+            _tabIcons[0] = settings?.CompendiumGlyphTabIcon;
+            _tabIcons[1] = settings?.CompendiumLandmarkTabIcon;
+            _tabIcons[2] = settings?.CompendiumEnemyTabIcon;
+            _tabIcons[3] = settings?.CompendiumMiscTabIcon;
             if (atlas?.Sites != null)
             {
                 for (int i = 0; i < atlas.Sites.Count; i++)
@@ -424,7 +428,13 @@ namespace DuneVector
                     tab.center.y - (iconSize * 0.5f),
                     iconSize,
                     iconSize);
-                GUI.DrawTexture(icon, _tabIcons[i], ScaleMode.ScaleToFit, true);
+                if (_tabIcons[i] != null)
+                {
+                    Color previousColor = GUI.color;
+                    GUI.color = _settings.CompendiumIconColor;
+                    GUI.DrawTexture(icon, _tabIcons[i], ScaleMode.ScaleToFit, true);
+                    GUI.color = previousColor;
+                }
                 GUI.Label(
                     new Rect(
                         icon.xMax + _settings.CompendiumGap,
@@ -676,116 +686,6 @@ namespace DuneVector
                 fontStyle = FontStyle.Bold,
                 alignment = TextAnchor.MiddleCenter,
             };
-            if (_tabIcons[0] == null)
-            {
-                for (int i = 0; i < _tabIcons.Length; i++)
-                {
-                    _tabIcons[i] = CreateTabIcon(i);
-                }
-            }
-        }
-
-        private Texture2D CreateTabIcon(int iconIndex)
-        {
-            const int resolution = 32;
-            Texture2D texture = new Texture2D(resolution, resolution, TextureFormat.RGBA32, false)
-            {
-                name = $"Compendium Tab Icon {iconIndex}",
-                hideFlags = HideFlags.HideAndDontSave,
-                filterMode = FilterMode.Bilinear,
-            };
-            Color[] pixels = new Color[resolution * resolution];
-            texture.SetPixels(pixels);
-            int stroke = Mathf.Max(1, Mathf.RoundToInt(_settings.CompendiumIconStrokeWidth));
-            Color color = _settings.CompendiumIconColor;
-            switch (iconIndex)
-            {
-                case 0:
-                    DrawLine(texture, 16, 3, 28, 16, color, stroke);
-                    DrawLine(texture, 28, 16, 16, 29, color, stroke);
-                    DrawLine(texture, 16, 29, 3, 16, color, stroke);
-                    DrawLine(texture, 3, 16, 16, 3, color, stroke);
-                    DrawLine(texture, 9, 16, 23, 16, color, stroke);
-                    break;
-                case 1:
-                    DrawLine(texture, 4, 27, 28, 27, color, stroke);
-                    DrawLine(texture, 7, 27, 7, 14, color, stroke);
-                    DrawLine(texture, 25, 27, 25, 14, color, stroke);
-                    DrawLine(texture, 7, 14, 16, 4, color, stroke);
-                    DrawLine(texture, 16, 4, 25, 14, color, stroke);
-                    break;
-                case 2:
-                    DrawLine(texture, 3, 16, 10, 9, color, stroke);
-                    DrawLine(texture, 10, 9, 22, 9, color, stroke);
-                    DrawLine(texture, 22, 9, 29, 16, color, stroke);
-                    DrawLine(texture, 29, 16, 22, 23, color, stroke);
-                    DrawLine(texture, 22, 23, 10, 23, color, stroke);
-                    DrawLine(texture, 10, 23, 3, 16, color, stroke);
-                    FillCircle(texture, 16, 16, 4, color);
-                    break;
-                default:
-                    FillCircle(texture, 9, 9, 4, color);
-                    FillCircle(texture, 23, 9, 4, color);
-                    FillCircle(texture, 9, 23, 4, color);
-                    FillCircle(texture, 23, 23, 4, color);
-                    break;
-            }
-            texture.Apply(false, true);
-            return texture;
-        }
-
-        private static void DrawLine(
-            Texture2D texture,
-            int x0,
-            int y0,
-            int x1,
-            int y1,
-            Color color,
-            int width)
-        {
-            int dx = Mathf.Abs(x1 - x0);
-            int dy = Mathf.Abs(y1 - y0);
-            int sx = x0 < x1 ? 1 : -1;
-            int sy = y0 < y1 ? 1 : -1;
-            int error = dx - dy;
-            while (true)
-            {
-                FillCircle(texture, x0, y0, width, color);
-                if (x0 == x1 && y0 == y1)
-                {
-                    break;
-                }
-                int doubled = error * 2;
-                if (doubled > -dy)
-                {
-                    error -= dy;
-                    x0 += sx;
-                }
-                if (doubled < dx)
-                {
-                    error += dx;
-                    y0 += sy;
-                }
-            }
-        }
-
-        private static void FillCircle(Texture2D texture, int centerX, int centerY, int radius, Color color)
-        {
-            int radiusSquared = radius * radius;
-            for (int y = -radius; y <= radius; y++)
-            {
-                for (int x = -radius; x <= radius; x++)
-                {
-                    int pixelX = centerX + x;
-                    int pixelY = centerY + y;
-                    if (x * x + y * y <= radiusSquared &&
-                        pixelX >= 0 && pixelX < texture.width &&
-                        pixelY >= 0 && pixelY < texture.height)
-                    {
-                        texture.SetPixel(pixelX, pixelY, color);
-                    }
-                }
-            }
         }
 
         private static GUIStyle CreateStyle(
@@ -822,14 +722,7 @@ namespace DuneVector
 
         public void Dispose()
         {
-            for (int i = 0; i < _tabIcons.Length; i++)
-            {
-                if (_tabIcons[i] != null)
-                {
-                    UnityEngine.Object.Destroy(_tabIcons[i]);
-                    _tabIcons[i] = null;
-                }
-            }
+            Array.Clear(_tabIcons, 0, _tabIcons.Length);
         }
     }
 }
