@@ -290,6 +290,10 @@ namespace DuneVector
 
             _worldMapVisible = visible;
             _forceScanRefresh = true;
+            if (!visible)
+            {
+                _worldMapTileCache?.ClearStyleRequests();
+            }
             DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
             bool pauseMenuIsOpen = bootstrap != null &&
                 bootstrap.PauseMenu != null &&
@@ -796,12 +800,10 @@ namespace DuneVector
             float verticalPixelsPerWorldUnit =
                 mapRect.height / Mathf.Max(1f, displayedWorldHeight);
             Rect ringRect = new Rect(
-                mapRect.x +
-                    (mapRect.width * 0.5f) +
+                (mapRect.width * 0.5f) +
                     ((float)(dronePosition.X - viewCenter.X - radius) *
                      horizontalPixelsPerWorldUnit),
-                mapRect.y +
-                    (mapRect.height * 0.5f) -
+                (mapRect.height * 0.5f) -
                     ((float)(dronePosition.Z - viewCenter.Z + radius) *
                      verticalPixelsPerWorldUnit),
                 diameter * horizontalPixelsPerWorldUnit,

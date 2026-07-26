@@ -82,6 +82,7 @@ namespace DuneVector
         private readonly Dictionary<TileKey, RuntimeTile> _runtimeTiles =
             new Dictionary<TileKey, RuntimeTile>();
         private readonly List<TileKey> _pendingKeys = new List<TileKey>();
+        private readonly List<TileKey> _styleRequestKeys = new List<TileKey>();
         private readonly List<TileBuildJob> _buildJobs = new List<TileBuildJob>();
         private readonly object _cacheWriteLock = new object();
         private readonly CancellationTokenSource _cancellation = new CancellationTokenSource();
@@ -163,7 +164,7 @@ namespace DuneVector
                     visibleKeys.Add(detailedKeys[index]);
                 }
             }
-            SetPendingKeys(visibleKeys);
+            SetPendingKeys(visibleKeys, false);
         }
 
         public void Update()
@@ -174,8 +175,14 @@ namespace DuneVector
             }
 
             CompleteBuildJobs();
+            RefreshRequestedStyles();
             StartPendingBuildJobs();
             TrimRuntimeCache();
+        }
+
+        public void ClearStyleRequests()
+        {
+            _styleRequestKeys.Clear();
         }
 
         public bool Draw(
@@ -209,7 +216,7 @@ namespace DuneVector
                     requestedKeys.Add(visibleKeys[index]);
                 }
             }
-            SetPendingKeys(requestedKeys);
+            SetPendingKeys(requestedKeys, true);
 
             bool drewAny = false;
             for (int index = 0; index < visibleKeys.Count; index++)
@@ -226,7 +233,6 @@ namespace DuneVector
                     continue;
                 }
 
-                EnsureStyledTexture(key, tile);
                 if (tile.StyledTexture == null)
                 {
                     continue;
@@ -265,7 +271,6 @@ namespace DuneVector
                     continue;
                 }
 
-                EnsureStyledTexture(parentKey, parentTile);
                 if (parentTile.StyledTexture == null)
                 {
                     continue;
@@ -355,12 +360,20 @@ namespace DuneVector
             return keys;
         }
 
-        private void SetPendingKeys(List<TileKey> visibleKeys)
+        private void SetPendingKeys(List<TileKey> visibleKeys, bool requestStyles)
         {
             _pendingKeys.Clear();
+            if (requestStyles)
+            {
+                _styleRequestKeys.Clear();
+            }
             for (int index = 0; index < visibleKeys.Count; index++)
             {
                 TileKey key = visibleKeys[index];
+                if (requestStyles)
+                {
+                    _styleRequestKeys.Add(key);
+                }
                 if (_runtimeTiles.ContainsKey(key) || IsBuildActive(key))
                 {
                     continue;
@@ -444,6 +457,32 @@ namespace DuneVector
                     _diskOffsets[result.Key] = result.CacheDataOffset;
                 }
                 CreateRuntimeTile(result.Key, result.Heights);
+                if (_runtimeTiles.TryGetValue(result.Key, out RuntimeTile runtimeTile))
+                {
+                    EnsureStyledTexture(result.Key, runtimeTile);
+                }
+            }
+        }
+
+        private void RefreshRequestedStyles()
+        {
+            int refreshLimit = Mathf.Clamp(
+                _settings.WorldMapTerrainStyleRefreshesPerFrame,
+                1,
+                8);
+            int refreshed = 0;
+            for (int index = 0;
+                index < _styleRequestKeys.Count && refreshed < refreshLimit;
+                index++)
+            {
+                TileKey key = _styleRequestKeys[index];
+                if (!_runtimeTiles.TryGetValue(key, out RuntimeTile tile) ||
+                    tile.ExplorationRevision == _explorationRevision)
+                {
+                    continue;
+                }
+                EnsureStyledTexture(key, tile);
+                refreshed++;
             }
         }
 
@@ -591,8 +630,16 @@ namespace DuneVector
             }
 
             ApplyMaterialSettings(tile.ExplorationTexture);
-            Graphics.Blit(tile.HeightTexture, tile.StyledTexture, _terrainMaterial);
-            tile.StyledTexture.GenerateMips();
+            RenderTexture previousTarget = RenderTexture.active;
+            try
+            {
+                Graphics.Blit(tile.HeightTexture, tile.StyledTexture, _terrainMaterial);
+                tile.StyledTexture.GenerateMips();
+            }
+            finally
+            {
+                RenderTexture.active = previousTarget;
+            }
             tile.ExplorationRevision = _explorationRevision;
         }
 
@@ -630,9 +677,9 @@ namespace DuneVector
             float pixelsPerWorldX = mapRect.width / Mathf.Max(1f, displayedWorldWidth);
             float pixelsPerWorldZ = mapRect.height / Mathf.Max(1f, displayedWorldHeight);
             return new Rect(
-                mapRect.x + (mapRect.width * 0.5f) +
+                (mapRect.width * 0.5f) +
                     ((float)(minimumX - center.X) * pixelsPerWorldX),
-                mapRect.y + (mapRect.height * 0.5f) -
+                (mapRect.height * 0.5f) -
                     ((float)(maximumZ - center.Z) * pixelsPerWorldZ),
                 (float)tileWorldSize * pixelsPerWorldX,
                 (float)tileWorldSize * pixelsPerWorldZ);
