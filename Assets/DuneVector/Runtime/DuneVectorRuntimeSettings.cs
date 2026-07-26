@@ -4130,6 +4130,8 @@ namespace DuneVector
         [Range(256, 1024)] public int WorldMapScanTextureResolution = 512;
         [Tooltip("High-resolution world-map rows sampled per frame. Four rows at 512 pixels preserves the minimap's existing 2,048-sample frame budget.")]
         [Range(1, 32)] public int WorldMapScanRowsPerFrame = 4;
+        [Tooltip("Show the cyan drone scan-radius ring on the minimap.")]
+        public bool ShowMinimapScanRadius = false;
         [Tooltip("Seconds between procedural terrain resamples. Cached map pixels still scroll every rendered frame.")]
         [Min(0.02f)] public float ScanRefreshInterval = 0.3f;
         [Tooltip("Distance traveled before the cached terrain scan is regenerated. Cached pixels translate smoothly below this threshold.")]

@@ -1430,6 +1430,7 @@ namespace DuneVector
                 _settings.TerrainHeightMaximum);
             float heightRange = Mathf.Max(Mathf.Epsilon, maximumHeight - minimumHeight);
             float contourSpacing = Mathf.Max(0.01f, _settings.ContourSpacing);
+            bool showScanRadius = _worldMapVisible || _settings.ShowMinimapScanRadius;
 
             for (int y = _scanBuildRow; y < finalRow; y++)
             {
@@ -1451,15 +1452,18 @@ namespace DuneVector
                     float height = (float)_world.HeightField.SampleHeight(
                         logicalX,
                         logicalZ);
-                    float droneOffsetX = (float)(logicalX - _scanBuildDroneX);
-                    float droneOffsetZ = (float)(logicalZ - _scanBuildDroneZ);
-                    float distance = Mathf.Sqrt(
-                        (droneOffsetX * droneOffsetX) +
-                        (droneOffsetZ * droneOffsetZ));
-                    if (Mathf.Abs(distance - radius) <= _settings.RadiusLineThickness)
+                    if (showScanRadius)
                     {
-                        _scanPixels[index] = _settings.RadiusLineColor;
-                        continue;
+                        float droneOffsetX = (float)(logicalX - _scanBuildDroneX);
+                        float droneOffsetZ = (float)(logicalZ - _scanBuildDroneZ);
+                        float distance = Mathf.Sqrt(
+                            (droneOffsetX * droneOffsetX) +
+                            (droneOffsetZ * droneOffsetZ));
+                        if (Mathf.Abs(distance - radius) <= _settings.RadiusLineThickness)
+                        {
+                            _scanPixels[index] = _settings.RadiusLineColor;
+                            continue;
+                        }
                     }
 
                     float height01 = Mathf.Clamp01(
