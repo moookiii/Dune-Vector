@@ -630,6 +630,8 @@ namespace DuneVector
         [Min(10f)] public float MaximumRouteDistance = 2600f;
         [Min(10f)] public float MinimumPickupInsertionDistance = 75f;
         [Min(10f)] public float MaximumPickupInsertionDistance = 135f;
+        [Tooltip("Maximum horizontal distance from the player's desert insertion point to the resolved pickup package.")]
+        [Min(1f)] public float MaximumPickupSpawnDistance = 500f;
         [Min(10f)] public float MinimumRouteOriginDistance = 320f;
         [Min(10f)] public float MaximumRouteOriginDistance = 620f;
         [Min(0)] public int MinimumBaseReward = 260;

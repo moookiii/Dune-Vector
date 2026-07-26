@@ -1454,6 +1454,24 @@ namespace DuneVector
             _desertSpawn = _world.LogicalToLocal(routeOrigin.X, insertionHeight, routeOrigin.Z);
             _desertRotation = Quaternion.LookRotation(pickupForward, Vector3.up);
             BuildPickupObjective();
+
+            double objectiveDeltaX = ActiveObjectiveLogicalPosition.X - routeOrigin.X;
+            double objectiveDeltaZ = ActiveObjectiveLogicalPosition.Z - routeOrigin.Z;
+            double objectiveDistance = Math.Sqrt(
+                (objectiveDeltaX * objectiveDeltaX) + (objectiveDeltaZ * objectiveDeltaZ));
+            double maximumPickupSpawnDistance = Math.Max(1.0, _settings.MaximumPickupSpawnDistance);
+            if (objectiveDistance > maximumPickupSpawnDistance)
+            {
+                double insertionScale = maximumPickupSpawnDistance / objectiveDistance;
+                routeOrigin = new LogicalPosition(
+                    ActiveObjectiveLogicalPosition.X - (objectiveDeltaX * insertionScale),
+                    ActiveObjectiveLogicalPosition.Z - (objectiveDeltaZ * insertionScale));
+                insertionHeight =
+                    (float)_world.HeightField.SampleHeight(routeOrigin.X, routeOrigin.Z) +
+                    _hubSettings.DesertInsertionHeight;
+                _desertSpawn = _world.LogicalToLocal(routeOrigin.X, insertionHeight, routeOrigin.Z);
+            }
+
             Vector3 actualPickupForward = Vector3.ProjectOnPlane(_package.position - _desertSpawn, Vector3.up);
             if (actualPickupForward.sqrMagnitude > 0.001f)
             {
