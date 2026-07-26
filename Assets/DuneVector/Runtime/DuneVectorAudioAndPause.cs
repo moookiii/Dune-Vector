@@ -671,6 +671,10 @@ namespace DuneVector
             {
                 return;
             }
+            if (DuneVectorMapHUD.ShouldSuppressPauseMenuInput)
+            {
+                return;
+            }
             if ((_health == null || !_health.IsDead) &&
                 Keyboard.current != null &&
                 Keyboard.current.escapeKey.wasPressedThisFrame)

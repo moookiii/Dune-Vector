@@ -45,6 +45,16 @@ namespace DuneVector
         }
 
         public bool IsWorldMapVisible => _worldMapVisible;
+        public static bool ShouldSuppressPauseMenuInput
+        {
+            get
+            {
+                DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
+                DuneVectorMapHUD mapHud = bootstrap != null ? bootstrap.MapHUD : null;
+                return (mapHud != null && mapHud._worldMapVisible) ||
+                    _worldMapClosedFrame == Time.frameCount;
+            }
+        }
         public static bool IsWorldMapOpen
         {
             get
@@ -132,6 +142,7 @@ namespace DuneVector
         private bool _worldMapPausedGame;
         private bool _worldMapDragging;
         private bool _worldMapDragMoved;
+        private static int _worldMapClosedFrame = -1;
         private int _scanBuildRow;
         private int _scanBuildResolution;
         private float _timeScaleBeforeWorldMap = 1f;
@@ -235,7 +246,12 @@ namespace DuneVector
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null)
             {
-                if (_settings.WorldMapKey != Key.None &&
+                if (_worldMapVisible && keyboard.escapeKey.wasPressedThisFrame)
+                {
+                    SetWorldMapVisible(false);
+                    _worldMapClosedFrame = Time.frameCount;
+                }
+                else if (_settings.WorldMapKey != Key.None &&
                     keyboard[_settings.WorldMapKey].wasPressedThisFrame)
                 {
                     SetWorldMapVisible(!_worldMapVisible);
