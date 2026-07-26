@@ -4149,6 +4149,8 @@ namespace DuneVector
         [Range(0.01f, 0.25f)] public float WorldMapZoomScrollSensitivity = 0.08f;
         [Tooltip("Mouse button used to drag the world map: 0 left, 1 right, 2 middle.")]
         [Range(0, 2)] public int WorldMapPanMouseButton = 0;
+        [Tooltip("Cursor movement in screen pixels required before a map click becomes a pan.")]
+        [Min(0f)] public float WorldMapPanDragThreshold = 4f;
         [Range(1f, 2f)] public float WorldMapPanelAspectRatio = 1.42f;
         [Min(20f)] public float WorldMapHeaderHeight = 58f;
         [Min(20f)] public float WorldMapFooterHeight = 44f;

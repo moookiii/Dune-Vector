@@ -129,11 +129,13 @@ namespace DuneVector
         private bool _scanBuildActive;
         private bool _worldMapPausedGame;
         private bool _worldMapDragging;
+        private bool _worldMapDragMoved;
         private int _scanBuildRow;
         private float _timeScaleBeforeWorldMap = 1f;
         private float _worldMapViewHeight;
         private double _worldMapCenterX;
         private double _worldMapCenterZ;
+        private Vector2 _worldMapDragStartPosition;
         private Vector2 _lastWorldMapDragPosition;
         private CursorLockMode _cursorLockBeforeWorldMap;
         private bool _cursorVisibleBeforeWorldMap;
@@ -248,6 +250,7 @@ namespace DuneVector
             else
             {
                 _worldMapDragging = false;
+                _worldMapDragMoved = false;
                 Cursor.lockState = pauseMenuIsOpen
                     ? CursorLockMode.None
                     : _cursorLockBeforeWorldMap;
@@ -500,7 +503,9 @@ namespace DuneVector
                 pointerOverMap)
             {
                 _worldMapDragging = true;
+                _worldMapDragMoved = false;
                 GUIUtility.hotControl = panControlId;
+                _worldMapDragStartPosition = mousePosition;
                 _lastWorldMapDragPosition = mousePosition;
                 currentEvent.Use();
                 return;
@@ -511,6 +516,24 @@ namespace DuneVector
                 _worldMapDragging &&
                 GUIUtility.hotControl == panControlId)
             {
+                if (!_worldMapDragMoved)
+                {
+                    float dragThreshold = Mathf.Max(
+                        0f,
+                        _settings.WorldMapPanDragThreshold);
+                    if ((mousePosition - _worldMapDragStartPosition).sqrMagnitude <
+                        dragThreshold * dragThreshold)
+                    {
+                        currentEvent.Use();
+                        return;
+                    }
+
+                    _worldMapDragMoved = true;
+                    _lastWorldMapDragPosition = mousePosition;
+                    currentEvent.Use();
+                    return;
+                }
+
                 Vector2 delta = mousePosition - _lastWorldMapDragPosition;
                 _worldMapCenterX -=
                     (delta.x / Mathf.Max(1f, mapRect.width)) * displayedWorldWidth;
@@ -528,7 +551,11 @@ namespace DuneVector
             {
                 _worldMapDragging = false;
                 GUIUtility.hotControl = 0;
-                _forceScanRefresh = true;
+                if (_worldMapDragMoved)
+                {
+                    _forceScanRefresh = true;
+                }
+                _worldMapDragMoved = false;
                 currentEvent.Use();
             }
         }
