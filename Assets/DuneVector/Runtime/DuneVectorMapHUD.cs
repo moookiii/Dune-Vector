@@ -1089,6 +1089,12 @@ namespace DuneVector
             Color mapColor = _settings.GeoglyphMapColor;
             mapColor.a *= _settings.GeoglyphMapOpacity;
             _geoglyphMapMaterial.SetColor("_Color", mapColor);
+            _geoglyphMapMaterial.SetColor(
+                "_HaloColor",
+                _settings.GeoglyphMapHaloColor);
+            _geoglyphMapMaterial.SetFloat(
+                "_HaloWidthPixels",
+                Mathf.Max(0f, _settings.GeoglyphMapHaloWidthPixels));
             _geoglyphMapMaterial.SetFloat(
                 "_Threshold",
                 Mathf.Clamp01(artwork.MaskThreshold));
