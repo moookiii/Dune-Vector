@@ -453,10 +453,13 @@ namespace DuneVector
                 _settings.NorthLabel,
                 _northStyle);
 
+            LogicalPosition dronePosition = _world.LogicalPlayerPosition;
+            float droneHeight = _drone != null ? _drone.transform.position.y : 0f;
             string coordinates = string.Format(
                 _settings.CoordinateFormat,
-                currentCenter.X,
-                currentCenter.Z,
+                dronePosition.X,
+                droneHeight,
+                dronePosition.Z,
                 _settings.DroneRevealRadius);
             float footerContentWidth = footerRect.width - (labelPadding * 2f);
             float splitX = footerContentWidth * _settings.DetailSplitFraction;
