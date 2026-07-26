@@ -348,6 +348,23 @@ namespace DuneVector
             Check(contractUsesWorldLandmarks,
                 "Contract route reuses persistent world landmark placements",
                 "At least one route stop was represented by a contract-created landmark.");
+            double resolvedRouteDistance = 0.0;
+            for (int landmarkIndex = 1;
+                 landmarkIndex < bootstrap.LandmarkDirector.ContractLandmarks.Count;
+                 landmarkIndex++)
+            {
+                LogicalPosition previous =
+                    bootstrap.LandmarkDirector.ContractLandmarks[landmarkIndex - 1].LogicalPosition;
+                LogicalPosition current =
+                    bootstrap.LandmarkDirector.ContractLandmarks[landmarkIndex].LogicalPosition;
+                double deltaX = current.X - previous.X;
+                double deltaZ = current.Z - previous.Z;
+                resolvedRouteDistance += Math.Sqrt((deltaX * deltaX) + (deltaZ * deltaZ));
+            }
+            Check(courier.ActiveContract != null &&
+                  Math.Abs(courier.ActiveContract.RouteDistance - resolvedRouteDistance) < 1.0,
+                "Contract quote uses the resolved landmark route distance",
+                $"Quoted {courier.ActiveContract?.RouteDistance ?? 0f:0}m for a {resolvedRouteDistance:0}m resolved route.");
 
             courier.RequestReturnToHub(recordAbandonment: false);
             float returnTimeout = Time.realtimeSinceStartup + 8f;

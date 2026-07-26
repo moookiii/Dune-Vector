@@ -57,6 +57,11 @@ namespace DuneVector
 
         [NonSerialized] public LogicalPosition PickupPosition;
         [NonSerialized] public readonly List<LogicalPosition> DeliveryPositions = new List<LogicalPosition>();
+        [NonSerialized] public readonly List<DuneLandmarkPlacementRecord> RoutePlacementRecords =
+            new List<DuneLandmarkPlacementRecord>();
+        [NonSerialized] public float PlannedRouteDistance;
+        [NonSerialized] public LogicalPosition RouteOrigin;
+        [NonSerialized] public double RouteAngle;
 
         public bool Has(CourierContractModifier modifier)
         {
@@ -1246,8 +1251,6 @@ namespace DuneVector
             int stops = (gameplay & CourierContractModifier.MultiDrop) != 0
                 ? random.Next(_settings.MultiDropMinimumStops, _settings.MultiDropMaximumStops + 1)
                 : 1;
-            float baseReward = Mathf.Lerp(_settings.MinimumBaseReward, _settings.MaximumBaseReward, distance / Mathf.Max(1f, _settings.MaximumRouteDistance));
-            baseReward += distance * _settings.DistanceRewardPerMeter;
             int actualModifierCount = CountModifiers(gameplay);
             float multiplier = actualModifierCount >= 3
                 ? _settings.TripleModifierRewardMultiplier
@@ -1262,7 +1265,7 @@ namespace DuneVector
 
             DuneLandmarkType pickupType = ChooseLandmarkType(random);
             DuneLandmarkType destinationType = ChooseLandmarkType(random);
-            return new CourierContract
+            CourierContract contract = new CourierContract
             {
                 ContractId = $"DV-{completed:0000}-{index + 1:00}-{Math.Abs(seed % 10000):0000}",
                 PickupName = GetContractLocationName(pickupType),
@@ -1273,16 +1276,25 @@ namespace DuneVector
                 Seed = seed,
                 Difficulty = difficulty,
                 RouteDistance = distance,
-                BaseReward = Mathf.RoundToInt(baseReward),
-                OfferedReward = Mathf.RoundToInt(baseReward * multiplier),
-                TimeLimit = (gameplay & CourierContractModifier.Express) != 0
-                    ? (distance / _settings.ExpressExpectedSpeed) + _settings.ExpressGraceSeconds
-                    : 0f,
+                PlannedRouteDistance = distance,
                 StopCount = stops,
                 EncounterIntensity = (gameplay & CourierContractModifier.HighValue) != 0 ? 1.8f : 1f + (difficulty * 0.04f),
                 DisplayModifiers = display,
                 GameplayModifiers = gameplay,
             };
+            ResolveRouteLandmarks(contract);
+            distance = contract.RouteDistance;
+            float baseReward = Mathf.Lerp(
+                _settings.MinimumBaseReward,
+                _settings.MaximumBaseReward,
+                distance / Mathf.Max(1f, _settings.MaximumRouteDistance));
+            baseReward += distance * _settings.DistanceRewardPerMeter;
+            contract.BaseReward = Mathf.RoundToInt(baseReward);
+            contract.OfferedReward = Mathf.RoundToInt(baseReward * multiplier);
+            contract.TimeLimit = (gameplay & CourierContractModifier.Express) != 0
+                ? (distance / _settings.ExpressExpectedSpeed) + _settings.ExpressGraceSeconds
+                : 0f;
+            return contract;
         }
 
         private CourierContractModifier ChooseModifiers(System.Random random, int count)
@@ -1375,71 +1387,21 @@ namespace DuneVector
             CleanupContractObjects();
             _landmarks.ClearContractLandmarks();
             _routeLandmarks.Clear();
-            System.Random random = new System.Random(contract.Seed);
-            LogicalPosition hub = new LogicalPosition(
-                DesertWorldStreamer.StartingLogicalPosition.x,
-                DesertWorldStreamer.StartingLogicalPosition.y);
-            double insertionAngle = random.NextDouble() * Math.PI * 2.0;
-            double insertionDistance = Mathf.Lerp(
-                _settings.MinimumRouteOriginDistance,
-                Mathf.Max(_settings.MinimumRouteOriginDistance, _settings.MaximumRouteOriginDistance),
-                (float)random.NextDouble());
-            LogicalPosition routeOrigin = new LogicalPosition(
-                hub.X + (Math.Cos(insertionAngle) * insertionDistance),
-                hub.Z + (Math.Sin(insertionAngle) * insertionDistance));
-            double routeAngle = random.NextDouble() * Math.PI * 2.0;
-            float pickupOffset = Mathf.Lerp(
-                _settings.MinimumPickupInsertionDistance,
-                _settings.MaximumPickupInsertionDistance,
-                (float)random.NextDouble());
-            contract.PickupPosition = new LogicalPosition(
-                routeOrigin.X + (Math.Cos(routeAngle) * pickupOffset),
-                routeOrigin.Z + (Math.Sin(routeAngle) * pickupOffset));
-            contract.DeliveryPositions.Clear();
-            LogicalPosition previous = contract.PickupPosition;
-            float perLeg = contract.RouteDistance / Mathf.Max(1, contract.StopCount);
-            for (int i = 0; i < contract.StopCount; i++)
+            if (contract.RoutePlacementRecords.Count == 0)
             {
-                float directionJitter = Mathf.Lerp(-0.3f, 0.3f, (float)random.NextDouble());
-                double angle = routeAngle + directionJitter;
-                LogicalPosition destination = new LogicalPosition(
-                    previous.X + (Math.Cos(angle) * perLeg),
-                    previous.Z + (Math.Sin(angle) * perLeg));
-                contract.DeliveryPositions.Add(destination);
-                previous = destination;
+                ResolveRouteLandmarks(contract);
             }
-
-            HashSet<string> routePlacementIds = new HashSet<string>();
-            DuneVectorLandmarkInstance pickupLandmark = _landmarks.PinNearestWorldLandmark(
-                contract.PickupLandmarkType, contract.PickupPosition, routePlacementIds);
-            if (pickupLandmark == null)
+            LogicalPosition routeOrigin = contract.RouteOrigin;
+            double routeAngle = contract.RouteAngle;
+            for (int i = 0; i < contract.RoutePlacementRecords.Count; i++)
             {
-                throw new InvalidOperationException("A contract route could not resolve a pickup world landmark.");
-            }
-            _routeLandmarks.Add(pickupLandmark);
-            routePlacementIds.Add(pickupLandmark.PlacementRecord.PersistentId);
-            contract.PickupPosition = pickupLandmark.LogicalPosition;
-            contract.PickupLandmarkType = pickupLandmark.Type;
-            contract.PickupName = GetContractLocationName(pickupLandmark.Type);
-            for (int i = 0; i < contract.DeliveryPositions.Count; i++)
-            {
-                DuneLandmarkType deliveryType = i == contract.DeliveryPositions.Count - 1
-                    ? contract.DestinationLandmarkType
-                    : ChooseLandmarkType(random);
-                DuneVectorLandmarkInstance deliveryLandmark = _landmarks.PinNearestWorldLandmark(
-                    deliveryType, contract.DeliveryPositions[i], routePlacementIds);
-                if (deliveryLandmark == null)
+                DuneVectorLandmarkInstance landmark =
+                    _landmarks.PinWorldLandmark(contract.RoutePlacementRecords[i]);
+                if (landmark == null)
                 {
-                    throw new InvalidOperationException("A contract route could not resolve a delivery world landmark.");
+                    throw new InvalidOperationException("A resolved contract landmark could not be pinned.");
                 }
-                _routeLandmarks.Add(deliveryLandmark);
-                routePlacementIds.Add(deliveryLandmark.PlacementRecord.PersistentId);
-                contract.DeliveryPositions[i] = deliveryLandmark.LogicalPosition;
-                if (i == contract.DeliveryPositions.Count - 1)
-                {
-                    contract.DestinationLandmarkType = deliveryLandmark.Type;
-                    contract.DestinationName = GetContractLocationName(deliveryLandmark.Type);
-                }
+                _routeLandmarks.Add(landmark);
             }
 
             Vector3 pickupForward = new Vector3(
@@ -1477,6 +1439,91 @@ namespace DuneVector
             {
                 _desertRotation = Quaternion.LookRotation(actualPickupForward.normalized, Vector3.up);
             }
+        }
+
+        private void ResolveRouteLandmarks(CourierContract contract)
+        {
+            System.Random random = new System.Random(contract.Seed);
+            LogicalPosition hub = new LogicalPosition(
+                DesertWorldStreamer.StartingLogicalPosition.x,
+                DesertWorldStreamer.StartingLogicalPosition.y);
+            double insertionAngle = random.NextDouble() * Math.PI * 2.0;
+            double insertionDistance = Mathf.Lerp(
+                _settings.MinimumRouteOriginDistance,
+                Mathf.Max(_settings.MinimumRouteOriginDistance, _settings.MaximumRouteOriginDistance),
+                (float)random.NextDouble());
+            LogicalPosition routeOrigin = new LogicalPosition(
+                hub.X + (Math.Cos(insertionAngle) * insertionDistance),
+                hub.Z + (Math.Sin(insertionAngle) * insertionDistance));
+            double routeAngle = random.NextDouble() * Math.PI * 2.0;
+            contract.RouteOrigin = routeOrigin;
+            contract.RouteAngle = routeAngle;
+            float pickupOffset = Mathf.Lerp(
+                _settings.MinimumPickupInsertionDistance,
+                _settings.MaximumPickupInsertionDistance,
+                (float)random.NextDouble());
+            contract.PickupPosition = new LogicalPosition(
+                routeOrigin.X + (Math.Cos(routeAngle) * pickupOffset),
+                routeOrigin.Z + (Math.Sin(routeAngle) * pickupOffset));
+            contract.DeliveryPositions.Clear();
+            LogicalPosition previous = contract.PickupPosition;
+            float perLeg = contract.PlannedRouteDistance / Mathf.Max(1, contract.StopCount);
+            for (int i = 0; i < contract.StopCount; i++)
+            {
+                float directionJitter = Mathf.Lerp(-0.3f, 0.3f, (float)random.NextDouble());
+                double angle = routeAngle + directionJitter;
+                LogicalPosition destination = new LogicalPosition(
+                    previous.X + (Math.Cos(angle) * perLeg),
+                    previous.Z + (Math.Sin(angle) * perLeg));
+                contract.DeliveryPositions.Add(destination);
+                previous = destination;
+            }
+
+            contract.RoutePlacementRecords.Clear();
+            HashSet<string> routePlacementIds = new HashSet<string>();
+            DuneLandmarkPlacementRecord pickupLandmark = _landmarks.ResolveNearestWorldLandmark(
+                contract.PickupLandmarkType, contract.PickupPosition, routePlacementIds);
+            if (pickupLandmark == null)
+            {
+                throw new InvalidOperationException("A contract route could not resolve a pickup world landmark.");
+            }
+            contract.RoutePlacementRecords.Add(pickupLandmark);
+            routePlacementIds.Add(pickupLandmark.PersistentId);
+            contract.PickupPosition = pickupLandmark.LogicalPosition;
+            contract.PickupLandmarkType = pickupLandmark.Type;
+            contract.PickupName = GetContractLocationName(pickupLandmark.Type);
+            for (int i = 0; i < contract.DeliveryPositions.Count; i++)
+            {
+                DuneLandmarkType deliveryType = i == contract.DeliveryPositions.Count - 1
+                    ? contract.DestinationLandmarkType
+                    : ChooseLandmarkType(random);
+                DuneLandmarkPlacementRecord deliveryLandmark = _landmarks.ResolveNearestWorldLandmark(
+                    deliveryType, contract.DeliveryPositions[i], routePlacementIds);
+                if (deliveryLandmark == null)
+                {
+                    throw new InvalidOperationException("A contract route could not resolve a delivery world landmark.");
+                }
+                contract.RoutePlacementRecords.Add(deliveryLandmark);
+                routePlacementIds.Add(deliveryLandmark.PersistentId);
+                contract.DeliveryPositions[i] = deliveryLandmark.LogicalPosition;
+                if (i == contract.DeliveryPositions.Count - 1)
+                {
+                    contract.DestinationLandmarkType = deliveryLandmark.Type;
+                    contract.DestinationName = GetContractLocationName(deliveryLandmark.Type);
+                }
+            }
+
+            double routeDistance = 0.0;
+            LogicalPosition legStart = contract.PickupPosition;
+            for (int i = 0; i < contract.DeliveryPositions.Count; i++)
+            {
+                LogicalPosition legEnd = contract.DeliveryPositions[i];
+                double deltaX = legEnd.X - legStart.X;
+                double deltaZ = legEnd.Z - legStart.Z;
+                routeDistance += Math.Sqrt((deltaX * deltaX) + (deltaZ * deltaZ));
+                legStart = legEnd;
+            }
+            contract.RouteDistance = (float)routeDistance;
         }
 
         private void BuildPickupObjective()

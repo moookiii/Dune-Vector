@@ -335,6 +335,16 @@ namespace DuneVector
             LogicalPosition desiredPosition,
             ISet<string> excludedPersistentIds = null)
         {
+            DuneLandmarkPlacementRecord record = ResolveNearestWorldLandmark(
+                type, desiredPosition, excludedPersistentIds);
+            return PinWorldLandmark(record);
+        }
+
+        public DuneLandmarkPlacementRecord ResolveNearestWorldLandmark(
+            DuneLandmarkType type,
+            LogicalPosition desiredPosition,
+            ISet<string> excludedPersistentIds = null)
+        {
             DuneLandmarkPlacementRecord record = FindNearestPlacement(
                 desiredPosition, type, excludedPersistentIds, requireType: true);
             if (record == null)
@@ -345,9 +355,16 @@ namespace DuneVector
             if (record == null)
             {
                 Debug.LogError($"No procedural world landmark could be found near contract stop {desiredPosition}.");
+            }
+            return record;
+        }
+
+        public DuneVectorLandmarkInstance PinWorldLandmark(DuneLandmarkPlacementRecord record)
+        {
+            if (record == null)
+            {
                 return null;
             }
-
             if (!_streamed.TryGetValue(record.Cell, out DuneVectorLandmarkInstance landmark) || landmark == null)
             {
                 landmark = BuildLandmark(
