@@ -131,8 +131,10 @@ namespace DuneVector
         private bool _worldMapDragging;
         private bool _worldMapDragMoved;
         private int _scanBuildRow;
+        private int _scanBuildResolution;
         private float _timeScaleBeforeWorldMap = 1f;
         private float _worldMapViewHeight;
+        private float _nextWorldMapRefineTime;
         private double _worldMapCenterX;
         private double _worldMapCenterZ;
         private Vector2 _worldMapDragStartPosition;
@@ -214,9 +216,15 @@ namespace DuneVector
 
             if (_worldMapVisible || _minimapVisible)
             {
-                RefreshScan(_forceScanRefresh);
-                _forceScanRefresh = false;
-                ProcessScanBuild();
+                bool waitingForNavigationToSettle =
+                    _worldMapVisible &&
+                    Time.unscaledTime < _nextWorldMapRefineTime;
+                if (!waitingForNavigationToSettle)
+                {
+                    RefreshScan(_forceScanRefresh);
+                    _forceScanRefresh = false;
+                    ProcessScanBuild();
+                }
             }
         }
 
@@ -494,6 +502,8 @@ namespace DuneVector
                     worldUnderCursorZ - ((0.5f - normalizedY) * newHeight);
                 _worldMapViewHeight = newHeight;
                 _forceScanRefresh = true;
+                _nextWorldMapRefineTime =
+                    Time.unscaledTime + _settings.WorldMapNavigationRefineDelay;
                 currentEvent.Use();
                 return;
             }
@@ -540,6 +550,8 @@ namespace DuneVector
                 _worldMapCenterZ +=
                     (delta.y / Mathf.Max(1f, mapRect.height)) * displayedWorldHeight;
                 _lastWorldMapDragPosition = mousePosition;
+                _nextWorldMapRefineTime =
+                    Time.unscaledTime + _settings.WorldMapNavigationRefineDelay;
                 currentEvent.Use();
                 return;
             }
@@ -554,6 +566,8 @@ namespace DuneVector
                 if (_worldMapDragMoved)
                 {
                     _forceScanRefresh = true;
+                    _nextWorldMapRefineTime =
+                        Time.unscaledTime + _settings.WorldMapNavigationRefineDelay;
                 }
                 _worldMapDragMoved = false;
                 currentEvent.Use();
@@ -1152,6 +1166,17 @@ namespace DuneVector
             float desiredWorldHeight)
         {
             EnsureTexture();
+            _scanBuildResolution = Mathf.Clamp(
+                _worldMapVisible
+                    ? _settings.WorldMapScanTextureResolution
+                    : _settings.ScanTextureResolution,
+                32,
+                1024);
+            int requiredPixelCount = _scanBuildResolution * _scanBuildResolution;
+            if (_scanPixels == null || _scanPixels.Length != requiredPixelCount)
+            {
+                _scanPixels = new Color[requiredPixelCount];
+            }
             _scanBuildCenterX = center.X;
             _scanBuildCenterZ = center.Z;
             LogicalPosition dronePosition = _world.LogicalPlayerPosition;
@@ -1170,8 +1195,11 @@ namespace DuneVector
                 return;
             }
 
-            int resolution = _scanTexture.width;
-            int rowsPerFrame = Mathf.Clamp(_settings.ScanRowsPerFrame, 1, resolution);
+            int resolution = _scanBuildResolution;
+            int requestedRowsPerFrame = _worldMapVisible
+                ? _settings.WorldMapScanRowsPerFrame
+                : _settings.ScanRowsPerFrame;
+            int rowsPerFrame = Mathf.Clamp(requestedRowsPerFrame, 1, resolution);
             int finalRow = Mathf.Min(resolution, _scanBuildRow + rowsPerFrame);
             float radius = Mathf.Max(1f, _settings.DroneRevealRadius);
             float minimumHeight = Mathf.Min(
@@ -1243,14 +1271,33 @@ namespace DuneVector
                 return;
             }
 
-            _scanTexture.SetPixels(_scanPixels);
-            _scanTexture.Apply(false, false);
+            CommitCompletedScanTexture(resolution);
             _lastScanX = _scanBuildCenterX;
             _lastScanZ = _scanBuildCenterZ;
             _textureWorldWidth = _scanBuildWorldWidth;
             _textureWorldHeight = _scanBuildWorldHeight;
             _nextScanTime = Time.unscaledTime + _settings.ScanRefreshInterval;
             _scanBuildActive = false;
+        }
+
+        private void CommitCompletedScanTexture(int resolution)
+        {
+            if (_scanTexture != null && _scanTexture.width == resolution)
+            {
+                _scanTexture.SetPixels(_scanPixels);
+                _scanTexture.Apply(false, false);
+                return;
+            }
+
+            Texture2D completedTexture = CreateScanTexture(resolution);
+            completedTexture.SetPixels(_scanPixels);
+            completedTexture.Apply(false, false);
+            Texture2D previousTexture = _scanTexture;
+            _scanTexture = completedTexture;
+            if (previousTexture != null)
+            {
+                Destroy(previousTexture);
+            }
         }
 
         private float GetWorldMapViewportAspect()
@@ -1467,18 +1514,28 @@ namespace DuneVector
 
         private void EnsureTexture()
         {
-            int resolution = Mathf.Clamp(_settings.ScanTextureResolution, 32, 512);
-            if (_scanTexture != null && _scanTexture.width == resolution)
+            if (_scanTexture != null)
             {
                 return;
             }
 
-            if (_scanTexture != null)
+            int requestedResolution = _worldMapVisible
+                ? _settings.WorldMapScanTextureResolution
+                : _settings.ScanTextureResolution;
+            int resolution = Mathf.Clamp(requestedResolution, 32, 1024);
+            _scanTexture = CreateScanTexture(resolution);
+            Color[] initialPixels = new Color[resolution * resolution];
+            for (int index = 0; index < initialPixels.Length; index++)
             {
-                Destroy(_scanTexture);
+                initialPixels[index] = _settings.UnexploredColor;
             }
+            _scanTexture.SetPixels(initialPixels);
+            _scanTexture.Apply(false, false);
+        }
 
-            _scanTexture = new Texture2D(
+        private static Texture2D CreateScanTexture(int resolution)
+        {
+            return new Texture2D(
                 resolution,
                 resolution,
                 TextureFormat.RGBA32,
@@ -1489,13 +1546,6 @@ namespace DuneVector
                 wrapMode = TextureWrapMode.Clamp,
                 hideFlags = HideFlags.DontSave,
             };
-            _scanPixels = new Color[resolution * resolution];
-            for (int index = 0; index < _scanPixels.Length; index++)
-            {
-                _scanPixels[index] = _settings.UnexploredColor;
-            }
-            _scanTexture.SetPixels(_scanPixels);
-            _scanTexture.Apply(false, false);
         }
 
         private void EnsureStyles()

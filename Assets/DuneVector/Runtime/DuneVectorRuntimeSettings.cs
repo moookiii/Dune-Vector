@@ -4124,6 +4124,10 @@ namespace DuneVector
         [Range(32, 512)] public int ScanTextureResolution = 256;
         [Tooltip("Texture rows procedurally sampled per rendered frame. Lower values reduce frame spikes while taking longer to complete a refresh.")]
         [Range(1, 32)] public int ScanRowsPerFrame = 8;
+        [Tooltip("Full world-map terrain resolution. Refinement happens only after navigation settles.")]
+        [Range(256, 1024)] public int WorldMapScanTextureResolution = 512;
+        [Tooltip("High-resolution world-map rows sampled per frame. Four rows at 512 pixels preserves the minimap's existing 2,048-sample frame budget.")]
+        [Range(1, 32)] public int WorldMapScanRowsPerFrame = 4;
         [Tooltip("Seconds between procedural terrain resamples. Cached map pixels still scroll every rendered frame.")]
         [Min(0.02f)] public float ScanRefreshInterval = 0.3f;
         [Tooltip("Distance traveled before the cached terrain scan is regenerated. Cached pixels translate smoothly below this threshold.")]
@@ -4157,6 +4161,8 @@ namespace DuneVector
         [Range(0, 2)] public int WorldMapPanMouseButton = 0;
         [Tooltip("Cursor movement in screen pixels required before a map click becomes a pan.")]
         [Min(0f)] public float WorldMapPanDragThreshold = 4f;
+        [Tooltip("Seconds without pan or zoom input before high-resolution terrain refinement resumes.")]
+        [Range(0f, 1f)] public float WorldMapNavigationRefineDelay = 0.2f;
         [Range(1f, 2f)] public float WorldMapPanelAspectRatio = 1.42f;
         [Min(20f)] public float WorldMapHeaderHeight = 58f;
         [Min(20f)] public float WorldMapFooterHeight = 44f;
