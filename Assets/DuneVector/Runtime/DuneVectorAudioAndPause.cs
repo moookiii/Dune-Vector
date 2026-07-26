@@ -702,7 +702,9 @@ namespace DuneVector
             }
 
             IsPaused = paused;
-            Time.timeScale = paused ? 0f : 1f;
+            Time.timeScale = paused || DuneVectorMapHUD.IsWorldMapPausingGameplay
+                ? 0f
+                : 1f;
             _player?.SetInputEnabled(!paused);
             Cursor.lockState = paused ? CursorLockMode.None : CursorLockMode.Locked;
             Cursor.visible = paused;
@@ -1125,7 +1127,7 @@ namespace DuneVector
             if (IsPaused && (_health == null || !_health.IsDead))
             {
                 _audio?.SetPausedDucking(false);
-                Time.timeScale = 1f;
+                Time.timeScale = DuneVectorMapHUD.IsWorldMapPausingGameplay ? 0f : 1f;
             }
 
             DestroyTexture(ref _transparentTexture);

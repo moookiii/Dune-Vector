@@ -69,6 +69,17 @@ namespace DuneVector
             }
         }
 
+        public static bool IsWorldMapPausingGameplay
+        {
+            get
+            {
+                DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
+                return bootstrap != null &&
+                    bootstrap.MapHUD != null &&
+                    bootstrap.MapHUD._worldMapPausedGame;
+            }
+        }
+
         private DroneCharacterController _drone;
         private DesertWorldStreamer _world;
         private BottomHudTuning _bottomHud;
@@ -210,7 +221,11 @@ namespace DuneVector
             }
             else if (!visible && _worldMapPausedGame)
             {
-                Time.timeScale = _timeScaleBeforeWorldMap;
+                DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
+                bool pauseMenuIsOpen = bootstrap != null &&
+                    bootstrap.PauseMenu != null &&
+                    bootstrap.PauseMenu.IsPaused;
+                Time.timeScale = pauseMenuIsOpen ? 0f : _timeScaleBeforeWorldMap;
                 _worldMapPausedGame = false;
             }
         }
