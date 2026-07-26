@@ -604,10 +604,6 @@ namespace DuneVector
                 tiledTerrainBackground
                     ? _settings.UnexploredColor
                     : _settings.PanelColor);
-            DrawBorder(
-                mapRect,
-                _settings.BorderColor,
-                Mathf.Max(1f, _settings.BorderThickness * scale));
 
             GUI.BeginGroup(mapRect);
             bool tiledWorldMap =
@@ -670,6 +666,10 @@ namespace DuneVector
                 scale);
 
             GUI.EndGroup();
+            DrawBorder(
+                mapRect,
+                _settings.BorderColor,
+                Mathf.Max(1f, _settings.BorderThickness * scale));
         }
 
         private static void DrawCachedMapTexture(
