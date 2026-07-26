@@ -192,15 +192,13 @@ namespace DuneVector
             Vector3 prediction = _player.Motor.BaseVelocity *
                 Mathf.Max(0f, _settings.SandAmbusherTargetPredictionTime);
             Vector3 attackTarget = _player.WorldCenter + prediction;
-            Vector3 attackDirection = (attackTarget - ambusher.BuriedPosition).normalized;
-            if (_player.IsStableGrounded)
-            {
-                attackDirection = ApplyMinimumElevation(
-                    attackDirection,
-                    _settings.SandAmbusherGroundedMinimumAttackAngle);
-            }
-            ambusher.AttackEnd = attackTarget +
-                (attackDirection * Mathf.Max(0f, _settings.SandAmbusherAttackOvershoot));
+            Vector3 attackOffset = attackTarget - ambusher.BuriedPosition;
+            Vector3 attackDirection = ApplyMinimumElevation(
+                attackOffset.normalized,
+                _settings.SandAmbusherGroundedMinimumAttackAngle);
+            float attackDistance = attackOffset.magnitude +
+                Mathf.Max(0f, _settings.SandAmbusherAttackOvershoot);
+            ambusher.AttackEnd = ambusher.BuriedPosition + (attackDirection * attackDistance);
             ambusher.Root.transform.rotation = Quaternion.FromToRotation(Vector3.up, attackDirection);
             ambusher.Emergence?.Burst();
             ambusher.Visual?.BeginEmergence();
