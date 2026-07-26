@@ -77,7 +77,6 @@ namespace DuneVector
         private Texture2D _scanTexture;
         private Material _geoglyphMapMaterial;
         private Color[] _scanPixels;
-        private Color[] _scanUploadPixels;
         private readonly HashSet<long> _exploredCells = new HashSet<long>();
         private readonly List<MapIconRecord> _mapIcons = new List<MapIconRecord>();
         private readonly List<MapIconRecord> _upperFlightMapIcons = new List<MapIconRecord>();
@@ -975,14 +974,7 @@ namespace DuneVector
                 ? _settings.WorldMapScanRowsPerFrame
                 : _settings.ScanRowsPerFrame;
             int rowsPerFrame = Mathf.Clamp(requestedRowsPerFrame, 1, resolution);
-            int startingRow = _scanBuildRow;
             int finalRow = Mathf.Min(resolution, _scanBuildRow + rowsPerFrame);
-            int batchRowCount = finalRow - startingRow;
-            int batchPixelCount = resolution * batchRowCount;
-            if (_scanUploadPixels == null || _scanUploadPixels.Length != batchPixelCount)
-            {
-                _scanUploadPixels = new Color[batchPixelCount];
-            }
             float radius = Mathf.Max(1f, _settings.DroneRevealRadius);
             float diameter = _scanBuildWorldSize;
             float minimumHeight = Mathf.Min(
@@ -994,77 +986,64 @@ namespace DuneVector
             float heightRange = Mathf.Max(Mathf.Epsilon, maximumHeight - minimumHeight);
             float contourSpacing = Mathf.Max(0.01f, _settings.ContourSpacing);
 
-            for (int y = startingRow; y < finalRow; y++)
+            for (int y = _scanBuildRow; y < finalRow; y++)
             {
                 float normalizedY = (y + 0.5f) / resolution;
                 float offsetZ = (normalizedY - 0.5f) * diameter;
                 for (int x = 0; x < resolution; x++)
                 {
                     int index = (y * resolution) + x;
-                    int uploadIndex = ((y - startingRow) * resolution) + x;
                     float normalizedX = (x + 0.5f) / resolution;
                     float offsetX = (normalizedX - 0.5f) * diameter;
                     double logicalX = _scanBuildCenterX + offsetX;
                     double logicalZ = _scanBuildCenterZ + offsetZ;
-                    Color pixelColor;
                     if (!IsExplored(logicalX, logicalZ))
                     {
-                        pixelColor = _settings.UnexploredColor;
+                        _scanPixels[index] = _settings.UnexploredColor;
+                        continue;
                     }
-                    else
+
+                    float height = (float)_world.HeightField.SampleHeight(
+                        logicalX,
+                        logicalZ);
+                    float distance = Mathf.Sqrt((offsetX * offsetX) + (offsetZ * offsetZ));
+                    if (Mathf.Abs(distance - radius) <= _settings.RadiusLineThickness)
                     {
-                        float height = (float)_world.HeightField.SampleHeight(
-                            logicalX,
-                            logicalZ);
-                        float distance = Mathf.Sqrt((offsetX * offsetX) + (offsetZ * offsetZ));
-                        if (Mathf.Abs(distance - radius) <= _settings.RadiusLineThickness)
-                        {
-                            pixelColor = _settings.RadiusLineColor;
-                        }
-                        else
-                        {
-                            float height01 = Mathf.Clamp01(
-                                (((height - minimumHeight) / heightRange) - 0.5f) *
-                                _settings.HeightContrast +
-                                0.5f);
-                            Color terrain = Color.Lerp(
-                                _settings.TerrainLowColor,
-                                _settings.TerrainHighColor,
-                                height01);
-                            float contourRemainder = Mathf.Repeat(Mathf.Abs(height), contourSpacing);
-                            float contourDistance = Mathf.Min(
-                                contourRemainder,
-                                contourSpacing - contourRemainder);
-                            if (contourDistance <= _settings.ContourThickness)
-                            {
-                                terrain = Color.Lerp(
-                                    terrain,
-                                    _settings.ContourColor,
-                                    _settings.ContourStrength);
-                            }
-
-                            pixelColor = terrain;
-                        }
+                        _scanPixels[index] = _settings.RadiusLineColor;
+                        continue;
                     }
 
-                    _scanPixels[index] = pixelColor;
-                    _scanUploadPixels[uploadIndex] = pixelColor;
+                    float height01 = Mathf.Clamp01(
+                        (((height - minimumHeight) / heightRange) - 0.5f) *
+                        _settings.HeightContrast +
+                        0.5f);
+                    Color terrain = Color.Lerp(
+                        _settings.TerrainLowColor,
+                        _settings.TerrainHighColor,
+                        height01);
+                    float contourRemainder = Mathf.Repeat(Mathf.Abs(height), contourSpacing);
+                    float contourDistance = Mathf.Min(
+                        contourRemainder,
+                        contourSpacing - contourRemainder);
+                    if (contourDistance <= _settings.ContourThickness)
+                    {
+                        terrain = Color.Lerp(
+                            terrain,
+                            _settings.ContourColor,
+                            _settings.ContourStrength);
+                    }
+                    _scanPixels[index] = terrain;
                 }
             }
 
-            _scanTexture.SetPixels(
-                0,
-                startingRow,
-                resolution,
-                batchRowCount,
-                _scanUploadPixels);
-            _scanTexture.Apply(false, false);
             _scanBuildRow = finalRow;
             if (_scanBuildRow < resolution)
             {
                 return;
             }
 
+            _scanTexture.SetPixels(_scanPixels);
+            _scanTexture.Apply(false, false);
             _lastScanX = _scanBuildCenterX;
             _lastScanZ = _scanBuildCenterZ;
             _textureWorldSize = _scanBuildWorldSize;
@@ -1287,7 +1266,6 @@ namespace DuneVector
                 hideFlags = HideFlags.DontSave,
             };
             _scanPixels = new Color[resolution * resolution];
-            _scanUploadPixels = null;
             for (int index = 0; index < _scanPixels.Length; index++)
             {
                 _scanPixels[index] = _settings.UnexploredColor;

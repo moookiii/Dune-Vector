@@ -4119,9 +4119,9 @@ namespace DuneVector
         [Tooltip("Texture rows procedurally sampled per rendered frame. Lower values reduce frame spikes while taking longer to complete a refresh.")]
         [Range(1, 32)] public int ScanRowsPerFrame = 8;
         [Tooltip("Full world-map terrain resolution. This is separate from the minimap so the large map can use maximum detail.")]
-        [Range(256, 1024)] public int WorldMapScanTextureResolution = 512;
+        [Range(256, 1024)] public int WorldMapScanTextureResolution = 1024;
         [Tooltip("World-map terrain rows sampled per rendered frame while gameplay is paused.")]
-        [Range(1, 64)] public int WorldMapScanRowsPerFrame = 64;
+        [Range(1, 64)] public int WorldMapScanRowsPerFrame = 32;
         [Tooltip("Seconds between procedural terrain resamples. Cached map pixels still scroll every rendered frame.")]
         [Min(0.02f)] public float ScanRefreshInterval = 0.3f;
         [Tooltip("Distance traveled before the cached terrain scan is regenerated. Cached pixels translate smoothly below this threshold.")]
