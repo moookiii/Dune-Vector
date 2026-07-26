@@ -4114,9 +4114,9 @@ namespace DuneVector
         [Header("Drone Scan")]
         [Min(1f)] public float DroneRevealRadius = 240f;
         [Tooltip("World-space width of one persistent explored-map cell. Smaller cells create a finer tunnel edge but consume more memory.")]
-        [Min(1f)] public float ExplorationCellSize = 12f;
+        [Min(1f)] public float ExplorationCellSize = 4f;
         [Tooltip("Distance traveled before the drone paints another reveal-radius stamp into persistent exploration.")]
-        [Min(0.1f)] public float ExplorationUpdateMovement = 6f;
+        [Min(0.1f)] public float ExplorationUpdateMovement = 4f;
         [Tooltip("Persistent exploration filename. Map memory is always stored as a .dat file.")]
         public string ExplorationFileName = "DuneVectorMapExploration.dat";
         [Tooltip("Seconds between background saves when new map cells have been discovered.")]
@@ -4169,6 +4169,33 @@ namespace DuneVector
         [Range(512, 4096)] public int WorldMapAtlasTextureResolution = 2048;
         [Tooltip("Additional world-space coverage around all explored cells when sizing the startup atlas.")]
         [Min(0f)] public float WorldMapAtlasExplorationMargin = 800f;
+
+        [Header("World Map Tiled Terrain")]
+        [Tooltip("Use persistent multiresolution height tiles and shader-rendered contours instead of rebuilding the world-map viewport on the CPU.")]
+        public bool WorldMapTiledTerrainEnabled = true;
+        [Tooltip("Persistent height-tile cache filename. Terrain cache data is always stored as a .dat file.")]
+        public string WorldMapTerrainCacheFileName = "DuneVectorWorldMapTerrainCache.dat";
+        [Tooltip("Height samples along each side of a terrain tile. Higher values use more memory and take longer to generate the first time.")]
+        [Range(64, 512)] public int WorldMapTerrainTileResolution = 256;
+        [Tooltip("World-space size of a level-zero tile. Higher zoom levels automatically combine this area by powers of two.")]
+        [Min(32f)] public float WorldMapTerrainBaseTileWorldSize = 256f;
+        [Tooltip("Maximum multiresolution level available when the map is zoomed far out.")]
+        [Range(0, 10)] public int WorldMapTerrainMaximumLod = 7;
+        [Tooltip("Terrain samples targeted per on-screen pixel. One preserves native detail without oversampling.")]
+        [Range(0.25f, 2f)] public float WorldMapTerrainTexelsPerScreenPixel = 1f;
+        [Tooltip("Worker threads allowed to generate or load terrain tiles simultaneously.")]
+        [Range(1, 4)] public int WorldMapTerrainConcurrentBuilds = 2;
+        [Tooltip("Maximum styled terrain tiles retained in GPU memory. Evicted tiles remain in the .dat cache.")]
+        [Range(4, 128)] public int WorldMapTerrainMemoryTileLimit = 32;
+        [Tooltip("Reference world-map viewport height used to prefetch the opening view before the map is shown.")]
+        [Min(128f)] public float WorldMapTerrainPrefetchViewportPixels = 680f;
+        [Tooltip("How much coarser the first prefetched coverage is than the final opening view. Coarse parent tiles prevent black gaps while detailed children stream.")]
+        [Range(1f, 8f)] public float WorldMapTerrainPrefetchCoarseFactor = 4f;
+        [Tooltip("Screen-space antialiasing width applied to shader-rendered contour lines.")]
+        [Range(0.25f, 3f)] public float WorldMapContourAntialiasPixels = 1f;
+        [Tooltip("Interpolation width at explored/unexplored boundaries. Small values preserve the carved edge while removing cell stair-stepping.")]
+        [Range(0.001f, 0.49f)] public float WorldMapExplorationEdgeSoftness = 0.08f;
+
         [Range(1f, 2f)] public float WorldMapPanelAspectRatio = 1.42f;
         [Min(20f)] public float WorldMapHeaderHeight = 58f;
         [Min(20f)] public float WorldMapFooterHeight = 44f;
