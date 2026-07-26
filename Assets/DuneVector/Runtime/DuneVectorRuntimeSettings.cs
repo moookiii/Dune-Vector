@@ -4141,6 +4141,9 @@ namespace DuneVector
         [Min(160f)] public float WorldMapMaximumSize = 780f;
         [Min(0f)] public float WorldMapScreenPadding = 42f;
         [Min(1f)] public float WorldMapWorldSize = 3200f;
+        [Range(1f, 2f)] public float WorldMapPanelAspectRatio = 1.42f;
+        [Min(20f)] public float WorldMapHeaderHeight = 58f;
+        [Min(20f)] public float WorldMapFooterHeight = 44f;
         [Range(0f, 1f)] public float OverlayOpacity = 0.96f;
 
         [Header("Panel")]
@@ -4149,6 +4152,7 @@ namespace DuneVector
         [Min(12f)] public float TitleHeight = 34f;
         [Min(8)] public int MinimapTitleFontSize = 11;
         [Min(8)] public int WorldMapTitleFontSize = 20;
+        [Min(8)] public int WorldMapFooterFontSize = 18;
         [Min(8)] public int DetailFontSize = 12;
         [Min(8)] public int DroneMarkerFontSize = 24;
         [Min(12f)] public float DroneMarkerBoxSize = 42f;
@@ -4207,6 +4211,7 @@ namespace DuneVector
         [ColorUsage(false)] public Color UnexploredColor = Color.black;
         [ColorUsage(false)] public Color OverlayColor = new Color(0f, 0f, 0f, 1f);
         [ColorUsage(false)] public Color PanelColor = new Color(0.005f, 0.012f, 0.016f, 1f);
+        [ColorUsage(false)] public Color WorldMapChromeColor = new Color(0.01f, 0.035f, 0.05f, 1f);
         [ColorUsage(false)] public Color BorderColor = new Color(0.08f, 0.7f, 0.82f, 0.9f);
         [ColorUsage(false)] public Color TerrainLowColor = new Color(0.18f, 0.11f, 0.045f, 1f);
         [ColorUsage(false)] public Color TerrainHighColor = new Color(0.92f, 0.62f, 0.2f, 1f);

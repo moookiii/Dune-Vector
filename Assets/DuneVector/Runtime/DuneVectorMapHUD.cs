@@ -103,8 +103,11 @@ namespace DuneVector
             new HashSet<GeoglyphArtworkPlacement>();
         private GUIStyle _minimapTitleStyle;
         private GUIStyle _worldMapTitleStyle;
+        private GUIStyle _northStyle;
         private GUIStyle _detailStyle;
         private GUIStyle _hintStyle;
+        private GUIStyle _worldMapDetailStyle;
+        private GUIStyle _worldMapHintStyle;
         private GUIStyle _markerStyle;
         private GUIStyle _ringIconStyle;
         private GUIStyle _landmarkIconStyle;
@@ -279,6 +282,7 @@ namespace DuneVector
                 _settings.MinimapWorldSize,
                 _settings.MinimapTitle,
                 false,
+                true,
                 scale);
         }
 
@@ -295,28 +299,115 @@ namespace DuneVector
             float availableHeight = Mathf.Max(
                 1f,
                 safeArea.height - (_settings.WorldMapScreenPadding * 2f));
-            float size = Mathf.Min(
+            float panelAspect = Mathf.Max(1f, _settings.WorldMapPanelAspectRatio);
+            float panelHeight = Mathf.Min(
                 _settings.WorldMapMaximumSize,
-                Mathf.Min(availableWidth, availableHeight));
+                Mathf.Min(availableHeight, availableWidth / panelAspect));
+            float panelWidth = panelHeight * panelAspect;
+            Rect panelRect = new Rect(
+                safeArea.center.x - (panelWidth * 0.5f),
+                (Screen.height - safeArea.yMax) + ((safeArea.height - panelHeight) * 0.5f),
+                panelWidth,
+                panelHeight);
+            float scale = GetMapScale();
+            float borderThickness = Mathf.Max(1f, _settings.BorderThickness * scale);
+            float headerHeight = _settings.WorldMapHeaderHeight * scale;
+            float footerHeight = _settings.WorldMapFooterHeight * scale;
+
+            DrawSolidRect(panelRect, _settings.PanelColor);
+            DrawBorder(panelRect, _settings.BorderColor, borderThickness);
+
+            Rect headerRect = new Rect(
+                panelRect.x + borderThickness,
+                panelRect.y + borderThickness,
+                panelRect.width - (borderThickness * 2f),
+                headerHeight);
+            Rect footerRect = new Rect(
+                panelRect.x + borderThickness,
+                panelRect.yMax - borderThickness - footerHeight,
+                panelRect.width - (borderThickness * 2f),
+                footerHeight);
+            DrawSolidRect(headerRect, _settings.WorldMapChromeColor);
+            DrawSolidRect(footerRect, _settings.WorldMapChromeColor);
+            DrawSolidRect(
+                new Rect(
+                    headerRect.x,
+                    headerRect.yMax - borderThickness,
+                    headerRect.width,
+                    borderThickness),
+                _settings.BorderColor);
+            DrawSolidRect(
+                new Rect(
+                    footerRect.x,
+                    footerRect.y,
+                    footerRect.width,
+                    borderThickness),
+                _settings.BorderColor);
+
             Rect mapRect = new Rect(
-                safeArea.center.x - (size * 0.5f),
-                (Screen.height - safeArea.yMax) + ((safeArea.height - size) * 0.5f),
-                size,
-                size);
+                panelRect.x + borderThickness,
+                headerRect.yMax,
+                panelRect.width - (borderThickness * 2f),
+                Mathf.Max(1f, footerRect.y - headerRect.yMax));
 
             DrawMapPanel(
                 mapRect,
                 _settings.WorldMapWorldSize,
-                _settings.WorldMapTitle,
+                string.Empty,
                 true,
-                GetMapScale());
+                false,
+                scale);
+
+            float labelPadding = _settings.ContentPadding * scale;
+            GUI.Label(
+                new Rect(
+                    headerRect.x + labelPadding,
+                    headerRect.y,
+                    headerRect.width - (labelPadding * 2f),
+                    headerRect.height),
+                _settings.WorldMapTitle,
+                _worldMapTitleStyle);
+            GUI.Label(
+                new Rect(
+                    headerRect.center.x - (headerHeight * 0.5f),
+                    headerRect.y,
+                    headerHeight,
+                    headerRect.height),
+                _settings.NorthLabel,
+                _northStyle);
+
+            LogicalPosition currentCenter = _world.LogicalPlayerPosition;
+            string coordinates = string.Format(
+                _settings.CoordinateFormat,
+                currentCenter.X,
+                currentCenter.Z,
+                _settings.DroneRevealRadius);
+            float footerContentWidth = footerRect.width - (labelPadding * 2f);
+            float splitX = footerContentWidth * _settings.DetailSplitFraction;
+            GUI.Label(
+                new Rect(
+                    footerRect.x + labelPadding,
+                    footerRect.y,
+                    splitX,
+                    footerRect.height),
+                coordinates,
+                _worldMapDetailStyle);
+            GUI.Label(
+                new Rect(
+                    footerRect.x + labelPadding + splitX,
+                    footerRect.y,
+                    footerContentWidth - splitX,
+                    footerRect.height),
+                _settings.WorldMapHint,
+                _worldMapHintStyle);
         }
 
         private void DrawMapPanel(
             Rect mapRect,
             float displayedWorldSize,
             string title,
-            bool showDetails,
+            bool worldMap,
+            bool drawLabels,
             float scale)
         {
             DrawSolidRect(mapRect, _settings.PanelColor);
@@ -325,72 +416,56 @@ namespace DuneVector
                 _settings.BorderColor,
                 Mathf.Max(1f, _settings.BorderThickness * scale));
 
-            float scanSize = mapRect.width *
-                (_textureWorldSize / Mathf.Max(1f, displayedWorldSize));
+            float scanScale = _textureWorldSize / Mathf.Max(1f, displayedWorldSize);
+            float scanWidth = mapRect.width * scanScale;
+            float scanHeight = mapRect.height * scanScale;
             LogicalPosition currentCenter = _world.LogicalPlayerPosition;
-            float pixelsPerWorldUnit = mapRect.width / Mathf.Max(1f, displayedWorldSize);
+            float horizontalPixelsPerWorldUnit =
+                mapRect.width / Mathf.Max(1f, displayedWorldSize);
+            float verticalPixelsPerWorldUnit =
+                mapRect.height / Mathf.Max(1f, displayedWorldSize);
             bool hasCompletedScan =
                 !double.IsInfinity(_lastScanX) &&
                 !double.IsInfinity(_lastScanZ);
             float scanOffsetX = hasCompletedScan
-                ? (float)(_lastScanX - currentCenter.X) * pixelsPerWorldUnit
+                ? (float)(_lastScanX - currentCenter.X) * horizontalPixelsPerWorldUnit
                 : 0f;
             float scanOffsetY = hasCompletedScan
-                ? (float)(currentCenter.Z - _lastScanZ) * pixelsPerWorldUnit
+                ? (float)(currentCenter.Z - _lastScanZ) * verticalPixelsPerWorldUnit
                 : 0f;
             Rect localScanRect = new Rect(
-                ((mapRect.width - scanSize) * 0.5f) + scanOffsetX,
-                ((mapRect.height - scanSize) * 0.5f) + scanOffsetY,
-                scanSize,
-                scanSize);
+                ((mapRect.width - scanWidth) * 0.5f) + scanOffsetX,
+                ((mapRect.height - scanHeight) * 0.5f) + scanOffsetY,
+                scanWidth,
+                scanHeight);
 
             GUI.BeginGroup(mapRect);
             GUI.DrawTexture(localScanRect, _scanTexture, ScaleMode.StretchToFill, false);
-            DrawMapIcons(mapRect, displayedWorldSize, currentCenter, showDetails, scale);
+            DrawMapIcons(mapRect, displayedWorldSize, currentCenter, worldMap, scale);
             DrawDroneMarker(
                 new Vector2(mapRect.width * 0.5f, mapRect.height * 0.5f),
                 scale);
 
-            float padding = _settings.ContentPadding * scale;
-            float titleHeight = _settings.TitleHeight * scale;
-            GUI.Label(
-                new Rect(padding, padding, mapRect.width - (padding * 2f), titleHeight),
-                title,
-                showDetails ? _worldMapTitleStyle : _minimapTitleStyle);
-            GUI.Label(
-                new Rect(
-                    (mapRect.width - titleHeight) * 0.5f,
-                    showDetails ? padding + titleHeight : padding,
-                    titleHeight,
-                    titleHeight),
-                _settings.NorthLabel,
-                _detailStyle);
-
-            if (showDetails)
+            if (drawLabels)
             {
-                string coordinates = string.Format(
-                    _settings.CoordinateFormat,
-                    currentCenter.X,
-                    currentCenter.Z,
-                    _settings.DroneRevealRadius);
-                float detailWidth = mapRect.width - (padding * 2f);
-                float splitX = detailWidth * _settings.DetailSplitFraction;
+                float padding = _settings.ContentPadding * scale;
+                float titleHeight = _settings.TitleHeight * scale;
                 GUI.Label(
                     new Rect(
                         padding,
-                        mapRect.height - padding - titleHeight,
-                        splitX,
+                        padding,
+                        mapRect.width - (padding * 2f),
                         titleHeight),
-                    coordinates,
-                    _detailStyle);
+                    title,
+                    worldMap ? _worldMapTitleStyle : _minimapTitleStyle);
                 GUI.Label(
                     new Rect(
-                        padding + splitX,
-                        mapRect.height - padding - titleHeight,
-                        detailWidth - splitX,
+                        (mapRect.width - titleHeight) * 0.5f,
+                        worldMap ? padding + titleHeight : padding,
+                        titleHeight,
                         titleHeight),
-                    _settings.WorldMapHint,
-                    _hintStyle);
+                    _settings.NorthLabel,
+                    _northStyle);
             }
 
             GUI.EndGroup();
@@ -1200,9 +1275,12 @@ namespace DuneVector
         private void EnsureStyles()
         {
             _minimapTitleStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.UpperLeft);
-            _worldMapTitleStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.UpperCenter);
+            _worldMapTitleStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleLeft);
+            _northStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
             _detailStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.UpperLeft);
             _hintStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.UpperRight);
+            _worldMapDetailStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleLeft);
+            _worldMapHintStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleRight);
             _markerStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
             _ringIconStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
             _landmarkIconStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
@@ -1218,6 +1296,10 @@ namespace DuneVector
                 8,
                 Mathf.RoundToInt(_settings.WorldMapTitleFontSize * scale));
             _worldMapTitleStyle.normal.textColor = _settings.TitleColor;
+            _northStyle.fontSize = Mathf.Max(
+                8,
+                Mathf.RoundToInt(_settings.DetailFontSize * scale));
+            _northStyle.normal.textColor = _settings.TitleColor;
             _detailStyle.fontSize = Mathf.Max(
                 8,
                 Mathf.RoundToInt(_settings.DetailFontSize * scale));
@@ -1226,6 +1308,12 @@ namespace DuneVector
                 8,
                 Mathf.RoundToInt(_settings.DetailFontSize * scale));
             _hintStyle.normal.textColor = _settings.DetailColor;
+            _worldMapDetailStyle.fontSize = Mathf.Max(
+                8,
+                Mathf.RoundToInt(_settings.WorldMapFooterFontSize * scale));
+            _worldMapDetailStyle.normal.textColor = _settings.DetailColor;
+            _worldMapHintStyle.fontSize = _worldMapDetailStyle.fontSize;
+            _worldMapHintStyle.normal.textColor = _settings.DetailColor;
             _markerStyle.fontSize = Mathf.Max(
                 8,
                 Mathf.RoundToInt(_settings.DroneMarkerFontSize * scale));
