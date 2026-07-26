@@ -2642,6 +2642,10 @@ namespace DuneVector
         [Tooltip("Distance from the drone center at which rings freeze their current orientation instead of continuing to face the camera.")]
         [Min(0f)] public float BillboardDisableRadius = 14f;
 
+        [Header("Ground Boost Ring Generation")]
+        [Tooltip("Multiplier for the expected number of procedurally generated ground boost rings.")]
+        [Min(0f)] public float GroundBoostRingAmountMultiplier = 1f;
+
         [Header("Blue Flight Ring Generation")]
         [Tooltip("Multiplier for the expected number of procedurally generated blue flight rings when the flight meter is empty.")]
         [FormerlySerializedAs("FlightRingAmountMultiplier")]

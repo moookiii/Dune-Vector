@@ -1699,14 +1699,46 @@ namespace DuneVector
                     CreateRing(boostPosition, forward, TraversalRingType.GroundBoost, ringTuning.GroundRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "route-boost", ringActivated);
                     CreateRing(flightPosition, forward, TraversalRingType.Flight, ringTuning.FlightRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "route-flight", ringActivated);
                 }
-                else if (DuneVectorMath.Hash01(coordinate.x, coordinate.y, worldSeed, 733) < groundRingDensity)
+                else
                 {
-                    float angle = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 739, 0f, 360f);
-                    Vector3 forward = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
-                    Vector2 position = new Vector2(
-                        DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 743, 16f, chunkSize - 16f),
-                        DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 751, 16f, chunkSize - 16f));
-                    CreateRing(position, forward, TraversalRingType.GroundBoost, ringTuning.GroundRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "boost", ringActivated);
+                    float groundBoostDensity = groundRingDensity
+                        * Mathf.Max(0f, ringTuning.GroundBoostRingAmountMultiplier);
+                    int groundBoostRingCount = CountFromDensity(
+                        groundBoostDensity,
+                        coordinate,
+                        worldSeed,
+                        733);
+                    for (int groundBoostRingIndex = 0; groundBoostRingIndex < groundBoostRingCount; groundBoostRingIndex++)
+                    {
+                        int saltOffset = groundBoostRingIndex * 12;
+                        float angle = DuneVectorMath.HashRange(
+                            coordinate.x,
+                            coordinate.y,
+                            worldSeed,
+                            739 + saltOffset,
+                            0f,
+                            360f);
+                        Vector3 forward = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                        Vector2 position = new Vector2(
+                            DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 743 + saltOffset, 16f, chunkSize - 16f),
+                            DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 751 + saltOffset, 16f, chunkSize - 16f));
+                        CreateRing(
+                            position,
+                            forward,
+                            TraversalRingType.GroundBoost,
+                            ringTuning.GroundRingRadius,
+                            originX,
+                            originZ,
+                            heightField,
+                            materials,
+                            player,
+                            playerHealth,
+                            ringExclusions,
+                            worldSeed,
+                            ringTuning,
+                            $"boost-{groundBoostRingIndex}",
+                            ringActivated);
+                    }
                 }
 
                 float flightMeterNormalized = player != null ? player.FlightTimeNormalized : 0f;
