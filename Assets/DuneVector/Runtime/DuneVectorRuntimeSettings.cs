@@ -4119,7 +4119,7 @@ namespace DuneVector
         [Min(0.1f)] public float ExplorationUpdateMovement = 4f;
         [Tooltip("Persistent exploration filename. Map memory is always stored as a .dat file.")]
         public string ExplorationFileName = "DuneVectorMapExploration.dat";
-        [Tooltip("Seconds between background saves when new map cells have been discovered.")]
+        [Tooltip("Seconds between background journal appends when new map cells have been discovered.")]
         [Min(1f)] public float ExplorationSaveInterval = 10f;
         [Range(32, 512)] public int ScanTextureResolution = 256;
         [Tooltip("Texture rows procedurally sampled per rendered frame. Lower values reduce frame spikes while taking longer to complete a refresh.")]

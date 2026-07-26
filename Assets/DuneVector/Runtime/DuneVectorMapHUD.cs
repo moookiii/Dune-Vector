@@ -81,6 +81,13 @@ namespace DuneVector
             public float WorldHeight;
         }
 
+        private sealed class ExplorationSaveResult
+        {
+            public bool RewroteFile;
+            public long[] Cells;
+            public Exception Error;
+        }
+
         public static bool IsWorldMapPausingGameplay
         {
             get
@@ -104,6 +111,7 @@ namespace DuneVector
         private DuneVectorWorldMapTileCache _worldMapTileCache;
         private Color[] _scanPixels;
         private readonly HashSet<long> _exploredCells = new HashSet<long>();
+        private readonly List<long> _pendingExplorationCells = new List<long>();
         private readonly HashSet<long> _exploredTerrainBaseTiles = new HashSet<long>();
         private readonly List<MapIconRecord> _mapIcons = new List<MapIconRecord>();
         private readonly List<MapIconRecord> _upperFlightMapIcons = new List<MapIconRecord>();
@@ -152,7 +160,9 @@ namespace DuneVector
         private float _worldMapViewHeight;
         private float _nextWorldMapRefineTime;
         private Task<WorldAtlasBuildResult> _worldAtlasBuildTask;
+        private Task<ExplorationSaveResult> _explorationSaveTask;
         private CancellationTokenSource _worldAtlasBuildCancellation;
+        private bool _explorationNeedsRewrite;
         private double _worldAtlasCenterX;
         private double _worldAtlasCenterZ;
         private float _worldAtlasWorldWidth;
@@ -171,7 +181,8 @@ namespace DuneVector
         private float _scanBuildWorldHeight;
 
         private const int ExplorationFileMagic = 0x44564D50;
-        private const int ExplorationFileVersion = 2;
+        private const int ExplorationFileVersion = 3;
+        private const int LegacyExplorationFileVersion = 2;
 
         public void Initialize(
             DroneCharacterController drone,
@@ -208,16 +219,6 @@ namespace DuneVector
                     settings,
                     IsExplored,
                     IsWorldMapTerrainTileExplored);
-                LogicalPosition playerPosition = world.LogicalPlayerPosition;
-                float prefetchHeight = Mathf.Clamp(
-                    settings.WorldMapWorldSize,
-                    settings.WorldMapMinimumWorldSize,
-                    settings.WorldMapMaximumWorldSize);
-                _worldMapTileCache.Prefetch(
-                    playerPosition,
-                    prefetchHeight * Mathf.Max(1f, settings.WorldMapPanelAspectRatio),
-                    prefetchHeight,
-                    settings.WorldMapTerrainPrefetchViewportPixels);
             }
             RefreshScan(true);
             if (_worldMapTileCache == null || !_worldMapTileCache.IsAvailable)
@@ -228,8 +229,8 @@ namespace DuneVector
 
         private void Update()
         {
-            _worldMapTileCache?.Update();
             CompleteWorldAtlasBuildIfReady();
+            CompleteExplorationSaveIfReady();
             if (_settings == null || !_settings.Enabled)
             {
                 SetWorldMapVisible(false);
@@ -259,6 +260,7 @@ namespace DuneVector
                 }
             }
 
+            _worldMapTileCache?.Update();
             RevealAroundPlayer(false);
             SaveExplorationIfDue();
             RefreshMapIconsIfDue();
@@ -290,10 +292,7 @@ namespace DuneVector
 
             _worldMapVisible = visible;
             _forceScanRefresh = true;
-            if (!visible)
-            {
-                _worldMapTileCache?.ClearStyleRequests();
-            }
+            _worldMapTileCache?.SetProcessingEnabled(visible);
             DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
             bool pauseMenuIsOpen = bootstrap != null &&
                 bootstrap.PauseMenu != null &&
@@ -307,6 +306,12 @@ namespace DuneVector
                     _settings.WorldMapWorldSize,
                     _settings.WorldMapMinimumWorldSize,
                     _settings.WorldMapMaximumWorldSize);
+                _worldMapTileCache?.Prefetch(
+                    playerPosition,
+                    _worldMapViewHeight *
+                        Mathf.Max(1f, _settings.WorldMapPanelAspectRatio),
+                    _worldMapViewHeight,
+                    _settings.WorldMapTerrainPrefetchViewportPixels);
                 _cursorLockBeforeWorldMap = Cursor.lockState;
                 _cursorVisibleBeforeWorldMap = Cursor.visible;
                 Cursor.lockState = CursorLockMode.None;
@@ -1793,9 +1798,11 @@ namespace DuneVector
                         continue;
                     }
 
-                    if (_exploredCells.Add(PackCell(cellX, cellZ)))
+                    long packedCell = PackCell(cellX, cellZ);
+                    if (_exploredCells.Add(packedCell))
                     {
                         discoveredAny = true;
+                        _pendingExplorationCells.Add(packedCell);
                         AddExploredTerrainBaseTile(sampleX, sampleZ);
                     }
                 }
@@ -1932,89 +1939,272 @@ namespace DuneVector
             {
                 using FileStream stream = File.OpenRead(path);
                 using BinaryReader reader = new BinaryReader(stream);
-                if (reader.ReadInt32() != ExplorationFileMagic ||
-                    reader.ReadInt32() != ExplorationFileVersion)
+                if (reader.ReadInt32() != ExplorationFileMagic)
                 {
+                    _explorationNeedsRewrite = true;
+                    _explorationDirty = true;
                     return;
                 }
 
+                int version = reader.ReadInt32();
+                if (version != ExplorationFileVersion &&
+                    version != LegacyExplorationFileVersion)
+                {
+                    _explorationNeedsRewrite = true;
+                    _explorationDirty = true;
+                    return;
+                }
                 float savedCellSize = Mathf.Max(1f, reader.ReadSingle());
                 float currentCellSize = Mathf.Max(1f, _settings.ExplorationCellSize);
-                int count = reader.ReadInt32();
-                for (int index = 0; index < count && stream.Position < stream.Length; index++)
+                if (version == LegacyExplorationFileVersion)
                 {
-                    long packedCell = reader.ReadInt64();
-                    if (Mathf.Approximately(savedCellSize, currentCellSize))
+                    int count = reader.ReadInt32();
+                    for (int index = 0;
+                        index < count && stream.Length - stream.Position >= sizeof(long);
+                        index++)
                     {
-                        _exploredCells.Add(packedCell);
-                        continue;
-                    }
-
-                    int savedX = (int)(packedCell >> 32);
-                    int savedZ = unchecked((int)(uint)packedCell);
-                    double minimumX = savedX * (double)savedCellSize;
-                    double maximumX = (savedX + 1d) * savedCellSize;
-                    double minimumZ = savedZ * (double)savedCellSize;
-                    double maximumZ = (savedZ + 1d) * savedCellSize;
-                    int minimumCellX = (int)Math.Floor(minimumX / currentCellSize);
-                    int maximumCellX = (int)Math.Ceiling(maximumX / currentCellSize) - 1;
-                    int minimumCellZ = (int)Math.Floor(minimumZ / currentCellSize);
-                    int maximumCellZ = (int)Math.Ceiling(maximumZ / currentCellSize) - 1;
-                    for (int cellZ = minimumCellZ; cellZ <= maximumCellZ; cellZ++)
-                    {
-                        for (int cellX = minimumCellX; cellX <= maximumCellX; cellX++)
-                        {
-                            _exploredCells.Add(PackCell(cellX, cellZ));
-                        }
+                        AddLoadedExplorationCell(
+                            reader.ReadInt64(),
+                            savedCellSize,
+                            currentCellSize);
                     }
                 }
-                _explorationDirty =
+                else
+                {
+                    while (stream.Length - stream.Position >= sizeof(long))
+                    {
+                        AddLoadedExplorationCell(
+                            reader.ReadInt64(),
+                            savedCellSize,
+                            currentCellSize);
+                    }
+                }
+
+                _explorationNeedsRewrite =
+                    version != ExplorationFileVersion ||
                     !Mathf.Approximately(savedCellSize, currentCellSize);
+                _explorationDirty = _explorationNeedsRewrite;
             }
             catch (IOException exception)
             {
+                _explorationNeedsRewrite = true;
+                _explorationDirty = true;
                 Debug.LogWarning($"Unable to load map exploration: {exception.Message}");
+            }
+        }
+
+        private void AddLoadedExplorationCell(
+            long packedCell,
+            float savedCellSize,
+            float currentCellSize)
+        {
+            if (Mathf.Approximately(savedCellSize, currentCellSize))
+            {
+                _exploredCells.Add(packedCell);
+                return;
+            }
+
+            int savedX = (int)(packedCell >> 32);
+            int savedZ = unchecked((int)(uint)packedCell);
+            double minimumX = savedX * (double)savedCellSize;
+            double maximumX = (savedX + 1d) * savedCellSize;
+            double minimumZ = savedZ * (double)savedCellSize;
+            double maximumZ = (savedZ + 1d) * savedCellSize;
+            int minimumCellX = (int)Math.Floor(minimumX / currentCellSize);
+            int maximumCellX = (int)Math.Ceiling(maximumX / currentCellSize) - 1;
+            int minimumCellZ = (int)Math.Floor(minimumZ / currentCellSize);
+            int maximumCellZ = (int)Math.Ceiling(maximumZ / currentCellSize) - 1;
+            for (int cellZ = minimumCellZ; cellZ <= maximumCellZ; cellZ++)
+            {
+                for (int cellX = minimumCellX; cellX <= maximumCellX; cellX++)
+                {
+                    _exploredCells.Add(PackCell(cellX, cellZ));
+                }
             }
         }
 
         private void SaveExplorationIfDue()
         {
+            CompleteExplorationSaveIfReady();
             if (!_explorationDirty || Time.unscaledTime < _nextExplorationSaveTime)
             {
                 return;
             }
-            SaveExploration();
+            if (_explorationNeedsRewrite && !_worldMapVisible)
+            {
+                return;
+            }
+            SaveExploration(false);
         }
 
-        private void SaveExploration()
+        private void SaveExploration(bool flush)
         {
             if (!_explorationDirty || _settings == null)
+            {
+                if (flush && _explorationSaveTask != null)
+                {
+                    _explorationSaveTask.GetAwaiter().GetResult();
+                    CompleteExplorationSaveIfReady();
+                }
+                return;
+            }
+
+            if (_explorationSaveTask != null)
+            {
+                if (!flush)
+                {
+                    return;
+                }
+                _explorationSaveTask.GetAwaiter().GetResult();
+                CompleteExplorationSaveIfReady();
+            }
+
+            BeginExplorationSave();
+            if (flush && _explorationSaveTask != null)
+            {
+                _explorationSaveTask.GetAwaiter().GetResult();
+                CompleteExplorationSaveIfReady();
+            }
+        }
+
+        private void BeginExplorationSave()
+        {
+            if (_explorationSaveTask != null || _settings == null)
             {
                 return;
             }
 
+            bool rewriteFile = _explorationNeedsRewrite;
+            long[] cells;
+            if (rewriteFile)
+            {
+                cells = new long[_exploredCells.Count];
+                _exploredCells.CopyTo(cells);
+                _pendingExplorationCells.Clear();
+                _explorationNeedsRewrite = false;
+            }
+            else
+            {
+                if (_pendingExplorationCells.Count == 0)
+                {
+                    _explorationDirty = false;
+                    return;
+                }
+                cells = _pendingExplorationCells.ToArray();
+                _pendingExplorationCells.Clear();
+            }
+
+            string path = GetExplorationPath();
+            float cellSize = Mathf.Max(1f, _settings.ExplorationCellSize);
+            _explorationDirty = false;
+            _nextExplorationSaveTime =
+                Time.unscaledTime + Mathf.Max(1f, _settings.ExplorationSaveInterval);
+            _explorationSaveTask = Task.Run(
+                () => PersistExploration(path, cellSize, cells, rewriteFile));
+        }
+
+        private void CompleteExplorationSaveIfReady()
+        {
+            if (_explorationSaveTask == null || !_explorationSaveTask.IsCompleted)
+            {
+                return;
+            }
+
+            ExplorationSaveResult result = _explorationSaveTask.GetAwaiter().GetResult();
+            _explorationSaveTask = null;
+            if (result.Error == null)
+            {
+                _explorationDirty =
+                    _explorationNeedsRewrite || _pendingExplorationCells.Count > 0;
+                return;
+            }
+
+            if (result.RewroteFile)
+            {
+                _explorationNeedsRewrite = true;
+            }
+            else if (result.Cells != null)
+            {
+                _pendingExplorationCells.AddRange(result.Cells);
+            }
+            _explorationDirty = true;
+            _nextExplorationSaveTime =
+                Time.unscaledTime + Mathf.Max(1f, _settings.ExplorationSaveInterval);
+            Debug.LogWarning($"Unable to save map exploration: {result.Error.Message}");
+        }
+
+        private static ExplorationSaveResult PersistExploration(
+            string path,
+            float cellSize,
+            long[] cells,
+            bool rewriteFile)
+        {
             try
             {
-                string path = GetExplorationPath();
-                using FileStream stream = File.Create(path);
-                using BinaryWriter writer = new BinaryWriter(stream);
+                if (rewriteFile || !File.Exists(path))
+                {
+                    WriteExplorationJournal(path, cellSize, cells);
+                }
+                else
+                {
+                    AppendExplorationJournal(path, cells);
+                }
+                return new ExplorationSaveResult
+                {
+                    RewroteFile = rewriteFile,
+                    Cells = cells,
+                };
+            }
+            catch (Exception exception)
+            {
+                return new ExplorationSaveResult
+                {
+                    RewroteFile = rewriteFile,
+                    Cells = cells,
+                    Error = exception,
+                };
+            }
+        }
+
+        private static void WriteExplorationJournal(
+            string path,
+            float cellSize,
+            long[] cells)
+        {
+            string directory = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+            string pendingPath = Path.Combine(
+                directory ?? string.Empty,
+                $"{Path.GetFileNameWithoutExtension(path)}.pending.dat");
+            using (FileStream stream = File.Create(pendingPath))
+            using (BinaryWriter writer = new BinaryWriter(stream))
+            {
                 writer.Write(ExplorationFileMagic);
                 writer.Write(ExplorationFileVersion);
-                writer.Write(_settings.ExplorationCellSize);
-                writer.Write(_exploredCells.Count);
-                foreach (long cell in _exploredCells)
+                writer.Write(cellSize);
+                for (int index = 0; index < cells.Length; index++)
                 {
-                    writer.Write(cell);
+                    writer.Write(cells[index]);
                 }
-                _explorationDirty = false;
-                _nextExplorationSaveTime =
-                    Time.unscaledTime + Mathf.Max(1f, _settings.ExplorationSaveInterval);
             }
-            catch (IOException exception)
+            File.Copy(pendingPath, path, true);
+            File.Delete(pendingPath);
+        }
+
+        private static void AppendExplorationJournal(string path, long[] cells)
+        {
+            using FileStream stream = File.Open(
+                path,
+                FileMode.Append,
+                FileAccess.Write,
+                FileShare.Read);
+            using BinaryWriter writer = new BinaryWriter(stream);
+            for (int index = 0; index < cells.Length; index++)
             {
-                Debug.LogWarning($"Unable to save map exploration: {exception.Message}");
-                _nextExplorationSaveTime =
-                    Time.unscaledTime + Mathf.Max(1f, _settings.ExplorationSaveInterval);
+                writer.Write(cells[index]);
             }
         }
 
@@ -2148,7 +2338,7 @@ namespace DuneVector
         {
             _worldAtlasBuildCancellation?.Cancel();
             SetWorldMapVisible(false);
-            SaveExploration();
+            SaveExploration(true);
             if (_scanTexture != null)
             {
                 Destroy(_scanTexture);
@@ -2194,13 +2384,13 @@ namespace DuneVector
         {
             if (paused)
             {
-                SaveExploration();
+                SaveExploration(true);
             }
         }
 
         private void OnApplicationQuit()
         {
-            SaveExploration();
+            SaveExploration(true);
         }
     }
 }

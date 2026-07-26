@@ -86,9 +86,11 @@ namespace DuneVector
         private readonly List<TileBuildJob> _buildJobs = new List<TileBuildJob>();
         private readonly object _cacheWriteLock = new object();
         private readonly CancellationTokenSource _cancellation = new CancellationTokenSource();
+        private readonly ManualResetEventSlim _processingGate = new ManualResetEventSlim(false);
         private readonly string _cachePath;
         private readonly Material _terrainMaterial;
         private int _explorationRevision;
+        private volatile bool _processingEnabled;
         private bool _disposed;
 
         public bool IsAvailable => !_disposed && _terrainMaterial != null;
@@ -169,7 +171,7 @@ namespace DuneVector
 
         public void Update()
         {
-            if (!IsAvailable)
+            if (!IsAvailable || !_processingEnabled)
             {
                 return;
             }
@@ -180,9 +182,18 @@ namespace DuneVector
             TrimRuntimeCache();
         }
 
-        public void ClearStyleRequests()
+        public void SetProcessingEnabled(bool enabled)
         {
-            _styleRequestKeys.Clear();
+            _processingEnabled = enabled;
+            if (enabled)
+            {
+                _processingGate.Set();
+            }
+            else
+            {
+                _processingGate.Reset();
+                _styleRequestKeys.Clear();
+            }
         }
 
         public bool Draw(
@@ -490,6 +501,7 @@ namespace DuneVector
             TileKey key,
             CancellationToken cancellationToken)
         {
+            WaitForProcessing(cancellationToken);
             long dataOffset;
             lock (_cacheWriteLock)
             {
@@ -517,7 +529,7 @@ namespace DuneVector
             double sampleStep = tileWorldSize / Math.Max(1, resolution - 1);
             for (int y = 0; y < resolution; y++)
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                WaitForProcessing(cancellationToken);
                 double logicalZ = minimumZ + (y * sampleStep);
                 int rowOffset = y * resolution;
                 for (int x = 0; x < resolution; x++)
@@ -528,7 +540,7 @@ namespace DuneVector
                 }
             }
 
-            long writtenOffset = AppendTileToCache(key, heights);
+            long writtenOffset = AppendTileToCache(key, heights, cancellationToken);
             return new TileBuildResult
             {
                 Key = key,
@@ -813,7 +825,7 @@ namespace DuneVector
                 {
                     if ((index & 4095) == 0)
                     {
-                        cancellationToken.ThrowIfCancellationRequested();
+                        WaitForProcessing(cancellationToken);
                     }
                     heights[index] = reader.ReadSingle();
                 }
@@ -825,10 +837,14 @@ namespace DuneVector
             }
         }
 
-        private long AppendTileToCache(TileKey key, float[] heights)
+        private long AppendTileToCache(
+            TileKey key,
+            float[] heights,
+            CancellationToken cancellationToken)
         {
             lock (_cacheWriteLock)
             {
+                WaitForProcessing(cancellationToken);
                 using FileStream stream = File.Open(
                     _cachePath,
                     FileMode.Append,
@@ -846,6 +862,11 @@ namespace DuneVector
                 }
                 return dataOffset;
             }
+        }
+
+        private void WaitForProcessing(CancellationToken cancellationToken)
+        {
+            _processingGate.Wait(cancellationToken);
         }
 
         private int GetTileResolution()
@@ -943,6 +964,7 @@ namespace DuneVector
             }
             _disposed = true;
             _cancellation.Cancel();
+            _processingGate.Set();
             foreach (RuntimeTile tile in _runtimeTiles.Values)
             {
                 DestroyRuntimeTile(tile);
