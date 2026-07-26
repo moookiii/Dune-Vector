@@ -4165,10 +4165,16 @@ namespace DuneVector
         [Range(0f, 1f)] public float WorldMapNavigationRefineDelay = 0.2f;
         [Tooltip("Build a broad explored-terrain atlas in the background during startup so panning does not wait for viewport scans.")]
         public bool PrebuildWorldMapAtlasOnLoad = true;
-        [Tooltip("Resolution of the startup world atlas. The atlas uses Color32 storage and is generated off the main thread.")]
-        [Range(512, 4096)] public int WorldMapAtlasTextureResolution = 2048;
+        [Tooltip("Maximum resolution of the startup world atlas. Actual resolution scales with explored bounds and target texel density.")]
+        [Range(512, 4096)] public int WorldMapAtlasTextureResolution = 4096;
+        [Tooltip("Minimum vertical coverage of the startup atlas before explored bounds and margin expand it.")]
+        [Min(1f)] public float WorldMapAtlasMinimumWorldHeight = 6400f;
+        [Tooltip("Desired world-space meters represented by one atlas texel. Lower values are sharper but require larger startup atlases.")]
+        [Range(1f, 16f)] public float WorldMapAtlasTargetWorldUnitsPerPixel = 3.125f;
         [Tooltip("Additional world-space coverage around all explored cells when sizing the startup atlas.")]
         [Min(0f)] public float WorldMapAtlasExplorationMargin = 800f;
+        [Tooltip("Generate atlas mip levels for stable high-quality filtering while zooming out.")]
+        public bool WorldMapAtlasUseMipMaps = true;
         [Range(1f, 2f)] public float WorldMapPanelAspectRatio = 1.42f;
         [Min(20f)] public float WorldMapHeaderHeight = 58f;
         [Min(20f)] public float WorldMapFooterHeight = 44f;
