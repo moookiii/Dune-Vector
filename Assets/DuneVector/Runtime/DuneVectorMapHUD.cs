@@ -891,6 +891,31 @@ namespace DuneVector
                     position.y - (boxSize * 0.5f),
                     boxSize,
                     boxSize);
+                Texture2D iconTexture = GetIconTexture(icon);
+                if (iconTexture != null)
+                {
+                    Color previousColor = GUI.color;
+                    Color shadowColor = _settings.IconShadowColor;
+                    shadowColor.a *= previousColor.a;
+                    GUI.color = shadowColor;
+                    GUI.DrawTexture(
+                        new Rect(
+                            iconRect.x + shadowOffset.x,
+                            iconRect.y + shadowOffset.y,
+                            iconRect.width,
+                            iconRect.height),
+                        iconTexture,
+                        ScaleMode.ScaleToFit,
+                        true);
+                    GUI.color = previousColor;
+                    GUI.DrawTexture(
+                        iconRect,
+                        iconTexture,
+                        ScaleMode.ScaleToFit,
+                        true);
+                    continue;
+                }
+
                 string glyph = GetIconGlyph(icon);
                 GUI.Label(
                     new Rect(
@@ -905,6 +930,24 @@ namespace DuneVector
                     glyph,
                     _landmarkIconStyle);
             }
+        }
+
+        private Texture2D GetIconTexture(MapIconRecord icon)
+        {
+            return icon.LandmarkType switch
+            {
+                DuneLandmarkType.DesertRelayStation => _settings.RelayStationIconImage,
+                DuneLandmarkType.CrashedCarrier => _settings.CrashedCarrierIconImage,
+                DuneLandmarkType.RaiderBeacon => _settings.RaiderBeaconIconImage,
+                DuneLandmarkType.AncientSpire => _settings.AncientSpireIconImage,
+                DuneLandmarkType.SandExcavationSite => _settings.ExcavationSiteIconImage,
+                DuneLandmarkType.FallenOrbitalArray => _settings.OrbitalArrayIconImage,
+                DuneLandmarkType.DesertMegagate => _settings.DesertMegagateIconImage,
+                DuneLandmarkType.WindHarvesterGraveyard => _settings.WindHarvesterIconImage,
+                DuneLandmarkType.BuriedArcology => _settings.BuriedArcologyIconImage,
+                DuneLandmarkType.SandRing => _settings.SandRingIconImage,
+                _ => null,
+            };
         }
 
         private string GetIconGlyph(MapIconRecord icon)

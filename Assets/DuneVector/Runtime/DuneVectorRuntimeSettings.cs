@@ -4242,6 +4242,19 @@ namespace DuneVector
         public string BuriedArcologyIcon = "⬢";
         public string SandRingIcon = "◎";
 
+        [Header("Landmark Icon Images")]
+        [Tooltip("Multicolor map icon. The matching landmark symbol is used as a fallback when no texture is assigned.")]
+        public Texture2D RelayStationIconImage;
+        public Texture2D CrashedCarrierIconImage;
+        public Texture2D RaiderBeaconIconImage;
+        public Texture2D AncientSpireIconImage;
+        public Texture2D ExcavationSiteIconImage;
+        public Texture2D OrbitalArrayIconImage;
+        public Texture2D DesertMegagateIconImage;
+        public Texture2D WindHarvesterIconImage;
+        public Texture2D BuriedArcologyIconImage;
+        public Texture2D SandRingIconImage;
+
         [Header("Icon Colors")]
         [ColorUsage(false)] public Color LandmarkIconColor = new Color(1f, 0.67f, 0.18f, 1f);
         [ColorUsage(false)] public Color GeoglyphMapColor = Color.white;
