@@ -4107,8 +4107,6 @@ namespace DuneVector
         [Header("Controls")]
         public bool Enabled = true;
         public Key WorldMapKey = Key.M;
-        public Key MinimapKey = Key.N;
-        public bool MinimapVisibleByDefault = true;
         public bool PauseGameWhenWorldMapOpen = true;
 
         [Header("Drone Scan")]
@@ -4124,14 +4122,10 @@ namespace DuneVector
         [Tooltip("Exploration cells reserved in the append journal during initialization so flight-time reveals do not resize the buffer.")]
         [Min(0)] public int ExplorationJournalBufferCapacity = 32768;
         [Range(32, 512)] public int ScanTextureResolution = 256;
-        [Tooltip("Texture rows procedurally sampled per rendered frame. Lower values reduce frame spikes while taking longer to complete a refresh.")]
-        [Range(1, 32)] public int ScanRowsPerFrame = 8;
         [Tooltip("Full world-map terrain resolution. Refinement happens only after navigation settles.")]
         [Range(256, 1024)] public int WorldMapScanTextureResolution = 512;
-        [Tooltip("High-resolution world-map rows sampled per frame. Four rows at 512 pixels preserves the minimap's existing 2,048-sample frame budget.")]
+        [Tooltip("High-resolution world-map rows sampled per frame when the tiled terrain renderer is unavailable.")]
         [Range(1, 32)] public int WorldMapScanRowsPerFrame = 4;
-        [Tooltip("Show the cyan drone scan-radius ring on the minimap.")]
-        public bool ShowMinimapScanRadius = false;
         [Tooltip("Seconds between procedural terrain resamples. Cached map pixels still scroll every rendered frame.")]
         [Min(0.02f)] public float ScanRefreshInterval = 0.3f;
         [Tooltip("Distance traveled before the cached terrain scan is regenerated. Cached pixels translate smoothly below this threshold.")]
@@ -4145,11 +4139,6 @@ namespace DuneVector
         public float TerrainHeightMinimum = -20f;
         [Tooltip("Terrain height mapped to the high map color.")]
         public float TerrainHeightMaximum = 45f;
-
-        [Header("Minimap Layout")]
-        [Min(80f)] public float MinimapSize = 270f;
-        [Min(0f)] public float GapAboveSpeedometer = 18f;
-        [Min(1f)] public float MinimapWorldSize = 620f;
 
         [Header("World Map Layout")]
         [Min(160f)] public float WorldMapMaximumSize = 780f;
@@ -4210,19 +4199,16 @@ namespace DuneVector
         [Header("Panel")]
         [Min(0f)] public float ContentPadding = 12f;
         [Min(1f)] public float BorderThickness = 2f;
-        [Min(12f)] public float TitleHeight = 34f;
-        [Min(8)] public int MinimapTitleFontSize = 11;
         [Min(8)] public int WorldMapTitleFontSize = 20;
         [Min(8)] public int WorldMapFooterFontSize = 18;
         [Min(8)] public int DetailFontSize = 12;
         [Min(8)] public int DroneMarkerFontSize = 24;
         [Min(12f)] public float DroneMarkerBoxSize = 42f;
         [Range(0.25f, 0.75f)] public float DetailSplitFraction = 0.58f;
-        public string MinimapTitle = "LOCAL SCAN";
         public string WorldMapTitle = "WORLD MAP";
         public string NorthLabel = "↑ N";
         public string DroneGlyph = "▲";
-        public string WorldMapHint = "LMB PAN  •  WHEEL ZOOM  •  M CLOSE  •  N MINIMAP";
+        public string WorldMapHint = "LMB PAN  •  WHEEL ZOOM  •  M CLOSE";
         public string CoordinateFormat = "X {0:0}   Z {1:0}   •   SCAN RADIUS {2:0} m";
 
         [Header("Map Icons")]
@@ -4233,7 +4219,6 @@ namespace DuneVector
         public bool OnlyShowExploredIcons = true;
         [Tooltip("Seconds between lightweight point-of-interest cache refreshes.")]
         [Min(0.1f)] public float IconRefreshInterval = 1f;
-        [Range(0.25f, 2f)] public float MinimapIconScale = 0.85f;
         [Min(8)] public int RingIconFontSize = 22;
         [Min(8)] public int LandmarkIconFontSize = 20;
         [Min(12f)] public float IconBoxSize = 34f;
@@ -4262,8 +4247,6 @@ namespace DuneVector
         [Range(0f, 1f)] public float GeoglyphMapOpacity = 1f;
         [Tooltip("Maximum width or height of each cached world-map geoglyph texture.")]
         [Range(64, 512)] public int GeoglyphMapTextureResolution = 512;
-        [Tooltip("Maximum width or height of the separately cached minimap version of each geoglyph.")]
-        [Range(64, 512)] public int GeoglyphMinimapTextureResolution = 256;
         [Tooltip("Number of geoglyph map textures converted from source masks per frame.")]
         [Range(1, 4)] public int GeoglyphTextureBuildsPerFrame = 1;
         [ColorUsage(false)] public Color IconShadowColor = new Color(0f, 0f, 0f, 0.85f);
@@ -4302,7 +4285,7 @@ namespace DuneVector
         [Tooltip("Shared responsive layout, typography, and palette for the speed, flight reserve, and health panels.")]
         public BottomHudTuning BottomHud = new BottomHudTuning();
 
-        [Tooltip("Drone-centered world map, minimap, terrain scan radius, controls, layout, and presentation.")]
+        [Tooltip("World map, terrain scan radius, controls, layout, and presentation.")]
         public MapHudTuning MapHud = new MapHudTuning();
 
         [Tooltip("Shared player, rival, and neutral drone model, materials, rotor animation, and trails.")]

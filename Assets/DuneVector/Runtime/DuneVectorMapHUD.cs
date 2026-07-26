@@ -59,7 +59,6 @@ namespace DuneVector
         }
 
         public bool IsWorldMapVisible => _worldMapVisible;
-        public bool IsMinimapVisible => _minimapVisible;
         public static bool IsWorldMapOpen
         {
             get
@@ -118,19 +117,14 @@ namespace DuneVector
         private readonly List<MapIconRecord> _upperFlightMapIcons = new List<MapIconRecord>();
         private readonly Dictionary<GeoglyphArtworkPlacement, Texture2D> _geoglyphWorldMapTextures =
             new Dictionary<GeoglyphArtworkPlacement, Texture2D>();
-        private readonly Dictionary<GeoglyphArtworkPlacement, Texture2D> _geoglyphMinimapTextures =
-            new Dictionary<GeoglyphArtworkPlacement, Texture2D>();
         private readonly Queue<GeoglyphArtworkPlacement> _geoglyphTextureBuildQueue =
             new Queue<GeoglyphArtworkPlacement>();
         private readonly HashSet<GeoglyphArtworkPlacement> _queuedGeoglyphTextures =
             new HashSet<GeoglyphArtworkPlacement>();
         private readonly HashSet<GeoglyphArtworkPlacement> _exploredGeoglyphs =
             new HashSet<GeoglyphArtworkPlacement>();
-        private GUIStyle _minimapTitleStyle;
         private GUIStyle _worldMapTitleStyle;
         private GUIStyle _northStyle;
-        private GUIStyle _detailStyle;
-        private GUIStyle _hintStyle;
         private GUIStyle _worldMapDetailStyle;
         private GUIStyle _worldMapHintStyle;
         private GUIStyle _markerStyle;
@@ -139,7 +133,6 @@ namespace DuneVector
         private GUIStyle _ringIconShadowStyle;
         private GUIStyle _landmarkIconShadowStyle;
         private bool _worldMapVisible;
-        private bool _minimapVisible;
         private double _lastScanX = double.PositiveInfinity;
         private double _lastScanZ = double.PositiveInfinity;
         private double _lastRevealX = double.PositiveInfinity;
@@ -212,7 +205,6 @@ namespace DuneVector
                     hideFlags = HideFlags.DontSave,
                 };
             }
-            _minimapVisible = settings != null && settings.MinimapVisibleByDefault;
             LoadExploration();
             RebuildExploredTerrainBaseTiles();
             RevealAroundPlayer(true);
@@ -227,7 +219,6 @@ namespace DuneVector
                     IsExplored,
                     IsWorldMapTerrainTileExplored);
             }
-            RefreshScan(true);
             if (_worldMapTileCache == null || !_worldMapTileCache.IsAvailable)
             {
                 StartWorldAtlasBuild();
@@ -259,24 +250,21 @@ namespace DuneVector
                     SetWorldMapVisible(!_worldMapVisible);
                 }
 
-                if (_settings.MinimapKey != Key.None &&
-                    keyboard[_settings.MinimapKey].wasPressedThisFrame)
-                {
-                    _minimapVisible = !_minimapVisible;
-                    _forceScanRefresh = true;
-                }
             }
 
             _worldMapTileCache?.Update();
             RevealAroundPlayer(false);
             SaveExplorationIfDue();
-            RefreshMapIconsIfDue();
-            BuildQueuedGeoglyphTextures();
+            if (_worldMapVisible)
+            {
+                RefreshMapIconsIfDue();
+                BuildQueuedGeoglyphTextures();
+            }
 
             bool legacyWorldMapTerrain =
                 _worldMapVisible &&
                 (_worldMapTileCache == null || !_worldMapTileCache.IsAvailable);
-            if (legacyWorldMapTerrain || (_minimapVisible && !_worldMapVisible))
+            if (legacyWorldMapTerrain)
             {
                 bool waitingForNavigationToSettle =
                     legacyWorldMapTerrain &&
@@ -306,6 +294,7 @@ namespace DuneVector
                 bootstrap.PauseMenu.IsPaused;
             if (visible)
             {
+                _nextIconRefreshTime = 0f;
                 LogicalPosition playerPosition = _world.LogicalPlayerPosition;
                 _worldMapCenterX = playerPosition.X;
                 _worldMapCenterZ = playerPosition.Z;
@@ -353,7 +342,7 @@ namespace DuneVector
                 !_settings.Enabled ||
                 _drone == null ||
                 _world == null ||
-                _scanTexture == null ||
+                !_worldMapVisible ||
                 DuneVectorCourierGame.IsMapHudSuppressed)
             {
                 return;
@@ -363,43 +352,8 @@ namespace DuneVector
             GUI.depth = -1000;
             EnsureStyles();
 
-            if (_worldMapVisible)
-            {
-                DrawWorldMap();
-            }
-            else if (_minimapVisible && _bottomHud != null)
-            {
-                DrawMinimap();
-            }
-
+            DrawWorldMap();
             GUI.depth = previousDepth;
-        }
-
-        private void DrawMinimap()
-        {
-            float scale = DuneVectorBottomHud.GetScale(_bottomHud);
-            Rect speedometer = DuneVectorBottomHud.GetPanelRect(
-                _bottomHud,
-                DuneVectorBottomHudPanel.Speed);
-            float size = _settings.MinimapSize * scale;
-            Rect safeArea = Screen.safeArea;
-            float y = speedometer.y - (_settings.GapAboveSpeedometer * scale) - size;
-            y = Mathf.Max(Screen.height - safeArea.yMax, y);
-            Rect mapRect = new Rect(
-                speedometer.x,
-                y,
-                size,
-                size);
-
-            DrawMapPanel(
-                mapRect,
-                _settings.MinimapWorldSize,
-                _settings.MinimapWorldSize,
-                _world.LogicalPlayerPosition,
-                _settings.MinimapTitle,
-                false,
-                true,
-                scale);
         }
 
         private void DrawWorldMap()
@@ -484,9 +438,6 @@ namespace DuneVector
                 displayedWorldWidth,
                 _worldMapViewHeight,
                 currentCenter,
-                string.Empty,
-                true,
-                false,
                 scale);
 
             float labelPadding = _settings.ContentPadding * scale;
@@ -648,13 +599,9 @@ namespace DuneVector
             float displayedWorldWidth,
             float displayedWorldHeight,
             LogicalPosition currentCenter,
-            string title,
-            bool worldMap,
-            bool drawLabels,
             float scale)
         {
             bool tiledTerrainBackground =
-                worldMap &&
                 _worldMapTileCache != null &&
                 _worldMapTileCache.IsAvailable;
             DrawSolidRect(
@@ -669,10 +616,9 @@ namespace DuneVector
 
             GUI.BeginGroup(mapRect);
             bool tiledWorldMap =
-                worldMap &&
                 _worldMapTileCache != null &&
                 _worldMapTileCache.IsAvailable;
-            if (worldMap && !tiledWorldMap && _worldAtlasTexture != null)
+            if (!tiledWorldMap && _worldAtlasTexture != null)
             {
                 DrawCachedMapTexture(
                     mapRect,
@@ -716,7 +662,6 @@ namespace DuneVector
                 displayedWorldWidth,
                 displayedWorldHeight,
                 currentCenter,
-                worldMap,
                 scale);
             LogicalPosition dronePosition = _world.LogicalPlayerPosition;
             DrawDroneMarker(
@@ -728,28 +673,6 @@ namespace DuneVector
                     (0.5f - ((float)(dronePosition.Z - currentCenter.Z) /
                              displayedWorldHeight))),
                 scale);
-
-            if (drawLabels)
-            {
-                float padding = _settings.ContentPadding * scale;
-                float titleHeight = _settings.TitleHeight * scale;
-                GUI.Label(
-                    new Rect(
-                        padding,
-                        padding,
-                        mapRect.width - (padding * 2f),
-                        titleHeight),
-                    title,
-                    worldMap ? _worldMapTitleStyle : _minimapTitleStyle);
-                GUI.Label(
-                    new Rect(
-                        (mapRect.width - titleHeight) * 0.5f,
-                        worldMap ? padding + titleHeight : padding,
-                        titleHeight,
-                        titleHeight),
-                    _settings.NorthLabel,
-                    _northStyle);
-            }
 
             GUI.EndGroup();
         }
@@ -883,10 +806,9 @@ namespace DuneVector
             float displayedWorldWidth,
             float displayedWorldHeight,
             LogicalPosition center,
-            bool worldMap,
             float scale)
         {
-            float iconScale = scale * (worldMap ? 1f : _settings.MinimapIconScale);
+            float iconScale = scale;
             float halfWorldWidth = displayedWorldWidth * 0.5f;
             float halfWorldHeight = displayedWorldHeight * 0.5f;
             Vector2 shadowOffset = _settings.IconShadowOffset * iconScale;
@@ -896,7 +818,7 @@ namespace DuneVector
             {
                 MapIconRecord icon = _mapIcons[index];
                 bool isExplored = icon.Kind == MapIconKind.Geoglyph
-                    ? !worldMap || _exploredGeoglyphs.Contains(icon.Artwork)
+                    ? _exploredGeoglyphs.Contains(icon.Artwork)
                     : IsExplored(icon.X, icon.Z);
                 if (_settings.OnlyShowExploredIcons && !isExplored)
                 {
@@ -932,8 +854,7 @@ namespace DuneVector
                         position,
                         mapRect,
                         displayedWorldWidth,
-                        displayedWorldHeight,
-                        worldMap);
+                        displayedWorldHeight);
                     continue;
                 }
 
@@ -1016,13 +937,10 @@ namespace DuneVector
             Vector2 position,
             Rect mapRect,
             float displayedWorldWidth,
-            float displayedWorldHeight,
-            bool worldMap)
+            float displayedWorldHeight)
         {
-            Dictionary<GeoglyphArtworkPlacement, Texture2D> textureVariants =
-                worldMap ? _geoglyphWorldMapTextures : _geoglyphMinimapTextures;
             if (artwork == null ||
-                !textureVariants.TryGetValue(artwork, out Texture2D mapTexture) ||
+                !_geoglyphWorldMapTextures.TryGetValue(artwork, out Texture2D mapTexture) ||
                 mapTexture == null)
             {
                 return;
@@ -1143,8 +1061,7 @@ namespace DuneVector
                         {
                             _exploredGeoglyphs.Add(placement);
                         }
-                        if ((!_geoglyphWorldMapTextures.ContainsKey(placement) ||
-                            !_geoglyphMinimapTextures.ContainsKey(placement)) &&
+                        if (!_geoglyphWorldMapTextures.ContainsKey(placement) &&
                             !_queuedGeoglyphTextures.Contains(placement))
                         {
                             pendingTextureBuilds.Add(placement);
@@ -1176,8 +1093,7 @@ namespace DuneVector
         {
             if (artwork == null ||
                 artwork.Mask == null ||
-                (_geoglyphWorldMapTextures.ContainsKey(artwork) &&
-                    _geoglyphMinimapTextures.ContainsKey(artwork)) ||
+                _geoglyphWorldMapTextures.ContainsKey(artwork) ||
                 !_queuedGeoglyphTextures.Add(artwork))
             {
                 return;
@@ -1206,17 +1122,9 @@ namespace DuneVector
                     artwork,
                     _settings.GeoglyphMapTextureResolution,
                     "World Map");
-                Texture2D minimapTexture = BuildGeoglyphMapTexture(
-                    artwork,
-                    _settings.GeoglyphMinimapTextureResolution,
-                    "Minimap");
                 if (worldMapTexture != null)
                 {
                     _geoglyphWorldMapTextures[artwork] = worldMapTexture;
-                }
-                if (minimapTexture != null)
-                {
-                    _geoglyphMinimapTextures[artwork] = minimapTexture;
                 }
             }
         }
@@ -1336,22 +1244,19 @@ namespace DuneVector
             if (_settings == null ||
                 _world == null ||
                 _world.HeightField == null ||
-                (!_worldMapVisible && !_minimapVisible && !force))
+                !_worldMapVisible)
             {
                 return;
             }
 
-            LogicalPosition center = _worldMapVisible
-                ? new LogicalPosition(_worldMapCenterX, _worldMapCenterZ)
-                : _world.LogicalPlayerPosition;
-            float desiredWorldHeight = _worldMapVisible
-                ? Mathf.Clamp(
-                    _worldMapViewHeight,
-                    _settings.WorldMapMinimumWorldSize,
-                    _settings.WorldMapMaximumWorldSize)
-                : Mathf.Max(1f, _settings.MinimapWorldSize);
-            float desiredWorldWidth = desiredWorldHeight *
-                (_worldMapVisible ? GetWorldMapViewportAspect() : 1f);
+            LogicalPosition center = new LogicalPosition(
+                _worldMapCenterX,
+                _worldMapCenterZ);
+            float desiredWorldHeight = Mathf.Clamp(
+                _worldMapViewHeight,
+                _settings.WorldMapMinimumWorldSize,
+                _settings.WorldMapMaximumWorldSize);
+            float desiredWorldWidth = desiredWorldHeight * GetWorldMapViewportAspect();
             force |=
                 !Mathf.Approximately(_textureWorldWidth, desiredWorldWidth) ||
                 !Mathf.Approximately(_textureWorldHeight, desiredWorldHeight);
@@ -1387,9 +1292,7 @@ namespace DuneVector
         {
             EnsureTexture();
             _scanBuildResolution = Mathf.Clamp(
-                _worldMapVisible
-                    ? _settings.WorldMapScanTextureResolution
-                    : _settings.ScanTextureResolution,
+                _settings.WorldMapScanTextureResolution,
                 32,
                 1024);
             int requiredPixelCount = _scanBuildResolution * _scanBuildResolution;
@@ -1416,10 +1319,10 @@ namespace DuneVector
             }
 
             int resolution = _scanBuildResolution;
-            int requestedRowsPerFrame = _worldMapVisible
-                ? _settings.WorldMapScanRowsPerFrame
-                : _settings.ScanRowsPerFrame;
-            int rowsPerFrame = Mathf.Clamp(requestedRowsPerFrame, 1, resolution);
+            int rowsPerFrame = Mathf.Clamp(
+                _settings.WorldMapScanRowsPerFrame,
+                1,
+                resolution);
             int finalRow = Mathf.Min(resolution, _scanBuildRow + rowsPerFrame);
             float radius = Mathf.Max(1f, _settings.DroneRevealRadius);
             float minimumHeight = Mathf.Min(
@@ -1430,7 +1333,6 @@ namespace DuneVector
                 _settings.TerrainHeightMaximum);
             float heightRange = Mathf.Max(Mathf.Epsilon, maximumHeight - minimumHeight);
             float contourSpacing = Mathf.Max(0.01f, _settings.ContourSpacing);
-            bool showScanRadius = _worldMapVisible || _settings.ShowMinimapScanRadius;
 
             for (int y = _scanBuildRow; y < finalRow; y++)
             {
@@ -1452,18 +1354,15 @@ namespace DuneVector
                     float height = (float)_world.HeightField.SampleHeight(
                         logicalX,
                         logicalZ);
-                    if (showScanRadius)
+                    float droneOffsetX = (float)(logicalX - _scanBuildDroneX);
+                    float droneOffsetZ = (float)(logicalZ - _scanBuildDroneZ);
+                    float distance = Mathf.Sqrt(
+                        (droneOffsetX * droneOffsetX) +
+                        (droneOffsetZ * droneOffsetZ));
+                    if (Mathf.Abs(distance - radius) <= _settings.RadiusLineThickness)
                     {
-                        float droneOffsetX = (float)(logicalX - _scanBuildDroneX);
-                        float droneOffsetZ = (float)(logicalZ - _scanBuildDroneZ);
-                        float distance = Mathf.Sqrt(
-                            (droneOffsetX * droneOffsetX) +
-                            (droneOffsetZ * droneOffsetZ));
-                        if (Mathf.Abs(distance - radius) <= _settings.RadiusLineThickness)
-                        {
-                            _scanPixels[index] = _settings.RadiusLineColor;
-                            continue;
-                        }
+                        _scanPixels[index] = _settings.RadiusLineColor;
+                        continue;
                     }
 
                     float height01 = Mathf.Clamp01(
@@ -2244,10 +2143,10 @@ namespace DuneVector
                 return;
             }
 
-            int requestedResolution = _worldMapVisible
-                ? _settings.WorldMapScanTextureResolution
-                : _settings.ScanTextureResolution;
-            int resolution = Mathf.Clamp(requestedResolution, 32, 1024);
+            int resolution = Mathf.Clamp(
+                _settings.WorldMapScanTextureResolution,
+                32,
+                1024);
             _scanTexture = CreateScanTexture(resolution);
             Color[] initialPixels = new Color[resolution * resolution];
             for (int index = 0; index < initialPixels.Length; index++)
@@ -2275,11 +2174,8 @@ namespace DuneVector
 
         private void EnsureStyles()
         {
-            _minimapTitleStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.UpperLeft);
             _worldMapTitleStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleLeft);
             _northStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
-            _detailStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.UpperLeft);
-            _hintStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.UpperRight);
             _worldMapDetailStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleLeft);
             _worldMapHintStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleRight);
             _markerStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
@@ -2289,10 +2185,6 @@ namespace DuneVector
             _landmarkIconShadowStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
 
             float scale = GetMapScale();
-            _minimapTitleStyle.fontSize = Mathf.Max(
-                8,
-                Mathf.RoundToInt(_settings.MinimapTitleFontSize * scale));
-            _minimapTitleStyle.normal.textColor = _settings.TitleColor;
             _worldMapTitleStyle.fontSize = Mathf.Max(
                 8,
                 Mathf.RoundToInt(_settings.WorldMapTitleFontSize * scale));
@@ -2301,14 +2193,6 @@ namespace DuneVector
                 8,
                 Mathf.RoundToInt(_settings.DetailFontSize * scale));
             _northStyle.normal.textColor = _settings.TitleColor;
-            _detailStyle.fontSize = Mathf.Max(
-                8,
-                Mathf.RoundToInt(_settings.DetailFontSize * scale));
-            _detailStyle.normal.textColor = _settings.DetailColor;
-            _hintStyle.fontSize = Mathf.Max(
-                8,
-                Mathf.RoundToInt(_settings.DetailFontSize * scale));
-            _hintStyle.normal.textColor = _settings.DetailColor;
             _worldMapDetailStyle.fontSize = Mathf.Max(
                 8,
                 Mathf.RoundToInt(_settings.WorldMapFooterFontSize * scale));
@@ -2393,15 +2277,7 @@ namespace DuneVector
                     Destroy(texture);
                 }
             }
-            foreach (Texture2D texture in _geoglyphMinimapTextures.Values)
-            {
-                if (texture != null)
-                {
-                    Destroy(texture);
-                }
-            }
             _geoglyphWorldMapTextures.Clear();
-            _geoglyphMinimapTextures.Clear();
         }
 
         private void OnDisable()
