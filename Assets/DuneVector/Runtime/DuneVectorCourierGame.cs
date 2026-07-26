@@ -2434,7 +2434,7 @@ namespace DuneVector
             {
                 DesertAtlas.DrawTerminal();
             }
-            else if (State == CourierRunState.Hub)
+            else if (State == CourierRunState.Hub && !IsGameplayHudSuppressed)
             {
                 if (_messagePresenter == null || !_messagePresenter.IsOpen)
                 {
