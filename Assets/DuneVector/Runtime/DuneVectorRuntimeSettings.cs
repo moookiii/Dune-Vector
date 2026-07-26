@@ -4103,6 +4103,7 @@ namespace DuneVector
         public Key WorldMapKey = Key.M;
         public Key MinimapKey = Key.N;
         public bool MinimapVisibleByDefault = true;
+        public bool PauseGameWhenWorldMapOpen = true;
 
         [Header("Drone Scan")]
         [Min(1f)] public float DroneRevealRadius = 240f;
