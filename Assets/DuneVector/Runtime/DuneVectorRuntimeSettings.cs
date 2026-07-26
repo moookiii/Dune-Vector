@@ -4121,6 +4121,8 @@ namespace DuneVector
         public string ExplorationFileName = "DuneVectorMapExploration.dat";
         [Tooltip("Seconds between background journal appends when new map cells have been discovered.")]
         [Min(1f)] public float ExplorationSaveInterval = 10f;
+        [Tooltip("Exploration cells reserved in the append journal during initialization so flight-time reveals do not resize the buffer.")]
+        [Min(0)] public int ExplorationJournalBufferCapacity = 32768;
         [Range(32, 512)] public int ScanTextureResolution = 256;
         [Tooltip("Texture rows procedurally sampled per rendered frame. Lower values reduce frame spikes while taking longer to complete a refresh.")]
         [Range(1, 32)] public int ScanRowsPerFrame = 8;

@@ -196,6 +196,12 @@ namespace DuneVector
             _bottomHud = bottomHud;
             _settings = settings;
             _geoglyphs = geoglyphs;
+            if (settings != null)
+            {
+                _pendingExplorationCells.Capacity = Mathf.Max(
+                    _pendingExplorationCells.Capacity,
+                    settings.ExplorationJournalBufferCapacity);
+            }
             Shader geoglyphMapShader = Shader.Find("Hidden/DuneVector/Map Geoglyph Mask");
             if (geoglyphMapShader != null)
             {
@@ -1778,6 +1784,10 @@ namespace DuneVector
 
             double cellSize = Mathf.Max(1f, _settings.ExplorationCellSize);
             double radius = Mathf.Max(1f, _settings.DroneRevealRadius);
+            bool hasPreviousReveal =
+                !force &&
+                !double.IsInfinity(_lastRevealX) &&
+                !double.IsInfinity(_lastRevealZ);
             int minimumX = Mathf.FloorToInt((float)((center.X - radius) / cellSize));
             int maximumX = Mathf.FloorToInt((float)((center.X + radius) / cellSize));
             int minimumZ = Mathf.FloorToInt((float)((center.Z - radius) / cellSize));
@@ -1798,11 +1808,25 @@ namespace DuneVector
                         continue;
                     }
 
+                    if (hasPreviousReveal)
+                    {
+                        double previousDx = sampleX - _lastRevealX;
+                        double previousDz = sampleZ - _lastRevealZ;
+                        if ((previousDx * previousDx) + (previousDz * previousDz) <=
+                            radiusSquared)
+                        {
+                            continue;
+                        }
+                    }
+
                     long packedCell = PackCell(cellX, cellZ);
                     if (_exploredCells.Add(packedCell))
                     {
                         discoveredAny = true;
-                        _pendingExplorationCells.Add(packedCell);
+                        if (!_explorationNeedsRewrite)
+                        {
+                            _pendingExplorationCells.Add(packedCell);
+                        }
                         AddExploredTerrainBaseTile(sampleX, sampleZ);
                     }
                 }
