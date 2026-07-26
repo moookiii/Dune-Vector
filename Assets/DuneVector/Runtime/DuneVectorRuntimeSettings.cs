@@ -2850,10 +2850,10 @@ namespace DuneVector
         [Min(0f)] public float HealthRingRotationSpeed = 24f;
 
         [Header("Health Ring Appearance")]
-        [ColorUsage(false, true)] public Color HealthRingBaseColor = new Color(0.48f, 0.015f, 0.055f);
-        [ColorUsage(false, true)] public Color HealthRingEmissionColor = new Color(4.8f, 0.06f, 0.24f);
-        [ColorUsage(false, true)] public Color HealthHeartBaseColor = new Color(0.8f, 0.035f, 0.09f);
-        [ColorUsage(false, true)] public Color HealthHeartEmissionColor = new Color(8f, 0.12f, 0.42f);
+        [ColorUsage(false, true)] public Color HealthRingBaseColor = new Color(0.035f, 0.48f, 0.12f);
+        [ColorUsage(false, true)] public Color HealthRingEmissionColor = new Color(0.06f, 4.8f, 0.85f);
+        [ColorUsage(false, true)] public Color HealthHeartBaseColor = new Color(0.055f, 0.8f, 0.18f);
+        [ColorUsage(false, true)] public Color HealthHeartEmissionColor = new Color(0.12f, 8f, 1.4f);
         [Range(0f, 1f)] public float HealthMaterialSmoothness = 0.72f;
         [Range(0f, 1f)] public float HealthMaterialMetallic = 0.22f;
 
@@ -2862,7 +2862,7 @@ namespace DuneVector
         [Min(8)] public int HealthPickupFeedbackFontSize = 28;
         [Min(0f)] public float HealthPickupFeedbackTop = 170f;
         [Min(24f)] public float HealthPickupFeedbackHeight = 48f;
-        [ColorUsage(false)] public Color HealthPickupFeedbackColor = new Color(1f, 0.32f, 0.5f, 1f);
+        [ColorUsage(false)] public Color HealthPickupFeedbackColor = new Color(0.22f, 1f, 0.48f, 1f);
 
         [Header("Coin Rings")]
         [Tooltip("Expected coin-ring count per streamed terrain chunk.")]

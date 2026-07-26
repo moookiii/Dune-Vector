@@ -413,7 +413,7 @@ namespace DuneVector
                 TraversalRingType.GroundBoost => new Color(1f, 0.5f, 0f, 0.7f),
                 TraversalRingType.Flight => new Color(0f, 0.8f, 1f, 0.7f),
                 TraversalRingType.UpperFlight => new Color(0.75f, 0.1f, 1f, 0.7f),
-                TraversalRingType.Health => new Color(1f, 0.1f, 0.25f, 0.7f),
+                TraversalRingType.Health => new Color(0.1f, 1f, 0.3f, 0.7f),
                 _ => new Color(1f, 0.72f, 0.08f, 0.7f),
             };
             Gizmos.matrix = transform.localToWorldMatrix;

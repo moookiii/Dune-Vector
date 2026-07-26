@@ -221,7 +221,7 @@ namespace DuneVector
             BoostRing = CreatePortal("Portal - Boost Amber", rings.BoostRingEmissionColor, rings);
             FlightRing = CreatePortal("Portal - Flight Cyan", rings.FlightRingEmissionColor, rings);
             UpperFlightRing = CreatePortal("Portal - Upper Flight Violet", rings.UpperFlightRingEmissionColor, rings);
-            HealthRing = CreatePortal("Portal - Health Crimson", rings.HealthRingEmissionColor, rings);
+            HealthRing = CreatePortal("Portal - Health Green", rings.HealthRingEmissionColor, rings);
             HealthHeart = CreateLit(
                 "Ring - Health Heart",
                 rings.HealthHeartBaseColor,
