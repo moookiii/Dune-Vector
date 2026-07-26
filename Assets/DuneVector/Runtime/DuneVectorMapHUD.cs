@@ -119,7 +119,8 @@ namespace DuneVector
         private double _lastScanZ = double.PositiveInfinity;
         private double _lastRevealX = double.PositiveInfinity;
         private double _lastRevealZ = double.PositiveInfinity;
-        private float _textureWorldSize;
+        private float _textureWorldWidth;
+        private float _textureWorldHeight;
         private float _nextScanTime;
         private float _nextExplorationSaveTime;
         private float _nextIconRefreshTime;
@@ -131,7 +132,8 @@ namespace DuneVector
         private float _timeScaleBeforeWorldMap = 1f;
         private double _scanBuildCenterX;
         private double _scanBuildCenterZ;
-        private float _scanBuildWorldSize;
+        private float _scanBuildWorldWidth;
+        private float _scanBuildWorldHeight;
 
         private const int ExplorationFileMagic = 0x44564D50;
         private const int ExplorationFileVersion = 2;
@@ -280,6 +282,7 @@ namespace DuneVector
             DrawMapPanel(
                 mapRect,
                 _settings.MinimapWorldSize,
+                _settings.MinimapWorldSize,
                 _settings.MinimapTitle,
                 false,
                 true,
@@ -352,6 +355,7 @@ namespace DuneVector
 
             DrawMapPanel(
                 mapRect,
+                _settings.WorldMapWorldSize * (mapRect.width / Mathf.Max(1f, mapRect.height)),
                 _settings.WorldMapWorldSize,
                 string.Empty,
                 true,
@@ -404,7 +408,8 @@ namespace DuneVector
 
         private void DrawMapPanel(
             Rect mapRect,
-            float displayedWorldSize,
+            float displayedWorldWidth,
+            float displayedWorldHeight,
             string title,
             bool worldMap,
             bool drawLabels,
@@ -416,14 +421,15 @@ namespace DuneVector
                 _settings.BorderColor,
                 Mathf.Max(1f, _settings.BorderThickness * scale));
 
-            float scanScale = _textureWorldSize / Mathf.Max(1f, displayedWorldSize);
-            float scanWidth = mapRect.width * scanScale;
-            float scanHeight = mapRect.height * scanScale;
+            float scanWidth = mapRect.width *
+                (_textureWorldWidth / Mathf.Max(1f, displayedWorldWidth));
+            float scanHeight = mapRect.height *
+                (_textureWorldHeight / Mathf.Max(1f, displayedWorldHeight));
             LogicalPosition currentCenter = _world.LogicalPlayerPosition;
             float horizontalPixelsPerWorldUnit =
-                mapRect.width / Mathf.Max(1f, displayedWorldSize);
+                mapRect.width / Mathf.Max(1f, displayedWorldWidth);
             float verticalPixelsPerWorldUnit =
-                mapRect.height / Mathf.Max(1f, displayedWorldSize);
+                mapRect.height / Mathf.Max(1f, displayedWorldHeight);
             bool hasCompletedScan =
                 !double.IsInfinity(_lastScanX) &&
                 !double.IsInfinity(_lastScanZ);
@@ -441,7 +447,13 @@ namespace DuneVector
 
             GUI.BeginGroup(mapRect);
             GUI.DrawTexture(localScanRect, _scanTexture, ScaleMode.StretchToFill, false);
-            DrawMapIcons(mapRect, displayedWorldSize, currentCenter, worldMap, scale);
+            DrawMapIcons(
+                mapRect,
+                displayedWorldWidth,
+                displayedWorldHeight,
+                currentCenter,
+                worldMap,
+                scale);
             DrawDroneMarker(
                 new Vector2(mapRect.width * 0.5f, mapRect.height * 0.5f),
                 scale);
@@ -473,13 +485,15 @@ namespace DuneVector
 
         private void DrawMapIcons(
             Rect mapRect,
-            float displayedWorldSize,
+            float displayedWorldWidth,
+            float displayedWorldHeight,
             LogicalPosition center,
             bool worldMap,
             float scale)
         {
             float iconScale = scale * (worldMap ? 1f : _settings.MinimapIconScale);
-            float halfWorldSize = displayedWorldSize * 0.5f;
+            float halfWorldWidth = displayedWorldWidth * 0.5f;
+            float halfWorldHeight = displayedWorldHeight * 0.5f;
             Vector2 shadowOffset = _settings.IconShadowOffset * iconScale;
             UpdateIconStyles(iconScale);
 
@@ -507,22 +521,23 @@ namespace DuneVector
                     footprintHalfWidth = footprintWidth * 0.5f;
                     footprintHalfHeight = footprintHeight * 0.5f;
                 }
-                if (Math.Abs(deltaX) > halfWorldSize + footprintHalfWidth ||
-                    Math.Abs(deltaZ) > halfWorldSize + footprintHalfHeight)
+                if (Math.Abs(deltaX) > halfWorldWidth + footprintHalfWidth ||
+                    Math.Abs(deltaZ) > halfWorldHeight + footprintHalfHeight)
                 {
                     continue;
                 }
 
                 Vector2 position = new Vector2(
-                    mapRect.width * (0.5f + ((float)deltaX / displayedWorldSize)),
-                    mapRect.height * (0.5f - ((float)deltaZ / displayedWorldSize)));
+                    mapRect.width * (0.5f + ((float)deltaX / displayedWorldWidth)),
+                    mapRect.height * (0.5f - ((float)deltaZ / displayedWorldHeight)));
                 if (icon.Kind == MapIconKind.Geoglyph)
                 {
                     DrawGeoglyphArtwork(
                         icon.Artwork,
                         position,
                         mapRect,
-                        displayedWorldSize,
+                        displayedWorldWidth,
+                        displayedWorldHeight,
                         worldMap);
                     continue;
                 }
@@ -605,7 +620,8 @@ namespace DuneVector
             GeoglyphArtworkPlacement artwork,
             Vector2 position,
             Rect mapRect,
-            float displayedWorldSize,
+            float displayedWorldWidth,
+            float displayedWorldHeight,
             bool worldMap)
         {
             Dictionary<GeoglyphArtworkPlacement, Texture2D> textureVariants =
@@ -619,9 +635,9 @@ namespace DuneVector
 
             GetRotatedGeoglyphSize(artwork, out float rotatedWorldWidth, out float rotatedWorldHeight);
             float width = mapRect.width *
-                (rotatedWorldWidth / displayedWorldSize);
+                (rotatedWorldWidth / displayedWorldWidth);
             float height = mapRect.height *
-                (rotatedWorldHeight / displayedWorldSize);
+                (rotatedWorldHeight / displayedWorldHeight);
             Rect artworkRect = new Rect(
                 position.x - (width * 0.5f),
                 position.y - (height * 0.5f),
@@ -931,15 +947,21 @@ namespace DuneVector
             }
 
             LogicalPosition center = _world.LogicalPlayerPosition;
-            float desiredWorldSize = _worldMapVisible
+            float desiredWorldHeight = _worldMapVisible
                 ? Mathf.Max(1f, _settings.WorldMapWorldSize)
                 : Mathf.Max(1f, _settings.MinimapWorldSize);
-            force |= !Mathf.Approximately(_textureWorldSize, desiredWorldSize);
+            float desiredWorldWidth = desiredWorldHeight *
+                (_worldMapVisible ? GetWorldMapViewportAspect() : 1f);
+            force |=
+                !Mathf.Approximately(_textureWorldWidth, desiredWorldWidth) ||
+                !Mathf.Approximately(_textureWorldHeight, desiredWorldHeight);
             if (_scanBuildActive)
             {
-                if (force && !Mathf.Approximately(_scanBuildWorldSize, desiredWorldSize))
+                if (force &&
+                    (!Mathf.Approximately(_scanBuildWorldWidth, desiredWorldWidth) ||
+                     !Mathf.Approximately(_scanBuildWorldHeight, desiredWorldHeight)))
                 {
-                    BeginScanBuild(center, desiredWorldSize);
+                    BeginScanBuild(center, desiredWorldWidth, desiredWorldHeight);
                 }
                 return;
             }
@@ -953,15 +975,19 @@ namespace DuneVector
                 return;
             }
 
-            BeginScanBuild(center, desiredWorldSize);
+            BeginScanBuild(center, desiredWorldWidth, desiredWorldHeight);
         }
 
-        private void BeginScanBuild(LogicalPosition center, float desiredWorldSize)
+        private void BeginScanBuild(
+            LogicalPosition center,
+            float desiredWorldWidth,
+            float desiredWorldHeight)
         {
             EnsureTexture();
             _scanBuildCenterX = center.X;
             _scanBuildCenterZ = center.Z;
-            _scanBuildWorldSize = desiredWorldSize;
+            _scanBuildWorldWidth = desiredWorldWidth;
+            _scanBuildWorldHeight = desiredWorldHeight;
             _scanBuildRow = 0;
             _scanBuildActive = true;
         }
@@ -977,7 +1003,6 @@ namespace DuneVector
             int rowsPerFrame = Mathf.Clamp(_settings.ScanRowsPerFrame, 1, resolution);
             int finalRow = Mathf.Min(resolution, _scanBuildRow + rowsPerFrame);
             float radius = Mathf.Max(1f, _settings.DroneRevealRadius);
-            float diameter = _scanBuildWorldSize;
             float minimumHeight = Mathf.Min(
                 _settings.TerrainHeightMinimum,
                 _settings.TerrainHeightMaximum);
@@ -990,12 +1015,12 @@ namespace DuneVector
             for (int y = _scanBuildRow; y < finalRow; y++)
             {
                 float normalizedY = (y + 0.5f) / resolution;
-                float offsetZ = (normalizedY - 0.5f) * diameter;
+                float offsetZ = (normalizedY - 0.5f) * _scanBuildWorldHeight;
                 for (int x = 0; x < resolution; x++)
                 {
                     int index = (y * resolution) + x;
                     float normalizedX = (x + 0.5f) / resolution;
-                    float offsetX = (normalizedX - 0.5f) * diameter;
+                    float offsetX = (normalizedX - 0.5f) * _scanBuildWorldWidth;
                     double logicalX = _scanBuildCenterX + offsetX;
                     double logicalZ = _scanBuildCenterZ + offsetZ;
                     if (!IsExplored(logicalX, logicalZ))
@@ -1047,9 +1072,35 @@ namespace DuneVector
             _scanTexture.Apply(false, false);
             _lastScanX = _scanBuildCenterX;
             _lastScanZ = _scanBuildCenterZ;
-            _textureWorldSize = _scanBuildWorldSize;
+            _textureWorldWidth = _scanBuildWorldWidth;
+            _textureWorldHeight = _scanBuildWorldHeight;
             _nextScanTime = Time.unscaledTime + _settings.ScanRefreshInterval;
             _scanBuildActive = false;
+        }
+
+        private float GetWorldMapViewportAspect()
+        {
+            Rect safeArea = Screen.safeArea;
+            float availableWidth = Mathf.Max(
+                1f,
+                safeArea.width - (_settings.WorldMapScreenPadding * 2f));
+            float availableHeight = Mathf.Max(
+                1f,
+                safeArea.height - (_settings.WorldMapScreenPadding * 2f));
+            float panelAspect = Mathf.Max(1f, _settings.WorldMapPanelAspectRatio);
+            float panelHeight = Mathf.Min(
+                _settings.WorldMapMaximumSize,
+                Mathf.Min(availableHeight, availableWidth / panelAspect));
+            float panelWidth = panelHeight * panelAspect;
+            float scale = GetMapScale();
+            float borderThickness = Mathf.Max(1f, _settings.BorderThickness * scale);
+            float viewportWidth = Mathf.Max(1f, panelWidth - (borderThickness * 2f));
+            float viewportHeight = Mathf.Max(
+                1f,
+                panelHeight -
+                (borderThickness * 2f) -
+                ((_settings.WorldMapHeaderHeight + _settings.WorldMapFooterHeight) * scale));
+            return viewportWidth / viewportHeight;
         }
 
         private void RevealAroundPlayer(bool force)
