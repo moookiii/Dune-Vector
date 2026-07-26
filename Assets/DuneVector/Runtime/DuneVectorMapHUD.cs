@@ -128,10 +128,19 @@ namespace DuneVector
         private bool _forceScanRefresh;
         private bool _scanBuildActive;
         private bool _worldMapPausedGame;
+        private bool _worldMapDragging;
         private int _scanBuildRow;
         private float _timeScaleBeforeWorldMap = 1f;
+        private float _worldMapViewHeight;
+        private double _worldMapCenterX;
+        private double _worldMapCenterZ;
+        private Vector2 _lastWorldMapDragPosition;
+        private CursorLockMode _cursorLockBeforeWorldMap;
+        private bool _cursorVisibleBeforeWorldMap;
         private double _scanBuildCenterX;
         private double _scanBuildCenterZ;
+        private double _scanBuildDroneX;
+        private double _scanBuildDroneZ;
         private float _scanBuildWorldWidth;
         private float _scanBuildWorldHeight;
 
@@ -218,6 +227,33 @@ namespace DuneVector
 
             _worldMapVisible = visible;
             _forceScanRefresh = true;
+            DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
+            bool pauseMenuIsOpen = bootstrap != null &&
+                bootstrap.PauseMenu != null &&
+                bootstrap.PauseMenu.IsPaused;
+            if (visible)
+            {
+                LogicalPosition playerPosition = _world.LogicalPlayerPosition;
+                _worldMapCenterX = playerPosition.X;
+                _worldMapCenterZ = playerPosition.Z;
+                _worldMapViewHeight = Mathf.Clamp(
+                    _settings.WorldMapWorldSize,
+                    _settings.WorldMapMinimumWorldSize,
+                    _settings.WorldMapMaximumWorldSize);
+                _cursorLockBeforeWorldMap = Cursor.lockState;
+                _cursorVisibleBeforeWorldMap = Cursor.visible;
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            }
+            else
+            {
+                _worldMapDragging = false;
+                Cursor.lockState = pauseMenuIsOpen
+                    ? CursorLockMode.None
+                    : _cursorLockBeforeWorldMap;
+                Cursor.visible = pauseMenuIsOpen || _cursorVisibleBeforeWorldMap;
+            }
+
             if (visible && _settings != null && _settings.PauseGameWhenWorldMapOpen)
             {
                 _timeScaleBeforeWorldMap = Time.timeScale;
@@ -226,10 +262,6 @@ namespace DuneVector
             }
             else if (!visible && _worldMapPausedGame)
             {
-                DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
-                bool pauseMenuIsOpen = bootstrap != null &&
-                    bootstrap.PauseMenu != null &&
-                    bootstrap.PauseMenu.IsPaused;
                 Time.timeScale = pauseMenuIsOpen ? 0f : _timeScaleBeforeWorldMap;
                 _worldMapPausedGame = false;
             }
@@ -283,6 +315,7 @@ namespace DuneVector
                 mapRect,
                 _settings.MinimapWorldSize,
                 _settings.MinimapWorldSize,
+                _world.LogicalPlayerPosition,
                 _settings.MinimapTitle,
                 false,
                 true,
@@ -352,11 +385,25 @@ namespace DuneVector
                 headerRect.yMax,
                 panelRect.width - (borderThickness * 2f),
                 Mathf.Max(1f, footerRect.y - headerRect.yMax));
+            float viewportAspect = mapRect.width / Mathf.Max(1f, mapRect.height);
+            _worldMapViewHeight = Mathf.Clamp(
+                _worldMapViewHeight > 0f
+                    ? _worldMapViewHeight
+                    : _settings.WorldMapWorldSize,
+                _settings.WorldMapMinimumWorldSize,
+                _settings.WorldMapMaximumWorldSize);
+            float displayedWorldWidth = _worldMapViewHeight * viewportAspect;
+            HandleWorldMapInput(mapRect, displayedWorldWidth, _worldMapViewHeight);
+            displayedWorldWidth = _worldMapViewHeight * viewportAspect;
+            LogicalPosition currentCenter = new LogicalPosition(
+                _worldMapCenterX,
+                _worldMapCenterZ);
 
             DrawMapPanel(
                 mapRect,
-                _settings.WorldMapWorldSize * (mapRect.width / Mathf.Max(1f, mapRect.height)),
-                _settings.WorldMapWorldSize,
+                displayedWorldWidth,
+                _worldMapViewHeight,
+                currentCenter,
                 string.Empty,
                 true,
                 false,
@@ -380,7 +427,6 @@ namespace DuneVector
                 _settings.NorthLabel,
                 _northStyle);
 
-            LogicalPosition currentCenter = _world.LogicalPlayerPosition;
             string coordinates = string.Format(
                 _settings.CoordinateFormat,
                 currentCenter.X,
@@ -406,10 +452,92 @@ namespace DuneVector
                 _worldMapHintStyle);
         }
 
+        private void HandleWorldMapInput(
+            Rect mapRect,
+            float displayedWorldWidth,
+            float displayedWorldHeight)
+        {
+            Event currentEvent = Event.current;
+            if (currentEvent == null)
+            {
+                return;
+            }
+
+            Vector2 mousePosition = currentEvent.mousePosition;
+            bool pointerOverMap = mapRect.Contains(mousePosition);
+            int panMouseButton = Mathf.Clamp(_settings.WorldMapPanMouseButton, 0, 2);
+            int panControlId = GUIUtility.GetControlID(FocusType.Passive, mapRect);
+            if (currentEvent.type == EventType.ScrollWheel && pointerOverMap)
+            {
+                float normalizedX = (mousePosition.x - mapRect.x) / mapRect.width;
+                float normalizedY = (mousePosition.y - mapRect.y) / mapRect.height;
+                double worldUnderCursorX =
+                    _worldMapCenterX +
+                    ((normalizedX - 0.5f) * displayedWorldWidth);
+                double worldUnderCursorZ =
+                    _worldMapCenterZ +
+                    ((0.5f - normalizedY) * displayedWorldHeight);
+                float zoomMultiplier = Mathf.Exp(
+                    currentEvent.delta.y * _settings.WorldMapZoomScrollSensitivity);
+                float newHeight = Mathf.Clamp(
+                    displayedWorldHeight * zoomMultiplier,
+                    _settings.WorldMapMinimumWorldSize,
+                    _settings.WorldMapMaximumWorldSize);
+                float viewportAspect = mapRect.width / Mathf.Max(1f, mapRect.height);
+                float newWidth = newHeight * viewportAspect;
+                _worldMapCenterX =
+                    worldUnderCursorX - ((normalizedX - 0.5f) * newWidth);
+                _worldMapCenterZ =
+                    worldUnderCursorZ - ((0.5f - normalizedY) * newHeight);
+                _worldMapViewHeight = newHeight;
+                _forceScanRefresh = true;
+                currentEvent.Use();
+                return;
+            }
+
+            if (currentEvent.type == EventType.MouseDown &&
+                currentEvent.button == panMouseButton &&
+                pointerOverMap)
+            {
+                _worldMapDragging = true;
+                GUIUtility.hotControl = panControlId;
+                _lastWorldMapDragPosition = mousePosition;
+                currentEvent.Use();
+                return;
+            }
+
+            if (currentEvent.type == EventType.MouseDrag &&
+                currentEvent.button == panMouseButton &&
+                _worldMapDragging &&
+                GUIUtility.hotControl == panControlId)
+            {
+                Vector2 delta = mousePosition - _lastWorldMapDragPosition;
+                _worldMapCenterX -=
+                    (delta.x / Mathf.Max(1f, mapRect.width)) * displayedWorldWidth;
+                _worldMapCenterZ +=
+                    (delta.y / Mathf.Max(1f, mapRect.height)) * displayedWorldHeight;
+                _lastWorldMapDragPosition = mousePosition;
+                currentEvent.Use();
+                return;
+            }
+
+            if (currentEvent.type == EventType.MouseUp &&
+                currentEvent.button == panMouseButton &&
+                _worldMapDragging &&
+                GUIUtility.hotControl == panControlId)
+            {
+                _worldMapDragging = false;
+                GUIUtility.hotControl = 0;
+                _forceScanRefresh = true;
+                currentEvent.Use();
+            }
+        }
+
         private void DrawMapPanel(
             Rect mapRect,
             float displayedWorldWidth,
             float displayedWorldHeight,
+            LogicalPosition currentCenter,
             string title,
             bool worldMap,
             bool drawLabels,
@@ -425,7 +553,6 @@ namespace DuneVector
                 (_textureWorldWidth / Mathf.Max(1f, displayedWorldWidth));
             float scanHeight = mapRect.height *
                 (_textureWorldHeight / Mathf.Max(1f, displayedWorldHeight));
-            LogicalPosition currentCenter = _world.LogicalPlayerPosition;
             float horizontalPixelsPerWorldUnit =
                 mapRect.width / Mathf.Max(1f, displayedWorldWidth);
             float verticalPixelsPerWorldUnit =
@@ -454,8 +581,15 @@ namespace DuneVector
                 currentCenter,
                 worldMap,
                 scale);
+            LogicalPosition dronePosition = _world.LogicalPlayerPosition;
             DrawDroneMarker(
-                new Vector2(mapRect.width * 0.5f, mapRect.height * 0.5f),
+                new Vector2(
+                    mapRect.width *
+                    (0.5f + ((float)(dronePosition.X - currentCenter.X) /
+                             displayedWorldWidth)),
+                    mapRect.height *
+                    (0.5f - ((float)(dronePosition.Z - currentCenter.Z) /
+                             displayedWorldHeight))),
                 scale);
 
             if (drawLabels)
@@ -946,9 +1080,14 @@ namespace DuneVector
                 return;
             }
 
-            LogicalPosition center = _world.LogicalPlayerPosition;
+            LogicalPosition center = _worldMapVisible
+                ? new LogicalPosition(_worldMapCenterX, _worldMapCenterZ)
+                : _world.LogicalPlayerPosition;
             float desiredWorldHeight = _worldMapVisible
-                ? Mathf.Max(1f, _settings.WorldMapWorldSize)
+                ? Mathf.Clamp(
+                    _worldMapViewHeight,
+                    _settings.WorldMapMinimumWorldSize,
+                    _settings.WorldMapMaximumWorldSize)
                 : Mathf.Max(1f, _settings.MinimapWorldSize);
             float desiredWorldWidth = desiredWorldHeight *
                 (_worldMapVisible ? GetWorldMapViewportAspect() : 1f);
@@ -959,7 +1098,9 @@ namespace DuneVector
             {
                 if (force &&
                     (!Mathf.Approximately(_scanBuildWorldWidth, desiredWorldWidth) ||
-                     !Mathf.Approximately(_scanBuildWorldHeight, desiredWorldHeight)))
+                     !Mathf.Approximately(_scanBuildWorldHeight, desiredWorldHeight) ||
+                     Math.Abs(_scanBuildCenterX - center.X) > double.Epsilon ||
+                     Math.Abs(_scanBuildCenterZ - center.Z) > double.Epsilon))
                 {
                     BeginScanBuild(center, desiredWorldWidth, desiredWorldHeight);
                 }
@@ -986,6 +1127,9 @@ namespace DuneVector
             EnsureTexture();
             _scanBuildCenterX = center.X;
             _scanBuildCenterZ = center.Z;
+            LogicalPosition dronePosition = _world.LogicalPlayerPosition;
+            _scanBuildDroneX = dronePosition.X;
+            _scanBuildDroneZ = dronePosition.Z;
             _scanBuildWorldWidth = desiredWorldWidth;
             _scanBuildWorldHeight = desiredWorldHeight;
             _scanBuildRow = 0;
@@ -1032,7 +1176,11 @@ namespace DuneVector
                     float height = (float)_world.HeightField.SampleHeight(
                         logicalX,
                         logicalZ);
-                    float distance = Mathf.Sqrt((offsetX * offsetX) + (offsetZ * offsetZ));
+                    float droneOffsetX = (float)(logicalX - _scanBuildDroneX);
+                    float droneOffsetZ = (float)(logicalZ - _scanBuildDroneZ);
+                    float distance = Mathf.Sqrt(
+                        (droneOffsetX * droneOffsetX) +
+                        (droneOffsetZ * droneOffsetZ));
                     if (Mathf.Abs(distance - radius) <= _settings.RadiusLineThickness)
                     {
                         _scanPixels[index] = _settings.RadiusLineColor;

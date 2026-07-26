@@ -706,8 +706,11 @@ namespace DuneVector
                 ? 0f
                 : 1f;
             _player?.SetInputEnabled(!paused);
-            Cursor.lockState = paused ? CursorLockMode.None : CursorLockMode.Locked;
-            Cursor.visible = paused;
+            bool keepCursorFree = paused || DuneVectorMapHUD.IsWorldMapOpen;
+            Cursor.lockState = keepCursorFree
+                ? CursorLockMode.None
+                : CursorLockMode.Locked;
+            Cursor.visible = keepCursorFree;
             _audio?.SetPausedDucking(paused);
             if (!paused)
             {

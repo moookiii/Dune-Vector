@@ -4141,6 +4141,14 @@ namespace DuneVector
         [Min(160f)] public float WorldMapMaximumSize = 780f;
         [Min(0f)] public float WorldMapScreenPadding = 42f;
         [Min(1f)] public float WorldMapWorldSize = 3200f;
+        [Tooltip("Closest vertical world span reachable with the world-map mouse wheel.")]
+        [Min(1f)] public float WorldMapMinimumWorldSize = 500f;
+        [Tooltip("Farthest vertical world span reachable with the world-map mouse wheel.")]
+        [Min(1f)] public float WorldMapMaximumWorldSize = 16000f;
+        [Tooltip("Exponential mouse-wheel zoom response. Higher values zoom farther per wheel step.")]
+        [Range(0.01f, 0.25f)] public float WorldMapZoomScrollSensitivity = 0.08f;
+        [Tooltip("Mouse button used to drag the world map: 0 left, 1 right, 2 middle.")]
+        [Range(0, 2)] public int WorldMapPanMouseButton = 0;
         [Range(1f, 2f)] public float WorldMapPanelAspectRatio = 1.42f;
         [Min(20f)] public float WorldMapHeaderHeight = 58f;
         [Min(20f)] public float WorldMapFooterHeight = 44f;
@@ -4161,7 +4169,7 @@ namespace DuneVector
         public string WorldMapTitle = "WORLD MAP";
         public string NorthLabel = "↑ N";
         public string DroneGlyph = "▲";
-        public string WorldMapHint = "M  CLOSE    •    N  MINIMAP";
+        public string WorldMapHint = "LMB PAN  •  WHEEL ZOOM  •  M CLOSE  •  N MINIMAP";
         public string CoordinateFormat = "X {0:0}   Z {1:0}   •   SCAN RADIUS {2:0} m";
 
         [Header("Map Icons")]
