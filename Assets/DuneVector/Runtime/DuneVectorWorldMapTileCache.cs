@@ -676,13 +676,25 @@ namespace DuneVector
             double maximumZ = (key.Z + 1d) * tileWorldSize;
             float pixelsPerWorldX = mapRect.width / Mathf.Max(1f, displayedWorldWidth);
             float pixelsPerWorldZ = mapRect.height / Mathf.Max(1f, displayedWorldHeight);
-            return new Rect(
+            float minimumScreenX =
                 (mapRect.width * 0.5f) +
-                    ((float)(minimumX - center.X) * pixelsPerWorldX),
+                ((float)(minimumX - center.X) * pixelsPerWorldX);
+            float minimumScreenY =
                 (mapRect.height * 0.5f) -
-                    ((float)(maximumZ - center.Z) * pixelsPerWorldZ),
-                (float)tileWorldSize * pixelsPerWorldX,
-                (float)tileWorldSize * pixelsPerWorldZ);
+                ((float)(maximumZ - center.Z) * pixelsPerWorldZ);
+            float maximumScreenX =
+                minimumScreenX + ((float)tileWorldSize * pixelsPerWorldX);
+            float maximumScreenY =
+                minimumScreenY + ((float)tileWorldSize * pixelsPerWorldZ);
+
+            // Floor leading edges and ceil trailing edges so adjacent tiles
+            // share at least one covered pixel instead of exposing the black
+            // map background when their world boundary lands between pixels.
+            return Rect.MinMaxRect(
+                Mathf.Floor(minimumScreenX),
+                Mathf.Floor(minimumScreenY),
+                Mathf.Ceil(maximumScreenX),
+                Mathf.Ceil(maximumScreenY));
         }
 
         private void TrimRuntimeCache()
