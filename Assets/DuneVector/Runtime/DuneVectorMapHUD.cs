@@ -83,6 +83,15 @@ namespace DuneVector
             public Exception Error;
         }
 
+        private sealed class GeoglyphRevealTexture
+        {
+            public Texture2D SourceTexture;
+            public Texture2D RevealedTexture;
+            public byte[] SourceAlpha;
+            public Color32[] RevealedPixels;
+            public int ExplorationRevision = -1;
+        }
+
         public static bool IsWorldMapPausingGameplay
         {
             get
@@ -113,6 +122,9 @@ namespace DuneVector
         private readonly List<MapIconRecord> _mapIcons = new List<MapIconRecord>();
         private readonly Dictionary<GeoglyphArtworkPlacement, Texture2D> _geoglyphWorldMapTextures =
             new Dictionary<GeoglyphArtworkPlacement, Texture2D>();
+        private readonly Dictionary<GeoglyphArtworkPlacement, GeoglyphRevealTexture>
+            _geoglyphRevealTextures =
+                new Dictionary<GeoglyphArtworkPlacement, GeoglyphRevealTexture>();
         private readonly Queue<GeoglyphArtworkPlacement> _geoglyphTextureBuildQueue =
             new Queue<GeoglyphArtworkPlacement>();
         private readonly HashSet<GeoglyphArtworkPlacement> _queuedGeoglyphTextures =
@@ -142,6 +154,7 @@ namespace DuneVector
         private bool _worldMapPausedGame;
         private bool _worldMapDragging;
         private bool _worldMapDragMoved;
+        private int _explorationRevision;
         private static int _worldMapClosedFrame = -1;
         private int _scanBuildRow;
         private int _scanBuildResolution;
@@ -925,6 +938,12 @@ namespace DuneVector
                 return;
             }
 
+            Texture2D revealedTexture = GetRevealedGeoglyphTexture(artwork, mapTexture);
+            if (revealedTexture == null)
+            {
+                return;
+            }
+
             GetRotatedGeoglyphSize(artwork, out float rotatedWorldWidth, out float rotatedWorldHeight);
             float width = mapRect.width *
                 (rotatedWorldWidth / displayedWorldWidth);
@@ -936,7 +955,86 @@ namespace DuneVector
                 width,
                 height);
 
-            GUI.DrawTexture(artworkRect, mapTexture, ScaleMode.StretchToFill, true);
+            GUI.DrawTexture(artworkRect, revealedTexture, ScaleMode.StretchToFill, true);
+        }
+
+        private Texture2D GetRevealedGeoglyphTexture(
+            GeoglyphArtworkPlacement artwork,
+            Texture2D sourceTexture)
+        {
+            if (!_geoglyphRevealTextures.TryGetValue(
+                    artwork,
+                    out GeoglyphRevealTexture reveal) ||
+                reveal.SourceTexture != sourceTexture)
+            {
+                if (reveal?.RevealedTexture != null)
+                {
+                    Destroy(reveal.RevealedTexture);
+                }
+
+                Color32[] sourcePixels = sourceTexture.GetPixels32();
+                byte[] sourceAlpha = new byte[sourcePixels.Length];
+                for (int index = 0; index < sourcePixels.Length; index++)
+                {
+                    sourceAlpha[index] = sourcePixels[index].a;
+                }
+                reveal = new GeoglyphRevealTexture
+                {
+                    SourceTexture = sourceTexture,
+                    SourceAlpha = sourceAlpha,
+                    RevealedPixels = sourcePixels,
+                    RevealedTexture = new Texture2D(
+                        sourceTexture.width,
+                        sourceTexture.height,
+                        TextureFormat.RGBA32,
+                        false,
+                        false)
+                    {
+                        name = $"Explored Map Geoglyph - {artwork.Mask.name}",
+                        filterMode = FilterMode.Bilinear,
+                        wrapMode = TextureWrapMode.Clamp,
+                        anisoLevel = 0,
+                        hideFlags = HideFlags.DontSave,
+                    },
+                };
+                _geoglyphRevealTextures[artwork] = reveal;
+            }
+
+            if (reveal.ExplorationRevision == _explorationRevision)
+            {
+                return reveal.RevealedTexture;
+            }
+
+            GetRotatedGeoglyphSize(
+                artwork,
+                out float rotatedWorldWidth,
+                out float rotatedWorldHeight);
+            int width = sourceTexture.width;
+            int height = sourceTexture.height;
+            for (int y = 0; y < height; y++)
+            {
+                double logicalZ =
+                    artwork.WorldCenter.y +
+                    ((((y + 0.5d) / height) - 0.5d) * rotatedWorldHeight);
+                int rowOffset = y * width;
+                for (int x = 0; x < width; x++)
+                {
+                    int pixelIndex = rowOffset + x;
+                    Color32 pixel = reveal.RevealedPixels[pixelIndex];
+                    double logicalX =
+                        artwork.WorldCenter.x +
+                        ((((x + 0.5d) / width) - 0.5d) * rotatedWorldWidth);
+                    pixel.a = IsExplored(logicalX, logicalZ)
+                        ? reveal.SourceAlpha[pixelIndex]
+                        : byte.MinValue;
+                    reveal.RevealedPixels[pixelIndex] = pixel;
+                }
+            }
+
+            reveal.RevealedTexture.SetPixels32(reveal.RevealedPixels);
+            reveal.RevealedTexture.Apply(false, false);
+            reveal.ExplorationRevision = _explorationRevision;
+            return reveal.RevealedTexture;
         }
 
         private void UpdateIconStyles(float iconScale)
@@ -1699,6 +1797,7 @@ namespace DuneVector
             _lastRevealZ = center.Z;
             if (discoveredAny)
             {
+                _explorationRevision++;
                 _explorationDirty = true;
                 _worldMapTileCache?.MarkExplorationChanged();
             }
@@ -2234,6 +2333,14 @@ namespace DuneVector
                 }
             }
             _geoglyphWorldMapTextures.Clear();
+            foreach (GeoglyphRevealTexture reveal in _geoglyphRevealTextures.Values)
+            {
+                if (reveal?.RevealedTexture != null)
+                {
+                    Destroy(reveal.RevealedTexture);
+                }
+            }
+            _geoglyphRevealTextures.Clear();
             if (_worldMapGui != null)
             {
                 _worldMapGui.enabled = false;
