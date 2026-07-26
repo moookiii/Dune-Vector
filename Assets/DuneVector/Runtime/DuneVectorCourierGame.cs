@@ -2629,7 +2629,7 @@ namespace DuneVector
             }
             else
             {
-                int columns = Mathf.Min(Mathf.Max(1, _messageSettings.ArchiveGridColumns), archivedCount);
+                int columns = Mathf.Max(1, _messageSettings.ArchiveGridColumns);
                 int rowCount = Mathf.CeilToInt(archivedCount / (float)columns);
                 float tileHeight = _messageSettings.ArchiveTileHeight;
                 float tileGap = _messageSettings.ArchiveTileGap;
