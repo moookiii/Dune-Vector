@@ -113,8 +113,11 @@ namespace DuneVector
         private bool _forceScanRefresh;
         private bool _scanBuildActive;
         private bool _worldMapPausedGame;
+        private bool _worldMapCenterInitialized;
+        private bool _worldMapDragging;
         private int _scanBuildRow;
         private float _timeScaleBeforeWorldMap = 1f;
+        private LogicalPosition _worldMapCenter;
         private double _scanBuildCenterX;
         private double _scanBuildCenterZ;
         private float _scanBuildWorldSize;
@@ -180,6 +183,7 @@ namespace DuneVector
                 }
             }
 
+            UpdateWorldMapPan();
             RevealAroundPlayer(false);
             SaveExplorationIfDue();
             RefreshMapIconsIfDue();
@@ -202,6 +206,12 @@ namespace DuneVector
 
             _worldMapVisible = visible;
             _forceScanRefresh = true;
+            _worldMapDragging = false;
+            if (visible && _world != null)
+            {
+                _worldMapCenter = _world.LogicalPlayerPosition;
+                _worldMapCenterInitialized = true;
+            }
             if (visible && _settings != null && _settings.PauseGameWhenWorldMapOpen)
             {
                 _timeScaleBeforeWorldMap = Time.timeScale;
@@ -213,6 +223,65 @@ namespace DuneVector
                 Time.timeScale = _timeScaleBeforeWorldMap;
                 _worldMapPausedGame = false;
             }
+        }
+
+        private void UpdateWorldMapPan()
+        {
+            if (!_worldMapVisible || _world == null || _settings == null)
+            {
+                _worldMapDragging = false;
+                return;
+            }
+
+            Mouse mouse = Mouse.current;
+            if (mouse == null)
+            {
+                return;
+            }
+
+            Vector2 mousePosition = mouse.position.ReadValue();
+            Vector2 guiPosition = new Vector2(
+                mousePosition.x,
+                Screen.height - mousePosition.y);
+            Rect mapRect = GetWorldMapRect();
+
+            if (mouse.rightButton.wasPressedThisFrame && mapRect.Contains(guiPosition))
+            {
+                _worldMapCenter = _world.LogicalPlayerPosition;
+                _worldMapCenterInitialized = true;
+                _forceScanRefresh = true;
+            }
+
+            if (mouse.leftButton.wasPressedThisFrame && mapRect.Contains(guiPosition))
+            {
+                _worldMapDragging = true;
+            }
+            if (mouse.leftButton.wasReleasedThisFrame)
+            {
+                if (_worldMapDragging)
+                {
+                    _forceScanRefresh = true;
+                }
+                _worldMapDragging = false;
+            }
+            if (!_worldMapDragging || !mouse.leftButton.isPressed)
+            {
+                return;
+            }
+
+            Vector2 pixelDelta = mouse.delta.ReadValue();
+            if (pixelDelta.sqrMagnitude <= Mathf.Epsilon)
+            {
+                return;
+            }
+
+            double worldUnitsPerPixel =
+                Mathf.Max(1f, _settings.WorldMapWorldSize) /
+                Mathf.Max(1f, mapRect.width) *
+                Mathf.Max(0.01f, _settings.WorldMapDragSensitivity);
+            _worldMapCenter = new LogicalPosition(
+                _worldMapCenter.X - (pixelDelta.x * worldUnitsPerPixel),
+                _worldMapCenter.Z - (pixelDelta.y * worldUnitsPerPixel));
         }
 
         private void OnGUI()
@@ -273,6 +342,17 @@ namespace DuneVector
             overlay.a *= _settings.OverlayOpacity;
             DrawSolidRect(new Rect(0f, 0f, Screen.width, Screen.height), overlay);
 
+            Rect mapRect = GetWorldMapRect();
+            DrawMapPanel(
+                mapRect,
+                _settings.WorldMapWorldSize,
+                _settings.WorldMapTitle,
+                true,
+                GetMapScale());
+        }
+
+        private Rect GetWorldMapRect()
+        {
             Rect safeArea = Screen.safeArea;
             float availableWidth = Mathf.Max(
                 1f,
@@ -288,13 +368,7 @@ namespace DuneVector
                 (Screen.height - safeArea.yMax) + ((safeArea.height - size) * 0.5f),
                 size,
                 size);
-
-            DrawMapPanel(
-                mapRect,
-                _settings.WorldMapWorldSize,
-                _settings.WorldMapTitle,
-                true,
-                GetMapScale());
+            return mapRect;
         }
 
         private void DrawMapPanel(
@@ -312,7 +386,11 @@ namespace DuneVector
 
             float scanSize = mapRect.width *
                 (_textureWorldSize / Mathf.Max(1f, displayedWorldSize));
-            LogicalPosition currentCenter = _world.LogicalPlayerPosition;
+            LogicalPosition playerPosition = _world.LogicalPlayerPosition;
+            LogicalPosition currentCenter =
+                showDetails && _worldMapCenterInitialized
+                    ? _worldMapCenter
+                    : playerPosition;
             float pixelsPerWorldUnit = mapRect.width / Mathf.Max(1f, displayedWorldSize);
             bool hasCompletedScan =
                 !double.IsInfinity(_lastScanX) &&
@@ -332,9 +410,14 @@ namespace DuneVector
             GUI.BeginGroup(mapRect);
             GUI.DrawTexture(localScanRect, _scanTexture, ScaleMode.StretchToFill, false);
             DrawMapIcons(mapRect, displayedWorldSize, currentCenter, showDetails, scale);
-            DrawDroneMarker(
-                new Vector2(mapRect.width * 0.5f, mapRect.height * 0.5f),
-                scale);
+            Vector2 dronePosition = new Vector2(
+                mapRect.width *
+                    (0.5f + ((float)(playerPosition.X - currentCenter.X) /
+                        displayedWorldSize)),
+                mapRect.height *
+                    (0.5f - ((float)(playerPosition.Z - currentCenter.Z) /
+                        displayedWorldSize)));
+            DrawDroneMarker(dronePosition, scale);
 
             float padding = _settings.ContentPadding * scale;
             float titleHeight = _settings.TitleHeight * scale;
@@ -840,14 +923,17 @@ namespace DuneVector
                 return;
             }
 
-            LogicalPosition center = _world.LogicalPlayerPosition;
+            LogicalPosition center =
+                _worldMapVisible && _worldMapCenterInitialized
+                    ? _worldMapCenter
+                    : _world.LogicalPlayerPosition;
             float desiredWorldSize = _worldMapVisible
                 ? Mathf.Max(1f, _settings.WorldMapWorldSize)
                 : Mathf.Max(1f, _settings.MinimapWorldSize);
             force |= !Mathf.Approximately(_textureWorldSize, desiredWorldSize);
             if (_scanBuildActive)
             {
-                if (force && !Mathf.Approximately(_scanBuildWorldSize, desiredWorldSize))
+                if (force)
                 {
                     BeginScanBuild(center, desiredWorldSize);
                 }
