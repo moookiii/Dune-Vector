@@ -152,6 +152,8 @@ namespace DuneVector
                 new ProfilerMarker("DuneVector.Streaming.Update");
             public static readonly ProfilerMarker CollisionChunk =
                 new ProfilerMarker("DuneVector.Streaming.CollisionChunk");
+            public static readonly ProfilerMarker VisualChunk =
+                new ProfilerMarker("DuneVector.Streaming.VisualChunk");
             public static readonly ProfilerMarker CompleteChunk =
                 new ProfilerMarker("DuneVector.Streaming.CompleteChunk");
             public static readonly ProfilerMarker TerrainMesh =
@@ -387,7 +389,9 @@ namespace DuneVector
 
                         bool needsContent = _desiredContentCoordinates.Contains(coordinate);
                         if (_chunks.TryGetValue(coordinate, out DesertChunk queuedChunk) &&
-                            (needsContent ? queuedChunk.IsContentReady : queuedChunk.IsVisualReady))
+                            (needsContent
+                                ? queuedChunk.IsContentReady && queuedChunk.IsVisualReady
+                                : queuedChunk.IsTerrainVisible))
                         {
                             continue;
                         }
@@ -406,7 +410,9 @@ namespace DuneVector
                         }
 
                         if (_chunks.TryGetValue(coordinate, out DesertChunk advancedChunk) &&
-                            !(needsContent ? advancedChunk.IsContentReady : advancedChunk.IsVisualReady) &&
+                            !(needsContent
+                                ? advancedChunk.IsContentReady && advancedChunk.IsVisualReady
+                                : advancedChunk.IsTerrainVisible) &&
                             _desiredVisualCoordinates.Contains(coordinate) &&
                             _queuedCoordinates.Add(coordinate))
                         {
@@ -639,7 +645,9 @@ namespace DuneVector
             {
                 bool needsContent = _desiredContentCoordinates.Contains(coordinate);
                 bool needsWork = !_chunks.TryGetValue(coordinate, out DesertChunk chunk) ||
-                    (needsContent ? !chunk.IsContentReady : !chunk.IsVisualReady);
+                    (needsContent
+                        ? !chunk.IsContentReady || !chunk.IsVisualReady
+                        : !chunk.IsTerrainVisible);
                 if (needsWork)
                 {
                     _candidateCoordinates.Add(coordinate);
@@ -849,7 +857,7 @@ namespace DuneVector
             }
 
             DesertChunk chunk;
-            using (Markers.CollisionChunk.Auto())
+            using ((requireCollision ? Markers.CollisionChunk : Markers.VisualChunk).Auto())
             {
                 chunk = new DesertChunk(
                     coordinate,
@@ -1160,6 +1168,7 @@ namespace DuneVector
         private DuneVectorCloudField _cloudField;
         private DesertShrubField _shrubs;
         public bool IsVisualReady { get; private set; }
+        public bool IsTerrainVisible => _terrainMesh != null;
         public bool IsContentReady { get; private set; }
 
         public DesertChunk(
@@ -1194,8 +1203,8 @@ namespace DuneVector
                 }
                 else
                 {
-                    _terrainMesh = BuildTerrainMesh(coordinate, chunkSize, _visualResolution, heightField);
-                    IsVisualReady = true;
+                    _terrainMesh = BuildTerrainMesh(coordinate, chunkSize, _collisionResolution, heightField);
+                    IsVisualReady = _visualResolution == _collisionResolution;
                 }
             }
             _terrainFilter = rootObject.AddComponent<MeshFilter>();
@@ -1215,6 +1224,12 @@ namespace DuneVector
         {
             if (_terrainCollider != null)
             {
+                return;
+            }
+            if (_terrainMesh != null)
+            {
+                _collisionMesh = _terrainMesh;
+                AssignTerrainCollider();
                 return;
             }
             using (DesertWorldStreamer.Markers.TerrainMesh.Auto())
@@ -1311,11 +1326,16 @@ namespace DuneVector
             {
                 return;
             }
+            Mesh previousTerrainMesh = _terrainMesh;
             using (DesertWorldStreamer.Markers.TerrainMesh.Auto())
             {
                 _terrainMesh = BuildTerrainMesh(Coordinate, _chunkSize, _visualResolution, _heightField);
             }
             _terrainFilter.sharedMesh = _terrainMesh;
+            if (previousTerrainMesh != null && previousTerrainMesh != _collisionMesh)
+            {
+                UnityEngine.Object.Destroy(previousTerrainMesh);
+            }
             IsVisualReady = true;
         }
 
