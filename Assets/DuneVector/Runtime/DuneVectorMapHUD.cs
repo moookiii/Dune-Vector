@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -69,6 +71,16 @@ namespace DuneVector
             }
         }
 
+        private sealed class WorldAtlasBuildResult
+        {
+            public int Resolution;
+            public Color32[] Pixels;
+            public double CenterX;
+            public double CenterZ;
+            public float WorldWidth;
+            public float WorldHeight;
+        }
+
         public static bool IsWorldMapPausingGameplay
         {
             get
@@ -86,6 +98,7 @@ namespace DuneVector
         private MapHudTuning _settings;
         private GeoglyphSystemTuning _geoglyphs;
         private Texture2D _scanTexture;
+        private Texture2D _worldAtlasTexture;
         private Material _geoglyphMapMaterial;
         private Color[] _scanPixels;
         private readonly HashSet<long> _exploredCells = new HashSet<long>();
@@ -135,6 +148,12 @@ namespace DuneVector
         private float _timeScaleBeforeWorldMap = 1f;
         private float _worldMapViewHeight;
         private float _nextWorldMapRefineTime;
+        private Task<WorldAtlasBuildResult> _worldAtlasBuildTask;
+        private CancellationTokenSource _worldAtlasBuildCancellation;
+        private double _worldAtlasCenterX;
+        private double _worldAtlasCenterZ;
+        private float _worldAtlasWorldWidth;
+        private float _worldAtlasWorldHeight;
         private double _worldMapCenterX;
         private double _worldMapCenterZ;
         private Vector2 _worldMapDragStartPosition;
@@ -176,10 +195,12 @@ namespace DuneVector
             LoadExploration();
             RevealAroundPlayer(true);
             RefreshScan(true);
+            StartWorldAtlasBuild();
         }
 
         private void Update()
         {
+            CompleteWorldAtlasBuildIfReady();
             if (_settings == null || !_settings.Enabled)
             {
                 SetWorldMapVisible(false);
@@ -590,31 +611,30 @@ namespace DuneVector
                 _settings.BorderColor,
                 Mathf.Max(1f, _settings.BorderThickness * scale));
 
-            float scanWidth = mapRect.width *
-                (_textureWorldWidth / Mathf.Max(1f, displayedWorldWidth));
-            float scanHeight = mapRect.height *
-                (_textureWorldHeight / Mathf.Max(1f, displayedWorldHeight));
-            float horizontalPixelsPerWorldUnit =
-                mapRect.width / Mathf.Max(1f, displayedWorldWidth);
-            float verticalPixelsPerWorldUnit =
-                mapRect.height / Mathf.Max(1f, displayedWorldHeight);
-            bool hasCompletedScan =
-                !double.IsInfinity(_lastScanX) &&
-                !double.IsInfinity(_lastScanZ);
-            float scanOffsetX = hasCompletedScan
-                ? (float)(_lastScanX - currentCenter.X) * horizontalPixelsPerWorldUnit
-                : 0f;
-            float scanOffsetY = hasCompletedScan
-                ? (float)(currentCenter.Z - _lastScanZ) * verticalPixelsPerWorldUnit
-                : 0f;
-            Rect localScanRect = new Rect(
-                ((mapRect.width - scanWidth) * 0.5f) + scanOffsetX,
-                ((mapRect.height - scanHeight) * 0.5f) + scanOffsetY,
-                scanWidth,
-                scanHeight);
-
             GUI.BeginGroup(mapRect);
-            GUI.DrawTexture(localScanRect, _scanTexture, ScaleMode.StretchToFill, false);
+            if (worldMap && _worldAtlasTexture != null)
+            {
+                DrawCachedMapTexture(
+                    mapRect,
+                    _worldAtlasTexture,
+                    _worldAtlasCenterX,
+                    _worldAtlasCenterZ,
+                    _worldAtlasWorldWidth,
+                    _worldAtlasWorldHeight,
+                    currentCenter,
+                    displayedWorldWidth,
+                    displayedWorldHeight);
+            }
+            DrawCachedMapTexture(
+                mapRect,
+                _scanTexture,
+                _lastScanX,
+                _lastScanZ,
+                _textureWorldWidth,
+                _textureWorldHeight,
+                currentCenter,
+                displayedWorldWidth,
+                displayedWorldHeight);
             DrawMapIcons(
                 mapRect,
                 displayedWorldWidth,
@@ -656,6 +676,44 @@ namespace DuneVector
             }
 
             GUI.EndGroup();
+        }
+
+        private static void DrawCachedMapTexture(
+            Rect mapRect,
+            Texture texture,
+            double textureCenterX,
+            double textureCenterZ,
+            float textureWorldWidth,
+            float textureWorldHeight,
+            LogicalPosition viewCenter,
+            float displayedWorldWidth,
+            float displayedWorldHeight)
+        {
+            if (texture == null ||
+                double.IsInfinity(textureCenterX) ||
+                double.IsInfinity(textureCenterZ) ||
+                textureWorldWidth <= 0f ||
+                textureWorldHeight <= 0f)
+            {
+                return;
+            }
+
+            float horizontalPixelsPerWorldUnit =
+                mapRect.width / Mathf.Max(1f, displayedWorldWidth);
+            float verticalPixelsPerWorldUnit =
+                mapRect.height / Mathf.Max(1f, displayedWorldHeight);
+            float textureWidth = textureWorldWidth * horizontalPixelsPerWorldUnit;
+            float textureHeight = textureWorldHeight * verticalPixelsPerWorldUnit;
+            float offsetX =
+                (float)(textureCenterX - viewCenter.X) * horizontalPixelsPerWorldUnit;
+            float offsetY =
+                (float)(viewCenter.Z - textureCenterZ) * verticalPixelsPerWorldUnit;
+            Rect textureRect = new Rect(
+                ((mapRect.width - textureWidth) * 0.5f) + offsetX,
+                ((mapRect.height - textureHeight) * 0.5f) + offsetY,
+                textureWidth,
+                textureHeight);
+            GUI.DrawTexture(textureRect, texture, ScaleMode.StretchToFill, false);
         }
 
         private void DrawMapIcons(
@@ -1325,6 +1383,228 @@ namespace DuneVector
             return viewportWidth / viewportHeight;
         }
 
+        private void StartWorldAtlasBuild()
+        {
+            if (_settings == null ||
+                !_settings.PrebuildWorldMapAtlasOnLoad ||
+                _world == null ||
+                _world.HeightField == null ||
+                _worldAtlasBuildTask != null)
+            {
+                return;
+            }
+
+            float cellSize = Mathf.Max(1f, _settings.ExplorationCellSize);
+            HashSet<long> exploredSnapshot = new HashSet<long>(_exploredCells);
+            LogicalPosition playerPosition = _world.LogicalPlayerPosition;
+            double minimumX = playerPosition.X;
+            double maximumX = playerPosition.X;
+            double minimumZ = playerPosition.Z;
+            double maximumZ = playerPosition.Z;
+            foreach (long packedCell in exploredSnapshot)
+            {
+                int cellX = (int)(packedCell >> 32);
+                int cellZ = unchecked((int)(uint)packedCell);
+                minimumX = Math.Min(minimumX, cellX * (double)cellSize);
+                maximumX = Math.Max(maximumX, (cellX + 1d) * cellSize);
+                minimumZ = Math.Min(minimumZ, cellZ * (double)cellSize);
+                maximumZ = Math.Max(maximumZ, (cellZ + 1d) * cellSize);
+            }
+
+            float margin = Mathf.Max(0f, _settings.WorldMapAtlasExplorationMargin);
+            float viewportAspect = Mathf.Max(1f, GetWorldMapViewportAspect());
+            float worldHeight = Mathf.Max(
+                _settings.WorldMapMaximumWorldSize,
+                (float)(maximumZ - minimumZ) + (margin * 2f));
+            float worldWidth = worldHeight * viewportAspect;
+            float requiredWidth = (float)(maximumX - minimumX) + (margin * 2f);
+            if (requiredWidth > worldWidth)
+            {
+                worldWidth = requiredWidth;
+                worldHeight = worldWidth / viewportAspect;
+            }
+
+            double centerX = (minimumX + maximumX) * 0.5d;
+            double centerZ = (minimumZ + maximumZ) * 0.5d;
+            int resolution = Mathf.Clamp(
+                _settings.WorldMapAtlasTextureResolution,
+                512,
+                4096);
+            DuneHeightField heightField = _world.HeightField;
+            Color32 unexploredColor = _settings.UnexploredColor;
+            Color32 terrainLowColor = _settings.TerrainLowColor;
+            Color32 terrainHighColor = _settings.TerrainHighColor;
+            Color32 contourColor = _settings.ContourColor;
+            float minimumHeight = Mathf.Min(
+                _settings.TerrainHeightMinimum,
+                _settings.TerrainHeightMaximum);
+            float maximumHeight = Mathf.Max(
+                _settings.TerrainHeightMinimum,
+                _settings.TerrainHeightMaximum);
+            float heightContrast = _settings.HeightContrast;
+            float contourSpacing = Mathf.Max(0.01f, _settings.ContourSpacing);
+            float contourThickness = _settings.ContourThickness;
+            float contourStrength = _settings.ContourStrength;
+
+            _worldAtlasBuildCancellation = new CancellationTokenSource();
+            CancellationToken cancellationToken = _worldAtlasBuildCancellation.Token;
+            _worldAtlasBuildTask = Task.Factory.StartNew(
+                () => BuildWorldAtlas(
+                    heightField,
+                    exploredSnapshot,
+                    cellSize,
+                    resolution,
+                    centerX,
+                    centerZ,
+                    worldWidth,
+                    worldHeight,
+                    unexploredColor,
+                    terrainLowColor,
+                    terrainHighColor,
+                    contourColor,
+                    minimumHeight,
+                    maximumHeight,
+                    heightContrast,
+                    contourSpacing,
+                    contourThickness,
+                    contourStrength,
+                    cancellationToken),
+                cancellationToken,
+                TaskCreationOptions.LongRunning,
+                TaskScheduler.Default);
+        }
+
+        private static WorldAtlasBuildResult BuildWorldAtlas(
+            DuneHeightField heightField,
+            HashSet<long> exploredCells,
+            float cellSize,
+            int resolution,
+            double centerX,
+            double centerZ,
+            float worldWidth,
+            float worldHeight,
+            Color32 unexploredColor,
+            Color32 terrainLowColor,
+            Color32 terrainHighColor,
+            Color32 contourColor,
+            float minimumHeight,
+            float maximumHeight,
+            float heightContrast,
+            float contourSpacing,
+            float contourThickness,
+            float contourStrength,
+            CancellationToken cancellationToken)
+        {
+            Color32[] pixels = new Color32[resolution * resolution];
+            float heightRange = Math.Max(float.Epsilon, maximumHeight - minimumHeight);
+            double minimumWorldX = centerX - (worldWidth * 0.5d);
+            double minimumWorldZ = centerZ - (worldHeight * 0.5d);
+            for (int y = 0; y < resolution; y++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                double logicalZ =
+                    minimumWorldZ + (((y + 0.5d) / resolution) * worldHeight);
+                int cellZ = (int)Math.Floor(logicalZ / cellSize);
+                for (int x = 0; x < resolution; x++)
+                {
+                    int pixelIndex = (y * resolution) + x;
+                    double logicalX =
+                        minimumWorldX + (((x + 0.5d) / resolution) * worldWidth);
+                    int cellX = (int)Math.Floor(logicalX / cellSize);
+                    if (!exploredCells.Contains(PackCell(cellX, cellZ)))
+                    {
+                        pixels[pixelIndex] = unexploredColor;
+                        continue;
+                    }
+
+                    float height = (float)heightField.SampleHeight(logicalX, logicalZ);
+                    float height01 = Math.Clamp(
+                        ((((height - minimumHeight) / heightRange) - 0.5f) *
+                         heightContrast) +
+                        0.5f,
+                        0f,
+                        1f);
+                    Color32 terrain = LerpColor32(
+                        terrainLowColor,
+                        terrainHighColor,
+                        height01);
+                    float contourRemainder =
+                        (float)(Math.Abs(height) % contourSpacing);
+                    float contourDistance = Math.Min(
+                        contourRemainder,
+                        contourSpacing - contourRemainder);
+                    if (contourDistance <= contourThickness)
+                    {
+                        terrain = LerpColor32(
+                            terrain,
+                            contourColor,
+                            contourStrength);
+                    }
+                    pixels[pixelIndex] = terrain;
+                }
+            }
+
+            return new WorldAtlasBuildResult
+            {
+                Resolution = resolution,
+                Pixels = pixels,
+                CenterX = centerX,
+                CenterZ = centerZ,
+                WorldWidth = worldWidth,
+                WorldHeight = worldHeight,
+            };
+        }
+
+        private static Color32 LerpColor32(Color32 from, Color32 to, float amount)
+        {
+            float clampedAmount = Math.Clamp(amount, 0f, 1f);
+            return new Color32(
+                (byte)Math.Round(from.r + ((to.r - from.r) * clampedAmount)),
+                (byte)Math.Round(from.g + ((to.g - from.g) * clampedAmount)),
+                (byte)Math.Round(from.b + ((to.b - from.b) * clampedAmount)),
+                (byte)Math.Round(from.a + ((to.a - from.a) * clampedAmount)));
+        }
+
+        private void CompleteWorldAtlasBuildIfReady()
+        {
+            if (_worldAtlasBuildTask == null ||
+                !_worldAtlasBuildTask.IsCompleted)
+            {
+                return;
+            }
+
+            Task<WorldAtlasBuildResult> completedTask = _worldAtlasBuildTask;
+            _worldAtlasBuildTask = null;
+            _worldAtlasBuildCancellation?.Dispose();
+            _worldAtlasBuildCancellation = null;
+            if (completedTask.IsCanceled)
+            {
+                return;
+            }
+            if (completedTask.IsFaulted)
+            {
+                Debug.LogWarning(
+                    $"Unable to prebuild world map atlas: " +
+                    $"{completedTask.Exception?.GetBaseException().Message}");
+                return;
+            }
+
+            WorldAtlasBuildResult result = completedTask.Result;
+            Texture2D atlasTexture = CreateScanTexture(result.Resolution);
+            atlasTexture.name = "Dune Vector Prebuilt World Atlas";
+            atlasTexture.SetPixels32(result.Pixels);
+            atlasTexture.Apply(false, true);
+            if (_worldAtlasTexture != null)
+            {
+                Destroy(_worldAtlasTexture);
+            }
+            _worldAtlasTexture = atlasTexture;
+            _worldAtlasCenterX = result.CenterX;
+            _worldAtlasCenterZ = result.CenterZ;
+            _worldAtlasWorldWidth = result.WorldWidth;
+            _worldAtlasWorldHeight = result.WorldHeight;
+        }
+
         private void RevealAroundPlayer(bool force)
         {
             if (_settings == null || !_settings.Enabled || _world == null)
@@ -1640,11 +1920,16 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            _worldAtlasBuildCancellation?.Cancel();
             SetWorldMapVisible(false);
             SaveExploration();
             if (_scanTexture != null)
             {
                 Destroy(_scanTexture);
+            }
+            if (_worldAtlasTexture != null)
+            {
+                Destroy(_worldAtlasTexture);
             }
             if (_geoglyphMapMaterial != null)
             {
