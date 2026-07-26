@@ -110,7 +110,8 @@ namespace DuneVector
         private Material _geoglyphMapMaterial;
         private DuneVectorWorldMapTileCache _worldMapTileCache;
         private Color[] _scanPixels;
-        private readonly HashSet<long> _exploredCells = new HashSet<long>();
+        private readonly DuneVectorExplorationCellGrid _exploredCells =
+            new DuneVectorExplorationCellGrid();
         private readonly List<long> _pendingExplorationCells = new List<long>();
         private readonly HashSet<long> _exploredTerrainBaseTiles = new HashSet<long>();
         private readonly List<MapIconRecord> _mapIcons = new List<MapIconRecord>();
