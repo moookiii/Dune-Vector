@@ -400,12 +400,17 @@ namespace DuneVector
                     tabWidth,
                     _settings.CompendiumTabHeight);
                 bool selected = i == _selectedTab;
+                bool hovered = tab.Contains(Event.current.mousePosition);
                 DrawRect(tab, selected
                     ? _settings.CompendiumSelectedTabColor
                     : _settings.CompendiumTabColor);
                 DrawBorder(
                     tab,
-                    selected ? _settings.GallerySelectionColor : _settings.GalleryAccentColor,
+                    hovered
+                        ? _settings.CompendiumHoverBorderColor
+                        : selected
+                            ? _settings.GallerySelectionColor
+                            : _settings.GalleryAccentColor,
                     _settings.FrameThickness);
                 if (GUI.Button(tab, GUIContent.none, GUIStyle.none))
                 {
@@ -523,13 +528,16 @@ namespace DuneVector
                     _selectedSubjectId,
                     entry.SubjectId,
                     StringComparison.Ordinal);
+                bool hovered = slot.Contains(Event.current.mousePosition);
                 DrawBorder(
                     slot,
-                    selected
-                        ? _settings.CompendiumActiveAccentColor
-                        : documented
-                            ? _settings.GalleryAccentColor
-                            : _settings.GallerySelectionColor,
+                    hovered
+                        ? _settings.CompendiumHoverBorderColor
+                        : selected
+                            ? _settings.CompendiumActiveAccentColor
+                            : documented
+                                ? _settings.GalleryAccentColor
+                                : _settings.GallerySelectionColor,
                     selected
                         ? _settings.FrameThickness * 2f
                         : _settings.FrameThickness);

@@ -358,6 +358,7 @@ namespace DuneVector
         [ColorUsage(false)] public Color CompendiumSelectedTabColor = new Color(0.12f, 0.36f, 0.44f, 1f);
         [ColorUsage(false)] public Color CompendiumIconColor = new Color(0.72f, 0.94f, 1f, 1f);
         [ColorUsage(false)] public Color CompendiumActiveAccentColor = new Color(1f, 0.62f, 0.16f, 1f);
+        [ColorUsage(false)] public Color CompendiumHoverBorderColor = Color.white;
 
         public void EnsureInitialized()
         {
