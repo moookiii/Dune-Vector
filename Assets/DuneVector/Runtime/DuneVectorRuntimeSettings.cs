@@ -4212,20 +4212,15 @@ namespace DuneVector
         public string CoordinateFormat = "X {0:0}   Z {1:0}   •   SCAN RADIUS {2:0} m";
 
         [Header("Map Icons")]
-        public bool ShowRings = true;
         public bool ShowLandmarks = true;
         public bool ShowGeoglyphs = true;
         [Tooltip("Hide points of interest until the drone has explored the cell containing them.")]
         public bool OnlyShowExploredIcons = true;
         [Tooltip("Seconds between lightweight point-of-interest cache refreshes.")]
         [Min(0.1f)] public float IconRefreshInterval = 1f;
-        [Min(8)] public int RingIconFontSize = 22;
         [Min(8)] public int LandmarkIconFontSize = 20;
         [Min(12f)] public float IconBoxSize = 34f;
-        [Tooltip("Scale of the purple upper-flight ring inside its white regular-flight ring icon.")]
-        [Range(0.25f, 0.9f)] public float UpperFlightIconScale = 0.62f;
         public Vector2 IconShadowOffset = new Vector2(1f, 2f);
-        public string RingIcon = "○";
         [Header("Landmark Symbols")]
         public string RelayStationIcon = "⌁";
         public string CrashedCarrierIcon = "✈";
@@ -4239,9 +4234,6 @@ namespace DuneVector
         public string SandRingIcon = "◎";
 
         [Header("Icon Colors")]
-        [ColorUsage(false)] public Color YellowRingColor = new Color(1f, 0.78f, 0.08f, 1f);
-        [ColorUsage(false)] public Color WhiteRingColor = new Color(0.95f, 0.98f, 1f, 1f);
-        [ColorUsage(false)] public Color PurplePortalColor = new Color(0.74f, 0.32f, 1f, 1f);
         [ColorUsage(false)] public Color LandmarkIconColor = new Color(1f, 0.67f, 0.18f, 1f);
         [ColorUsage(false)] public Color GeoglyphMapColor = Color.white;
         [Range(0f, 1f)] public float GeoglyphMapOpacity = 1f;
