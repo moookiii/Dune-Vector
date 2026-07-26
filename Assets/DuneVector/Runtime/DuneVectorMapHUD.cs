@@ -94,6 +94,7 @@ namespace DuneVector
         private Texture2D _worldMapScanRingTexture;
         private Material _geoglyphMapMaterial;
         private DuneVectorWorldMapTileCache _worldMapTileCache;
+        private DuneVectorWorldMapGUI _worldMapGui;
         private Color[] _scanPixels;
         private readonly DuneVectorExplorationCellGrid _exploredCells =
             new DuneVectorExplorationCellGrid();
@@ -173,6 +174,13 @@ namespace DuneVector
             _bottomHud = bottomHud;
             _settings = settings;
             _geoglyphs = geoglyphs;
+            _worldMapGui = GetComponent<DuneVectorWorldMapGUI>();
+            if (_worldMapGui == null)
+            {
+                _worldMapGui = gameObject.AddComponent<DuneVectorWorldMapGUI>();
+            }
+            _worldMapGui.Owner = this;
+            _worldMapGui.enabled = false;
             if (settings != null)
             {
                 _pendingExplorationCells.Capacity = Mathf.Max(
@@ -270,6 +278,10 @@ namespace DuneVector
 
             _worldMapVisible = visible;
             _forceScanRefresh = true;
+            if (_worldMapGui != null)
+            {
+                _worldMapGui.enabled = visible;
+            }
             _worldMapTileCache?.SetProcessingEnabled(visible);
             DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
             bool pauseMenuIsOpen = bootstrap != null &&
@@ -319,7 +331,7 @@ namespace DuneVector
             }
         }
 
-        private void OnGUI()
+        internal void DrawWorldMapGUI()
         {
             if (_settings == null ||
                 !_settings.Enabled ||
@@ -2191,6 +2203,12 @@ namespace DuneVector
                 }
             }
             _geoglyphWorldMapTextures.Clear();
+            if (_worldMapGui != null)
+            {
+                _worldMapGui.enabled = false;
+                _worldMapGui.Owner = null;
+                _worldMapGui = null;
+            }
         }
 
         private void OnDisable()
@@ -2209,6 +2227,17 @@ namespace DuneVector
         private void OnApplicationQuit()
         {
             SaveExploration(true);
+        }
+    }
+
+    [DisallowMultipleComponent]
+    public sealed class DuneVectorWorldMapGUI : MonoBehaviour
+    {
+        internal DuneVectorMapHUD Owner { get; set; }
+
+        private void OnGUI()
+        {
+            Owner?.DrawWorldMapGUI();
         }
     }
 }
