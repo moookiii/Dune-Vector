@@ -4145,8 +4145,6 @@ namespace DuneVector
         [Min(160f)] public float WorldMapMaximumSize = 780f;
         [Min(0f)] public float WorldMapScreenPadding = 42f;
         [Min(1f)] public float WorldMapWorldSize = 3200f;
-        [Tooltip("Multiplier applied when dragging the full world map with the left mouse button.")]
-        [Min(0.01f)] public float WorldMapDragSensitivity = 1f;
         [Range(0f, 1f)] public float OverlayOpacity = 0.96f;
 
         [Header("Panel")]
@@ -4163,7 +4161,7 @@ namespace DuneVector
         public string WorldMapTitle = "WORLD MAP";
         public string NorthLabel = "↑ N";
         public string DroneGlyph = "▲";
-        public string WorldMapHint = "LMB  PAN    •    RMB  CENTER    •    M  CLOSE";
+        public string WorldMapHint = "M  CLOSE    •    N  MINIMAP";
         public string CoordinateFormat = "X {0:0}   Z {1:0}   •   SCAN RADIUS {2:0} m";
 
         [Header("Map Icons")]
