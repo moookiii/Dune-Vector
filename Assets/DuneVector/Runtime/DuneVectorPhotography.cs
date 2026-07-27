@@ -388,6 +388,7 @@ namespace DuneVector
     internal sealed class DuneVectorSubjectDetector
     {
         private readonly Camera _camera;
+        private readonly DroneCharacterController _character;
         private readonly DesertWorldStreamer _world;
         private readonly GeoglyphSystemTuning _geoglyphs;
         private readonly DesertAtlasTuning _atlas;
@@ -395,9 +396,16 @@ namespace DuneVector
         private readonly List<Vector3> _worldSamples = new List<Vector3>(40);
         private int _centerSampleIndex;
 
-        public DuneVectorSubjectDetector(Camera camera, DesertWorldStreamer world, GeoglyphSystemTuning geoglyphs, DesertAtlasTuning atlas, PhotographyTuning settings)
+        public DuneVectorSubjectDetector(
+            Camera camera,
+            DroneCharacterController character,
+            DesertWorldStreamer world,
+            GeoglyphSystemTuning geoglyphs,
+            DesertAtlasTuning atlas,
+            PhotographyTuning settings)
         {
             _camera = camera;
+            _character = character;
             _world = world;
             _geoglyphs = geoglyphs;
             _atlas = atlas;
@@ -416,7 +424,11 @@ namespace DuneVector
             Rect bestBounds = default;
             float bestCenterPriority = float.PositiveInfinity;
             float bestCoverage = -1f;
-            if (_world != null && _geoglyphs?.Placements != null && _atlas?.Sites != null)
+            bool allowGlyphSubjects = _character == null || !_character.IsStableGrounded;
+            if (allowGlyphSubjects &&
+                _world != null &&
+                _geoglyphs?.Placements != null &&
+                _atlas?.Sites != null)
             {
                 for (int siteIndex = 0; siteIndex < _atlas.Sites.Count; siteIndex++)
                 {
@@ -980,7 +992,13 @@ namespace DuneVector
             _camera = cameraController != null ? cameraController.Camera : null;
             _settings = settings ?? new PhotographyTuning();
             _storage = new DuneVectorPhotographStorage(_settings);
-            _detector = new DuneVectorSubjectDetector(_camera, world, geoglyphs, atlas, _settings);
+            _detector = new DuneVectorSubjectDetector(
+                _camera,
+                player != null ? player.Character : null,
+                world,
+                geoglyphs,
+                atlas,
+                _settings);
             _gallery = new DuneVectorGalleryView(_storage, _settings);
             _compendium = new DuneVectorCompendiumView(_storage, _settings, atlas);
             Active = this;
