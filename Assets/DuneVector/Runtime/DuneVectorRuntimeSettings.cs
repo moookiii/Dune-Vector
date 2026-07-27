@@ -1496,6 +1496,9 @@ namespace DuneVector
 
         [Tooltip("Requested player frame-rate cap. Use -1 for the platform default.")]
         [Range(-1, 360)] public int TargetFrameRate = 165;
+
+        [Tooltip("Keep development builds running at full speed while another window, such as the Unity Profiler, has focus.")]
+        public bool RunDevelopmentBuildsInBackground = true;
     }
 
     [System.Serializable]

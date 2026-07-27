@@ -325,6 +325,10 @@ namespace DuneVector
 
             QualitySettings.vSyncCount = Mathf.Clamp(RuntimeSettings.Performance.VSyncCount, 0, 4);
             Application.targetFrameRate = Mathf.Clamp(RuntimeSettings.Performance.TargetFrameRate, -1, 360);
+            if (Debug.isDebugBuild)
+            {
+                Application.runInBackground = RuntimeSettings.Performance.RunDevelopmentBuildsInBackground;
+            }
             _materials = new DuneVectorMaterials(
                 RuntimeSettings.DuneTexture,
                 RuntimeSettings.DuneTextureTileSize,
