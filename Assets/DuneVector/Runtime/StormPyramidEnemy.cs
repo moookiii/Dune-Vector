@@ -834,6 +834,7 @@ namespace DuneVector
         private EnemyHealth _enemyHealth;
         private DuneVectorMaterials _materials;
         private Transform _visual;
+        private Transform _flyThroughRing;
         private Transform[] _orbPivots;
         private TrailRenderer[] _orbTrails;
         private Vector3 _trackedTarget;
@@ -863,6 +864,7 @@ namespace DuneVector
             _identity = identity;
 
             _visual = DuneVectorVisuals.CreatePlayerStrikeOrbVisual(transform, materials, settings);
+            _flyThroughRing = _visual.Find("Superman Ring");
             int orbitingOrbCount = settings.OrbitingOrbs != null
                 ? settings.OrbitingOrbs.Length
                 : 0;
@@ -1085,7 +1087,7 @@ namespace DuneVector
                     0f,
                     _settings.FlyThroughFacingLockDistance);
                 _facingLockedForClosePass =
-                    (_player.WorldCenter - transform.position).sqrMagnitude
+                    (_player.WorldCenter - GetFlyThroughCenter()).sqrMagnitude
                     <= facingLockDistance * facingLockDistance;
             }
             if (_facingLockedForClosePass)
@@ -1159,7 +1161,7 @@ namespace DuneVector
                 _settings.FlyThroughOpeningRadius * _settings.VisualScale);
             float triggerRadius = visibleOpeningRadius
                 * Mathf.Clamp01(_settings.FlyThroughRadiusMultiplier);
-            Vector3 currentOrbPosition = transform.position;
+            Vector3 currentOrbPosition = GetFlyThroughCenter();
             Vector3 previousRelativePosition =
                 _previousPlayerPosition - _previousOrbPosition;
             Vector3 currentRelativePosition = playerPosition - currentOrbPosition;
@@ -1206,8 +1208,8 @@ namespace DuneVector
             _flyThroughTriggered = true;
             _lightning?.CancelAttack();
             DuneVectorVisuals.CreatePlayerStrikeOrbFlyThroughExplosion(
-                transform.position,
-                transform.rotation,
+                currentOrbPosition,
+                _flyThroughRing != null ? _flyThroughRing.rotation : transform.rotation,
                 _materials,
                 _settings);
             _enemyHealth.TakeDamage(float.MaxValue);
@@ -1217,14 +1219,25 @@ namespace DuneVector
         private void CaptureFlyThroughPose(Vector3 playerPosition)
         {
             _previousPlayerPosition = playerPosition;
-            _previousOrbPosition = transform.position;
+            _previousOrbPosition = GetFlyThroughCenter();
             _previousRingNormal = GetRingNormal();
             _hasPreviousPlayerPosition = true;
         }
 
+        private Vector3 GetFlyThroughCenter()
+        {
+            return _flyThroughRing != null
+                ? _flyThroughRing.position
+                : transform.position;
+        }
+
         private Vector3 GetRingNormal()
         {
-            Vector3 ringNormal = _visual != null ? _visual.forward : transform.forward;
+            Vector3 ringNormal = _flyThroughRing != null
+                ? _flyThroughRing.forward
+                : _visual != null
+                    ? _visual.forward
+                    : transform.forward;
             return ringNormal.sqrMagnitude > Mathf.Epsilon
                 ? ringNormal.normalized
                 : Vector3.forward;
