@@ -745,6 +745,14 @@ namespace DuneVector
                 if (slider != null)
                 {
                     slider.style.backgroundColor = _settings.CompendiumScrollbarTrackColor;
+                    slider.style.borderTopWidth =
+                        _settings.CompendiumScrollbarEndBorderThickness;
+                    slider.style.borderBottomWidth =
+                        _settings.CompendiumScrollbarEndBorderThickness;
+                    slider.style.borderTopColor =
+                        _settings.CompendiumScrollbarEndBorderColor;
+                    slider.style.borderBottomColor =
+                        _settings.CompendiumScrollbarEndBorderColor;
                     VisualElement dragContainer =
                         slider.Q(className: "unity-base-slider__drag-container");
                     if (dragContainer != null)
