@@ -18,7 +18,6 @@ namespace DuneVector
         FlightMaximumSpeed,
         FlightAcceleration,
         FlightHandling,
-        LockOnDistance,
     }
 
     public enum DroneUpgradeGroup
@@ -34,7 +33,6 @@ namespace DuneVector
         WholeNumber,
         OneDecimal,
         TwoDecimalSeconds,
-        OneDecimalMeters,
     }
 
     [Serializable]
