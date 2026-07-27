@@ -394,6 +394,7 @@ namespace DuneVector
         public Texture2D CompendiumLandmarkTabIcon;
         public Texture2D CompendiumEnemyTabIcon;
         public Texture2D CompendiumMiscTabIcon;
+        public Texture2D CompendiumSelectedCardIcon;
 
         [Header("Compendium Layout")]
         [Min(400f)] public float CompendiumPanelWidth = 1420f;
@@ -414,6 +415,8 @@ namespace DuneVector
         [Min(0f)] public float CompendiumCardBorderThickness = 2f;
         [Min(0f)] public float CompendiumCardGap = 8f;
         [Min(0f)] public float CompendiumCardContentPadding = 14f;
+        [Min(1f)] public float CompendiumSelectionMarkerSize = 18f;
+        [Min(0f)] public float CompendiumSelectionIconInset = 3f;
         [Min(180f)] public float CompendiumDetailPanelWidth = 410f;
         [Min(100f)] public float CompendiumDetailImageHeight = 260f;
         [Min(20f)] public float CompendiumDetailTitleHeight = 70f;

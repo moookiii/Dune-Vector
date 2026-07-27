@@ -393,6 +393,15 @@ namespace DuneVector
                 pickingMode = PickingMode.Ignore,
             };
             marker.AddToClassList("compendium-card-selection-marker");
+            Image selectionIcon = new Image
+            {
+                image = _settings.CompendiumSelectedCardIcon,
+                scaleMode = ScaleMode.ScaleToFit,
+                tintColor = Color.white,
+                pickingMode = PickingMode.Ignore,
+            };
+            selectionIcon.AddToClassList("compendium-card-selection-icon");
+            marker.Add(selectionIcon);
             card.Add(marker);
             references.Root = card;
             references.Thumbnail = thumbnail;
@@ -829,6 +838,18 @@ namespace DuneVector
             SetTextStyle(card.Metadata,
                 _settings.CompendiumMetadataFontSize, _settings.CompendiumSecondaryTextColor, true);
             card.SelectionMarker.style.backgroundColor = _settings.CompendiumActiveAccentColor;
+            card.SelectionMarker.style.width = _settings.CompendiumSelectionMarkerSize;
+            card.SelectionMarker.style.height = _settings.CompendiumSelectionMarkerSize;
+            Image selectionIcon =
+                card.SelectionMarker.Q<Image>(className: "compendium-card-selection-icon");
+            if (selectionIcon != null)
+            {
+                selectionIcon.style.position = Position.Absolute;
+                selectionIcon.style.left = _settings.CompendiumSelectionIconInset;
+                selectionIcon.style.right = _settings.CompendiumSelectionIconInset;
+                selectionIcon.style.top = _settings.CompendiumSelectionIconInset;
+                selectionIcon.style.bottom = _settings.CompendiumSelectionIconInset;
+            }
         }
 
         private static void SetBorder(
