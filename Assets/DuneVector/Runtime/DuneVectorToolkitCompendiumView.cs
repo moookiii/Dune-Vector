@@ -740,29 +740,15 @@ namespace DuneVector
             {
                 _verticalScroller.style.marginTop = _settings.CompendiumGridPadding;
                 _verticalScroller.style.marginBottom = _settings.CompendiumGridPadding;
-                _verticalScroller.style.width = _settings.CompendiumScrollbarWidth;
-                _verticalScroller.style.minWidth = _settings.CompendiumScrollbarWidth;
-                _verticalScroller.style.maxWidth = _settings.CompendiumScrollbarWidth;
                 _verticalScroller.style.backgroundColor = _settings.CompendiumScrollbarTrackColor;
                 Slider slider = _verticalScroller.Q<Slider>();
                 if (slider != null)
                 {
-                    slider.style.width = _settings.CompendiumScrollbarWidth;
-                    slider.style.minWidth = _settings.CompendiumScrollbarWidth;
-                    slider.style.maxWidth = _settings.CompendiumScrollbarWidth;
                     slider.style.backgroundColor = _settings.CompendiumScrollbarTrackColor;
-                    SetBorder(
-                        slider,
-                        _settings.CompendiumScrollbarBorderColor,
-                        _settings.CompendiumScrollbarBorderThickness,
-                        0f);
                     VisualElement dragContainer =
                         slider.Q(className: "unity-base-slider__drag-container");
                     if (dragContainer != null)
                     {
-                        dragContainer.style.left = 0f;
-                        dragContainer.style.right = 0f;
-                        dragContainer.style.minWidth = 0f;
                         dragContainer.style.backgroundColor =
                             _settings.CompendiumScrollbarTrackColor;
                     }

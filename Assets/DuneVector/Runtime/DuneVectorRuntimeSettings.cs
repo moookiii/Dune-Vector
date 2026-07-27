@@ -427,8 +427,6 @@ namespace DuneVector
         [Min(0f)] public float CompendiumGridPadding = 22f;
         [Min(2f)] public float CompendiumScrollbarWidth = 5f;
         [ColorUsage(false)] public Color CompendiumScrollbarTrackColor = new Color(0.015f, 0.025f, 0.03f, 1f);
-        [Min(0f)] public float CompendiumScrollbarBorderThickness = 1f;
-        [ColorUsage(false)] public Color CompendiumScrollbarBorderColor = new Color(0.34f, 0.42f, 0.45f, 1f);
         [HideInInspector] public float CompendiumScrollbarReserve = 24f;
         [Min(8)] public int CompendiumTitleFontSize = 30;
         [Min(8)] public int CompendiumSubtitleFontSize = 13;
