@@ -90,6 +90,7 @@ namespace DuneVector
         private readonly string _cachePath;
         private readonly Material _terrainMaterial;
         private int _explorationRevision;
+        private int _minimumRuntimeTileCount;
         private volatile bool _processingEnabled;
         private bool _disposed;
 
@@ -166,6 +167,7 @@ namespace DuneVector
                     visibleKeys.Add(detailedKeys[index]);
                 }
             }
+            _minimumRuntimeTileCount = visibleKeys.Count;
             SetPendingKeys(visibleKeys, false);
         }
 
@@ -227,6 +229,7 @@ namespace DuneVector
                     requestedKeys.Add(visibleKeys[index]);
                 }
             }
+            _minimumRuntimeTileCount = requestedKeys.Count;
             SetPendingKeys(requestedKeys, true);
 
             bool drewAny = false;
@@ -711,7 +714,9 @@ namespace DuneVector
 
         private void TrimRuntimeCache()
         {
-            int limit = Mathf.Max(4, _settings.WorldMapTerrainMemoryTileLimit);
+            int limit = Mathf.Max(
+                Mathf.Max(4, _settings.WorldMapTerrainMemoryTileLimit),
+                _minimumRuntimeTileCount);
             while (_runtimeTiles.Count > limit)
             {
                 TileKey oldestKey = default;

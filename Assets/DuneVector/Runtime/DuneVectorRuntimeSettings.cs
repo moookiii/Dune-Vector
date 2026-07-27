@@ -4196,7 +4196,7 @@ namespace DuneVector
         [Range(1, 4)] public int WorldMapTerrainConcurrentBuilds = 2;
         [Tooltip("Visible cached tiles whose exploration masks may be restyled per frame after new terrain is revealed.")]
         [Range(1, 8)] public int WorldMapTerrainStyleRefreshesPerFrame = 2;
-        [Tooltip("Maximum styled terrain tiles retained in GPU memory. Evicted tiles remain in the .dat cache.")]
+        [Tooltip("Baseline number of styled terrain tiles retained in GPU memory. The cache automatically grows when the active viewport and its fallback tiles require more. Evicted tiles remain in the .dat cache.")]
         [Range(4, 128)] public int WorldMapTerrainMemoryTileLimit = 32;
         [Tooltip("Reference world-map viewport height used to prefetch the opening view before the map is shown.")]
         [Min(128f)] public float WorldMapTerrainPrefetchViewportPixels = 680f;
