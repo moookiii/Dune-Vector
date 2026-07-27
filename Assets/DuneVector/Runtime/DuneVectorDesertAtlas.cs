@@ -147,6 +147,7 @@ namespace DuneVector
             _savePath = Path.Combine(Application.persistentDataPath, SaveFileName);
             Load();
             _discoveredMaterial = CreateSignalMaterial(_materials.LandmarkMetal, _settings.DiscoveredColor);
+            CatalogDocumentedGlyphs();
             TryGrantCompletionReward(showStatus: false);
         }
 
@@ -229,8 +230,7 @@ namespace DuneVector
 
         private bool TryCatalogGlyph(string glyphId)
         {
-            if (string.IsNullOrWhiteSpace(glyphId) || !IsUnlocked ||
-                _courierGame == null || _courierGame.State != CourierRunState.FreeRoam)
+            if (string.IsNullOrWhiteSpace(glyphId))
             {
                 return false;
             }
@@ -240,13 +240,31 @@ namespace DuneVector
                 DesertAtlasSiteDefinition site = _settings.Sites[i];
                 if (site != null &&
                     string.Equals(site.PersistentId, glyphId, StringComparison.Ordinal) &&
-                    IsSiteAvailable(site))
+                    !IsDiscovered(site))
                 {
                     CompleteDiscovery(site);
                     return true;
                 }
             }
             return false;
+        }
+
+        private void CatalogDocumentedGlyphs()
+        {
+            if (!DuneVectorPhotographySystem.RequiresGlyphDocumentation)
+            {
+                return;
+            }
+
+            for (int i = 0; i < _settings.Sites.Count; i++)
+            {
+                DesertAtlasSiteDefinition site = _settings.Sites[i];
+                if (IsValidSite(site) &&
+                    DuneVectorPhotographySystem.IsGlyphDocumented(site.PersistentId))
+                {
+                    TryCatalogGlyph(site.PersistentId);
+                }
+            }
         }
 
         private void UpdateScanning()
