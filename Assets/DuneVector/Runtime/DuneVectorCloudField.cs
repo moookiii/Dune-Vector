@@ -33,7 +33,10 @@ namespace DuneVector
         private static readonly Dictionary<CloudTuning, CloudMeshLibrary> MeshLibraries =
             new Dictionary<CloudTuning, CloudMeshLibrary>();
 
+        private readonly List<Transform> _clusters = new List<Transform>();
         private CloudTuning _tuning;
+        private float _placementMinimum;
+        private float _placementMaximum;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetMeshLibraries()
@@ -56,6 +59,9 @@ namespace DuneVector
         {
             tuning.EnsureInitialized();
             _tuning = tuning;
+            _clusters.Clear();
+            _placementMinimum = Mathf.Clamp(tuning.PlacementInset, 0f, chunkSize * 0.45f);
+            _placementMaximum = Mathf.Max(_placementMinimum, chunkSize - _placementMinimum);
 
             CloudMeshLibrary library = GetOrCreateMeshLibrary(tuning);
             if (library.Archetypes.Count == 0)
@@ -66,14 +72,13 @@ namespace DuneVector
 
             System.Random random = new System.Random(randomSeed);
             List<Vector2> occupiedPositions = new List<Vector2>(clusterCount);
-            float inset = Mathf.Clamp(tuning.PlacementInset, 0f, chunkSize * 0.45f);
             for (int clusterIndex = 0; clusterIndex < clusterCount; clusterIndex++)
             {
                 ArchetypeMeshes archetype = SelectArchetype(library.Archetypes, arrangement, random);
                 Vector2 planarPosition = FindPlacement(
                     random,
                     occupiedPositions,
-                    inset,
+                    _placementMinimum,
                     chunkSize,
                     tuning.MinimumLocalSeparation,
                     tuning.PlacementAttempts);
@@ -84,6 +89,7 @@ namespace DuneVector
                     $"Cloud {shape.DisplayName} {clusterIndex + 1:00}");
                 Transform cluster = clusterObject.transform;
                 cluster.SetParent(transform, false);
+                _clusters.Add(cluster);
                 cluster.localPosition = new Vector3(
                     planarPosition.x,
                     tuning.Altitude + arrangement.AltitudeOffset + OrderedRange(random, shape.AltitudeOffsetRange),
@@ -126,7 +132,30 @@ namespace DuneVector
             }
 
             Vector3 drift = new Vector3(driftDirection.x, 0f, driftDirection.y) * (driftSpeed * deltaTime);
-            transform.localPosition += drift;
+            if (drift.sqrMagnitude <= 0f)
+            {
+                return;
+            }
+
+            float placementSpan = _placementMaximum - _placementMinimum;
+            for (int i = 0; i < _clusters.Count; i++)
+            {
+                Transform cluster = _clusters[i];
+                if (cluster == null)
+                {
+                    continue;
+                }
+
+                Vector3 localPosition = cluster.localPosition + drift;
+                if (placementSpan > 0.001f)
+                {
+                    localPosition.x = _placementMinimum
+                        + Mathf.Repeat(localPosition.x - _placementMinimum, placementSpan);
+                    localPosition.z = _placementMinimum
+                        + Mathf.Repeat(localPosition.z - _placementMinimum, placementSpan);
+                }
+                cluster.localPosition = localPosition;
+            }
         }
 
         private static CloudMeshLibrary GetOrCreateMeshLibrary(CloudTuning tuning)

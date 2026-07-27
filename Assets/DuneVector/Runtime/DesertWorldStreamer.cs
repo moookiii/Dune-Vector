@@ -875,6 +875,11 @@ namespace DuneVector
                     requireCollision);
             }
             _chunks.Add(coordinate, chunk);
+            chunk.EnsureClouds(
+                _materials,
+                Clouds,
+                GetCloudDensityPerChunk(),
+                WorldSeed);
             if (completeContent)
             {
                 AdvanceChunkContent(chunk);
@@ -1291,14 +1296,7 @@ namespace DuneVector
             _ringTuning = ringTuning;
             using (DesertWorldStreamer.Markers.ChunkContent.Auto())
             {
-                SpawnClouds(
-                Coordinate,
-                _chunkSize,
-                materials.Cloud,
-                materials.CloudUnderbelly,
-                worldSeed,
-                cloudTuning,
-                cloudDensity);
+                EnsureClouds(materials, cloudTuning, cloudDensity, worldSeed);
                 SpawnContent(
                     Coordinate,
                     _chunkSize,
@@ -1324,6 +1322,27 @@ namespace DuneVector
                     landmarkTuning,
                     ringActivated);
             }
+        }
+
+        public void EnsureClouds(
+            DuneVectorMaterials materials,
+            CloudTuning tuning,
+            float density,
+            int worldSeed)
+        {
+            if (_cloudField != null || materials == null)
+            {
+                return;
+            }
+
+            SpawnClouds(
+                Coordinate,
+                _chunkSize,
+                materials.Cloud,
+                materials.CloudUnderbelly,
+                worldSeed,
+                tuning,
+                density);
         }
 
         public void BuildVisualTerrain()
