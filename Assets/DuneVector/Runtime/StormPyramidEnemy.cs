@@ -835,6 +835,7 @@ namespace DuneVector
         private DuneVectorMaterials _materials;
         private Transform _visual;
         private Transform _flyThroughRing;
+        private Vector3 _flyThroughCenterLocal;
         private Transform[] _orbPivots;
         private TrailRenderer[] _orbTrails;
         private Vector3 _trackedTarget;
@@ -865,6 +866,7 @@ namespace DuneVector
 
             _visual = DuneVectorVisuals.CreatePlayerStrikeOrbVisual(transform, materials, settings);
             _flyThroughRing = _visual.Find("Superman Ring");
+            CacheFlyThroughCenter();
             int orbitingOrbCount = settings.OrbitingOrbs != null
                 ? settings.OrbitingOrbs.Length
                 : 0;
@@ -1227,8 +1229,31 @@ namespace DuneVector
         private Vector3 GetFlyThroughCenter()
         {
             return _flyThroughRing != null
-                ? _flyThroughRing.position
+                ? _flyThroughRing.TransformPoint(_flyThroughCenterLocal)
                 : transform.position;
+        }
+
+        private void CacheFlyThroughCenter()
+        {
+            if (_flyThroughRing == null)
+            {
+                _flyThroughCenterLocal = Vector3.zero;
+                return;
+            }
+
+            Renderer[] renderers = _flyThroughRing.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+            {
+                _flyThroughCenterLocal = Vector3.zero;
+                return;
+            }
+
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+            _flyThroughCenterLocal = _flyThroughRing.InverseTransformPoint(bounds.center);
         }
 
         private Vector3 GetRingNormal()
