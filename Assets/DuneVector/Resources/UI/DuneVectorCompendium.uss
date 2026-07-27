@@ -91,6 +91,17 @@
     right: 0;
     flex-direction: column;
     justify-content: flex-start;
+    align-items: flex-start;
+}
+
+.compendium-card-title,
+.compendium-card-metadata {
+    flex-grow: 0;
+    flex-shrink: 0;
+    align-self: flex-start;
+    margin: 0;
+    padding: 0;
+    -unity-text-align: upper-left;
 }
 
 .compendium-card-selection-marker {
