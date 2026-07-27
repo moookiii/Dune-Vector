@@ -312,7 +312,12 @@ namespace DuneVector
         {
             get
             {
-                return IsMapHudSuppressed || DuneVectorMapHUD.IsWorldMapOpen;
+                DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
+                return IsMapHudSuppressed ||
+                    DuneVectorMapHUD.IsWorldMapOpen ||
+                    (bootstrap != null &&
+                     bootstrap.PauseMenu != null &&
+                     bootstrap.PauseMenu.IsCompendiumOpen);
             }
         }
         public static bool IsMapHudSuppressed

@@ -591,6 +591,7 @@ namespace DuneVector
     public sealed class DuneVectorPauseMenu : MonoBehaviour
     {
         public bool IsPaused { get; private set; }
+        public bool IsCompendiumOpen => IsPaused && _showCompendium;
 
         private DronePlayer _player;
         private DroneHealth _health;
@@ -767,6 +768,17 @@ namespace DuneVector
                 return;
             }
 
+            // UI Toolkit renders before IMGUI. Return before drawing the pause-menu
+            // dimmer so it cannot darken or cover the compendium panel.
+            if (_showCompendium)
+            {
+                if (_photography == null || _photography.DrawCompendium())
+                {
+                    _showCompendium = false;
+                }
+                return;
+            }
+
             GUI.depth = -1000;
             float scale = CalculateScale();
             EnsureStyles(scale);
@@ -795,15 +807,6 @@ namespace DuneVector
                 }
                 return;
             }
-            if (_showCompendium)
-            {
-                if (_photography == null || _photography.DrawCompendium())
-                {
-                    _showCompendium = false;
-                }
-                return;
-            }
-
             float screenMargin = _visuals.ScreenMargin * scale;
             float panelWidth = Mathf.Min(_visuals.PanelWidth * scale, Screen.width - (screenMargin * 2f));
             float panelHeight = Mathf.Min(_visuals.PanelHeight * scale, Screen.height - (screenMargin * 2f));
