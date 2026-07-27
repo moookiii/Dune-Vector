@@ -886,6 +886,7 @@ namespace DuneVector
                     _secondaryButtonStyle))
             {
                 _showCompendium = true;
+                _photography?.ShowCompendium();
             }
             y += buttonHeight + gap;
 

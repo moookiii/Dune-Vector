@@ -1065,6 +1065,12 @@ namespace DuneVector
             _closeCompendiumRequested = true;
         }
 
+        public void ShowCompendium()
+        {
+            _closeCompendiumRequested = false;
+            _compendium?.Show();
+        }
+
         public bool DrawCompendium()
         {
             _compendium?.Show();
