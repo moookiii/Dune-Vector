@@ -119,7 +119,11 @@ namespace DuneVector
                 bindItem = BindGridRow,
             };
             _grid.AddToClassList("compendium-grid");
-            _grid.verticalScroller.style.width = _settings.CompendiumScrollbarWidth;
+            Scroller verticalScroller = _grid.Q<Scroller>(className: "unity-scroller--vertical");
+            if (verticalScroller != null)
+            {
+                verticalScroller.style.width = _settings.CompendiumScrollbarWidth;
+            }
             content.Add(_grid);
 
             _detail = BuildDetail(
