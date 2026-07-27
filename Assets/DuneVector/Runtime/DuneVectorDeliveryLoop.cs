@@ -438,6 +438,7 @@ namespace DuneVector
                                 Vector3.forward);
                             _visual = null;
                             _portalVisual = null;
+                            DuneVectorAudioManager.Instance?.PlayFlightRingSwoosh(transform.position);
                             _onCrossed?.Invoke();
                             return;
                         }

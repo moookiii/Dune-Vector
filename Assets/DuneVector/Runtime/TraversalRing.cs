@@ -374,6 +374,10 @@ namespace DuneVector
             HasActivated = true;
             ActivationCount++;
             _pulse = 1f;
+            if (IsCollectible)
+            {
+                DuneVectorAudioManager.Instance?.PlayFlightRingSwoosh(_cachedTransform.position);
+            }
             bool detachReaction = IsCollectible;
             _portalVisual?.PlayActivationReaction(
                 detachReaction,
