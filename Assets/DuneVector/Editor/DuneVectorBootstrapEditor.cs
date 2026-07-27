@@ -322,7 +322,7 @@ namespace DuneVector.Editor
             DrawDunePresetControls();
             DuneVectorSettingsInspector.DrawSection(
                 "Dune Generation",
-                "Large landforms, directional ridges, secondary forms, and fine detail.",
+                "Broad rolling elevation, large landforms, directional ridges, secondary forms, and fine detail.",
                 _dunes);
 
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))

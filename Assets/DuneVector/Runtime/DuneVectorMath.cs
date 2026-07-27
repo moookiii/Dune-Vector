@@ -11,6 +11,15 @@ namespace DuneVector
         public float BaseHeight = 0f;
         [Min(0f)] public float HeightMultiplier = 1f;
 
+        [Header("Rolling elevation")]
+        [Tooltip("World-space size of broad elevation changes layered beneath the existing dune preset.")]
+        [Min(1f)] public float RollingElevationScale = 800f;
+        [Tooltip("Maximum influence of the broad rolling elevation layer. Zero preserves the preset's original terrain profile.")]
+        [Min(0f)] public float RollingElevationAmplitude = 0f;
+        [Range(1, 6)] public int RollingElevationOctaves = 3;
+        [Range(0.1f, 0.9f)] public float RollingElevationPersistence = 0.48f;
+        [Range(1.1f, 4f)] public float RollingElevationLacunarity = 2.03f;
+
         [Header("Large-scale land form")]
         [Min(1f)] public float MajorScale = 280f;
         [Min(0f)] public float MajorAmplitude = 4.2f;
@@ -205,6 +214,16 @@ namespace DuneVector
         {
             int seed = _settings.WorldSeed;
 
+            double rollingScale = Math.Max(1.0, _settings.RollingElevationScale);
+            double rollingElevation = DuneVectorMath.FractalNoise(
+                (worldX + 830.0) / rollingScale,
+                (worldZ - 470.0) / rollingScale,
+                seed,
+                59,
+                _settings.RollingElevationOctaves,
+                _settings.RollingElevationPersistence,
+                _settings.RollingElevationLacunarity);
+
             double majorX = worldX / Math.Max(1.0, _settings.MajorScale);
             double majorZ = worldZ / Math.Max(1.0, _settings.MajorScale);
             double major = DuneVectorMath.FractalNoise(
@@ -258,7 +277,8 @@ namespace DuneVector
                 _settings.DetailPersistence,
                 _settings.DetailLacunarity);
 
-            double generatedHeight = (major * _settings.MajorAmplitude)
+            double generatedHeight = (rollingElevation * _settings.RollingElevationAmplitude)
+                + (major * _settings.MajorAmplitude)
                 + (broadBowl * _settings.MajorAmplitude * _settings.BroadBowlStrength)
                 + (primaryRidge * _settings.DuneAmplitude)
                 + (secondary * _settings.SecondaryAmplitude)
