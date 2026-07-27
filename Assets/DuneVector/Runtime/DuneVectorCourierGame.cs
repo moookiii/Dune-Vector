@@ -1968,6 +1968,10 @@ namespace DuneVector
         private void BeginTeleport(bool toHub)
         {
             SetTerminalOpen(false);
+            if (toHub)
+            {
+                SetCombatSystemsActive(false);
+            }
             State = toHub ? CourierRunState.ReturnToBase : CourierRunState.TeleportingToDesert;
             _teleportTimer = 0f;
             _teleportMoved = false;
