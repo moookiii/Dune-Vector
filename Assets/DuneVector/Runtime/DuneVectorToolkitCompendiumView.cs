@@ -741,6 +741,11 @@ namespace DuneVector
                 _verticalScroller.style.marginTop = _settings.CompendiumGridPadding;
                 _verticalScroller.style.marginBottom = _settings.CompendiumGridPadding;
                 _verticalScroller.style.backgroundColor = _settings.CompendiumScrollbarTrackColor;
+                SetBorder(
+                    _verticalScroller,
+                    _settings.CompendiumScrollbarBorderColor,
+                    _settings.CompendiumScrollbarBorderThickness,
+                    0f);
                 Slider slider = _verticalScroller.Q<Slider>();
                 if (slider != null)
                 {
