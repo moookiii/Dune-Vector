@@ -829,12 +829,15 @@ namespace DuneVector
         private void RefreshChunkActivity(Vector2Int playerChunk)
         {
             int collisionRadius = Mathf.Max(1, CollisionActiveRadius);
+            int shadowRadius = Mathf.Max(1, ActiveRadius);
             foreach (DesertChunk chunk in _chunks.Values)
             {
                 bool nearPlayer = ChebyshevDistance(chunk.Coordinate, playerChunk) <= collisionRadius;
                 bool nearPrediction = _hasPredictedCollisionChunk &&
                     ChebyshevDistance(chunk.Coordinate, _predictedCollisionChunk) <= CollisionPreloadRadius;
                 chunk.SetCollisionActive(nearPlayer || nearPrediction);
+                chunk.SetShadowCastingActive(
+                    ChebyshevDistance(chunk.Coordinate, playerChunk) <= shadowRadius);
             }
         }
 
@@ -1159,6 +1162,7 @@ namespace DuneVector
         private Mesh _collisionMesh;
         private MeshCollider _terrainCollider;
         private readonly MeshFilter _terrainFilter;
+        private readonly MeshRenderer _terrainRenderer;
         private readonly int _visualResolution;
         private readonly int _collisionResolution;
         private readonly float _chunkSize;
@@ -1209,10 +1213,12 @@ namespace DuneVector
             }
             _terrainFilter = rootObject.AddComponent<MeshFilter>();
             _terrainFilter.sharedMesh = _terrainMesh;
-            MeshRenderer renderer = rootObject.AddComponent<MeshRenderer>();
-            renderer.sharedMaterials = materials.GetTerrainMaterials(coordinate, chunkSize);
-            renderer.shadowCastingMode = ShadowCastingMode.On;
-            renderer.receiveShadows = true;
+            _terrainRenderer = rootObject.AddComponent<MeshRenderer>();
+            _terrainRenderer.sharedMaterials = materials.GetTerrainMaterials(coordinate, chunkSize);
+            _terrainRenderer.shadowCastingMode = createCollision
+                ? ShadowCastingMode.On
+                : ShadowCastingMode.Off;
+            _terrainRenderer.receiveShadows = true;
 
             if (createCollision)
             {
@@ -1529,6 +1535,20 @@ namespace DuneVector
             if (_terrainCollider != null && _terrainCollider.enabled != active)
             {
                 _terrainCollider.enabled = active;
+            }
+        }
+
+        public void SetShadowCastingActive(bool active)
+        {
+            if (_terrainRenderer != null)
+            {
+                ShadowCastingMode desiredMode = active
+                    ? ShadowCastingMode.On
+                    : ShadowCastingMode.Off;
+                if (_terrainRenderer.shadowCastingMode != desiredMode)
+                {
+                    _terrainRenderer.shadowCastingMode = desiredMode;
+                }
             }
         }
 
