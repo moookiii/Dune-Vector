@@ -102,6 +102,8 @@ namespace DuneVector
         private float _statusUntil;
         private float _discoveryPresentationStartedAt;
         private float _discoveryPresentationUntil;
+        private float _discoveryPresentationDuration;
+        private bool _showingCompletionNotification;
         private bool _completionNotificationPending;
         private Vector2 _terminalScroll;
         private GUIStyle _hudTitleStyle;
@@ -813,7 +815,9 @@ namespace DuneVector
                 baseReward);
             _statusUntil = Time.unscaledTime + _settings.DiscoveryStatusDuration;
             _discoveryPresentationStartedAt = Time.unscaledTime;
-            _discoveryPresentationUntil = Time.unscaledTime + _settings.DiscoveryPresentationDuration;
+            _discoveryPresentationDuration = _settings.DiscoveryPresentationDuration;
+            _discoveryPresentationUntil = Time.unscaledTime + _discoveryPresentationDuration;
+            _showingCompletionNotification = false;
             int milestoneInterval = Mathf.Max(1, _settings.MilestoneInterval);
             if (DiscoveredCount < TotalSiteCount && DiscoveredCount % milestoneInterval == 0)
             {
@@ -871,9 +875,12 @@ namespace DuneVector
 
         private void ShowCompletionNotification()
         {
+            _showingCompletionNotification = true;
+            _discoveryPresentationDuration = _settings.DiscoveryPresentationDuration *
+                Mathf.Max(1f, _settings.CompletionNotificationDurationMultiplier);
             _discoveryPresentationStartedAt = Time.unscaledTime;
-            _discoveryPresentationUntil = Time.unscaledTime + _settings.DiscoveryPresentationDuration;
-            _statusUntil = Time.unscaledTime + _settings.DiscoveryStatusDuration;
+            _discoveryPresentationUntil = Time.unscaledTime + _discoveryPresentationDuration;
+            _statusUntil = _discoveryPresentationUntil;
         }
 
         private SiteVisual GetOrCreateVisual(DesertAtlasSiteDefinition site)
@@ -1928,7 +1935,11 @@ namespace DuneVector
 
         private void DrawDiscoveryPresentation()
         {
-            float duration = Mathf.Max(0.01f, _settings.DiscoveryPresentationDuration);
+            float duration = Mathf.Max(
+                0.01f,
+                _discoveryPresentationDuration > 0f
+                    ? _discoveryPresentationDuration
+                    : _settings.DiscoveryPresentationDuration);
             float elapsed = Time.unscaledTime - _discoveryPresentationStartedAt;
             float normalized = Mathf.Clamp01(elapsed / duration);
             float flashDuration = Mathf.Max(0.01f, _settings.DiscoveryFlashDuration);
@@ -1942,11 +1953,14 @@ namespace DuneVector
             float fade = 1f - Mathf.SmoothStep(0f, 1f, normalized);
             float slide = Mathf.Lerp(_settings.DiscoveryBannerSlideDistance, 0f, Mathf.SmoothStep(0f, 1f, normalized));
             float width = Mathf.Min(_settings.DiscoveryBannerWidth, Screen.safeArea.width);
+            float height = _showingCompletionNotification
+                ? _settings.CompletionNotificationBannerHeight
+                : _settings.DiscoveryBannerHeight;
             Rect banner = new Rect(
                 Screen.safeArea.x + ((Screen.safeArea.width - width) * 0.5f),
                 (Screen.height * _settings.DiscoveryBannerVerticalFraction) - slide,
                 width,
-                _settings.DiscoveryBannerHeight);
+                height);
             Color panelColor = _settings.DiscoveryBannerColor;
             panelColor.a *= fade;
             Color accentColor = _settings.DiscoveryBannerAccentColor;
@@ -1957,7 +1971,17 @@ namespace DuneVector
                 accentColor);
             Color previous = GUI.color;
             GUI.color = new Color(previous.r, previous.g, previous.b, fade);
-            GUI.Label(banner, _statusText, _discoveryBannerStyle);
+            float textPadding = _showingCompletionNotification
+                ? _settings.CompletionNotificationTextPadding
+                : 0f;
+            GUI.Label(
+                new Rect(
+                    banner.x + textPadding,
+                    banner.y + textPadding,
+                    Mathf.Max(0f, banner.width - (textPadding * 2f)),
+                    Mathf.Max(0f, banner.height - (textPadding * 2f))),
+                _statusText,
+                _discoveryBannerStyle);
             GUI.color = previous;
         }
 

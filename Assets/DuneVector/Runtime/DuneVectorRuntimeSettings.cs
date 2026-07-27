@@ -2414,6 +2414,9 @@ namespace DuneVector
         [Header("Discovery Presentation")]
         [Min(0f)] public float DiscoveryPresentationDuration = 3.2f;
         [Min(0f)] public float DiscoveryFlashDuration = 0.7f;
+        [Min(1f)] public float CompletionNotificationDurationMultiplier = 4f;
+        [Min(36f)] public float CompletionNotificationBannerHeight = 128f;
+        [Min(0f)] public float CompletionNotificationTextPadding = 12f;
         [ColorUsage(false)] public Color DiscoveryFlashColor = new Color(0.1f, 0.85f, 1f, 0.18f);
         [Min(160f)] public float DiscoveryBannerWidth = 620f;
         [Min(36f)] public float DiscoveryBannerHeight = 84f;
