@@ -1,10 +1,20 @@
 TRANSMITION M2K_0000001
 
-Governments had spent the year assuring the public that the millennium problem had been contained. Banks were ready. Power grids had been tested. Military systems had been certified. The remaining failures, officials said, would be local, technical, and brief.
+Governments had spent the year assuring the public that the millennium problem had been contained.
+
+Banks were ready.
+
+Power grids had been tested.
+
+Military systems had been certified.
+
+The remaining failures, officials said, would be local, technical, and brief.
 
 Privately, the language was different.
 
-Buried inside classified assessments was a system whose age, scale, and architecture made the date rollover impossible to model with confidence. It had been built in pieces, under different names, by people who had never expected those pieces to survive long enough to become one machine.
+Buried inside classified assessments was a system whose age, scale, and architecture made the date rollover impossible to model with confidence.
+
+It had been built in pieces, under different names, by people who had never expected those pieces to survive long enough to become one machine.
 
 Its final name was Quantum Magnetics.
 
@@ -44,21 +54,28 @@ It only needed to make one thought feel more convincing than another.
 
 TRANSMITION M2K_0000003
 
+
 By the 1980s, the research had outgrown the laboratories that produced it.
 
 The problem was no longer whether perception could be influenced. The problem was distance.
 
-A subject could be studied in a controlled room. A soldier could be conditioned inside a facility. But a system meant to shape behavior at scale required something larger than a transmitter and something less visible than an occupation.
+A subject could be studied in a controlled room.
+
+A soldier could be conditioned inside a facility.
+
+But a system meant to shape behavior at scale required something larger than a transmitter and something less visible than an occupation.
 
 The solution was infrastructure.
 
-Broadcast towers, telephone exchanges, radar stations, electrical systems, military relays—each was built for another purpose, and that made them useful. Quantum Magnetics did not need to replace them. It only needed to pass through them.
+Broadcast towers, telephone exchanges, radar stations, electrical systems, military relays. Each was built for another purpose, and that made them useful. Quantum Magnetics did not need to replace them. It only needed to pass through them.
 
-The network expanded slowly enough to remain indistinct. A new component here. A synchronization protocol there. Equipment installed under one budget and used by another department years later.
+The network expanded slowly enough to remain indistinct.
+
+A new component here. A synchronization protocol there.
+
+Equipment installed under one budget and used by another department years later.
 
 Eventually, no one person could see the whole system.
-
-It was considered a security advantage.
 
 
 
@@ -109,11 +126,11 @@ Quantum Magnetics suggested another possibility.
 
 Not a population forced into submission, but one guided toward the same conclusions before resistance could fully form.
 
-A journalist might abandon an investigation because it suddenly seemed unimportant.
+A journalist could abandon an investigation because it suddenly seemed unimportant.
 
 An official might distrust the one adviser telling the truth.
 
-A crowd might disperse because everyone, at nearly the same moment, felt that remaining was no longer wise.
+A crowd would disperse because everyone, at nearly the same moment, felt that remaining was no longer wise.
 
 No order had been given.
 
