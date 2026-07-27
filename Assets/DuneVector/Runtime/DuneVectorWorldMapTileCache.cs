@@ -232,10 +232,27 @@ namespace DuneVector
             _minimumRuntimeTileCount = requestedKeys.Count;
             SetPendingKeys(requestedKeys, true);
 
+            // Keep the viewport on its shared coarse fallback until every tile
+            // at the requested LOD is ready. Promoting tiles individually mixes
+            // contour widths from two resolutions and exposes chunk rectangles
+            // while zooming.
+            bool requestedLodReady = AreStyledTilesReady(visibleKeys);
             bool drewAny = false;
             for (int index = 0; index < visibleKeys.Count; index++)
             {
                 TileKey key = visibleKeys[index];
+                if (!requestedLodReady &&
+                    DrawBestAvailableParent(
+                        key,
+                        mapRect,
+                        center,
+                        displayedWorldWidth,
+                        displayedWorldHeight))
+                {
+                    drewAny = true;
+                    continue;
+                }
+
                 if (!_runtimeTiles.TryGetValue(key, out RuntimeTile tile))
                 {
                     drewAny |= DrawBestAvailableParent(
@@ -264,6 +281,19 @@ namespace DuneVector
             }
 
             return drewAny;
+        }
+
+        private bool AreStyledTilesReady(List<TileKey> keys)
+        {
+            for (int index = 0; index < keys.Count; index++)
+            {
+                if (!_runtimeTiles.TryGetValue(keys[index], out RuntimeTile tile) ||
+                    tile.StyledTexture == null)
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private bool DrawBestAvailableParent(
