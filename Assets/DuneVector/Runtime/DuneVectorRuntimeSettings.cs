@@ -878,7 +878,7 @@ namespace DuneVector
         [Range(0f, 100f)] public float FragileFailureIntegrity = 18f;
         [Min(0f)] public float FragileCargoDamageMultiplier = 1.45f;
         [Min(0f)] public float StandardCargoDamageMultiplier = 0f;
-        [Min(0f)] public float HazardousCargoDamageMultiplier = 0.7f;
+        [Min(0f)] public float HazardousCargoDamageMultiplier = 0.2f;
         [Min(0f)] public float CargoHardImpactSpeed = 18f;
         [Min(0f)] public float CargoHardImpactDamagePerSpeed = 1.4f;
         [Min(0.1f)] public float ExpressExpectedSpeed = 32f;
