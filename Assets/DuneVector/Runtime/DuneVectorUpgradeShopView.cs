@@ -448,7 +448,8 @@ namespace DuneVector
             GUI.Label(nameRect, definition.DisplayName.ToUpperInvariant(), _nameStyle);
 
             int currentTier = _upgrades.GetPurchasedTier(definition.Id);
-            bool maximum = currentTier >= DronePermanentUpgradeSystem.MaximumPurchasableTier;
+            int maximumTier = _upgrades.GetMaximumTier(definition.Id);
+            bool maximum = currentTier >= maximumTier;
             float currentValue = _upgrades.GetCurrentValue(definition.Id);
             float nextValue = _upgrades.GetNextValue(definition.Id);
             string currentLabel = $"CURRENT  {FormatUpgradeValue(definition, currentValue, false)}";
@@ -474,13 +475,14 @@ namespace DuneVector
                 new Rect(progressX, row.y + (_visuals.TierIndicatorTop * scale), progressWidth, _visuals.TierSegmentHeight * scale),
                 definition.Id,
                 currentTier,
+                maximumTier,
                 groupColor,
                 scale);
 
             int remaining = _upgrades.GetRemainingTierCapacity(definition.Id);
             GUI.Label(
                 new Rect(progressX, row.y + (_visuals.TierLabelTop * scale), progressWidth * 0.5f, _tierStyle.lineHeight),
-                $"TIER {currentTier} / {DronePermanentUpgradeSystem.MaximumPurchasableTier}",
+                $"TIER {currentTier} / {maximumTier}",
                 _tierStyle);
             GUI.Label(
                 new Rect(progressX + (progressWidth * 0.5f), row.y + (_visuals.TierLabelTop * scale), progressWidth * 0.5f, _tierRightStyle.lineHeight),
@@ -519,7 +521,13 @@ namespace DuneVector
             }
         }
 
-        private void DrawTierIndicator(Rect area, DroneUpgradeId id, int currentTier, Color groupColor, float scale)
+        private void DrawTierIndicator(
+            Rect area,
+            DroneUpgradeId id,
+            int currentTier,
+            int maximumTier,
+            Color groupColor,
+            float scale)
         {
             if (!_displayedTiers.TryGetValue(id, out float displayedTier))
             {
@@ -528,8 +536,9 @@ namespace DuneVector
             }
 
             float gap = _visuals.TierSegmentGap * scale;
-            float segmentWidth = Mathf.Max(1f, (area.width - (gap * (DronePermanentUpgradeSystem.MaximumPurchasableTier - 1))) / DronePermanentUpgradeSystem.MaximumPurchasableTier);
-            for (int segmentIndex = 0; segmentIndex < DronePermanentUpgradeSystem.MaximumPurchasableTier; segmentIndex++)
+            int segmentCount = Mathf.Max(1, maximumTier);
+            float segmentWidth = Mathf.Max(1f, (area.width - (gap * (segmentCount - 1))) / segmentCount);
+            for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
             {
                 Rect segment = new Rect(area.x + (segmentIndex * (segmentWidth + gap)), area.y, segmentWidth, area.height);
                 DrawSolidRect(segment, _visuals.TierEmptyColor);

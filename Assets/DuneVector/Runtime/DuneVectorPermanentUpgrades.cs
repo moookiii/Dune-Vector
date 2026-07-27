@@ -40,6 +40,7 @@ namespace DuneVector
     internal sealed class DroneUpgradeTierState
     {
         private readonly Dictionary<DroneUpgradeId, int> _purchasedTiers = new Dictionary<DroneUpgradeId, int>();
+        private readonly Dictionary<DroneUpgradeId, int> _maximumTiers = new Dictionary<DroneUpgradeId, int>();
 
         public bool HubRgbFloorUnlocked { get; set; }
         public bool HubRgbTerminalsEnabled { get; set; }
@@ -48,6 +49,7 @@ namespace DuneVector
         public void Initialize(IReadOnlyList<DroneUpgradeDefinition> definitions)
         {
             _purchasedTiers.Clear();
+            _maximumTiers.Clear();
             HubRgbFloorUnlocked = false;
             HubRgbTerminalsEnabled = false;
             AtlasGlyphBrushedMetalEnabled = false;
@@ -57,6 +59,7 @@ namespace DuneVector
                 if (definition != null && !_purchasedTiers.ContainsKey(definition.Id))
                 {
                     _purchasedTiers.Add(definition.Id, 0);
+                    _maximumTiers.Add(definition.Id, Mathf.Max(1, definition.MaximumTier));
                 }
             }
         }
@@ -69,8 +72,15 @@ namespace DuneVector
         public int Get(DroneUpgradeId id)
         {
             return _purchasedTiers.TryGetValue(id, out int tier)
-                ? Mathf.Clamp(tier, 0, DronePermanentUpgradeSystem.MaximumPurchasableTier)
+                ? Mathf.Clamp(tier, 0, GetMaximumTier(id))
                 : 0;
+        }
+
+        public int GetMaximumTier(DroneUpgradeId id)
+        {
+            return _maximumTiers.TryGetValue(id, out int maximumTier)
+                ? Mathf.Max(1, maximumTier)
+                : 1;
         }
 
         public void Set(DroneUpgradeId id, int purchasedTier)
@@ -80,7 +90,7 @@ namespace DuneVector
                 _purchasedTiers[id] = Mathf.Clamp(
                     purchasedTier,
                     0,
-                    DronePermanentUpgradeSystem.MaximumPurchasableTier);
+                    GetMaximumTier(id));
             }
         }
     }
@@ -273,7 +283,7 @@ namespace DuneVector
             {
                 return UpgradePurchaseFailure.DefinitionMissing;
             }
-            if (tierState.Get(id) >= DronePermanentUpgradeSystem.MaximumPurchasableTier)
+            if (tierState.Get(id) >= Mathf.Max(1, definition.MaximumTier))
             {
                 return UpgradePurchaseFailure.MaximumTierReached;
             }
@@ -286,8 +296,6 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DronePermanentUpgradeSystem : MonoBehaviour
     {
-        public const int MaximumPurchasableTier = 15;
-
         public bool IsInitialized { get; private set; }
         public DroneGoldWallet Wallet { get; private set; }
         public IReadOnlyList<DroneUpgradeDefinition> Definitions =>
@@ -361,7 +369,13 @@ namespace DuneVector
 
         public int GetRemainingTierCapacity(DroneUpgradeId id)
         {
-            return MaximumPurchasableTier - GetPurchasedTier(id);
+            return GetMaximumTier(id) - GetPurchasedTier(id);
+        }
+
+        public int GetMaximumTier(DroneUpgradeId id)
+        {
+            DroneUpgradeDefinition definition = GetDefinition(id);
+            return definition != null ? Mathf.Max(1, definition.MaximumTier) : 1;
         }
 
         public float GetTierZeroValue(DroneUpgradeId id)
@@ -377,12 +391,12 @@ namespace DuneVector
         public float GetNextValue(DroneUpgradeId id)
         {
             int tier = GetPurchasedTier(id);
-            return GetValueAtTier(id, Mathf.Min(MaximumPurchasableTier, tier + 1));
+            return GetValueAtTier(id, Mathf.Min(GetMaximumTier(id), tier + 1));
         }
 
-        public float GetTier15Value(DroneUpgradeId id)
+        public float GetMaximumTierValue(DroneUpgradeId id)
         {
-            return GetValueAtTier(id, MaximumPurchasableTier);
+            return GetValueAtTier(id, GetMaximumTier(id));
         }
 
         public float GetCurrentEnergyProjectileSpeed()
@@ -393,7 +407,8 @@ namespace DuneVector
         public float GetNextEnergyProjectileSpeed()
         {
             int tier = GetPurchasedTier(DroneUpgradeId.EnergyShotCooldown);
-            return GetEnergyProjectileSpeedAtTier(Mathf.Min(MaximumPurchasableTier, tier + 1));
+            return GetEnergyProjectileSpeedAtTier(
+                Mathf.Min(GetMaximumTier(DroneUpgradeId.EnergyShotCooldown), tier + 1));
         }
 
         public float GetEnergyProjectileSpeedAtTier(int tier)
@@ -405,7 +420,7 @@ namespace DuneVector
 
             DroneUpgradeDefinition definition = GetDefinition(DroneUpgradeId.EnergyShotCooldown);
             float progress = definition != null
-                ? definition.EvaluateProgress(tier, MaximumPurchasableTier)
+                ? definition.EvaluateProgress(tier)
                 : 0f;
             float maximumMultiplier = Mathf.Max(
                 1f,
@@ -418,7 +433,7 @@ namespace DuneVector
             float tierZeroValue = GetTierZeroValue(id);
             DroneUpgradeDefinition definition = GetDefinition(id);
             return definition != null
-                ? definition.Evaluate(tierZeroValue, tier, MaximumPurchasableTier)
+                ? definition.Evaluate(tierZeroValue, tier)
                 : tierZeroValue;
         }
 
@@ -426,14 +441,13 @@ namespace DuneVector
         {
             int tier = GetPurchasedTier(id);
             DroneUpgradeDefinition definition = GetDefinition(id);
-            if (definition == null || tier >= MaximumPurchasableTier)
+            if (definition == null || tier >= GetMaximumTier(id))
             {
                 return 0;
             }
 
             return definition.GetGoldCost(
                 tier + 1,
-                MaximumPurchasableTier,
                 _tuning != null ? _tuning.GoldCostRounding : 1);
         }
 

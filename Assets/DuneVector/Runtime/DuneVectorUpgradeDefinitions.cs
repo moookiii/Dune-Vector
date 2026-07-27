@@ -44,42 +44,72 @@ namespace DuneVector
         public DroneUpgradeValueFormat ValueFormat;
 
         [Header("Progression Curve")]
+        [Tooltip("Maximum number of tiers this upgrade can purchase.")]
+        [Min(1)] public int MaximumTier = 15;
+        [Tooltip("Number of tiers governed by the primary progression curve. Tiers beyond this point use Extended Tier Growth.")]
+        [Min(1)] public int BaseCurveTierCount = 15;
         [Tooltip("Tier 15 is the configured gameplay value multiplied by this value. Values below one create time reductions.")]
         [Min(0.01f)] public float Tier15Multiplier = 1.5f;
         [Tooltip("Shapes normalized tier progress. Below one gives more benefit early; above one reserves more benefit for late tiers.")]
         [Min(0.1f)] public float ProgressionExponent = 1f;
+        [Tooltip("Compounds the value gained by each tier beyond the primary curve. One continues with a flat per-tier gain; values above one make each extended tier stronger than the last.")]
+        [Min(1f)] public float ExtendedTierGrowth = 1f;
 
         [Header("Gold Cost Curve")]
         [Min(1)] public int BaseGoldCost = 100;
         [Tooltip("Each successive tier costs the previous tier cost multiplied by this value before rounding.")]
         [Min(1f)] public float GoldCostGrowth = 1.2f;
 
-        public float Evaluate(float tierZeroValue, int purchasedTier, int maximumTier)
+        public float Evaluate(float tierZeroValue, int purchasedTier)
         {
-            float curvedTier = EvaluateProgress(purchasedTier, maximumTier);
+            int maximumTier = Mathf.Max(1, MaximumTier);
+            int baseCurveTierCount = Mathf.Clamp(BaseCurveTierCount, 1, maximumTier);
+            int clampedTier = Mathf.Clamp(purchasedTier, 0, maximumTier);
+            float curvedTier = EvaluateBaseCurveProgress(clampedTier, baseCurveTierCount);
             if (curvedTier <= 0f)
             {
                 return tierZeroValue;
             }
 
             float tier15Value = tierZeroValue * Mathf.Max(0.01f, Tier15Multiplier);
-            float evaluated = Mathf.Lerp(tierZeroValue, tier15Value, curvedTier);
-            return Mathf.Clamp(evaluated, Mathf.Min(tierZeroValue, tier15Value), Mathf.Max(tierZeroValue, tier15Value));
-        }
-
-        public float EvaluateProgress(int purchasedTier, int maximumTier)
-        {
-            if (maximumTier <= 0)
+            float baseCurveValue = Mathf.Lerp(tierZeroValue, tier15Value, curvedTier);
+            baseCurveValue = Mathf.Clamp(
+                baseCurveValue,
+                Mathf.Min(tierZeroValue, tier15Value),
+                Mathf.Max(tierZeroValue, tier15Value));
+            if (clampedTier <= baseCurveTierCount)
             {
-                return 0f;
+                return baseCurveValue;
             }
 
-            float normalizedTier = Mathf.Clamp(purchasedTier, 0, maximumTier) / (float)maximumTier;
+            float previousBaseCurveValue = Mathf.Lerp(
+                tierZeroValue,
+                tier15Value,
+                EvaluateBaseCurveProgress(baseCurveTierCount - 1, baseCurveTierCount));
+            float initialExtendedGain = tier15Value - previousBaseCurveValue;
+            int extendedTierCount = clampedTier - baseCurveTierCount;
+            double growth = Math.Max(1d, ExtendedTierGrowth);
+            double accumulatedGrowth = Math.Abs(growth - 1d) < 0.0001d
+                ? extendedTierCount
+                : growth * (Math.Pow(growth, extendedTierCount) - 1d) / (growth - 1d);
+            return Mathf.Max(0.01f, tier15Value + (initialExtendedGain * (float)accumulatedGrowth));
+        }
+
+        public float EvaluateProgress(int purchasedTier)
+        {
+            int baseCurveTierCount = Mathf.Clamp(BaseCurveTierCount, 1, Mathf.Max(1, MaximumTier));
+            return EvaluateBaseCurveProgress(purchasedTier, baseCurveTierCount);
+        }
+
+        private float EvaluateBaseCurveProgress(int purchasedTier, int baseCurveTierCount)
+        {
+            float normalizedTier = Mathf.Clamp(purchasedTier, 0, baseCurveTierCount) / (float)baseCurveTierCount;
             return Mathf.Pow(normalizedTier, Mathf.Max(0.1f, ProgressionExponent));
         }
 
-        public int GetGoldCost(int targetTier, int maximumTier, int roundingIncrement)
+        public int GetGoldCost(int targetTier, int roundingIncrement)
         {
+            int maximumTier = Mathf.Max(1, MaximumTier);
             int clampedTier = Mathf.Clamp(targetTier, 1, maximumTier);
             double rawCost = Math.Max(1, BaseGoldCost) * Math.Pow(Math.Max(1f, GoldCostGrowth), clampedTier - 1);
             int increment = Mathf.Max(1, roundingIncrement);
