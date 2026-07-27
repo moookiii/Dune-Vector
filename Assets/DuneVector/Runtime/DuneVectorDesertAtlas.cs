@@ -102,6 +102,7 @@ namespace DuneVector
         private float _statusUntil;
         private float _discoveryPresentationStartedAt;
         private float _discoveryPresentationUntil;
+        private bool _completionNotificationPending;
         private Vector2 _terminalScroll;
         private GUIStyle _hudTitleStyle;
         private GUIStyle _hudBodyStyle;
@@ -184,6 +185,8 @@ namespace DuneVector
             {
                 return;
             }
+
+            TryShowPendingCompletionNotification();
 
             bool active = IsUnlocked && _courierGame != null && _courierGame.State == CourierRunState.FreeRoam;
             if (!active)
@@ -841,9 +844,36 @@ namespace DuneVector
             if (showStatus)
             {
                 _statusText = FormatDesignerText(_settings.AtlasCompletionStatusFormat, reward);
-                _statusUntil = Time.unscaledTime + _settings.DiscoveryStatusDuration;
+                if (DuneVectorPhotographySystem.IsCameraModeActive)
+                {
+                    _completionNotificationPending = true;
+                    _statusUntil = 0f;
+                    _discoveryPresentationUntil = 0f;
+                }
+                else
+                {
+                    ShowCompletionNotification();
+                }
             }
             return true;
+        }
+
+        private void TryShowPendingCompletionNotification()
+        {
+            if (!_completionNotificationPending || DuneVectorPhotographySystem.IsCameraModeActive)
+            {
+                return;
+            }
+
+            _completionNotificationPending = false;
+            ShowCompletionNotification();
+        }
+
+        private void ShowCompletionNotification()
+        {
+            _discoveryPresentationStartedAt = Time.unscaledTime;
+            _discoveryPresentationUntil = Time.unscaledTime + _settings.DiscoveryPresentationDuration;
+            _statusUntil = Time.unscaledTime + _settings.DiscoveryStatusDuration;
         }
 
         private SiteVisual GetOrCreateVisual(DesertAtlasSiteDefinition site)

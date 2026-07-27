@@ -2288,7 +2288,9 @@ namespace DuneVector
         [Min(0)] public int MilestoneGoldReward = 300;
         public string MilestoneStatusFormat = "{0}\nSURVEY MILESTONE {1}/{2} — +{3} GOLD";
         [Min(0)] public int AtlasCompletionGoldReward = 5000;
-        public string AtlasCompletionStatusFormat = "DESERT ATLAS COMPLETE — FINAL SIGNAL RESOLVED  +{0} GOLD";
+        public string AtlasCompletionStatusFormat =
+            "ALL GLYPHS DOCUMENTED — DESERT ATLAS COMPLETE  +{0} GOLD\n" +
+            "BRUSHED METAL GLYPHS NOW AVAILABLE AT THE UPGRADE TERMINAL";
 
         [Header("Atlas Terminal")]
         public Vector3 TerminalLocalPosition = new Vector3(11f, 0f, 0f);
