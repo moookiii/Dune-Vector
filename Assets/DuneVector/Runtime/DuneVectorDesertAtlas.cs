@@ -188,6 +188,7 @@ namespace DuneVector
                 return;
             }
 
+            PauseCompletionNotificationTimerWhileCameraActive();
             TryShowPendingCompletionNotification();
 
             bool active = IsUnlocked && _courierGame != null && _courierGame.State == CourierRunState.FreeRoam;
@@ -871,6 +872,21 @@ namespace DuneVector
 
             _completionNotificationPending = false;
             ShowCompletionNotification();
+        }
+
+        private void PauseCompletionNotificationTimerWhileCameraActive()
+        {
+            if (!_showingCompletionNotification ||
+                !DuneVectorPhotographySystem.IsCameraModeActive ||
+                Time.unscaledTime >= _discoveryPresentationUntil)
+            {
+                return;
+            }
+
+            float pausedDuration = Mathf.Max(0f, Time.unscaledDeltaTime);
+            _discoveryPresentationStartedAt += pausedDuration;
+            _discoveryPresentationUntil += pausedDuration;
+            _statusUntil += pausedDuration;
         }
 
         private void ShowCompletionNotification()
