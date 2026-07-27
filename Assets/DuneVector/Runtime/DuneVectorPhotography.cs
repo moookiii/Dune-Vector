@@ -921,6 +921,7 @@ namespace DuneVector
         private DroneCameraController _cameraController;
         private Camera _camera;
         private PhotographyTuning _settings;
+        private DesertAtlasTuning _atlasSettings;
         private DuneVectorPhotographStorage _storage;
         private DuneVectorSubjectDetector _detector;
         private DuneVectorGalleryView _gallery;
@@ -977,7 +978,12 @@ namespace DuneVector
         private GUIStyle _comparisonLabelStyle;
         private GUIStyle _identificationTitleStyle;
         private GUIStyle _identificationNameStyle;
+        private GUIStyle _glyphDiscoveryHeaderStyle;
+        private GUIStyle _glyphDiscoveryMetadataStyle;
+        private GUIStyle _glyphDiscoveryIdentityStyle;
+        private GUIStyle _glyphDiscoveryTitleStyle;
         private GUIStyle _glyphDiscoveryLoreStyle;
+        private GUIStyle _glyphDiscoveryArchivedStyle;
         private GUIStyle _glyphDiscoveryContinueStyle;
         private GUIStyle _buttonStyle;
         private readonly List<Renderer> _hiddenPlayerRenderers = new List<Renderer>();
@@ -995,6 +1001,7 @@ namespace DuneVector
             _cameraController = cameraController;
             _camera = cameraController != null ? cameraController.Camera : null;
             _settings = settings ?? new PhotographyTuning();
+            _atlasSettings = atlas;
             _storage = new DuneVectorPhotographStorage(_settings);
             _detector = new DuneVectorSubjectDetector(
                 _camera,
@@ -1114,7 +1121,11 @@ namespace DuneVector
                         _identifiedContinueArmed =
                             mouse == null || !mouse.leftButton.isPressed;
                     }
-                    else if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+                    else if (
+                        Time.unscaledTime >=
+                            _captureStartedAt + _settings.GlyphDiscoveryContinueRevealDelay &&
+                        mouse != null &&
+                        mouse.leftButton.wasPressedThisFrame)
                     {
                         ReturnToLiveCamera();
                     }
@@ -1597,38 +1608,141 @@ namespace DuneVector
                 panelWidth,
                 panelHeight);
             DrawRect(
+                Expand(panel, _settings.GlyphDiscoveryVignettePadding),
+                WithAlpha(
+                    _settings.GlyphDiscoveryVignetteColor,
+                    _settings.GlyphDiscoveryVignetteColor.a * progress));
+            DrawRect(
                 panel,
                 WithAlpha(
-                    _settings.IdentificationPanelColor,
-                    _settings.IdentificationPanelColor.a * progress));
+                    _settings.GlyphDiscoveryPanelColor,
+                    _settings.GlyphDiscoveryPanelColor.a * progress));
+            DrawBorder(
+                panel,
+                WithAlpha(
+                    _settings.GlyphDiscoveryBorderColor,
+                    _settings.GlyphDiscoveryBorderColor.a * progress),
+                _settings.GlyphDiscoveryBorderThickness);
             DrawRect(
-                new Rect(panel.x, panel.y, panel.width, _settings.FrameThickness),
-                WithAlpha(_settings.ValidColor, _settings.ValidColor.a * progress));
+                new Rect(
+                    panel.x,
+                    panel.y,
+                    _settings.GlyphDiscoveryAccentWidth,
+                    panel.height),
+                WithAlpha(
+                    _settings.GlyphDiscoveryAccentColor,
+                    _settings.GlyphDiscoveryAccentColor.a * progress));
 
             float padding = _settings.GlyphDiscoveryPanelPadding;
             float gap = _settings.GlyphDiscoveryElementGap;
-            float contentWidth = Mathf.Max(0f, panel.width - (padding * 2f));
+            float identityWidth = Mathf.Min(
+                _settings.GlyphDiscoveryIdentityWidth,
+                Mathf.Max(0f, panel.width - (padding * 2f)));
+            Rect identity = new Rect(
+                panel.x + padding,
+                panel.y + padding,
+                identityWidth,
+                Mathf.Max(0f, panel.height - (padding * 2f)));
+            DrawRect(
+                identity,
+                WithAlpha(
+                    _settings.GlyphDiscoveryRaisedColor,
+                    _settings.GlyphDiscoveryRaisedColor.a * progress));
+            DrawBorder(
+                identity,
+                WithAlpha(
+                    _settings.GlyphDiscoveryBorderColor,
+                    _settings.GlyphDiscoveryBorderColor.a * progress),
+                _settings.GlyphDiscoveryBorderThickness);
+
+            float thumbnailSize = Mathf.Min(
+                _settings.GlyphDiscoveryThumbnailSize,
+                Mathf.Min(identity.width, identity.height));
+            Rect thumbnail = new Rect(
+                identity.x + ((identity.width - thumbnailSize) * 0.5f),
+                identity.y + gap,
+                thumbnailSize,
+                thumbnailSize);
+            if (_pendingSubject.Artwork?.Mask != null)
+            {
+                Color previousColor = GUI.color;
+                GUI.color = WithAlpha(
+                    _settings.GlyphDiscoveryAccentColor,
+                    _settings.GlyphDiscoveryAccentColor.a * progress);
+                GUI.DrawTexture(
+                    thumbnail,
+                    _pendingSubject.Artwork.Mask,
+                    ScaleMode.ScaleToFit,
+                    true);
+                GUI.color = previousColor;
+            }
+            float scanNormalized = Mathf.Repeat(
+                elapsed / Mathf.Max(0.01f, _settings.GlyphDiscoveryScanDuration),
+                1f);
+            DrawRect(
+                new Rect(
+                    thumbnail.x,
+                    Mathf.Lerp(thumbnail.y, thumbnail.yMax, scanNormalized),
+                    thumbnail.width,
+                    _settings.GlyphDiscoveryScanLineHeight),
+                WithAlpha(
+                    _settings.GlyphDiscoveryAccentColor,
+                    _settings.GlyphDiscoveryAccentColor.a * progress));
+
+            int entryNumber = GetGlyphEntryNumber();
+            DrawLabel(
+                new Rect(
+                    identity.x,
+                    thumbnail.yMax + gap,
+                    identity.width,
+                    _settings.GlyphDiscoveryIdentityLabelHeight),
+                string.Format(_settings.GlyphDiscoveryEntryFormat, entryNumber),
+                _glyphDiscoveryIdentityStyle,
+                WithAlpha(
+                    _settings.GlyphDiscoverySecondaryTextColor,
+                    _settings.GlyphDiscoverySecondaryTextColor.a * progress),
+                true);
+
+            float contentX = identity.xMax + _settings.GlyphDiscoveryIdentityGap;
+            float contentWidth = Mathf.Max(0f, panel.xMax - padding - contentX);
             float y = panel.y + padding;
             DrawLabel(
                 new Rect(
-                    panel.x + padding,
+                    contentX,
                     y,
                     contentWidth,
                     _settings.GlyphDiscoveryHeaderHeight),
                 TrackText(_settings.RegisteredText),
-                _targetStatusStyle,
-                WithAlpha(_settings.ValidColor, _settings.ValidColor.a * progress),
+                _glyphDiscoveryHeaderStyle,
+                WithAlpha(
+                    _settings.GlyphDiscoveryAccentColor,
+                    _settings.GlyphDiscoveryAccentColor.a * progress),
                 true);
             y += _settings.GlyphDiscoveryHeaderHeight + gap;
             DrawLabel(
                 new Rect(
-                    panel.x + padding,
+                    contentX,
+                    y,
+                    contentWidth,
+                    _settings.GlyphDiscoveryMetadataHeight),
+                string.Format(_settings.GlyphDiscoveryMetadataFormat, entryNumber),
+                _glyphDiscoveryMetadataStyle,
+                WithAlpha(
+                    _settings.GlyphDiscoverySecondaryTextColor,
+                    _settings.GlyphDiscoverySecondaryTextColor.a * progress),
+                true);
+            y += _settings.GlyphDiscoveryMetadataHeight + gap;
+            DrawLabel(
+                new Rect(
+                    contentX,
                     y,
                     contentWidth,
                     _settings.GlyphDiscoveryNameHeight),
                 _pendingSubject.DisplayName,
-                _identificationNameStyle,
-                WithAlpha(_settings.HudTextColor, _settings.HudTextColor.a * progress),
+                _glyphDiscoveryTitleStyle,
+                WithAlpha(
+                    _settings.GlyphDiscoveryPrimaryTextColor,
+                    _settings.GlyphDiscoveryPrimaryTextColor.a * progress),
                 true);
             y += _settings.GlyphDiscoveryNameHeight + gap;
             string lore = _pendingSubject.AtlasSite != null
@@ -1636,24 +1750,124 @@ namespace DuneVector
                 : string.Empty;
             DrawLabel(
                 new Rect(
-                    panel.x + padding,
+                    contentX,
                     y,
                     contentWidth,
                     _settings.GlyphDiscoveryLoreHeight),
                 lore,
                 _glyphDiscoveryLoreStyle,
-                WithAlpha(_settings.HudTextColor, _settings.HudTextColor.a * progress),
+                WithAlpha(
+                    _settings.GlyphDiscoveryPrimaryTextColor,
+                    _settings.GlyphDiscoveryPrimaryTextColor.a * progress),
                 true);
+
+            Rect footer = new Rect(
+                contentX,
+                panel.yMax - padding - _settings.GlyphDiscoveryFooterHeight,
+                contentWidth,
+                _settings.GlyphDiscoveryFooterHeight);
+            DrawRect(
+                new Rect(
+                    footer.x,
+                    footer.y,
+                    footer.width,
+                    _settings.GlyphDiscoveryBorderThickness),
+                WithAlpha(
+                    _settings.GlyphDiscoveryBorderColor,
+                    _settings.GlyphDiscoveryBorderColor.a * progress));
             DrawLabel(
                 new Rect(
-                    panel.x + padding,
-                    panel.yMax - padding - _settings.GlyphDiscoveryContinueHeight,
-                    contentWidth,
-                    _settings.GlyphDiscoveryContinueHeight),
+                    footer.x,
+                    footer.y,
+                    Mathf.Max(0f, footer.width - _settings.GlyphDiscoveryCommandWidth - gap),
+                    footer.height),
+                TrackText(_settings.GlyphDiscoveryArchivedLabel),
+                _glyphDiscoveryArchivedStyle,
+                WithAlpha(
+                    _settings.GlyphDiscoverySecondaryTextColor,
+                    _settings.GlyphDiscoverySecondaryTextColor.a * progress),
+                true);
+
+            Rect command = new Rect(
+                footer.xMax - _settings.GlyphDiscoveryCommandWidth,
+                footer.y + gap,
+                _settings.GlyphDiscoveryCommandWidth,
+                Mathf.Max(0f, footer.height - gap));
+            bool commandHovered = command.Contains(Event.current.mousePosition);
+            Color commandColor = commandHovered
+                ? _settings.GlyphDiscoveryCommandHoverColor
+                : _settings.GlyphDiscoveryCommandColor;
+            float continueProgress = Mathf.Clamp01(
+                (elapsed - _settings.GlyphDiscoveryContinueRevealDelay) /
+                Mathf.Max(0.01f, _settings.HudEnterDuration));
+            DrawRect(
+                command,
+                WithAlpha(commandColor, commandColor.a * continueProgress));
+            DrawBorder(
+                command,
+                WithAlpha(
+                    _settings.GlyphDiscoveryAccentColor,
+                    _settings.GlyphDiscoveryAccentColor.a * continueProgress),
+                _settings.GlyphDiscoveryBorderThickness);
+            float sweepTravel = command.width + _settings.GlyphDiscoveryFocusSweepWidth;
+            float sweepNormalized = Mathf.Repeat(
+                Mathf.Max(0f, elapsed - _settings.GlyphDiscoveryContinueRevealDelay) /
+                Mathf.Max(0.01f, _settings.GlyphDiscoveryFocusSweepDuration),
+                1f);
+            Rect sweep = new Rect(
+                command.x - _settings.GlyphDiscoveryFocusSweepWidth +
+                    (sweepTravel * sweepNormalized),
+                command.y,
+                _settings.GlyphDiscoveryFocusSweepWidth,
+                command.height);
+            Rect clippedSweep = Intersect(sweep, command);
+            if (clippedSweep.width > 0f)
+            {
+                DrawRect(
+                    clippedSweep,
+                    WithAlpha(
+                        _settings.GlyphDiscoveryFocusSweepColor,
+                        _settings.GlyphDiscoveryFocusSweepColor.a * continueProgress));
+            }
+            DrawLabel(
+                command,
                 TrackText(_settings.GlyphDiscoveryContinuePrompt),
                 _glyphDiscoveryContinueStyle,
-                WithAlpha(_settings.ValidColor, _settings.ValidColor.a * progress),
+                WithAlpha(
+                    _settings.GlyphDiscoveryPrimaryTextColor,
+                    _settings.GlyphDiscoveryPrimaryTextColor.a * continueProgress),
                 true);
+        }
+
+        private int GetGlyphEntryNumber()
+        {
+            if (_pendingSubject.AtlasSite == null || _atlasSettings?.Sites == null)
+            {
+                return 0;
+            }
+
+            for (int i = 0; i < _atlasSettings.Sites.Count; i++)
+            {
+                DesertAtlasSiteDefinition site = _atlasSettings.Sites[i];
+                if (site != null &&
+                    string.Equals(
+                        site.PersistentId,
+                        _pendingSubject.AtlasSite.PersistentId,
+                        StringComparison.Ordinal))
+                {
+                    return i + 1;
+                }
+            }
+            return 0;
+        }
+
+        private static Rect Intersect(Rect first, Rect second)
+        {
+            float left = Mathf.Max(first.xMin, second.xMin);
+            float top = Mathf.Max(first.yMin, second.yMin);
+            float right = Mathf.Min(first.xMax, second.xMax);
+            float bottom = Mathf.Min(first.yMax, second.yMax);
+            return Rect.MinMaxRect(left, top, Mathf.Max(left, right), Mathf.Max(top, bottom));
         }
 
         private void DrawPhotographComparison()
@@ -2031,18 +2245,48 @@ namespace DuneVector
                 TextAnchor.MiddleCenter,
                 _settings.HudTextColor,
                 _settings.HudSemiboldFont);
+            _glyphDiscoveryHeaderStyle ??= CreateStyle(
+                _settings.GlyphDiscoveryHeaderFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleLeft,
+                _settings.GlyphDiscoveryAccentColor,
+                _settings.HudSemiboldFont);
+            _glyphDiscoveryMetadataStyle ??= CreateStyle(
+                _settings.GlyphDiscoveryMetadataFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleLeft,
+                _settings.GlyphDiscoverySecondaryTextColor,
+                _settings.HudRegularFont);
+            _glyphDiscoveryIdentityStyle ??= CreateStyle(
+                _settings.GlyphDiscoveryMetadataFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleCenter,
+                _settings.GlyphDiscoverySecondaryTextColor,
+                _settings.HudRegularFont);
+            _glyphDiscoveryTitleStyle ??= CreateStyle(
+                _settings.GlyphDiscoveryTitleFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleLeft,
+                _settings.GlyphDiscoveryPrimaryTextColor,
+                _settings.HudSemiboldFont);
             _glyphDiscoveryLoreStyle ??= CreateStyle(
                 _settings.GlyphDiscoveryLoreFontSize,
                 FontStyle.Normal,
                 TextAnchor.UpperLeft,
-                _settings.HudTextColor,
+                _settings.GlyphDiscoveryPrimaryTextColor,
                 _settings.HudRegularFont);
             _glyphDiscoveryLoreStyle.wordWrap = true;
+            _glyphDiscoveryArchivedStyle ??= CreateStyle(
+                _settings.GlyphDiscoveryMetadataFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleLeft,
+                _settings.GlyphDiscoverySecondaryTextColor,
+                _settings.HudRegularFont);
             _glyphDiscoveryContinueStyle ??= CreateStyle(
                 _settings.GlyphDiscoveryContinueFontSize,
                 FontStyle.Normal,
                 TextAnchor.MiddleCenter,
-                _settings.ValidColor,
+                _settings.GlyphDiscoveryPrimaryTextColor,
                 _settings.HudSemiboldFont);
             _buttonStyle ??= new GUIStyle(GUI.skin.button)
             {
