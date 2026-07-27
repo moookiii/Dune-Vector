@@ -800,6 +800,7 @@ namespace DuneVector
             {
                 DroneUpgradeValueFormat.WholeNumber => Mathf.RoundToInt(value).ToString("N0"),
                 DroneUpgradeValueFormat.TwoDecimalSeconds => $"{value:0.00}s",
+                DroneUpgradeValueFormat.OneDecimalMeters => $"{value:0.0} M",
                 _ => value.ToString("0.0"),
             };
         }
@@ -958,6 +959,14 @@ namespace DuneVector
                     canvas.CornerBrackets(0.2f, 0.2f, 0.8f, 0.8f, 0.18f);
                     canvas.Circle(0.5f, 0.5f, 0.1f);
                     canvas.Line(0.5f, 0.1f, 0.5f, 0.28f);
+                    break;
+                case DroneUpgradeId.LockOnDistance:
+                    canvas.CornerBrackets(0.12f, 0.24f, 0.88f, 0.76f, 0.16f);
+                    canvas.Circle(0.5f, 0.5f, 0.08f);
+                    canvas.Line(0.2f, 0.5f, 0.38f, 0.5f);
+                    canvas.Line(0.62f, 0.5f, 0.8f, 0.5f);
+                    canvas.Polyline((0.25f, 0.42f), (0.17f, 0.5f), (0.25f, 0.58f));
+                    canvas.Polyline((0.75f, 0.42f), (0.83f, 0.5f), (0.75f, 0.58f));
                     break;
                 case DroneUpgradeId.GroundMaximumSpeed:
                     canvas.Line(0.1f, 0.35f, 0.46f, 0.35f);

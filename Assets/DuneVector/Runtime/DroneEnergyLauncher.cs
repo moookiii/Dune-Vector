@@ -170,17 +170,23 @@ namespace DuneVector
         private Camera _camera;
         private EnergyLauncherTuning _settings;
         private DuneVectorCourierGame _courierGame;
+        private DronePermanentUpgradeSystem _upgrades;
         private float _scanTimer;
         private float _outsideTargetAreaTime;
+        private float CurrentLockRange => _upgrades != null
+            ? _upgrades.GetCurrentValue(DroneUpgradeId.LockOnDistance)
+            : _settings != null ? _settings.LockRange : 0f;
 
         public void Initialize(
             Camera camera,
             EnergyLauncherTuning settings,
-            DuneVectorCourierGame courierGame = null)
+            DuneVectorCourierGame courierGame = null,
+            DronePermanentUpgradeSystem upgrades = null)
         {
             _camera = camera;
             _settings = settings;
             _courierGame = courierGame;
+            _upgrades = upgrades;
             _scanTimer = 0f;
         }
 
@@ -213,7 +219,7 @@ namespace DuneVector
 
             Vector3 toTarget = target.AimPoint - _camera.transform.position;
             float distance = toTarget.magnitude;
-            if (distance <= Mathf.Epsilon || distance > _settings.LockRange)
+            if (distance <= Mathf.Epsilon || distance > CurrentLockRange)
             {
                 return false;
             }
@@ -304,7 +310,7 @@ namespace DuneVector
             float angle = Vector3.Angle(_camera.transform.forward, toTarget);
             float halfCone = Mathf.Max(Mathf.Epsilon, _settings.LockConeAngle * 0.5f);
             float centeredScore = angle / halfCone;
-            float distanceScore = distance / Mathf.Max(Mathf.Epsilon, _settings.LockRange);
+            float distanceScore = distance / Mathf.Max(Mathf.Epsilon, CurrentLockRange);
             return centeredScore + (distanceScore * _settings.DistanceScoreWeight);
         }
 

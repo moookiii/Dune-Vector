@@ -603,6 +603,7 @@ namespace DuneVector
             _tierZeroValues[DroneUpgradeId.EnergyShotDamage] = settings.EnergyLauncher.Damage;
             _tierZeroValues[DroneUpgradeId.EnergyShotCooldown] = settings.EnergyLauncher.FireCooldown;
             _tierZeroValues[DroneUpgradeId.LockOnSpeed] = settings.EnergyLauncher.AcquisitionTime;
+            _tierZeroValues[DroneUpgradeId.LockOnDistance] = settings.EnergyLauncher.LockRange;
             _tierZeroValues[DroneUpgradeId.GroundMaximumSpeed] = settings.PlayerTuning.MaxGroundSpeed;
             _tierZeroValues[DroneUpgradeId.GroundAcceleration] = settings.PlayerTuning.GroundMovementSharpness;
             _tierZeroValues[DroneUpgradeId.GroundHandling] = settings.PlayerTuning.GroundSteeringSharpness;
