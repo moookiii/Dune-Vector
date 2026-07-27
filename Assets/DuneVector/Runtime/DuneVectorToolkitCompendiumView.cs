@@ -45,6 +45,7 @@ namespace DuneVector
         private readonly VisualElement _window;
         private readonly Label _progress;
         private readonly ListView _grid;
+        private readonly Scroller _verticalScroller;
         private readonly VisualElement _detail;
         private readonly Image _detailImage;
         private readonly VisualElement _detailLocked;
@@ -119,10 +120,10 @@ namespace DuneVector
                 bindItem = BindGridRow,
             };
             _grid.AddToClassList("compendium-grid");
-            Scroller verticalScroller = _grid.Q<Scroller>(className: "unity-scroller--vertical");
-            if (verticalScroller != null)
+            _verticalScroller = _grid.Q<Scroller>(className: "unity-scroller--vertical");
+            if (_verticalScroller != null)
             {
-                verticalScroller.style.width = _settings.CompendiumScrollbarWidth;
+                _verticalScroller.style.width = _settings.CompendiumScrollbarWidth;
             }
             content.Add(_grid);
 
@@ -726,6 +727,31 @@ namespace DuneVector
             _grid.style.paddingRight = _settings.CompendiumGridPadding;
             _grid.style.paddingTop = _settings.CompendiumGridPadding;
             _grid.style.paddingBottom = _settings.CompendiumGridPadding;
+            if (_verticalScroller != null)
+            {
+                _verticalScroller.style.marginTop = _settings.CompendiumGridPadding;
+                _verticalScroller.style.marginBottom = _settings.CompendiumGridPadding;
+                _verticalScroller.style.backgroundColor = _settings.CompendiumScrollbarTrackColor;
+                Slider slider = _verticalScroller.Q<Slider>();
+                if (slider != null)
+                {
+                    slider.style.backgroundColor = _settings.CompendiumScrollbarTrackColor;
+                    VisualElement dragContainer =
+                        slider.Q(className: "unity-base-slider__drag-container");
+                    if (dragContainer != null)
+                    {
+                        dragContainer.style.backgroundColor =
+                            _settings.CompendiumScrollbarTrackColor;
+                    }
+                    VisualElement tracker =
+                        slider.Q(className: "unity-base-slider__tracker");
+                    if (tracker != null)
+                    {
+                        tracker.style.backgroundColor =
+                            _settings.CompendiumScrollbarTrackColor;
+                    }
+                }
+            }
             _detail.style.width = _settings.CompendiumDetailPanelWidth;
             _detail.style.backgroundColor = _settings.CompendiumRaisedSurfaceColor;
             _detail.style.paddingLeft = _settings.CompendiumGap;
