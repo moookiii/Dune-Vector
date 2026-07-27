@@ -137,7 +137,7 @@ Shader "Hidden/DuneVector/Map Geoglyph Mask"
                     saturate(_SurfaceTextureEnabled));
                 float3 outputColor =
                     ((_Color.rgb * surfaceColor * lineAlpha) +
-                     (_HaloColor.rgb * haloAlpha * (1.0 - lineAlpha))) /
+                     (_HaloColor.rgb * surfaceColor * haloAlpha * (1.0 - lineAlpha))) /
                     max(outputAlpha, 0.0001);
                 return fixed4(outputColor, outputAlpha);
             }
