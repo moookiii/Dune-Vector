@@ -56,9 +56,13 @@ namespace DuneVector
         [Min(1f)] public float ExtendedTierGrowth = 1f;
 
         [Header("Gold Cost Curve")]
-        [Min(1)] public int BaseGoldCost = 100;
+        [Min(1f)] public float BaseGoldCost = 100f;
         [Tooltip("Each successive primary-curve tier costs the previous tier cost multiplied by this value before rounding.")]
         [Min(1f)] public float GoldCostGrowth = 1.2f;
+        [Tooltip("Uses a progressively larger flat increase for each primary-curve tier instead of multiplicative cost growth.")]
+        public bool UseAcceleratingGoldCostIncrements;
+        [Tooltip("Amount added to the tier-to-tier price increase each primary-curve tier. Tier two adds this once, tier three adds it twice, and so on.")]
+        [Min(0f)] public float GoldCostIncreaseStep;
         [Tooltip("Cost growth applied to each tier beyond the primary progression curve. This starts from the unrounded cost of the final primary tier.")]
         [Min(1f)] public float ExtendedTierGoldCostGrowth = 1f;
 
@@ -114,9 +118,17 @@ namespace DuneVector
             int maximumTier = Mathf.Max(1, MaximumTier);
             int clampedTier = Mathf.Clamp(targetTier, 1, maximumTier);
             int baseCurveTierCount = Mathf.Clamp(BaseCurveTierCount, 1, maximumTier);
-            double primaryGrowth = Math.Max(1f, GoldCostGrowth);
-            double rawCost = Math.Max(1, BaseGoldCost)
-                * Math.Pow(primaryGrowth, Math.Min(clampedTier, baseCurveTierCount) - 1);
+            int primaryTier = Math.Min(clampedTier, baseCurveTierCount);
+            double baseGoldCost = Math.Max(1f, BaseGoldCost);
+            double completedPrimaryIncrements = primaryTier - 1;
+            double rawCost = UseAcceleratingGoldCostIncrements
+                ? baseGoldCost
+                    + (Math.Max(0f, GoldCostIncreaseStep)
+                        * completedPrimaryIncrements
+                        * (completedPrimaryIncrements + 1d)
+                        * 0.5d)
+                : baseGoldCost
+                    * Math.Pow(Math.Max(1f, GoldCostGrowth), completedPrimaryIncrements);
             if (clampedTier > baseCurveTierCount)
             {
                 rawCost *= Math.Pow(
