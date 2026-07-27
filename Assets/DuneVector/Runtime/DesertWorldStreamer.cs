@@ -433,7 +433,7 @@ namespace DuneVector
 
         internal void TickStreamedObjects(float deltaTime)
         {
-            if (!_initialized)
+            if (!_initialized || deltaTime <= 0f)
             {
                 return;
             }

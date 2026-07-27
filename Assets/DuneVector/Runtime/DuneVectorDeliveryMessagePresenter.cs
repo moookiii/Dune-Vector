@@ -203,6 +203,8 @@ namespace DuneVector
         private readonly DeliveryMessageTypingAudio _typingAudio = new DeliveryMessageTypingAudio();
         private IReadOnlyList<string> _pages = Array.Empty<string>();
         private DeliveryMessageTuning _settings;
+        private float _timeScaleBeforeOpen = 1f;
+        private bool _gameplayPauseActive;
         private Action _completed;
         private int _pageIndex;
         private int _visibleCharacterCount;
@@ -295,6 +297,7 @@ namespace DuneVector
             _allowCancel = allowCancel;
             _showFirstUseHint = showFirstUseHint && !_hasAcknowledgedInputHint;
             IsOpen = true;
+            BeginGameplayPause();
             if (!delayFirstPage)
             {
                 BeginCurrentPage();
@@ -311,6 +314,7 @@ namespace DuneVector
 
             _typingAudio.Stop();
             IsOpen = false;
+            EndGameplayPause();
             Action callback = _completed;
             _completed = null;
             _pages = Array.Empty<string>();
@@ -320,6 +324,32 @@ namespace DuneVector
             {
                 _completionSent = true;
                 callback?.Invoke();
+            }
+        }
+
+        private void BeginGameplayPause()
+        {
+            if (_gameplayPauseActive)
+            {
+                return;
+            }
+
+            _timeScaleBeforeOpen = Time.timeScale;
+            _gameplayPauseActive = true;
+            Time.timeScale = 0f;
+        }
+
+        private void EndGameplayPause()
+        {
+            if (!_gameplayPauseActive)
+            {
+                return;
+            }
+
+            _gameplayPauseActive = false;
+            if (Mathf.Approximately(Time.timeScale, 0f))
+            {
+                Time.timeScale = _timeScaleBeforeOpen;
             }
         }
 
