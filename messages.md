@@ -1002,7 +1002,9 @@ And once the Office understood that, the anomalies stopped looking random.
 
 
 
-TRANSMITION M2K_0000029
+TRANSMITION M2K_0000030
+
+The anomalies were too widespread to dismiss as isolated effects.
 
 Some subjects described depth without distance.
 
@@ -1018,7 +1020,7 @@ But not in structure.
 
 Again and again, the same kinds of forms appeared.
 
-People seeing shadowless geometric objects suspended in the air, then accelerating away at the instant they were noticed—fast enough to exceed human reaction, yet without disturbing the bushes or leaves they seemed to pass through.
+People seeing shadowless geometric objects suspended in the air, then accelerating away at the instant they were noticed. Fast enough to exceed human reaction, yet without disturbing the bushes or leaves they seemed to pass through.
 
 People experiencing emotions that seemed to attach themselves to certain thoughts. Especially at the certainty that they had forgotten something they were never supposed to know in the first place.
 
