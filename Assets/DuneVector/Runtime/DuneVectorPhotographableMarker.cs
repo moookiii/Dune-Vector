@@ -361,7 +361,10 @@ namespace DuneVector
                     _settings.CompendiumPanelWidth,
                     _settings.CompendiumPanelHeight);
                 DrawRect(panel, _settings.GalleryPanelColor);
-                DrawBorder(panel, _settings.GalleryAccentColor, _settings.FrameThickness);
+                DrawBorder(
+                    panel,
+                    _settings.GalleryAccentColor,
+                    _settings.CompendiumPanelBorderThickness);
                 DrawContents(panel);
             }
             finally

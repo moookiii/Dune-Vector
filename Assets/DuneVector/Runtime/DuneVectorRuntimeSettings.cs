@@ -342,6 +342,7 @@ namespace DuneVector
         [Header("Compendium Layout")]
         [Min(400f)] public float CompendiumPanelWidth = 1420f;
         [Min(300f)] public float CompendiumPanelHeight = 860f;
+        [Min(1f)] public float CompendiumPanelBorderThickness = 4f;
         [Min(20f)] public float CompendiumHeaderHeight = 72f;
         [Min(28f)] public float CompendiumTabHeight = 58f;
         [Min(12f)] public float CompendiumTabIconSize = 26f;
