@@ -1192,7 +1192,7 @@ namespace DuneVector
                 color.a);
         }
 
-        private void EnterHubImmediate(bool openTerminal)
+        private void EnterHubImmediate(bool openTerminal, bool placePlayerAtSpawn = true)
         {
             _health.SetDamageImmune(true);
             CleanupContractObjects();
@@ -1204,9 +1204,12 @@ namespace DuneVector
             {
                 _health.RestoreHealth(_health.MaximumHealth);
             }
-            _player.Motor.SetPositionAndRotation(_hubSpawn, Quaternion.identity, true);
-            _player.ResetTraversalAfterTeleport(Vector3.forward);
-            _cameraController?.SnapToTarget();
+            if (placePlayerAtSpawn)
+            {
+                _player.Motor.SetPositionAndRotation(_hubSpawn, Quaternion.identity, true);
+                _player.ResetTraversalAfterTeleport(Vector3.forward);
+                _cameraController?.SnapToTarget();
+            }
             SetCombatSystemsActive(false);
             _sandAmbusherSystem?.EndContract();
             DuneVectorContractRisk.Reset();
@@ -2172,7 +2175,7 @@ namespace DuneVector
             }
             _returnStartsVanished = false;
             _deliveryCompletionInProgress = false;
-            EnterHubImmediate(openTerminal: false);
+            EnterHubImmediate(openTerminal: false, placePlayerAtSpawn: false);
             EndDeliveryMessageSafety();
             ShowStatus("RETURNED TO COURIER AERIE", 2.5f);
         }
