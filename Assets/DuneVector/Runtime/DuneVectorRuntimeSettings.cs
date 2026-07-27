@@ -3682,6 +3682,16 @@ namespace DuneVector
         [Min(24f)] public float ButtonHeight = 44f;
         [Min(0f)] public float ButtonGap = 10f;
 
+        [Header("Controls Screen")]
+        [Tooltip("Full-screen controls reference shown from the pause menu.")]
+        public Texture2D ControlsImage;
+        [Tooltip("Label used by the pause-menu button that opens the controls reference.")]
+        public string ControlsButtonLabel = "CONTROLS";
+        [Tooltip("Seconds used to fade between the pause menu and the controls reference.")]
+        [Min(0f)] public float ControlsFadeDuration = 0.3f;
+        [Tooltip("Letterbox and fade color behind the controls reference.")]
+        [ColorUsage(false)] public Color ControlsBackgroundColor = Color.black;
+
         [Header("Typography")]
         [Min(12)] public int TitleFontSize = 36;
         [Min(10)] public int SubtitleFontSize = 13;

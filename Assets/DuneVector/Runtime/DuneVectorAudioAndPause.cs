@@ -604,6 +604,8 @@ namespace DuneVector
         private bool _showShop;
         private bool _showGallery;
         private bool _showCompendium;
+        private bool _showControls;
+        private float _controlsFade;
 
         private GUIStyle _titleStyle;
         private GUIStyle _subtitleStyle;
@@ -662,6 +664,8 @@ namespace DuneVector
 
         private void Update()
         {
+            UpdateControlsFade();
+
             if (DuneVectorPhotographySystem.IsCameraModeActive)
             {
                 return;
@@ -679,7 +683,11 @@ namespace DuneVector
                 Keyboard.current != null &&
                 Keyboard.current.escapeKey.wasPressedThisFrame)
             {
-                if (IsPaused && _showShop)
+                if (IsPaused && (_showControls || _controlsFade > 0f))
+                {
+                    _showControls = false;
+                }
+                else if (IsPaused && _showShop)
                 {
                     _showShop = false;
                 }
@@ -721,8 +729,19 @@ namespace DuneVector
                 _showShop = false;
                 _showGallery = false;
                 _showCompendium = false;
+                _showControls = false;
+                _controlsFade = 0f;
                 _audio?.FlushPreferences();
             }
+        }
+
+        private void UpdateControlsFade()
+        {
+            float target = IsPaused && _showControls ? 1f : 0f;
+            float duration = _visuals != null ? Mathf.Max(0f, _visuals.ControlsFadeDuration) : 0f;
+            _controlsFade = duration <= 0f
+                ? target
+                : Mathf.MoveTowards(_controlsFade, target, Time.unscaledDeltaTime / duration);
         }
 
         private void HandleDeath()
@@ -731,6 +750,8 @@ namespace DuneVector
             _showShop = false;
             _showGallery = false;
             _showCompendium = false;
+            _showControls = false;
+            _controlsFade = 0f;
             _audio?.SetPausedDucking(false);
             _player?.SetInputEnabled(false);
         }
@@ -747,6 +768,12 @@ namespace DuneVector
             EnsureStyles(scale);
 
             DrawSolidRect(new Rect(0f, 0f, Screen.width, Screen.height), _visuals.OverlayColor);
+
+            if (_showControls || _controlsFade > 0f)
+            {
+                DrawControlsScreen();
+                return;
+            }
 
             if (_showShop)
             {
@@ -884,12 +911,46 @@ namespace DuneVector
             {
                 QuitGame();
             }
+            y += buttonHeight + gap;
+
+            if (GUI.Button(
+                    new Rect(content.x, y, content.width, buttonHeight),
+                    _visuals.ControlsButtonLabel,
+                    _secondaryButtonStyle))
+            {
+                _showControls = true;
+            }
 
             float hintHeight = _hintStyle.lineHeight;
             GUI.Label(
                 new Rect(content.x, content.yMax - hintHeight, content.width, hintHeight),
                 "ESC  /  RETURN TO THE DESERT",
                 _hintStyle);
+        }
+
+        private void DrawControlsScreen()
+        {
+            float alpha = Mathf.Clamp01(_controlsFade);
+            Color background = _visuals.ControlsBackgroundColor;
+            background.a *= alpha;
+            DrawSolidRect(new Rect(0f, 0f, Screen.width, Screen.height), background);
+
+            Texture2D controlsImage = _visuals.ControlsImage;
+            if (controlsImage == null || controlsImage.width <= 0 || controlsImage.height <= 0)
+            {
+                return;
+            }
+
+            float imageHeight = Screen.width * ((float)controlsImage.height / controlsImage.width);
+            Rect imageRect = new Rect(
+                0f,
+                (Screen.height - imageHeight) * 0.5f,
+                Screen.width,
+                imageHeight);
+            Color previousColor = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, alpha);
+            GUI.DrawTexture(imageRect, controlsImage, ScaleMode.StretchToFill, false);
+            GUI.color = previousColor;
         }
 
         private void DrawVolumeRow(
