@@ -1861,9 +1861,10 @@ namespace DuneVector
         [Min(240f)] public float HudReferenceHeight = 1080f;
         [Tooltip("World-space distance between the ship and the near aim marker, and between the near and far markers.")]
         [Min(0.1f)] public float AimMarkerSpacing = 30f;
-        [Min(1f)] public float NearAimMarkerSize = 28f;
-        [Min(1f)] public float FarAimMarkerSize = 18f;
+        [Min(1f)] public float NearAimMarkerSize = 23f;
+        [Min(1f)] public float FarAimMarkerSize = 19f;
         [Min(0f)] public float AimMarkerCrossSize = 7f;
+        [Min(0.5f)] public float AimMarkerLineThickness = 1.25f;
         [Min(1f)] public float ReticleLineThickness = 2f;
         [Min(1f)] public float TargetDetectedReticleSize = 84f;
         [Min(1f)] public float LockedReticleSize = 44f;
@@ -1877,7 +1878,7 @@ namespace DuneVector
         [Min(8f)] public float HudLabelHeight = 22f;
         [Min(8)] public int TargetStatusFontSize = 14;
         [Min(8)] public int TargetDistanceFontSize = 12;
-        [ColorUsage(false)] public Color AimMarkerColor = new Color(0.2f, 1f, 0.35f, 0.95f);
+        [ColorUsage(false)] public Color AimMarkerColor = new Color(0.72f, 0.96f, 1f, 0.82f);
         [ColorUsage(false)] public Color TargetDetectedColor = new Color(1f, 0.72f, 0.18f, 0.95f);
         [ColorUsage(false)] public Color LockingColor = new Color(0.15f, 0.86f, 1f, 0.98f);
         [ColorUsage(false)] public Color LockedColor = new Color(0.35f, 1f, 0.62f, 1f);

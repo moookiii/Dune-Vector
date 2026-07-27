@@ -915,7 +915,7 @@ namespace DuneVector
         {
             Vector3 aimOrigin = _drone.WorldCenter;
             Vector3 aimDirection = _drone.AimDirection.normalized;
-            float thickness = _settings.ReticleLineThickness * scale;
+            float thickness = _settings.AimMarkerLineThickness * scale;
             float crossSize = _settings.AimMarkerCrossSize * scale;
 
             for (int markerIndex = 0; markerIndex < 2; markerIndex++)
