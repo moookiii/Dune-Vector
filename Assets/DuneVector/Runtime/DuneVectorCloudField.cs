@@ -35,8 +35,8 @@ namespace DuneVector
 
         private readonly List<Transform> _clusters = new List<Transform>();
         private CloudTuning _tuning;
-        private float _placementMinimum;
-        private float _placementMaximum;
+        private float _driftWrapMinimum;
+        private float _driftWrapMaximum;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetMeshLibraries()
@@ -60,8 +60,10 @@ namespace DuneVector
             tuning.EnsureInitialized();
             _tuning = tuning;
             _clusters.Clear();
-            _placementMinimum = Mathf.Clamp(tuning.PlacementInset, 0f, chunkSize * 0.45f);
-            _placementMaximum = Mathf.Max(_placementMinimum, chunkSize - _placementMinimum);
+            float placementInset = Mathf.Clamp(tuning.PlacementInset, 0f, chunkSize * 0.45f);
+            float driftWrapPadding = Mathf.Max(0, tuning.DriftWrapPaddingInChunks) * chunkSize;
+            _driftWrapMinimum = -driftWrapPadding;
+            _driftWrapMaximum = chunkSize + driftWrapPadding;
 
             CloudMeshLibrary library = GetOrCreateMeshLibrary(tuning);
             if (library.Archetypes.Count == 0)
@@ -78,7 +80,7 @@ namespace DuneVector
                 Vector2 planarPosition = FindPlacement(
                     random,
                     occupiedPositions,
-                    _placementMinimum,
+                    placementInset,
                     chunkSize,
                     tuning.MinimumLocalSeparation,
                     tuning.PlacementAttempts);
@@ -137,7 +139,7 @@ namespace DuneVector
                 return;
             }
 
-            float placementSpan = _placementMaximum - _placementMinimum;
+            float driftWrapSpan = _driftWrapMaximum - _driftWrapMinimum;
             for (int i = 0; i < _clusters.Count; i++)
             {
                 Transform cluster = _clusters[i];
@@ -147,12 +149,12 @@ namespace DuneVector
                 }
 
                 Vector3 localPosition = cluster.localPosition + drift;
-                if (placementSpan > 0.001f)
+                if (driftWrapSpan > 0.001f)
                 {
-                    localPosition.x = _placementMinimum
-                        + Mathf.Repeat(localPosition.x - _placementMinimum, placementSpan);
-                    localPosition.z = _placementMinimum
-                        + Mathf.Repeat(localPosition.z - _placementMinimum, placementSpan);
+                    localPosition.x = _driftWrapMinimum
+                        + Mathf.Repeat(localPosition.x - _driftWrapMinimum, driftWrapSpan);
+                    localPosition.z = _driftWrapMinimum
+                        + Mathf.Repeat(localPosition.z - _driftWrapMinimum, driftWrapSpan);
                 }
                 cluster.localPosition = localPosition;
             }

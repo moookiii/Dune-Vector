@@ -539,6 +539,8 @@ namespace DuneVector
         [Min(0f)] public float PlacementInset;
         [Min(0f)] public float MinimumLocalSeparation;
         [Range(1, 16)] public int PlacementAttempts;
+        [Tooltip("Extra streamed-terrain chunks a drifting cloud can cross beyond its source chunk before wrapping. Keep this beyond the terrain unload radius so wrapping occurs outside the visible desert.")]
+        [Range(0, 24)] public int DriftWrapPaddingInChunks;
 
         [Header("Appearance")]
         [ColorUsage(false)] public Color SunlitColor;
