@@ -714,8 +714,14 @@ namespace DuneVector
         [Range(0f, 1f)] public float DualModifierChance = 0.42f;
         [Range(0f, 1f)] public float TripleModifierChance = 0.09f;
         [Range(0f, 1f)] public float UnknownContractChance = 0.14f;
-        [Min(10f)] public float MinimumRouteDistance = 650f;
-        [Min(10f)] public float MaximumRouteDistance = 2600f;
+        [Tooltip("Shortest planned contract route at risk 0.")]
+        [Min(10f)] public float MinimumRouteDistanceAtRiskZero = 500f;
+        [Tooltip("Longest planned contract route at risk 0.")]
+        [Min(10f)] public float MaximumRouteDistanceAtRiskZero = 1000f;
+        [Tooltip("Minimum distance added to the route band for each risk tier.")]
+        [Min(0f)] public float MinimumRouteDistanceAddedPerRisk = 500f;
+        [Tooltip("Maximum distance added to the route band for each risk tier.")]
+        [Min(0f)] public float MaximumRouteDistanceAddedPerRisk = 1000f;
         [Min(10f)] public float MinimumPickupInsertionDistance = 75f;
         [Min(10f)] public float MaximumPickupInsertionDistance = 135f;
         [Tooltip("Maximum horizontal distance from the player's desert insertion point to the resolved pickup package.")]
@@ -733,6 +739,20 @@ namespace DuneVector
         public LandmarkContractLocation[] LandmarkLocations;
         [Tooltip("Landmark archetypes eligible for pickup and delivery contract objectives.")]
         public DuneLandmarkType[] ContractLandmarkTypes;
+
+        public float EvaluateMinimumRouteDistance(int risk)
+        {
+            return Mathf.Max(10f, MinimumRouteDistanceAtRiskZero) +
+                (Mathf.Max(0, risk) * Mathf.Max(0f, MinimumRouteDistanceAddedPerRisk));
+        }
+
+        public float EvaluateMaximumRouteDistance(int risk)
+        {
+            float minimum = EvaluateMinimumRouteDistance(risk);
+            float maximum = Mathf.Max(10f, MaximumRouteDistanceAtRiskZero) +
+                (Mathf.Max(0, risk) * Mathf.Max(0f, MaximumRouteDistanceAddedPerRisk));
+            return Mathf.Max(minimum, maximum);
+        }
 
         [Header("Risk Scaling")]
         [Range(1, 100)] public int MaximumRisk = 20;

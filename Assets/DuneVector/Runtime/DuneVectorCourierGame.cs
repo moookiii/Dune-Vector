@@ -752,7 +752,7 @@ namespace DuneVector
 
         private float GetHazardousPulseDamage()
         {
-            float referenceDistance = _settings.MinimumRouteDistance;
+            float referenceDistance = _settings.EvaluateMinimumRouteDistance(0);
             float routeDistance = ActiveContract.RouteDistance;
             if (referenceDistance <= 0f || routeDistance <= referenceDistance)
             {
@@ -1248,10 +1248,13 @@ namespace DuneVector
         {
             int seed = random.Next();
             int difficulty = Mathf.Clamp(
-                1 + (completed / 10) + random.Next(0, 3),
-                1,
+                (completed / 10) + random.Next(0, 3),
+                0,
                 Mathf.Max(1, _settings.MaximumRisk));
-            float distance = Mathf.Lerp(_settings.MinimumRouteDistance, _settings.MaximumRouteDistance, (float)random.NextDouble());
+            float distance = Mathf.Lerp(
+                _settings.EvaluateMinimumRouteDistance(difficulty),
+                _settings.EvaluateMaximumRouteDistance(difficulty),
+                (float)random.NextDouble());
             CourierContractModifier gameplay = CourierContractModifier.None;
             CourierContractModifier display = CourierContractModifier.None;
             if (index != 0)
@@ -1309,7 +1312,7 @@ namespace DuneVector
             float baseReward = Mathf.Lerp(
                 _settings.MinimumBaseReward,
                 _settings.MaximumBaseReward,
-                distance / Mathf.Max(1f, _settings.MaximumRouteDistance));
+                distance / Mathf.Max(1f, _settings.EvaluateMaximumRouteDistance(_settings.MaximumRisk)));
             baseReward += distance * _settings.DistanceRewardPerMeter;
             contract.BaseReward = Mathf.RoundToInt(baseReward);
             contract.OfferedReward = Mathf.RoundToInt(baseReward * multiplier);
