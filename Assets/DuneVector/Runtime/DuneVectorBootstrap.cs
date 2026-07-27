@@ -740,7 +740,8 @@ namespace DuneVector
                 World,
                 RuntimeSettings.BottomHud,
                 RuntimeSettings.MapHud,
-                RuntimeSettings.Geoglyphs);
+                RuntimeSettings.Geoglyphs,
+                PermanentUpgrades);
             GameOverController = gameObject.AddComponent<DuneVectorGameOverController>();
             GameOverController.Initialize(DroneHealth);
             PauseMenu = gameObject.AddComponent<DuneVectorPauseMenu>();

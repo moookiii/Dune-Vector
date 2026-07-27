@@ -10,6 +10,9 @@ Shader "Hidden/DuneVector/Map Geoglyph Mask"
         _Softness ("Edge Softness", Range(0.0001, 0.25)) = 0.025
         _RotationSinCos ("Rotation Sin Cos", Vector) = (0, 1, 0, 0)
         _OutputToSourceScale ("Output To Source Scale", Vector) = (1, 1, 0, 0)
+        [NoScaleOffset] _SurfaceTexture ("Surface Texture", 2D) = "white" {}
+        _SurfaceTextureEnabled ("Surface Texture Enabled", Float) = 0
+        _SurfaceTextureTransform ("Surface Texture Transform", Vector) = (1, 1, 0, 0)
     }
 
     SubShader
@@ -44,6 +47,7 @@ Shader "Hidden/DuneVector/Map Geoglyph Mask"
             };
 
             sampler2D _MainTex;
+            sampler2D _SurfaceTexture;
             float4 _MainTex_ST;
             fixed4 _Color;
             fixed4 _HaloColor;
@@ -52,6 +56,8 @@ Shader "Hidden/DuneVector/Map Geoglyph Mask"
             float _Softness;
             float2 _RotationSinCos;
             float2 _OutputToSourceScale;
+            float _SurfaceTextureEnabled;
+            float4 _SurfaceTextureTransform;
 
             v2f vert(appdata input)
             {
@@ -122,8 +128,15 @@ Shader "Hidden/DuneVector/Map Geoglyph Mask"
                     _HaloColor.a *
                     saturate(dilatedCoverage - lineCoverage);
                 float outputAlpha = lineAlpha + (haloAlpha * (1.0 - lineAlpha));
+                float2 surfaceUv =
+                    (sourceUv * _SurfaceTextureTransform.xy) +
+                    _SurfaceTextureTransform.zw;
+                float3 surfaceColor = lerp(
+                    float3(1.0, 1.0, 1.0),
+                    tex2D(_SurfaceTexture, surfaceUv).rgb,
+                    saturate(_SurfaceTextureEnabled));
                 float3 outputColor =
-                    ((_Color.rgb * lineAlpha) +
+                    ((_Color.rgb * surfaceColor * lineAlpha) +
                      (_HaloColor.rgb * haloAlpha * (1.0 - lineAlpha))) /
                     max(outputAlpha, 0.0001);
                 return fixed4(outputColor, outputAlpha);

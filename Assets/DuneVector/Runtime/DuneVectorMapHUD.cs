@@ -108,6 +108,7 @@ namespace DuneVector
         private BottomHudTuning _bottomHud;
         private MapHudTuning _settings;
         private GeoglyphSystemTuning _geoglyphs;
+        private DronePermanentUpgradeSystem _permanentUpgrades;
         private Texture2D _scanTexture;
         private Texture2D _worldAtlasTexture;
         private Texture2D _worldMapScanRingTexture;
@@ -191,13 +192,20 @@ namespace DuneVector
             DesertWorldStreamer world,
             BottomHudTuning bottomHud,
             MapHudTuning settings,
-            GeoglyphSystemTuning geoglyphs)
+            GeoglyphSystemTuning geoglyphs,
+            DronePermanentUpgradeSystem permanentUpgrades)
         {
             _drone = drone;
             _world = world;
             _bottomHud = bottomHud;
             _settings = settings;
             _geoglyphs = geoglyphs;
+            _permanentUpgrades = permanentUpgrades;
+            if (_permanentUpgrades != null)
+            {
+                _permanentUpgrades.AtlasGlyphBrushedMetalEnabledChanged +=
+                    HandleAtlasGlyphBrushedMetalEnabledChanged;
+            }
             _worldMapGui = GetComponent<DuneVectorWorldMapGUI>();
             if (_worldMapGui == null)
             {
@@ -1248,6 +1256,7 @@ namespace DuneVector
 
             Color mapColor = _settings.GeoglyphMapColor;
             mapColor.a *= _settings.GeoglyphMapOpacity;
+            ConfigureGeoglyphMapSurface(ref mapColor);
             _geoglyphMapMaterial.SetColor("_Color", mapColor);
             _geoglyphMapMaterial.SetColor(
                 "_HaloColor",
@@ -1303,6 +1312,117 @@ namespace DuneVector
             RenderTexture.active = previous;
             RenderTexture.ReleaseTemporary(target);
             return result;
+        }
+
+        private void ConfigureGeoglyphMapSurface(ref Color mapColor)
+        {
+            AtlasGlyphMaterialUnlockTuning tuning =
+                _permanentUpgrades?.AtlasGlyphMaterialTuning;
+            string textureProperty = null;
+            bool brushedMetalEnabled =
+                tuning?.GlyphMaterial != null &&
+                _permanentUpgrades.IsAtlasGlyphBrushedMetalEnabled &&
+                TryGetMaterialTextureProperty(
+                    tuning.GlyphMaterial,
+                    out textureProperty);
+
+            _geoglyphMapMaterial.SetFloat(
+                "_SurfaceTextureEnabled",
+                brushedMetalEnabled ? 1f : 0f);
+            if (!brushedMetalEnabled)
+            {
+                return;
+            }
+
+            Texture surfaceTexture = tuning.GlyphMaterial.GetTexture(textureProperty);
+            if (surfaceTexture == null)
+            {
+                _geoglyphMapMaterial.SetFloat("_SurfaceTextureEnabled", 0f);
+                return;
+            }
+
+            Color materialColor = GetMaterialColor(
+                tuning.GlyphMaterial,
+                "_Color",
+                "_BaseColor",
+                Color.white);
+            mapColor.r *= materialColor.r;
+            mapColor.g *= materialColor.g;
+            mapColor.b *= materialColor.b;
+            _geoglyphMapMaterial.SetTexture("_SurfaceTexture", surfaceTexture);
+            _geoglyphMapMaterial.SetVector(
+                "_SurfaceTextureTransform",
+                new Vector4(
+                    tuning.GlyphTextureTiling.x,
+                    tuning.GlyphTextureTiling.y,
+                    tuning.GlyphTextureOffset.x,
+                    tuning.GlyphTextureOffset.y));
+        }
+
+        private static bool TryGetMaterialTextureProperty(
+            Material material,
+            out string textureProperty)
+        {
+            if (material != null && material.HasProperty("_BaseMap"))
+            {
+                textureProperty = "_BaseMap";
+                return true;
+            }
+            if (material != null && material.HasProperty("_MainTex"))
+            {
+                textureProperty = "_MainTex";
+                return true;
+            }
+
+            textureProperty = null;
+            return false;
+        }
+
+        private static Color GetMaterialColor(
+            Material material,
+            string primaryProperty,
+            string secondaryProperty,
+            Color fallback)
+        {
+            if (material == null)
+            {
+                return fallback;
+            }
+            if (material.HasProperty(primaryProperty))
+            {
+                return material.GetColor(primaryProperty);
+            }
+            return material.HasProperty(secondaryProperty)
+                ? material.GetColor(secondaryProperty)
+                : fallback;
+        }
+
+        private void HandleAtlasGlyphBrushedMetalEnabledChanged(bool enabled)
+        {
+            ClearGeoglyphMapTextures();
+            _nextIconRefreshTime = 0f;
+        }
+
+        private void ClearGeoglyphMapTextures()
+        {
+            _geoglyphTextureBuildQueue.Clear();
+            _queuedGeoglyphTextures.Clear();
+            foreach (Texture2D texture in _geoglyphWorldMapTextures.Values)
+            {
+                if (texture != null)
+                {
+                    Destroy(texture);
+                }
+            }
+            _geoglyphWorldMapTextures.Clear();
+            foreach (GeoglyphRevealTexture reveal in _geoglyphRevealTextures.Values)
+            {
+                if (reveal?.RevealedTexture != null)
+                {
+                    Destroy(reveal.RevealedTexture);
+                }
+            }
+            _geoglyphRevealTextures.Clear();
         }
 
         private static void GetRotatedGeoglyphSize(
@@ -2376,6 +2496,11 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            if (_permanentUpgrades != null)
+            {
+                _permanentUpgrades.AtlasGlyphBrushedMetalEnabledChanged -=
+                    HandleAtlasGlyphBrushedMetalEnabledChanged;
+            }
             _worldAtlasBuildCancellation?.Cancel();
             SetWorldMapVisible(false);
             SaveExploration(true);
@@ -2397,22 +2522,7 @@ namespace DuneVector
             {
                 Destroy(_geoglyphMapMaterial);
             }
-            foreach (Texture2D texture in _geoglyphWorldMapTextures.Values)
-            {
-                if (texture != null)
-                {
-                    Destroy(texture);
-                }
-            }
-            _geoglyphWorldMapTextures.Clear();
-            foreach (GeoglyphRevealTexture reveal in _geoglyphRevealTextures.Values)
-            {
-                if (reveal?.RevealedTexture != null)
-                {
-                    Destroy(reveal.RevealedTexture);
-                }
-            }
-            _geoglyphRevealTextures.Clear();
+            ClearGeoglyphMapTextures();
             if (_worldMapGui != null)
             {
                 _worldMapGui.enabled = false;
