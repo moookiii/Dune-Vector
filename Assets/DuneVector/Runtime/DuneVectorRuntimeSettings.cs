@@ -662,7 +662,12 @@ namespace DuneVector
         [Min(0f)] public float SandAmbusherMinimumTargetOffset = 0f;
         [Tooltip("Random horizontal offset around the predicted player position.")]
         [Min(0f)] public float SandAmbusherMaximumTargetOffset = 4f;
+        [Tooltip("Target prediction time at risk 0.")]
         [Min(0f)] public float SandAmbusherTargetPredictionTime = 1.7f;
+        [Tooltip("Target prediction time at the configured risk ceiling.")]
+        [Min(0f)] public float SandAmbusherTargetPredictionTimeAtRiskCeiling = 0.7f;
+        [Tooltip("Risk where target prediction time reaches its ceiling value.")]
+        [Min(1)] public int SandAmbusherTargetPredictionRiskCeiling = 20;
         [InspectorName("Sand Ambusher Minimum Attack Angle")]
         [Tooltip("Minimum angle above the horizon for a Sand Ambusher's full attack path, whether the drone is grounded or airborne.")]
         [Range(0f, 90f)] public float SandAmbusherGroundedMinimumAttackAngle = 65f;

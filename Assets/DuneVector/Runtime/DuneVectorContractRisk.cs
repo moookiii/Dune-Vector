@@ -189,8 +189,7 @@ namespace DuneVector
                 return;
             }
 
-            Vector3 prediction = _player.Motor.BaseVelocity *
-                Mathf.Max(0f, _settings.SandAmbusherTargetPredictionTime);
+            Vector3 prediction = _player.Motor.BaseVelocity * GetTargetPredictionTime();
             Vector3 attackTarget = _player.WorldCenter + prediction;
             Vector3 attackOffset = attackTarget - ambusher.BuriedPosition;
             Vector3 attackDirection = ApplyMinimumElevation(
@@ -306,7 +305,7 @@ namespace DuneVector
             float maximumOffset = Mathf.Max(minimumOffset, _settings.SandAmbusherMaximumTargetOffset);
             float offset = RandomRange(minimumOffset, maximumOffset);
             Vector3 prediction = Vector3.ProjectOnPlane(_player.Motor.BaseVelocity, Vector3.up) *
-                Mathf.Max(0f, _settings.SandAmbusherTargetPredictionTime);
+                GetTargetPredictionTime();
             Vector3 target = _player.WorldCenter + prediction +
                 new Vector3(Mathf.Cos(angle) * offset, 0f, Mathf.Sin(angle) * offset);
             float terrainHeight = _world.SampleHeightAtLocal(target.x, target.z);
@@ -375,6 +374,16 @@ namespace DuneVector
         private float RandomRange(float minimum, float maximum)
         {
             return Mathf.Lerp(minimum, maximum, (float)_random.NextDouble());
+        }
+
+        private float GetTargetPredictionTime()
+        {
+            float riskProgress = Mathf.Clamp01(
+                _risk / (float)Mathf.Max(1, _settings.SandAmbusherTargetPredictionRiskCeiling));
+            return Mathf.Max(0f, Mathf.Lerp(
+                _settings.SandAmbusherTargetPredictionTime,
+                _settings.SandAmbusherTargetPredictionTimeAtRiskCeiling,
+                riskProgress));
         }
 
         private static float DistanceToSegment(Vector3 point, Vector3 start, Vector3 end)
