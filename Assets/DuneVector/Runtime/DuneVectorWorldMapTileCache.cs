@@ -71,7 +71,8 @@ namespace DuneVector
         }
 
         private const int CacheFileMagic = 0x44565443;
-        private const int CacheFileVersion = 1;
+        private const int CacheFileVersion = 2;
+        private const int TileSamplePadding = 1;
 
         private readonly DuneHeightField _heightField;
         private readonly MapHudTuning _settings;
@@ -276,7 +277,11 @@ namespace DuneVector
                     center,
                     displayedWorldWidth,
                     displayedWorldHeight);
-                GUI.DrawTexture(tileRect, tile.StyledTexture, ScaleMode.StretchToFill, false);
+                GUI.DrawTextureWithTexCoords(
+                    tileRect,
+                    tile.StyledTexture,
+                    GetTileContentUvRect(),
+                    false);
                 drewAny = true;
             }
 
@@ -324,11 +329,12 @@ namespace DuneVector
                 int localX = childKey.X - (parentX * scale);
                 int localZ = childKey.Z - (parentZ * scale);
                 float uvScale = 1f / scale;
+                Rect contentUv = GetTileContentUvRect();
                 Rect uvRect = new Rect(
-                    localX * uvScale,
-                    localZ * uvScale,
-                    uvScale,
-                    uvScale);
+                    contentUv.x + (localX * uvScale * contentUv.width),
+                    contentUv.y + (localZ * uvScale * contentUv.height),
+                    uvScale * contentUv.width,
+                    uvScale * contentUv.height);
                 Rect childRect = GetTileScreenRect(
                     childKey,
                     mapRect,
@@ -555,20 +561,23 @@ namespace DuneVector
             }
 
             int resolution = GetTileResolution();
-            float[] heights = new float[resolution * resolution];
+            int textureResolution = GetTileTextureResolution();
+            float[] heights = new float[textureResolution * textureResolution];
             double tileWorldSize = GetTileWorldSize(key.Lod);
             double minimumX = key.X * tileWorldSize;
             double minimumZ = key.Z * tileWorldSize;
-            double sampleStep = tileWorldSize / Math.Max(1, resolution - 1);
-            for (int y = 0; y < resolution; y++)
+            double sampleStep = tileWorldSize / Math.Max(1, resolution);
+            for (int y = 0; y < textureResolution; y++)
             {
                 WaitForProcessing(cancellationToken);
-                double logicalZ = minimumZ + (y * sampleStep);
-                int rowOffset = y * resolution;
-                for (int x = 0; x < resolution; x++)
+                double logicalZ = minimumZ +
+                    ((y - TileSamplePadding + 0.5d) * sampleStep);
+                int rowOffset = y * textureResolution;
+                for (int x = 0; x < textureResolution; x++)
                 {
                     heights[rowOffset + x] = (float)_heightField.SampleHeight(
-                        minimumX + (x * sampleStep),
+                        minimumX +
+                            ((x - TileSamplePadding + 0.5d) * sampleStep),
                         logicalZ);
                 }
             }
@@ -584,7 +593,7 @@ namespace DuneVector
 
         private void CreateRuntimeTile(TileKey key, float[] heights)
         {
-            int resolution = GetTileResolution();
+            int resolution = GetTileTextureResolution();
             Texture2D heightTexture = new Texture2D(
                 resolution,
                 resolution,
@@ -615,20 +624,22 @@ namespace DuneVector
                 return;
             }
 
-            int resolution = GetTileResolution();
+            int resolution = GetTileTextureResolution();
             byte[] maskPixels = new byte[resolution * resolution];
             double tileWorldSize = GetTileWorldSize(key.Lod);
             double minimumX = key.X * tileWorldSize;
             double minimumZ = key.Z * tileWorldSize;
-            double sampleStep = tileWorldSize / Math.Max(1, resolution - 1);
+            double sampleStep = tileWorldSize / Math.Max(1, GetTileResolution());
             for (int y = 0; y < resolution; y++)
             {
-                double logicalZ = minimumZ + (y * sampleStep);
+                double logicalZ = minimumZ +
+                    ((y - TileSamplePadding + 0.5d) * sampleStep);
                 int rowOffset = y * resolution;
                 for (int x = 0; x < resolution; x++)
                 {
                     maskPixels[rowOffset + x] = _isExplored(
-                        minimumX + (x * sampleStep),
+                        minimumX +
+                            ((x - TileSamplePadding + 0.5d) * sampleStep),
                         logicalZ)
                             ? byte.MaxValue
                             : byte.MinValue;
@@ -664,9 +675,9 @@ namespace DuneVector
                     RenderTextureReadWrite.sRGB)
                 {
                     name = $"World Map Styled Terrain LOD {key.Lod} ({key.X}, {key.Z})",
-                    filterMode = FilterMode.Trilinear,
+                    filterMode = FilterMode.Bilinear,
                     wrapMode = TextureWrapMode.Clamp,
-                    useMipMap = true,
+                    useMipMap = false,
                     autoGenerateMips = false,
                     anisoLevel = 0,
                     hideFlags = HideFlags.DontSave,
@@ -679,7 +690,6 @@ namespace DuneVector
             try
             {
                 Graphics.Blit(tile.HeightTexture, tile.StyledTexture, _terrainMaterial);
-                tile.StyledTexture.GenerateMips();
             }
             finally
             {
@@ -801,7 +811,7 @@ namespace DuneVector
                 return false;
             }
 
-            int expectedCount = GetTileResolution() * GetTileResolution();
+            int expectedCount = GetTileTextureResolution() * GetTileTextureResolution();
             while (stream.Position < stream.Length)
             {
                 if (stream.Length - stream.Position < (sizeof(int) * 4))
@@ -845,7 +855,7 @@ namespace DuneVector
             long dataOffset,
             CancellationToken cancellationToken)
         {
-            int count = GetTileResolution() * GetTileResolution();
+            int count = GetTileTextureResolution() * GetTileTextureResolution();
             float[] heights = new float[count];
             try
             {
@@ -907,6 +917,19 @@ namespace DuneVector
         private int GetTileResolution()
         {
             return Mathf.Clamp(_settings.WorldMapTerrainTileResolution, 64, 512);
+        }
+
+        private int GetTileTextureResolution()
+        {
+            return GetTileResolution() + (TileSamplePadding * 2);
+        }
+
+        private Rect GetTileContentUvRect()
+        {
+            float textureResolution = GetTileTextureResolution();
+            float offset = TileSamplePadding / textureResolution;
+            float size = GetTileResolution() / textureResolution;
+            return new Rect(offset, offset, size, size);
         }
 
         private float GetBaseTileWorldSize()
