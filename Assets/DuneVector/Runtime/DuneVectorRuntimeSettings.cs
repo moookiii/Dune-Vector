@@ -4155,6 +4155,8 @@ namespace DuneVector
         public float TerrainHeightMaximum = 45f;
 
         [Header("World Map Layout")]
+        [Tooltip("Expand the world-map panel to the safe area while preserving the configured screen padding. Disable to use the legacy maximum size and fixed aspect ratio.")]
+        public bool WorldMapExpandToAvailableScreen = true;
         [Min(160f)] public float WorldMapMaximumSize = 780f;
         [Min(0f)] public float WorldMapScreenPadding = 42f;
         [Min(1f)] public float WorldMapWorldSize = 3200f;

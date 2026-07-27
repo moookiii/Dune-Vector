@@ -386,23 +386,7 @@ namespace DuneVector
             overlay.a *= _settings.OverlayOpacity;
             DrawSolidRect(new Rect(0f, 0f, Screen.width, Screen.height), overlay);
 
-            Rect safeArea = Screen.safeArea;
-            float availableWidth = Mathf.Max(
-                1f,
-                safeArea.width - (_settings.WorldMapScreenPadding * 2f));
-            float availableHeight = Mathf.Max(
-                1f,
-                safeArea.height - (_settings.WorldMapScreenPadding * 2f));
-            float panelAspect = Mathf.Max(1f, _settings.WorldMapPanelAspectRatio);
-            float panelHeight = Mathf.Min(
-                _settings.WorldMapMaximumSize,
-                Mathf.Min(availableHeight, availableWidth / panelAspect));
-            float panelWidth = panelHeight * panelAspect;
-            Rect panelRect = new Rect(
-                safeArea.center.x - (panelWidth * 0.5f),
-                (Screen.height - safeArea.yMax) + ((safeArea.height - panelHeight) * 0.5f),
-                panelWidth,
-                panelHeight);
+            Rect panelRect = GetWorldMapPanelRect();
             float scale = GetMapScale();
             float borderThickness = Mathf.Max(1f, _settings.BorderThickness * scale);
             float headerHeight = _settings.WorldMapHeaderHeight * scale;
@@ -1541,27 +1525,56 @@ namespace DuneVector
 
         private float GetWorldMapViewportAspect()
         {
+            Rect panelRect = GetWorldMapPanelRect();
+            float scale = GetMapScale();
+            float borderThickness = Mathf.Max(1f, _settings.BorderThickness * scale);
+            float viewportWidth = Mathf.Max(
+                1f,
+                panelRect.width - (borderThickness * 2f));
+            float viewportHeight = Mathf.Max(
+                1f,
+                panelRect.height -
+                (borderThickness * 2f) -
+                ((_settings.WorldMapHeaderHeight + _settings.WorldMapFooterHeight) * scale));
+            return viewportWidth / viewportHeight;
+        }
+
+        private Rect GetWorldMapPanelRect()
+        {
             Rect safeArea = Screen.safeArea;
+            float requestedPadding = Mathf.Max(0f, _settings.WorldMapScreenPadding);
+            float horizontalPadding = Mathf.Min(
+                requestedPadding,
+                Mathf.Max(0f, (safeArea.width - 1f) * 0.5f));
+            float verticalPadding = Mathf.Min(
+                requestedPadding,
+                Mathf.Max(0f, (safeArea.height - 1f) * 0.5f));
             float availableWidth = Mathf.Max(
                 1f,
-                safeArea.width - (_settings.WorldMapScreenPadding * 2f));
+                safeArea.width - (horizontalPadding * 2f));
             float availableHeight = Mathf.Max(
                 1f,
-                safeArea.height - (_settings.WorldMapScreenPadding * 2f));
+                safeArea.height - (verticalPadding * 2f));
+
+            if (_settings.WorldMapExpandToAvailableScreen)
+            {
+                return new Rect(
+                    safeArea.xMin + horizontalPadding,
+                    Screen.height - safeArea.yMax + verticalPadding,
+                    availableWidth,
+                    availableHeight);
+            }
+
             float panelAspect = Mathf.Max(1f, _settings.WorldMapPanelAspectRatio);
             float panelHeight = Mathf.Min(
                 _settings.WorldMapMaximumSize,
                 Mathf.Min(availableHeight, availableWidth / panelAspect));
             float panelWidth = panelHeight * panelAspect;
-            float scale = GetMapScale();
-            float borderThickness = Mathf.Max(1f, _settings.BorderThickness * scale);
-            float viewportWidth = Mathf.Max(1f, panelWidth - (borderThickness * 2f));
-            float viewportHeight = Mathf.Max(
-                1f,
-                panelHeight -
-                (borderThickness * 2f) -
-                ((_settings.WorldMapHeaderHeight + _settings.WorldMapFooterHeight) * scale));
-            return viewportWidth / viewportHeight;
+            return new Rect(
+                safeArea.center.x - (panelWidth * 0.5f),
+                (Screen.height - safeArea.yMax) + ((safeArea.height - panelHeight) * 0.5f),
+                panelWidth,
+                panelHeight);
         }
 
         private void StartWorldAtlasBuild()
