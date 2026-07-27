@@ -172,12 +172,21 @@ namespace DuneVector
                 return normalTargetSpeed;
             }
 
-            float boostedSpeed = normalTargetSpeed * Mathf.Max(1f, _settings.BoostSpeedMultiplier);
-            if (BoostMaximumSpeed > 0f)
-            {
-                boostedSpeed = Mathf.Min(boostedSpeed, BoostMaximumSpeed);
-            }
+            float boostedSpeed = GetMaximumModifiedSpeed(normalTargetSpeed);
             return Mathf.Lerp(normalTargetSpeed, boostedSpeed, BoostBlend);
+        }
+
+        public float GetMaximumModifiedSpeed(float normalMaximumSpeed)
+        {
+            if (_settings == null)
+            {
+                return normalMaximumSpeed;
+            }
+
+            float boostedSpeed = normalMaximumSpeed * Mathf.Max(1f, _settings.BoostSpeedMultiplier);
+            return BoostMaximumSpeed > 0f
+                ? Mathf.Min(boostedSpeed, BoostMaximumSpeed)
+                : boostedSpeed;
         }
     }
 }

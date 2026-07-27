@@ -142,7 +142,7 @@ namespace DuneVector
                 }
 
                 return _boostSpeedModifier != null
-                    ? _boostSpeedModifier.ModifyTargetSpeed(maximumSpeed)
+                    ? _boostSpeedModifier.GetMaximumModifiedSpeed(maximumSpeed)
                     : maximumSpeed;
             }
         }
