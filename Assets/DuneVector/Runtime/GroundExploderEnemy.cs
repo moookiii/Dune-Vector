@@ -79,17 +79,31 @@ namespace DuneVector
 
         internal void Tick(float deltaTime)
         {
-            if (_settings == null || (_playerHealth != null && _playerHealth.IsDead))
+            if (_settings == null)
+            {
+                return;
+            }
+
+            bool playerIsDead = _playerHealth != null && _playerHealth.IsDead;
+
+            // A detonation can kill the player after EnterExplosion has hidden the
+            // body but before the flash has received its first update. Let that
+            // terminal state finish so the blast is presented and the enemy is
+            // cleaned up instead of remaining as an invisible live object.
+            if (playerIsDead && CurrentState != GroundExploderState.Exploding)
             {
                 return;
             }
 
             ApplyRiskScaling();
 
+            float stateDeltaTime = playerIsDead && CurrentState == GroundExploderState.Exploding
+                ? Time.unscaledDeltaTime
+                : deltaTime;
             float stateRate = CurrentState == GroundExploderState.TriggeredWindUp
                 ? DuneVectorContractRisk.EnemyAttackRateMultiplier
                 : 1f;
-            _stateTime += deltaTime * stateRate;
+            _stateTime += stateDeltaTime * stateRate;
             switch (CurrentState)
             {
                 case GroundExploderState.Patrolling:
