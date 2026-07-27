@@ -1029,6 +1029,14 @@ namespace DuneVector
             Active?._storage?.ClearNew(glyphId);
         }
 
+        public static void CancelCameraMode()
+        {
+            if (Active != null && Active._cameraModeActive)
+            {
+                Active.ExitCameraMode();
+            }
+        }
+
         public static void RequestCloseGallery()
         {
             _closeGalleryRequested = true;

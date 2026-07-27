@@ -257,6 +257,7 @@ namespace DuneVector
 
         private void HandleDeath()
         {
+            DuneVectorPhotographySystem.CancelCameraMode();
             IsGameOver = true;
             _health.GetComponent<DroneCharacterController>()?.SetHoverEnabled(false);
             Time.timeScale = 0f;
