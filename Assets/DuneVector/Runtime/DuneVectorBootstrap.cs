@@ -895,7 +895,7 @@ namespace DuneVector
                 EnergyLauncherSettings,
                 PermanentUpgrades);
             LockOnHUD = weaponObject.AddComponent<DroneLockOnHUD>();
-            LockOnHUD.Initialize(DroneCamera.Camera, LockOnController, EnergyLauncherSettings);
+            LockOnHUD.Initialize(Drone, DroneCamera.Camera, LockOnController, EnergyLauncherSettings);
             Player.EnergyLauncher = EnergyLauncher;
         }
 

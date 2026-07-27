@@ -470,9 +470,9 @@ namespace DuneVector
                 return false;
             }
 
-            Transform cameraTransform = _camera.transform;
-            Vector3 muzzlePosition = _drone.WorldCenter + cameraTransform.TransformVector(_settings.MuzzleOffset);
-            Vector3 launchDirection = cameraTransform.forward.normalized;
+            Quaternion aimRotation = _drone.AimRotation;
+            Vector3 muzzlePosition = _drone.WorldCenter + (aimRotation * _settings.MuzzleOffset);
+            Vector3 launchDirection = _drone.AimDirection.normalized;
             EnemyCombatTarget homingTarget = _lockController != null
                 && _lockController.State == DroneLockOnState.Locked
                 && _lockController.Target != null
@@ -486,7 +486,7 @@ namespace DuneVector
             projectileObject.transform.SetParent(transform, true);
             projectileObject.transform.SetPositionAndRotation(
                 muzzlePosition,
-                Quaternion.LookRotation(launchDirection, cameraTransform.up));
+                Quaternion.LookRotation(launchDirection, aimRotation * Vector3.up));
             HomingEnergyProjectile projectile = projectileObject.AddComponent<HomingEnergyProjectile>();
             projectile.Initialize(
                 launchDirection,
@@ -835,6 +835,7 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DroneLockOnHUD : MonoBehaviour
     {
+        private DroneCharacterController _drone;
         private Camera _camera;
         private DroneLockOnController _lockController;
         private EnergyLauncherTuning _settings;
@@ -842,10 +843,12 @@ namespace DuneVector
         private GUIStyle _distanceStyle;
 
         public void Initialize(
+            DroneCharacterController drone,
             Camera camera,
             DroneLockOnController lockController,
             EnergyLauncherTuning settings)
         {
+            _drone = drone;
             _camera = camera;
             _lockController = lockController;
             _settings = settings;
@@ -857,13 +860,13 @@ namespace DuneVector
             {
                 return;
             }
-            if (_camera == null || _lockController == null || _settings == null || !_settings.Enabled)
+            if (_drone == null || _camera == null || _lockController == null || _settings == null || !_settings.Enabled)
             {
                 return;
             }
 
             float scale = Screen.height / Mathf.Max(Mathf.Epsilon, _settings.HudReferenceHeight);
-            DrawCenterReticle(scale);
+            DrawAimMarkers(scale);
             EnemyCombatTarget target = _lockController.Target;
             if (target == null || !target.IsValid || _lockController.State == DroneLockOnState.None)
             {
@@ -908,17 +911,57 @@ namespace DuneVector
             DrawTargetLabels(center, size, scale, color, target);
         }
 
-        private void DrawCenterReticle(float scale)
+        private void DrawAimMarkers(float scale)
         {
-            Vector2 center = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
-            float size = _settings.CenterReticleSize * scale;
-            float gap = _settings.CenterReticleGap * scale;
+            Vector3 aimOrigin = _drone.WorldCenter;
+            Vector3 aimDirection = _drone.AimDirection.normalized;
             float thickness = _settings.ReticleLineThickness * scale;
-            float armLength = Mathf.Max(0f, (size - gap) * 0.5f);
-            DrawRect(new Rect(center.x - gap * 0.5f - armLength, center.y - thickness * 0.5f, armLength, thickness), _settings.CenterReticleColor);
-            DrawRect(new Rect(center.x + gap * 0.5f, center.y - thickness * 0.5f, armLength, thickness), _settings.CenterReticleColor);
-            DrawRect(new Rect(center.x - thickness * 0.5f, center.y - gap * 0.5f - armLength, thickness, armLength), _settings.CenterReticleColor);
-            DrawRect(new Rect(center.x - thickness * 0.5f, center.y + gap * 0.5f, thickness, armLength), _settings.CenterReticleColor);
+            float crossSize = _settings.AimMarkerCrossSize * scale;
+
+            for (int markerIndex = 0; markerIndex < 2; markerIndex++)
+            {
+                float distance = _settings.AimMarkerSpacing * (markerIndex + 1);
+                Vector3 screenPosition = _camera.WorldToScreenPoint(aimOrigin + (aimDirection * distance));
+                if (screenPosition.z <= 0f)
+                {
+                    continue;
+                }
+
+                Vector2 center = new Vector2(screenPosition.x, Screen.height - screenPosition.y);
+                float size = (markerIndex == 0
+                    ? _settings.NearAimMarkerSize
+                    : _settings.FarAimMarkerSize) * scale;
+                DrawSquareWithCross(
+                    center,
+                    size,
+                    crossSize,
+                    thickness,
+                    _settings.AimMarkerColor);
+            }
+        }
+
+        private static void DrawSquareWithCross(
+            Vector2 center,
+            float size,
+            float crossSize,
+            float thickness,
+            Color color)
+        {
+            float halfSize = size * 0.5f;
+            float left = center.x - halfSize;
+            float top = center.y - halfSize;
+            DrawRect(new Rect(left, top, size, thickness), color);
+            DrawRect(new Rect(left, top + size - thickness, size, thickness), color);
+            DrawRect(new Rect(left, top, thickness, size), color);
+            DrawRect(new Rect(left + size - thickness, top, thickness, size), color);
+
+            float halfCross = crossSize * 0.5f;
+            DrawRect(
+                new Rect(center.x - halfCross, center.y - (thickness * 0.5f), crossSize, thickness),
+                color);
+            DrawRect(
+                new Rect(center.x - (thickness * 0.5f), center.y - halfCross, thickness, crossSize),
+                color);
         }
 
         private static void DrawTargetBrackets(

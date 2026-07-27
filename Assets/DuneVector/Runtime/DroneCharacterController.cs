@@ -116,6 +116,10 @@ namespace DuneVector
         public Vector3 WorldCenter => Motor != null
             ? Motor.TransientPosition + (Motor.CharacterUp * (Motor.Capsule.height * 0.5f))
             : transform.position;
+        public Quaternion AimRotation => DroneVisualRoot != null
+            ? DroneVisualRoot.rotation
+            : transform.rotation;
+        public Vector3 AimDirection => AimRotation * Vector3.forward;
         public float FlightElapsedTime => _flightElapsedTime;
         public float FlightTimeRemaining { get; private set; }
         public float FlightTimeNormalized => FlightDuration > 0f ? Mathf.Clamp01(FlightTimeRemaining / FlightDuration) : 0f;

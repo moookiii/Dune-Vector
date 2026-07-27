@@ -1842,7 +1842,7 @@ namespace DuneVector
         [Min(0f)] public float LeadPredictionTime = 0.65f;
         [Tooltip("Caps measured target velocity used for lead prediction, filtering floating-origin shifts and spikes.")]
         [Min(0f)] public float MaximumLeadSpeed = 140f;
-        [Tooltip("View-relative launch offset from the drone center.")]
+        [Tooltip("Ship-relative launch offset from the drone center.")]
         public Vector3 MuzzleOffset = new Vector3(0f, -0.1f, 2.4f);
 
         [Header("Projectile Feedback")]
@@ -1859,8 +1859,11 @@ namespace DuneVector
 
         [Header("Targeting HUD")]
         [Min(240f)] public float HudReferenceHeight = 1080f;
-        [Min(1f)] public float CenterReticleSize = 22f;
-        [Min(0f)] public float CenterReticleGap = 6f;
+        [Tooltip("World-space distance between the ship and the near aim marker, and between the near and far markers.")]
+        [Min(0.1f)] public float AimMarkerSpacing = 30f;
+        [Min(1f)] public float NearAimMarkerSize = 28f;
+        [Min(1f)] public float FarAimMarkerSize = 18f;
+        [Min(0f)] public float AimMarkerCrossSize = 7f;
         [Min(1f)] public float ReticleLineThickness = 2f;
         [Min(1f)] public float TargetDetectedReticleSize = 84f;
         [Min(1f)] public float LockedReticleSize = 44f;
@@ -1874,7 +1877,7 @@ namespace DuneVector
         [Min(8f)] public float HudLabelHeight = 22f;
         [Min(8)] public int TargetStatusFontSize = 14;
         [Min(8)] public int TargetDistanceFontSize = 12;
-        [ColorUsage(false)] public Color CenterReticleColor = new Color(0.72f, 0.92f, 1f, 0.88f);
+        [ColorUsage(false)] public Color AimMarkerColor = new Color(0.2f, 1f, 0.35f, 0.95f);
         [ColorUsage(false)] public Color TargetDetectedColor = new Color(1f, 0.72f, 0.18f, 0.95f);
         [ColorUsage(false)] public Color LockingColor = new Color(0.15f, 0.86f, 1f, 0.98f);
         [ColorUsage(false)] public Color LockedColor = new Color(0.35f, 1f, 0.62f, 1f);
