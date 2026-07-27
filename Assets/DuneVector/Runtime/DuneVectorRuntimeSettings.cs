@@ -893,6 +893,8 @@ namespace DuneVector
         [Range(0f, 100f)] public float HazardousCriticalIntegrity = 22f;
         [Min(0.1f)] public float HazardousPulseInterval = 3.2f;
         [Min(0f)] public float HazardousPulseDamage = 6f;
+        [Tooltip("Lowest fraction of hazardous pulse damage applied on long routes. Pulse damage scales down from full damage at the minimum route distance based on the contract's total route distance.")]
+        [Range(0f, 1f)] public float HazardousPulseMinimumDistanceMultiplier = 0.25f;
         public string HazardousPulseDeathMessage = "Destroyed by a Hazardous Cargo pulse.";
         [Range(2, 5)] public int MultiDropMinimumStops = 2;
         [Range(2, 5)] public int MultiDropMaximumStops = 3;

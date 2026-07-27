@@ -730,7 +730,7 @@ namespace DuneVector
                 {
                     _hazardPulseTimer = _settings.HazardousPulseInterval;
                     _health.TakeDamage(
-                        _settings.HazardousPulseDamage,
+                        GetHazardousPulseDamage(),
                         "Hazardous Cargo pulse",
                         _settings.HazardousPulseDeathMessage);
                     if (State != CourierRunState.Delivering)
@@ -743,6 +743,20 @@ namespace DuneVector
                 }
             }
             UpdateCargoPresentation();
+        }
+
+        private float GetHazardousPulseDamage()
+        {
+            float referenceDistance = _settings.MinimumRouteDistance;
+            float routeDistance = ActiveContract.RouteDistance;
+            if (referenceDistance <= 0f || routeDistance <= referenceDistance)
+            {
+                return _settings.HazardousPulseDamage;
+            }
+
+            float minimumMultiplier = Mathf.Clamp01(_settings.HazardousPulseMinimumDistanceMultiplier);
+            float distanceMultiplier = Mathf.Clamp(referenceDistance / routeDistance, minimumMultiplier, 1f);
+            return _settings.HazardousPulseDamage * distanceMultiplier;
         }
 
         private void BuildHub()
