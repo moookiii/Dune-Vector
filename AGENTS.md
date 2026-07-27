@@ -9,3 +9,5 @@ All ScriptableObjects should live in Assets/DuneVector/ScriptableObjects.
 All saving and persistent memory should be done to a .dat file.
 
 When giving Unity Editor directions, always state the exact tab or window first, followed by the section or component containing the control.
+
+Do not use computer use for verification. Use computer use only when it is needed to build.
