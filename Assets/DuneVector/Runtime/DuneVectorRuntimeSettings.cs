@@ -407,13 +407,12 @@ namespace DuneVector
         [Range(1, 8)] public int CompendiumWideColumns = 3;
         [Min(360f)] public float CompendiumWideScreenMinimumHeight = 1200f;
         [HideInInspector] public int CompendiumColumns = 3;
-        [Min(80f)] public float CompendiumSlotWidth = 300f;
-        [Min(45f)] public float CompendiumSlotHeight = 190f;
+        [Min(80f)] public float CompendiumSlotWidth = 270f;
+        [Min(45f)] public float CompendiumSlotHeight = 72f;
         [HideInInspector] public float CompendiumSlotLabelHeight = 38f;
         [Min(0f)] public float CompendiumCardCornerRadius = 5f;
-        [Min(0f)] public float CompendiumCardBorderThickness = 1f;
-        [Min(0f)] public float CompendiumSelectedCardBorderThickness = 3f;
-        [Min(0f)] public float CompendiumCardRowGap = 4f;
+        [Min(0f)] public float CompendiumCardBorderThickness = 2f;
+        [Min(0f)] public float CompendiumCardGap = 8f;
         [Min(0f)] public float CompendiumCardContentPadding = 14f;
         [Min(180f)] public float CompendiumDetailPanelWidth = 410f;
         [Min(100f)] public float CompendiumDetailImageHeight = 260f;

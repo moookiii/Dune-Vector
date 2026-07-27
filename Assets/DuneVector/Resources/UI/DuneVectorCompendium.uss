@@ -69,11 +69,17 @@
 
 .compendium-grid-row {
     flex-direction: row;
-    width: 100%;
+}
+
+.compendium-grid .unity-list-view__item,
+.compendium-grid .unity-list-view__item:hover,
+.compendium-grid .unity-list-view__item:checked,
+.compendium-grid .unity-list-view__item--selected,
+.compendium-grid .unity-list-view__item--selected:hover {
+    background-color: rgba(0, 0, 0, 0);
 }
 
 .compendium-card {
-    flex-grow: 1;
     position: relative;
     overflow: hidden;
     padding: 0;

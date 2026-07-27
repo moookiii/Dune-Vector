@@ -420,9 +420,7 @@ namespace DuneVector
                     selected
                         ? _settings.CompendiumActiveAccentColor
                         : _settings.CompendiumCardBorderColor,
-                    selected
-                        ? _settings.CompendiumSelectedCardBorderThickness
-                        : _settings.CompendiumCardBorderThickness,
+                    _settings.CompendiumCardBorderThickness,
                     _settings.CompendiumCardCornerRadius);
             });
             return references;
@@ -472,7 +470,7 @@ namespace DuneVector
                     StringComparison.Ordinal);
                 card.SubjectId = entry.SubjectId;
                 card.Root.style.marginRight =
-                    column < _columnCount - 1 ? _settings.CompendiumGap : 0f;
+                    column < _columnCount - 1 ? _settings.CompendiumCardGap : 0f;
                 card.Thumbnail.image = documented
                     ? _storage.GetCanonicalTexture(entry.SubjectId)
                     : null;
@@ -596,7 +594,7 @@ namespace DuneVector
             }
             _grid.itemsSource = _rowStarts;
             _grid.fixedItemHeight =
-                _settings.CompendiumSlotHeight + _settings.CompendiumCardRowGap;
+                _settings.CompendiumSlotHeight + _settings.CompendiumCardGap;
             _grid.Rebuild();
         }
 
@@ -766,7 +764,10 @@ namespace DuneVector
         private void ApplyCardState(CardReferences card, bool selected)
         {
             card.Root.style.backgroundColor = _settings.CompendiumCardColor;
+            card.Root.style.width = _settings.CompendiumSlotWidth;
             card.Root.style.height = _settings.CompendiumSlotHeight;
+            card.Root.style.flexGrow = 0f;
+            card.Root.style.flexShrink = 0f;
             card.Root.style.borderTopLeftRadius = _settings.CompendiumCardCornerRadius;
             card.Root.style.borderTopRightRadius = _settings.CompendiumCardCornerRadius;
             card.Root.style.borderBottomLeftRadius = _settings.CompendiumCardCornerRadius;
@@ -776,9 +777,7 @@ namespace DuneVector
                 selected
                     ? _settings.CompendiumActiveAccentColor
                     : _settings.CompendiumCardBorderColor,
-                selected
-                    ? _settings.CompendiumSelectedCardBorderThickness
-                    : _settings.CompendiumCardBorderThickness,
+                _settings.CompendiumCardBorderThickness,
                 _settings.CompendiumCardCornerRadius);
             card.Thumbnail.style.position = Position.Absolute;
             card.Thumbnail.style.left = 0f;
