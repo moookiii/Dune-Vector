@@ -10,6 +10,9 @@ Shader "DuneVector/HDRP World Geoglyph Overlay"
         [NoScaleOffset] _DVGeoglyphMask5("Geoglyph Mask 5", 2D) = "black" {}
         [NoScaleOffset] _DVGeoglyphMask6("Geoglyph Mask 6", 2D) = "black" {}
         [NoScaleOffset] _DVGeoglyphMask7("Geoglyph Mask 7", 2D) = "black" {}
+        [HideInInspector][NoScaleOffset] _DVGeoglyphSurfaceTexture("Geoglyph Surface Texture", 2D) = "white" {}
+        [HideInInspector] _DVGeoglyphSurfaceTextureEnabled("Geoglyph Surface Texture Enabled", Float) = 0
+        [HideInInspector] _DVGeoglyphSurfaceTextureTransform("Geoglyph Surface Texture Transform", Vector) = (1, 1, 0, 0)
         [HideInInspector][HDR] _DVGeoglyphBloomEmissionColor("Geoglyph Bloom Emission", Color) = (0, 0, 0, 1)
     }
 
@@ -53,6 +56,7 @@ Shader "DuneVector/HDRP World Geoglyph Overlay"
             TEXTURE2D(_DVGeoglyphMask5); SAMPLER(sampler_DVGeoglyphMask5);
             TEXTURE2D(_DVGeoglyphMask6); SAMPLER(sampler_DVGeoglyphMask6);
             TEXTURE2D(_DVGeoglyphMask7); SAMPLER(sampler_DVGeoglyphMask7);
+            TEXTURE2D(_DVGeoglyphSurfaceTexture); SAMPLER(sampler_DVGeoglyphSurfaceTexture);
 
             CBUFFER_START(UnityPerMaterial)
                 int _DVGeoglyphCount;
@@ -62,6 +66,8 @@ Shader "DuneVector/HDRP World Geoglyph Overlay"
                 float4 _DVGeoglyphMaskSettings[DV_MAX_GEOGLYPHS];
                 float4 _DVGeoglyphSlope[DV_MAX_GEOGLYPHS];
                 float4 _DVGeoglyphLineColor[DV_MAX_GEOGLYPHS];
+                float4 _DVGeoglyphSurfaceTextureTransform;
+                float _DVGeoglyphSurfaceTextureEnabled;
                 float4 _DVGeoglyphBloomEmissionColor;
             CBUFFER_END
 
@@ -152,8 +158,21 @@ Shader "DuneVector/HDRP World Geoglyph Overlay"
                         maskSample);
                     float layerAlpha = saturate(lineMask * rotation.z * _DVGeoglyphLineColor[i].a);
                     float remainingAlpha = 1.0 - accumulatedAlpha;
+                    float2 surfaceUV =
+                        (uv * _DVGeoglyphSurfaceTextureTransform.xy) +
+                        _DVGeoglyphSurfaceTextureTransform.zw;
+                    float3 surfaceColor = SAMPLE_TEXTURE2D(
+                        _DVGeoglyphSurfaceTexture,
+                        sampler_DVGeoglyphSurfaceTexture,
+                        surfaceUV).rgb;
+                    surfaceColor = lerp(
+                        float3(1.0, 1.0, 1.0),
+                        surfaceColor,
+                        saturate(_DVGeoglyphSurfaceTextureEnabled));
                     float3 bloomEmission = max(0.0, _DVGeoglyphBloomEmissionColor.rgb);
-                    float3 luminousLineColor = _DVGeoglyphLineColor[i].rgb + bloomEmission;
+                    float3 luminousLineColor =
+                        (_DVGeoglyphLineColor[i].rgb * surfaceColor) +
+                        bloomEmission;
                     accumulatedPremultipliedColor += luminousLineColor * layerAlpha * remainingAlpha;
                     accumulatedAlpha += layerAlpha * remainingAlpha;
                 }

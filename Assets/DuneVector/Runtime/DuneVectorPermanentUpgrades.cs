@@ -554,8 +554,17 @@ namespace DuneVector
 
         private void ApplyAtlasGlyphMaterial()
         {
-            _materials?.SetGeoglyphOverlayMaterial(
-                AtlasGlyphMaterialTuning?.GlyphMaterial,
+            AtlasGlyphMaterialUnlockTuning tuning = AtlasGlyphMaterialTuning;
+            if (_materials == null || tuning == null)
+            {
+                return;
+            }
+
+            _materials.SetGeoglyphOverlayMaterial(
+                tuning.GlyphMaterial,
+                tuning.GlyphTextureTiling,
+                tuning.GlyphTextureOffset,
+                tuning.GlyphEmissionColor,
                 IsAtlasGlyphBrushedMetalEnabled);
         }
 

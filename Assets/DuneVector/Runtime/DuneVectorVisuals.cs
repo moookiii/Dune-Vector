@@ -478,10 +478,26 @@ namespace DuneVector
             return material;
         }
 
-        public void SetGeoglyphOverlayMaterial(Material sourceMaterial, bool enabled)
+        public void SetGeoglyphOverlayMaterial(
+            Material sourceMaterial,
+            Vector2 surfaceTextureTiling,
+            Vector2 surfaceTextureOffset,
+            Color bloomEmission,
+            bool enabled)
         {
             Color lineColor = GetMaterialColor(sourceMaterial, "_Color", "_BaseColor", Color.white);
-            Color bloomEmission = GetMaterialColor(sourceMaterial, "_EmissionColor", "_EmissiveColor", Color.black);
+            Texture surfaceTexture = null;
+            Vector4 surfaceTextureTransform = new Vector4(
+                surfaceTextureTiling.x,
+                surfaceTextureTiling.y,
+                surfaceTextureOffset.x,
+                surfaceTextureOffset.y);
+            if (TryGetMaterialTextureProperty(sourceMaterial, out string textureProperty))
+            {
+                surfaceTexture = sourceMaterial.GetTexture(textureProperty);
+            }
+            bool useSurfaceTexture = enabled && surfaceTexture != null;
+
             for (int index = 0; index < _geoglyphBatches.Count; index++)
             {
                 GeoglyphMaterialBatch batch = _geoglyphBatches[index];
@@ -500,10 +516,39 @@ namespace DuneVector
                     colors[colorIndex] = color;
                 }
                 batch.Material.SetVectorArray("_DVGeoglyphLineColor", colors);
+                if (surfaceTexture != null)
+                {
+                    batch.Material.SetTexture("_DVGeoglyphSurfaceTexture", surfaceTexture);
+                }
+                batch.Material.SetVector(
+                    "_DVGeoglyphSurfaceTextureTransform",
+                    surfaceTextureTransform);
+                batch.Material.SetFloat(
+                    "_DVGeoglyphSurfaceTextureEnabled",
+                    useSurfaceTexture ? 1f : 0f);
                 batch.Material.SetColor(
                     "_DVGeoglyphBloomEmissionColor",
                     enabled ? bloomEmission : batch.OriginalBloomEmissionColor);
             }
+        }
+
+        private static bool TryGetMaterialTextureProperty(
+            Material material,
+            out string textureProperty)
+        {
+            if (material != null && material.HasProperty("_BaseMap"))
+            {
+                textureProperty = "_BaseMap";
+                return true;
+            }
+            if (material != null && material.HasProperty("_MainTex"))
+            {
+                textureProperty = "_MainTex";
+                return true;
+            }
+
+            textureProperty = null;
+            return false;
         }
 
         private Material CreateStrikeOrbGradient(PlayerStrikeOrbTuning settings)
