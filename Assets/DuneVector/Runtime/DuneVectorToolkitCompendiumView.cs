@@ -471,6 +471,8 @@ namespace DuneVector
                     _selectedSubjectId,
                     StringComparison.Ordinal);
                 card.SubjectId = entry.SubjectId;
+                card.Root.style.marginRight =
+                    column < _columnCount - 1 ? _settings.CompendiumGap : 0f;
                 card.Thumbnail.image = documented
                     ? _storage.GetCanonicalTexture(entry.SubjectId)
                     : null;
@@ -593,18 +595,8 @@ namespace DuneVector
                 _rowStarts.Add(i);
             }
             _grid.itemsSource = _rowStarts;
-            float usableWidth = Mathf.Max(
-                _settings.CompendiumSlotWidth,
-                _grid.resolvedStyle.width -
-                (_settings.CompendiumGridPadding * 2f) -
-                _settings.CompendiumScrollbarWidth);
-            float cardWidth =
-                (usableWidth - ((_columnCount - 1) * _settings.CompendiumGap)) /
-                Mathf.Max(1, _columnCount);
             _grid.fixedItemHeight =
-                cardWidth *
-                (_settings.CompendiumSlotHeight / Mathf.Max(1f, _settings.CompendiumSlotWidth)) +
-                _settings.CompendiumGap;
+                _settings.CompendiumSlotHeight + _settings.CompendiumCardRowGap;
             _grid.Rebuild();
         }
 
@@ -774,7 +766,7 @@ namespace DuneVector
         private void ApplyCardState(CardReferences card, bool selected)
         {
             card.Root.style.backgroundColor = _settings.CompendiumCardColor;
-            card.Root.style.marginRight = _settings.CompendiumGap;
+            card.Root.style.height = _settings.CompendiumSlotHeight;
             card.Root.style.borderTopLeftRadius = _settings.CompendiumCardCornerRadius;
             card.Root.style.borderTopRightRadius = _settings.CompendiumCardCornerRadius;
             card.Root.style.borderBottomLeftRadius = _settings.CompendiumCardCornerRadius;
@@ -800,7 +792,12 @@ namespace DuneVector
             card.LockedVisual.style.bottom = 0f;
             card.LockedVisual.style.backgroundColor = _settings.CompendiumLockedColor;
             VisualElement overlay = card.Root.Q(className: "compendium-card-overlay");
-            overlay.style.height = _settings.CompendiumCardOverlayHeight;
+            overlay.style.top = 0f;
+            overlay.style.bottom = 0f;
+            overlay.style.paddingLeft = _settings.CompendiumCardContentPadding;
+            overlay.style.paddingRight = _settings.CompendiumCardContentPadding;
+            overlay.style.paddingTop = _settings.CompendiumCardContentPadding;
+            overlay.style.paddingBottom = _settings.CompendiumCardContentPadding;
             overlay.style.backgroundColor = _settings.CompendiumLockedOverlayColor;
             SetTextStyle(card.Title,
                 _settings.CompendiumCardTitleFontSize, _settings.CompendiumPrimaryTextColor, true);
