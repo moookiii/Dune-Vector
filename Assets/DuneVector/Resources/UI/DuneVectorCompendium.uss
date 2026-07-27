@@ -1,0 +1,154 @@
+.compendium-root {
+    flex-direction: column;
+}
+
+.compendium-window {
+    flex-direction: column;
+}
+
+.compendium-header {
+    flex-direction: row;
+    align-items: center;
+}
+
+.compendium-header-titles {
+    flex-grow: 1;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.compendium-title,
+.compendium-subtitle,
+.compendium-progress,
+.compendium-tab-label,
+.compendium-card-title,
+.compendium-card-metadata,
+.compendium-detail-title,
+.compendium-detail-metadata,
+.compendium-detail-description,
+.compendium-detail-copy,
+.compendium-section-label {
+    -unity-text-align: middle-left;
+}
+
+.compendium-tabs {
+    flex-direction: row;
+}
+
+.compendium-tab {
+    flex-grow: 1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    position: relative;
+}
+
+.compendium-tab-underline {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.compendium-content {
+    flex-grow: 1;
+    flex-direction: row;
+    min-height: 0;
+}
+
+.compendium-grid {
+    flex-grow: 1;
+    min-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.compendium-grid .unity-scroller__high-button,
+.compendium-grid .unity-scroller__low-button {
+    display: none;
+}
+
+.compendium-grid-row {
+    flex-direction: row;
+    width: 100%;
+}
+
+.compendium-card {
+    flex-grow: 1;
+    position: relative;
+    overflow: hidden;
+    padding: 0;
+}
+
+.compendium-card-overlay {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    flex-direction: column;
+    justify-content: center;
+    padding-left: 14px;
+    padding-right: 14px;
+}
+
+.compendium-card-selection-marker {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 18px;
+    height: 18px;
+}
+
+.compendium-locked {
+    align-items: center;
+    justify-content: center;
+}
+
+.compendium-contour {
+    height: 1px;
+    margin-top: 5px;
+    margin-bottom: 5px;
+    background-color: rgba(130, 160, 170, 0.7);
+}
+
+.compendium-locked-symbol {
+    position: absolute;
+    font-size: 28px;
+    color: rgba(180, 196, 199, 0.72);
+    -unity-text-align: middle-center;
+}
+
+.compendium-detail {
+    flex-shrink: 0;
+    flex-direction: column;
+}
+
+.compendium-detail-hero {
+    position: relative;
+    overflow: hidden;
+}
+
+.compendium-detail-title {
+    margin-top: 18px;
+    white-space: normal;
+}
+
+.compendium-detail-metadata {
+    margin-top: 4px;
+}
+
+.compendium-detail-rule {
+    width: 54px;
+    height: 2px;
+    margin-top: 12px;
+    margin-bottom: 16px;
+}
+
+.compendium-detail-description,
+.compendium-detail-copy {
+    white-space: normal;
+}
+
+.compendium-section-label {
+    margin-top: 22px;
+    margin-bottom: 5px;
+}

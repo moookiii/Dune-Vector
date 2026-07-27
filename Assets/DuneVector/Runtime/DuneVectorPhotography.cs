@@ -924,7 +924,7 @@ namespace DuneVector
         private DuneVectorPhotographStorage _storage;
         private DuneVectorSubjectDetector _detector;
         private DuneVectorGalleryView _gallery;
-        private DuneVectorCompendiumView _compendium;
+        private DuneVectorToolkitCompendiumView _compendium;
         private SubjectDetectionResult _detection;
         private Color _animatedAccentColor;
         private Rect _animatedBounds;
@@ -1004,7 +1004,7 @@ namespace DuneVector
                 atlas,
                 _settings);
             _gallery = new DuneVectorGalleryView(_storage, _settings);
-            _compendium = new DuneVectorCompendiumView(_storage, _settings, atlas);
+            _compendium = new DuneVectorToolkitCompendiumView(_storage, _settings, atlas);
             Active = this;
         }
 
@@ -1060,9 +1060,19 @@ namespace DuneVector
 
         public bool DrawCompendium()
         {
+            _compendium?.Show();
+            if (!_closeCompendiumRequested)
+            {
+                return false;
+            }
             _closeCompendiumRequested = false;
-            _compendium?.Draw();
-            return _closeCompendiumRequested;
+            _compendium?.Hide();
+            return true;
+        }
+
+        public void HideCompendium()
+        {
+            _compendium?.Hide();
         }
 
         private void Update()

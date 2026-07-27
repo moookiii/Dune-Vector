@@ -120,6 +120,9 @@ namespace DuneVector
         public string SubjectId;
         public string DisplayName;
         public PhotographableSubjectCategory Category;
+        [TextArea(2, 5)] public string Description;
+        public string DiscoveryLocation;
+        [TextArea(2, 5)] public string FieldNotes;
     }
 
     public enum PhotographyFilmGrainPreset
@@ -339,7 +342,18 @@ namespace DuneVector
         [Range(0f, 1f)] public float CompendiumRequiredVisiblePercentage = 0.6f;
         public string CompendiumPauseMenuButtonLabel = "COMPENDIUM";
         public string CompendiumTitle = "DESERT COMPENDIUM";
-        public string CompendiumUnknownLabel = "???";
+        public string CompendiumSubtitle = "Archive of documented desert phenomena";
+        public string CompendiumCloseLabel = "ESC  CLOSE";
+        public string CompendiumDiscoveryCountFormat = "{0} / {1} DISCOVERED";
+        public string CompendiumTabCountFormat = "{0}  {1:00}/{2:00}";
+        public string CompendiumUnknownLabel = "UNDISCOVERED";
+        public string CompendiumDiscoveredLabel = "DISCOVERED";
+        public string CompendiumUnknownDescription = "Survey data unavailable. Document this subject in the field to unlock its archive record.";
+        public string CompendiumDefaultDescription = "A documented phenomenon recorded during courier field operations across the shifting dunes.";
+        public string CompendiumDiscoveryLocationLabel = "DISCOVERED";
+        public string CompendiumDefaultDiscoveryLocation = "Location data unavailable";
+        public string CompendiumFieldNotesLabel = "FIELD NOTES";
+        public string CompendiumDefaultFieldNotes = "Further observation is required to complete this archive entry.";
         public string CompendiumGlyphTabLabel = "GLYPHS";
         public string CompendiumLandmarkTabLabel = "LANDMARKS";
         public string CompendiumEnemyTabLabel = "ENEMIES";
@@ -354,29 +368,50 @@ namespace DuneVector
         [Header("Compendium Layout")]
         [Min(400f)] public float CompendiumPanelWidth = 1420f;
         [Min(300f)] public float CompendiumPanelHeight = 860f;
-        [Min(1f)] public float CompendiumPanelBorderThickness = 4f;
-        [Min(20f)] public float CompendiumHeaderHeight = 72f;
+        [Min(0f)] public float CompendiumPanelBorderThickness = 1f;
+        [Range(0f, 1f)] public float CompendiumPanelBorderOpacity = 0.15f;
+        [Min(20f)] public float CompendiumHeaderHeight = 92f;
         [Min(28f)] public float CompendiumTabHeight = 58f;
         [Min(12f)] public float CompendiumTabIconSize = 26f;
-        [Range(2, 8)] public int CompendiumColumns = 4;
+        [Range(1, 8)] public int CompendiumCompactColumns = 2;
+        [Range(1, 8)] public int CompendiumWideColumns = 3;
+        [Min(360f)] public float CompendiumWideScreenMinimumHeight = 1200f;
+        [HideInInspector] public int CompendiumColumns = 3;
         [Min(80f)] public float CompendiumSlotWidth = 300f;
         [Min(45f)] public float CompendiumSlotHeight = 190f;
-        [Min(16f)] public float CompendiumSlotLabelHeight = 38f;
-        [Min(180f)] public float CompendiumDetailPanelWidth = 390f;
+        [HideInInspector] public float CompendiumSlotLabelHeight = 38f;
+        [Min(0f)] public float CompendiumCardCornerRadius = 5f;
+        [Min(0f)] public float CompendiumCardBorderThickness = 1f;
+        [Min(0f)] public float CompendiumSelectedCardBorderThickness = 3f;
+        [Min(0f)] public float CompendiumCardOverlayHeight = 58f;
+        [Min(180f)] public float CompendiumDetailPanelWidth = 410f;
         [Min(100f)] public float CompendiumDetailImageHeight = 260f;
         [Min(20f)] public float CompendiumDetailTitleHeight = 70f;
         [Min(8)] public int CompendiumDetailTitleFontSize = 23;
-        [Min(0f)] public float CompendiumGap = 18f;
-        [Min(0f)] public float CompendiumScrollbarReserve = 24f;
-        [Min(8)] public int CompendiumUnknownFontSize = 30;
-        [Min(8)] public int CompendiumTabFontSize = 15;
+        [Min(0f)] public float CompendiumGap = 22f;
+        [Min(0f)] public float CompendiumGridPadding = 22f;
+        [Min(2f)] public float CompendiumScrollbarWidth = 5f;
+        [HideInInspector] public float CompendiumScrollbarReserve = 24f;
+        [Min(8)] public int CompendiumTitleFontSize = 30;
+        [Min(8)] public int CompendiumSubtitleFontSize = 13;
+        [Min(8)] public int CompendiumCardTitleFontSize = 14;
+        [Min(8)] public int CompendiumMetadataFontSize = 11;
+        [Min(8)] public int CompendiumTabFontSize = 14;
+        [HideInInspector] public int CompendiumUnknownFontSize = 30;
+        [Min(0f)] public float CompendiumActiveTabUnderlineHeight = 3f;
+        [ColorUsage(false)] public Color CompendiumMainBackgroundColor = new Color(0.018f, 0.032f, 0.043f, 0.99f);
+        [ColorUsage(false)] public Color CompendiumRaisedSurfaceColor = new Color(0.035f, 0.057f, 0.071f, 1f);
+        [ColorUsage(false)] public Color CompendiumCardColor = new Color(0.045f, 0.063f, 0.074f, 1f);
+        [ColorUsage(false)] public Color CompendiumCardBorderColor = new Color(0.18f, 0.23f, 0.26f, 0.75f);
+        [ColorUsage(false)] public Color CompendiumSecondaryTextColor = new Color(0.58f, 0.66f, 0.7f, 1f);
+        [ColorUsage(false)] public Color CompendiumPrimaryTextColor = new Color(0.94f, 0.92f, 0.86f, 1f);
         [ColorUsage(false)] public Color CompendiumLockedColor = new Color(0.19f, 0.21f, 0.23f, 1f);
         [ColorUsage(false)] public Color CompendiumLockedOverlayColor = new Color(0.08f, 0.09f, 0.1f, 0.72f);
-        [ColorUsage(false)] public Color CompendiumTabColor = new Color(0.06f, 0.11f, 0.15f, 1f);
+        [ColorUsage(false)] public Color CompendiumTabColor = new Color(0.06f, 0.11f, 0.15f, 0f);
         [ColorUsage(false)] public Color CompendiumSelectedTabColor = new Color(0.12f, 0.36f, 0.44f, 1f);
         [ColorUsage(false)] public Color CompendiumIconColor = new Color(0.72f, 0.94f, 1f, 1f);
-        [ColorUsage(false)] public Color CompendiumActiveAccentColor = new Color(1f, 0.62f, 0.16f, 1f);
-        [ColorUsage(false)] public Color CompendiumHoverBorderColor = Color.white;
+        [ColorUsage(false)] public Color CompendiumActiveAccentColor = new Color(0.78f, 0.57f, 0.27f, 1f);
+        [ColorUsage(false)] public Color CompendiumHoverBorderColor = new Color(0.62f, 0.86f, 0.91f, 1f);
 
         public void EnsureInitialized()
         {

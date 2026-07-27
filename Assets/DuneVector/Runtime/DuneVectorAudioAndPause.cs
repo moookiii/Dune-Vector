@@ -665,6 +665,10 @@ namespace DuneVector
         private void Update()
         {
             UpdateControlsFade();
+            if (!IsPaused || !_showCompendium)
+            {
+                _photography?.HideCompendium();
+            }
 
             if (DuneVectorPhotographySystem.IsCameraModeActive)
             {

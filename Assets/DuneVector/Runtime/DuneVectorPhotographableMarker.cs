@@ -246,15 +246,24 @@ namespace DuneVector
         public readonly string SubjectId;
         public readonly string DisplayName;
         public readonly PhotographableSubjectCategory Category;
+        public readonly string Description;
+        public readonly string DiscoveryLocation;
+        public readonly string FieldNotes;
 
         public DuneVectorCompendiumEntry(
             string subjectId,
             string displayName,
-            PhotographableSubjectCategory category)
+            PhotographableSubjectCategory category,
+            string description = "",
+            string discoveryLocation = "",
+            string fieldNotes = "")
         {
             SubjectId = subjectId;
             DisplayName = displayName;
             Category = category;
+            Description = description;
+            DiscoveryLocation = discoveryLocation;
+            FieldNotes = fieldNotes;
         }
     }
 
