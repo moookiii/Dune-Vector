@@ -103,8 +103,12 @@ namespace DuneVector
         private float _discoveryPresentationStartedAt;
         private float _discoveryPresentationUntil;
         private float _discoveryPresentationDuration;
+        private DesertAtlasSiteDefinition _discoveryPresentationSite;
+        private bool _discoveryAwaitingContinue;
+        private bool _discoveryContinueArmed;
         private bool _showingCompletionNotification;
         private bool _completionNotificationPending;
+        private string _pendingCompletionStatusText;
         private Vector2 _terminalScroll;
         private GUIStyle _hudTitleStyle;
         private GUIStyle _hudBodyStyle;
@@ -119,6 +123,10 @@ namespace DuneVector
         private GUIStyle _terminalBodyStyle;
         private GUIStyle _terminalMetaStyle;
         private GUIStyle _discoveryBannerStyle;
+        private GUIStyle _discoveryLoreHeaderStyle;
+        private GUIStyle _discoveryLoreTitleStyle;
+        private GUIStyle _discoveryLoreBodyStyle;
+        private GUIStyle _discoveryContinueStyle;
         private Texture2D _whiteTexture;
 
         public void Initialize(
@@ -190,6 +198,7 @@ namespace DuneVector
 
             PauseCompletionNotificationTimerWhileCameraActive();
             TryShowPendingCompletionNotification();
+            UpdateDiscoveryPresentationInput();
 
             bool active = IsUnlocked && _courierGame != null && _courierGame.State == CourierRunState.FreeRoam;
             if (!active)
@@ -817,7 +826,10 @@ namespace DuneVector
             _statusUntil = Time.unscaledTime + _settings.DiscoveryStatusDuration;
             _discoveryPresentationStartedAt = Time.unscaledTime;
             _discoveryPresentationDuration = _settings.DiscoveryPresentationDuration;
-            _discoveryPresentationUntil = Time.unscaledTime + _discoveryPresentationDuration;
+            _discoveryPresentationUntil = float.PositiveInfinity;
+            _discoveryPresentationSite = site;
+            _discoveryAwaitingContinue = true;
+            _discoveryContinueArmed = false;
             _showingCompletionNotification = false;
             int milestoneInterval = Mathf.Max(1, _settings.MilestoneInterval);
             if (DiscoveredCount < TotalSiteCount && DiscoveredCount % milestoneInterval == 0)
@@ -848,15 +860,16 @@ namespace DuneVector
             Save();
             if (showStatus)
             {
-                _statusText = FormatDesignerText(_settings.AtlasCompletionStatusFormat, reward);
-                if (DuneVectorPhotographySystem.IsCameraModeActive)
+                string completionStatusText =
+                    FormatDesignerText(_settings.AtlasCompletionStatusFormat, reward);
+                if (_discoveryAwaitingContinue || DuneVectorPhotographySystem.IsCameraModeActive)
                 {
                     _completionNotificationPending = true;
-                    _statusUntil = 0f;
-                    _discoveryPresentationUntil = 0f;
+                    _pendingCompletionStatusText = completionStatusText;
                 }
                 else
                 {
+                    _statusText = completionStatusText;
                     ShowCompletionNotification();
                 }
             }
@@ -865,13 +878,52 @@ namespace DuneVector
 
         private void TryShowPendingCompletionNotification()
         {
-            if (!_completionNotificationPending || DuneVectorPhotographySystem.IsCameraModeActive)
+            if (!_completionNotificationPending ||
+                _discoveryAwaitingContinue ||
+                DuneVectorPhotographySystem.IsCameraModeActive)
             {
                 return;
             }
 
             _completionNotificationPending = false;
+            if (!string.IsNullOrWhiteSpace(_pendingCompletionStatusText))
+            {
+                _statusText = _pendingCompletionStatusText;
+                _pendingCompletionStatusText = null;
+            }
             ShowCompletionNotification();
+        }
+
+        private void UpdateDiscoveryPresentationInput()
+        {
+            if (!_discoveryAwaitingContinue || DuneVectorPhotographySystem.IsCameraModeActive)
+            {
+                return;
+            }
+
+            Mouse mouse = Mouse.current;
+            if (mouse == null)
+            {
+                return;
+            }
+
+            if (!_discoveryContinueArmed)
+            {
+                _discoveryContinueArmed = !mouse.leftButton.isPressed;
+                return;
+            }
+
+            if (!mouse.leftButton.wasPressedThisFrame)
+            {
+                return;
+            }
+
+            _discoveryAwaitingContinue = false;
+            _discoveryContinueArmed = false;
+            _discoveryPresentationSite = null;
+            _discoveryPresentationUntil = 0f;
+            _statusUntil = 0f;
+            TryShowPendingCompletionNotification();
         }
 
         private void PauseCompletionNotificationTimerWhileCameraActive()
@@ -1951,6 +2003,12 @@ namespace DuneVector
 
         private void DrawDiscoveryPresentation()
         {
+            if (_discoveryAwaitingContinue && _discoveryPresentationSite != null)
+            {
+                DrawGlyphDiscoveryPresentation(_discoveryPresentationSite);
+                return;
+            }
+
             float duration = Mathf.Max(
                 0.01f,
                 _discoveryPresentationDuration > 0f
@@ -2001,6 +2059,76 @@ namespace DuneVector
             GUI.color = previous;
         }
 
+        private void DrawGlyphDiscoveryPresentation(DesertAtlasSiteDefinition site)
+        {
+            float elapsed = Time.unscaledTime - _discoveryPresentationStartedAt;
+            float flashDuration = Mathf.Max(0.01f, _settings.DiscoveryFlashDuration);
+            if (elapsed < flashDuration)
+            {
+                Color flashColor = _settings.DiscoveryFlashColor;
+                flashColor.a *= Mathf.Sin(Mathf.Clamp01(elapsed / flashDuration) * Mathf.PI);
+                DrawRect(new Rect(0f, 0f, Screen.width, Screen.height), flashColor);
+            }
+
+            DrawRect(new Rect(0f, 0f, Screen.width, Screen.height), _settings.DiscoveryLoreBackdropColor);
+
+            float entranceDuration = Mathf.Max(0.01f, _settings.DiscoveryLoreEntranceDuration);
+            float entrance = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / entranceDuration));
+            float width = Mathf.Min(_settings.DiscoveryBannerWidth, Screen.safeArea.width);
+            float height = Mathf.Min(_settings.DiscoveryLorePanelHeight, Screen.safeArea.height);
+            float slide = Mathf.Lerp(_settings.DiscoveryBannerSlideDistance, 0f, entrance);
+            Rect panel = new Rect(
+                Screen.safeArea.x + ((Screen.safeArea.width - width) * 0.5f),
+                Screen.safeArea.y + ((Screen.safeArea.height - height) * 0.5f) - slide,
+                width,
+                height);
+            DrawRect(panel, _settings.DiscoveryBannerColor);
+            DrawRect(
+                new Rect(panel.x, panel.y, panel.width, _settings.DiscoveryBannerAccentHeight),
+                _settings.DiscoveryBannerAccentColor);
+
+            float padding = _settings.DiscoveryLorePanelPadding;
+            float contentWidth = Mathf.Max(0f, panel.width - (padding * 2f));
+            float contentTop = panel.y + padding;
+            GUI.Label(
+                new Rect(panel.x + padding, contentTop, contentWidth, _settings.DiscoveryLoreHeaderHeight),
+                _settings.DiscoveryLoreHeader,
+                _discoveryLoreHeaderStyle);
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    contentTop + _settings.DiscoveryLoreTitleTop,
+                    contentWidth,
+                    _settings.DiscoveryLoreTitleHeight),
+                site.DisplayName,
+                _discoveryLoreTitleStyle);
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    contentTop + _settings.DiscoveryLoreBodyTop,
+                    contentWidth,
+                    _settings.DiscoveryLoreBodyHeight),
+                site.Description,
+                _discoveryLoreBodyStyle);
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.yMax - padding - _settings.DiscoveryLoreStatusHeight -
+                        _settings.DiscoveryContinueHeight,
+                    contentWidth,
+                    _settings.DiscoveryLoreStatusHeight),
+                _statusText,
+                _discoveryBannerStyle);
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.yMax - padding - _settings.DiscoveryContinueHeight,
+                    contentWidth,
+                    _settings.DiscoveryContinueHeight),
+                _settings.DiscoveryContinuePrompt,
+                _discoveryContinueStyle);
+        }
+
         private float GetCompassScale()
         {
             float minimumScale = Mathf.Min(_compassSettings.MinimumScale, _compassSettings.MaximumScale);
@@ -2036,6 +2164,27 @@ namespace DuneVector
                 FontStyle.Bold,
                 TextAnchor.MiddleCenter,
                 _settings.HudTextColor);
+            _discoveryLoreHeaderStyle ??= CreateStyle(
+                _settings.DiscoveryLoreHeaderFontSize,
+                FontStyle.Bold,
+                TextAnchor.MiddleCenter,
+                _settings.DiscoveryBannerAccentColor);
+            _discoveryLoreTitleStyle ??= CreateStyle(
+                _settings.DiscoveryLoreTitleFontSize,
+                FontStyle.Bold,
+                TextAnchor.MiddleCenter,
+                _settings.HudTextColor);
+            _discoveryLoreBodyStyle ??= CreateStyle(
+                _settings.DiscoveryLoreBodyFontSize,
+                FontStyle.Normal,
+                TextAnchor.UpperLeft,
+                _settings.HudTextColor);
+            _discoveryLoreBodyStyle.wordWrap = true;
+            _discoveryContinueStyle ??= CreateStyle(
+                _settings.DiscoveryContinueFontSize,
+                FontStyle.Bold,
+                TextAnchor.MiddleCenter,
+                _settings.DiscoveryBannerAccentColor);
         }
 
         private static GUIStyle CreateStyle(int fontSize, FontStyle fontStyle, TextAnchor alignment, Color color)

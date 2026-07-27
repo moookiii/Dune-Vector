@@ -2430,6 +2430,23 @@ namespace DuneVector
         [ColorUsage(false)] public Color DiscoveryBannerAccentColor = new Color(0.12f, 0.85f, 1f, 1f);
         [Min(1f)] public float DiscoveryBannerAccentHeight = 4f;
         [Min(9)] public int DiscoveryBannerFontSize = 18;
+        public string DiscoveryLoreHeader = "GLYPH DISCOVERED";
+        public string DiscoveryContinuePrompt = "CLICK TO CONTINUE";
+        [ColorUsage(false)] public Color DiscoveryLoreBackdropColor = new Color(0f, 0.01f, 0.02f, 0.72f);
+        [Min(0.01f)] public float DiscoveryLoreEntranceDuration = 0.3f;
+        [Min(120f)] public float DiscoveryLorePanelHeight = 320f;
+        [Min(0f)] public float DiscoveryLorePanelPadding = 28f;
+        [Min(0f)] public float DiscoveryLoreHeaderHeight = 24f;
+        [Min(0f)] public float DiscoveryLoreTitleTop = 36f;
+        [Min(0f)] public float DiscoveryLoreTitleHeight = 38f;
+        [Min(0f)] public float DiscoveryLoreBodyTop = 86f;
+        [Min(0f)] public float DiscoveryLoreBodyHeight = 112f;
+        [Min(0f)] public float DiscoveryLoreStatusHeight = 36f;
+        [Min(0f)] public float DiscoveryContinueHeight = 28f;
+        [Min(9)] public int DiscoveryLoreHeaderFontSize = 14;
+        [Min(9)] public int DiscoveryLoreTitleFontSize = 25;
+        [Min(9)] public int DiscoveryLoreBodyFontSize = 16;
+        [Min(9)] public int DiscoveryContinueFontSize = 13;
 
         [Header("Flight Challenge Rules")]
         [Min(0.1f)] public float OrbitMinimumRadius = 13f;
