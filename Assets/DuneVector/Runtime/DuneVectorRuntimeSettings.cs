@@ -2805,6 +2805,8 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color UpperFlightRingBaseColor = new Color(0.24f, 0.015f, 0.42f);
         [ColorUsage(false, true)] public Color UpperFlightRingEmissionColor = new Color(4.8f, 0.08f, 8f);
         [Min(1f)] public float UpperFlightRingActiveScale = 1.35f;
+        [Tooltip("Scale reached by upper flight rings when the drone reaches its current maximum flight speed.")]
+        [Min(1f)] public float UpperFlightRingMaximumSpeedScale = 3f;
         [Min(0f)] public float UpperFlightRingScaleSharpness = 4.5f;
         [Min(0f)] public float UpperFlightRingRotationSpeed = 56f;
 

@@ -251,7 +251,8 @@ namespace DuneVector
             {
                 float targetModeScale = RingType switch
                 {
-                    TraversalRingType.Flight or TraversalRingType.UpperFlight => _controller.CurrentMode == DroneTraversalMode.Flight
+                    TraversalRingType.UpperFlight => GetUpperFlightRingTargetScale(),
+                    TraversalRingType.Flight => _controller.CurrentMode == DroneTraversalMode.Flight
                         ? FlightModeScale
                         : 1f,
                     TraversalRingType.GroundBoost => Mathf.Lerp(
@@ -285,6 +286,21 @@ namespace DuneVector
                     }
                 }
             }
+        }
+
+        private float GetUpperFlightRingTargetScale()
+        {
+            if (_controller.CurrentMode != DroneTraversalMode.Flight)
+            {
+                return 1f;
+            }
+
+            float speedNormalized = Mathf.Clamp01(
+                _controller.Speed / Mathf.Max(Mathf.Epsilon, _controller.CurrentMaximumFlightSpeed));
+            float maximumSpeedScale = _ringTuning != null
+                ? Mathf.Max(FlightModeScale, _ringTuning.UpperFlightRingMaximumSpeedScale)
+                : FlightModeScale;
+            return Mathf.Lerp(FlightModeScale, maximumSpeedScale, speedNormalized);
         }
 
         internal void LateTick(Camera viewCamera)
