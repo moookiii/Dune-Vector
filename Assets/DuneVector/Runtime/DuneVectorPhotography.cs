@@ -948,6 +948,8 @@ namespace DuneVector
         private float _presentationUntil;
         private float _timeScaleBeforeIdentification = 1f;
         private bool _identificationPauseActive;
+        private bool _identifiedGlyphAwaitingContinue;
+        private bool _identifiedContinueArmed;
         private CameraPresentationState _presentationState;
         private Texture2D _capturedTexture;
         private Texture2D _captureHoldTexture;
@@ -975,6 +977,8 @@ namespace DuneVector
         private GUIStyle _comparisonLabelStyle;
         private GUIStyle _identificationTitleStyle;
         private GUIStyle _identificationNameStyle;
+        private GUIStyle _glyphDiscoveryLoreStyle;
+        private GUIStyle _glyphDiscoveryContinueStyle;
         private GUIStyle _buttonStyle;
         private readonly List<Renderer> _hiddenPlayerRenderers = new List<Renderer>();
         private readonly List<bool> _hiddenPlayerRendererStates = new List<bool>();
@@ -1092,7 +1096,21 @@ namespace DuneVector
             }
             if (_presentationState != CameraPresentationState.Live)
             {
-                if (_presentationState == CameraPresentationState.Identified && Time.unscaledTime >= _presentationUntil)
+                if (_presentationState == CameraPresentationState.Identified &&
+                    _identifiedGlyphAwaitingContinue)
+                {
+                    if (!_identifiedContinueArmed)
+                    {
+                        _identifiedContinueArmed =
+                            mouse == null || !mouse.leftButton.isPressed;
+                    }
+                    else if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+                    {
+                        ReturnToLiveCamera();
+                    }
+                }
+                else if (_presentationState == CameraPresentationState.Identified &&
+                    Time.unscaledTime >= _presentationUntil)
                 {
                     ReturnToLiveCamera();
                 }
@@ -1232,6 +1250,9 @@ namespace DuneVector
                     DuneVectorDesertAtlas.TryCatalogPhotographedGlyph(subjectId);
                 }
                 _presentationState = CameraPresentationState.Identified;
+                _identifiedGlyphAwaitingContinue =
+                    category == PhotographableSubjectCategory.Glyph;
+                _identifiedContinueArmed = false;
                 _presentationUntil = Time.unscaledTime + _settings.IdentificationHoldDuration;
                 BeginIdentificationPause();
             }
@@ -1284,6 +1305,8 @@ namespace DuneVector
             Cursor.visible = false;
             ReleaseCapturedTexture();
             _pendingPhotograph = null;
+            _identifiedGlyphAwaitingContinue = false;
+            _identifiedContinueArmed = false;
         }
 
         private void BeginIdentificationPause()
@@ -1467,6 +1490,12 @@ namespace DuneVector
             DrawSurfaceTextures();
             if (_presentationState == CameraPresentationState.Identified)
             {
+                if (_identifiedGlyphAwaitingContinue)
+                {
+                    DrawGlyphDiscoveryPresentation();
+                    return;
+                }
+
                 float toastProgress = EaseOutCubic(Mathf.Clamp01(
                     1f - ((_presentationUntil - Time.unscaledTime) /
                         Mathf.Max(0.01f, _settings.IdentificationHoldDuration))));
@@ -1538,6 +1567,83 @@ namespace DuneVector
                 ReturnToLiveCamera();
             }
             if (GUI.Button(keep, _settings.KeepButton, _buttonStyle)) ReturnToLiveCamera();
+        }
+
+        private void DrawGlyphDiscoveryPresentation()
+        {
+            float elapsed = Time.unscaledTime - _captureStartedAt;
+            float progress = EaseOutCubic(Mathf.Clamp01(
+                elapsed / Mathf.Max(0.01f, _settings.HudEnterDuration)));
+            float panelWidth = Mathf.Min(
+                _settings.GlyphDiscoveryPanelWidth,
+                _hudWidth - (_settings.ScreenMargin * 2f));
+            float panelHeight = Mathf.Min(
+                _settings.GlyphDiscoveryPanelHeight,
+                _hudHeight - (_settings.ScreenMargin * 2f));
+            Rect panel = new Rect(
+                (_hudWidth - panelWidth) * 0.5f,
+                _hudHeight - _settings.GlyphDiscoveryPanelBottomOffset - panelHeight +
+                    ((1f - progress) * _settings.HudEnterSlideDistance),
+                panelWidth,
+                panelHeight);
+            DrawRect(
+                panel,
+                WithAlpha(
+                    _settings.IdentificationPanelColor,
+                    _settings.IdentificationPanelColor.a * progress));
+            DrawRect(
+                new Rect(panel.x, panel.y, panel.width, _settings.FrameThickness),
+                WithAlpha(_settings.ValidColor, _settings.ValidColor.a * progress));
+
+            float padding = _settings.GlyphDiscoveryPanelPadding;
+            float gap = _settings.GlyphDiscoveryElementGap;
+            float contentWidth = Mathf.Max(0f, panel.width - (padding * 2f));
+            float y = panel.y + padding;
+            DrawLabel(
+                new Rect(
+                    panel.x + padding,
+                    y,
+                    contentWidth,
+                    _settings.GlyphDiscoveryHeaderHeight),
+                TrackText(_settings.RegisteredText),
+                _targetStatusStyle,
+                WithAlpha(_settings.ValidColor, _settings.ValidColor.a * progress),
+                true);
+            y += _settings.GlyphDiscoveryHeaderHeight + gap;
+            DrawLabel(
+                new Rect(
+                    panel.x + padding,
+                    y,
+                    contentWidth,
+                    _settings.GlyphDiscoveryNameHeight),
+                _pendingSubject.DisplayName,
+                _identificationNameStyle,
+                WithAlpha(_settings.HudTextColor, _settings.HudTextColor.a * progress),
+                true);
+            y += _settings.GlyphDiscoveryNameHeight + gap;
+            string lore = _pendingSubject.AtlasSite != null
+                ? _pendingSubject.AtlasSite.Description
+                : string.Empty;
+            DrawLabel(
+                new Rect(
+                    panel.x + padding,
+                    y,
+                    contentWidth,
+                    _settings.GlyphDiscoveryLoreHeight),
+                lore,
+                _glyphDiscoveryLoreStyle,
+                WithAlpha(_settings.HudTextColor, _settings.HudTextColor.a * progress),
+                true);
+            DrawLabel(
+                new Rect(
+                    panel.x + padding,
+                    panel.yMax - padding - _settings.GlyphDiscoveryContinueHeight,
+                    contentWidth,
+                    _settings.GlyphDiscoveryContinueHeight),
+                TrackText(_settings.GlyphDiscoveryContinuePrompt),
+                _glyphDiscoveryContinueStyle,
+                WithAlpha(_settings.ValidColor, _settings.ValidColor.a * progress),
+                true);
         }
 
         private void DrawPhotographComparison()
@@ -1914,6 +2020,19 @@ namespace DuneVector
                 FontStyle.Normal,
                 TextAnchor.MiddleCenter,
                 _settings.HudTextColor,
+                _settings.HudSemiboldFont);
+            _glyphDiscoveryLoreStyle ??= CreateStyle(
+                _settings.GlyphDiscoveryLoreFontSize,
+                FontStyle.Normal,
+                TextAnchor.UpperLeft,
+                _settings.HudTextColor,
+                _settings.HudRegularFont);
+            _glyphDiscoveryLoreStyle.wordWrap = true;
+            _glyphDiscoveryContinueStyle ??= CreateStyle(
+                _settings.GlyphDiscoveryContinueFontSize,
+                FontStyle.Normal,
+                TextAnchor.MiddleCenter,
+                _settings.ValidColor,
                 _settings.HudSemiboldFont);
             _buttonStyle ??= new GUIStyle(GUI.skin.button)
             {

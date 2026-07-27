@@ -261,6 +261,18 @@ namespace DuneVector
         [ColorUsage(false)] public Color IdentificationPanelColor = new Color(0.015f, 0.05f, 0.075f, 0.95f);
         public string IdentifiedTitle = "GLYPH IDENTIFIED";
         public string RegisteredText = "REGISTERED TO ATLAS";
+        public string GlyphDiscoveryContinuePrompt = "CLICK TO CONTINUE";
+        [Min(240f)] public float GlyphDiscoveryPanelWidth = 720f;
+        [Min(120f)] public float GlyphDiscoveryPanelHeight = 280f;
+        [Min(0f)] public float GlyphDiscoveryPanelBottomOffset = 78f;
+        [Min(0f)] public float GlyphDiscoveryPanelPadding = 28f;
+        [Min(0f)] public float GlyphDiscoveryElementGap = 8f;
+        [Min(0f)] public float GlyphDiscoveryHeaderHeight = 22f;
+        [Min(0f)] public float GlyphDiscoveryNameHeight = 34f;
+        [Min(0f)] public float GlyphDiscoveryLoreHeight = 104f;
+        [Min(0f)] public float GlyphDiscoveryContinueHeight = 24f;
+        [Min(8)] public int GlyphDiscoveryLoreFontSize = 16;
+        [Min(8)] public int GlyphDiscoveryContinueFontSize = 13;
         public string AlreadyDocumentedText = "ALREADY DOCUMENTED";
         public string ReplacePrompt = "REPLACE ATLAS PHOTOGRAPH?";
         public string ComparisonNewLabel = "NEW";
@@ -2431,24 +2443,6 @@ namespace DuneVector
         [ColorUsage(false)] public Color DiscoveryBannerAccentColor = new Color(0.12f, 0.85f, 1f, 1f);
         [Min(1f)] public float DiscoveryBannerAccentHeight = 4f;
         [Min(9)] public int DiscoveryBannerFontSize = 18;
-        public string DiscoveryLoreHeader = "GLYPH DISCOVERED";
-        public string DiscoveryContinuePrompt = "CLICK TO CONTINUE";
-        [ColorUsage(false)] public Color DiscoveryLoreBackdropColor = new Color(0f, 0.01f, 0.02f, 0.72f);
-        [Min(0.01f)] public float DiscoveryLoreEntranceDuration = 0.3f;
-        [Min(120f)] public float DiscoveryLorePanelHeight = 320f;
-        [Min(0f)] public float DiscoveryLorePanelPadding = 28f;
-        [Min(0f)] public float DiscoveryLoreHeaderHeight = 24f;
-        [Min(0f)] public float DiscoveryLoreTitleTop = 36f;
-        [Min(0f)] public float DiscoveryLoreTitleHeight = 38f;
-        [Min(0f)] public float DiscoveryLoreBodyTop = 86f;
-        [Min(0f)] public float DiscoveryLoreBodyHeight = 112f;
-        [Min(0f)] public float DiscoveryLoreStatusHeight = 36f;
-        [Min(0f)] public float DiscoveryContinueHeight = 28f;
-        [Min(9)] public int DiscoveryLoreHeaderFontSize = 14;
-        [Min(9)] public int DiscoveryLoreTitleFontSize = 25;
-        [Min(9)] public int DiscoveryLoreBodyFontSize = 16;
-        [Min(9)] public int DiscoveryContinueFontSize = 13;
-
         [Header("Flight Challenge Rules")]
         [Min(0.1f)] public float OrbitMinimumRadius = 13f;
         [Min(0.1f)] public float OrbitMaximumRadius = 30f;
