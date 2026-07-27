@@ -2787,6 +2787,14 @@ namespace DuneVector
         [Tooltip("Portal energy reaches full opacity at this camera distance.")]
         [Min(0f)] public float PortalCameraFadeEndDistance = 14f;
 
+        [Header("Portal Distance Legibility")]
+        [Tooltip("Camera distance where portal emission begins increasing to remain readable through haze and bright terrain.")]
+        [Min(0f)] public float PortalDistanceVisibilityStartDistance = 35f;
+        [Tooltip("Camera distance where the portal reaches its maximum distance-visibility emission boost.")]
+        [Min(0f)] public float PortalDistanceVisibilityEndDistance = 180f;
+        [Tooltip("Maximum HDR emission multiplier for distant portals. Portal size, opacity, and close-range appearance are unchanged.")]
+        [Min(1f)] public float PortalDistanceVisibilityBloomMultiplier = 3.2f;
+
         [Header("Portal Animation and Layering")]
         [Min(0f)] public float PortalPulseSpeed = 1f;
         [Range(0f, 0.5f)] public float PortalPulseAmount = 0.08f;

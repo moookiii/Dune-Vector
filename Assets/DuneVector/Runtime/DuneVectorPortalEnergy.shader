@@ -7,6 +7,7 @@ Shader "DuneVector/HDRP Portal Energy"
         _BloomIntensity("Bloom Intensity", Float) = 2
         _CoreMode("Core Mode", Float) = 0
         _DistanceFade("Distance Fade", Range(0, 1)) = 1
+        _DistanceBloomBoost("Distance Bloom Boost", Float) = 1
         _LineEdgeSoftness("Line Edge Softness", Range(0.01, 0.49)) = 0.14
         _TravelPulseCount("Travel Pulse Count", Float) = 3
         _TravelPulseSpeed("Travel Pulse Speed", Float) = 0.22
@@ -58,6 +59,7 @@ Shader "DuneVector/HDRP Portal Energy"
                 float _BloomIntensity;
                 float _CoreMode;
                 float _DistanceFade;
+                float _DistanceBloomBoost;
                 float _LineEdgeSoftness;
                 float _TravelPulseCount;
                 float _TravelPulseSpeed;
@@ -165,7 +167,7 @@ Shader "DuneVector/HDRP Portal Energy"
 
                 return float4(
                     _PortalColor.rgb * pulse * _BloomIntensity * travelBrightness *
-                        featureBrightness * _ActivationBloomBoost * particleTint,
+                        featureBrightness * _DistanceBloomBoost * _ActivationBloomBoost * particleTint,
                     alpha * _PortalColor.a);
             }
             ENDHLSL
