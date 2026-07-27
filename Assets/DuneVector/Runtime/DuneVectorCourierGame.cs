@@ -1514,16 +1514,34 @@ namespace DuneVector
             }
             contract.RoutePlacementRecords.Add(pickupLandmark);
             routePlacementIds.Add(pickupLandmark.PersistentId);
+            LogicalPosition plannedPickupPosition = contract.PickupPosition;
             contract.PickupPosition = pickupLandmark.LogicalPosition;
             contract.PickupLandmarkType = pickupLandmark.Type;
             contract.PickupName = GetContractLocationName(pickupLandmark.Type);
+            LogicalPosition plannedLegStart = plannedPickupPosition;
+            LogicalPosition resolvedLegStart = contract.PickupPosition;
+            float minimumLegDistance =
+                _settings.EvaluateMinimumRouteDistance(contract.Difficulty) /
+                Mathf.Max(1, contract.StopCount);
+            float maximumLegDistance =
+                _settings.EvaluateMaximumRouteDistance(contract.Difficulty) /
+                Mathf.Max(1, contract.StopCount);
             for (int i = 0; i < contract.DeliveryPositions.Count; i++)
             {
+                LogicalPosition plannedDeliveryPosition = contract.DeliveryPositions[i];
+                LogicalPosition desiredDeliveryPosition = new LogicalPosition(
+                    resolvedLegStart.X + (plannedDeliveryPosition.X - plannedLegStart.X),
+                    resolvedLegStart.Z + (plannedDeliveryPosition.Z - plannedLegStart.Z));
                 DuneLandmarkType deliveryType = i == contract.DeliveryPositions.Count - 1
                     ? contract.DestinationLandmarkType
                     : ChooseLandmarkType(random);
                 DuneLandmarkPlacementRecord deliveryLandmark = _landmarks.ResolveNearestWorldLandmark(
-                    deliveryType, contract.DeliveryPositions[i], routePlacementIds);
+                    deliveryType,
+                    desiredDeliveryPosition,
+                    resolvedLegStart,
+                    minimumLegDistance,
+                    maximumLegDistance,
+                    routePlacementIds);
                 if (deliveryLandmark == null)
                 {
                     throw new InvalidOperationException("A contract route could not resolve a delivery world landmark.");
@@ -1531,6 +1549,8 @@ namespace DuneVector
                 contract.RoutePlacementRecords.Add(deliveryLandmark);
                 routePlacementIds.Add(deliveryLandmark.PersistentId);
                 contract.DeliveryPositions[i] = deliveryLandmark.LogicalPosition;
+                plannedLegStart = plannedDeliveryPosition;
+                resolvedLegStart = deliveryLandmark.LogicalPosition;
                 if (i == contract.DeliveryPositions.Count - 1)
                 {
                     contract.DestinationLandmarkType = deliveryLandmark.Type;

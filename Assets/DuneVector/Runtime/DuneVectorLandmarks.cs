@@ -359,6 +359,45 @@ namespace DuneVector
             return record;
         }
 
+        public DuneLandmarkPlacementRecord ResolveNearestWorldLandmark(
+            DuneLandmarkType type,
+            LogicalPosition desiredPosition,
+            LogicalPosition legOrigin,
+            float minimumLegDistance,
+            float maximumLegDistance,
+            ISet<string> excludedPersistentIds = null)
+        {
+            float minimum = Mathf.Max(0f, minimumLegDistance);
+            float maximum = Mathf.Max(minimum, maximumLegDistance);
+            DuneLandmarkPlacementRecord record = FindNearestPlacementInDistanceBand(
+                desiredPosition,
+                legOrigin,
+                minimum,
+                maximum,
+                type,
+                excludedPersistentIds,
+                requireType: true);
+            if (record == null)
+            {
+                record = FindNearestPlacementInDistanceBand(
+                    desiredPosition,
+                    legOrigin,
+                    minimum,
+                    maximum,
+                    type,
+                    excludedPersistentIds,
+                    requireType: false);
+            }
+            if (record == null)
+            {
+                record = ResolveNearestWorldLandmark(type, desiredPosition, excludedPersistentIds);
+                Debug.LogWarning(
+                    $"No procedural world landmark was available in the {minimum:0}-{maximum:0}m contract leg band near {desiredPosition}.",
+                    this);
+            }
+            return record;
+        }
+
         public DuneVectorLandmarkInstance PinWorldLandmark(DuneLandmarkPlacementRecord record)
         {
             if (record == null)
@@ -517,6 +556,59 @@ namespace DuneVector
                 }
             }
             return null;
+        }
+
+        private DuneLandmarkPlacementRecord FindNearestPlacementInDistanceBand(
+            LogicalPosition desiredPosition,
+            LogicalPosition legOrigin,
+            float minimumLegDistance,
+            float maximumLegDistance,
+            DuneLandmarkType requestedType,
+            ISet<string> excludedPersistentIds,
+            bool requireType)
+        {
+            Vector2Int center = LogicalToCell(desiredPosition);
+            int maximumRadius = Mathf.Max(1, _settings.ContractLandmarkSearchRadius);
+            double minimumDistanceSquared = minimumLegDistance * minimumLegDistance;
+            double maximumDistanceSquared = maximumLegDistance * maximumLegDistance;
+            DuneLandmarkPlacementRecord nearest = null;
+            double nearestDesiredDistanceSquared = double.MaxValue;
+            for (int z = -maximumRadius; z <= maximumRadius; z++)
+            {
+                for (int x = -maximumRadius; x <= maximumRadius; x++)
+                {
+                    DuneLandmarkPlacementRecord candidate =
+                        GetOrCreatePlacementRecord(center + new Vector2Int(x, z));
+                    if (candidate == null ||
+                        (requireType && candidate.Type != requestedType) ||
+                        (excludedPersistentIds != null &&
+                         excludedPersistentIds.Contains(candidate.PersistentId)))
+                    {
+                        continue;
+                    }
+
+                    double originDeltaX = candidate.LogicalPosition.X - legOrigin.X;
+                    double originDeltaZ = candidate.LogicalPosition.Z - legOrigin.Z;
+                    double originDistanceSquared =
+                        (originDeltaX * originDeltaX) + (originDeltaZ * originDeltaZ);
+                    if (originDistanceSquared < minimumDistanceSquared ||
+                        originDistanceSquared > maximumDistanceSquared)
+                    {
+                        continue;
+                    }
+
+                    double desiredDeltaX = candidate.LogicalPosition.X - desiredPosition.X;
+                    double desiredDeltaZ = candidate.LogicalPosition.Z - desiredPosition.Z;
+                    double desiredDistanceSquared =
+                        (desiredDeltaX * desiredDeltaX) + (desiredDeltaZ * desiredDeltaZ);
+                    if (desiredDistanceSquared < nearestDesiredDistanceSquared)
+                    {
+                        nearest = candidate;
+                        nearestDesiredDistanceSquared = desiredDistanceSquared;
+                    }
+                }
+            }
+            return nearest;
         }
 
         private DuneLandmarkPlacementRecord GetOrCreatePlacementRecord(Vector2Int cell)
