@@ -57,8 +57,10 @@ namespace DuneVector
 
         [Header("Gold Cost Curve")]
         [Min(1)] public int BaseGoldCost = 100;
-        [Tooltip("Each successive tier costs the previous tier cost multiplied by this value before rounding.")]
+        [Tooltip("Each successive primary-curve tier costs the previous tier cost multiplied by this value before rounding.")]
         [Min(1f)] public float GoldCostGrowth = 1.2f;
+        [Tooltip("Cost growth applied to each tier beyond the primary progression curve. This starts from the unrounded cost of the final primary tier.")]
+        [Min(1f)] public float ExtendedTierGoldCostGrowth = 1f;
 
         public float Evaluate(float tierZeroValue, int purchasedTier)
         {
@@ -111,7 +113,16 @@ namespace DuneVector
         {
             int maximumTier = Mathf.Max(1, MaximumTier);
             int clampedTier = Mathf.Clamp(targetTier, 1, maximumTier);
-            double rawCost = Math.Max(1, BaseGoldCost) * Math.Pow(Math.Max(1f, GoldCostGrowth), clampedTier - 1);
+            int baseCurveTierCount = Mathf.Clamp(BaseCurveTierCount, 1, maximumTier);
+            double primaryGrowth = Math.Max(1f, GoldCostGrowth);
+            double rawCost = Math.Max(1, BaseGoldCost)
+                * Math.Pow(primaryGrowth, Math.Min(clampedTier, baseCurveTierCount) - 1);
+            if (clampedTier > baseCurveTierCount)
+            {
+                rawCost *= Math.Pow(
+                    Math.Max(1f, ExtendedTierGoldCostGrowth),
+                    clampedTier - baseCurveTierCount);
+            }
             int increment = Mathf.Max(1, roundingIncrement);
             double rounded = Math.Ceiling(rawCost / increment) * increment;
             return rounded >= int.MaxValue ? int.MaxValue : Mathf.Max(1, (int)rounded);
