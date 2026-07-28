@@ -356,6 +356,7 @@ namespace DuneVector
         private CourierContractTuning _settings;
         private DeliveryMessageTuning _messageSettings;
         private DeliveryTuning _deliverySettings;
+        private DuneVectorWindFieldSystem _windFields;
         private WorldHubTuning _hubSettings;
         private DesertAtlasTuning _desertAtlasSettings;
         private DuneVectorEnemyDirector _enemyDirector;
@@ -448,6 +449,7 @@ namespace DuneVector
             DronePermanentUpgradeSystem permanentUpgrades,
             DuneVectorLandmarkDirector landmarks,
             DeliveryTuning deliverySettings,
+            DuneVectorWindFieldSystem windFields,
             CourierContractTuning settings,
             DeliveryMessageTuning messageSettings,
             WorldHubTuning hubSettings,
@@ -467,6 +469,7 @@ namespace DuneVector
             _permanentUpgrades = permanentUpgrades;
             _landmarks = landmarks;
             _deliverySettings = deliverySettings;
+            _windFields = windFields;
             _settings = settings;
             _messageSettings = messageSettings ?? new DeliveryMessageTuning();
             _messageSettings.EnsureInitialized();
@@ -1440,6 +1443,7 @@ namespace DuneVector
             _desertSpawn = _world.LogicalToLocal(routeOrigin.X, insertionHeight, routeOrigin.Z);
             _desertRotation = Quaternion.LookRotation(pickupForward, Vector3.up);
             BuildPickupObjective();
+            ProtectContractObjectivesFromWind();
 
             double objectiveDeltaX = ActiveObjectiveLogicalPosition.X - routeOrigin.X;
             double objectiveDeltaZ = ActiveObjectiveLogicalPosition.Z - routeOrigin.Z;
@@ -1586,6 +1590,30 @@ namespace DuneVector
                 HandlePackagePickup);
             ActiveObjective = _package;
             ActiveObjectiveLogicalPosition = objectiveLogical;
+        }
+
+        private void ProtectContractObjectivesFromWind()
+        {
+            if (_windFields == null)
+            {
+                return;
+            }
+
+            List<WindFieldExclusion> exclusions =
+                new List<WindFieldExclusion>(_routeLandmarks.Count);
+            for (int i = 0; i < _routeLandmarks.Count; i++)
+            {
+                DuneVectorLandmarkInstance landmark = _routeLandmarks[i];
+                Transform socket = i == 0 ? landmark.ContractSocket : landmark.DeliverySocket;
+                LogicalPosition logical = LocalToLogical(socket.position);
+                float ringRadius = i == 0
+                    ? _deliverySettings.ObjectiveRingRadius
+                    : _deliverySettings.DeliveryRingRadius;
+                exclusions.Add(new WindFieldExclusion(
+                    new Vector2((float)logical.X, (float)logical.Z),
+                    ringRadius));
+            }
+            _windFields.SetContractObjectiveExclusions(exclusions);
         }
 
         private JobTraversalRing CreateObjectiveRing(
@@ -2267,6 +2295,7 @@ namespace DuneVector
 
         private void CleanupContractObjects()
         {
+            _windFields?.SetContractObjectiveExclusions(null);
             _world?.ClearContractGroundExploders();
             _stormDirector?.ClearContractBonusEnemies();
             if (_objectiveRing != null) Destroy(_objectiveRing.gameObject);

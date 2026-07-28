@@ -45,6 +45,8 @@ namespace DuneVector
         [Range(1, 6)] public int ActiveCellRadius = 2;
         [Min(0.05f)] public float StreamingRefreshInterval = 0.5f;
         [Min(0f)] public float StartingAreaExclusionRadius = 120f;
+        [Tooltip("Additional horizontal clearance kept between active contract objective rings and wind-field boundaries.")]
+        [Min(0f)] public float ContractObjectivePadding = 20f;
         [Range(0f, 60f)] public float MaximumGroundSlope = 38f;
         [Range(0f, 0.49f)] public float PositionJitterFraction = 0.38f;
         [Min(0.1f)] public float MinimumSizeMultiplier = 0.78f;
@@ -126,6 +128,18 @@ namespace DuneVector
         }
     }
 
+    public readonly struct WindFieldExclusion
+    {
+        public readonly Vector2 LogicalPosition;
+        public readonly float Radius;
+
+        public WindFieldExclusion(Vector2 logicalPosition, float radius)
+        {
+            LogicalPosition = logicalPosition;
+            Radius = Mathf.Max(0f, radius);
+        }
+    }
+
     [DisallowMultipleComponent]
     public sealed class DuneVectorWindFieldSystem : MonoBehaviour
     {
@@ -150,6 +164,7 @@ namespace DuneVector
         private readonly Dictionary<Vector2Int, RuntimeField> _proceduralFields =
             new Dictionary<Vector2Int, RuntimeField>();
         private readonly List<Vector2Int> _removalBuffer = new List<Vector2Int>();
+        private readonly List<WindFieldExclusion> _contractExclusions = new List<WindFieldExclusion>();
         private Material _particleMaterial;
         private Texture2D _particleTexture;
         private ParticleSystem _playerInteraction;
@@ -213,6 +228,10 @@ namespace DuneVector
             for (int i = 0; i < _fields.Count; i++)
             {
                 RuntimeField field = _fields[i];
+                if (IntersectsContractExclusion(field.Definition))
+                {
+                    continue;
+                }
                 Vector3 halfSize = field.Definition.Size * 0.5f;
                 Vector3 offset = worldPosition - field.Center;
                 float normalizedDistance = Mathf.Max(
@@ -252,6 +271,36 @@ namespace DuneVector
             }
 
             return new WindFieldSample(totalForce, strongestInfluence, dominantType);
+        }
+
+        public void SetContractObjectiveExclusions(IReadOnlyList<WindFieldExclusion> exclusions)
+        {
+            _contractExclusions.Clear();
+            if (exclusions != null)
+            {
+                for (int i = 0; i < exclusions.Count; i++)
+                {
+                    _contractExclusions.Add(exclusions[i]);
+                }
+            }
+
+            _removalBuffer.Clear();
+            foreach (KeyValuePair<Vector2Int, RuntimeField> entry in _proceduralFields)
+            {
+                if (IntersectsContractExclusion(entry.Value.Definition))
+                {
+                    _removalBuffer.Add(entry.Key);
+                }
+            }
+            for (int i = 0; i < _removalBuffer.Count; i++)
+            {
+                RemoveProceduralField(_removalBuffer[i]);
+            }
+
+            if (_settings != null && _settings.ProceduralPlacementEnabled)
+            {
+                RefreshStreaming(true);
+            }
         }
 
         private void Update()
@@ -397,6 +446,10 @@ namespace DuneVector
                 Force = Mathf.Max(0f, template.Force * forceMultiplier),
                 Turbulence = Mathf.Clamp01(template.Turbulence + turbulenceOffset),
             };
+            if (IntersectsContractExclusion(generated))
+            {
+                return;
+            }
             RuntimeField field = CreateField(generated, cell, true);
             _proceduralFields.Add(cell, field);
             RepositionField(field);
@@ -439,6 +492,31 @@ namespace DuneVector
         {
             return definition != null && definition.Size.x > 0f && definition.Size.y > 0f &&
                 definition.Size.z > 0f;
+        }
+
+        private bool IntersectsContractExclusion(WindFieldDefinition definition)
+        {
+            if (definition == null || _contractExclusions.Count == 0)
+            {
+                return false;
+            }
+
+            Vector2 halfSize = new Vector2(
+                Mathf.Max(0f, definition.Size.x * 0.5f),
+                Mathf.Max(0f, definition.Size.z * 0.5f));
+            for (int i = 0; i < _contractExclusions.Count; i++)
+            {
+                WindFieldExclusion exclusion = _contractExclusions[i];
+                Vector2 delta = exclusion.LogicalPosition - definition.LogicalPosition;
+                float outsideX = Mathf.Max(0f, Mathf.Abs(delta.x) - halfSize.x);
+                float outsideZ = Mathf.Max(0f, Mathf.Abs(delta.y) - halfSize.y);
+                float clearance = exclusion.Radius + Mathf.Max(0f, _settings.ContractObjectivePadding);
+                if ((outsideX * outsideX) + (outsideZ * outsideZ) <= clearance * clearance)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private RuntimeField CreateField(WindFieldDefinition definition, Vector2Int cell, bool isProcedural)
@@ -624,7 +702,7 @@ namespace DuneVector
             {
                 RuntimeField field = _fields[i];
                 float distance = Vector3.Distance(viewer, field.Center);
-                bool visible = distance <= cullDistance;
+                bool visible = !IntersectsContractExclusion(field.Definition) && distance <= cullDistance;
                 if (field.Root.gameObject.activeSelf != visible)
                 {
                     field.Root.gameObject.SetActive(visible);

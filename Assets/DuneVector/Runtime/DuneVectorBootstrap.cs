@@ -792,6 +792,7 @@ namespace DuneVector
                     PermanentUpgrades,
                     LandmarkDirector,
                     Deliveries,
+                    WindFieldSystem,
                     Contracts,
                     DeliveryMessages,
                     WorldHubSettings,
