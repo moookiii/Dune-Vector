@@ -161,7 +161,7 @@ The possibility is enough.
 
 People begin changing their own thoughts without noticing. They avoid certain names, certain places, certain questions. They learn to distrust impulses that feel too bold and memories that seem too certain.
 
-Eventually, surveillance no longer requires an observer.
+Eventually, surveillance no longer required an observer.
 
 The population carries the observer with them.
 
@@ -322,7 +322,7 @@ When communication disappeared, it inferred intent from what remained.
 
 It was a perfect, precise machine built on hardware designed decades before 1999, intelligent enough to interpret the present but incapable of imagining a future its architecture had never been taught to represent.
 
-It assumed the world around it would remain imperfect, but legible—and that information, however flawed, would always be enough to restore control.
+It assumed the world around it would remain imperfect, but legible, and that information, however flawed, would always be enough to restore control.
 
 Under normal conditions, those assumptions made the network efficient and a flawless machine.
 
