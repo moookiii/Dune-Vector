@@ -1108,6 +1108,7 @@ namespace DuneVector
         [Min(0f)] public float PlatformEnergySegmentWidth = 0.32f;
         [Min(0f)] public float PlatformEnergySegmentHeight = 0.12f;
         public float PlatformEnergyRotationSpeed = 7f;
+        [ColorUsage(false, true)] public Color PlatformEnergyColor = new Color(3.8f, 3.8f, 3.8f, 1f);
         [Range(3, 12)] public int HubPylonCount = 6;
         [Min(0f)] public float HubPylonRadius = 22f;
         [Min(0f)] public float HubPylonHeight = 11f;
