@@ -289,7 +289,6 @@ namespace DuneVector
             Contracts,
             MessageArchive,
             FreeRoam,
-            DesertAtlas,
         }
 
         public CourierRunState State { get; private set; }
@@ -304,7 +303,6 @@ namespace DuneVector
         public Transform ContractTerminal => _terminal;
         public Transform MessageArchiveTerminal => _messageArchiveTerminal;
         public Transform FreeRoamTerminal => _freeRoamTerminal;
-        public Transform DesertAtlasTerminal => _desertAtlasTerminal;
         public Transform HubRuneRing => _hubRuneRing;
         public DuneVectorDesertAtlas DesertAtlas { get; private set; }
         public int ArchivedMessageCount => GetArchivedMessageCount();
@@ -372,7 +370,6 @@ namespace DuneVector
         private Transform _terminal;
         private Transform _messageArchiveTerminal;
         private Transform _freeRoamTerminal;
-        private Transform _desertAtlasTerminal;
         private Transform _teleportPlatform;
         private Transform _hubEnergyOrbit;
         private Transform _upgradeEnergyOrbit;
@@ -856,19 +853,12 @@ namespace DuneVector
                 Quaternion.identity);
             _messageArchiveTerminal = BuildPhysicalTerminal(
                 "Physical Message Archive Terminal",
-                Vector3.back * _hubSettings.ArchiveTerminalBackwardOffset,
-                Quaternion.Euler(0f, 180f, 0f));
+                _hubSettings.ArchiveTerminalLocalPosition,
+                Quaternion.Euler(_hubSettings.ArchiveTerminalLocalEulerAngles));
             _freeRoamTerminal = BuildPhysicalTerminal(
                 "Physical Free Roam Terminal",
                 Vector3.left * _hubSettings.FreeRoamTerminalLeftOffset,
                 Quaternion.Euler(0f, -90f, 0f));
-            if (DesertAtlas != null && _desertAtlasSettings.Enabled)
-            {
-                _desertAtlasTerminal = BuildPhysicalTerminal(
-                    "Physical Desert Atlas Terminal",
-                    _desertAtlasSettings.TerminalLocalPosition,
-                    Quaternion.Euler(_desertAtlasSettings.TerminalLocalEulerAngles));
-            }
 
             Transform upgradeArea = new GameObject("Drone Upgrade Area").transform;
             upgradeArea.SetParent(_hubRoot, false);
@@ -2543,11 +2533,6 @@ namespace DuneVector
             {
                 DrawMessageArchiveTerminal();
             }
-            else if (_hubTerminalMode == HubTerminalMode.DesertAtlas &&
-                State == CourierRunState.Hub && DesertAtlas != null)
-            {
-                DesertAtlas.DrawTerminal();
-            }
             else if (State == CourierRunState.Hub && !IsGameplayHudSuppressed)
             {
                 if (_messagePresenter == null || !_messagePresenter.IsOpen)
@@ -3112,9 +3097,6 @@ namespace DuneVector
                 case HubTerminalMode.FreeRoam:
                     terminalName = _hubSettings.FreeRoamTerminalName;
                     break;
-                case HubTerminalMode.DesertAtlas:
-                    terminalName = _desertAtlasSettings.TerminalName;
-                    break;
                 default:
                     terminalName = _hubSettings.ContractTerminalName;
                     break;
@@ -3122,9 +3104,7 @@ namespace DuneVector
             string prompt = distance <= interactionRadius
                 ? mode == HubTerminalMode.FreeRoam
                     ? _hubSettings.FreeRoamTerminalNearbyPrompt
-                    : mode == HubTerminalMode.DesertAtlas && DesertAtlas != null
-                        ? DesertAtlas.GetTerminalPrompt()
-                        : FormatDesignerText(_hubSettings.TerminalNearbyPromptFormat, terminalName)
+                    : FormatDesignerText(_hubSettings.TerminalNearbyPromptFormat, terminalName)
                 : FormatDesignerText(_hubSettings.TerminalDistancePromptFormat, terminalName, distance);
             float promptWidth = Mathf.Min(_hubSettings.TerminalPromptWidth, Screen.width);
             float promptHeight = _hubSettings.TerminalPromptHeight;
@@ -3163,11 +3143,7 @@ namespace DuneVector
             float freeRoamDistance = _freeRoamTerminal != null
                 ? Vector3.Distance(_player.WorldCenter, _freeRoamTerminal.position)
                 : float.PositiveInfinity;
-            float atlasDistance = _desertAtlasTerminal != null
-                ? Vector3.Distance(_player.WorldCenter, _desertAtlasTerminal.position)
-                : float.PositiveInfinity;
-            if (contractDistance <= archiveDistance && contractDistance <= freeRoamDistance &&
-                contractDistance <= atlasDistance && _terminal != null)
+            if (contractDistance <= archiveDistance && contractDistance <= freeRoamDistance && _terminal != null)
             {
                 mode = HubTerminalMode.Contracts;
                 terminal = _terminal;
@@ -3175,7 +3151,7 @@ namespace DuneVector
                 interactionRadius = _hubSettings.TerminalInteractionRadius;
                 return true;
             }
-            if (archiveDistance <= freeRoamDistance && archiveDistance <= atlasDistance && _messageArchiveTerminal != null)
+            if (archiveDistance <= freeRoamDistance && _messageArchiveTerminal != null)
             {
                 mode = HubTerminalMode.MessageArchive;
                 terminal = _messageArchiveTerminal;
@@ -3183,20 +3159,12 @@ namespace DuneVector
                 interactionRadius = _hubSettings.ArchiveTerminalInteractionRadius;
                 return true;
             }
-            if (freeRoamDistance <= atlasDistance && _freeRoamTerminal != null)
+            if (_freeRoamTerminal != null)
             {
                 mode = HubTerminalMode.FreeRoam;
                 terminal = _freeRoamTerminal;
                 distance = freeRoamDistance;
                 interactionRadius = _hubSettings.FreeRoamTerminalInteractionRadius;
-                return true;
-            }
-            if (_desertAtlasTerminal != null)
-            {
-                mode = HubTerminalMode.DesertAtlas;
-                terminal = _desertAtlasTerminal;
-                distance = atlasDistance;
-                interactionRadius = _desertAtlasSettings.TerminalInteractionRadius;
                 return true;
             }
             return false;

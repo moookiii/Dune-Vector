@@ -254,18 +254,17 @@ namespace DuneVector
                     "Hub rune ring follows floating-origin hub shifts",
                     "The rune ring was not parented into the runtime hub hierarchy.");
             }
-            if (courier.ContractTerminal != null && courier.MessageArchiveTerminal != null)
+            if (courier.MessageArchiveTerminal != null)
             {
-                Vector3 contractToArchive = Vector3.ProjectOnPlane(
-                    courier.MessageArchiveTerminal.position - courier.ContractTerminal.position,
+                Vector3 spawnToArchive = Vector3.ProjectOnPlane(
+                    courier.MessageArchiveTerminal.position - courier.HubSpawnPosition,
                     Vector3.up).normalized;
-                Vector3 archiveToContract = -contractToArchive;
-                bool screensFaceEachOther =
-                    Vector3.Dot(-courier.ContractTerminal.forward, contractToArchive) > 0.98f &&
-                    Vector3.Dot(-courier.MessageArchiveTerminal.forward, archiveToContract) > 0.98f;
-                Check(screensFaceEachOther,
-                    "Hub terminal screens face one another",
-                    "The contract and archive terminal screen sides were not oriented toward each other.");
+                bool archiveOccupiesFormerAtlasPosition =
+                    Vector3.Dot(Vector3.right, spawnToArchive) > 0.98f &&
+                    Vector3.Dot(-courier.MessageArchiveTerminal.forward, -spawnToArchive) > 0.98f;
+                Check(archiveOccupiesFormerAtlasPosition,
+                    "Message archive occupies the former Atlas terminal position",
+                    "The message archive was not positioned right of the hub spawn and facing the player.");
             }
             if (courier.FreeRoamTerminal != null)
             {
