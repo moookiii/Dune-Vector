@@ -1076,44 +1076,30 @@ namespace DuneVector
             GameObject model,
             VesperKiteTuning settings)
         {
-            AnimationClip[] clips =
-                Resources.LoadAll<AnimationClip>(settings.PrefabAnimationResourcePath);
-            AnimationClip clip = null;
-            for (int i = 0; i < clips.Length; i++)
-            {
-                if (clips[i] != null && !clips[i].name.StartsWith("__preview__"))
-                {
-                    clip = clips[i];
-                    break;
-                }
-            }
-
             Animator[] animators = model.GetComponentsInChildren<Animator>(true);
             for (int i = 0; i < animators.Length; i++)
             {
                 Animator animator = animators[i];
-                if (clip == null)
+                animator.enabled = true;
+                animator.applyRootMotion = false;
+                animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+                animator.speed = Mathf.Max(0f, settings.PrefabAnimationSpeed);
+                animator.Rebind();
+
+                int stateHash = Animator.StringToHash(
+                    settings.PrefabAnimationStateName);
+                if (animator.HasState(0, stateHash))
                 {
-                    animator.enabled = true;
-                    animator.applyRootMotion = false;
-                    animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-                    continue;
+                    animator.Play(stateHash, 0, 0f);
+                }
+                else
+                {
+                    Debug.LogWarning(
+                        $"Vesper Kite Animator does not contain state " +
+                        $"'{settings.PrefabAnimationStateName}'.");
                 }
 
-                animator.enabled = false;
-                DuneVectorLoopingClipPlayer player =
-                    animator.gameObject.AddComponent<DuneVectorLoopingClipPlayer>();
-                player.Initialize(
-                    animator.gameObject,
-                    clip,
-                    settings.PrefabAnimationSpeed);
-            }
-
-            if (clip == null)
-            {
-                Debug.LogWarning(
-                    "Vesper Kite animation clip was not found at Resources/" +
-                    settings.PrefabAnimationResourcePath + ".");
+                animator.Update(0f);
             }
         }
 
@@ -3668,40 +3654,6 @@ namespace DuneVector
             trail.emitting = true;
             trail.shadowCastingMode = ShadowCastingMode.Off;
             trail.receiveShadows = false;
-        }
-    }
-
-    [DisallowMultipleComponent]
-    public sealed class DuneVectorLoopingClipPlayer : MonoBehaviour
-    {
-        private GameObject _target;
-        private AnimationClip _clip;
-        private float _speed;
-        private float _time;
-
-        public void Initialize(
-            GameObject target,
-            AnimationClip clip,
-            float speed)
-        {
-            _target = target;
-            _clip = clip;
-            _speed = Mathf.Max(0f, speed);
-            _time = 0f;
-            _clip.SampleAnimation(_target, _time);
-        }
-
-        private void Update()
-        {
-            if (_target == null || _clip == null)
-            {
-                return;
-            }
-
-            _time = Mathf.Repeat(
-                _time + (Time.deltaTime * _speed),
-                Mathf.Max(Mathf.Epsilon, _clip.length));
-            _clip.SampleAnimation(_target, _time);
         }
     }
 
