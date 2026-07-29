@@ -1488,6 +1488,14 @@ namespace DuneVector
                 TryCalculateLocalMeshBounds(root.transform, renderers, out bounds);
             }
             visual.transform.localPosition += new Vector3(-bounds.center.x, -bounds.min.y, -bounds.center.z);
+            Bounds photographyBounds = new Bounds(
+                new Vector3(0f, bounds.extents.y, 0f),
+                bounds.size);
+            DuneVectorPhotographableMarker.Register(
+                root,
+                DuneVectorCompendiumSubjectIds.Pyramid,
+                PhotographableSubjectCategory.Misc,
+                photographyBounds);
 
             GameObject colliderObject = new GameObject("Pyramid Collider");
             colliderObject.transform.SetParent(root.transform, false);

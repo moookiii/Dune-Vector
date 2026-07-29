@@ -231,6 +231,16 @@ namespace DuneVector
             }
 
             Vector3 origin = camera.transform.position;
+            if (_hasCustomFramingBounds && !HasFramingRenderer())
+            {
+                Vector3 point = transform.TransformPoint(_customFramingBounds.center);
+                Vector3 viewport = camera.WorldToViewportPoint(point);
+                return viewport.z > camera.nearClipPlane &&
+                    IsPointVisible(origin, point, settings)
+                        ? 1f
+                        : 0f;
+            }
+
             int visible = 0;
             int sampleCount = 0;
             for (int rendererIndex = 0; rendererIndex < _renderers.Length; rendererIndex++)
@@ -249,41 +259,55 @@ namespace DuneVector
                 }
 
                 sampleCount++;
-                Vector3 direction = point - origin;
-                float distance = direction.magnitude;
-                if (distance <= settings.OcclusionRayEndTolerance)
-                {
-                    visible++;
-                    continue;
-                }
-
-                int hitCount = Physics.RaycastNonAlloc(
-                    origin,
-                    direction / Mathf.Max(0.001f, distance),
-                    _occlusionHits,
-                    distance,
-                    settings.OcclusionLayers,
-                    QueryTriggerInteraction.Ignore);
-                bool blocked = false;
-                for (int hitIndex = 0; hitIndex < hitCount; hitIndex++)
-                {
-                    Transform hitTransform = _occlusionHits[hitIndex].transform;
-                    if (hitTransform == null || hitTransform == transform || hitTransform.IsChildOf(transform))
-                    {
-                        continue;
-                    }
-                    if (_occlusionHits[hitIndex].distance < distance - settings.OcclusionRayEndTolerance)
-                    {
-                        blocked = true;
-                        break;
-                    }
-                }
-                if (!blocked)
+                if (IsPointVisible(origin, point, settings))
                 {
                     visible++;
                 }
             }
             return sampleCount > 0 ? visible / (float)sampleCount : 0f;
+        }
+
+        private bool IsPointVisible(Vector3 origin, Vector3 point, PhotographyTuning settings)
+        {
+            Vector3 direction = point - origin;
+            float distance = direction.magnitude;
+            if (distance <= settings.OcclusionRayEndTolerance)
+            {
+                return true;
+            }
+
+            int hitCount = Physics.RaycastNonAlloc(
+                origin,
+                direction / Mathf.Max(0.001f, distance),
+                _occlusionHits,
+                distance,
+                settings.OcclusionLayers,
+                QueryTriggerInteraction.Ignore);
+            for (int hitIndex = 0; hitIndex < hitCount; hitIndex++)
+            {
+                Transform hitTransform = _occlusionHits[hitIndex].transform;
+                if (hitTransform == null || hitTransform == transform || hitTransform.IsChildOf(transform))
+                {
+                    continue;
+                }
+                if (_occlusionHits[hitIndex].distance < distance - settings.OcclusionRayEndTolerance)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private bool HasFramingRenderer()
+        {
+            for (int i = 0; i < _renderers.Length; i++)
+            {
+                if (IsFramingRenderer(_renderers[i]))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void RefreshRenderers()
