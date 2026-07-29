@@ -263,6 +263,14 @@ namespace DuneVector
             _previousWorldPosition = worldPosition;
             _hasPreviousWorldPosition = true;
 
+            if (RingType != TraversalRingType.UpperFlight)
+            {
+                UpdateVisualPresentation(deltaTime);
+            }
+        }
+
+        private void UpdateVisualPresentation(float deltaTime)
+        {
             _pulse = Mathf.MoveTowards(_pulse, 0f, deltaTime * 1.8f);
             if (_visualRoot != null)
             {
@@ -320,17 +328,22 @@ namespace DuneVector
             return Mathf.Lerp(FlightModeScale, maximumSpeedScale, speedNormalized);
         }
 
-        internal void LateTick(Camera viewCamera)
+        internal void LateTick(float deltaTime, Camera viewCamera)
         {
-            LateTickSelf(viewCamera);
-            _upperLayerRing?.LateTick(viewCamera);
+            LateTickSelf(deltaTime, viewCamera);
+            _upperLayerRing?.LateTick(deltaTime, viewCamera);
         }
 
-        private void LateTickSelf(Camera viewCamera)
+        private void LateTickSelf(float deltaTime, Camera viewCamera)
         {
             if (!isActiveAndEnabled || _visualRoot == null)
             {
                 return;
+            }
+
+            if (RingType == TraversalRingType.UpperFlight)
+            {
+                UpdateVisualPresentation(deltaTime);
             }
 
             if (viewCamera != null)

@@ -1476,7 +1476,7 @@ namespace DuneVector
             {
                 if (_rings[i] != null)
                 {
-                    _rings[i].LateTick(viewCamera);
+                    _rings[i].LateTick(deltaTime, viewCamera);
                 }
             }
         }
