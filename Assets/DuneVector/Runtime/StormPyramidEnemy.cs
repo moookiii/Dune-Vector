@@ -58,49 +58,6 @@ namespace DuneVector
         }
     }
 
-    internal static class HighAltitudeEnemySpawn
-    {
-        public static float SelectHeightAboveGround(
-            DesertWorldStreamer world,
-            float hoverHeight,
-            float hoverHeightVariance,
-            float normalizedHeight)
-        {
-            float variance = Mathf.Max(0f, hoverHeightVariance);
-            float minimumHeight = hoverHeight - variance;
-            float maximumHeight = hoverHeight + variance;
-            if (world != null && world.IsUpperFlightRingUnlocked)
-            {
-                maximumHeight = world.Rings.UpperFlightRingMaximumHeight;
-            }
-
-            return Mathf.Lerp(
-                minimumHeight,
-                Mathf.Max(minimumHeight, maximumHeight),
-                Mathf.Clamp01(normalizedHeight));
-        }
-
-        public static float RemapWorldAltitudeForUnlockedLayer(
-            DesertWorldStreamer world,
-            Vector3 position,
-            float currentWorldAltitude,
-            float hoverHeight,
-            float hoverHeightVariance)
-        {
-            float terrainHeight = world.SampleHeightAtLocal(position.x, position.z);
-            float variance = Mathf.Max(0f, hoverHeightVariance);
-            float normalizedHeight = Mathf.InverseLerp(
-                hoverHeight - variance,
-                hoverHeight + variance,
-                currentWorldAltitude - terrainHeight);
-            return terrainHeight + SelectHeightAboveGround(
-                world,
-                hoverHeight,
-                variance,
-                normalizedHeight);
-        }
-    }
-
     [DisallowMultipleComponent]
     public sealed class StormPyramidEnemy : MonoBehaviour
     {
@@ -457,7 +414,6 @@ namespace DuneVector
         private float _phase;
         private int _identity;
         private int _repositionCount;
-        private bool _upperFlightLayerWasUnlocked;
 
         public void Initialize(
             DroneCharacterController player,
@@ -472,12 +428,10 @@ namespace DuneVector
             _phase = identity * 1.713f;
             _patrolCenter = transform.position;
             _fixedAltitude = transform.position.y;
-            _upperFlightLayerWasUnlocked = world.IsUpperFlightRingUnlocked;
         }
 
         public void Tick(float deltaTime)
         {
-            ApplyUpperFlightLayerUnlock();
             float range = Mathf.Max(0f, _settings.PatrolDriftRange);
             float speed = Mathf.Max(0f, _settings.PatrolDriftSpeed) *
                 DuneVectorContractRisk.EnemySpeedMultiplier;
@@ -501,23 +455,6 @@ namespace DuneVector
             transform.position = levelPosition;
         }
 
-        private void ApplyUpperFlightLayerUnlock()
-        {
-            if (_upperFlightLayerWasUnlocked || !_world.IsUpperFlightRingUnlocked)
-            {
-                return;
-            }
-
-            _upperFlightLayerWasUnlocked = true;
-            _fixedAltitude = HighAltitudeEnemySpawn.RemapWorldAltitudeForUnlockedLayer(
-                _world,
-                transform.position,
-                _fixedAltitude,
-                _settings.HoverHeight,
-                _settings.HoverHeightVariance);
-            _patrolCenter.y = _fixedAltitude;
-        }
-
         public void RepositionNearPlayer()
         {
             _repositionCount++;
@@ -531,12 +468,11 @@ namespace DuneVector
             Vector3 playerPosition = _player.WorldCenter;
             Vector3 position = playerPosition + new Vector3(Mathf.Cos(angle) * distance, 0f, Mathf.Sin(angle) * distance);
             float terrainHeight = _world.SampleHeightAtLocal(position.x, position.z);
-            float heightAboveGround = HighAltitudeEnemySpawn.SelectHeightAboveGround(
-                _world,
-                _settings.HoverHeight,
+            float heightVariation = Mathf.Lerp(
+                -_settings.HoverHeightVariance,
                 _settings.HoverHeightVariance,
                 Mathf.Repeat((_identity * 0.619f) + (_repositionCount * 0.347f), 1f));
-            position.y = terrainHeight + heightAboveGround;
+            position.y = terrainHeight + _settings.HoverHeight + heightVariation;
             transform.position = position;
             _patrolCenter = position;
             _fixedAltitude = position.y;
@@ -1540,7 +1476,6 @@ namespace DuneVector
         private float _phase;
         private int _identity;
         private int _repositionCount;
-        private bool _upperFlightLayerWasUnlocked;
 
         public void Initialize(
             DroneCharacterController player,
@@ -1555,12 +1490,10 @@ namespace DuneVector
             _phase = identity * 1.421f;
             _patrolCenter = transform.position;
             _fixedAltitude = transform.position.y;
-            _upperFlightLayerWasUnlocked = world.IsUpperFlightRingUnlocked;
         }
 
         public void Tick(float deltaTime)
         {
-            ApplyUpperFlightLayerUnlock();
             float range = Mathf.Max(0f, _settings.PatrolDriftRange);
             float speed = Mathf.Max(0f, _settings.PatrolDriftSpeed) *
                 DuneVectorContractRisk.EnemySpeedMultiplier;
@@ -1580,23 +1513,6 @@ namespace DuneVector
             transform.position = levelPosition;
         }
 
-        private void ApplyUpperFlightLayerUnlock()
-        {
-            if (_upperFlightLayerWasUnlocked || !_world.IsUpperFlightRingUnlocked)
-            {
-                return;
-            }
-
-            _upperFlightLayerWasUnlocked = true;
-            _fixedAltitude = HighAltitudeEnemySpawn.RemapWorldAltitudeForUnlockedLayer(
-                _world,
-                transform.position,
-                _fixedAltitude,
-                _settings.HoverHeight,
-                _settings.HoverHeightVariance);
-            _patrolCenter.y = _fixedAltitude;
-        }
-
         public void RepositionNearPlayer()
         {
             _repositionCount++;
@@ -1610,12 +1526,13 @@ namespace DuneVector
                 Mathf.Cos(angle) * distance,
                 0f,
                 Mathf.Sin(angle) * distance);
-            float heightAboveGround = HighAltitudeEnemySpawn.SelectHeightAboveGround(
-                _world,
-                _settings.HoverHeight,
+            float heightVariation = Mathf.Lerp(
+                -_settings.HoverHeightVariance,
                 _settings.HoverHeightVariance,
                 Mathf.Repeat((_identity * 0.593f) + (_repositionCount * 0.331f), 1f));
-            position.y = _world.SampleHeightAtLocal(position.x, position.z) + heightAboveGround;
+            position.y = _world.SampleHeightAtLocal(position.x, position.z)
+                + _settings.HoverHeight
+                + heightVariation;
             transform.position = position;
             _patrolCenter = position;
             _fixedAltitude = position.y;
@@ -2299,13 +2216,13 @@ namespace DuneVector
                 Mathf.Cos(angle) * distance,
                 0f,
                 Mathf.Sin(angle) * distance);
-            float heightAboveGround = HighAltitudeEnemySpawn.SelectHeightAboveGround(
-                _world,
-                _settings.HoverHeight,
+            float heightVariation = Mathf.Lerp(
+                -_settings.HoverHeightVariance,
                 _settings.HoverHeightVariance,
                 (float)random.NextDouble());
             spawnPosition.y = _world.SampleHeightAtLocal(spawnPosition.x, spawnPosition.z)
-                + heightAboveGround;
+                + _settings.HoverHeight
+                + heightVariation;
 
             GameObject enemyObject = new GameObject(objectName);
             enemyObject.transform.SetParent(transform, true);
@@ -2335,13 +2252,13 @@ namespace DuneVector
                 Mathf.Cos(angle) * distance,
                 0f,
                 Mathf.Sin(angle) * distance);
-            float heightAboveGround = HighAltitudeEnemySpawn.SelectHeightAboveGround(
-                _world,
-                _orbSettings.HoverHeight,
+            float heightVariation = Mathf.Lerp(
+                -_orbSettings.HoverHeightVariance,
                 _orbSettings.HoverHeightVariance,
                 (float)random.NextDouble());
             spawnPosition.y = _world.SampleHeightAtLocal(spawnPosition.x, spawnPosition.z)
-                + heightAboveGround;
+                + _orbSettings.HoverHeight
+                + heightVariation;
 
             GameObject enemyObject = new GameObject(objectName);
             enemyObject.transform.SetParent(transform, true);
