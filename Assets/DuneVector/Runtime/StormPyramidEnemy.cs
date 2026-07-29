@@ -12,6 +12,7 @@ namespace DuneVector
         ChargingAttack,
         FiringLightning,
         Cooldown,
+        TriggeredWindUp,
     }
 
     public enum StormLightningAttackType
@@ -69,9 +70,10 @@ namespace DuneVector
         private StormPyramidMovement _movement;
         private StormPyramidTargeting _targeting;
         private StormPyramidLightningAttack _lightning;
+        private GroundExploderProximity _proximity;
         private DuneVectorMaterials _materials;
         private GroundExploderTuning _explosionSettings;
-        private EnemyHealth _enemyHealth;
+        private EnemyCombatTarget _combatTarget;
         private Transform _visual;
         private Transform _core;
         private Transform _counterRotator;
@@ -103,13 +105,15 @@ namespace DuneVector
             Transform halo = _visual.Find("Charge Halo");
             Transform lightningOrigin = _visual.Find("Lightning Origin");
 
-            _enemyHealth = gameObject.AddComponent<EnemyHealth>();
-            _enemyHealth.Initialize(settings.MaximumHealth);
-            _enemyHealth.Died += HandleDeath;
-            EnemyCombatTarget combatTarget = gameObject.AddComponent<EnemyCombatTarget>();
-            combatTarget.Initialize(_enemyHealth, settings.VisualScale);
+            EnemyHealth enemyHealth = gameObject.AddComponent<EnemyHealth>();
+            enemyHealth.Initialize(settings.MaximumHealth);
+            _combatTarget = gameObject.AddComponent<EnemyCombatTarget>();
+            _combatTarget.Initialize(enemyHealth, settings.VisualScale);
             EnemyGoldReward goldReward = gameObject.AddComponent<EnemyGoldReward>();
-            goldReward.Initialize(_enemyHealth, player != null ? player.GetComponent<DroneGoldWallet>() : null, settings.GoldReward);
+            goldReward.Initialize(enemyHealth, player != null ? player.GetComponent<DroneGoldWallet>() : null, settings.GoldReward);
+
+            _proximity = gameObject.AddComponent<GroundExploderProximity>();
+            _proximity.BindTarget(player);
 
             _movement = gameObject.AddComponent<StormPyramidMovement>();
             _movement.Initialize(player, world, settings, identity);
@@ -158,7 +162,24 @@ namespace DuneVector
                 return;
             }
 
-            _stateTime += deltaTime;
+            float stateRate = CurrentState == StormPyramidState.TriggeredWindUp
+                ? DuneVectorContractRisk.EnemyAttackRateMultiplier
+                : 1f;
+            _stateTime += deltaTime * stateRate;
+
+            if (CurrentState == StormPyramidState.TriggeredWindUp)
+            {
+                UpdateDetonationWindUp();
+                UpdatePresentation(deltaTime);
+                return;
+            }
+
+            if (_proximity.IsTargetInside(_explosionSettings.DetectionRadius))
+            {
+                BeginDetonationWindUp();
+                UpdatePresentation(deltaTime);
+                return;
+            }
 
             bool mayDrift = CurrentState == StormPyramidState.IdleHovering
                 || CurrentState == StormPyramidState.Cooldown;
@@ -168,7 +189,8 @@ namespace DuneVector
             }
 
             bool mayReposition = CurrentState != StormPyramidState.ChargingAttack
-                && CurrentState != StormPyramidState.FiringLightning;
+                && CurrentState != StormPyramidState.FiringLightning
+                && CurrentState != StormPyramidState.TriggeredWindUp;
             if (mayReposition && _movement.HorizontalDistanceFromPlayer > _settings.RepositionDistance)
             {
                 RepositionNearPlayer();
@@ -190,6 +212,8 @@ namespace DuneVector
                     break;
                 case StormPyramidState.Cooldown:
                     UpdateCooldown();
+                    break;
+                case StormPyramidState.TriggeredWindUp:
                     break;
             }
 
@@ -239,6 +263,29 @@ namespace DuneVector
                 _attackTimer = GetAttackInterval();
                 SetState(StormPyramidState.IdleHovering);
             }
+        }
+
+        private void BeginDetonationWindUp()
+        {
+            _lightning.CancelAttack();
+            SetState(StormPyramidState.TriggeredWindUp);
+        }
+
+        private void UpdateDetonationWindUp()
+        {
+            if (_stateTime < _explosionSettings.WindUpDuration)
+            {
+                return;
+            }
+
+            _combatTarget.SetTargetable(false);
+            GroundExploderExplosionEffect.Spawn(
+                transform.position,
+                _player,
+                _playerHealth,
+                _materials,
+                _explosionSettings);
+            Destroy(gameObject);
         }
 
         private void UpdatePresentation(float deltaTime)
@@ -328,24 +375,6 @@ namespace DuneVector
             _lightning.ApplyWorldShift(shift);
         }
 
-        private void HandleDeath()
-        {
-            GroundExploderExplosionEffect.Spawn(
-                transform.position,
-                _player,
-                _playerHealth,
-                _materials,
-                _explosionSettings);
-        }
-
-        private void OnDestroy()
-        {
-            if (_enemyHealth != null)
-            {
-                _enemyHealth.Died -= HandleDeath;
-            }
-        }
-
         public bool TryGetThreatWarning(out StormPyramidThreatWarning warning)
         {
             if (_player == null || _playerHealth == null || _playerHealth.IsDead)
@@ -386,6 +415,15 @@ namespace DuneVector
             Gizmos.DrawWireSphere(
                 _lightning != null ? _lightning.TargetPosition : transform.position,
                 _settings.EvaluateStrikeRadius(DuneVectorContractRisk.CurrentRisk));
+            if (_explosionSettings != null)
+            {
+                Gizmos.color = new Color(1f, 0.65f, 0.05f, 0.55f);
+                Gizmos.DrawWireSphere(transform.position, _explosionSettings.DetectionRadius);
+                Gizmos.color = new Color(1f, 0.12f, 0.02f, 0.65f);
+                Gizmos.DrawWireSphere(
+                    transform.position,
+                    _explosionSettings.EvaluateExplosionRadius(DuneVectorContractRisk.CurrentRisk));
+            }
         }
     }
 
