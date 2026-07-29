@@ -1256,11 +1256,12 @@ namespace DuneVector
 
             Color mapColor = _settings.GeoglyphMapColor;
             mapColor.a *= _settings.GeoglyphMapOpacity;
-            ConfigureGeoglyphMapSurface(ref mapColor);
+            Color haloColor = _settings.GeoglyphMapHaloColor;
+            ConfigureGeoglyphMapSurface(ref mapColor, ref haloColor);
             _geoglyphMapMaterial.SetColor("_Color", mapColor);
             _geoglyphMapMaterial.SetColor(
                 "_HaloColor",
-                _settings.GeoglyphMapHaloColor);
+                haloColor);
             _geoglyphMapMaterial.SetFloat(
                 "_HaloWidthPixels",
                 Mathf.Max(0f, _settings.GeoglyphMapHaloWidthPixels));
@@ -1314,7 +1315,9 @@ namespace DuneVector
             return result;
         }
 
-        private void ConfigureGeoglyphMapSurface(ref Color mapColor)
+        private void ConfigureGeoglyphMapSurface(
+            ref Color mapColor,
+            ref Color haloColor)
         {
             AtlasGlyphMaterialUnlockTuning tuning =
                 _permanentUpgrades?.AtlasGlyphMaterialTuning;
@@ -1349,6 +1352,9 @@ namespace DuneVector
             mapColor.r *= materialColor.r * tuning.GlyphMapColor.r;
             mapColor.g *= materialColor.g * tuning.GlyphMapColor.g;
             mapColor.b *= materialColor.b * tuning.GlyphMapColor.b;
+            haloColor.r = tuning.GlyphMapColor.r;
+            haloColor.g = tuning.GlyphMapColor.g;
+            haloColor.b = tuning.GlyphMapColor.b;
             _geoglyphMapMaterial.SetTexture("_SurfaceTexture", surfaceTexture);
             _geoglyphMapMaterial.SetVector(
                 "_SurfaceTextureTransform",
