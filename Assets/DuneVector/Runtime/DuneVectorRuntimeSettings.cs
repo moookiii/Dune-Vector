@@ -2546,6 +2546,13 @@ namespace DuneVector
         [Min(0.01f)] public float ReflectedCollisionRadius = 3.4f;
 
         [Header("Vesper Kite Presentation")]
+        [Tooltip("Use the original procedural Vesper Kite instead of the configured prefab.")]
+        public bool UseProceduralVisualFallback;
+        [Tooltip("Resources path for the Vesper Kite prefab visual.")]
+        public string PrefabResourcePath = "mantaPrefab";
+        public Vector3 PrefabLocalPosition = Vector3.zero;
+        public Vector3 PrefabLocalEulerAngles = Vector3.zero;
+        public Vector3 PrefabLocalScale = Vector3.one;
         [Min(0.1f)] public float VisualScale = 5.5f;
         public Vector3 BodyScale = new Vector3(1.25f, 0.22f, 1.65f);
         public Vector3 WingScale = new Vector3(1.85f, 0.12f, 1.15f);

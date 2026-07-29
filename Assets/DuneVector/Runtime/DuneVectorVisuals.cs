@@ -2034,6 +2034,25 @@ namespace DuneVector
             root.SetParent(parent, false);
             root.localScale = Vector3.one * settings.VisualScale;
 
+            if (!settings.UseProceduralVisualFallback)
+            {
+                GameObject prefab = Resources.Load<GameObject>(settings.PrefabResourcePath);
+                if (prefab != null)
+                {
+                    GameObject model = UnityEngine.Object.Instantiate(prefab, root);
+                    model.name = prefab.name;
+                    model.transform.localPosition = settings.PrefabLocalPosition;
+                    model.transform.localRotation =
+                        Quaternion.Euler(settings.PrefabLocalEulerAngles);
+                    model.transform.localScale = settings.PrefabLocalScale;
+                    return root;
+                }
+
+                Debug.LogWarning(
+                    $"Vesper Kite prefab was not found at Resources/{settings.PrefabResourcePath}. " +
+                    "Using the procedural fallback.");
+            }
+
             CreatePart(
                 PrimitiveType.Sphere,
                 "Obsidian Body",
