@@ -2474,8 +2474,6 @@ namespace DuneVector
         [Min(0.1f)] public float ReflectedSpeedMultiplier = 1.45f;
         [Min(0f)] public float ReflectedTurnRate = 220f;
         [Min(0.01f)] public float ReflectedCollisionRadius = 3.4f;
-        [Min(0f)] public float ReflectedBaseDamage = 34f;
-        [Min(0f)] public float ReflectedMaximumBonusDamage = 86f;
 
         [Header("Vesper Kite Presentation")]
         [Min(0.1f)] public float VisualScale = 5.5f;

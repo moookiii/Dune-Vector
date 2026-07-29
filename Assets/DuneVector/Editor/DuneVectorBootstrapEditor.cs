@@ -311,7 +311,7 @@ namespace DuneVector.Editor
                 _playerStrikeOrbs);
             DuneVectorSettingsInspector.DrawSection(
                 "Vesper Kites",
-                "Extreme-altitude patrol, accelerating Redshift Processions, portal severance, and reflected-lance damage.",
+                "Extreme-altitude patrol, accelerating Redshift Processions, portal severance, and harmless return-flight presentation.",
                 _vesperKites);
             DuneVectorSettingsInspector.DrawSection(
                 "Ground Exploders",

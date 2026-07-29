@@ -362,7 +362,6 @@ namespace DuneVector
         private LineRenderer _tether;
         private Vector3 _direction;
         private float _speed;
-        private float _reflectedDamage;
         private float _ringRotation;
         private bool _finished;
 
@@ -470,7 +469,6 @@ namespace DuneVector
                     _owner.transform.position,
                     _settings.ReflectedCollisionRadius))
                 {
-                    _sourceHealth.TakeDamage(_reflectedDamage);
                     Finish();
                     return;
                 }
@@ -561,14 +559,6 @@ namespace DuneVector
                 return;
             }
 
-            float riskSpeedMultiplier = DuneVectorContractRisk.EnemySpeedMultiplier;
-            float initialSpeed = _settings.PilgrimInitialSpeed;
-            float maximumSpeed = Mathf.Max(
-                initialSpeed,
-                _settings.PilgrimMaximumSpeed) * riskSpeedMultiplier;
-            float speedProgress = Mathf.InverseLerp(initialSpeed, maximumSpeed, _speed);
-            _reflectedDamage = _settings.ReflectedBaseDamage +
-                (_settings.ReflectedMaximumBonusDamage * speedProgress);
             _cachedTransform.position = crossing.Position +
                 (crossing.TravelDirection * _settings.PortalExitOffset);
             _direction = crossing.TravelDirection;
