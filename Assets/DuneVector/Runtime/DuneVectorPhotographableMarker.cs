@@ -25,6 +25,11 @@ namespace DuneVector
         {
             return $"misc:ring:{(int)type}";
         }
+
+        public static string ForCactus(string variantName)
+        {
+            return $"misc:cactus:{variantName}";
+        }
     }
 
     [DisallowMultipleComponent]

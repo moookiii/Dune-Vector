@@ -1300,7 +1300,15 @@ namespace DuneVector
             collider.height = localBounds.size.y;
             collider.radius = Mathf.Max(localBounds.extents.x, localBounds.extents.z);
 
-            DuneVectorSpatialInstancing.Capture(model, false);
+            DuneVectorPhotographableMarker.Register(
+                model,
+                DuneVectorCompendiumSubjectIds.ForCactus(models[modelIndex].name),
+                PhotographableSubjectCategory.Misc,
+                localBounds);
+            DuneVectorSpatialInstancing.Capture(
+                model,
+                false,
+                retainPhotographyRenderer: true);
             return root;
         }
 
