@@ -1072,6 +1072,20 @@ namespace DuneVector
             }
         }
 
+        private static void EnableImportedAnimationPlayback(GameObject model)
+        {
+            Animator[] animators = model.GetComponentsInChildren<Animator>(true);
+            for (int i = 0; i < animators.Length; i++)
+            {
+                Animator animator = animators[i];
+                animator.enabled = true;
+                animator.applyRootMotion = false;
+                animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+                animator.Rebind();
+                animator.Update(0f);
+            }
+        }
+
         private static Transform[] FindPropellerRotors(Transform root)
         {
             const int propellerCount = 4;
@@ -2045,6 +2059,7 @@ namespace DuneVector
                     model.transform.localRotation =
                         Quaternion.Euler(settings.PrefabLocalEulerAngles);
                     model.transform.localScale = settings.PrefabLocalScale;
+                    EnableImportedAnimationPlayback(model);
                     return root;
                 }
 
