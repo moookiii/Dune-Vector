@@ -42,7 +42,7 @@ namespace DuneVector
         [Min(0f)] public float InwardAcceleration = 30f;
         [Min(0f)] public float TrajectorySpinDegreesPerSecond = 115f;
         [Tooltip("How quickly the drone spins with the funnel during control loss. Outside control loss, funnel influence scales this rate.")]
-        [Min(0f)] public float DroneSpinDegreesPerSecond = 600f;
+        [Min(0f)] public float DroneSpinDegreesPerSecond = 1200f;
         [Range(0f, 1f)] public float GroundLaunchInfluenceThreshold = 0.2f;
         [Tooltip("One-time minimum upward speed applied when the drone crosses into the funnel's launch influence, even if it misses the core.")]
         [Min(0f)] public float MinimumEntryLaunchSpeed = 52f;
