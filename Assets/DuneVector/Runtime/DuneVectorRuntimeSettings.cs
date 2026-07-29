@@ -2508,15 +2508,15 @@ namespace DuneVector
         [Range(1, 16)] public int MaximumActivePilgrims = 6;
         [Min(0f)] public float PilgrimSpawnRadius = 4.2f;
         [Min(0f)] public float PilgrimSpawnForwardOffset = 1.2f;
-        [Min(0.1f)] public float PilgrimInitialSpeed = 20f;
+        [Min(0.1f)] public float PilgrimInitialSpeed = 4f;
         [Tooltip("Pilgrim acceleration at risk 0.")]
-        [Min(0f)] public float PilgrimAcceleration = 8f;
+        [Min(0f)] public float PilgrimAcceleration = 1.6f;
         [Tooltip("Pilgrim acceleration at the pilgrim movement risk ceiling.")]
-        [Min(0f)] public float PilgrimAccelerationAtRiskCeiling = 24f;
+        [Min(0f)] public float PilgrimAccelerationAtRiskCeiling = 4.8f;
         [Tooltip("Pilgrim maximum speed at risk 0.")]
-        [Min(0.1f)] public float PilgrimMaximumSpeed = 180f;
+        [Min(0.1f)] public float PilgrimMaximumSpeed = 36f;
         [Tooltip("Pilgrim maximum speed at the pilgrim movement risk ceiling.")]
-        [Min(0.1f)] public float PilgrimMaximumSpeedAtRiskCeiling = 360f;
+        [Min(0.1f)] public float PilgrimMaximumSpeedAtRiskCeiling = 72f;
         [Tooltip("Pilgrim turn rate in degrees per second at risk 0.")]
         [Min(0f)] public float PilgrimTurnRate = 82f;
         [Tooltip("Pilgrim turn rate in degrees per second at the pilgrim movement risk ceiling.")]
@@ -2525,14 +2525,14 @@ namespace DuneVector
         [Min(1)] public int PilgrimMovementRiskCeiling = 20;
         [Tooltip("Height above the local dune surface where pilgrim movement scaling and perfect turn tracking reach their maximum.")]
         [Min(0.1f)] public float PilgrimAltitudeScalingHeight = 225f;
-        [Tooltip("Ease-in curve used to scale Pilgrim maximum speed from ground level to the altitude scaling height.")]
+        [Tooltip("Ease-in curve used to scale Pilgrim acceleration and maximum speed from ground level to the altitude scaling height.")]
         public AnimationCurve PilgrimAltitudeSpeedCurve = new AnimationCurve(
             new Keyframe(0f, 0f, 0f, 0f),
             new Keyframe(1f, 1f, 2f, 2f));
         [Tooltip("Maximum-speed multiplier reached at the pilgrim altitude scaling height.")]
-        [Min(1f)] public float PilgrimMaximumSpeedAltitudeMultiplier = 3f;
+        [Min(1f)] public float PilgrimMaximumSpeedAltitudeMultiplier = 5f;
         [Tooltip("Acceleration multiplier reached at the pilgrim altitude scaling height.")]
-        [Min(1f)] public float PilgrimAccelerationAltitudeMultiplier = 3f;
+        [Min(1f)] public float PilgrimAccelerationAltitudeMultiplier = 5f;
         [Min(0.01f)] public float PilgrimCollisionRadius = 2.25f;
         [Min(0f)] public float PilgrimDamage = 32f;
         public string PilgrimDamageSource = "Vesper Kite Redshift Procession";
@@ -2555,7 +2555,7 @@ namespace DuneVector
             return riskScaledAcceleration * Mathf.Lerp(
                 1f,
                 Mathf.Max(1f, PilgrimAccelerationAltitudeMultiplier),
-                EvaluatePilgrimAltitude(heightAboveGround));
+                EvaluatePilgrimAltitudeMovementRamp(heightAboveGround));
         }
 
         public float EvaluatePilgrimMaximumSpeed(int risk, float heightAboveGround)
@@ -2567,7 +2567,7 @@ namespace DuneVector
             return riskScaledMaximumSpeed * Mathf.Lerp(
                 1f,
                 Mathf.Max(1f, PilgrimMaximumSpeedAltitudeMultiplier),
-                EvaluatePilgrimAltitudeSpeed(heightAboveGround));
+                EvaluatePilgrimAltitudeMovementRamp(heightAboveGround));
         }
 
         public float EvaluatePilgrimTurnRate(int risk)
@@ -2596,7 +2596,7 @@ namespace DuneVector
                 Mathf.Max(0.1f, PilgrimAltitudeScalingHeight));
         }
 
-        private float EvaluatePilgrimAltitudeSpeed(float heightAboveGround)
+        private float EvaluatePilgrimAltitudeMovementRamp(float heightAboveGround)
         {
             float altitude = EvaluatePilgrimAltitude(heightAboveGround);
             if (PilgrimAltitudeSpeedCurve == null ||
