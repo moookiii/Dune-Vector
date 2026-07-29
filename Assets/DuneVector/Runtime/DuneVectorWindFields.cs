@@ -81,7 +81,7 @@ namespace DuneVector
         [Min(0f)] public float ParticleVelocityStretch = 0.085f;
         [Min(0.1f)] public float ParticleEdgeFalloff = 1.7f;
         [Tooltip("Opacity at the transparent end of each wind streak.")]
-        [Range(0f, 1f)] public float ParticleTransparentSideAlpha = 0.2f;
+        [Range(0f, 1f)] public float ParticleTransparentSideAlpha = 1f;
         [Tooltip("Opacity at the solid end of each wind streak.")]
         [Range(0f, 1f)] public float ParticleSolidSideAlpha = 1f;
         [Min(0f)] public float VisualTurbulenceStrength = 1.8f;
