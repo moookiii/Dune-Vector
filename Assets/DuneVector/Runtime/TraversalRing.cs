@@ -151,6 +151,12 @@ namespace DuneVector
             _collectibleReward?.BindTargets(health, controller != null ? controller.GetComponent<DroneGoldWallet>() : null);
             _inside = false;
             _hasPreviousWorldPosition = false;
+            if (IsFlightRing
+                && _controller != null
+                && _controller.CurrentMode == DroneTraversalMode.Flight)
+            {
+                _cachedTransform.localPosition = _restingLocalPosition + (Vector3.up * FlightModeHeightOffset);
+            }
             _upperLayerRing?.BindTargets(controller, health);
         }
 
@@ -222,17 +228,6 @@ namespace DuneVector
             if (!isActiveAndEnabled || _controller == null)
             {
                 return;
-            }
-
-            if (IsFlightRing)
-            {
-                bool isFlying = _controller.CurrentMode == DroneTraversalMode.Flight;
-                Vector3 targetPosition = _restingLocalPosition
-                    + (Vector3.up * (isFlying ? FlightModeHeightOffset : 0f));
-                _cachedTransform.localPosition = Vector3.Lerp(
-                    _cachedTransform.localPosition,
-                    targetPosition,
-                    DuneVectorMath.Sharpness(FlightModeHeightSharpness, deltaTime));
             }
 
             Vector3 worldPosition = _controller.WorldCenter;
@@ -341,6 +336,8 @@ namespace DuneVector
                 return;
             }
 
+            UpdateFlightModeHeight(deltaTime);
+
             if (RingType == TraversalRingType.UpperFlight)
             {
                 UpdateVisualPresentation(deltaTime);
@@ -386,6 +383,22 @@ namespace DuneVector
             Vector3 spinAxis = IsCollectible ? Vector3.up : Vector3.forward;
             _visualRoot.rotation = _billboardFacingRotation
                 * Quaternion.AngleAxis(_visualSpin, spinAxis);
+        }
+
+        private void UpdateFlightModeHeight(float deltaTime)
+        {
+            if (!IsFlightRing || _controller == null)
+            {
+                return;
+            }
+
+            bool isFlying = _controller.CurrentMode == DroneTraversalMode.Flight;
+            Vector3 targetPosition = _restingLocalPosition
+                + (Vector3.up * (isFlying ? FlightModeHeightOffset : 0f));
+            _cachedTransform.localPosition = Vector3.Lerp(
+                _cachedTransform.localPosition,
+                targetPosition,
+                DuneVectorMath.Sharpness(FlightModeHeightSharpness, deltaTime));
         }
 
         private void TryActivate()
