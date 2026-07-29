@@ -232,6 +232,7 @@ namespace DuneVector
                     _enemyHealth,
                     _player,
                     _playerHealth,
+                    _world,
                     _materials,
                     _settings);
                 _activePilgrims.Add(pilgrim);
@@ -367,6 +368,7 @@ namespace DuneVector
         private EnemyHealth _sourceHealth;
         private DroneCharacterController _player;
         private DroneHealth _playerHealth;
+        private DesertWorldStreamer _world;
         private DuneVectorMaterials _materials;
         private VesperKiteTuning _settings;
         private Transform _cachedTransform;
@@ -384,6 +386,7 @@ namespace DuneVector
             EnemyHealth sourceHealth,
             DroneCharacterController player,
             DroneHealth playerHealth,
+            DesertWorldStreamer world,
             DuneVectorMaterials materials,
             VesperKiteTuning settings)
         {
@@ -391,6 +394,7 @@ namespace DuneVector
             _sourceHealth = sourceHealth;
             _player = player;
             _playerHealth = playerHealth;
+            _world = world;
             _materials = materials;
             _settings = settings;
             _cachedTransform = transform;
@@ -514,13 +518,18 @@ namespace DuneVector
         private void UpdateChase(float deltaTime)
         {
             int risk = DuneVectorContractRisk.CurrentRisk;
+            Vector3 position = _cachedTransform.position;
+            float groundHeight = _world != null
+                ? _world.SampleHeightAtLocal(position.x, position.z)
+                : position.y;
+            float heightAboveGround = Mathf.Max(0f, position.y - groundHeight);
             float maximumSpeed = Mathf.Max(
                 _settings.PilgrimInitialSpeed,
-                _settings.EvaluatePilgrimMaximumSpeed(risk));
+                _settings.EvaluatePilgrimMaximumSpeed(risk, heightAboveGround));
             _speed = Mathf.MoveTowards(
                 _speed,
                 maximumSpeed,
-                _settings.EvaluatePilgrimAcceleration(risk) * deltaTime);
+                _settings.EvaluatePilgrimAcceleration(risk, heightAboveGround) * deltaTime);
             if (_player == null)
             {
                 return;

@@ -2476,24 +2476,38 @@ namespace DuneVector
         [Min(0f)] public float PilgrimTurnRateAtRiskCeiling = 100f;
         [Tooltip("Risk at which pilgrim acceleration, maximum speed, and turn rate reach their ceiling values.")]
         [Min(1)] public int PilgrimMovementRiskCeiling = 20;
+        [Tooltip("Height above the local dune surface where pilgrim altitude movement scaling reaches its maximum.")]
+        [Min(0.1f)] public float PilgrimAltitudeScalingHeight = 225f;
+        [Tooltip("Maximum-speed multiplier reached at the pilgrim altitude scaling height.")]
+        [Min(1f)] public float PilgrimMaximumSpeedAltitudeMultiplier = 3f;
+        [Tooltip("Acceleration multiplier reached at the pilgrim altitude scaling height.")]
+        [Min(1f)] public float PilgrimAccelerationAltitudeMultiplier = 3f;
         [Min(0.01f)] public float PilgrimCollisionRadius = 2.25f;
         [Min(0f)] public float PilgrimDamage = 32f;
         public string PilgrimDeathMessage = "Consumed by the Vesper Kite's Redshift Procession.";
 
-        public float EvaluatePilgrimAcceleration(int risk)
+        public float EvaluatePilgrimAcceleration(int risk, float heightAboveGround)
         {
-            return Mathf.Lerp(
+            float riskScaledAcceleration = Mathf.Lerp(
                 PilgrimAcceleration,
                 PilgrimAccelerationAtRiskCeiling,
                 EvaluatePilgrimMovementRisk(risk));
+            return riskScaledAcceleration * Mathf.Lerp(
+                1f,
+                Mathf.Max(1f, PilgrimAccelerationAltitudeMultiplier),
+                EvaluatePilgrimAltitude(heightAboveGround));
         }
 
-        public float EvaluatePilgrimMaximumSpeed(int risk)
+        public float EvaluatePilgrimMaximumSpeed(int risk, float heightAboveGround)
         {
-            return Mathf.Lerp(
+            float riskScaledMaximumSpeed = Mathf.Lerp(
                 PilgrimMaximumSpeed,
                 PilgrimMaximumSpeedAtRiskCeiling,
                 EvaluatePilgrimMovementRisk(risk));
+            return riskScaledMaximumSpeed * Mathf.Lerp(
+                1f,
+                Mathf.Max(1f, PilgrimMaximumSpeedAltitudeMultiplier),
+                EvaluatePilgrimAltitude(heightAboveGround));
         }
 
         public float EvaluatePilgrimTurnRate(int risk)
@@ -2508,6 +2522,13 @@ namespace DuneVector
         {
             return Mathf.Clamp01(
                 risk / (float)Mathf.Max(1, PilgrimMovementRiskCeiling));
+        }
+
+        private float EvaluatePilgrimAltitude(float heightAboveGround)
+        {
+            return Mathf.Clamp01(
+                Mathf.Max(0f, heightAboveGround) /
+                Mathf.Max(0.1f, PilgrimAltitudeScalingHeight));
         }
 
         [Header("Portal Reversal")]
