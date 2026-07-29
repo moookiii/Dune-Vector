@@ -40,11 +40,14 @@ namespace DuneVector
         private readonly RaycastHit[] _occlusionHits = new RaycastHit[32];
         private Renderer[] _renderers = Array.Empty<Renderer>();
         private float _nextRendererRefresh;
+        private bool _hasCustomFramingBounds;
+        private Bounds _customFramingBounds;
 
         public static DuneVectorPhotographableMarker Register(
             GameObject subjectRoot,
             string subjectId,
-            PhotographableSubjectCategory category)
+            PhotographableSubjectCategory category,
+            Bounds? localFramingBounds = null)
         {
             if (subjectRoot == null || string.IsNullOrWhiteSpace(subjectId))
             {
@@ -54,14 +57,19 @@ namespace DuneVector
             DuneVectorPhotographableMarker marker =
                 subjectRoot.GetComponent<DuneVectorPhotographableMarker>() ??
                 subjectRoot.AddComponent<DuneVectorPhotographableMarker>();
-            marker.Initialize(subjectId, category);
+            marker.Initialize(subjectId, category, localFramingBounds);
             return marker;
         }
 
-        public void Initialize(string subjectId, PhotographableSubjectCategory category)
+        public void Initialize(
+            string subjectId,
+            PhotographableSubjectCategory category,
+            Bounds? localFramingBounds = null)
         {
             SubjectId = subjectId;
             Category = category;
+            _hasCustomFramingBounds = localFramingBounds.HasValue;
+            _customFramingBounds = localFramingBounds.GetValueOrDefault();
             RefreshRenderers();
         }
 
@@ -90,6 +98,16 @@ namespace DuneVector
             if (_renderers == null || _renderers.Length == 0 || Time.unscaledTime >= _nextRendererRefresh)
             {
                 RefreshRenderers();
+            }
+
+            if (_hasCustomFramingBounds)
+            {
+                return TryProjectBounds(
+                    camera,
+                    transform,
+                    _customFramingBounds,
+                    out bounds,
+                    out coverage);
             }
 
             float minX = float.PositiveInfinity;
@@ -136,6 +154,61 @@ namespace DuneVector
                     maxY = Mathf.Max(maxY, y);
                     hasProjectedPoint = true;
                 }
+            }
+
+            if (!hasProjectedPoint || maxX <= minX || maxY <= minY)
+            {
+                return false;
+            }
+
+            bounds = Rect.MinMaxRect(minX, minY, maxX, maxY);
+            Rect intersection = Intersect(bounds, new Rect(0f, 0f, Screen.width, Screen.height));
+            coverage = intersection.width * intersection.height /
+                Mathf.Max(1f, Screen.width * Screen.height);
+            return intersection.width > 0f && intersection.height > 0f;
+        }
+
+        private static bool TryProjectBounds(
+            Camera camera,
+            Transform boundsTransform,
+            Bounds localBounds,
+            out Rect bounds,
+            out float coverage)
+        {
+            bounds = default;
+            coverage = 0f;
+            if (boundsTransform == null || localBounds.size.sqrMagnitude <= 0.0001f)
+            {
+                return false;
+            }
+
+            float minX = float.PositiveInfinity;
+            float minY = float.PositiveInfinity;
+            float maxX = float.NegativeInfinity;
+            float maxY = float.NegativeInfinity;
+            bool hasProjectedPoint = false;
+            Vector3 min = localBounds.min;
+            Vector3 max = localBounds.max;
+            for (int corner = 0; corner < 8; corner++)
+            {
+                Vector3 localPoint = new Vector3(
+                    (corner & 1) == 0 ? min.x : max.x,
+                    (corner & 2) == 0 ? min.y : max.y,
+                    (corner & 4) == 0 ? min.z : max.z);
+                Vector3 viewport = camera.WorldToViewportPoint(
+                    boundsTransform.TransformPoint(localPoint));
+                if (viewport.z <= camera.nearClipPlane)
+                {
+                    continue;
+                }
+
+                float x = viewport.x * Screen.width;
+                float y = (1f - viewport.y) * Screen.height;
+                minX = Mathf.Min(minX, x);
+                minY = Mathf.Min(minY, y);
+                maxX = Mathf.Max(maxX, x);
+                maxY = Mathf.Max(maxY, y);
+                hasProjectedPoint = true;
             }
 
             if (!hasProjectedPoint || maxX <= minX || maxY <= minY)

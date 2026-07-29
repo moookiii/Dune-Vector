@@ -1331,6 +1331,10 @@ namespace DuneVector
         [Range(0, 20)] public int MegagateBaseRuinCount;
         [Range(0, 40)] public int MegagateDebrisCount;
         [Min(0f)] public float MegagateBurialDepth;
+        [Tooltip("Local-space center of the megagate silhouette used by the photography camera frame.")]
+        public Vector3 MegagatePhotographyBoundsCenter;
+        [Tooltip("Local-space size of the megagate silhouette used by the photography camera frame. Set any axis to zero to use renderer bounds.")]
+        public Vector3 MegagatePhotographyBoundsSize;
 
         [Header("Wind Harvester Graveyard Detail")]
         [Range(1, 30)] public int HarvesterCount;

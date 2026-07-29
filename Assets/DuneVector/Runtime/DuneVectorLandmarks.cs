@@ -820,10 +820,19 @@ namespace DuneVector
                     break;
             }
             instance.PositionDeliverySocketAboveVisuals(_settings.DeliveryRingClearance);
+            Bounds? photographyBounds = type == DuneLandmarkType.DesertMegagate &&
+                _settings.MegagatePhotographyBoundsSize.x > 0f &&
+                _settings.MegagatePhotographyBoundsSize.y > 0f &&
+                _settings.MegagatePhotographyBoundsSize.z > 0f
+                    ? new Bounds(
+                        _settings.MegagatePhotographyBoundsCenter,
+                        _settings.MegagatePhotographyBoundsSize)
+                    : null;
             DuneVectorPhotographableMarker.Register(
                 landmarkObject,
                 DuneVectorCompendiumSubjectIds.ForLandmark(type),
-                PhotographableSubjectCategory.Landmark);
+                PhotographableSubjectCategory.Landmark,
+                photographyBounds);
             return instance;
         }
 
