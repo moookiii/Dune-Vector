@@ -35,6 +35,7 @@ namespace DuneVector
         private Vector3 _movementDirection;
         private int _identity;
         private bool _isWindingUp;
+        private bool _gameplayActive = true;
 
         public int ActivePilgrimCount
         {
@@ -112,7 +113,10 @@ namespace DuneVector
             float deltaTime = Time.deltaTime;
             Vector3 playerPosition = _player.WorldCenter;
             UpdatePatrol(deltaTime, playerPosition);
-            UpdateAttack(deltaTime, playerPosition);
+            if (_gameplayActive)
+            {
+                UpdateAttack(deltaTime, playerPosition);
+            }
             UpdatePresentation(deltaTime);
         }
 
@@ -295,7 +299,12 @@ namespace DuneVector
 
         public void SetGameplayActive(bool active)
         {
-            enabled = active;
+            _gameplayActive = active;
+            if (!active)
+            {
+                _isWindingUp = false;
+                _windUpRemaining = 0f;
+            }
             PrunePilgrims();
             for (int i = 0; i < _activePilgrims.Count; i++)
             {
@@ -651,6 +660,7 @@ namespace DuneVector
         private DesertWorldStreamer _world;
         private DuneVectorMaterials _materials;
         private VesperKiteTuning _settings;
+        private bool _gameplayActive = true;
 
         public void Initialize(
             DroneCharacterController player,
@@ -670,7 +680,7 @@ namespace DuneVector
 
         public void SetGameplayActive(bool active)
         {
-            enabled = active;
+            _gameplayActive = active;
             if (active)
             {
                 RespawnBaseEnemies();
@@ -736,7 +746,7 @@ namespace DuneVector
                     $"Risk Vesper Kite {i + 1:00}",
                     80000 + i + 1,
                     NormalizeIndex(i, bonusCount));
-                enemy.SetGameplayActive(enabled);
+                enemy.SetGameplayActive(_gameplayActive);
                 _riskEnemies.Add(enemy);
             }
         }
