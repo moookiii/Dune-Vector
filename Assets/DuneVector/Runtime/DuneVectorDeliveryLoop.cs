@@ -442,7 +442,14 @@ namespace DuneVector
                                 Vector3.forward);
                             _visual = null;
                             _portalVisual = null;
-                            DuneVectorAudioManager.Instance?.PlayFlightRingSwoosh(transform.position);
+                            if (_isPickup)
+                            {
+                                DuneVectorAudioManager.Instance?.PlayFlightRingSwoosh(transform.position);
+                            }
+                            else
+                            {
+                                DuneVectorAudioManager.Instance?.PlayDeliveryRing(transform.position);
+                            }
                             DuneVectorPortalEvents.NotifyPlayerCrossed(
                                 transform.position,
                                 transform.forward,

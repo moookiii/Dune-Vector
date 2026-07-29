@@ -4189,6 +4189,8 @@ namespace DuneVector
         public string DroneFlightBoostEvent = "event:/Drone_Boost";
         [Tooltip("One-shot event played when the drone passes through a flight ring.")]
         public string FlightRingSwooshEvent = "event:/Flight_Ring_Swoosh";
+        [Tooltip("One-shot event played when the drone passes through a delivery ring.")]
+        public string DeliveryRingEvent = "event:/Delivery";
         [Tooltip("Seconds used to fade the drone flight boost loop in after boosting starts.")]
         [Min(0f)] public float DroneFlightBoostFadeInDuration = 0.2f;
         [Tooltip("Seconds used to fade the drone flight boost loop to silence after boosting stops.")]
