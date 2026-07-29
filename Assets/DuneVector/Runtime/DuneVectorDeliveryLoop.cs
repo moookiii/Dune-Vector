@@ -343,8 +343,10 @@ namespace DuneVector
         private Renderer[] _renderers;
         private MaterialPropertyBlock _colorProperties;
         private DeliveryTuning _settings;
+        private RingTuning _ringTuning;
         private bool _isPickup;
         private float _innerRadius;
+        private float _speedScale = 1f;
         private Vector3 _previousWorldPosition;
         private bool _hasPreviousPosition;
         private bool _activated;
@@ -367,12 +369,13 @@ namespace DuneVector
             _onCrossed = onCrossed;
             _canActivate = canActivate;
             _settings = settings;
+            _ringTuning = materials.RingPortalTuning;
             _isPickup = isPickup;
             float visualRadius = DuneVectorVisuals.CalculatePortalVisualRadius(
                 radius,
-                materials.RingPortalTuning);
+                _ringTuning);
             _innerRadius = Mathf.Max(0.5f, visualRadius - 0.38f);
-            _spinSpeed = materials.RingPortalTuning.ClockwiseRotationSpeed;
+            _spinSpeed = _ringTuning.ClockwiseRotationSpeed;
             uint spinHash = DuneVectorMath.Hash(
                 Mathf.RoundToInt(transform.position.x),
                 Mathf.RoundToInt(transform.position.z),
@@ -399,6 +402,7 @@ namespace DuneVector
         {
             UpdateBillboard();
             UpdateRgbBlend();
+            UpdateSpeedScale();
             if (_activated || _player == null)
             {
                 return;
@@ -460,6 +464,32 @@ namespace DuneVector
                     360f);
                 _visual.localRotation = Quaternion.AngleAxis(_spin, Vector3.forward);
             }
+        }
+
+        private void UpdateSpeedScale()
+        {
+            if (_visual == null || _player == null || _ringTuning == null)
+            {
+                return;
+            }
+
+            float targetScale = 1f;
+            if (_player.CurrentMode == DroneTraversalMode.Flight)
+            {
+                float speedNormalized = Mathf.Clamp01(
+                    _player.Speed / Mathf.Max(Mathf.Epsilon, _player.CurrentMaximumFlightSpeed));
+                float flightModeScale = Mathf.Max(1f, _ringTuning.UpperFlightRingActiveScale);
+                float maximumSpeedScale = Mathf.Max(
+                    flightModeScale,
+                    _ringTuning.UpperFlightRingMaximumSpeedScale);
+                targetScale = Mathf.Lerp(flightModeScale, maximumSpeedScale, speedNormalized);
+            }
+
+            _speedScale = Mathf.Lerp(
+                _speedScale,
+                targetScale,
+                DuneVectorMath.Sharpness(_ringTuning.UpperFlightRingScaleSharpness, Time.deltaTime));
+            _visual.localScale = Vector3.one * _speedScale;
         }
 
         private void UpdateRgbBlend()
