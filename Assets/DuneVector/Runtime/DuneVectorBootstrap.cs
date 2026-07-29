@@ -742,7 +742,7 @@ namespace DuneVector
             DebugHUD.CameraController = DroneCamera;
             DebugHUD.World = World;
             DebugHUD.Health = DroneHealth;
-            DebugHUD.Initialize(RuntimeSettings.LaunchHud, RuntimeSettings.CompassHud, RuntimeSettings.BottomHud);
+            DebugHUD.Initialize(RuntimeSettings.BottomHud);
 
             DroneHealthHUD healthHUD = gameObject.AddComponent<DroneHealthHUD>();
             healthHUD.Initialize(DroneHealth, RuntimeSettings.BottomHud);
@@ -989,27 +989,12 @@ namespace DuneVector
         public DroneHealth Health;
         public bool ShowDebugInformation;
 
-        private LaunchHudTuning _launchHudSettings;
-        private CompassHudTuning _compassHudSettings;
         private BottomHudTuning _bottomHudSettings;
-        private GUIStyle _titleStyle;
         private GUIStyle _bodyStyle;
-        private GUIStyle _hintStyle;
-        private float _startTime;
 
-        public void Initialize(
-            LaunchHudTuning launchHudSettings,
-            CompassHudTuning compassHudSettings,
-            BottomHudTuning bottomHudSettings)
+        public void Initialize(BottomHudTuning bottomHudSettings)
         {
-            _launchHudSettings = launchHudSettings;
-            _compassHudSettings = compassHudSettings;
             _bottomHudSettings = bottomHudSettings;
-        }
-
-        private void Awake()
-        {
-            _startTime = Time.time;
         }
 
         private void Update()
@@ -1022,32 +1007,15 @@ namespace DuneVector
 
         private void EnsureStyles()
         {
-            if (_titleStyle != null)
+            if (_bodyStyle != null)
             {
                 return;
             }
 
-            _titleStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 23,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-                wordWrap = false,
-                clipping = TextClipping.Clip,
-                normal = { textColor = new Color(0.84f, 0.96f, 1f) },
-            };
             _bodyStyle = new GUIStyle(GUI.skin.label)
             {
                 fontSize = 14,
                 normal = { textColor = Color.white },
-            };
-            _hintStyle = new GUIStyle(GUI.skin.label)
-            {
-                fontSize = 16,
-                alignment = TextAnchor.MiddleCenter,
-                wordWrap = false,
-                clipping = TextClipping.Clip,
-                normal = { textColor = new Color(1f, 0.88f, 0.62f) },
             };
         }
 
@@ -1062,30 +1030,6 @@ namespace DuneVector
                 return;
             }
             EnsureStyles();
-
-            float elapsed = Time.time - _startTime;
-            if (elapsed < 9f && !ShowDebugInformation)
-            {
-                float alpha = elapsed < 6.5f ? 1f : Mathf.Clamp01((9f - elapsed) / 2.5f);
-                Color previous = GUI.color;
-                GUI.color = new Color(1f, 1f, 1f, alpha);
-                float panelWidth = Mathf.Min(600f, Mathf.Max(280f, Screen.width - 32f));
-                float compassScale = Mathf.Clamp(
-                    Screen.height / Mathf.Max(1f, _compassHudSettings.ReferenceHeight),
-                    Mathf.Min(_compassHudSettings.MinimumScale, _compassHudSettings.MaximumScale),
-                    Mathf.Max(_compassHudSettings.MinimumScale, _compassHudSettings.MaximumScale));
-                float panelTop = (Screen.height - Screen.safeArea.yMax)
-                    + ((_compassHudSettings.TopMargin
-                        + _compassHudSettings.Height
-                        + _launchHudSettings.GapBelowCompass) * compassScale);
-                Rect panel = new Rect((Screen.width - panelWidth) * 0.5f, panelTop, panelWidth, 104f);
-                GUI.Box(panel, GUIContent.none);
-                Rect content = new Rect(panel.x + 14f, panel.y, panel.width - 28f, panel.height);
-                GUI.Label(new Rect(content.x, panel.y + 8f, content.width, 30f), "DUNE VECTOR", _titleStyle);
-                GUI.Label(new Rect(content.x, panel.y + 42f, content.width, 24f), "WASD Move  •  Shift Boost  •  Double Space Flight / Air Brake  •  Mouse Look", _hintStyle);
-                GUI.Label(new Rect(content.x, panel.y + 69f, content.width, 22f), "LMB Fire  •  F1 Telemetry  •  Amber: Ring Boost  •  Cyan: Flight", _hintStyle);
-                GUI.color = previous;
-            }
 
             if (_bottomHudSettings != null)
             {
