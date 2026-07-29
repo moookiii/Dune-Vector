@@ -4107,6 +4107,13 @@ namespace DuneVector
         [Min(0f)] public float ColorIntensity = 3.2f;
         [Min(0f)] public float BloomIntensity = 1.8f;
         [Range(0f, 1f)] public float Opacity = 0.86f;
+
+        [Header("Camera Distance Fade")]
+        [Tooltip("Rings closer than this world-space distance to the camera are fully hidden.")]
+        [Min(0f)] public float NearCameraHiddenDistance = 4f;
+        [Tooltip("World-space distance from the camera where rings finish fading back to normal opacity.")]
+        [Min(0f)] public float NearCameraFadeEndDistance = 8f;
+
         [Header("Camera Angle Transparency")]
         [Tooltip("Opacity multiplier when the camera looks directly down the trail rings. Reduces additive stacking without changing their angled appearance.")]
         [Range(0f, 1f)] public float HeadOnOpacityMultiplier = 0.28f;

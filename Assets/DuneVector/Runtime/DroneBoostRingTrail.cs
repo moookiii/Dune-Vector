@@ -253,14 +253,21 @@ namespace DuneVector
         private float CalculateViewOpacity(TrailRing ring)
         {
             Vector3 cameraOffset = _camera.transform.position - ring.Position;
-            if (cameraOffset.sqrMagnitude <= Mathf.Epsilon)
+            float cameraDistance = cameraOffset.magnitude;
+            float hiddenDistance = Mathf.Max(0f, _tuning.NearCameraHiddenDistance);
+            float fadeEndDistance = Mathf.Max(hiddenDistance + 0.01f, _tuning.NearCameraFadeEndDistance);
+            float distanceVisibility = Mathf.SmoothStep(
+                0f,
+                1f,
+                Mathf.InverseLerp(hiddenDistance, fadeEndDistance, cameraDistance));
+            if (distanceVisibility <= 0f || cameraDistance <= Mathf.Epsilon)
             {
-                return Mathf.Clamp01(_tuning.HeadOnOpacityMultiplier);
+                return 0f;
             }
 
             Vector3 ringNormal = ring.Rotation * Vector3.forward;
             float faceOnAlignment = Mathf.Clamp01(
-                Mathf.Abs(Vector3.Dot(ringNormal, cameraOffset.normalized)));
+                Mathf.Abs(Vector3.Dot(ringNormal, cameraOffset / cameraDistance)));
             float viewAngle = Mathf.Acos(faceOnAlignment) * Mathf.Rad2Deg;
             float fadeStart = Mathf.Clamp(_tuning.HeadOnFadeStartAngle, 0f, 89f);
             float fadeEnd = Mathf.Clamp(_tuning.HeadOnFadeEndAngle, fadeStart + 0.01f, 90f);
@@ -268,10 +275,11 @@ namespace DuneVector
                 0f,
                 1f,
                 Mathf.InverseLerp(fadeStart, fadeEnd, viewAngle));
-            return Mathf.Lerp(
+            float angleVisibility = Mathf.Lerp(
                 Mathf.Clamp01(_tuning.HeadOnOpacityMultiplier),
                 1f,
                 angledVisibility);
+            return distanceVisibility * angleVisibility;
         }
 
         private Quaternion CreateRingRotation(Vector3 direction)
