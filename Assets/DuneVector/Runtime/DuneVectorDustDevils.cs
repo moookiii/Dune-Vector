@@ -59,6 +59,8 @@ namespace DuneVector
         [Range(0f, 1f)] public float ControlLossInfluenceThreshold = 0.2f;
         [Tooltip("Seconds that player input remains locked while the airbrake is applied after entering a funnel.")]
         [Min(0f)] public float ControlLossDuration = 2f;
+        [Tooltip("Seconds of full-speed drone spin before it begins fading to zero over the remaining control-loss duration.")]
+        [Min(0f)] public float ControlLossSpinFadeDelay = 1f;
 
         [Header("Fragile Cargo Hazard")]
         [Min(0f)] public float FragileCargoDamagePerSecond = 13f;
@@ -177,6 +179,31 @@ namespace DuneVector
         public bool IsControlDisruptionActive => _playerInput != null
             && _playerInput.IsHazardControlLocked;
         public float ControlDisruptionSpinSign { get; private set; } = 1f;
+        public float ControlDisruptionSpinMultiplier
+        {
+            get
+            {
+                if (!IsControlDisruptionActive)
+                {
+                    return 0f;
+                }
+
+                float duration = Mathf.Max(0f, _settings.ControlLossDuration);
+                float fadeStart = Mathf.Clamp(
+                    _settings.ControlLossSpinFadeDelay,
+                    0f,
+                    duration);
+                float elapsed = Mathf.Max(
+                    0f,
+                    duration - _playerInput.HazardControlLockTimeRemaining);
+                float fadeDuration = duration - fadeStart;
+                return elapsed <= fadeStart
+                    ? 1f
+                    : fadeDuration > 0f
+                        ? 1f - Mathf.Clamp01((elapsed - fadeStart) / fadeDuration)
+                        : 0f;
+            }
+        }
 
         public void Initialize(
             DroneCharacterController player,

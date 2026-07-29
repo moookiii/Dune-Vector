@@ -490,6 +490,7 @@ namespace DuneVector
             {
                 float disruptionSpinDegrees = _dustDevilSettings.DroneSpinDegreesPerSecond
                     * _dustDevils.ControlDisruptionSpinSign
+                    * _dustDevils.ControlDisruptionSpinMultiplier
                     * Mathf.Max(0f, deltaTime);
                 currentRotation = Quaternion.AngleAxis(
                     disruptionSpinDegrees,

@@ -66,6 +66,7 @@ namespace DuneVector
         public DroneRawInputFrame AutomatedInput { get; private set; }
         public bool InputEnabled { get; private set; } = true;
         public bool IsHazardControlLocked => _hazardControlLockTimeRemaining > 0f;
+        public float HazardControlLockTimeRemaining => _hazardControlLockTimeRemaining;
 
         private Quaternion _disabledMovementRotation = Quaternion.identity;
         private bool _disabledFlightStopEnabled;
