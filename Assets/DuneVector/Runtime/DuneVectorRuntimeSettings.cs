@@ -1838,10 +1838,10 @@ namespace DuneVector
 
         [Header("First Vesper Pilgrim Death Note")]
         public bool ShowFirstVesperPilgrimDeathNote = true;
-        public string VesperPilgrimNoteLabel = "FIELD NOTE  //  VESPER PILGRIMS";
+        public string VesperPilgrimNoteLabel = "FIELD NOTE  //  VESPER MISSELS";
         [TextArea(2, 4)]
         public string VesperPilgrimNoteMessage =
-            "Vesper missles return to sender passing through any portal in the air or ground.";
+            "Vesper missles return to sender when the drone passes through any portal in the air or ground.";
     }
 
     public enum CourierDroneFaction
