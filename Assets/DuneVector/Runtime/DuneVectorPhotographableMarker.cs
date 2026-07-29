@@ -9,6 +9,7 @@ namespace DuneVector
     {
         public const string GroundExploder = "enemy:ground-exploder";
         public const string SkyPiercer = "enemy:sky-piercer";
+        public const string GlassKite = "enemy:glass-kite";
         public const string StormPyramid = "enemy:storm-pyramid";
         public const string PlayerStrikeOrb = "enemy:player-strike-orb";
         public const string FormationEnemy = SkyPiercer;

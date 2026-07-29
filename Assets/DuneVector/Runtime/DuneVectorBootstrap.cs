@@ -42,6 +42,7 @@ namespace DuneVector
         public MapHudTuning MapHudSettings => RuntimeSettings.MapHud;
         public EnergyLauncherTuning EnergyLauncherSettings => RuntimeSettings.EnergyLauncher;
         public FlyingEnemyTuning FlyingEnemies => RuntimeSettings.FlyingEnemies;
+        public GlassKiteTuning GlassKites => RuntimeSettings.GlassKites;
         public StormPyramidTuning StormPyramids => RuntimeSettings.StormPyramids;
         public PlayerStrikeOrbTuning PlayerStrikeOrbs => RuntimeSettings.PlayerStrikeOrbs;
         public GroundExploderTuning GroundExploders => RuntimeSettings.GroundExploders;
@@ -87,6 +88,7 @@ namespace DuneVector
         public DroneEnergyLauncher EnergyLauncher { get; private set; }
         public DroneLockOnHUD LockOnHUD { get; private set; }
         public DuneVectorEnemyDirector EnemyDirector { get; private set; }
+        public DuneVectorGlassKiteDirector GlassKiteDirector { get; private set; }
         public DuneVectorStormPyramidDirector StormPyramidDirector { get; private set; }
         public DuneVectorWeatherController WeatherSystem { get; private set; }
         public DuneVectorEnvironmentalHazardSystem EnvironmentalHazardSystem { get; private set; }
@@ -800,6 +802,7 @@ namespace DuneVector
                     DesertAtlasSettings,
                     RuntimeSettings.CompassHud,
                     EnemyDirector,
+                    GlassKiteDirector,
                     StormPyramidDirector);
                 DesertAtlas = CourierGame.DesertAtlas;
                 PermanentUpgrades.BindAtlasGlyphMaterial(DesertAtlas, _materials);
@@ -835,6 +838,14 @@ namespace DuneVector
                 enemyObject.transform.SetParent(transform, false);
                 EnemyDirector = enemyObject.AddComponent<DuneVectorEnemyDirector>();
                 EnemyDirector.Initialize(Drone, DroneHealth, World, _materials, FlyingEnemies);
+            }
+
+            if (GlassKites.Enabled)
+            {
+                GameObject kiteObject = new GameObject("Glass Kite Director");
+                kiteObject.transform.SetParent(transform, false);
+                GlassKiteDirector = kiteObject.AddComponent<DuneVectorGlassKiteDirector>();
+                GlassKiteDirector.Initialize(Drone, DroneHealth, World, _materials, GlassKites);
             }
 
             if (StormPyramids.Enabled || PlayerStrikeOrbs.Enabled)

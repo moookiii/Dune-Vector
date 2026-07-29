@@ -134,6 +134,7 @@ namespace DuneVector.Editor
         private SerializedProperty _health;
         private SerializedProperty _energyLauncher;
         private SerializedProperty _flyingEnemies;
+        private SerializedProperty _glassKites;
         private SerializedProperty _stormPyramids;
         private SerializedProperty _playerStrikeOrbs;
         private SerializedProperty _groundExploders;
@@ -174,6 +175,7 @@ namespace DuneVector.Editor
             _health = serializedObject.FindProperty("HealthSettings");
             _energyLauncher = serializedObject.FindProperty("EnergyLauncher");
             _flyingEnemies = serializedObject.FindProperty("FlyingEnemies");
+            _glassKites = serializedObject.FindProperty("GlassKites");
             _stormPyramids = serializedObject.FindProperty("StormPyramids");
             _playerStrikeOrbs = serializedObject.FindProperty("PlayerStrikeOrbs");
             _groundExploders = serializedObject.FindProperty("GroundExploders");
@@ -299,6 +301,10 @@ namespace DuneVector.Editor
                 "Flying Enemies",
                 "Spawning, pursuit, dive attacks, damage, and recovery.",
                 _flyingEnemies);
+            DuneVectorSettingsInspector.DrawSection(
+                "Glass Kites",
+                "Extreme-altitude patrol, predictive crossing passes, razor wakes, destructible wing joints, and crash salvage.",
+                _glassKites);
             DuneVectorSettingsInspector.DrawSection(
                 "Storm Pyramids",
                 "High-altitude patrol and telegraphed straight-down ground lightning.",

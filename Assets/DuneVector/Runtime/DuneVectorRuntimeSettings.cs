@@ -2153,6 +2153,108 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class GlassKiteTuning
+    {
+        public bool Enabled = true;
+
+        [Header("Population & Altitude")]
+        [Range(1, 6)] public int EnemyCount = 1;
+        [Min(50f)] public float MinimumSpawnDistance = 380f;
+        [Min(50f)] public float MaximumSpawnDistance = 620f;
+        [Min(50f)] public float PatrolAltitude = 270f;
+        [Min(0f)] public float PatrolAltitudeVariation = 45f;
+        [Min(1f)] public float PatrolRouteRadius = 520f;
+        [Min(0f)] public float PatrolSpeed = 42f;
+        [Min(50f)] public float RepositionDistance = 1250f;
+        [Min(0f)] public float AggressionMinimumTerrainClearance = 185f;
+        [Min(1f)] public float AggressionAltitudeBand = 115f;
+
+        [Header("Interception")]
+        [Min(0f)] public float AttackCooldown = 8f;
+        [Min(0.1f)] public float TelegraphDuration = 2.8f;
+        [Tooltip("Fraction of the telegraph during which the Kite still recalculates the player's intercept. The remaining time is committed.")]
+        [Range(0f, 1f)] public float PredictionCommitFraction = 0.68f;
+        [Min(0.1f)] public float MinimumPredictionTime = 1.5f;
+        [Min(0.1f)] public float MaximumPredictionTime = 5f;
+        [Min(0f)] public float AttackSpeed = 155f;
+        [Min(0f)] public float DamagedAttackSpeed = 118f;
+        [Min(1f)] public float AttackCommitDistance = 55f;
+        [Min(1f)] public float AttackExitDistance = 170f;
+        [Min(0f)] public float TurnRate = 32f;
+        [Min(0f)] public float DamagedTurnRate = 18f;
+        [Range(0f, 89f)] public float MaximumBankAngle = 82f;
+        [Min(0f)] public float RecoveryDuration = 4.5f;
+        [Min(0f)] public float RecoverySpeed = 68f;
+
+        [Header("Razor Wake Gameplay")]
+        [Range(2, 8)] public int WakeSheetCount = 4;
+        [Min(0.1f)] public float WakeLifetime = 3.2f;
+        [Min(1f)] public float WakeHalfWidth = 72f;
+        [Min(1f)] public float WakeHalfHeight = 15f;
+        [Min(0.1f)] public float WakeCollisionThickness = 2.2f;
+        [Min(0f)] public float WakeSheetVerticalSpacing = 7f;
+        [Min(0f)] public float WakeDamage = 34f;
+        [Min(0f)] public float WakeSideImpulse = 42f;
+        [Min(0f)] public float WakeDirectionDisruption = 18f;
+        public string WakeDeathMessage = "Destroyed by a Glass Kite razor wake.";
+        [Min(2)] public int WakeVisualSegments = 28;
+        [Min(0.001f)] public float WakeLineWidth = 0.34f;
+        [Min(0f)] public float WakeTurbulenceAmplitude = 2.8f;
+        [Min(0f)] public float WakeTurbulenceFrequency = 0.12f;
+        [Min(0f)] public float WakeCurlDegrees = 38f;
+        [Min(0f)] public float WakeVortexInsetSpeed = 4f;
+        [Range(0f, 1f)] public float WakeStartOpacity = 0.34f;
+        [ColorUsage(false, true)] public Color WakeColor = new Color(0.72f, 0.82f, 0.84f, 0.34f);
+
+        [Header("Atmospheric Debris")]
+        [Range(0, 256)] public int WakeParticleCount = 70;
+        [Min(0.01f)] public float WakeParticleSize = 0.16f;
+        [Min(0f)] public float WakeParticleSpeed = 19f;
+        [ColorUsage(false, true)] public Color WakeParticleColor = new Color(1f, 0.76f, 0.42f, 0.58f);
+
+        [Header("Wing Joints")]
+        [Min(1f)] public float JointMaximumHealth = 80f;
+        [Min(0.1f)] public float JointTargetRadius = 2.8f;
+        [Min(0f)] public float JointExposedScale = 1.45f;
+        [Min(0f)] public float DamagedWingFlutterDegrees = 8f;
+        [Min(0f)] public float DamagedWingFlutterSpeed = 11f;
+        [Min(0f)] public float DestroyedWingFoldDegrees = 38f;
+        [Range(0f, 0.8f)] public float FirstJointWakeAsymmetry = 0.24f;
+        [Min(0f)] public float FirstJointRollDegrees = 5f;
+        [Min(0f)] public float SecondJointAccuracyPenalty = 42f;
+        [Min(0f)] public float ThirdJointDescentRate = 7f;
+
+        [Header("Crash & Wreck")]
+        [Min(0f)] public float CrashForwardSpeed = 54f;
+        [Min(0f)] public float CrashDescentSpeed = 24f;
+        [Min(0f)] public float CrashSpiralDegreesPerSecond = 34f;
+        [Min(0f)] public float CrashRollDegreesPerSecond = 48f;
+        [Min(0f)] public float CrashTerrainClearance = 2f;
+        [Min(0f)] public float WreckLifetime = 240f;
+        [Min(0f)] public float WreckDiscoveryRadius = 18f;
+        [Min(0)] public int WreckGoldReward = 350;
+        [Min(0f)] public float SmokeLifetime = 210f;
+        [Min(0f)] public float SmokeHeight = 95f;
+        [Min(0.01f)] public float SmokeParticleSize = 12f;
+        [Range(1, 256)] public int SmokeMaximumParticles = 120;
+
+        [Header("Silhouette")]
+        public Vector3 BodyScale = new Vector3(7f, 0.45f, 17f);
+        [Min(0.1f)] public float WingSpan = 96f;
+        [Min(0.1f)] public float WingChord = 11f;
+        [Min(0.01f)] public float WingThickness = 0.28f;
+        [Range(1, 5)] public int WingSegmentsPerJoint = 3;
+        [Min(0f)] public float WingSweepDegrees = 12f;
+        [Min(0.01f)] public float JointVisualScale = 1.1f;
+        [Min(0.01f)] public float SeamWidth = 0.11f;
+        [Min(0.01f)] public float SeamThickness = 0.05f;
+        [ColorUsage(false)] public Color BodyColor = new Color(0.008f, 0.01f, 0.012f, 1f);
+        [ColorUsage(false, true)] public Color JointLightColor = new Color(1f, 0.72f, 0.38f, 1f);
+        [ColorUsage(false, true)] public Color AttackSeamColor = new Color(1f, 0.82f, 0.52f, 1f);
+        [Min(0f)] public float AttackEmissionIntensity = 5f;
+    }
+
+    [System.Serializable]
     public sealed class StormPyramidTuning
     {
         public bool Enabled = true;
@@ -4667,6 +4769,9 @@ namespace DuneVector
         [Tooltip("Airborne enemy spawning and combat behavior.")]
         public FlyingEnemyTuning FlyingEnemies = new FlyingEnemyTuning();
 
+        [Tooltip("Extreme-altitude Glass Kite patrols, predictive crossing attacks, razor wakes, wing joints, and crash salvage.")]
+        public GlassKiteTuning GlassKites = new GlassKiteTuning();
+
         [Tooltip("High-altitude upside-down pyramid lightning turrets.")]
         public StormPyramidTuning StormPyramids = new StormPyramidTuning();
 
@@ -4748,6 +4853,7 @@ namespace DuneVector
             GameOverScreen ??= new GameOverScreenTuning();
             EnergyLauncher ??= new EnergyLauncherTuning();
             FlyingEnemies ??= new FlyingEnemyTuning();
+            GlassKites ??= new GlassKiteTuning();
             StormPyramids ??= new StormPyramidTuning();
             PlayerStrikeOrbs ??= new PlayerStrikeOrbTuning();
             GroundExploders ??= new GroundExploderTuning();
