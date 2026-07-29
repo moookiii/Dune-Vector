@@ -3142,6 +3142,8 @@ namespace DuneVector
 
         [Header("Active Size")]
         [Min(1f)] public float BoostRingActiveScale = 1.25f;
+        [Tooltip("Initial scale used when a primary flight ring spawns while the drone is already in flight mode.")]
+        [Range(0.01f, 1f)] public float FlightRingSpawnScale = 0.9f;
         [InspectorName("Flight Ring Active Scale")]
         [Min(1f)] public float FlightModeScale = 1.3f;
         [Min(0f)] public float ScaleSharpness = 4.5f;

@@ -192,6 +192,23 @@ namespace DuneVector
             _upperLayerRing = upperRing;
         }
 
+        public void ApplyInitialFlightModePresentation(float spawnScale)
+        {
+            if (RingType != TraversalRingType.Flight
+                || _controller == null
+                || _controller.CurrentMode != DroneTraversalMode.Flight)
+            {
+                return;
+            }
+
+            _cachedTransform.localPosition = _restingLocalPosition + (Vector3.up * FlightModeHeightOffset);
+            _modeScale = Mathf.Clamp(spawnScale, 0.01f, 1f);
+            if (_visualRoot != null)
+            {
+                _visualRoot.localScale = Vector3.one * _modeScale;
+            }
+        }
+
         private bool IsFlightRing => RingType == TraversalRingType.Flight || RingType == TraversalRingType.UpperFlight;
 
         internal void Tick(float deltaTime)
