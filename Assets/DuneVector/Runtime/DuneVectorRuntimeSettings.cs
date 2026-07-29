@@ -1067,6 +1067,7 @@ namespace DuneVector
         [Min(0f)] public float UpgradeAreaSideOffset = 13f;
         [Min(0f)] public float PlayerSpawnHeight = 2.2f;
         public bool RestoreHealthOnReturn = true;
+        public bool RestoreStaminaOnReturn = true;
         [Tooltip("Horizontal distance from the hub center inside which the hub is hidden from photography subject detection.")]
         [Min(0f)] public float PhotographySuppressionRadius;
 
@@ -4217,6 +4218,16 @@ namespace DuneVector
         [Min(0f)] public float FullIdleFadeDelay = 1.2f;
         [Range(0f, 1f)] public float FullIdleAlpha = 0.12f;
         [Min(0f)] public float RestoredFeedbackDuration = 0.9f;
+
+        [Header("Restore Notification")]
+        [Min(0.1f)] public float RestoreNotificationDuration = 1.4f;
+        [Min(8)] public int RestoreNotificationFontSize = 28;
+        [Min(0f)] public float RestoreNotificationTop = 218f;
+        [Min(24f)] public float RestoreNotificationHeight = 48f;
+        [ColorUsage(false)] public Color RestoreNotificationColor = new Color(1f, 0.82f, 0.12f, 1f);
+        [Tooltip("{0} is replaced with the amount of stamina restored.")]
+        public string RestoreNotificationFormat = "STAMINA RESTORED: {0}";
+
         [Range(0f, 1f)] public float LowStaminaThreshold = 0.25f;
         [ColorUsage(false)] public Color ReadyColor = new Color(0.35f, 1f, 0.72f, 1f);
         [ColorUsage(false)] public Color BoostingColor = new Color(0.2f, 0.95f, 1f, 1f);

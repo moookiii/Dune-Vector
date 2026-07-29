@@ -1,3 +1,4 @@
+using System;
 using UnityEngine;
 
 namespace DuneVector
@@ -21,6 +22,8 @@ namespace DuneVector
             : 0f;
         public bool IsBoosting => State == DroneStaminaState.Boosting;
         public bool IsExhausted => State == DroneStaminaState.Exhausted;
+
+        public event Action<float> Restored;
 
         private StaminaBoostTuning _settings;
         private float _regenDelayRemaining;
@@ -58,9 +61,15 @@ namespace DuneVector
 
         public void RestoreToFull()
         {
+            float previousStamina = CurrentStamina;
             CurrentStamina = Mathf.Max(0.01f, MaximumStamina);
             State = DroneStaminaState.Ready;
             _regenDelayRemaining = 0f;
+            float restored = CurrentStamina - previousStamina;
+            if (restored > 0f)
+            {
+                Restored?.Invoke(restored);
+            }
         }
 
         public void Tick(bool boostHeld, float deltaTime)

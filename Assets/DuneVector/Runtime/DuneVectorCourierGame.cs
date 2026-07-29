@@ -1233,6 +1233,10 @@ namespace DuneVector
             {
                 _health.RestoreHealth(_health.MaximumHealth);
             }
+            if (_hubSettings.RestoreStaminaOnReturn)
+            {
+                _player.RestoreStaminaToFull();
+            }
             if (placePlayerAtSpawn)
             {
                 _player.Motor.SetPositionAndRotation(_hubSpawn, Quaternion.identity, true);

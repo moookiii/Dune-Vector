@@ -16,6 +16,9 @@ namespace DuneVector
         private float _visibleAlpha;
         private float _fullIdleTime;
         private float _restoredFeedbackRemaining;
+        private float _staminaRestored;
+        private float _restoreNotificationUntil;
+        private GUIStyle _restoreNotificationStyle;
         private Material _arcMaterial;
         private Vector2 _screenCenter;
         private bool _hasScreenCenter;
@@ -26,12 +29,20 @@ namespace DuneVector
             DroneStaminaSystem stamina,
             StaminaBoostTuning settings)
         {
+            if (_stamina != null)
+            {
+                _stamina.Restored -= HandleStaminaRestored;
+            }
             _drone = drone;
             _health = drone != null ? drone.GetComponent<DroneHealth>() : null;
             _camera = worldCamera;
             _stamina = stamina;
             _settings = settings;
             _previousState = stamina != null ? stamina.State : DroneStaminaState.Ready;
+            if (_stamina != null)
+            {
+                _stamina.Restored += HandleStaminaRestored;
+            }
         }
 
         private void Update()
@@ -102,33 +113,75 @@ namespace DuneVector
             {
                 return;
             }
-            if (_stamina == null || _settings == null || !_hasScreenCenter || _visibleAlpha <= 0f)
+            if (_stamina == null || _settings == null)
             {
                 return;
             }
 
-            Vector2 center = _screenCenter;
-
-            float stamina01 = _stamina.NormalizedStamina;
-            Color meterColor = GetMeterColor(stamina01);
-
-            if (Event.current.type == EventType.Repaint)
+            if (_hasScreenCenter && _visibleAlpha > 0f && Event.current.type == EventType.Repaint)
             {
+                Vector2 center = _screenCenter;
+                float stamina01 = _stamina.NormalizedStamina;
+                Color meterColor = GetMeterColor(stamina01);
                 Color backgroundColor = _settings.MeterBackgroundColor;
                 backgroundColor.a *= _visibleAlpha;
                 meterColor.a *= _visibleAlpha;
 
                 DrawBackgroundIcon(center, backgroundColor);
-                if (!EnsureArcMaterial())
+                if (EnsureArcMaterial())
                 {
-                    return;
+                    float filledDegrees = _settings.MeterArcDegrees * stamina01;
+                    float filledStartDegrees = _settings.MeterArcStartDegrees
+                        + (_settings.MeterArcDegrees - filledDegrees);
+                    DrawContinuousArc(center, filledStartDegrees, filledDegrees, meterColor);
                 }
-
-                float filledDegrees = _settings.MeterArcDegrees * stamina01;
-                float filledStartDegrees = _settings.MeterArcStartDegrees
-                    + (_settings.MeterArcDegrees - filledDegrees);
-                DrawContinuousArc(center, filledStartDegrees, filledDegrees, meterColor);
             }
+
+            DrawRestoreNotification();
+        }
+
+        private void DrawRestoreNotification()
+        {
+            if (Time.unscaledTime >= _restoreNotificationUntil)
+            {
+                return;
+            }
+
+            _restoreNotificationStyle ??= new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+            };
+            _restoreNotificationStyle.fontSize = _settings.RestoreNotificationFontSize;
+            float duration = Mathf.Max(0.1f, _settings.RestoreNotificationDuration);
+            Color notificationColor = _settings.RestoreNotificationColor;
+            notificationColor.a *= Mathf.Clamp01((_restoreNotificationUntil - Time.unscaledTime) / duration);
+            _restoreNotificationStyle.normal.textColor = notificationColor;
+            GUI.Label(
+                new Rect(
+                    0f,
+                    _settings.RestoreNotificationTop,
+                    Screen.width,
+                    _settings.RestoreNotificationHeight),
+                string.Format(
+                    _settings.RestoreNotificationFormat,
+                    Mathf.CeilToInt(Mathf.Max(0f, _staminaRestored))),
+                _restoreNotificationStyle);
+        }
+
+        private void HandleStaminaRestored(float amount)
+        {
+            if (_settings == null)
+            {
+                return;
+            }
+
+            _staminaRestored = amount;
+            _restoreNotificationUntil =
+                Time.unscaledTime + Mathf.Max(0.1f, _settings.RestoreNotificationDuration);
+            _restoredFeedbackRemaining = Mathf.Max(
+                _restoredFeedbackRemaining,
+                Mathf.Max(0f, _settings.RestoredFeedbackDuration));
         }
 
         private void DrawBackgroundIcon(Vector2 center, Color tint)
@@ -255,6 +308,10 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            if (_stamina != null)
+            {
+                _stamina.Restored -= HandleStaminaRestored;
+            }
             if (_arcMaterial != null)
             {
                 Destroy(_arcMaterial);
