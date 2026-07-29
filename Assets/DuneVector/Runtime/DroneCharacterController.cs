@@ -566,7 +566,7 @@ namespace DuneVector
             _boostSpeedModifier?.Tick(IsBoosting, deltaTime);
             if (CurrentMode == DroneTraversalMode.Flight)
             {
-                if (!IsFlightSuspendedByDustDevil)
+                if (!IsFlightSuspendedByDustDevil || _flightBrakeHeld)
                 {
                     UpdateFlightVelocity(ref currentVelocity, deltaTime);
                 }

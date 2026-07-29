@@ -728,6 +728,7 @@ namespace DuneVector
             DustDevilSystem = dustDevilObject.AddComponent<DuneVectorDustDevilSystem>();
             DustDevilSystem.Initialize(
                 Drone,
+                Player,
                 DroneCamera.Camera,
                 World,
                 CourierGame,

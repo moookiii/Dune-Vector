@@ -54,6 +54,12 @@ namespace DuneVector
         [Min(0f)] public float LaunchForwardWeight = 0.42f;
         [Min(0f)] public float LaunchTangentialWeight = 0.18f;
 
+        [Header("Control Disruption")]
+        [Tooltip("Minimum funnel influence required to trigger the temporary airbrake and input lock.")]
+        [Range(0f, 1f)] public float ControlLossInfluenceThreshold = 0.2f;
+        [Tooltip("Seconds that player input remains locked while the airbrake is applied after entering a funnel.")]
+        [Min(0f)] public float ControlLossDuration = 2f;
+
         [Header("Fragile Cargo Hazard")]
         [Min(0f)] public float FragileCargoDamagePerSecond = 13f;
         [Min(0.05f)] public float CargoDamageInterval = 0.5f;
@@ -154,6 +160,7 @@ namespace DuneVector
             new Dictionary<Vector2Int, RuntimeDustDevil>();
         private readonly List<Vector2Int> _removalBuffer = new List<Vector2Int>();
         private DroneCharacterController _player;
+        private DronePlayer _playerInput;
         private Camera _camera;
         private DesertWorldStreamer _world;
         private DuneVectorCourierGame _courierGame;
@@ -162,6 +169,7 @@ namespace DuneVector
         private Material _ribbonMaterial;
         private float _streamingTimer;
         private float _cargoDamageTimer;
+        private int _controlLossSourceId = int.MinValue;
         private Vector2Int _lastPlayerCell = new Vector2Int(int.MinValue, int.MinValue);
 
         public DustDevilSample CurrentPlayerSample { get; private set; }
@@ -169,12 +177,14 @@ namespace DuneVector
 
         public void Initialize(
             DroneCharacterController player,
+            DronePlayer playerInput,
             Camera viewCamera,
             DesertWorldStreamer world,
             DuneVectorCourierGame courierGame,
             DustDevilTuning settings)
         {
             _player = player;
+            _playerInput = playerInput;
             _camera = viewCamera;
             _world = world;
             _courierGame = courierGame;
@@ -274,8 +284,28 @@ namespace DuneVector
 
             TickTravel(Time.deltaTime);
             CurrentPlayerSample = Sample(_player.WorldCenter);
+            TickControlDisruption();
             TickCargoHazard(Time.deltaTime);
             TickVisuals(Time.deltaTime);
+        }
+
+        private void TickControlDisruption()
+        {
+            if (_playerInput == null
+                || CurrentPlayerSample.Influence <= 0f
+                || CurrentPlayerSample.Influence < _settings.ControlLossInfluenceThreshold)
+            {
+                _controlLossSourceId = int.MinValue;
+                return;
+            }
+
+            if (_controlLossSourceId == CurrentPlayerSample.SourceId)
+            {
+                return;
+            }
+
+            _controlLossSourceId = CurrentPlayerSample.SourceId;
+            _playerInput.ApplyHazardAirBrake(_settings.ControlLossDuration);
         }
 
         private void TickTravel(float deltaTime)

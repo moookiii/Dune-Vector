@@ -65,9 +65,11 @@ namespace DuneVector
         public bool AutomatedInputEnabled { get; private set; }
         public DroneRawInputFrame AutomatedInput { get; private set; }
         public bool InputEnabled { get; private set; } = true;
+        public bool IsHazardControlLocked => _hazardControlLockTimeRemaining > 0f;
 
         private Quaternion _disabledMovementRotation = Quaternion.identity;
         private bool _disabledFlightStopEnabled;
+        private float _hazardControlLockTimeRemaining;
 
         private void Start()
         {
@@ -95,6 +97,15 @@ namespace DuneVector
             if (!InputEnabled)
             {
                 ClearCharacterInput();
+                return;
+            }
+
+            if (_hazardControlLockTimeRemaining > 0f)
+            {
+                _hazardControlLockTimeRemaining = Mathf.Max(
+                    0f,
+                    _hazardControlLockTimeRemaining - Time.deltaTime);
+                ClearCharacterInput(true);
                 return;
             }
 
@@ -134,6 +145,7 @@ namespace DuneVector
         private void LateUpdate()
         {
             if (!InputEnabled ||
+                IsHazardControlLocked ||
                 DuneVectorMapHUD.IsWorldMapOpen ||
                 (Health != null && Health.IsDead))
             {
@@ -184,6 +196,20 @@ namespace DuneVector
             _disabledMovementRotation = rotation;
         }
 
+        public void ApplyHazardAirBrake(float duration)
+        {
+            if (duration <= 0f)
+            {
+                return;
+            }
+
+            _hazardControlLockTimeRemaining = Mathf.Max(
+                _hazardControlLockTimeRemaining,
+                duration);
+            CaptureDisabledMovementRotation();
+            ClearCharacterInput(true);
+        }
+
         private void CaptureDisabledMovementRotation()
         {
             if (Character == null || Character.Motor == null)
@@ -211,7 +237,7 @@ namespace DuneVector
             _disabledMovementRotation = Quaternion.LookRotation(direction, up);
         }
 
-        private void ClearCharacterInput()
+        private void ClearCharacterInput(bool forceFlightBrake = false)
         {
             if (Character == null)
             {
@@ -223,7 +249,7 @@ namespace DuneVector
             DroneControlInput input = new DroneControlInput
             {
                 CameraRotation = _disabledMovementRotation,
-                JumpHeld = stopFlight,
+                JumpHeld = forceFlightBrake || stopFlight,
                 StopWhenFlightBraking = stopFlight,
             };
             Stamina?.Tick(false, Time.deltaTime);
