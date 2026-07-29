@@ -2437,7 +2437,7 @@ namespace DuneVector
         [Min(0)] public int GoldReward = 120;
 
         [Header("High-Altitude Spawning")]
-        [Range(1, 6)] public int EnemyCount = 1;
+        [Range(1, 12)] public int EnemyCount = 5;
         [Min(20f)] public float MinimumSpawnDistance = 220f;
         [Min(20f)] public float MaximumSpawnDistance = 360f;
         [Min(50f)] public float RepositionDistance = 540f;
@@ -2457,7 +2457,7 @@ namespace DuneVector
         [Range(0f, 1f)] public float MinimumInitialAttackDelayMultiplier = 0.25f;
         [Range(0f, 1f)] public float MaximumInitialAttackDelayMultiplier = 0.85f;
         [Min(0f)] public float AttackWindUpDuration = 2.25f;
-        [Range(1, 8)] public int PilgrimsPerProcession = 3;
+        [Range(1, 8)] public int PilgrimsPerProcession = 1;
         [Range(1, 16)] public int MaximumActivePilgrims = 6;
         [Min(0f)] public float PilgrimSpawnRadius = 4.2f;
         [Min(0f)] public float PilgrimSpawnForwardOffset = 1.2f;
