@@ -2484,6 +2484,10 @@ namespace DuneVector
         [Min(1)] public int PilgrimMovementRiskCeiling = 20;
         [Tooltip("Height above the local dune surface where pilgrim movement scaling and perfect turn tracking reach their maximum.")]
         [Min(0.1f)] public float PilgrimAltitudeScalingHeight = 225f;
+        [Tooltip("Ease-in curve used to scale Pilgrim maximum speed from ground level to the altitude scaling height.")]
+        public AnimationCurve PilgrimAltitudeSpeedCurve = new AnimationCurve(
+            new Keyframe(0f, 0f, 0f, 0f),
+            new Keyframe(1f, 1f, 2f, 2f));
         [Tooltip("Maximum-speed multiplier reached at the pilgrim altitude scaling height.")]
         [Min(1f)] public float PilgrimMaximumSpeedAltitudeMultiplier = 3f;
         [Tooltip("Acceleration multiplier reached at the pilgrim altitude scaling height.")]
@@ -2521,7 +2525,7 @@ namespace DuneVector
             return riskScaledMaximumSpeed * Mathf.Lerp(
                 1f,
                 Mathf.Max(1f, PilgrimMaximumSpeedAltitudeMultiplier),
-                EvaluatePilgrimAltitude(heightAboveGround));
+                EvaluatePilgrimAltitudeSpeed(heightAboveGround));
         }
 
         public float EvaluatePilgrimTurnRate(int risk)
@@ -2548,6 +2552,18 @@ namespace DuneVector
             return Mathf.Clamp01(
                 Mathf.Max(0f, heightAboveGround) /
                 Mathf.Max(0.1f, PilgrimAltitudeScalingHeight));
+        }
+
+        private float EvaluatePilgrimAltitudeSpeed(float heightAboveGround)
+        {
+            float altitude = EvaluatePilgrimAltitude(heightAboveGround);
+            if (PilgrimAltitudeSpeedCurve == null ||
+                PilgrimAltitudeSpeedCurve.length == 0)
+            {
+                return altitude;
+            }
+
+            return Mathf.Clamp01(PilgrimAltitudeSpeedCurve.Evaluate(altitude));
         }
 
         [Header("Portal Reversal")]
