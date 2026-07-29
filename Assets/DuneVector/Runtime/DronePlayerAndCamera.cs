@@ -145,7 +145,6 @@ namespace DuneVector
         private void LateUpdate()
         {
             if (!InputEnabled ||
-                IsHazardControlLocked ||
                 DuneVectorMapHUD.IsWorldMapOpen ||
                 (Health != null && Health.IsDead))
             {
@@ -153,8 +152,13 @@ namespace DuneVector
             }
 
             DroneRawInputFrame raw = AutomatedInputEnabled ? AutomatedInput : InputSource.Current;
-            Vector2 look = Cursor.lockState == CursorLockMode.Locked || AutomatedInputEnabled ? raw.LookDelta : Vector2.zero;
-            CharacterCamera.UpdateWithInput(Time.deltaTime, look, raw.Scroll);
+            bool cameraInputAllowed = !IsHazardControlLocked;
+            Vector2 look = cameraInputAllowed
+                && (Cursor.lockState == CursorLockMode.Locked || AutomatedInputEnabled)
+                    ? raw.LookDelta
+                    : Vector2.zero;
+            float scroll = cameraInputAllowed ? raw.Scroll : 0f;
+            CharacterCamera.UpdateWithInput(Time.deltaTime, look, scroll);
 
             if (AutomatedInputEnabled && raw.LookDelta.sqrMagnitude > 0f)
             {
