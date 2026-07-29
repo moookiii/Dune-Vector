@@ -3065,7 +3065,7 @@ namespace DuneVector
         [Min(1f)] public float FlightRingAmountMultiplierAtMinimumMeter = 5f;
         [Tooltip("Multiplier for the expected number of procedurally generated blue flight rings when the flight meter is full.")]
         [Min(1f)] public float FlightRingAmountMultiplierAtMaximumMeter = 1f;
-        [Tooltip("A second multiplier applied after the flight-meter-based blue flight ring amount multiplier.")]
+        [Tooltip("A second multiplier applied after the flight-meter-based blue flight ring amount multiplier. Values below the reciprocal meter multiplier preserve the baseline flight ring density.")]
         [Min(0f)] public float SecondFlightRingAmountMultiplier = 1f;
         [Tooltip("Seconds before the same flight ring can restore the flight meter again.")]
         [Min(0f)] public float FlightMeterRewardCooldown = 5f;
@@ -3076,7 +3076,9 @@ namespace DuneVector
                 Mathf.Max(1f, FlightRingAmountMultiplierAtMinimumMeter),
                 Mathf.Max(1f, FlightRingAmountMultiplierAtMaximumMeter),
                 Mathf.Clamp01(flightMeterNormalized));
-            return meterBasedMultiplier * Mathf.Max(0f, SecondFlightRingAmountMultiplier);
+            return Mathf.Max(
+                1f,
+                meterBasedMultiplier * Mathf.Max(0f, SecondFlightRingAmountMultiplier));
         }
 
         [Header("Boost and Flight Ring Appearance")]
