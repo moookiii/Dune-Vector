@@ -484,14 +484,14 @@ namespace DuneVector
 
         private void UpdateChase(float deltaTime)
         {
-            float riskSpeedMultiplier = DuneVectorContractRisk.EnemySpeedMultiplier;
+            int risk = DuneVectorContractRisk.CurrentRisk;
             float maximumSpeed = Mathf.Max(
                 _settings.PilgrimInitialSpeed,
-                _settings.PilgrimMaximumSpeed) * riskSpeedMultiplier;
+                _settings.EvaluatePilgrimMaximumSpeed(risk));
             _speed = Mathf.MoveTowards(
                 _speed,
                 maximumSpeed,
-                _settings.PilgrimAcceleration * riskSpeedMultiplier * deltaTime);
+                _settings.EvaluatePilgrimAcceleration(risk) * deltaTime);
             if (_player == null)
             {
                 return;
@@ -503,7 +503,7 @@ namespace DuneVector
                 _direction = Vector3.RotateTowards(
                     _direction,
                     desired.normalized,
-                    _settings.PilgrimTurnRate * Mathf.Deg2Rad * deltaTime,
+                    _settings.EvaluatePilgrimTurnRate(risk) * Mathf.Deg2Rad * deltaTime,
                     0f).normalized;
             }
         }

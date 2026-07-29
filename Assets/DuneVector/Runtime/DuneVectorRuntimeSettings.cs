@@ -2462,12 +2462,53 @@ namespace DuneVector
         [Min(0f)] public float PilgrimSpawnRadius = 4.2f;
         [Min(0f)] public float PilgrimSpawnForwardOffset = 1.2f;
         [Min(0.1f)] public float PilgrimInitialSpeed = 20f;
+        [Tooltip("Pilgrim acceleration at risk 0.")]
         [Min(0f)] public float PilgrimAcceleration = 8f;
+        [Tooltip("Pilgrim acceleration at the pilgrim movement risk ceiling.")]
+        [Min(0f)] public float PilgrimAccelerationAtRiskCeiling = 24f;
+        [Tooltip("Pilgrim maximum speed at risk 0.")]
         [Min(0.1f)] public float PilgrimMaximumSpeed = 180f;
+        [Tooltip("Pilgrim maximum speed at the pilgrim movement risk ceiling.")]
+        [Min(0.1f)] public float PilgrimMaximumSpeedAtRiskCeiling = 360f;
+        [Tooltip("Pilgrim turn rate in degrees per second at risk 0.")]
         [Min(0f)] public float PilgrimTurnRate = 82f;
+        [Tooltip("Pilgrim turn rate in degrees per second at the pilgrim movement risk ceiling.")]
+        [Min(0f)] public float PilgrimTurnRateAtRiskCeiling = 100f;
+        [Tooltip("Risk at which pilgrim acceleration, maximum speed, and turn rate reach their ceiling values.")]
+        [Min(1)] public int PilgrimMovementRiskCeiling = 20;
         [Min(0.01f)] public float PilgrimCollisionRadius = 2.25f;
         [Min(0f)] public float PilgrimDamage = 32f;
         public string PilgrimDeathMessage = "Consumed by the Vesper Kite's Redshift Procession.";
+
+        public float EvaluatePilgrimAcceleration(int risk)
+        {
+            return Mathf.Lerp(
+                PilgrimAcceleration,
+                PilgrimAccelerationAtRiskCeiling,
+                EvaluatePilgrimMovementRisk(risk));
+        }
+
+        public float EvaluatePilgrimMaximumSpeed(int risk)
+        {
+            return Mathf.Lerp(
+                PilgrimMaximumSpeed,
+                PilgrimMaximumSpeedAtRiskCeiling,
+                EvaluatePilgrimMovementRisk(risk));
+        }
+
+        public float EvaluatePilgrimTurnRate(int risk)
+        {
+            return Mathf.Lerp(
+                PilgrimTurnRate,
+                PilgrimTurnRateAtRiskCeiling,
+                EvaluatePilgrimMovementRisk(risk));
+        }
+
+        private float EvaluatePilgrimMovementRisk(int risk)
+        {
+            return Mathf.Clamp01(
+                risk / (float)Mathf.Max(1, PilgrimMovementRiskCeiling));
+        }
 
         [Header("Portal Reversal")]
         [Min(0f)] public float PortalExitOffset = 4f;
