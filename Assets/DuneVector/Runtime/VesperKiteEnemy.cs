@@ -524,13 +524,25 @@ namespace DuneVector
                 ? _world.SampleHeightAtLocal(position.x, position.z)
                 : position.y;
             float heightAboveGround = Mathf.Max(0f, position.y - groundHeight);
+            float droneSpeed = _player != null ? _player.Speed : 0f;
+            float droneMaximumSpeed = _player != null
+                ? _player.CurrentSpeedometerMaximum
+                : 1f;
             float maximumSpeed = Mathf.Max(
                 _settings.PilgrimInitialSpeed,
-                _settings.EvaluatePilgrimMaximumSpeed(risk, heightAboveGround));
+                _settings.EvaluatePilgrimMaximumSpeed(
+                    risk,
+                    heightAboveGround,
+                    droneSpeed,
+                    droneMaximumSpeed));
             _speed = Mathf.MoveTowards(
                 _speed,
                 maximumSpeed,
-                _settings.EvaluatePilgrimAcceleration(risk, heightAboveGround) * deltaTime);
+                _settings.EvaluatePilgrimAcceleration(
+                    risk,
+                    heightAboveGround,
+                    droneSpeed,
+                    droneMaximumSpeed) * deltaTime);
             if (_player == null)
             {
                 return;

@@ -2525,14 +2525,20 @@ namespace DuneVector
         [Min(1)] public int PilgrimMovementRiskCeiling = 20;
         [Tooltip("Height above the local dune surface where pilgrim movement scaling and perfect turn tracking reach their maximum.")]
         [Min(0.1f)] public float PilgrimAltitudeScalingHeight = 225f;
-        [Tooltip("Ease-in curve used to scale Pilgrim acceleration and maximum speed from ground level to the altitude scaling height.")]
+        [Tooltip("Ease-in curve used to scale Pilgrim maximum speed from ground level to the altitude scaling height.")]
         public AnimationCurve PilgrimAltitudeSpeedCurve = new AnimationCurve(
             new Keyframe(0f, 0f, 0f, 0f),
             new Keyframe(1f, 1f, 2f, 2f));
         [Tooltip("Maximum-speed multiplier reached at the pilgrim altitude scaling height.")]
-        [Min(1f)] public float PilgrimMaximumSpeedAltitudeMultiplier = 5f;
+        [Min(1f)] public float PilgrimMaximumSpeedAltitudeMultiplier = 3f;
         [Tooltip("Acceleration multiplier reached at the pilgrim altitude scaling height.")]
-        [Min(1f)] public float PilgrimAccelerationAltitudeMultiplier = 5f;
+        [Min(1f)] public float PilgrimAccelerationAltitudeMultiplier = 3f;
+        [Tooltip("Ease-in curve that scales Pilgrim acceleration and maximum speed as the drone approaches its current maximum speed.")]
+        public AnimationCurve PilgrimDroneSpeedMovementCurve = new AnimationCurve(
+            new Keyframe(0f, 0f, 0f, 0f),
+            new Keyframe(1f, 1f, 2f, 2f));
+        [Tooltip("Pilgrim acceleration and maximum-speed multiplier reached when the drone reaches its current maximum speed.")]
+        [Min(1f)] public float PilgrimMovementMultiplierAtDroneMaximumSpeed = 5f;
         [Min(0.01f)] public float PilgrimCollisionRadius = 2.25f;
         [Min(0f)] public float PilgrimDamage = 32f;
         public string PilgrimDamageSource = "Vesper Kite Redshift Procession";
@@ -2546,28 +2552,42 @@ namespace DuneVector
                 : range;
         }
 
-        public float EvaluatePilgrimAcceleration(int risk, float heightAboveGround)
+        public float EvaluatePilgrimAcceleration(
+            int risk,
+            float heightAboveGround,
+            float droneSpeed,
+            float droneMaximumSpeed)
         {
             float riskScaledAcceleration = Mathf.Lerp(
                 PilgrimAcceleration,
                 PilgrimAccelerationAtRiskCeiling,
                 EvaluatePilgrimMovementRisk(risk));
-            return riskScaledAcceleration * Mathf.Lerp(
+            float altitudeScaledAcceleration = riskScaledAcceleration * Mathf.Lerp(
                 1f,
                 Mathf.Max(1f, PilgrimAccelerationAltitudeMultiplier),
-                EvaluatePilgrimAltitudeMovementRamp(heightAboveGround));
+                EvaluatePilgrimAltitude(heightAboveGround));
+            return altitudeScaledAcceleration * EvaluatePilgrimDroneSpeedMultiplier(
+                droneSpeed,
+                droneMaximumSpeed);
         }
 
-        public float EvaluatePilgrimMaximumSpeed(int risk, float heightAboveGround)
+        public float EvaluatePilgrimMaximumSpeed(
+            int risk,
+            float heightAboveGround,
+            float droneSpeed,
+            float droneMaximumSpeed)
         {
             float riskScaledMaximumSpeed = Mathf.Lerp(
                 PilgrimMaximumSpeed,
                 PilgrimMaximumSpeedAtRiskCeiling,
                 EvaluatePilgrimMovementRisk(risk));
-            return riskScaledMaximumSpeed * Mathf.Lerp(
+            float altitudeScaledMaximumSpeed = riskScaledMaximumSpeed * Mathf.Lerp(
                 1f,
                 Mathf.Max(1f, PilgrimMaximumSpeedAltitudeMultiplier),
-                EvaluatePilgrimAltitudeMovementRamp(heightAboveGround));
+                EvaluatePilgrimAltitudeSpeed(heightAboveGround));
+            return altitudeScaledMaximumSpeed * EvaluatePilgrimDroneSpeedMultiplier(
+                droneSpeed,
+                droneMaximumSpeed);
         }
 
         public float EvaluatePilgrimTurnRate(int risk)
@@ -2596,7 +2616,7 @@ namespace DuneVector
                 Mathf.Max(0.1f, PilgrimAltitudeScalingHeight));
         }
 
-        private float EvaluatePilgrimAltitudeMovementRamp(float heightAboveGround)
+        private float EvaluatePilgrimAltitudeSpeed(float heightAboveGround)
         {
             float altitude = EvaluatePilgrimAltitude(heightAboveGround);
             if (PilgrimAltitudeSpeedCurve == null ||
@@ -2606,6 +2626,22 @@ namespace DuneVector
             }
 
             return Mathf.Clamp01(PilgrimAltitudeSpeedCurve.Evaluate(altitude));
+        }
+
+        private float EvaluatePilgrimDroneSpeedMultiplier(
+            float droneSpeed,
+            float droneMaximumSpeed)
+        {
+            float speedProgress = Mathf.Clamp01(
+                Mathf.Max(0f, droneSpeed) / Mathf.Max(0.1f, droneMaximumSpeed));
+            float easedProgress = PilgrimDroneSpeedMovementCurve == null ||
+                PilgrimDroneSpeedMovementCurve.length == 0
+                    ? speedProgress
+                    : Mathf.Clamp01(PilgrimDroneSpeedMovementCurve.Evaluate(speedProgress));
+            return Mathf.Lerp(
+                1f,
+                Mathf.Max(1f, PilgrimMovementMultiplierAtDroneMaximumSpeed),
+                easedProgress);
         }
 
         [Header("Portal Reversal")]
