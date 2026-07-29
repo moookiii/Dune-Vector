@@ -465,9 +465,13 @@ namespace DuneVector
                 }
             }
 
+            Vector3 observerPosition = _character != null
+                ? _character.transform.position
+                : _camera.transform.position;
             foreach (DuneVectorPhotographableMarker marker in DuneVectorPhotographableMarker.ActiveMarkers)
             {
                 if (marker == null ||
+                    marker.IsSuppressedForObserver(observerPosition) ||
                     !TryResolveDisplayName(marker.SubjectId, out string displayName) ||
                     !marker.TryGetScreenBounds(
                         _camera,

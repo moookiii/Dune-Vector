@@ -47,12 +47,14 @@ namespace DuneVector
         private float _nextRendererRefresh;
         private bool _hasCustomFramingBounds;
         private Bounds _customFramingBounds;
+        private float _minimumObserverHorizontalDistance;
 
         public static DuneVectorPhotographableMarker Register(
             GameObject subjectRoot,
             string subjectId,
             PhotographableSubjectCategory category,
-            Bounds? localFramingBounds = null)
+            Bounds? localFramingBounds = null,
+            float minimumObserverHorizontalDistance = 0f)
         {
             if (subjectRoot == null || string.IsNullOrWhiteSpace(subjectId))
             {
@@ -62,20 +64,40 @@ namespace DuneVector
             DuneVectorPhotographableMarker marker =
                 subjectRoot.GetComponent<DuneVectorPhotographableMarker>() ??
                 subjectRoot.AddComponent<DuneVectorPhotographableMarker>();
-            marker.Initialize(subjectId, category, localFramingBounds);
+            marker.Initialize(
+                subjectId,
+                category,
+                localFramingBounds,
+                minimumObserverHorizontalDistance);
             return marker;
         }
 
         public void Initialize(
             string subjectId,
             PhotographableSubjectCategory category,
-            Bounds? localFramingBounds = null)
+            Bounds? localFramingBounds = null,
+            float minimumObserverHorizontalDistance = 0f)
         {
             SubjectId = subjectId;
             Category = category;
             _hasCustomFramingBounds = localFramingBounds.HasValue;
             _customFramingBounds = localFramingBounds.GetValueOrDefault();
+            _minimumObserverHorizontalDistance =
+                Mathf.Max(0f, minimumObserverHorizontalDistance);
             RefreshRenderers();
+        }
+
+        public bool IsSuppressedForObserver(Vector3 observerPosition)
+        {
+            if (_minimumObserverHorizontalDistance <= 0f)
+            {
+                return false;
+            }
+
+            Vector2 observer = new Vector2(observerPosition.x, observerPosition.z);
+            Vector2 subject = new Vector2(transform.position.x, transform.position.z);
+            return Vector2.Distance(observer, subject) <
+                _minimumObserverHorizontalDistance;
         }
 
         private void OnEnable()

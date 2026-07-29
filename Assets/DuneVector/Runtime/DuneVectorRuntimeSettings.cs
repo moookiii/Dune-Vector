@@ -1064,6 +1064,8 @@ namespace DuneVector
         [Min(0f)] public float UpgradeAreaSideOffset = 13f;
         [Min(0f)] public float PlayerSpawnHeight = 2.2f;
         public bool RestoreHealthOnReturn = true;
+        [Tooltip("Horizontal distance from the hub center inside which the hub is hidden from photography subject detection.")]
+        [Min(0f)] public float PhotographySuppressionRadius;
 
         [Header("Physical Terminals")]
         public Vector3 TerminalPedestalLocalPosition = new Vector3(0f, 2f, 0f);

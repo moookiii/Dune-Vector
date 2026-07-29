@@ -901,7 +901,9 @@ namespace DuneVector
             DuneVectorPhotographableMarker.Register(
                 hubObject,
                 DuneVectorCompendiumSubjectIds.Hub,
-                PhotographableSubjectCategory.Misc);
+                PhotographableSubjectCategory.Misc,
+                minimumObserverHorizontalDistance:
+                    _hubSettings.PhotographySuppressionRadius);
         }
 
         private void BuildHubRuneRing()
