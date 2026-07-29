@@ -4622,7 +4622,7 @@ namespace DuneVector
         public string GroundSpeedLabel = "GROUND VELOCITY";
         public string FlightSpeedLabel = "FLIGHT VELOCITY";
         public string FlightTimeLabel = "FLIGHT RESERVE";
-        public string HealthLabel = "HULL INTEGRITY";
+        public string HealthLabel = "DRONE INTEGRITY";
         public string SpeedUnit = "m/s";
         public string FlightTimeUnit = "sec";
 
