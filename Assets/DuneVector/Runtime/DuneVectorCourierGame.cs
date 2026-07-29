@@ -552,6 +552,19 @@ namespace DuneVector
             BeginTeleport(toHub: true);
         }
 
+        public void RestartAtHubAfterDeath()
+        {
+            DestroyTeleportParticles();
+            if (_player.DroneVisualRoot != null)
+            {
+                _player.DroneVisualRoot.localScale = _droneVisualOriginalScale;
+            }
+            _returnStartsVanished = false;
+            _deliveryCompletionInProgress = false;
+            EndDeliveryMessageSafety();
+            EnterHubImmediate(openTerminal: false);
+        }
+
         public bool AcceptOffer(int offerIndex)
         {
             if (State != CourierRunState.Hub || offerIndex < 0 || offerIndex >= _offers.Count)

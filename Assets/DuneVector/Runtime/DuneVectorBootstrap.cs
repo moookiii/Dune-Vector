@@ -816,6 +816,7 @@ namespace DuneVector
                     CourierGame);
                 CourierGame.BindEncounterDirector(RouteEncounterDirector);
                 PauseMenu?.BindCourierGame(CourierGame);
+                GameOverController?.BindCourierGame(CourierGame);
                 return;
             }
 

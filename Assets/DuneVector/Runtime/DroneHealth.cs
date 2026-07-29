@@ -117,6 +117,28 @@ namespace DuneVector
             Healed?.Invoke(restored);
             return true;
         }
+
+        public bool ReviveAtFullHealth()
+        {
+            if (!IsDead)
+            {
+                return false;
+            }
+
+            float previousHealth = CurrentHealth;
+            IsDead = false;
+            IsDamageImmune = false;
+            CurrentHealth = MaximumHealth;
+            _nextDamageTime = Time.time;
+            HealthChanged?.Invoke(CurrentHealth, MaximumHealth);
+
+            float restored = CurrentHealth - previousHealth;
+            if (restored > 0f)
+            {
+                Healed?.Invoke(restored);
+            }
+            return true;
+        }
     }
 
     [DisallowMultipleComponent]
@@ -231,6 +253,7 @@ namespace DuneVector
         public bool IsGameOver { get; private set; }
 
         private DroneHealth _health;
+        private DuneVectorCourierGame _courierGame;
         private GUIStyle _titleStyle;
         private GUIStyle _bodyStyle;
 
@@ -241,6 +264,11 @@ namespace DuneVector
             {
                 _health.Died += HandleDeath;
             }
+        }
+
+        public void BindCourierGame(DuneVectorCourierGame courierGame)
+        {
+            _courierGame = courierGame;
         }
 
         private void OnDestroy()
@@ -306,7 +334,18 @@ namespace DuneVector
             if (GUI.Button(new Rect(buttonX, panel.y + 154f, buttonWidth, 42f), "RESTART"))
             {
                 Time.timeScale = 1f;
-                SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+                if (_courierGame != null && _health.ReviveAtFullHealth())
+                {
+                    IsGameOver = false;
+                    _health.GetComponent<DroneCharacterController>()?.SetHoverEnabled(true);
+                    _courierGame.RestartAtHubAfterDeath();
+                    Cursor.lockState = CursorLockMode.Locked;
+                    Cursor.visible = false;
+                }
+                else
+                {
+                    SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+                }
             }
             if (GUI.Button(new Rect(buttonX, panel.y + 210f, buttonWidth, 42f), "QUIT"))
             {
