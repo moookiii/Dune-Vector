@@ -3109,6 +3109,8 @@ namespace DuneVector
         [Header("Placement")]
         [Tooltip("Minimum horizontal center-to-center distance between any two procedurally generated traversal rings, regardless of ring type.")]
         [Min(0f)] public float MinimumRingSeparation = 10f;
+        [Tooltip("Minimum horizontal distance from the hub center where traversal ring centers may spawn.")]
+        [Min(0f)] public float HubExclusionRadius = 38f;
 
         [Header("Billboarding")]
         [Tooltip("Distance from the drone center at which rings freeze their current orientation instead of continuing to face the camera.")]

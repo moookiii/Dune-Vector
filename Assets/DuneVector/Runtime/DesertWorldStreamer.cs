@@ -2172,6 +2172,15 @@ namespace DuneVector
 
             double logicalX = originX + local.x;
             double logicalZ = originZ + local.y;
+            double hubOffsetX = logicalX - DesertWorldStreamer.StartingLogicalPosition.x;
+            double hubOffsetZ = logicalZ - DesertWorldStreamer.StartingLogicalPosition.y;
+            double hubExclusionRadius = Math.Max(0d, ringTuning.HubExclusionRadius);
+            if ((hubOffsetX * hubOffsetX) + (hubOffsetZ * hubOffsetZ)
+                < hubExclusionRadius * hubExclusionRadius)
+            {
+                return;
+            }
+
             float terrainHeight = (float)heightField.SampleHeight(logicalX, logicalZ);
             float minimumHeight = type switch
             {
