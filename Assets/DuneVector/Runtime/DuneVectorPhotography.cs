@@ -452,7 +452,8 @@ namespace DuneVector
                             priority,
                             bestDepth,
                             bestCoverage,
-                            bestCenterPriority))
+                            bestCenterPriority,
+                            prioritizeForeground: false))
                     {
                         continue;
                     }
@@ -492,7 +493,9 @@ namespace DuneVector
                         centerPriority,
                         bestDepth,
                         bestCoverage,
-                        bestCenterPriority))
+                        bestCenterPriority,
+                        prioritizeForeground:
+                            !found || bestSubject.Category != PhotographableSubjectCategory.Glyph))
                 {
                     continue;
                 }
@@ -577,10 +580,11 @@ namespace DuneVector
             float centerPriority,
             float bestDepth,
             float bestCoverage,
-            float bestCenterPriority)
+            float bestCenterPriority,
+            bool prioritizeForeground)
         {
             const float coverageTieTolerance = 0.0001f;
-            if (!Mathf.Approximately(depth, bestDepth))
+            if (prioritizeForeground && !Mathf.Approximately(depth, bestDepth))
             {
                 return depth < bestDepth;
             }
