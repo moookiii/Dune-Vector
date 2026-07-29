@@ -457,6 +457,7 @@ namespace DuneVector
         private Vector3 _patrolCenter;
         private float _fixedAltitude;
         private float _phase;
+        private float _patrolHeightNormalized;
         private int _identity;
         private int _repositionCount;
 
@@ -473,6 +474,12 @@ namespace DuneVector
             _phase = identity * 1.713f;
             _patrolCenter = transform.position;
             _fixedAltitude = transform.position.y;
+            float terrainHeight = world.SampleHeightAtLocal(transform.position.x, transform.position.z);
+            float heightVariance = Mathf.Max(0f, settings.HoverHeightVariance);
+            _patrolHeightNormalized = Mathf.InverseLerp(
+                settings.HoverHeight - heightVariance,
+                settings.HoverHeight + heightVariance,
+                _fixedAltitude - terrainHeight);
         }
 
         public void Tick(float deltaTime)
@@ -516,7 +523,7 @@ namespace DuneVector
             float heightVariation = Mathf.Lerp(
                 -_settings.HoverHeightVariance,
                 _settings.HoverHeightVariance,
-                Mathf.Repeat((_identity * 0.619f) + (_repositionCount * 0.347f), 1f));
+                _patrolHeightNormalized);
             position.y = terrainHeight + _settings.HoverHeight + heightVariation;
             transform.position = position;
             _patrolCenter = position;
@@ -1519,6 +1526,7 @@ namespace DuneVector
         private Vector3 _patrolCenter;
         private float _fixedAltitude;
         private float _phase;
+        private float _patrolHeightNormalized;
         private int _identity;
         private int _repositionCount;
 
@@ -1535,6 +1543,12 @@ namespace DuneVector
             _phase = identity * 1.421f;
             _patrolCenter = transform.position;
             _fixedAltitude = transform.position.y;
+            float terrainHeight = world.SampleHeightAtLocal(transform.position.x, transform.position.z);
+            float heightVariance = Mathf.Max(0f, settings.HoverHeightVariance);
+            _patrolHeightNormalized = Mathf.InverseLerp(
+                settings.HoverHeight - heightVariance,
+                settings.HoverHeight + heightVariance,
+                _fixedAltitude - terrainHeight);
         }
 
         public void Tick(float deltaTime)
@@ -1574,7 +1588,7 @@ namespace DuneVector
             float heightVariation = Mathf.Lerp(
                 -_settings.HoverHeightVariance,
                 _settings.HoverHeightVariance,
-                Mathf.Repeat((_identity * 0.593f) + (_repositionCount * 0.331f), 1f));
+                _patrolHeightNormalized);
             position.y = _world.SampleHeightAtLocal(position.x, position.z)
                 + _settings.HoverHeight
                 + heightVariation;
