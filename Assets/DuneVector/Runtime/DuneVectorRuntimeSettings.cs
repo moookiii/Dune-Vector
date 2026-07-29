@@ -1440,10 +1440,10 @@ namespace DuneVector
         [Min(0)] public int EnemyGoldReward = 12;
         [Min(0.1f)] public float EnemyVisualScale = 1.25f;
         [Min(0f)] public float ContactDamage = 12f;
-        public string ContactDeathMessage = "Destroyed by a Formation Enemy collision.";
+        public string ContactDeathMessage = "Destroyed by a Sky Piercer collision.";
         [Min(0.1f)] public float ContactRadius = 2.4f;
         [Min(0f)] public float ShotDamage = 7f;
-        public string ShotDeathMessage = "Destroyed by a Formation Enemy shot.";
+        public string ShotDeathMessage = "Destroyed by a Sky Piercer shot.";
         [Min(0.1f)] public float ShotInterval = 1.1f;
         [Min(0.1f)] public float ShotTelegraphDuration = 0.22f;
         [Min(0.1f)] public float ShotHitRadius = 2.2f;

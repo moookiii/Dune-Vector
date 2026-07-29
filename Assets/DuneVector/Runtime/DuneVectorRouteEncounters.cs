@@ -642,7 +642,7 @@ namespace DuneVector
             SetState(FormationEnemyState.FormationApproach);
             DuneVectorPhotographableMarker.Register(
                 gameObject,
-                DuneVectorCompendiumSubjectIds.FormationEnemy,
+                DuneVectorCompendiumSubjectIds.SkyPiercer,
                 PhotographableSubjectCategory.Enemy);
         }
 
@@ -715,7 +715,7 @@ namespace DuneVector
                 _contactDamageApplied = true;
                 _health.TakeDamage(
                     _settings.ContactDamage * _damageMultiplier * DuneVectorContractRisk.EnemyDamageMultiplier,
-                    "Formation Enemy collision",
+                    "Sky Piercer collision",
                     _settings.ContactDeathMessage);
             }
             if (Vector3.Distance(transform.position, _passTarget) <= 2f)
@@ -760,7 +760,7 @@ namespace DuneVector
                     {
                         _health.TakeDamage(
                             _settings.ShotDamage * _damageMultiplier * DuneVectorContractRisk.EnemyDamageMultiplier,
-                            "Formation Enemy shot",
+                            "Sky Piercer shot",
                             _settings.ShotDeathMessage);
                     }
                     _shotTimer = _settings.ShotInterval * _shotIntervalMultiplier;
