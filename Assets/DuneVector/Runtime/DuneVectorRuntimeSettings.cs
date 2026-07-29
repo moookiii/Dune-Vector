@@ -2189,6 +2189,12 @@ namespace DuneVector
         [Tooltip("Ground strikes show a nearby warning when the impact point is inside this range of the drone.")]
         [Min(1f)] public float DetectionRange = 125f;
 
+        [Header("Proximity Explosion")]
+        [Tooltip("Multiplies the Ground Exploders detection radius when a storm pyramid checks whether the drone is close enough to trigger its detonation.")]
+        [Min(0.1f)] public float ProximityDetectionRadiusMultiplier = 3f;
+        [Tooltip("Multiplies the Ground Exploders risk-scaled explosion radius for storm pyramid damage and presentation.")]
+        [Min(0.1f)] public float ProximityExplosionRadiusMultiplier = 3f;
+
         [Header("Lightning Attack")]
         [Tooltip("Delay before beginning another straight-down ground strike after returning to idle at risk 0.")]
         [Min(0f)] public float AttackInterval = 4.5f;

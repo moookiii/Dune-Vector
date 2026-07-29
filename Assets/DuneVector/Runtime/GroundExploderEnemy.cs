@@ -230,7 +230,8 @@ namespace DuneVector
             DroneCharacterController player,
             DroneHealth playerHealth,
             DuneVectorMaterials materials,
-            GroundExploderTuning settings)
+            GroundExploderTuning settings,
+            float radiusMultiplier)
         {
             if (materials == null || settings == null)
             {
@@ -240,17 +241,19 @@ namespace DuneVector
             GameObject effectObject = new GameObject("Ground Exploder Explosion");
             effectObject.transform.position = position;
             GroundExploderExplosionEffect effect = effectObject.AddComponent<GroundExploderExplosionEffect>();
-            effect.Initialize(player, playerHealth, materials, settings);
+            effect.Initialize(player, playerHealth, materials, settings, radiusMultiplier);
         }
 
         private void Initialize(
             DroneCharacterController player,
             DroneHealth playerHealth,
             DuneVectorMaterials materials,
-            GroundExploderTuning settings)
+            GroundExploderTuning settings,
+            float radiusMultiplier)
         {
             _playerHealth = playerHealth;
-            _radius = settings.EvaluateExplosionRadius(DuneVectorContractRisk.CurrentRisk);
+            _radius = settings.EvaluateExplosionRadius(DuneVectorContractRisk.CurrentRisk)
+                * Mathf.Max(0.1f, radiusMultiplier);
             _flash = DuneVectorVisuals.CreateGroundExplosionVisual(transform, materials);
             _flash.localScale = Vector3.zero;
 
