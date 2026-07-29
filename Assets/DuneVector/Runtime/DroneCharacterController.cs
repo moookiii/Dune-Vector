@@ -150,14 +150,6 @@ namespace DuneVector
                     : maximumSpeed;
             }
         }
-
-        public void ApplyExternalImpulse(Vector3 impulse)
-        {
-            if (Motor != null)
-            {
-                Motor.BaseVelocity += impulse;
-            }
-        }
         public float CargoSpeedMultiplier { get; private set; } = 1f;
         public float CargoAccelerationMultiplier { get; private set; } = 1f;
         public float CargoTurningMultiplier { get; private set; } = 1f;
