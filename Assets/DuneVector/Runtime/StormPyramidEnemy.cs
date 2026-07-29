@@ -2311,12 +2311,6 @@ namespace DuneVector
             spawnPosition.y = _world.SampleHeightAtLocal(spawnPosition.x, spawnPosition.z)
                 + _settings.HoverHeight
                 + heightVariation;
-            LogSpawnAltitude(
-                objectName,
-                spawnPosition,
-                _settings.HoverHeight,
-                _settings.HoverHeightVariance,
-                heightVariation);
 
             GameObject enemyObject = new GameObject(objectName);
             enemyObject.transform.SetParent(transform, true);
@@ -2357,12 +2351,6 @@ namespace DuneVector
             spawnPosition.y = _world.SampleHeightAtLocal(spawnPosition.x, spawnPosition.z)
                 + _orbSettings.HoverHeight
                 + heightVariation;
-            LogSpawnAltitude(
-                objectName,
-                spawnPosition,
-                _orbSettings.HoverHeight,
-                _orbSettings.HoverHeightVariance,
-                heightVariation);
 
             GameObject enemyObject = new GameObject(objectName);
             enemyObject.transform.SetParent(transform, true);
@@ -2461,24 +2449,6 @@ namespace DuneVector
         private static float GetSpawnHeightNormalized(int index, int count)
         {
             return count <= 1 ? 0.5f : index / (float)(count - 1);
-        }
-
-        [System.Diagnostics.Conditional("UNITY_EDITOR")]
-        [System.Diagnostics.Conditional("DEVELOPMENT_BUILD")]
-        private static void LogSpawnAltitude(
-            string objectName,
-            Vector3 spawnPosition,
-            float hoverHeight,
-            float hoverHeightVariance,
-            float heightVariation)
-        {
-            float requestedClearance = hoverHeight + heightVariation;
-            float terrainHeight = spawnPosition.y - requestedClearance;
-            Debug.Log(
-                $"[Altitude Spawn Audit] {objectName}: " +
-                $"authored={hoverHeight:0.##} +/- {hoverHeightVariance:0.##}, " +
-                $"terrainY={terrainHeight:0.##}, clearance={requestedClearance:0.##}, " +
-                $"worldY={spawnPosition.y:0.##}");
         }
 
         private void ClearRiskEnemies()
