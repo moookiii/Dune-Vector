@@ -1628,31 +1628,6 @@ namespace DuneVector
 
         [Tooltip("Keep development builds running at full speed while another window, such as the Unity Profiler, has focus.")]
         public bool RunDevelopmentBuildsInBackground = true;
-
-        [Header("Dynamic Resolution")]
-        [Tooltip("Allow HDRP to vary internal render resolution and upscale with STP to protect frame rate.")]
-        public bool EnableDynamicResolution = true;
-
-        [Tooltip("Lowest internal render-resolution percentage HDRP may select.")]
-        [Range(50f, 100f)] public float DynamicResolutionMinimumPercentage = 70f;
-
-        [Tooltip("Highest internal render-resolution percentage HDRP may select.")]
-        [Range(50f, 100f)] public float DynamicResolutionMaximumPercentage = 80f;
-
-        [Tooltip("Number of GPU frames averaged before the dynamic-resolution controller evaluates a scale change.")]
-        [Range(1, 120)] public int DynamicResolutionEvaluationFrameCount = 15;
-
-        [Tooltip("Successful evaluation groups required before increasing internal resolution.")]
-        [Range(1, 32)] public int DynamicResolutionScaleUpDuration = 8;
-
-        [Tooltip("Over-budget evaluation groups required before decreasing internal resolution.")]
-        [Range(1, 32)] public int DynamicResolutionScaleDownDuration = 4;
-
-        [Tooltip("Number of steps used to move from minimum to maximum internal resolution.")]
-        [Range(1, 20)] public int DynamicResolutionScaleUpStepCount = 5;
-
-        [Tooltip("Number of steps used to move from maximum to minimum internal resolution.")]
-        [Range(1, 20)] public int DynamicResolutionScaleDownStepCount = 2;
     }
 
     [System.Serializable]

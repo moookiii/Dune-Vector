@@ -484,7 +484,6 @@ namespace DuneVector
             {
                 cameraData = cameraObject.AddComponent<HDAdditionalCameraData>();
             }
-            ConfigureDynamicResolution(cameraObject, camera, cameraData, RuntimeSettings.Performance);
             cameraData.customRenderingSettings = true;
             cameraData.renderingPathCustomFrameSettings.SetEnabled(FrameSettingsField.Distortion, true);
             cameraData.renderingPathCustomFrameSettingsOverrideMask.mask[(uint)FrameSettingsField.Distortion] = true;
@@ -533,76 +532,6 @@ namespace DuneVector
                 DroneHealth,
                 stamina,
                 boostSpeedModifier);
-        }
-
-        private static void ConfigureDynamicResolution(
-            GameObject cameraObject,
-            Camera camera,
-            HDAdditionalCameraData cameraData,
-            RuntimePerformanceTuning tuning)
-        {
-            if (cameraObject == null || camera == null || cameraData == null || tuning == null)
-            {
-                return;
-            }
-
-            bool enabled = tuning.EnableDynamicResolution;
-            float minimumPercentage = Mathf.Clamp(
-                tuning.DynamicResolutionMinimumPercentage,
-                50f,
-                100f);
-            float maximumPercentage = Mathf.Clamp(
-                tuning.DynamicResolutionMaximumPercentage,
-                minimumPercentage,
-                100f);
-
-            HDRenderPipelineAsset pipelineAsset =
-                QualitySettings.renderPipeline as HDRenderPipelineAsset ??
-                GraphicsSettings.currentRenderPipeline as HDRenderPipelineAsset;
-            if (pipelineAsset != null)
-            {
-                RenderPipelineSettings pipelineSettings =
-                    pipelineAsset.currentPlatformRenderPipelineSettings;
-                GlobalDynamicResolutionSettings dynamicResolution =
-                    pipelineSettings.dynamicResolutionSettings;
-                dynamicResolution.enabled = enabled;
-                dynamicResolution.minPercentage = minimumPercentage;
-                dynamicResolution.maxPercentage = maximumPercentage;
-                dynamicResolution.dynResType = DynamicResolutionType.Hardware;
-                dynamicResolution.forceResolution = false;
-                dynamicResolution.upsampleFilter = DynamicResUpscaleFilter.TAAU;
-                dynamicResolution.advancedUpscalerNames ??=
-                    new System.Collections.Generic.List<string>();
-                dynamicResolution.advancedUpscalerNames.Clear();
-                dynamicResolution.advancedUpscalerNames.Add(
-                    AdvancedUpscalers.STP.ToString());
-                pipelineSettings.dynamicResolutionSettings = dynamicResolution;
-                pipelineAsset.currentPlatformRenderPipelineSettings = pipelineSettings;
-            }
-
-            camera.allowDynamicResolution = enabled;
-            cameraData.allowDynamicResolution = enabled;
-            if (!enabled)
-            {
-                return;
-            }
-
-            HDDynamicResolution controller = cameraObject.AddComponent<HDDynamicResolution>();
-            controller.EvaluationFrameCount = Mathf.Max(
-                1,
-                tuning.DynamicResolutionEvaluationFrameCount);
-            controller.ScaleUpDuration = (uint)Mathf.Max(
-                1,
-                tuning.DynamicResolutionScaleUpDuration);
-            controller.ScaleDownDuration = (uint)Mathf.Max(
-                1,
-                tuning.DynamicResolutionScaleDownDuration);
-            controller.ScaleUpStepCount = Mathf.Max(
-                1,
-                tuning.DynamicResolutionScaleUpStepCount);
-            controller.ScaleDownStepCount = Mathf.Max(
-                1,
-                tuning.DynamicResolutionScaleDownStepCount);
         }
 
         private static void ConfigureCameraAntiAliasing(HDAdditionalCameraData cameraData, DroneTuning settings)
