@@ -1058,6 +1058,8 @@ namespace DuneVector
         public Vector3 ArchiveTerminalLocalPosition = new Vector3(11f, 0f, 0f);
         public Vector3 ArchiveTerminalLocalEulerAngles = new Vector3(0f, 90f, 0f);
         [Min(1f)] public float ArchiveTerminalInteractionRadius = 6f;
+        [Tooltip("Whether the message archive terminal includes its color-cycling screen and two signal masts.")]
+        public bool ArchiveTerminalEnergyBarsEnabled;
         [Min(0f)] public float FreeRoamTerminalLeftOffset = 11f;
         [Min(1f)] public float FreeRoamTerminalInteractionRadius = 6f;
         public float FreeRoamDeploymentHeadingDegrees = 90f;
