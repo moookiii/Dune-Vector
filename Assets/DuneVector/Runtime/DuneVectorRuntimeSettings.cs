@@ -1739,7 +1739,7 @@ namespace DuneVector
         public string Eyebrow = "DUNE VECTOR  //  RECOVERY PROTOCOL";
         public string Title = "SIGNAL LOST";
         public string Subtitle = "COURIER UNIT OFFLINE";
-        public string RestartButtonLabel = "RESTORE AT HUB";
+        public string RestartButtonLabel;
         public string QuitButtonLabel = "END SESSION";
         public string FooterHint = "ENTER  /  INITIATE RECOVERY";
 
