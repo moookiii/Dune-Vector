@@ -92,6 +92,7 @@ namespace DuneVector.Editor
     [CustomEditor(typeof(DuneVectorRuntimeSettings))]
     public sealed class DuneVectorRuntimeSettingsEditor : UnityEditor.Editor
     {
+        private const int MaxVisibleSearchResults = 64;
         private static readonly string[] Tabs = { "Player", "Gameplay", "Enemies", "World" };
         private static readonly string[] PresetDescriptions =
         {
@@ -111,6 +112,11 @@ namespace DuneVector.Editor
         private int _selectedTab;
         private string _searchQuery = string.Empty;
         private SearchField _searchField;
+        private readonly List<SearchEntry> _searchIndex = new List<SearchEntry>();
+        private readonly List<string> _searchResultPaths = new List<string>();
+        private string _indexedSearchQuery;
+        private bool _searchIndexIsValid;
+        private int _searchMatchCount;
         private SerializedProperty _player;
         private SerializedProperty _bottomHud;
         private SerializedProperty _mapHud;
@@ -241,35 +247,42 @@ namespace DuneVector.Editor
 
         private void DrawSearchResults()
         {
-            string[] searchTerms = _searchQuery.Split(
-                new[] { ' ' },
-                System.StringSplitOptions.RemoveEmptyEntries);
-            List<SerializedProperty> matches = new List<SerializedProperty>();
-            SerializedProperty iterator = serializedObject.GetIterator();
-            bool enterChildren = true;
-            while (iterator.NextVisible(enterChildren))
+            EnsureSearchIndex();
+
+            string normalizedQuery = _searchQuery.Trim();
+            if (!string.Equals(_indexedSearchQuery, normalizedQuery, System.StringComparison.Ordinal))
             {
-                enterChildren = true;
-                if (IsSearchableProperty(iterator) && MatchesSearch(iterator, searchTerms))
-                {
-                    matches.Add(iterator.Copy());
-                }
+                FilterSearchResults(normalizedQuery);
             }
 
             EditorGUILayout.LabelField(
-                $"{matches.Count} matching {(matches.Count == 1 ? "setting" : "settings")}",
+                $"{_searchMatchCount} matching {(_searchMatchCount == 1 ? "setting" : "settings")}",
                 EditorStyles.miniLabel);
 
-            if (matches.Count == 0)
+            if (_searchMatchCount == 0)
             {
                 EditorGUILayout.HelpBox(
-                    $"No runtime settings match \"{_searchQuery.Trim()}\".",
+                    $"No runtime settings match \"{normalizedQuery}\".",
                     MessageType.Info);
                 return;
             }
 
-            foreach (SerializedProperty property in matches)
+            if (_searchMatchCount > _searchResultPaths.Count)
             {
+                EditorGUILayout.HelpBox(
+                    $"Showing the first {_searchResultPaths.Count} results. Keep typing to narrow the search.",
+                    MessageType.None);
+            }
+
+            foreach (string propertyPath in _searchResultPaths)
+            {
+                SerializedProperty property = serializedObject.FindProperty(propertyPath);
+                if (property == null)
+                {
+                    _searchIndexIsValid = false;
+                    continue;
+                }
+
                 using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
                 {
                     string rootName = GetRootPropertyName(property.propertyPath);
@@ -285,6 +298,53 @@ namespace DuneVector.Editor
             }
         }
 
+        private void EnsureSearchIndex()
+        {
+            if (_searchIndexIsValid)
+            {
+                return;
+            }
+
+            _searchIndex.Clear();
+            SerializedProperty iterator = serializedObject.GetIterator();
+            bool enterChildren = true;
+            while (iterator.NextVisible(enterChildren))
+            {
+                enterChildren = true;
+                if (IsSearchableProperty(iterator))
+                {
+                    _searchIndex.Add(new SearchEntry(
+                        iterator.propertyPath,
+                        $"{iterator.displayName} {iterator.name} {iterator.propertyPath} {iterator.tooltip}"));
+                }
+            }
+
+            _searchIndexIsValid = true;
+            _indexedSearchQuery = null;
+        }
+
+        private void FilterSearchResults(string normalizedQuery)
+        {
+            string[] searchTerms = normalizedQuery.Split(
+                new[] { ' ' },
+                System.StringSplitOptions.RemoveEmptyEntries);
+            _searchResultPaths.Clear();
+            _searchMatchCount = 0;
+            foreach (SearchEntry entry in _searchIndex)
+            {
+                if (MatchesSearch(entry.SearchableText, searchTerms))
+                {
+                    _searchMatchCount++;
+                    if (_searchResultPaths.Count < MaxVisibleSearchResults)
+                    {
+                        _searchResultPaths.Add(entry.PropertyPath);
+                    }
+                }
+            }
+
+            _indexedSearchQuery = normalizedQuery;
+        }
+
         private static bool IsSearchableProperty(SerializedProperty property)
         {
             return property.propertyPath != "m_Script"
@@ -292,10 +352,8 @@ namespace DuneVector.Editor
                     || property.propertyType != SerializedPropertyType.Generic);
         }
 
-        private static bool MatchesSearch(SerializedProperty property, string[] searchTerms)
+        private static bool MatchesSearch(string searchableText, string[] searchTerms)
         {
-            string searchableText =
-                $"{property.displayName} {property.name} {property.propertyPath} {property.tooltip}";
             foreach (string term in searchTerms)
             {
                 if (searchableText.IndexOf(term, System.StringComparison.OrdinalIgnoreCase) < 0)
@@ -305,6 +363,18 @@ namespace DuneVector.Editor
             }
 
             return true;
+        }
+
+        private sealed class SearchEntry
+        {
+            public readonly string PropertyPath;
+            public readonly string SearchableText;
+
+            public SearchEntry(string propertyPath, string searchableText)
+            {
+                PropertyPath = propertyPath;
+                SearchableText = searchableText;
+            }
         }
 
         private static string GetRootPropertyName(string propertyPath)
