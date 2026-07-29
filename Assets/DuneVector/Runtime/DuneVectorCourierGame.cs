@@ -108,7 +108,7 @@ namespace DuneVector
         [Serializable]
         private sealed class SaveData
         {
-            public int Version = 5;
+            public int Version = 6;
             public int CompletedDeliveries;
             public int FailedDeliveries;
             public int TotalContractGold;
@@ -117,6 +117,7 @@ namespace DuneVector
             public int PendingDeliveryMessageIndex = -1;
             public bool DeliveryMessageInputHintAcknowledged;
             public bool StrikeOrbDeathNoteAcknowledged;
+            public bool VesperPilgrimDeathNoteAcknowledged;
             public List<string> AcceptedContractIds = new List<string>();
         }
 
@@ -128,6 +129,7 @@ namespace DuneVector
         public int PendingDeliveryMessageIndex { get; private set; } = -1;
         public bool DeliveryMessageInputHintAcknowledged { get; private set; }
         public bool StrikeOrbDeathNoteAcknowledged { get; private set; }
+        public bool VesperPilgrimDeathNoteAcknowledged { get; private set; }
         public IReadOnlyList<string> AcceptedContractIds => _acceptedContractIds;
         public event Action Changed;
 
@@ -193,6 +195,18 @@ namespace DuneVector
             Changed?.Invoke();
         }
 
+        public void AcknowledgeVesperPilgrimDeathNote()
+        {
+            if (VesperPilgrimDeathNoteAcknowledged)
+            {
+                return;
+            }
+
+            VesperPilgrimDeathNoteAcknowledged = true;
+            Save();
+            Changed?.Invoke();
+        }
+
         public void RecordFailure()
         {
             FailedDeliveries++;
@@ -250,6 +264,8 @@ namespace DuneVector
                     data.Version >= 3 && data.DeliveryMessageInputHintAcknowledged;
                 StrikeOrbDeathNoteAcknowledged =
                     data.Version >= 5 && data.StrikeOrbDeathNoteAcknowledged;
+                VesperPilgrimDeathNoteAcknowledged =
+                    data.Version >= 6 && data.VesperPilgrimDeathNoteAcknowledged;
                 _acceptedContractIds.Clear();
                 if (data.Version >= 4 && data.AcceptedContractIds != null)
                 {
@@ -283,6 +299,7 @@ namespace DuneVector
                     PendingDeliveryMessageIndex = PendingDeliveryMessageIndex,
                     DeliveryMessageInputHintAcknowledged = DeliveryMessageInputHintAcknowledged,
                     StrikeOrbDeathNoteAcknowledged = StrikeOrbDeathNoteAcknowledged,
+                    VesperPilgrimDeathNoteAcknowledged = VesperPilgrimDeathNoteAcknowledged,
                     AcceptedContractIds = new List<string>(_acceptedContractIds),
                 };
                 File.WriteAllText(_savePath, JsonUtility.ToJson(data));

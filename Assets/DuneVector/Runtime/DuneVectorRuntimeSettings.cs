@@ -1835,6 +1835,13 @@ namespace DuneVector
         [ColorUsage(false)] public Color StrikeOrbNoteAccentColor = new Color(0.18f, 0.88f, 1f, 1f);
         [ColorUsage(false)] public Color StrikeOrbNoteLabelColor = new Color(0.42f, 0.84f, 0.92f, 1f);
         [ColorUsage(false)] public Color StrikeOrbNoteMessageColor = new Color(0.9f, 0.97f, 1f, 1f);
+
+        [Header("First Vesper Pilgrim Death Note")]
+        public bool ShowFirstVesperPilgrimDeathNote = true;
+        public string VesperPilgrimNoteLabel = "FIELD NOTE  //  VESPER PILGRIMS";
+        [TextArea(2, 4)]
+        public string VesperPilgrimNoteMessage =
+            "Vesper missles return to sender passing through any portal in the air or ground.";
     }
 
     public enum CourierDroneFaction
@@ -2521,6 +2528,7 @@ namespace DuneVector
         [Min(1f)] public float PilgrimAccelerationAltitudeMultiplier = 3f;
         [Min(0.01f)] public float PilgrimCollisionRadius = 2.25f;
         [Min(0f)] public float PilgrimDamage = 32f;
+        public string PilgrimDamageSource = "Vesper Kite Redshift Procession";
         public string PilgrimDeathMessage = "Consumed by the Vesper Kite's Redshift Procession.";
 
         public float EvaluateDetectionRange(bool targetIsGrounded)

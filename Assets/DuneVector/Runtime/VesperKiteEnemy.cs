@@ -484,7 +484,7 @@ namespace DuneVector
                     _playerHealth.TakeDamage(
                         _settings.PilgrimDamage *
                         DuneVectorContractRisk.EnemyDamageMultiplier,
-                        "Vesper Kite Redshift Procession",
+                        _settings.PilgrimDamageSource,
                         _settings.PilgrimDeathMessage);
                     Finish();
                     return;

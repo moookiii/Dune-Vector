@@ -256,6 +256,7 @@ namespace DuneVector
         private DuneVectorCourierGame _courierGame;
         private GameOverScreenTuning _settings;
         private PlayerStrikeOrbTuning _strikeOrbSettings;
+        private VesperKiteTuning _vesperKiteSettings;
         private GUIStyle _eyebrowStyle;
         private GUIStyle _titleStyle;
         private GUIStyle _subtitleStyle;
@@ -263,21 +264,24 @@ namespace DuneVector
         private GUIStyle _primaryButtonStyle;
         private GUIStyle _secondaryButtonStyle;
         private GUIStyle _footerStyle;
-        private GUIStyle _strikeOrbNoteLabelStyle;
-        private GUIStyle _strikeOrbNoteMessageStyle;
+        private GUIStyle _deathNoteLabelStyle;
+        private GUIStyle _deathNoteMessageStyle;
         private GUIStyle _buttonHitStyle;
         private float _styledScale = -1f;
         private float _deathStartedAt;
-        private bool _showStrikeOrbDeathNote;
+        private string _activeDeathNoteLabel;
+        private string _activeDeathNoteMessage;
 
         public void Initialize(
             DroneHealth health,
             GameOverScreenTuning settings,
-            PlayerStrikeOrbTuning strikeOrbSettings)
+            PlayerStrikeOrbTuning strikeOrbSettings,
+            VesperKiteTuning vesperKiteSettings)
         {
             _health = health;
             _settings = settings;
             _strikeOrbSettings = strikeOrbSettings;
+            _vesperKiteSettings = vesperKiteSettings;
             if (_health != null)
             {
                 _health.Died += HandleDeath;
@@ -306,33 +310,51 @@ namespace DuneVector
             DuneVectorPhotographySystem.CancelCameraMode();
             IsGameOver = true;
             _deathStartedAt = Time.unscaledTime;
-            TryActivateStrikeOrbDeathNote();
+            TryActivateDeathNote();
             _health.GetComponent<DroneCharacterController>()?.SetHoverEnabled(false);
             Time.timeScale = 0f;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
         }
 
-        private void TryActivateStrikeOrbDeathNote()
+        private void TryActivateDeathNote()
         {
-            _showStrikeOrbDeathNote = false;
+            _activeDeathNoteLabel = null;
+            _activeDeathNoteMessage = null;
             DuneVectorCourierProgress progress = _courierGame != null ? _courierGame.Progress : null;
-            if (_settings == null ||
-                !_settings.ShowFirstStrikeOrbDeathNote ||
-                progress == null ||
-                progress.StrikeOrbDeathNoteAcknowledged ||
-                _strikeOrbSettings == null ||
-                string.IsNullOrEmpty(_strikeOrbSettings.LightningDamageSource) ||
-                !string.Equals(
-                    _health.LastDamageSource,
-                    _strikeOrbSettings.LightningDamageSource,
-                    StringComparison.Ordinal))
+            if (_settings == null || progress == null)
             {
                 return;
             }
 
-            _showStrikeOrbDeathNote = true;
-            progress.AcknowledgeStrikeOrbDeathNote();
+            if (_settings.ShowFirstStrikeOrbDeathNote &&
+                !progress.StrikeOrbDeathNoteAcknowledged &&
+                _strikeOrbSettings != null &&
+                !string.IsNullOrEmpty(_strikeOrbSettings.LightningDamageSource) &&
+                string.Equals(
+                    _health.LastDamageSource,
+                    _strikeOrbSettings.LightningDamageSource,
+                    StringComparison.Ordinal))
+            {
+                _activeDeathNoteLabel = _settings.StrikeOrbNoteLabel;
+                _activeDeathNoteMessage = _settings.StrikeOrbNoteMessage;
+                progress.AcknowledgeStrikeOrbDeathNote();
+                return;
+            }
+
+            if (_settings.ShowFirstVesperPilgrimDeathNote &&
+                !progress.VesperPilgrimDeathNoteAcknowledged &&
+                _vesperKiteSettings != null &&
+                !string.IsNullOrEmpty(_vesperKiteSettings.PilgrimDamageSource) &&
+                string.Equals(
+                    _health.LastDamageSource,
+                    _vesperKiteSettings.PilgrimDamageSource,
+                    StringComparison.Ordinal))
+            {
+                _activeDeathNoteLabel = _settings.VesperPilgrimNoteLabel;
+                _activeDeathNoteMessage = _settings.VesperPilgrimNoteMessage;
+                progress.AcknowledgeVesperPilgrimDeathNote();
+            }
         }
 
         private void OnGUI()
@@ -456,9 +478,9 @@ namespace DuneVector
                 _footerStyle);
             GUI.color = previousGuiColor;
 
-            if (_showStrikeOrbDeathNote)
+            if (!string.IsNullOrEmpty(_activeDeathNoteMessage))
             {
-                DrawStrikeOrbDeathNote(panel, screenMargin, scale);
+                DrawDeathNote(panel, screenMargin, scale);
             }
 
             Event currentEvent = Event.current;
@@ -536,13 +558,13 @@ namespace DuneVector
                 FontStyle.Normal,
                 TextAnchor.MiddleCenter,
                 _settings.SecondaryTextColor);
-            _strikeOrbNoteLabelStyle = CreateLabelStyle(
+            _deathNoteLabelStyle = CreateLabelStyle(
                 _settings.StrikeOrbNoteLabelFontSize,
                 scale,
                 FontStyle.Bold,
                 TextAnchor.MiddleLeft,
                 _settings.StrikeOrbNoteLabelColor);
-            _strikeOrbNoteMessageStyle = CreateLabelStyle(
+            _deathNoteMessageStyle = CreateLabelStyle(
                 _settings.StrikeOrbNoteMessageFontSize,
                 scale,
                 FontStyle.Normal,
@@ -574,7 +596,7 @@ namespace DuneVector
             };
         }
 
-        private void DrawStrikeOrbDeathNote(Rect recoveryPanel, float screenMargin, float scale)
+        private void DrawDeathNote(Rect recoveryPanel, float screenMargin, float scale)
         {
             float elapsed = Time.unscaledTime - _deathStartedAt - _settings.StrikeOrbNoteEntranceDelay;
             float entrance = Mathf.Clamp01(
@@ -641,8 +663,8 @@ namespace DuneVector
             GUI.color = new Color(1f, 1f, 1f, easedEntrance);
             GUI.Label(
                 new Rect(content.x, content.y, content.width, labelHeight),
-                _settings.StrikeOrbNoteLabel,
-                _strikeOrbNoteLabelStyle);
+                _activeDeathNoteLabel,
+                _deathNoteLabelStyle);
             GUI.color = previousGuiColor;
 
             float dividerY = content.yMax -
@@ -664,8 +686,8 @@ namespace DuneVector
                     messageY,
                     content.width,
                     Mathf.Max(1f, dividerY - messageY)),
-                _settings.StrikeOrbNoteMessage,
-                _strikeOrbNoteMessageStyle);
+                _activeDeathNoteMessage,
+                _deathNoteMessageStyle);
             GUI.color = previousGuiColor;
         }
 
