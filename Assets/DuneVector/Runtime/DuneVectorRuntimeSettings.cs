@@ -1104,6 +1104,8 @@ namespace DuneVector
         [Min(0f)] public float TeleportParticleLiftSpeed = 6f;
 
         [Header("Hub Presentation")]
+        [Tooltip("Whether the cyan segmented energy lanes rotate around the hub platform.")]
+        public bool PlatformEnergyLanesEnabled;
         [Range(8, 48)] public int PlatformEnergySegmentCount = 24;
         [Min(0f)] public float PlatformEnergyRingRadius = 19f;
         [Min(0f)] public float PlatformEnergySegmentLength = 4.2f;

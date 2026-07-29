@@ -823,18 +823,21 @@ namespace DuneVector
                 new Vector3(_hubSettings.PlatformRadius * 0.72f, 0.08f, _hubSettings.PlatformRadius * 0.72f),
                 Quaternion.identity, _hubEnergyMaterial, false);
 
-            _hubEnergyOrbit = new GameObject("Rotating Platform Energy Lanes").transform;
-            _hubEnergyOrbit.SetParent(_hubRoot, false);
-            _hubEnergyOrbit.localPosition = Vector3.up * ((_hubSettings.PlatformThickness * 0.5f) + 0.18f);
-            BuildSegmentedRing(
-                _hubEnergyOrbit,
-                _hubSettings.PlatformEnergySegmentCount,
-                _hubSettings.PlatformEnergyRingRadius,
-                _hubSettings.PlatformEnergySegmentLength,
-                _hubSettings.PlatformEnergySegmentWidth,
-                _hubSettings.PlatformEnergySegmentHeight,
-                _hubPlatformEnergyMaterial,
-                "Platform Energy Lane");
+            if (_hubSettings.PlatformEnergyLanesEnabled)
+            {
+                _hubEnergyOrbit = new GameObject("Rotating Platform Energy Lanes").transform;
+                _hubEnergyOrbit.SetParent(_hubRoot, false);
+                _hubEnergyOrbit.localPosition = Vector3.up * ((_hubSettings.PlatformThickness * 0.5f) + 0.18f);
+                BuildSegmentedRing(
+                    _hubEnergyOrbit,
+                    _hubSettings.PlatformEnergySegmentCount,
+                    _hubSettings.PlatformEnergyRingRadius,
+                    _hubSettings.PlatformEnergySegmentLength,
+                    _hubSettings.PlatformEnergySegmentWidth,
+                    _hubSettings.PlatformEnergySegmentHeight,
+                    _hubPlatformEnergyMaterial,
+                    "Platform Energy Lane");
+            }
 
             for (int i = 0; i < 6; i++)
             {
