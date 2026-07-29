@@ -38,6 +38,7 @@ namespace DuneVector
         public DesertShrubTuning DesertShrubs => RuntimeSettings.DesertShrubs;
         public WorldStreamingTuning WorldStreaming => RuntimeSettings.WorldStreaming;
         public PlayerHealthTuning HealthSettings => RuntimeSettings.HealthSettings;
+        public GameOverScreenTuning GameOverScreenSettings => RuntimeSettings.GameOverScreen;
         public MapHudTuning MapHudSettings => RuntimeSettings.MapHud;
         public EnergyLauncherTuning EnergyLauncherSettings => RuntimeSettings.EnergyLauncher;
         public FlyingEnemyTuning FlyingEnemies => RuntimeSettings.FlyingEnemies;
@@ -743,7 +744,7 @@ namespace DuneVector
                 RuntimeSettings.Geoglyphs,
                 PermanentUpgrades);
             GameOverController = gameObject.AddComponent<DuneVectorGameOverController>();
-            GameOverController.Initialize(DroneHealth);
+            GameOverController.Initialize(DroneHealth, GameOverScreenSettings);
             PauseMenu = gameObject.AddComponent<DuneVectorPauseMenu>();
             PauseMenu.Initialize(
                 Player,

@@ -254,12 +254,22 @@ namespace DuneVector
 
         private DroneHealth _health;
         private DuneVectorCourierGame _courierGame;
+        private GameOverScreenTuning _settings;
+        private GUIStyle _eyebrowStyle;
         private GUIStyle _titleStyle;
-        private GUIStyle _bodyStyle;
+        private GUIStyle _subtitleStyle;
+        private GUIStyle _eliminationStyle;
+        private GUIStyle _primaryButtonStyle;
+        private GUIStyle _secondaryButtonStyle;
+        private GUIStyle _footerStyle;
+        private GUIStyle _buttonHitStyle;
+        private float _styledScale = -1f;
+        private float _deathStartedAt;
 
-        public void Initialize(DroneHealth health)
+        public void Initialize(DroneHealth health, GameOverScreenTuning settings)
         {
             _health = health;
+            _settings = settings;
             if (_health != null)
             {
                 _health.Died += HandleDeath;
@@ -287,6 +297,7 @@ namespace DuneVector
         {
             DuneVectorPhotographySystem.CancelCameraMode();
             IsGameOver = true;
+            _deathStartedAt = Time.unscaledTime;
             _health.GetComponent<DroneCharacterController>()?.SetHoverEnabled(false);
             Time.timeScale = 0f;
             Cursor.lockState = CursorLockMode.None;
@@ -300,62 +311,318 @@ namespace DuneVector
                 return;
             }
 
-            _titleStyle ??= new GUIStyle(GUI.skin.label)
+            if (_settings == null)
             {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = 38,
-                fontStyle = FontStyle.Bold,
-                normal = { textColor = new Color(1f, 0.35f, 0.18f) },
-            };
-            _bodyStyle ??= new GUIStyle(GUI.skin.label)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = 18,
-                normal = { textColor = Color.white },
-            };
+                return;
+            }
 
-            Color oldColor = GUI.color;
-            GUI.color = new Color(0.015f, 0.01f, 0.025f, 0.88f);
-            GUI.DrawTexture(new Rect(0f, 0f, Screen.width, Screen.height), Texture2D.whiteTexture);
-            GUI.color = oldColor;
+            float scale = CalculateScale();
+            EnsureStyles(scale);
+            float entrance = Mathf.Clamp01(
+                (Time.unscaledTime - _deathStartedAt) /
+                Mathf.Max(Mathf.Epsilon, _settings.EntranceDuration));
+            float easedEntrance = 1f - Mathf.Pow(1f - entrance, 3f);
 
-            float width = Mathf.Min(480f, Screen.width - 40f);
-            Rect panel = new Rect((Screen.width - width) * 0.5f, (Screen.height * 0.5f) - 150f, width, 300f);
-            GUI.Box(panel, GUIContent.none);
-            GUI.Label(new Rect(panel.x + 20f, panel.y + 28f, panel.width - 40f, 55f), "RUN OVER", _titleStyle);
-            GUI.Label(new Rect(panel.x + 20f, panel.y + 84f, panel.width - 40f, 32f), "Your drone was destroyed.", _bodyStyle);
+            Rect screen = new Rect(0f, 0f, Screen.width, Screen.height);
+            DrawSolidRect(screen, WithAlpha(_settings.OverlayColor, entrance));
+            DrawScanlines(screen, entrance, scale);
+
+            float screenMargin = _settings.ScreenMargin * scale;
+            float panelWidth = Mathf.Min(_settings.PanelWidth * scale, Screen.width - (screenMargin * 2f));
+            float panelHeight = Mathf.Min(_settings.PanelHeight * scale, Screen.height - (screenMargin * 2f));
+            float entranceOffset = (1f - easedEntrance) * _settings.EntranceVerticalOffset * scale;
+            Rect panel = new Rect(
+                (Screen.width - panelWidth) * 0.5f,
+                ((Screen.height - panelHeight) * 0.5f) + entranceOffset,
+                panelWidth,
+                panelHeight);
+
+            float shadowOffset = _settings.ShadowOffset * scale;
+            DrawSolidRect(
+                new Rect(panel.x + shadowOffset, panel.y + shadowOffset, panel.width, panel.height),
+                WithAlpha(_settings.ShadowColor, easedEntrance));
+            DrawSolidRect(panel, WithAlpha(_settings.PanelColor, easedEntrance));
+
+            float borderThickness = Mathf.Max(1f, _settings.BorderThickness * scale);
+            DrawBorder(panel, WithAlpha(_settings.BorderColor, easedEntrance), borderThickness);
+            DrawSolidRect(
+                new Rect(panel.x, panel.y, panel.width, Mathf.Max(1f, _settings.AccentBarHeight * scale)),
+                WithAlpha(_settings.AccentColor, easedEntrance));
+            DrawCornerBrackets(panel, scale, easedEntrance);
+
+            float padding = _settings.PanelPadding * scale;
+            Rect content = new Rect(
+                panel.x + padding,
+                panel.y + padding,
+                panel.width - (padding * 2f),
+                panel.height - (padding * 2f));
+            float y = content.y;
+
+            Color previousGuiColor = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, easedEntrance);
+
+            float eyebrowHeight = _settings.EyebrowHeight * scale;
+            GUI.Label(new Rect(content.x, y, content.width, eyebrowHeight), _settings.Eyebrow, _eyebrowStyle);
+            y += eyebrowHeight + (_settings.HeaderGap * scale);
+
+            float titleHeight = _settings.TitleHeight * scale;
+            GUI.Label(new Rect(content.x, y, content.width, titleHeight), _settings.Title, _titleStyle);
+            y += titleHeight;
+
+            float subtitleHeight = _settings.SubtitleHeight * scale;
+            GUI.Label(new Rect(content.x, y, content.width, subtitleHeight), _settings.Subtitle, _subtitleStyle);
+            y += subtitleHeight + (_settings.SectionGap * scale);
+
+            float eliminationHeight = _settings.EliminationHeight * scale;
             GUI.Label(
-                new Rect(panel.x + 20f, panel.y + 114f, panel.width - 40f, 30f),
-                _health.LastDeathMessage,
-                _bodyStyle);
+                new Rect(content.x, y, content.width, eliminationHeight),
+                _health.LastDeathMessage.ToUpperInvariant(),
+                _eliminationStyle);
+            y += eliminationHeight + (_settings.ActionGap * scale);
+            GUI.color = previousGuiColor;
 
-            float buttonWidth = Mathf.Min(180f, panel.width - 48f);
-            float buttonX = panel.x + ((panel.width - buttonWidth) * 0.5f);
-            if (GUI.Button(new Rect(buttonX, panel.y + 154f, buttonWidth, 42f), "RESTART"))
+            Rect restartRect = new Rect(
+                content.x,
+                y,
+                content.width,
+                _settings.PrimaryButtonHeight * scale);
+            bool restartHovered = restartRect.Contains(Event.current.mousePosition);
+            DrawActionButton(
+                restartRect,
+                _settings.RestartButtonLabel,
+                _primaryButtonStyle,
+                restartHovered ? _settings.PrimaryButtonHoverColor : _settings.PrimaryButtonColor,
+                _settings.PrimaryButtonTextColor,
+                scale,
+                easedEntrance,
+                primary: true);
+            bool restartClicked = GUI.Button(restartRect, GUIContent.none, _buttonHitStyle);
+            y += restartRect.height + (_settings.ButtonGap * scale);
+
+            Rect quitRect = new Rect(
+                content.x,
+                y,
+                content.width,
+                _settings.SecondaryButtonHeight * scale);
+            bool quitHovered = quitRect.Contains(Event.current.mousePosition);
+            DrawActionButton(
+                quitRect,
+                _settings.QuitButtonLabel,
+                _secondaryButtonStyle,
+                quitHovered ? _settings.SecondaryButtonHoverColor : _settings.SecondaryButtonColor,
+                _settings.SecondaryTextColor,
+                scale,
+                easedEntrance,
+                primary: false);
+            bool quitClicked = GUI.Button(quitRect, GUIContent.none, _buttonHitStyle);
+            y += quitRect.height + (_settings.FooterGap * scale);
+
+            previousGuiColor = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, easedEntrance);
+            GUI.Label(
+                new Rect(content.x, y, content.width, _settings.FooterHeight * scale),
+                _settings.FooterHint,
+                _footerStyle);
+            GUI.color = previousGuiColor;
+
+            Event currentEvent = Event.current;
+            bool restartKeyPressed =
+                currentEvent.type == EventType.KeyDown &&
+                (currentEvent.keyCode == KeyCode.Return || currentEvent.keyCode == KeyCode.KeypadEnter);
+            if (restartClicked || restartKeyPressed)
             {
-                Time.timeScale = 1f;
-                if (_courierGame != null && _health.ReviveAtFullHealth())
+                if (restartKeyPressed)
                 {
-                    IsGameOver = false;
-                    _health.GetComponent<DroneCharacterController>()?.SetHoverEnabled(true);
-                    _courierGame.RestartAtHubAfterDeath();
-                    Cursor.lockState = CursorLockMode.Locked;
-                    Cursor.visible = false;
+                    currentEvent.Use();
                 }
-                else
-                {
-                    SceneManager.LoadScene(SceneManager.GetActiveScene().name);
-                }
+                RestartAtHub();
+                return;
             }
-            if (GUI.Button(new Rect(buttonX, panel.y + 210f, buttonWidth, 42f), "QUIT"))
+            if (quitClicked)
             {
-                Time.timeScale = 1f;
+                QuitGame();
+            }
+        }
+
+        private float CalculateScale()
+        {
+            float widthScale = Screen.width / Mathf.Max(1f, _settings.ReferenceWidth);
+            float heightScale = Screen.height / Mathf.Max(1f, _settings.ReferenceHeight);
+            return Mathf.Clamp(Mathf.Min(widthScale, heightScale), _settings.MinimumScale, _settings.MaximumScale);
+        }
+
+        private void EnsureStyles(float scale)
+        {
+            if (Mathf.Abs(scale - _styledScale) < 0.001f)
+            {
+                return;
+            }
+            _styledScale = scale;
+            _eyebrowStyle = CreateLabelStyle(
+                _settings.EyebrowFontSize,
+                scale,
+                FontStyle.Bold,
+                TextAnchor.MiddleLeft,
+                _settings.SecondaryTextColor);
+            _titleStyle = CreateLabelStyle(
+                _settings.TitleFontSize,
+                scale,
+                FontStyle.Bold,
+                TextAnchor.MiddleLeft,
+                _settings.TitleColor);
+            _subtitleStyle = CreateLabelStyle(
+                _settings.SubtitleFontSize,
+                scale,
+                FontStyle.Bold,
+                TextAnchor.MiddleLeft,
+                _settings.PrimaryTextColor);
+            _eliminationStyle = CreateLabelStyle(
+                _settings.EliminationFontSize,
+                scale,
+                FontStyle.Bold,
+                TextAnchor.MiddleCenter,
+                _settings.PrimaryTextColor);
+            _primaryButtonStyle = CreateLabelStyle(
+                _settings.PrimaryButtonFontSize,
+                scale,
+                FontStyle.Bold,
+                TextAnchor.MiddleCenter,
+                _settings.PrimaryButtonTextColor);
+            _secondaryButtonStyle = CreateLabelStyle(
+                _settings.SecondaryButtonFontSize,
+                scale,
+                FontStyle.Bold,
+                TextAnchor.MiddleCenter,
+                _settings.SecondaryTextColor);
+            _footerStyle = CreateLabelStyle(
+                _settings.FooterFontSize,
+                scale,
+                FontStyle.Normal,
+                TextAnchor.MiddleCenter,
+                _settings.SecondaryTextColor);
+            _buttonHitStyle = new GUIStyle(GUIStyle.none);
+        }
+
+        private GUIStyle CreateLabelStyle(
+            int fontSize,
+            float scale,
+            FontStyle fontStyle,
+            TextAnchor alignment,
+            Color color)
+        {
+            return new GUIStyle(GUI.skin.label)
+            {
+                font = _settings.InterfaceFont,
+                fontSize = Mathf.Max(1, Mathf.RoundToInt(fontSize * scale)),
+                fontStyle = fontStyle,
+                alignment = alignment,
+                clipping = TextClipping.Clip,
+                wordWrap = false,
+                padding = new RectOffset(),
+                margin = new RectOffset(),
+                normal = { textColor = color },
+            };
+        }
+
+        private void DrawActionButton(
+            Rect rect,
+            string label,
+            GUIStyle labelStyle,
+            Color backgroundColor,
+            Color edgeColor,
+            float scale,
+            float alpha,
+            bool primary)
+        {
+            DrawSolidRect(rect, WithAlpha(backgroundColor, alpha));
+            DrawBorder(
+                rect,
+                WithAlpha(primary ? _settings.AccentSoftColor : _settings.SecondaryBorderColor, alpha),
+                Mathf.Max(1f, _settings.BorderThickness * scale));
+            DrawSolidRect(
+                new Rect(rect.x, rect.y, Mathf.Max(1f, _settings.ButtonEdgeWidth * scale), rect.height),
+                WithAlpha(edgeColor, alpha));
+            Color previousGuiColor = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, alpha);
+            GUI.Label(rect, label, labelStyle);
+            GUI.color = previousGuiColor;
+        }
+
+        private void DrawScanlines(Rect screen, float alpha, float scale)
+        {
+            float spacing = Mathf.Max(2f, _settings.ScanlineSpacing * scale);
+            float thickness = Mathf.Max(1f, _settings.ScanlineThickness * scale);
+            Color color = WithAlpha(_settings.ScanlineColor, alpha);
+            for (float y = 0f; y < screen.height; y += spacing)
+            {
+                DrawSolidRect(new Rect(screen.x, screen.y + y, screen.width, thickness), color);
+            }
+        }
+
+        private void DrawCornerBrackets(Rect panel, float scale, float alpha)
+        {
+            float length = _settings.CornerLength * scale;
+            float thickness = Mathf.Max(1f, _settings.CornerThickness * scale);
+            float pulsePhase = (Mathf.Sin(Time.unscaledTime * _settings.AccentPulseSpeed) + 1f) * 0.5f;
+            float pulse = Mathf.Lerp(_settings.AccentPulseMinimum, _settings.AccentPulseMaximum, pulsePhase);
+            Color color = WithAlpha(_settings.AccentColor, alpha * pulse);
+
+            DrawSolidRect(new Rect(panel.x, panel.y, length, thickness), color);
+            DrawSolidRect(new Rect(panel.x, panel.y, thickness, length), color);
+            DrawSolidRect(new Rect(panel.xMax - length, panel.y, length, thickness), color);
+            DrawSolidRect(new Rect(panel.xMax - thickness, panel.y, thickness, length), color);
+            DrawSolidRect(new Rect(panel.x, panel.yMax - thickness, length, thickness), color);
+            DrawSolidRect(new Rect(panel.x, panel.yMax - length, thickness, length), color);
+            DrawSolidRect(new Rect(panel.xMax - length, panel.yMax - thickness, length, thickness), color);
+            DrawSolidRect(new Rect(panel.xMax - thickness, panel.yMax - length, thickness, length), color);
+        }
+
+        private void RestartAtHub()
+        {
+            Time.timeScale = 1f;
+            if (_courierGame != null && _health.ReviveAtFullHealth())
+            {
+                IsGameOver = false;
+                _health.GetComponent<DroneCharacterController>()?.SetHoverEnabled(true);
+                _courierGame.RestartAtHubAfterDeath();
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+                return;
+            }
+
+            SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+
+        private static void QuitGame()
+        {
+            Time.timeScale = 1f;
 #if UNITY_EDITOR
-                UnityEditor.EditorApplication.isPlaying = false;
+            UnityEditor.EditorApplication.isPlaying = false;
 #else
-                Application.Quit();
+            Application.Quit();
 #endif
-            }
+        }
+
+        private static Color WithAlpha(Color color, float multiplier)
+        {
+            color.a *= Mathf.Clamp01(multiplier);
+            return color;
+        }
+
+        private static void DrawSolidRect(Rect rect, Color color)
+        {
+            Color previousColor = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = previousColor;
+        }
+
+        private static void DrawBorder(Rect rect, Color color, float thickness)
+        {
+            DrawSolidRect(new Rect(rect.x, rect.y, rect.width, thickness), color);
+            DrawSolidRect(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), color);
+            DrawSolidRect(new Rect(rect.x, rect.y, thickness, rect.height), color);
+            DrawSolidRect(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), color);
         }
     }
 }

@@ -1728,6 +1728,85 @@ namespace DuneVector
         [Min(0f)] public float DamageInvulnerability = 0.45f;
     }
 
+    [System.Serializable]
+    public sealed class GameOverScreenTuning
+    {
+        [Header("Copy")]
+        public string Eyebrow = "DUNE VECTOR  //  RECOVERY PROTOCOL";
+        public string Title = "SIGNAL LOST";
+        public string Subtitle = "COURIER UNIT OFFLINE";
+        public string RestartButtonLabel = "RESTORE AT HUB";
+        public string QuitButtonLabel = "END SESSION";
+        public string FooterHint = "ENTER  /  INITIATE RECOVERY";
+
+        [Header("Responsive Layout")]
+        [Min(320f)] public float ReferenceWidth = 1920f;
+        [Min(240f)] public float ReferenceHeight = 1080f;
+        [Range(0.5f, 2f)] public float MinimumScale = 0.68f;
+        [Range(0.5f, 2f)] public float MaximumScale = 1.2f;
+        [Min(320f)] public float PanelWidth = 680f;
+        [Min(360f)] public float PanelHeight = 500f;
+        [Min(8f)] public float ScreenMargin = 28f;
+        [Min(16f)] public float PanelPadding = 42f;
+        [Min(0f)] public float ShadowOffset = 14f;
+        [Min(1f)] public float BorderThickness = 1f;
+        [Min(1f)] public float AccentBarHeight = 4f;
+        [Min(2f)] public float CornerLength = 24f;
+        [Min(1f)] public float CornerThickness = 2f;
+
+        [Header("Content Rhythm")]
+        [Min(8f)] public float EyebrowHeight = 18f;
+        [Min(0f)] public float HeaderGap = 8f;
+        [Min(24f)] public float TitleHeight = 66f;
+        [Min(8f)] public float SubtitleHeight = 24f;
+        [Min(0f)] public float SectionGap = 22f;
+        [Min(36f)] public float EliminationHeight = 72f;
+        [Min(0f)] public float ActionGap = 30f;
+        [Min(32f)] public float PrimaryButtonHeight = 58f;
+        [Min(28f)] public float SecondaryButtonHeight = 48f;
+        [Min(0f)] public float ButtonGap = 12f;
+        [Min(1f)] public float ButtonEdgeWidth = 4f;
+        [Min(8f)] public float FooterHeight = 18f;
+        [Min(0f)] public float FooterGap = 12f;
+
+        [Header("Typography")]
+        public Font InterfaceFont;
+        [Min(8)] public int EyebrowFontSize = 12;
+        [Min(16)] public int TitleFontSize = 52;
+        [Min(9)] public int SubtitleFontSize = 14;
+        [Min(10)] public int EliminationFontSize = 19;
+        [Min(10)] public int PrimaryButtonFontSize = 16;
+        [Min(9)] public int SecondaryButtonFontSize = 13;
+        [Min(8)] public int FooterFontSize = 10;
+
+        [Header("Animation")]
+        [Min(0f)] public float EntranceDuration = 0.38f;
+        [Min(0f)] public float EntranceVerticalOffset = 24f;
+        [Min(0f)] public float AccentPulseSpeed = 2.2f;
+        [Range(0f, 1f)] public float AccentPulseMinimum = 0.72f;
+        [Range(0f, 1f)] public float AccentPulseMaximum = 1f;
+        [Min(2f)] public float ScanlineSpacing = 5f;
+        [Min(1f)] public float ScanlineThickness = 1f;
+
+        [Header("Palette")]
+        [ColorUsage(false)] public Color OverlayColor = new Color(0.008f, 0.012f, 0.02f, 0.9f);
+        [ColorUsage(false)] public Color ScanlineColor = new Color(0.35f, 0.68f, 0.76f, 0.025f);
+        [ColorUsage(false)] public Color ShadowColor = new Color(0f, 0f, 0f, 0.72f);
+        [ColorUsage(false)] public Color PanelColor = new Color(0.025f, 0.037f, 0.052f, 0.985f);
+        [ColorUsage(false)] public Color BorderColor = new Color(0.28f, 0.42f, 0.48f, 0.7f);
+        [ColorUsage(false)] public Color AccentColor = new Color(1f, 0.3f, 0.12f, 1f);
+        [ColorUsage(false)] public Color AccentSoftColor = new Color(0.54f, 0.14f, 0.08f, 0.82f);
+        [ColorUsage(false)] public Color TitleColor = new Color(1f, 0.38f, 0.18f, 1f);
+        [ColorUsage(false)] public Color PrimaryTextColor = new Color(0.92f, 0.97f, 1f, 1f);
+        [ColorUsage(false)] public Color SecondaryTextColor = new Color(0.5f, 0.67f, 0.72f, 1f);
+        [ColorUsage(false)] public Color SecondaryBorderColor = new Color(0.18f, 0.27f, 0.31f, 0.9f);
+        [ColorUsage(false)] public Color PrimaryButtonColor = new Color(0.94f, 0.24f, 0.08f, 1f);
+        [ColorUsage(false)] public Color PrimaryButtonHoverColor = new Color(1f, 0.38f, 0.12f, 1f);
+        [ColorUsage(false)] public Color PrimaryButtonTextColor = new Color(1f, 0.97f, 0.92f, 1f);
+        [ColorUsage(false)] public Color SecondaryButtonColor = new Color(0.075f, 0.105f, 0.13f, 1f);
+        [ColorUsage(false)] public Color SecondaryButtonHoverColor = new Color(0.12f, 0.18f, 0.22f, 1f);
+    }
+
     public enum CourierDroneFaction
     {
         Player,
@@ -4564,6 +4643,9 @@ namespace DuneVector
         [Tooltip("Player hull strength and damage protection.")]
         public PlayerHealthTuning HealthSettings = new PlayerHealthTuning();
 
+        [Tooltip("Responsive layout, typography, animation, copy, and palette for the death recovery screen.")]
+        public GameOverScreenTuning GameOverScreen = new GameOverScreenTuning();
+
         [Tooltip("Drone lock-on targeting, energy projectile, cooldown, feedback, and HUD presentation.")]
         public EnergyLauncherTuning EnergyLauncher = new EnergyLauncherTuning();
 
@@ -4648,6 +4730,7 @@ namespace DuneVector
             RendererFrustumCulling ??= new RendererFrustumCullingTuning();
             SpatialGpuInstancing ??= new SpatialGpuInstancingTuning();
             HealthSettings ??= new PlayerHealthTuning();
+            GameOverScreen ??= new GameOverScreenTuning();
             EnergyLauncher ??= new EnergyLauncherTuning();
             FlyingEnemies ??= new FlyingEnemyTuning();
             StormPyramids ??= new StormPyramidTuning();
