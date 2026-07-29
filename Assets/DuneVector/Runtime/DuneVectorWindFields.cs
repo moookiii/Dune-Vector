@@ -762,17 +762,38 @@ namespace DuneVector
 
         private static Material CreateParticleMaterial(Texture2D particleTexture)
         {
-            Shader shader = Shader.Find("HDRP/Unlit");
+            Shader shader = Shader.Find("DuneVector/HDRP Weather Particle");
+            if (shader == null)
+            {
+                shader = Shader.Find("HDRP/Unlit");
+            }
             Material material = new Material(shader) { name = "Wind Field Streamline Material" };
             material.renderQueue = (int)RenderQueue.Transparent;
-            material.SetFloat("_SurfaceType", 1f);
-            material.SetFloat("_BlendMode", 0f);
-            material.SetFloat("_TransparentCullMode", 0f);
-            material.SetFloat("_DoubleSidedEnable", 1f);
-            material.SetFloat("_EnableFogOnTransparent", 1f);
-            material.SetColor("_UnlitColor", Color.white);
-            material.SetTexture("_UnlitColorMap", particleTexture);
-            HDMaterial.ValidateMaterial(material);
+            if (material.HasProperty("_MainTex"))
+            {
+                material.SetTexture("_MainTex", particleTexture);
+            }
+            if (material.HasProperty("_Tint"))
+            {
+                material.SetColor("_Tint", Color.white);
+            }
+            if (material.HasProperty("_UnlitColorMap"))
+            {
+                material.SetTexture("_UnlitColorMap", particleTexture);
+            }
+            if (material.HasProperty("_UnlitColor"))
+            {
+                material.SetColor("_UnlitColor", Color.white);
+            }
+            if (shader.name == "HDRP/Unlit")
+            {
+                material.SetFloat("_SurfaceType", 1f);
+                material.SetFloat("_BlendMode", 0f);
+                material.SetFloat("_TransparentCullMode", 0f);
+                material.SetFloat("_DoubleSidedEnable", 1f);
+                material.SetFloat("_EnableFogOnTransparent", 1f);
+                HDMaterial.ValidateMaterial(material);
+            }
             return material;
         }
 
