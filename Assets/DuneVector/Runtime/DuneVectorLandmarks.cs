@@ -820,20 +820,32 @@ namespace DuneVector
                     break;
             }
             instance.PositionDeliverySocketAboveVisuals(_settings.DeliveryRingClearance);
-            Bounds? photographyBounds = type == DuneLandmarkType.DesertMegagate &&
-                _settings.MegagatePhotographyBoundsSize.x > 0f &&
-                _settings.MegagatePhotographyBoundsSize.y > 0f &&
-                _settings.MegagatePhotographyBoundsSize.z > 0f
-                    ? new Bounds(
-                        _settings.MegagatePhotographyBoundsCenter,
-                        _settings.MegagatePhotographyBoundsSize)
-                    : null;
+            Bounds? photographyBounds = null;
+            if (type == DuneLandmarkType.DesertMegagate)
+            {
+                photographyBounds = CreatePhotographyBounds(
+                    _settings.MegagatePhotographyBoundsCenter,
+                    _settings.MegagatePhotographyBoundsSize);
+            }
+            else if (type == DuneLandmarkType.SandRing)
+            {
+                photographyBounds = CreatePhotographyBounds(
+                    _settings.SandRingPhotographyBoundsCenter,
+                    _settings.SandRingPhotographyBoundsSize);
+            }
             DuneVectorPhotographableMarker.Register(
                 landmarkObject,
                 DuneVectorCompendiumSubjectIds.ForLandmark(type),
                 PhotographableSubjectCategory.Landmark,
                 photographyBounds);
             return instance;
+        }
+
+        private static Bounds? CreatePhotographyBounds(Vector3 center, Vector3 size)
+        {
+            return size.x > 0f && size.y > 0f && size.z > 0f
+                ? new Bounds(center, size)
+                : null;
         }
 
         private DuneLandmarkRarity GetRarity(DuneLandmarkType type)

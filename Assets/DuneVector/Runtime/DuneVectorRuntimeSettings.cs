@@ -1371,6 +1371,10 @@ namespace DuneVector
         [Range(0, 50)] public int SandRingDebrisCount;
         [Min(0f)] public float SandRingDebrisSpread;
         [Range(-35f, 35f)] public float SandRingTilt;
+        [Tooltip("Local-space center of the sand ring silhouette used by the photography camera frame.")]
+        public Vector3 SandRingPhotographyBoundsCenter;
+        [Tooltip("Local-space size of the sand ring silhouette used by the photography camera frame. Set any axis to zero to use renderer bounds.")]
+        public Vector3 SandRingPhotographyBoundsSize;
     }
 
     [System.Serializable]
