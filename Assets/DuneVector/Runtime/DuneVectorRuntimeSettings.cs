@@ -2480,7 +2480,7 @@ namespace DuneVector
         public bool Enabled = true;
 
         [Header("Unlock and Discovery")]
-        [Min(0)] public int UnlockCompletedDeliveries = 7;
+        [Min(0)] public int UnlockCompletedDeliveries;
         [Min(1f)] public float ScanRadius = 24f;
         [Min(0f)] public float ScanProgressDecayPerSecond = 0.7f;
         [Min(1f)] public float SiteVisualSpawnDistance = 950f;
