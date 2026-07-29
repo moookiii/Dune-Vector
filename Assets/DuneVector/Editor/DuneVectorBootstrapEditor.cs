@@ -136,6 +136,7 @@ namespace DuneVector.Editor
         private SerializedProperty _flyingEnemies;
         private SerializedProperty _stormPyramids;
         private SerializedProperty _playerStrikeOrbs;
+        private SerializedProperty _vesperKites;
         private SerializedProperty _groundExploders;
         private SerializedProperty _rings;
         private SerializedProperty _permanentUpgrades;
@@ -176,6 +177,7 @@ namespace DuneVector.Editor
             _flyingEnemies = serializedObject.FindProperty("FlyingEnemies");
             _stormPyramids = serializedObject.FindProperty("StormPyramids");
             _playerStrikeOrbs = serializedObject.FindProperty("PlayerStrikeOrbs");
+            _vesperKites = serializedObject.FindProperty("VesperKites");
             _groundExploders = serializedObject.FindProperty("GroundExploders");
             _rings = serializedObject.FindProperty("Rings");
             _permanentUpgrades = serializedObject.FindProperty("PermanentUpgrades");
@@ -307,6 +309,10 @@ namespace DuneVector.Editor
                 "Strike Orbs",
                 "Air-only player detection, live intercept prediction, orbiting satellites, and targeted lightning.",
                 _playerStrikeOrbs);
+            DuneVectorSettingsInspector.DrawSection(
+                "Vesper Kites",
+                "Extreme-altitude patrol, accelerating Redshift Processions, portal severance, and reflected-lance damage.",
+                _vesperKites);
             DuneVectorSettingsInspector.DrawSection(
                 "Ground Exploders",
                 "Patrol motion, proximity wind-up, radial damage, and presentation.",

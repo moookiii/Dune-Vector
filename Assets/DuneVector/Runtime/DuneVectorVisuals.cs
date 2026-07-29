@@ -64,7 +64,6 @@ namespace DuneVector
         public Material PlayerStrikeOrbExplosionBlue { get; }
         public Material VesperKiteBody { get; }
         public Material VesperKiteAurora { get; }
-        public Material VesperKiteHalo { get; }
         public Material VesperPilgrim { get; }
         public Material VesperPilgrimReflected { get; }
         public Material VesperTether { get; }
@@ -302,10 +301,6 @@ namespace DuneVector
                 "Vesper Kite - Aurora Fabric",
                 vesperKites.AuroraColor,
                 vesperKites.AuroraEmission);
-            VesperKiteHalo = CreateUnlit(
-                "Vesper Kite - Broken Halo",
-                vesperKites.HaloColor,
-                vesperKites.HaloEmission);
             VesperPilgrim = CreateUnlit(
                 "Vesper Kite - Redshift Pilgrim",
                 vesperKites.PilgrimColor,
@@ -2116,20 +2111,6 @@ namespace DuneVector
                 materials.VesperKiteAurora);
             DisableRendererShadows(core.gameObject);
 
-            float haloGap = Mathf.Clamp(settings.HaloGapDegrees, 1f, 120f);
-            GameObject halo = CreateMeshObject(
-                "Broken Halo",
-                root,
-                GetArcTorusMesh(
-                    settings.HaloRadius,
-                    settings.HaloThickness,
-                    54,
-                    7,
-                    haloGap * 0.5f,
-                    360f - haloGap),
-                materials.VesperKiteHalo);
-            halo.transform.localPosition = settings.HaloOffset;
-            DisableRendererShadows(halo);
             return root;
         }
 
@@ -2161,7 +2142,7 @@ namespace DuneVector
                     settings.PilgrimRingThickness,
                     36,
                     6),
-                materials.VesperKiteHalo);
+                materials.VesperPilgrim);
             DisableRendererShadows(ring);
 
             int nodeCount = Mathf.Clamp(settings.PilgrimNodeCount, 2, 8);

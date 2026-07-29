@@ -2489,14 +2489,10 @@ namespace DuneVector
         [Range(0.1f, 1f)] public float AuroraScaleMultiplier = 0.78f;
         public float AuroraVerticalOffset = -0.08f;
         public Vector3 TailScale = new Vector3(0.16f, 0.1f, 2.2f);
+        [Min(0.1f)] public float CollisionRadius = 12.5f;
         public Vector3 CoreScale = new Vector3(0.42f, 0.18f, 0.42f);
         public Vector3 CoreOffset = new Vector3(0f, -0.12f, 0.32f);
-        [Min(0.1f)] public float HaloRadius = 2.35f;
-        [Min(0.01f)] public float HaloThickness = 0.11f;
-        [Range(1f, 120f)] public float HaloGapDegrees = 34f;
-        public Vector3 HaloOffset = new Vector3(0f, 0.65f, -0.3f);
-        [Min(0f)] public float HaloRotationSpeed = 23f;
-        [Range(1f, 3f)] public float HaloWindUpScale = 1.55f;
+        [Range(1f, 3f)] public float CoreWindUpScale = 1.8f;
         [Min(0f)] public float FacingSharpness = 4.5f;
 
         [Header("Pilgrim Presentation")]
@@ -2518,8 +2514,6 @@ namespace DuneVector
         [Range(0f, 1f)] public float BodyMetallic = 0.88f;
         [ColorUsage(false)] public Color AuroraColor = new Color(0.08f, 0.34f, 0.42f);
         [ColorUsage(false, true)] public Color AuroraEmission = new Color(0.18f, 2.4f, 3.8f);
-        [ColorUsage(false)] public Color HaloColor = new Color(0.92f, 0.58f, 0.13f);
-        [ColorUsage(false, true)] public Color HaloEmission = new Color(7.5f, 3.2f, 0.32f);
         [ColorUsage(false)] public Color PilgrimColor = new Color(0.42f, 0.08f, 0.34f);
         [ColorUsage(false, true)] public Color PilgrimEmission = new Color(4.8f, 0.22f, 3.2f);
         [ColorUsage(false)] public Color ReflectedColor = new Color(1f, 0.72f, 0.18f);

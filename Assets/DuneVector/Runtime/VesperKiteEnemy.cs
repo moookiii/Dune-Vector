@@ -25,14 +25,12 @@ namespace DuneVector
         private Transform _visual;
         private Transform _leftWing;
         private Transform _rightWing;
-        private Transform _halo;
         private Transform _core;
         private Transform _cachedTransform;
         private float _patrolAngle;
         private float _patrolAltitude;
         private float _attackCooldown;
         private float _windUpRemaining;
-        private float _haloRotation;
         private float _presentationPhase;
         private int _identity;
         private bool _isWindingUp;
@@ -84,13 +82,12 @@ namespace DuneVector
                 settings);
             _leftWing = _visual.Find("Left Wing");
             _rightWing = _visual.Find("Right Wing");
-            _halo = _visual.Find("Broken Halo");
             _core = _visual.Find("Vesper Core");
 
             _enemyHealth = gameObject.AddComponent<EnemyHealth>();
             _enemyHealth.Initialize(settings.MaximumHealth);
             EnemyCombatTarget combatTarget = gameObject.AddComponent<EnemyCombatTarget>();
-            combatTarget.Initialize(_enemyHealth, settings.VisualScale * settings.HaloRadius);
+            combatTarget.Initialize(_enemyHealth, settings.CollisionRadius);
             EnemyGoldReward goldReward = gameObject.AddComponent<EnemyGoldReward>();
             goldReward.Initialize(
                 _enemyHealth,
@@ -261,20 +258,6 @@ namespace DuneVector
                     new Vector3(1f, wingPulse, 1f));
             }
 
-            if (_halo != null)
-            {
-                _haloRotation = Mathf.Repeat(
-                    _haloRotation + (_settings.HaloRotationSpeed * deltaTime),
-                    360f);
-                _halo.localRotation = Quaternion.AngleAxis(_haloRotation, Vector3.forward);
-                float windUp01 = _isWindingUp && _settings.AttackWindUpDuration > Mathf.Epsilon
-                    ? 1f - Mathf.Clamp01(_windUpRemaining / _settings.AttackWindUpDuration)
-                    : 0f;
-                _halo.localScale = Vector3.one * Mathf.Lerp(
-                    1f,
-                    _settings.HaloWindUpScale,
-                    windUp01);
-            }
             if (_core != null)
             {
                 float windUp01 = _isWindingUp && _settings.AttackWindUpDuration > Mathf.Epsilon
@@ -284,7 +267,9 @@ namespace DuneVector
                     Mathf.Sin((Time.time * _settings.TetherPulseSpeed) + _presentationPhase) *
                     _settings.TetherPulseAmount *
                     windUp01);
-                _core.localScale = _settings.CoreScale * pulse;
+                _core.localScale = _settings.CoreScale *
+                    Mathf.Lerp(1f, _settings.CoreWindUpScale, windUp01) *
+                    pulse;
             }
         }
 
