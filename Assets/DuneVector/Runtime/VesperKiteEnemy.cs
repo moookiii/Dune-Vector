@@ -188,7 +188,8 @@ namespace DuneVector
                 return;
             }
 
-            float detectionRange = Mathf.Max(1f, _settings.DetectionRange);
+            float detectionRange = _settings.EvaluateDetectionRange(
+                _player.IsStableGrounded);
             if ((_cachedTransform.position - playerPosition).sqrMagnitude >
                 detectionRange * detectionRange)
             {

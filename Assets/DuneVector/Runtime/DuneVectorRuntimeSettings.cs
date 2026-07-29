@@ -2456,6 +2456,8 @@ namespace DuneVector
 
         [Header("Redshift Procession")]
         [Min(1f)] public float DetectionRange = 430f;
+        [Tooltip("Multiplier applied to the Vesper Kite's detection range while the player is stably grounded.")]
+        [Range(0f, 1f)] public float GroundedTargetDetectionRangeMultiplier = 0.2f;
         [Min(0.1f)] public float AttackInterval = 10f;
         [Range(0f, 1f)] public float MinimumInitialAttackDelayMultiplier = 0.25f;
         [Range(0f, 1f)] public float MaximumInitialAttackDelayMultiplier = 0.85f;
@@ -2488,6 +2490,14 @@ namespace DuneVector
         [Min(0.01f)] public float PilgrimCollisionRadius = 2.25f;
         [Min(0f)] public float PilgrimDamage = 32f;
         public string PilgrimDeathMessage = "Consumed by the Vesper Kite's Redshift Procession.";
+
+        public float EvaluateDetectionRange(bool targetIsGrounded)
+        {
+            float range = Mathf.Max(1f, DetectionRange);
+            return targetIsGrounded
+                ? range * Mathf.Clamp01(GroundedTargetDetectionRangeMultiplier)
+                : range;
+        }
 
         public float EvaluatePilgrimAcceleration(int risk, float heightAboveGround)
         {
