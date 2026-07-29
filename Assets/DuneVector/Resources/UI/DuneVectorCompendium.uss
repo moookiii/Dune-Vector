@@ -17,9 +17,17 @@
     justify-content: center;
 }
 
+.compendium-progress,
+.compendium-close {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    -unity-text-align: middle-center;
+}
+
 .compendium-title,
 .compendium-subtitle,
-.compendium-progress,
 .compendium-tab-label,
 .compendium-card-title,
 .compendium-card-metadata,
