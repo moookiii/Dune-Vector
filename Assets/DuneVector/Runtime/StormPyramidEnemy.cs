@@ -174,9 +174,7 @@ namespace DuneVector
                 return;
             }
 
-            if (_proximity.IsTargetInside(
-                _explosionSettings.DetectionRadius
-                * Mathf.Max(0.1f, _settings.ProximityDetectionRadiusMultiplier)))
+            if (_proximity.IsTargetInside(_explosionSettings.DetectionRadius))
             {
                 BeginDetonationWindUp();
                 UpdatePresentation(deltaTime);
@@ -286,8 +284,7 @@ namespace DuneVector
                 _player,
                 _playerHealth,
                 _materials,
-                _explosionSettings,
-                _settings.ProximityExplosionRadiusMultiplier);
+                _explosionSettings);
             Destroy(gameObject);
         }
 
@@ -421,15 +418,11 @@ namespace DuneVector
             if (_explosionSettings != null)
             {
                 Gizmos.color = new Color(1f, 0.65f, 0.05f, 0.55f);
-                Gizmos.DrawWireSphere(
-                    transform.position,
-                    _explosionSettings.DetectionRadius
-                    * Mathf.Max(0.1f, _settings.ProximityDetectionRadiusMultiplier));
+                Gizmos.DrawWireSphere(transform.position, _explosionSettings.DetectionRadius);
                 Gizmos.color = new Color(1f, 0.12f, 0.02f, 0.65f);
                 Gizmos.DrawWireSphere(
                     transform.position,
-                    _explosionSettings.EvaluateExplosionRadius(DuneVectorContractRisk.CurrentRisk)
-                    * Mathf.Max(0.1f, _settings.ProximityExplosionRadiusMultiplier));
+                    _explosionSettings.EvaluateExplosionRadius(DuneVectorContractRisk.CurrentRisk));
             }
         }
     }
