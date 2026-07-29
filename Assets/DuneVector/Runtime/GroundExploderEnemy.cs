@@ -144,6 +144,11 @@ namespace DuneVector
             _movement?.FixedTick(fixedDeltaTime);
         }
 
+        internal void SynchronizeAfterParentReposition()
+        {
+            _movement?.SynchronizeAfterParentReposition();
+        }
+
         private void Detonate()
         {
             SetState(GroundExploderState.Exploding);
@@ -328,6 +333,23 @@ namespace DuneVector
                     _body.MoveRotation(targetRotation);
                 }
             }
+        }
+
+        internal void SynchronizeAfterParentReposition()
+        {
+            if (_body == null)
+            {
+                return;
+            }
+
+            Vector3 synchronizedPosition = transform.position;
+            Quaternion synchronizedRotation = transform.rotation;
+            // Parent transforms move the rendered hierarchy immediately, but an
+            // interpolated kinematic body retains its previous physics pose.
+            _body.position = synchronizedPosition;
+            _body.rotation = synchronizedRotation;
+            _lastMeasuredPosition = synchronizedPosition;
+            CurrentSpeed = 0f;
         }
 
         private float MeasureDistance(float deltaTime)

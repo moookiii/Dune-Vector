@@ -533,6 +533,7 @@ namespace DuneVector
                 if (spawn.Root != null)
                 {
                     RepositionContractGroundRoot(spawn.Root, spawn.ChunkCoordinate);
+                    spawn.Enemy?.SynchronizeAfterParentReposition();
                 }
             }
 
@@ -1546,6 +1547,10 @@ namespace DuneVector
             double logicalX = Coordinate.x * (double)chunkSize;
             double logicalZ = Coordinate.y * (double)chunkSize;
             Root.localPosition = new Vector3((float)(logicalX - originOffsetX), 0f, (float)(logicalZ - originOffsetZ));
+            for (int i = 0; i < _groundExploders.Count; i++)
+            {
+                _groundExploders[i]?.SynchronizeAfterParentReposition();
+            }
             _shrubs?.RebuildWorldMatrices();
         }
 
