@@ -1521,7 +1521,11 @@ namespace DuneVector
                 }
             }
 
-            DuneVectorSpatialInstancing.Capture(root, false, pyramidLodTuning);
+            DuneVectorSpatialInstancing.Capture(
+                root,
+                false,
+                pyramidLodTuning,
+                retainPhotographyRenderer: true);
             return root.transform;
         }
 

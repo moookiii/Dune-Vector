@@ -1299,9 +1299,14 @@ namespace DuneVector
             RenderTexture target = RenderTexture.GetTemporary(width, height, 24, RenderTextureFormat.ARGB32);
             RenderTexture previousActive = RenderTexture.active;
             RenderTexture previousTarget = _camera.targetTexture;
+            DuneVectorInstancedVisualGroup instancedSubject =
+                _detection.HasSubject && _detection.Subject.Marker != null
+                    ? _detection.Subject.Marker.GetComponent<DuneVectorInstancedVisualGroup>()
+                    : null;
             Texture2D image = null;
             try
             {
+                instancedSubject?.SetPhotographyRenderersEnabled(true);
                 _camera.targetTexture = target;
                 _camera.Render();
                 RenderTexture.active = target;
@@ -1318,6 +1323,7 @@ namespace DuneVector
             }
             finally
             {
+                instancedSubject?.SetPhotographyRenderersEnabled(false);
                 _camera.targetTexture = previousTarget;
                 RenderTexture.active = previousActive;
                 RenderTexture.ReleaseTemporary(target);

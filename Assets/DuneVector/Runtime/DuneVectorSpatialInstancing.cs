@@ -168,7 +168,8 @@ namespace DuneVector
         public static DuneVectorInstancedVisualGroup Capture(
             GameObject root,
             bool dynamicTransforms,
-            PyramidTuning pyramidLodTuning = null)
+            PyramidTuning pyramidLodTuning = null,
+            bool retainPhotographyRenderer = false)
         {
             if (root == null || Instance == null || Instance._settings == null || !Instance._settings.Enabled)
             {
@@ -184,7 +185,7 @@ namespace DuneVector
             {
                 group = root.AddComponent<DuneVectorInstancedVisualGroup>();
             }
-            group.Initialize(dynamicTransforms, pyramidLodTuning);
+            group.Initialize(dynamicTransforms, pyramidLodTuning, retainPhotographyRenderer);
             return group;
         }
 
@@ -222,7 +223,8 @@ namespace DuneVector
             bool debugComparisonGroup,
             List<int> handles,
             float minimumLodDistance = -1f,
-            float maximumLodDistance = -1f)
+            float maximumLodDistance = -1f,
+            bool retainSourceRenderer = false)
         {
             if (renderer == null || handles == null)
             {
@@ -286,8 +288,11 @@ namespace DuneVector
                 if (!debugComparisonGroup)
                 {
                     renderer.enabled = false;
-                    Destroy(renderer);
-                    Destroy(filter);
+                    if (!retainSourceRenderer)
+                    {
+                        Destroy(renderer);
+                        Destroy(filter);
+                    }
                 }
             }
         }
@@ -677,9 +682,14 @@ namespace DuneVector
     public sealed class DuneVectorInstancedVisualGroup : MonoBehaviour
     {
         private readonly List<int> _handles = new List<int>();
+        private readonly List<MeshRenderer> _retainedPhotographyRenderers =
+            new List<MeshRenderer>();
         private bool _initialized;
 
-        internal void Initialize(bool dynamicTransforms, PyramidTuning pyramidLodTuning)
+        internal void Initialize(
+            bool dynamicTransforms,
+            PyramidTuning pyramidLodTuning,
+            bool retainPhotographyRenderer)
         {
             if (_initialized || DuneVectorSpatialInstancing.Instance == null)
             {
@@ -693,6 +703,14 @@ namespace DuneVector
             SetHighestDetailLodOnly(renderers, lodIndices);
             for (int i = 0; i < renderers.Length; i++)
             {
+                bool retainThisRenderer =
+                    retainPhotographyRenderer &&
+                    !debugComparisonGroup &&
+                    renderers[i].enabled;
+                if (retainThisRenderer)
+                {
+                    _retainedPhotographyRenderers.Add(renderers[i]);
+                }
                 float minimumLodDistance = -1f;
                 float maximumLodDistance = -1f;
                 if (pyramidLodTuning != null &&
@@ -710,7 +728,19 @@ namespace DuneVector
                     debugComparisonGroup,
                     _handles,
                     minimumLodDistance,
-                    maximumLodDistance);
+                    maximumLodDistance,
+                    retainThisRenderer);
+            }
+        }
+
+        internal void SetPhotographyRenderersEnabled(bool visible)
+        {
+            for (int i = 0; i < _retainedPhotographyRenderers.Count; i++)
+            {
+                if (_retainedPhotographyRenderers[i] != null)
+                {
+                    _retainedPhotographyRenderers[i].enabled = visible;
+                }
             }
         }
 
