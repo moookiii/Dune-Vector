@@ -489,7 +489,7 @@ namespace DuneVector
                 _speedScale,
                 targetScale,
                 DuneVectorMath.Sharpness(_ringTuning.UpperFlightRingScaleSharpness, Time.deltaTime));
-            _visual.localScale = Vector3.one * _speedScale;
+            transform.localScale = Vector3.one * _speedScale;
         }
 
         private void UpdateRgbBlend()
