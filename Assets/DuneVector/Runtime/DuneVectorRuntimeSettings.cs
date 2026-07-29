@@ -625,6 +625,9 @@ namespace DuneVector
         [Min(0f)] public float PickupRingHeight = 1f;
         [Tooltip("Height of delivery rings above the sampled terrain surface, in meters.")]
         [Min(0f)] public float ObjectiveRingHeight = 3.4f;
+        [Header("Billboarding")]
+        [Tooltip("Distance from the drone center at which pickup and delivery rings freeze their current orientation instead of continuing to face the camera.")]
+        [Min(0f)] public float ObjectiveRingBillboardDisableRadius = 36f;
         [Min(0.1f)] public float PackageScale = 0.8f;
 
         [Header("Package Drop")]
