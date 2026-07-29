@@ -2560,6 +2560,9 @@ namespace DuneVector
         public bool UseProceduralVisualFallback;
         [Tooltip("Resources path for the Vesper Kite prefab visual.")]
         public string PrefabResourcePath = "mantaPrefab";
+        [Tooltip("Resources path for the FBX containing the Vesper Kite animation clip.")]
+        public string PrefabAnimationResourcePath = "MANTA/MANTA2";
+        [Min(0f)] public float PrefabAnimationSpeed = 1f;
         public Vector3 PrefabLocalPosition = Vector3.zero;
         public Vector3 PrefabLocalEulerAngles = Vector3.zero;
         public Vector3 PrefabLocalScale = Vector3.one;
