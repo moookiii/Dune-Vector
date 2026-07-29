@@ -2150,7 +2150,11 @@ namespace DuneVector
                 int count = Mathf.Max(1, settings.EnemyCount);
                 for (int i = 0; i < count; i++)
                 {
-                    SpawnEnemy(random, $"Storm Pyramid {i + 1:00}", i + 1);
+                    SpawnEnemy(
+                        random,
+                        $"Storm Pyramid {i + 1:00}",
+                        i + 1,
+                        GetSpawnHeightNormalized(i, count));
                 }
             }
 
@@ -2159,7 +2163,11 @@ namespace DuneVector
                 int count = Mathf.Max(1, orbSettings.EnemyCount);
                 for (int i = 0; i < count; i++)
                 {
-                    SpawnOrbEnemy(random, $"Strike Orb {i + 1:00}", 10000 + i + 1);
+                    SpawnOrbEnemy(
+                        random,
+                        $"Strike Orb {i + 1:00}",
+                        10000 + i + 1,
+                        GetSpawnHeightNormalized(i, count));
                 }
             }
 
@@ -2181,7 +2189,8 @@ namespace DuneVector
                 StormPyramidEnemy enemy = SpawnEnemy(
                     random,
                     $"High-Value Storm Pyramid {i + 1:00}",
-                    unchecked(seed + 1000 + i));
+                    unchecked(seed + 1000 + i),
+                    GetSpawnHeightNormalized(i, count));
                 if (enemy != null)
                 {
                     enemy.enabled = enabled;
@@ -2204,7 +2213,11 @@ namespace DuneVector
             _contractEnemies.Clear();
         }
 
-        private StormPyramidEnemy SpawnEnemy(System.Random random, string objectName, int identity)
+        private StormPyramidEnemy SpawnEnemy(
+            System.Random random,
+            string objectName,
+            int identity,
+            float normalizedHeight)
         {
             float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
             float distance = Mathf.Lerp(
@@ -2219,7 +2232,7 @@ namespace DuneVector
             float heightVariation = Mathf.Lerp(
                 -_settings.HoverHeightVariance,
                 _settings.HoverHeightVariance,
-                (float)random.NextDouble());
+                Mathf.Clamp01(normalizedHeight));
             spawnPosition.y = _world.SampleHeightAtLocal(spawnPosition.x, spawnPosition.z)
                 + _settings.HoverHeight
                 + heightVariation;
@@ -2240,7 +2253,11 @@ namespace DuneVector
             return enemy;
         }
 
-        private PlayerStrikeOrbEnemy SpawnOrbEnemy(System.Random random, string objectName, int identity)
+        private PlayerStrikeOrbEnemy SpawnOrbEnemy(
+            System.Random random,
+            string objectName,
+            int identity,
+            float normalizedHeight)
         {
             float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
             float distance = Mathf.Lerp(
@@ -2255,7 +2272,7 @@ namespace DuneVector
             float heightVariation = Mathf.Lerp(
                 -_orbSettings.HoverHeightVariance,
                 _orbSettings.HoverHeightVariance,
-                (float)random.NextDouble());
+                Mathf.Clamp01(normalizedHeight));
             spawnPosition.y = _world.SampleHeightAtLocal(spawnPosition.x, spawnPosition.z)
                 + _orbSettings.HoverHeight
                 + heightVariation;
@@ -2315,7 +2332,8 @@ namespace DuneVector
                     StormPyramidEnemy enemy = SpawnEnemy(
                         random,
                         $"Risk Storm Pyramid {i + 1:00}",
-                        60000 + i + 1);
+                        60000 + i + 1,
+                        GetSpawnHeightNormalized(i, bonusCount));
                     enemy.enabled = enabled;
                     _riskEnemies.Add(enemy);
                 }
@@ -2329,11 +2347,17 @@ namespace DuneVector
                     PlayerStrikeOrbEnemy enemy = SpawnOrbEnemy(
                         random,
                         $"Risk Strike Orb {i + 1:00}",
-                        70000 + i + 1);
+                        70000 + i + 1,
+                        GetSpawnHeightNormalized(i, bonusCount));
                     enemy.enabled = enabled;
                     _riskOrbEnemies.Add(enemy);
                 }
             }
+        }
+
+        private static float GetSpawnHeightNormalized(int index, int count)
+        {
+            return count <= 1 ? 0.5f : index / (float)(count - 1);
         }
 
         private void ClearRiskEnemies()
