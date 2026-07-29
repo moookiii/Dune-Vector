@@ -1809,6 +1809,32 @@ namespace DuneVector
         [ColorUsage(false)] public Color PrimaryButtonTextColor = new Color(1f, 0.97f, 0.92f, 1f);
         [ColorUsage(false)] public Color SecondaryButtonColor = new Color(0.075f, 0.105f, 0.13f, 1f);
         [ColorUsage(false)] public Color SecondaryButtonHoverColor = new Color(0.12f, 0.18f, 0.22f, 1f);
+
+        [Header("First Strike Orb Death Note")]
+        public bool ShowFirstStrikeOrbDeathNote = true;
+        public string StrikeOrbNoteLabel = "FIELD NOTE  //  STRIKE RINGS";
+        [TextArea(2, 4)]
+        public string StrikeOrbNoteMessage =
+            "Strike Rings have an ariel range and don't attack the drone on the ground.";
+        [Min(180f)] public float StrikeOrbNoteWidth = 390f;
+        [Min(100f)] public float StrikeOrbNoteHeight = 190f;
+        [Min(0f)] public float StrikeOrbNotePanelGap = 28f;
+        [Min(0f)] public float StrikeOrbNoteVerticalOffset = 74f;
+        [Min(8f)] public float StrikeOrbNotePadding = 26f;
+        [Min(1f)] public float StrikeOrbNoteAccentWidth = 4f;
+        [Min(1f)] public float StrikeOrbNoteDividerThickness = 1f;
+        [Min(0f)] public float StrikeOrbNoteLabelHeight = 24f;
+        [Min(0f)] public float StrikeOrbNoteLabelGap = 12f;
+        [Min(0f)] public float StrikeOrbNoteEntranceDelay = 0.18f;
+        [Min(0.01f)] public float StrikeOrbNoteEntranceDuration = 0.42f;
+        [Min(0f)] public float StrikeOrbNoteEntranceVerticalOffset = 18f;
+        [Min(8)] public int StrikeOrbNoteLabelFontSize = 11;
+        [Min(10)] public int StrikeOrbNoteMessageFontSize = 18;
+        [ColorUsage(false)] public Color StrikeOrbNotePanelColor = new Color(0.018f, 0.04f, 0.052f, 0.97f);
+        [ColorUsage(false)] public Color StrikeOrbNoteBorderColor = new Color(0.22f, 0.62f, 0.72f, 0.72f);
+        [ColorUsage(false)] public Color StrikeOrbNoteAccentColor = new Color(0.18f, 0.88f, 1f, 1f);
+        [ColorUsage(false)] public Color StrikeOrbNoteLabelColor = new Color(0.42f, 0.84f, 0.92f, 1f);
+        [ColorUsage(false)] public Color StrikeOrbNoteMessageColor = new Color(0.9f, 0.97f, 1f, 1f);
     }
 
     public enum CourierDroneFaction
@@ -2357,6 +2383,7 @@ namespace DuneVector
         [Min(0.1f)] public float ChargeTime = 1.15f;
         [Min(0f)] public float Cooldown = 2.5f;
         [Min(0f)] public float LightningDamage = 34f;
+        public string LightningDamageSource = "Strike Orb lightning";
         public string LightningDeathMessage = "Struck by Strike Orb lightning.";
         [Min(0.1f)] public float StrikeRadius = 4.25f;
         [Min(0.05f)] public float LightningVisualDuration = 0.32f;

@@ -108,7 +108,7 @@ namespace DuneVector
         [Serializable]
         private sealed class SaveData
         {
-            public int Version = 4;
+            public int Version = 5;
             public int CompletedDeliveries;
             public int FailedDeliveries;
             public int TotalContractGold;
@@ -116,6 +116,7 @@ namespace DuneVector
             public int NextDeliveryMessageIndex;
             public int PendingDeliveryMessageIndex = -1;
             public bool DeliveryMessageInputHintAcknowledged;
+            public bool StrikeOrbDeathNoteAcknowledged;
             public List<string> AcceptedContractIds = new List<string>();
         }
 
@@ -126,6 +127,7 @@ namespace DuneVector
         public int NextDeliveryMessageIndex { get; private set; }
         public int PendingDeliveryMessageIndex { get; private set; } = -1;
         public bool DeliveryMessageInputHintAcknowledged { get; private set; }
+        public bool StrikeOrbDeathNoteAcknowledged { get; private set; }
         public IReadOnlyList<string> AcceptedContractIds => _acceptedContractIds;
         public event Action Changed;
 
@@ -175,6 +177,18 @@ namespace DuneVector
             }
 
             DeliveryMessageInputHintAcknowledged = true;
+            Save();
+            Changed?.Invoke();
+        }
+
+        public void AcknowledgeStrikeOrbDeathNote()
+        {
+            if (StrikeOrbDeathNoteAcknowledged)
+            {
+                return;
+            }
+
+            StrikeOrbDeathNoteAcknowledged = true;
             Save();
             Changed?.Invoke();
         }
@@ -234,6 +248,8 @@ namespace DuneVector
                 }
                 DeliveryMessageInputHintAcknowledged =
                     data.Version >= 3 && data.DeliveryMessageInputHintAcknowledged;
+                StrikeOrbDeathNoteAcknowledged =
+                    data.Version >= 5 && data.StrikeOrbDeathNoteAcknowledged;
                 _acceptedContractIds.Clear();
                 if (data.Version >= 4 && data.AcceptedContractIds != null)
                 {
@@ -266,6 +282,7 @@ namespace DuneVector
                     NextDeliveryMessageIndex = NextDeliveryMessageIndex,
                     PendingDeliveryMessageIndex = PendingDeliveryMessageIndex,
                     DeliveryMessageInputHintAcknowledged = DeliveryMessageInputHintAcknowledged,
+                    StrikeOrbDeathNoteAcknowledged = StrikeOrbDeathNoteAcknowledged,
                     AcceptedContractIds = new List<string>(_acceptedContractIds),
                 };
                 File.WriteAllText(_savePath, JsonUtility.ToJson(data));

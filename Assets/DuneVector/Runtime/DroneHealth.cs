@@ -255,6 +255,7 @@ namespace DuneVector
         private DroneHealth _health;
         private DuneVectorCourierGame _courierGame;
         private GameOverScreenTuning _settings;
+        private PlayerStrikeOrbTuning _strikeOrbSettings;
         private GUIStyle _eyebrowStyle;
         private GUIStyle _titleStyle;
         private GUIStyle _subtitleStyle;
@@ -262,14 +263,21 @@ namespace DuneVector
         private GUIStyle _primaryButtonStyle;
         private GUIStyle _secondaryButtonStyle;
         private GUIStyle _footerStyle;
+        private GUIStyle _strikeOrbNoteLabelStyle;
+        private GUIStyle _strikeOrbNoteMessageStyle;
         private GUIStyle _buttonHitStyle;
         private float _styledScale = -1f;
         private float _deathStartedAt;
+        private bool _showStrikeOrbDeathNote;
 
-        public void Initialize(DroneHealth health, GameOverScreenTuning settings)
+        public void Initialize(
+            DroneHealth health,
+            GameOverScreenTuning settings,
+            PlayerStrikeOrbTuning strikeOrbSettings)
         {
             _health = health;
             _settings = settings;
+            _strikeOrbSettings = strikeOrbSettings;
             if (_health != null)
             {
                 _health.Died += HandleDeath;
@@ -298,10 +306,33 @@ namespace DuneVector
             DuneVectorPhotographySystem.CancelCameraMode();
             IsGameOver = true;
             _deathStartedAt = Time.unscaledTime;
+            TryActivateStrikeOrbDeathNote();
             _health.GetComponent<DroneCharacterController>()?.SetHoverEnabled(false);
             Time.timeScale = 0f;
             Cursor.lockState = CursorLockMode.None;
             Cursor.visible = true;
+        }
+
+        private void TryActivateStrikeOrbDeathNote()
+        {
+            _showStrikeOrbDeathNote = false;
+            DuneVectorCourierProgress progress = _courierGame != null ? _courierGame.Progress : null;
+            if (_settings == null ||
+                !_settings.ShowFirstStrikeOrbDeathNote ||
+                progress == null ||
+                progress.StrikeOrbDeathNoteAcknowledged ||
+                _strikeOrbSettings == null ||
+                string.IsNullOrEmpty(_strikeOrbSettings.LightningDamageSource) ||
+                !string.Equals(
+                    _health.LastDamageSource,
+                    _strikeOrbSettings.LightningDamageSource,
+                    StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            _showStrikeOrbDeathNote = true;
+            progress.AcknowledgeStrikeOrbDeathNote();
         }
 
         private void OnGUI()
@@ -425,6 +456,11 @@ namespace DuneVector
                 _footerStyle);
             GUI.color = previousGuiColor;
 
+            if (_showStrikeOrbDeathNote)
+            {
+                DrawStrikeOrbDeathNote(panel, screenMargin, scale);
+            }
+
             Event currentEvent = Event.current;
             bool restartKeyPressed =
                 currentEvent.type == EventType.KeyDown &&
@@ -500,6 +536,19 @@ namespace DuneVector
                 FontStyle.Normal,
                 TextAnchor.MiddleCenter,
                 _settings.SecondaryTextColor);
+            _strikeOrbNoteLabelStyle = CreateLabelStyle(
+                _settings.StrikeOrbNoteLabelFontSize,
+                scale,
+                FontStyle.Bold,
+                TextAnchor.MiddleLeft,
+                _settings.StrikeOrbNoteLabelColor);
+            _strikeOrbNoteMessageStyle = CreateLabelStyle(
+                _settings.StrikeOrbNoteMessageFontSize,
+                scale,
+                FontStyle.Normal,
+                TextAnchor.UpperLeft,
+                _settings.StrikeOrbNoteMessageColor,
+                wordWrap: true);
             _buttonHitStyle = new GUIStyle(GUIStyle.none);
         }
 
@@ -508,7 +557,8 @@ namespace DuneVector
             float scale,
             FontStyle fontStyle,
             TextAnchor alignment,
-            Color color)
+            Color color,
+            bool wordWrap = false)
         {
             return new GUIStyle(GUI.skin.label)
             {
@@ -517,11 +567,106 @@ namespace DuneVector
                 fontStyle = fontStyle,
                 alignment = alignment,
                 clipping = TextClipping.Clip,
-                wordWrap = false,
+                wordWrap = wordWrap,
                 padding = new RectOffset(),
                 margin = new RectOffset(),
                 normal = { textColor = color },
             };
+        }
+
+        private void DrawStrikeOrbDeathNote(Rect recoveryPanel, float screenMargin, float scale)
+        {
+            float elapsed = Time.unscaledTime - _deathStartedAt - _settings.StrikeOrbNoteEntranceDelay;
+            float entrance = Mathf.Clamp01(
+                elapsed / Mathf.Max(Mathf.Epsilon, _settings.StrikeOrbNoteEntranceDuration));
+            float easedEntrance = 1f - Mathf.Pow(1f - entrance, 3f);
+            if (easedEntrance <= 0f)
+            {
+                return;
+            }
+
+            float maximumWidth = Mathf.Max(1f, Screen.width - (screenMargin * 2f));
+            float maximumHeight = Mathf.Max(1f, Screen.height - (screenMargin * 2f));
+            float width = Mathf.Min(_settings.StrikeOrbNoteWidth * scale, maximumWidth);
+            float height = Mathf.Min(_settings.StrikeOrbNoteHeight * scale, maximumHeight);
+            float gap = _settings.StrikeOrbNotePanelGap * scale;
+            float x = recoveryPanel.xMax + gap;
+            float y = recoveryPanel.y + (_settings.StrikeOrbNoteVerticalOffset * scale);
+
+            if (x + width > Screen.width - screenMargin)
+            {
+                float leftX = recoveryPanel.x - gap - width;
+                if (leftX >= screenMargin)
+                {
+                    x = leftX;
+                }
+                else
+                {
+                    x = (Screen.width - width) * 0.5f;
+                    float belowY = recoveryPanel.yMax + gap;
+                    y = belowY + height <= Screen.height - screenMargin
+                        ? belowY
+                        : Screen.height - screenMargin - height;
+                }
+            }
+
+            y = Mathf.Clamp(y, screenMargin, Screen.height - screenMargin - height);
+            y += (1f - easedEntrance) * _settings.StrikeOrbNoteEntranceVerticalOffset * scale;
+            Rect note = new Rect(x, y, width, height);
+            float shadowOffset = _settings.ShadowOffset * scale;
+            DrawSolidRect(
+                new Rect(note.x + shadowOffset, note.y + shadowOffset, note.width, note.height),
+                WithAlpha(_settings.ShadowColor, easedEntrance));
+            DrawSolidRect(note, WithAlpha(_settings.StrikeOrbNotePanelColor, easedEntrance));
+            DrawBorder(
+                note,
+                WithAlpha(_settings.StrikeOrbNoteBorderColor, easedEntrance),
+                Mathf.Max(1f, _settings.BorderThickness * scale));
+            DrawSolidRect(
+                new Rect(
+                    note.x,
+                    note.y,
+                    Mathf.Max(1f, _settings.StrikeOrbNoteAccentWidth * scale),
+                    note.height),
+                WithAlpha(_settings.StrikeOrbNoteAccentColor, easedEntrance));
+
+            float padding = _settings.StrikeOrbNotePadding * scale;
+            Rect content = new Rect(
+                note.x + padding,
+                note.y + padding,
+                Mathf.Max(1f, note.width - (padding * 2f)),
+                Mathf.Max(1f, note.height - (padding * 2f)));
+            float labelHeight = _settings.StrikeOrbNoteLabelHeight * scale;
+            Color previousGuiColor = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, easedEntrance);
+            GUI.Label(
+                new Rect(content.x, content.y, content.width, labelHeight),
+                _settings.StrikeOrbNoteLabel,
+                _strikeOrbNoteLabelStyle);
+            GUI.color = previousGuiColor;
+
+            float dividerY = content.yMax -
+                Mathf.Max(1f, _settings.StrikeOrbNoteDividerThickness * scale);
+            float messageY = content.y + labelHeight + (_settings.StrikeOrbNoteLabelGap * scale);
+            DrawSolidRect(
+                new Rect(
+                    content.x,
+                    dividerY,
+                    content.width,
+                    Mathf.Max(1f, _settings.StrikeOrbNoteDividerThickness * scale)),
+                WithAlpha(_settings.StrikeOrbNoteBorderColor, easedEntrance));
+
+            previousGuiColor = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, easedEntrance);
+            GUI.Label(
+                new Rect(
+                    content.x,
+                    messageY,
+                    content.width,
+                    Mathf.Max(1f, dividerY - messageY)),
+                _settings.StrikeOrbNoteMessage,
+                _strikeOrbNoteMessageStyle);
+            GUI.color = previousGuiColor;
         }
 
         private void DrawActionButton(

@@ -1752,7 +1752,7 @@ namespace DuneVector
                 _targetPosition,
                 _settings.StrikeRadius,
                 _settings.LightningDamage,
-                "Strike Orb lightning",
+                _settings.LightningDamageSource,
                 _settings.LightningDeathMessage);
             UpdateLightningVisual();
         }

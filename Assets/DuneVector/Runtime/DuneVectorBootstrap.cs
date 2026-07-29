@@ -759,7 +759,7 @@ namespace DuneVector
                 RuntimeSettings.Geoglyphs,
                 PermanentUpgrades);
             GameOverController = gameObject.AddComponent<DuneVectorGameOverController>();
-            GameOverController.Initialize(DroneHealth, GameOverScreenSettings);
+            GameOverController.Initialize(DroneHealth, GameOverScreenSettings, PlayerStrikeOrbs);
             PauseMenu = gameObject.AddComponent<DuneVectorPauseMenu>();
             PauseMenu.Initialize(
                 Player,
