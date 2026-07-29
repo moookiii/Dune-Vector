@@ -2152,9 +2152,11 @@ namespace DuneVector
     public sealed class DuneVectorStormPyramidDirector : MonoBehaviour
     {
         private readonly List<StormPyramidEnemy> _enemies = new List<StormPyramidEnemy>();
+        private readonly List<StormPyramidEnemy> _baseEnemies = new List<StormPyramidEnemy>();
         private readonly List<StormPyramidEnemy> _contractEnemies = new List<StormPyramidEnemy>();
         private readonly List<StormPyramidEnemy> _riskEnemies = new List<StormPyramidEnemy>();
         private readonly List<PlayerStrikeOrbEnemy> _orbEnemies = new List<PlayerStrikeOrbEnemy>();
+        private readonly List<PlayerStrikeOrbEnemy> _baseOrbEnemies = new List<PlayerStrikeOrbEnemy>();
         private readonly List<PlayerStrikeOrbEnemy> _riskOrbEnemies = new List<PlayerStrikeOrbEnemy>();
         private DroneCharacterController _player;
         private DroneHealth _playerHealth;
@@ -2182,35 +2184,49 @@ namespace DuneVector
             _groundExploderSettings = groundExploderSettings;
             _orbSettings = orbSettings;
             _world.WorldShifted += HandleWorldShift;
-            System.Random random = new System.Random(unchecked(world.EnemySpawnSeed ^ 0x2749a31));
-            if (settings.Enabled)
+            SpawnBaseEnemies();
+
+            _warningHud = gameObject.AddComponent<StormPyramidThreatHUD>();
+            _warningHud.Initialize(player, Camera.main, settings, _enemies, _orbEnemies);
+        }
+
+        private void SpawnBaseEnemies()
+        {
+            System.Random random = new System.Random(unchecked(_world.EnemySpawnSeed ^ 0x2749a31));
+            if (_settings.Enabled)
             {
-                int count = Mathf.Max(1, settings.EnemyCount);
+                int count = Mathf.Max(1, _settings.EnemyCount);
                 for (int i = 0; i < count; i++)
                 {
-                    SpawnEnemy(
+                    StormPyramidEnemy enemy = SpawnEnemy(
                         random,
                         $"Storm Pyramid {i + 1:00}",
                         i + 1,
                         GetSpawnHeightNormalized(i, count));
+                    _baseEnemies.Add(enemy);
                 }
             }
 
-            if (orbSettings.Enabled)
+            if (_orbSettings.Enabled)
             {
-                int count = Mathf.Max(1, orbSettings.EnemyCount);
+                int count = Mathf.Max(1, _orbSettings.EnemyCount);
                 for (int i = 0; i < count; i++)
                 {
-                    SpawnOrbEnemy(
+                    PlayerStrikeOrbEnemy enemy = SpawnOrbEnemy(
                         random,
                         $"Strike Orb {i + 1:00}",
                         10000 + i + 1,
                         GetSpawnHeightNormalized(i, count));
+                    _baseOrbEnemies.Add(enemy);
                 }
             }
+        }
 
-            _warningHud = gameObject.AddComponent<StormPyramidThreatHUD>();
-            _warningHud.Initialize(player, Camera.main, settings, _enemies, _orbEnemies);
+        private void RespawnBaseEnemies()
+        {
+            ClearEnemies(_baseEnemies, _enemies);
+            ClearEnemies(_baseOrbEnemies, _orbEnemies);
+            SpawnBaseEnemies();
         }
 
         public void SetContractBonusEnemies(int count, int seed)
@@ -2329,6 +2345,7 @@ namespace DuneVector
             enabled = active;
             if (active)
             {
+                RespawnBaseEnemies();
                 SpawnRiskEnemies();
             }
             else
@@ -2353,6 +2370,21 @@ namespace DuneVector
             {
                 _warningHud.enabled = active;
             }
+        }
+
+        private static void ClearEnemies<T>(List<T> source, List<T> allEnemies)
+            where T : MonoBehaviour
+        {
+            for (int i = 0; i < source.Count; i++)
+            {
+                T enemy = source[i];
+                allEnemies.Remove(enemy);
+                if (enemy != null)
+                {
+                    Destroy(enemy.gameObject);
+                }
+            }
+            source.Clear();
         }
 
         private void SpawnRiskEnemies()
