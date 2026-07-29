@@ -2074,9 +2074,7 @@ namespace DuneVector
                 _player.WorldCenter,
                 isStrikeOrb ? threat.ThreatOrigin : threat.TargetPosition);
             string markerText = isStrikeOrb
-                ? distance > threat.ThreatRange
-                    ? "CLEAR"
-                    : $"{distance:0} m"
+                ? $"{distance:0} m"
                 : $"STRIKE  {distance:0} m";
             _markerStyle.normal.textColor = warningColor;
             GUI.Label(
