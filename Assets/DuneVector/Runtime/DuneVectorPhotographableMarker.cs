@@ -91,10 +91,12 @@ namespace DuneVector
         public bool TryGetScreenBounds(
             Camera camera,
             out Rect bounds,
-            out float coverage)
+            out float coverage,
+            out float depth)
         {
             bounds = default;
             coverage = 0f;
+            depth = float.PositiveInfinity;
             if (camera == null || string.IsNullOrWhiteSpace(SubjectId))
             {
                 return false;
@@ -112,7 +114,8 @@ namespace DuneVector
                     transform,
                     _customFramingBounds,
                     out bounds,
-                    out coverage);
+                    out coverage,
+                    out depth);
             }
 
             float minX = float.PositiveInfinity;
@@ -157,6 +160,7 @@ namespace DuneVector
                     minY = Mathf.Min(minY, y);
                     maxX = Mathf.Max(maxX, x);
                     maxY = Mathf.Max(maxY, y);
+                    depth = Mathf.Min(depth, viewport.z);
                     hasProjectedPoint = true;
                 }
             }
@@ -178,10 +182,12 @@ namespace DuneVector
             Transform boundsTransform,
             Bounds localBounds,
             out Rect bounds,
-            out float coverage)
+            out float coverage,
+            out float depth)
         {
             bounds = default;
             coverage = 0f;
+            depth = float.PositiveInfinity;
             if (boundsTransform == null || localBounds.size.sqrMagnitude <= 0.0001f)
             {
                 return false;
@@ -213,6 +219,7 @@ namespace DuneVector
                 minY = Mathf.Min(minY, y);
                 maxX = Mathf.Max(maxX, x);
                 maxY = Mathf.Max(maxY, y);
+                depth = Mathf.Min(depth, viewport.z);
                 hasProjectedPoint = true;
             }
 

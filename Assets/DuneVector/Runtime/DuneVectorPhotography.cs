@@ -424,6 +424,7 @@ namespace DuneVector
             Rect bestBounds = default;
             float bestCenterPriority = float.PositiveInfinity;
             float bestCoverage = -1f;
+            float bestDepth = float.PositiveInfinity;
             bool allowGlyphSubjects = _character == null || !_character.IsStableGrounded;
             if (allowGlyphSubjects &&
                 _world != null &&
@@ -437,8 +438,25 @@ namespace DuneVector
                     GeoglyphArtworkPlacement artwork = FindArtwork(site);
                     if (artwork == null) continue;
                     BuildSamples(site, artwork);
-                    if (!TryProjectBounds(out Rect bounds, out float coverage, out float priority)) continue;
-                    if (!IsBetterCandidate(coverage, priority, bestCoverage, bestCenterPriority)) continue;
+                    if (!TryProjectBounds(
+                            out Rect bounds,
+                            out float coverage,
+                            out float priority,
+                            out float depth))
+                    {
+                        continue;
+                    }
+                    if (!IsBetterCandidate(
+                            depth,
+                            coverage,
+                            priority,
+                            bestDepth,
+                            bestCoverage,
+                            bestCenterPriority))
+                    {
+                        continue;
+                    }
+                    bestDepth = depth;
                     bestCenterPriority = priority;
                     bestBounds = bounds;
                     bestCoverage = coverage;
@@ -454,7 +472,8 @@ namespace DuneVector
                     !marker.TryGetScreenBounds(
                         _camera,
                         out Rect markerBounds,
-                        out float markerCoverage))
+                        out float markerCoverage,
+                        out float markerDepth))
                 {
                     continue;
                 }
@@ -464,13 +483,16 @@ namespace DuneVector
                     new Vector2(Screen.width * 0.5f, Screen.height * 0.5f)) /
                     Mathf.Max(1f, Screen.height);
                 if (!IsBetterCandidate(
+                        markerDepth,
                         markerCoverage,
                         centerPriority,
+                        bestDepth,
                         bestCoverage,
                         bestCenterPriority))
                 {
                     continue;
                 }
+                bestDepth = markerDepth;
                 bestCenterPriority = centerPriority;
                 bestBounds = markerBounds;
                 bestCoverage = markerCoverage;
@@ -546,15 +568,21 @@ namespace DuneVector
         }
 
         private static bool IsBetterCandidate(
+            float depth,
             float coverage,
             float centerPriority,
+            float bestDepth,
             float bestCoverage,
             float bestCenterPriority)
         {
             const float coverageTieTolerance = 0.0001f;
+            if (!Mathf.Approximately(depth, bestDepth))
+            {
+                return depth < bestDepth;
+            }
             return coverage > bestCoverage + coverageTieTolerance ||
                 (Mathf.Abs(coverage - bestCoverage) <= coverageTieTolerance &&
-                 centerPriority < bestCenterPriority);
+                    centerPriority < bestCenterPriority);
         }
 
         private GeoglyphArtworkPlacement FindArtwork(DesertAtlasSiteDefinition site)
@@ -640,7 +668,11 @@ namespace DuneVector
             _worldSamples.Add(local);
         }
 
-        private bool TryProjectBounds(out Rect bounds, out float coverage, out float priority)
+        private bool TryProjectBounds(
+            out Rect bounds,
+            out float coverage,
+            out float priority,
+            out float depth)
         {
             float minX = float.PositiveInfinity;
             float minY = float.PositiveInfinity;
@@ -648,6 +680,7 @@ namespace DuneVector
             float maxY = float.NegativeInfinity;
             int frontSampleCount = 0;
             bool centerInFront = false;
+            depth = float.PositiveInfinity;
             for (int i = 0; i < _worldSamples.Count; i++)
             {
                 Vector3 viewport = _camera.WorldToViewportPoint(_worldSamples[i]);
@@ -658,6 +691,7 @@ namespace DuneVector
 
                 frontSampleCount++;
                 centerInFront |= i == _centerSampleIndex;
+                depth = Mathf.Min(depth, viewport.z);
                 float x = viewport.x * Screen.width;
                 float y = (1f - viewport.y) * Screen.height;
                 minX = Mathf.Min(minX, x);
@@ -670,6 +704,7 @@ namespace DuneVector
                 bounds = default;
                 coverage = 0f;
                 priority = float.PositiveInfinity;
+                depth = float.PositiveInfinity;
                 return false;
             }
 
