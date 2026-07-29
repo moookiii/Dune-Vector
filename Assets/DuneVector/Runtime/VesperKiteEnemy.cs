@@ -538,10 +538,22 @@ namespace DuneVector
             Vector3 desired = _player.WorldCenter - _cachedTransform.position;
             if (desired.sqrMagnitude > Mathf.Epsilon)
             {
+                Vector3 desiredDirection = desired.normalized;
+                float normalTurnRadians =
+                    _settings.EvaluatePilgrimTurnRate(risk) *
+                    Mathf.Deg2Rad *
+                    deltaTime;
+                float perfectTurnRadians = Vector3.Angle(
+                    _direction,
+                    desiredDirection) * Mathf.Deg2Rad;
+                float turnRadians = Mathf.Lerp(
+                    normalTurnRadians,
+                    perfectTurnRadians,
+                    _settings.EvaluatePilgrimPerfectTurnBlend(heightAboveGround));
                 _direction = Vector3.RotateTowards(
                     _direction,
-                    desired.normalized,
-                    _settings.EvaluatePilgrimTurnRate(risk) * Mathf.Deg2Rad * deltaTime,
+                    desiredDirection,
+                    turnRadians,
                     0f).normalized;
             }
         }

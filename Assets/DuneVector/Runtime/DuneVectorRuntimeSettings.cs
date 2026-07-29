@@ -2476,7 +2476,7 @@ namespace DuneVector
         [Min(0f)] public float PilgrimTurnRateAtRiskCeiling = 100f;
         [Tooltip("Risk at which pilgrim acceleration, maximum speed, and turn rate reach their ceiling values.")]
         [Min(1)] public int PilgrimMovementRiskCeiling = 20;
-        [Tooltip("Height above the local dune surface where pilgrim altitude movement scaling reaches its maximum.")]
+        [Tooltip("Height above the local dune surface where pilgrim movement scaling and perfect turn tracking reach their maximum.")]
         [Min(0.1f)] public float PilgrimAltitudeScalingHeight = 225f;
         [Tooltip("Maximum-speed multiplier reached at the pilgrim altitude scaling height.")]
         [Min(1f)] public float PilgrimMaximumSpeedAltitudeMultiplier = 3f;
@@ -2516,6 +2516,11 @@ namespace DuneVector
                 PilgrimTurnRate,
                 PilgrimTurnRateAtRiskCeiling,
                 EvaluatePilgrimMovementRisk(risk));
+        }
+
+        public float EvaluatePilgrimPerfectTurnBlend(float heightAboveGround)
+        {
+            return EvaluatePilgrimAltitude(heightAboveGround);
         }
 
         private float EvaluatePilgrimMovementRisk(int risk)
