@@ -4014,6 +4014,13 @@ namespace DuneVector
         [Min(0f)] public float ColorIntensity = 3.2f;
         [Min(0f)] public float BloomIntensity = 1.8f;
         [Range(0f, 1f)] public float Opacity = 0.86f;
+        [Header("Camera Angle Transparency")]
+        [Tooltip("Opacity multiplier when the camera looks directly down the trail rings. Reduces additive stacking without changing their angled appearance.")]
+        [Range(0f, 1f)] public float HeadOnOpacityMultiplier = 0.28f;
+        [Tooltip("View angle, in degrees from face-on, through which the head-on opacity multiplier is fully applied.")]
+        [Range(0f, 89f)] public float HeadOnFadeStartAngle = 8f;
+        [Tooltip("View angle, in degrees from face-on, at which the rings return to their normal opacity.")]
+        [Range(1f, 90f)] public float HeadOnFadeEndAngle = 28f;
         [Range(0.01f, 0.49f)] public float FadeInFraction = 0.08f;
         [Range(0.01f, 0.99f)] public float FadeOutFraction = 0.62f;
     }

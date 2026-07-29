@@ -224,7 +224,8 @@ namespace DuneVector
                     0f,
                     1f,
                     (lifetime01 - (1f - fadeOutFraction)) / fadeOutFraction);
-                float opacity = Mathf.Clamp01(_tuning.Opacity) * fadeIn * fadeOut;
+                float viewOpacity = CalculateViewOpacity(ring);
+                float opacity = Mathf.Clamp01(_tuning.Opacity) * fadeIn * fadeOut * viewOpacity;
                 float hue = Mathf.Repeat(
                     _tuning.StartingHue + (ring.HueIndex / (float)hueSteps),
                     1f);
@@ -247,6 +248,30 @@ namespace DuneVector
                 renderParams.worldBounds = DuneVectorSpatialInstancing.TransformBounds(matrix, _mesh.bounds);
                 Graphics.RenderMesh(renderParams, _mesh, 0, matrix);
             }
+        }
+
+        private float CalculateViewOpacity(TrailRing ring)
+        {
+            Vector3 cameraOffset = _camera.transform.position - ring.Position;
+            if (cameraOffset.sqrMagnitude <= Mathf.Epsilon)
+            {
+                return Mathf.Clamp01(_tuning.HeadOnOpacityMultiplier);
+            }
+
+            Vector3 ringNormal = ring.Rotation * Vector3.forward;
+            float faceOnAlignment = Mathf.Clamp01(
+                Mathf.Abs(Vector3.Dot(ringNormal, cameraOffset.normalized)));
+            float viewAngle = Mathf.Acos(faceOnAlignment) * Mathf.Rad2Deg;
+            float fadeStart = Mathf.Clamp(_tuning.HeadOnFadeStartAngle, 0f, 89f);
+            float fadeEnd = Mathf.Clamp(_tuning.HeadOnFadeEndAngle, fadeStart + 0.01f, 90f);
+            float angledVisibility = Mathf.SmoothStep(
+                0f,
+                1f,
+                Mathf.InverseLerp(fadeStart, fadeEnd, viewAngle));
+            return Mathf.Lerp(
+                Mathf.Clamp01(_tuning.HeadOnOpacityMultiplier),
+                1f,
+                angledVisibility);
         }
 
         private Quaternion CreateRingRotation(Vector3 direction)
