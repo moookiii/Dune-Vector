@@ -266,7 +266,7 @@ namespace DuneVector
     public sealed class AtlasGlyphMaterialUnlockTuning
     {
         public string DisplayName = "Brushed Metal Glyphs";
-        [TextArea] public string Description = "Recasts every discovered Atlas glyph with the BrushedMetal material finish.";
+        [TextArea] public string Description = "Recasts every discovered gylph";
         public Material GlyphMaterial;
         [Tooltip("Tint applied to brushed-metal glyph linework on the map while this upgrade is enabled.")]
         [ColorUsage(false, true)] public Color GlyphMapColor;
