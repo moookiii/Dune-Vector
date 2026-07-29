@@ -4296,6 +4296,20 @@ namespace DuneVector
         [Range(0.01f, 0.99f)] public float FadeOutFraction = 0.62f;
     }
 
+    public enum DuneVectorCameraAntiAliasingMode
+    {
+        None,
+        TemporalAntiAliasing,
+        SubpixelMorphologicalAntiAliasing,
+    }
+
+    public enum DuneVectorSmaaQuality
+    {
+        Low,
+        Medium,
+        High,
+    }
+
     public enum DuneVectorTaaQuality
     {
         Low,
@@ -4371,8 +4385,12 @@ namespace DuneVector
         [Min(0.001f)] public float CameraNearClipPlane = 0.01f;
         [Min(0.01f)] public float CameraFarClipPlane = 10000f;
 
-        [Header("Camera Temporal Anti-Aliasing (HDRP)")]
-        public bool EnableTemporalAntiAliasing = true;
+        [Header("Camera Anti-Aliasing (HDRP)")]
+        public DuneVectorCameraAntiAliasingMode CameraAntiAliasingMode =
+            DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing;
+        public DuneVectorSmaaQuality SmaaQuality = DuneVectorSmaaQuality.High;
+
+        [Header("Camera Temporal Anti-Aliasing Tuning")]
         public DuneVectorTaaQuality TemporalAntiAliasingQuality = DuneVectorTaaQuality.High;
         public DuneVectorTaaSharpenMode TemporalSharpenMode = DuneVectorTaaSharpenMode.PostSharpen;
         [Range(0f, 2f)] public float TemporalSharpenStrength = 0.65f;

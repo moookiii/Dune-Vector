@@ -541,9 +541,20 @@ namespace DuneVector
                 return;
             }
 
-            cameraData.antialiasing = settings.EnableTemporalAntiAliasing
-                ? HDAdditionalCameraData.AntialiasingMode.TemporalAntialiasing
-                : HDAdditionalCameraData.AntialiasingMode.None;
+            cameraData.antialiasing = settings.CameraAntiAliasingMode switch
+            {
+                DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing =>
+                    HDAdditionalCameraData.AntialiasingMode.TemporalAntialiasing,
+                DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing =>
+                    HDAdditionalCameraData.AntialiasingMode.SubpixelMorphologicalAntiAliasing,
+                _ => HDAdditionalCameraData.AntialiasingMode.None,
+            };
+            cameraData.SMAAQuality = settings.SmaaQuality switch
+            {
+                DuneVectorSmaaQuality.Low => HDAdditionalCameraData.SMAAQualityLevel.Low,
+                DuneVectorSmaaQuality.Medium => HDAdditionalCameraData.SMAAQualityLevel.Medium,
+                _ => HDAdditionalCameraData.SMAAQualityLevel.High,
+            };
             cameraData.TAAQuality = settings.TemporalAntiAliasingQuality switch
             {
                 DuneVectorTaaQuality.Low => HDAdditionalCameraData.TAAQualityLevel.Low,
