@@ -62,6 +62,12 @@ namespace DuneVector
         public Material PlayerStrikeOrbTrail { get; }
         public Material PlayerStrikeOrbExplosionWhite { get; }
         public Material PlayerStrikeOrbExplosionBlue { get; }
+        public Material VesperKiteBody { get; }
+        public Material VesperKiteAurora { get; }
+        public Material VesperKiteHalo { get; }
+        public Material VesperPilgrim { get; }
+        public Material VesperPilgrimReflected { get; }
+        public Material VesperTether { get; }
         public Material Lightning { get; }
         public Material LightningWarning { get; }
         public RingTuning RingPortalTuning { get; }
@@ -92,7 +98,8 @@ namespace DuneVector
             LandmarkSystemTuning landmarkTuning = null,
             PlayerStrikeOrbTuning playerStrikeOrbTuning = null,
             PyramidTuning pyramidLodTuning = null,
-            FlyingEnemyTuning flyingEnemyTuning = null)
+            FlyingEnemyTuning flyingEnemyTuning = null,
+            VesperKiteTuning vesperKiteTuning = null)
         {
             RingTuning rings = ringTuning ?? new RingTuning();
             RingPortalTuning = rings;
@@ -102,6 +109,7 @@ namespace DuneVector
             CactusTuning cacti = cactusTuning ?? new CactusTuning();
             DroneVisualTuning droneVisuals = droneVisualTuning ?? new DroneVisualTuning();
             PlayerStrikeOrbTuning strikeOrbs = playerStrikeOrbTuning ?? new PlayerStrikeOrbTuning();
+            VesperKiteTuning vesperKites = vesperKiteTuning ?? new VesperKiteTuning();
             PyramidLodTuning = pyramidLodTuning ?? new PyramidTuning();
             FlyingEnemyVisualTuning = flyingEnemyTuning ?? new FlyingEnemyTuning();
             if (!FlyingEnemyVisualTuning.UseProceduralVisualFallback)
@@ -284,6 +292,32 @@ namespace DuneVector
                 "Strike Orb Explosion - Blue",
                 strikeOrbs.FlyThroughExplosionBlueColor,
                 strikeOrbs.FlyThroughExplosionBlueEmission);
+            VesperKiteBody = CreateLit(
+                "Vesper Kite - Obsidian Body",
+                vesperKites.BodyColor,
+                vesperKites.BodySmoothness,
+                vesperKites.BodyMetallic,
+                vesperKites.BodyEmission);
+            VesperKiteAurora = CreateUnlit(
+                "Vesper Kite - Aurora Fabric",
+                vesperKites.AuroraColor,
+                vesperKites.AuroraEmission);
+            VesperKiteHalo = CreateUnlit(
+                "Vesper Kite - Broken Halo",
+                vesperKites.HaloColor,
+                vesperKites.HaloEmission);
+            VesperPilgrim = CreateUnlit(
+                "Vesper Kite - Redshift Pilgrim",
+                vesperKites.PilgrimColor,
+                vesperKites.PilgrimEmission);
+            VesperPilgrimReflected = CreateUnlit(
+                "Vesper Kite - Reflected Pilgrim",
+                vesperKites.ReflectedColor,
+                vesperKites.ReflectedEmission);
+            VesperTether = CreateUnlit(
+                "Vesper Kite - Pilgrim Tether",
+                vesperKites.TetherColor,
+                vesperKites.TetherEmission);
             Lightning = CreateUnlit("Storm Pyramid - Lightning", new Color(0.55f, 0.86f, 1f), new Color(7.5f, 12f, 18f));
             LightningWarning = CreateUnlit("Storm Pyramid - Warning", new Color(0.18f, 0.42f, 0.62f), new Color(0.45f, 2.8f, 5.8f));
         }
@@ -1992,6 +2026,160 @@ namespace DuneVector
                 Quaternion.identity,
                 materials.EnemyCore);
             core.gameObject.GetComponent<MeshRenderer>().shadowCastingMode = ShadowCastingMode.Off;
+            return root;
+        }
+
+        public static Transform CreateVesperKiteVisual(
+            Transform parent,
+            DuneVectorMaterials materials,
+            VesperKiteTuning settings)
+        {
+            GameObject rootObject = new GameObject("Vesper Kite Visual");
+            Transform root = rootObject.transform;
+            root.SetParent(parent, false);
+            root.localScale = Vector3.one * settings.VisualScale;
+
+            CreatePart(
+                PrimitiveType.Sphere,
+                "Obsidian Body",
+                root,
+                Vector3.zero,
+                settings.BodyScale,
+                Quaternion.identity,
+                materials.VesperKiteBody);
+
+            CreatePart(
+                PrimitiveType.Sphere,
+                "Left Wing",
+                root,
+                Vector3.left * settings.WingOffset,
+                settings.WingScale,
+                Quaternion.Euler(
+                    0f,
+                    -settings.WingSweepDegrees,
+                    settings.WingDihedralDegrees),
+                materials.VesperKiteBody);
+            CreatePart(
+                PrimitiveType.Sphere,
+                "Right Wing",
+                root,
+                Vector3.right * settings.WingOffset,
+                settings.WingScale,
+                Quaternion.Euler(
+                    0f,
+                    settings.WingSweepDegrees,
+                    -settings.WingDihedralDegrees),
+                materials.VesperKiteBody);
+
+            Vector3 auroraScale = settings.WingScale * settings.AuroraScaleMultiplier;
+            Transform leftAurora = CreatePart(
+                PrimitiveType.Sphere,
+                "Left Aurora Veil",
+                root,
+                (Vector3.left * settings.WingOffset) + (Vector3.up * settings.AuroraVerticalOffset),
+                auroraScale,
+                Quaternion.Euler(
+                    0f,
+                    -settings.WingSweepDegrees,
+                    settings.WingDihedralDegrees),
+                materials.VesperKiteAurora);
+            Transform rightAurora = CreatePart(
+                PrimitiveType.Sphere,
+                "Right Aurora Veil",
+                root,
+                (Vector3.right * settings.WingOffset) + (Vector3.up * settings.AuroraVerticalOffset),
+                auroraScale,
+                Quaternion.Euler(
+                    0f,
+                    settings.WingSweepDegrees,
+                    -settings.WingDihedralDegrees),
+                materials.VesperKiteAurora);
+            DisableRendererShadows(leftAurora.gameObject);
+            DisableRendererShadows(rightAurora.gameObject);
+
+            CreatePart(
+                PrimitiveType.Sphere,
+                "Ribbon Tail",
+                root,
+                Vector3.back * settings.TailScale.z,
+                settings.TailScale,
+                Quaternion.identity,
+                materials.VesperKiteAurora);
+
+            Transform core = CreatePart(
+                PrimitiveType.Sphere,
+                "Vesper Core",
+                root,
+                settings.CoreOffset,
+                settings.CoreScale,
+                Quaternion.identity,
+                materials.VesperKiteAurora);
+            DisableRendererShadows(core.gameObject);
+
+            float haloGap = Mathf.Clamp(settings.HaloGapDegrees, 1f, 120f);
+            GameObject halo = CreateMeshObject(
+                "Broken Halo",
+                root,
+                GetArcTorusMesh(
+                    settings.HaloRadius,
+                    settings.HaloThickness,
+                    54,
+                    7,
+                    haloGap * 0.5f,
+                    360f - haloGap),
+                materials.VesperKiteHalo);
+            halo.transform.localPosition = settings.HaloOffset;
+            DisableRendererShadows(halo);
+            return root;
+        }
+
+        public static Transform CreateVesperPilgrimVisual(
+            Transform parent,
+            DuneVectorMaterials materials,
+            VesperKiteTuning settings)
+        {
+            GameObject rootObject = new GameObject("Redshift Pilgrim Visual");
+            Transform root = rootObject.transform;
+            root.SetParent(parent, false);
+            root.localScale = Vector3.one * settings.PilgrimVisualScale;
+
+            Transform core = CreatePart(
+                PrimitiveType.Sphere,
+                "Pilgrim Core",
+                root,
+                Vector3.zero,
+                settings.PilgrimCoreScale,
+                Quaternion.identity,
+                materials.VesperPilgrim);
+            DisableRendererShadows(core.gameObject);
+
+            GameObject ring = CreateMeshObject(
+                "Pilgrim Vow Ring",
+                root,
+                GetTorusMesh(
+                    settings.PilgrimRingRadius,
+                    settings.PilgrimRingThickness,
+                    36,
+                    6),
+                materials.VesperKiteHalo);
+            DisableRendererShadows(ring);
+
+            int nodeCount = Mathf.Clamp(settings.PilgrimNodeCount, 2, 8);
+            for (int i = 0; i < nodeCount; i++)
+            {
+                float degrees = (360f * i) / nodeCount;
+                float radians = degrees * Mathf.Deg2Rad;
+                Vector3 radial = new Vector3(Mathf.Cos(radians), Mathf.Sin(radians), 0f);
+                Transform node = CreatePart(
+                    PrimitiveType.Cube,
+                    $"Pilgrim Vow Node {i + 1}",
+                    root,
+                    radial * settings.PilgrimRingRadius,
+                    settings.PilgrimNodeScale,
+                    Quaternion.Euler(0f, 0f, degrees),
+                    materials.VesperPilgrim);
+                DisableRendererShadows(node.gameObject);
+            }
             return root;
         }
 

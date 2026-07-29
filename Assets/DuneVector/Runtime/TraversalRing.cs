@@ -440,6 +440,10 @@ namespace DuneVector
                 }
             }
 
+            DuneVectorPortalEvents.NotifyPlayerCrossed(
+                _cachedTransform.position,
+                _cachedTransform.forward,
+                _controller);
             Activated?.Invoke(this);
         }
 

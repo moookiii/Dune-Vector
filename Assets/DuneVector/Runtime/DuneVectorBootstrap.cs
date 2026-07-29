@@ -44,6 +44,7 @@ namespace DuneVector
         public FlyingEnemyTuning FlyingEnemies => RuntimeSettings.FlyingEnemies;
         public StormPyramidTuning StormPyramids => RuntimeSettings.StormPyramids;
         public PlayerStrikeOrbTuning PlayerStrikeOrbs => RuntimeSettings.PlayerStrikeOrbs;
+        public VesperKiteTuning VesperKites => RuntimeSettings.VesperKites;
         public GroundExploderTuning GroundExploders => RuntimeSettings.GroundExploders;
         public RingTuning Rings => RuntimeSettings.Rings;
         public DuneFieldSettings DuneGeneration
@@ -88,6 +89,7 @@ namespace DuneVector
         public DroneLockOnHUD LockOnHUD { get; private set; }
         public DuneVectorEnemyDirector EnemyDirector { get; private set; }
         public DuneVectorStormPyramidDirector StormPyramidDirector { get; private set; }
+        public DuneVectorVesperKiteDirector VesperKiteDirector { get; private set; }
         public DuneVectorWeatherController WeatherSystem { get; private set; }
         public DuneVectorEnvironmentalHazardSystem EnvironmentalHazardSystem { get; private set; }
         public DuneVectorWindFieldSystem WindFieldSystem { get; private set; }
@@ -344,7 +346,8 @@ namespace DuneVector
                 RuntimeSettings.Landmarks,
                 PlayerStrikeOrbs,
                 Pyramids,
-                FlyingEnemies);
+                FlyingEnemies,
+                VesperKites);
             _materials.ConfigureStormPyramid(StormPyramids);
             _materials.ConfigurePlayerStrikeOrb(PlayerStrikeOrbs);
 
@@ -800,7 +803,8 @@ namespace DuneVector
                     DesertAtlasSettings,
                     RuntimeSettings.CompassHud,
                     EnemyDirector,
-                    StormPyramidDirector);
+                    StormPyramidDirector,
+                    VesperKiteDirector);
                 DesertAtlas = CourierGame.DesertAtlas;
                 PermanentUpgrades.BindAtlasGlyphMaterial(DesertAtlas, _materials);
 
@@ -850,6 +854,20 @@ namespace DuneVector
                     StormPyramids,
                     GroundExploders,
                     PlayerStrikeOrbs);
+            }
+
+            if (VesperKites.Enabled)
+            {
+                GameObject vesperObject = new GameObject("Vesper Kite Director");
+                vesperObject.transform.SetParent(transform, false);
+                VesperKiteDirector =
+                    vesperObject.AddComponent<DuneVectorVesperKiteDirector>();
+                VesperKiteDirector.Initialize(
+                    Drone,
+                    DroneHealth,
+                    World,
+                    _materials,
+                    VesperKites);
             }
         }
 

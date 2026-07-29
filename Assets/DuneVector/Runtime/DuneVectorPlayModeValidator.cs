@@ -64,6 +64,10 @@ namespace DuneVector
                 Finish();
                 yield break;
             }
+            Check(
+                !bootstrap.VesperKites.Enabled || bootstrap.VesperKiteDirector != null,
+                "Enabled Vesper Kite combat builds its high-altitude director",
+                "Vesper Kite tuning was enabled but its runtime director was missing.");
 
             DroneCharacterController drone = bootstrap.Drone;
             DronePlayer player = bootstrap.Player;

@@ -11,6 +11,7 @@ namespace DuneVector
         public const string SkyPiercer = "enemy:sky-piercer";
         public const string StormPyramid = "enemy:storm-pyramid";
         public const string PlayerStrikeOrb = "enemy:player-strike-orb";
+        public const string VesperKite = "enemy:vesper-kite";
         public const string FormationEnemy = SkyPiercer;
         public const string SandAmbusher = "enemy:sand-ambusher";
         public const string Pyramid = "misc:pyramid";

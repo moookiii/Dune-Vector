@@ -443,6 +443,10 @@ namespace DuneVector
                             _visual = null;
                             _portalVisual = null;
                             DuneVectorAudioManager.Instance?.PlayFlightRingSwoosh(transform.position);
+                            DuneVectorPortalEvents.NotifyPlayerCrossed(
+                                transform.position,
+                                transform.forward,
+                                _player);
                             _onCrossed?.Invoke();
                             return;
                         }

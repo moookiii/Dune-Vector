@@ -2429,6 +2429,105 @@ namespace DuneVector
         }
     }
 
+    [System.Serializable]
+    public sealed class VesperKiteTuning
+    {
+        public bool Enabled = true;
+        [Min(1f)] public float MaximumHealth = 320f;
+        [Min(0)] public int GoldReward = 120;
+
+        [Header("High-Altitude Spawning")]
+        [Range(1, 6)] public int EnemyCount = 1;
+        [Min(20f)] public float MinimumSpawnDistance = 220f;
+        [Min(20f)] public float MaximumSpawnDistance = 360f;
+        [Min(50f)] public float RepositionDistance = 540f;
+        [Tooltip("Minimum patrol height above the sampled dune surface.")]
+        [Min(10f)] public float MinimumAltitude = 175f;
+        [Tooltip("Maximum patrol height above the sampled dune surface.")]
+        [Min(10f)] public float MaximumAltitude = 275f;
+        [Min(1f)] public float PatrolOrbitRadius = 150f;
+        [Min(0f)] public float PatrolSpeed = 13f;
+        [Min(0f)] public float PatrolAngularSpeed = 4f;
+        [Min(0f)] public float HoverAmplitude = 4.5f;
+        [Min(0f)] public float HoverFrequency = 0.34f;
+
+        [Header("Redshift Procession")]
+        [Min(1f)] public float DetectionRange = 430f;
+        [Min(0.1f)] public float AttackInterval = 10f;
+        [Range(0f, 1f)] public float MinimumInitialAttackDelayMultiplier = 0.25f;
+        [Range(0f, 1f)] public float MaximumInitialAttackDelayMultiplier = 0.85f;
+        [Min(0f)] public float AttackWindUpDuration = 2.25f;
+        [Range(1, 8)] public int PilgrimsPerProcession = 3;
+        [Range(1, 16)] public int MaximumActivePilgrims = 6;
+        [Min(0f)] public float PilgrimSpawnRadius = 4.2f;
+        [Min(0f)] public float PilgrimSpawnForwardOffset = 1.2f;
+        [Min(0.1f)] public float PilgrimInitialSpeed = 20f;
+        [Min(0f)] public float PilgrimAcceleration = 8f;
+        [Min(0.1f)] public float PilgrimMaximumSpeed = 180f;
+        [Min(0f)] public float PilgrimTurnRate = 82f;
+        [Min(0.01f)] public float PilgrimCollisionRadius = 2.25f;
+        [Min(0f)] public float PilgrimDamage = 32f;
+        public string PilgrimDeathMessage = "Consumed by the Vesper Kite's Redshift Procession.";
+
+        [Header("Portal Reversal")]
+        [Min(0f)] public float PortalExitOffset = 4f;
+        [Min(0.1f)] public float ReflectedSpeedMultiplier = 1.45f;
+        [Min(0f)] public float ReflectedTurnRate = 220f;
+        [Min(0.01f)] public float ReflectedCollisionRadius = 3.4f;
+        [Min(0f)] public float ReflectedBaseDamage = 34f;
+        [Min(0f)] public float ReflectedMaximumBonusDamage = 86f;
+
+        [Header("Vesper Kite Presentation")]
+        [Min(0.1f)] public float VisualScale = 5.5f;
+        public Vector3 BodyScale = new Vector3(1.25f, 0.22f, 1.65f);
+        public Vector3 WingScale = new Vector3(1.85f, 0.12f, 1.15f);
+        [Min(0f)] public float WingOffset = 1.25f;
+        [Range(0f, 80f)] public float WingSweepDegrees = 18f;
+        [Range(-45f, 45f)] public float WingDihedralDegrees = 7f;
+        [Range(0f, 0.5f)] public float WingPulseAmount = 0.08f;
+        [Min(0f)] public float WingPulseSpeed = 1.7f;
+        [Range(0.1f, 1f)] public float AuroraScaleMultiplier = 0.78f;
+        public float AuroraVerticalOffset = -0.08f;
+        public Vector3 TailScale = new Vector3(0.16f, 0.1f, 2.2f);
+        public Vector3 CoreScale = new Vector3(0.42f, 0.18f, 0.42f);
+        public Vector3 CoreOffset = new Vector3(0f, -0.12f, 0.32f);
+        [Min(0.1f)] public float HaloRadius = 2.35f;
+        [Min(0.01f)] public float HaloThickness = 0.11f;
+        [Range(1f, 120f)] public float HaloGapDegrees = 34f;
+        public Vector3 HaloOffset = new Vector3(0f, 0.65f, -0.3f);
+        [Min(0f)] public float HaloRotationSpeed = 23f;
+        [Range(1f, 3f)] public float HaloWindUpScale = 1.55f;
+        [Min(0f)] public float FacingSharpness = 4.5f;
+
+        [Header("Pilgrim Presentation")]
+        [Min(0.1f)] public float PilgrimVisualScale = 1.15f;
+        public Vector3 PilgrimCoreScale = new Vector3(0.42f, 0.42f, 0.72f);
+        [Min(0.1f)] public float PilgrimRingRadius = 0.72f;
+        [Min(0.01f)] public float PilgrimRingThickness = 0.055f;
+        [Range(2, 8)] public int PilgrimNodeCount = 3;
+        public Vector3 PilgrimNodeScale = new Vector3(0.12f, 0.12f, 0.3f);
+        [Min(0f)] public float PilgrimRingRotationSpeed = 180f;
+        [Min(0.001f)] public float TetherWidth = 0.055f;
+        [Min(0f)] public float TetherPulseSpeed = 7f;
+        [Range(0f, 1f)] public float TetherPulseAmount = 0.28f;
+
+        [Header("Materials")]
+        [ColorUsage(false)] public Color BodyColor = new Color(0.008f, 0.01f, 0.018f);
+        [ColorUsage(false, true)] public Color BodyEmission = new Color(0.025f, 0.035f, 0.09f);
+        [Range(0f, 1f)] public float BodySmoothness = 0.82f;
+        [Range(0f, 1f)] public float BodyMetallic = 0.88f;
+        [ColorUsage(false)] public Color AuroraColor = new Color(0.08f, 0.34f, 0.42f);
+        [ColorUsage(false, true)] public Color AuroraEmission = new Color(0.18f, 2.4f, 3.8f);
+        [ColorUsage(false)] public Color HaloColor = new Color(0.92f, 0.58f, 0.13f);
+        [ColorUsage(false, true)] public Color HaloEmission = new Color(7.5f, 3.2f, 0.32f);
+        [ColorUsage(false)] public Color PilgrimColor = new Color(0.42f, 0.08f, 0.34f);
+        [ColorUsage(false, true)] public Color PilgrimEmission = new Color(4.8f, 0.22f, 3.2f);
+        [ColorUsage(false)] public Color ReflectedColor = new Color(1f, 0.72f, 0.18f);
+        [ColorUsage(false, true)] public Color ReflectedEmission = new Color(10f, 4.8f, 0.45f);
+        [ColorUsage(false)] public Color TetherColor = new Color(0.75f, 0.16f, 0.64f, 0.8f);
+        [ColorUsage(false, true)] public Color TetherEmission = new Color(4.5f, 0.25f, 3.8f, 1f);
+    }
+
     public enum DesertAtlasChallengeType
     {
         VectorPass = 1,
@@ -4673,6 +4772,9 @@ namespace DuneVector
         [Tooltip("High-altitude ring enemies that predict and strike only airborne players.")]
         public PlayerStrikeOrbTuning PlayerStrikeOrbs = new PlayerStrikeOrbTuning();
 
+        [Tooltip("Extreme-altitude portal-duelist enemies and their accelerating Redshift Procession attacks.")]
+        public VesperKiteTuning VesperKites = new VesperKiteTuning();
+
         [Tooltip("Ground enemy spawning, patrol, and explosion behavior.")]
         public GroundExploderTuning GroundExploders = new GroundExploderTuning();
 
@@ -4750,6 +4852,7 @@ namespace DuneVector
             FlyingEnemies ??= new FlyingEnemyTuning();
             StormPyramids ??= new StormPyramidTuning();
             PlayerStrikeOrbs ??= new PlayerStrikeOrbTuning();
+            VesperKites ??= new VesperKiteTuning();
             GroundExploders ??= new GroundExploderTuning();
             Rings ??= new RingTuning();
             PermanentUpgrades ??= new DronePermanentUpgradeTuning();

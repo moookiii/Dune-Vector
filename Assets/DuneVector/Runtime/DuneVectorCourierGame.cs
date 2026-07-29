@@ -361,6 +361,7 @@ namespace DuneVector
         private DesertAtlasTuning _desertAtlasSettings;
         private DuneVectorEnemyDirector _enemyDirector;
         private DuneVectorStormPyramidDirector _stormDirector;
+        private DuneVectorVesperKiteDirector _vesperKiteDirector;
         private DuneVectorRouteEncounterDirector _routeEncounterDirector;
         private DuneVectorEnvironmentalHazardSystem _environmentalHazards;
         private DuneVectorDeliveryMessagePresenter _messagePresenter;
@@ -456,7 +457,8 @@ namespace DuneVector
             DesertAtlasTuning desertAtlasSettings,
             CompassHudTuning compassHudSettings,
             DuneVectorEnemyDirector enemyDirector,
-            DuneVectorStormPyramidDirector stormDirector)
+            DuneVectorStormPyramidDirector stormDirector,
+            DuneVectorVesperKiteDirector vesperKiteDirector)
         {
             _playerInput = playerInput;
             _player = player;
@@ -478,6 +480,7 @@ namespace DuneVector
             _desertAtlasSettings.EnsureInitialized();
             _enemyDirector = enemyDirector;
             _stormDirector = stormDirector;
+            _vesperKiteDirector = vesperKiteDirector;
             Progress = gameObject.AddComponent<DuneVectorCourierProgress>();
             Progress.Initialize();
             DesertAtlas = gameObject.AddComponent<DuneVectorDesertAtlas>();
@@ -2286,6 +2289,7 @@ namespace DuneVector
         {
             _enemyDirector?.SetGameplayActive(active);
             _stormDirector?.SetGameplayActive(active);
+            _vesperKiteDirector?.SetGameplayActive(active);
             _environmentalHazards?.SetGameplayActive(active);
             if (_routeEncounterDirector != null) _routeEncounterDirector.enabled = active;
         }
