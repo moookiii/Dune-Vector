@@ -2543,6 +2543,10 @@ namespace DuneVector
         public Vector3 PilgrimNodeScale = new Vector3(0.12f, 0.12f, 0.3f);
         [Min(0f)] public float PilgrimRingRotationSpeed = 180f;
         [Min(0.001f)] public float TetherWidth = 0.055f;
+        [Tooltip("Width at both tether endpoints as a multiplier of its center width.")]
+        [Range(0f, 1f)] public float TetherEndWidthMultiplier = 0.72f;
+        [Tooltip("Opacity at both tether endpoints as a multiplier of its center opacity.")]
+        [Range(0f, 1f)] public float TetherEndAlphaMultiplier = 0.7f;
         [Min(0f)] public float TetherPulseSpeed = 7f;
         [Range(0f, 1f)] public float TetherPulseAmount = 0.28f;
 

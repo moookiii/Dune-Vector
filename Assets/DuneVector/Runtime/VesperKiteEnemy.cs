@@ -420,8 +420,28 @@ namespace DuneVector
             _tether.sharedMaterial = _materials.VesperTether;
             _tether.useWorldSpace = true;
             _tether.positionCount = 2;
-            _tether.startWidth = _settings.TetherWidth;
-            _tether.endWidth = _settings.TetherWidth;
+            float endWidth = Mathf.Clamp01(_settings.TetherEndWidthMultiplier);
+            _tether.widthCurve = new AnimationCurve(
+                new Keyframe(0f, endWidth),
+                new Keyframe(0.5f, 1f),
+                new Keyframe(1f, endWidth));
+            _tether.widthMultiplier = _settings.TetherWidth;
+
+            float endAlpha = Mathf.Clamp01(_settings.TetherEndAlphaMultiplier);
+            Gradient fade = new Gradient();
+            fade.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(Color.white, 0f),
+                    new GradientColorKey(Color.white, 1f),
+                },
+                new[]
+                {
+                    new GradientAlphaKey(endAlpha, 0f),
+                    new GradientAlphaKey(1f, 0.5f),
+                    new GradientAlphaKey(endAlpha, 1f),
+                });
+            _tether.colorGradient = fade;
             _tether.numCapVertices = 3;
             _tether.numCornerVertices = 2;
             _tether.shadowCastingMode = ShadowCastingMode.Off;
@@ -542,9 +562,7 @@ namespace DuneVector
             float pulse = 1f + (
                 Mathf.Sin(Time.time * _settings.TetherPulseSpeed) *
                 _settings.TetherPulseAmount);
-            float width = _settings.TetherWidth * pulse;
-            _tether.startWidth = width;
-            _tether.endWidth = width;
+            _tether.widthMultiplier = _settings.TetherWidth * pulse;
         }
 
         private void UpdatePresentation(float deltaTime)
