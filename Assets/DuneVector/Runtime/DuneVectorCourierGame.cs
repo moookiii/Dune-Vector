@@ -552,9 +552,10 @@ namespace DuneVector
             BeginTeleport(toHub: true);
         }
 
-        public void RestartAtHubAfterDeath()
+        public void RestartAtHub()
         {
             DestroyTeleportParticles();
+            _routeEncounterDirector?.EndContract();
             if (_player.DroneVisualRoot != null)
             {
                 _player.DroneVisualRoot.localScale = _droneVisualOriginalScale;

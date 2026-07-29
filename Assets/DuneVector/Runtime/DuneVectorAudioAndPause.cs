@@ -1179,9 +1179,15 @@ namespace DuneVector
 
         private void RestartRun()
         {
-            _audio?.SetPausedDucking(false);
-            _audio?.FlushPreferences();
-            Time.timeScale = 1f;
+            SetPaused(false);
+            if (_courierGame != null)
+            {
+                _health?.RestoreHealth(_health.MaximumHealth);
+                _player?.GetComponent<DroneCharacterController>()?.RestoreStaminaToFull();
+                _courierGame.RestartAtHub();
+                return;
+            }
+
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
         }
 

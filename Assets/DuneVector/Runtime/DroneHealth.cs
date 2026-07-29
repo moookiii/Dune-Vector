@@ -584,7 +584,7 @@ namespace DuneVector
             {
                 IsGameOver = false;
                 _health.GetComponent<DroneCharacterController>()?.SetHoverEnabled(true);
-                _courierGame.RestartAtHubAfterDeath();
+                _courierGame.RestartAtHub();
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
                 return;
