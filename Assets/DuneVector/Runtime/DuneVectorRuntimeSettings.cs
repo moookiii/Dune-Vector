@@ -3042,40 +3042,6 @@ namespace DuneVector
         [Tooltip("Distance from the drone center at which rings freeze their current orientation instead of continuing to face the camera.")]
         [Min(0f)] public float BillboardDisableRadius = 14f;
 
-        [Header("Traversal Portal Drift")]
-        [Tooltip("Moves streamed traversal portals along deterministic, bounded paths. Pickup and delivery objective portals use a separate system and are never affected.")]
-        public bool EnableTraversalPortalDrift = true;
-        [Tooltip("Maximum side-to-side travel in the portal's local plane before ring-type scaling is applied.")]
-        [Min(0f)] public float PortalDriftHorizontalDistance = 5.5f;
-        [Tooltip("Maximum vertical travel in the portal's local plane before ring-type scaling is applied.")]
-        [Min(0f)] public float PortalDriftVerticalDistance = 2.8f;
-        [Tooltip("Maximum travel along the portal normal before ring-type scaling is applied. Keep this smaller than planar travel for high-speed readability.")]
-        [Min(0f)] public float PortalDriftDepthDistance = 0.9f;
-        [Tooltip("Shortest time a portal can take to complete the base cycle.")]
-        [Min(0.1f)] public float PortalDriftMinimumCycleDuration = 8.5f;
-        [Tooltip("Longest time a portal can take to complete the base cycle.")]
-        [Min(0.1f)] public float PortalDriftMaximumCycleDuration = 14f;
-        [Tooltip("Vertical oscillations per base drift cycle. Non-whole values produce slowly evolving paths.")]
-        [Min(0.01f)] public float PortalDriftVerticalFrequencyMultiplier = 1.65f;
-        [Tooltip("Depth oscillations per base drift cycle.")]
-        [Min(0.01f)] public float PortalDriftDepthFrequencyMultiplier = 0.72f;
-        [Tooltip("Distance at which an approaching portal begins slowing its drift to become easier to read and intercept.")]
-        [Min(0f)] public float PortalDriftApproachDistance = 34f;
-        [Tooltip("Time-to-intercept window that also slows a portal when the drone is approaching quickly.")]
-        [Min(0f)] public float PortalDriftApproachLookAheadTime = 1.15f;
-        [Tooltip("Fraction of normal drift speed retained at the closest approach. A nonzero value keeps portals feeling alive without dodging the player.")]
-        [Range(0f, 1f)] public float PortalDriftMinimumApproachSpeed = 0.16f;
-        [Tooltip("How smoothly drift speed reacts when the drone enters or leaves the approach window.")]
-        [Min(0f)] public float PortalDriftApproachSharpness = 5.5f;
-        [Tooltip("Travel multiplier for low-altitude boost portals.")]
-        [Min(0f)] public float GroundBoostPortalDriftMultiplier = 0.55f;
-        [Tooltip("Travel multiplier for standard flight portals.")]
-        [Min(0f)] public float FlightPortalDriftMultiplier = 1f;
-        [Tooltip("Travel multiplier for upper-flight portals.")]
-        [Min(0f)] public float UpperFlightPortalDriftMultiplier = 1.35f;
-        [Tooltip("Travel multiplier for health and coin portals.")]
-        [Min(0f)] public float CollectiblePortalDriftMultiplier = 0.72f;
-
         [Header("Ground Boost Ring Generation")]
         [Tooltip("Multiplier for the expected number of procedurally generated ground boost rings.")]
         [Min(0f)] public float GroundBoostRingAmountMultiplier = 1f;

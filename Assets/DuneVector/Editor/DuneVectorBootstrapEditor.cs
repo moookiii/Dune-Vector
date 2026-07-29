@@ -449,7 +449,7 @@ namespace DuneVector.Editor
                 _worldHub);
             DuneVectorSettingsInspector.DrawSection(
                 "Traversal Rings",
-                "Placement, approach-aware drift, sizes, height bands, and active enlargement for traversal portals.",
+                "Sizes, height bands, and active enlargement for both ring types.",
                 _rings);
             DuneVectorSettingsInspector.DrawSection(
                 "Permanent Upgrade Shop",
