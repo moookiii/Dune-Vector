@@ -879,8 +879,7 @@ namespace DuneVector
             _messageArchiveTerminal = BuildPhysicalTerminal(
                 "Physical Message Archive Terminal",
                 _hubSettings.ArchiveTerminalLocalPosition,
-                Quaternion.Euler(_hubSettings.ArchiveTerminalLocalEulerAngles),
-                _hubSettings.ArchiveTerminalEnergyBarsEnabled);
+                Quaternion.Euler(_hubSettings.ArchiveTerminalLocalEulerAngles));
             _freeRoamTerminal = BuildPhysicalTerminal(
                 "Physical Free Roam Terminal",
                 Vector3.left * _hubSettings.FreeRoamTerminalLeftOffset,
@@ -945,15 +944,21 @@ namespace DuneVector
             _hubRuneRing.SetParent(_hubRoot, true);
         }
 
-        private Transform BuildPhysicalTerminal(
-            string objectName,
-            Vector3 localPosition,
-            Quaternion localRotation,
-            bool includeEnergyBars = true)
+        private Transform BuildPhysicalTerminal(string objectName, Vector3 localPosition, Quaternion localRotation)
         {
             Transform terminal = new GameObject(objectName).transform;
             terminal.SetParent(_hubRoot, false);
             terminal.SetLocalPositionAndRotation(localPosition, localRotation);
+            Material terminalPanelMaterial = new Material(_hubEnergyMaterial)
+            {
+                name = $"{objectName} RGB Panel",
+            };
+            Material terminalAntennaMaterial = new Material(_hubEnergyMaterial)
+            {
+                name = $"{objectName} RGB Antennae",
+            };
+            _hubTerminalPanelMaterials.Add(terminalPanelMaterial);
+            _hubTerminalAntennaMaterials.Add(terminalAntennaMaterial);
             HubPart(
                 PrimitiveType.Cube,
                 "Terminal Pedestal",
@@ -965,6 +970,15 @@ namespace DuneVector
                 true);
             HubPart(
                 PrimitiveType.Cube,
+                "Terminal Screen",
+                terminal,
+                _hubSettings.TerminalScreenLocalPosition,
+                _hubSettings.TerminalScreenScale,
+                Quaternion.Euler(_hubSettings.TerminalScreenTilt, 0f, 0f),
+                terminalPanelMaterial,
+                false);
+            HubPart(
+                PrimitiveType.Cube,
                 "Terminal Header",
                 terminal,
                 _hubSettings.TerminalHeaderLocalPosition,
@@ -972,42 +986,19 @@ namespace DuneVector
                 Quaternion.identity,
                 _hubMetalMaterial,
                 false);
-
-            if (includeEnergyBars)
+            for (int side = -1; side <= 1; side += 2)
             {
-                Material terminalPanelMaterial = new Material(_hubEnergyMaterial)
-                {
-                    name = $"{objectName} RGB Panel",
-                };
-                Material terminalAntennaMaterial = new Material(_hubEnergyMaterial)
-                {
-                    name = $"{objectName} RGB Antennae",
-                };
-                _hubTerminalPanelMaterials.Add(terminalPanelMaterial);
-                _hubTerminalAntennaMaterials.Add(terminalAntennaMaterial);
+                Vector3 mastPosition = _hubSettings.TerminalSignalMastLocalPosition;
+                mastPosition.x = side * _hubSettings.TerminalSignalMastHorizontalOffset;
                 HubPart(
-                    PrimitiveType.Cube,
-                    "Terminal Screen",
+                    PrimitiveType.Cylinder,
+                    $"Terminal Signal Mast {(side < 0 ? "Left" : "Right")}",
                     terminal,
-                    _hubSettings.TerminalScreenLocalPosition,
-                    _hubSettings.TerminalScreenScale,
-                    Quaternion.Euler(_hubSettings.TerminalScreenTilt, 0f, 0f),
-                    terminalPanelMaterial,
+                    mastPosition,
+                    _hubSettings.TerminalSignalMastScale,
+                    Quaternion.identity,
+                    terminalAntennaMaterial,
                     false);
-                for (int side = -1; side <= 1; side += 2)
-                {
-                    Vector3 mastPosition = _hubSettings.TerminalSignalMastLocalPosition;
-                    mastPosition.x = side * _hubSettings.TerminalSignalMastHorizontalOffset;
-                    HubPart(
-                        PrimitiveType.Cylinder,
-                        $"Terminal Signal Mast {(side < 0 ? "Left" : "Right")}",
-                        terminal,
-                        mastPosition,
-                        _hubSettings.TerminalSignalMastScale,
-                        Quaternion.identity,
-                        terminalAntennaMaterial,
-                        false);
-                }
             }
             return terminal;
         }
