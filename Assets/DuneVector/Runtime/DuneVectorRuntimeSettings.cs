@@ -814,8 +814,8 @@ namespace DuneVector
         [Min(0.1f)] public float SandAmbusherJointScale = 1f;
         [Min(0.1f)] public float SandAmbusherJointCompressedScale = 0.58f;
         [Min(0.01f)] public float SandAmbusherJointLengthMultiplier = 0.25f;
-        [Range(8, 48)] public int SandAmbusherJointMeshRadialSegments = 24;
-        [Range(3, 16)] public int SandAmbusherJointMeshHemisphereRings = 8;
+        [Range(8, 48)] public int SandAmbusherJointMeshRadialSegments = 32;
+        [Range(3, 16)] public int SandAmbusherJointMeshHemisphereRings = 12;
         [Range(0f, 1f)] public float SandAmbusherSegmentCompressedSpacing = 0.34f;
         [Min(0f)] public float SandAmbusherSegmentEmergenceDelay = 0.06f;
         [Min(0.01f)] public float SandAmbusherSegmentExtensionDuration = 0.38f;
@@ -835,8 +835,8 @@ namespace DuneVector
         [Min(0.01f)] public float SandAmbusherRidgeHeight = 0.62f;
         [Min(0.01f)] public float SandAmbusherRidgeDepth = 0.12f;
         public float SandAmbusherRidgeTilt = 18f;
-        [Range(2, 16)] public int SandAmbusherRidgeMeshLengthSegments = 8;
-        [Range(5, 32)] public int SandAmbusherRidgeMeshRadialSegments = 12;
+        [Range(2, 16)] public int SandAmbusherRidgeMeshLengthSegments = 10;
+        [Range(5, 32)] public int SandAmbusherRidgeMeshRadialSegments = 16;
         [Range(0f, 0.35f)] public float SandAmbusherRidgeTipScale = 0.04f;
         [Min(0f)] public float SandAmbusherRidgeVerticalOffset = 0.25f;
         [Min(0f)] public float SandAmbusherRidgeAngularVariation = 18f;
@@ -852,8 +852,8 @@ namespace DuneVector
         [Min(0.01f)] public float SandAmbusherCrownCoreHeight = 0.55f;
         [Min(0.01f)] public float SandAmbusherCrownCoreDepth = 0.7f;
         public float SandAmbusherCrownCoreTilt = -8f;
-        [Range(6, 32)] public int SandAmbusherCrownCoreMeshRings = 16;
-        [Range(8, 48)] public int SandAmbusherCrownCoreMeshRadialSegments = 24;
+        [Range(6, 32)] public int SandAmbusherCrownCoreMeshRings = 24;
+        [Range(8, 48)] public int SandAmbusherCrownCoreMeshRadialSegments = 32;
         [Min(0f)] public float SandAmbusherCrownProngBaseSeparation = 0.2f;
         [Min(0f)] public float SandAmbusherCrownProngSpread = 1.6f;
         [Min(0.1f)] public float SandAmbusherCrownProngHeight = 1.9f;
