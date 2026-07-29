@@ -69,6 +69,9 @@ namespace DuneVector
         private StormPyramidMovement _movement;
         private StormPyramidTargeting _targeting;
         private StormPyramidLightningAttack _lightning;
+        private DuneVectorMaterials _materials;
+        private GroundExploderTuning _explosionSettings;
+        private EnemyHealth _enemyHealth;
         private Transform _visual;
         private Transform _core;
         private Transform _counterRotator;
@@ -84,11 +87,14 @@ namespace DuneVector
             DesertWorldStreamer world,
             DuneVectorMaterials materials,
             StormPyramidTuning settings,
+            GroundExploderTuning explosionSettings,
             int identity)
         {
             _player = player;
             _playerHealth = playerHealth;
             _settings = settings;
+            _materials = materials;
+            _explosionSettings = explosionSettings;
             _identity = identity;
 
             _visual = DuneVectorVisuals.CreateStormPyramidVisual(transform, materials, settings);
@@ -97,12 +103,13 @@ namespace DuneVector
             Transform halo = _visual.Find("Charge Halo");
             Transform lightningOrigin = _visual.Find("Lightning Origin");
 
-            EnemyHealth enemyHealth = gameObject.AddComponent<EnemyHealth>();
-            enemyHealth.Initialize(settings.MaximumHealth);
+            _enemyHealth = gameObject.AddComponent<EnemyHealth>();
+            _enemyHealth.Initialize(settings.MaximumHealth);
+            _enemyHealth.Died += HandleDeath;
             EnemyCombatTarget combatTarget = gameObject.AddComponent<EnemyCombatTarget>();
-            combatTarget.Initialize(enemyHealth, settings.VisualScale);
+            combatTarget.Initialize(_enemyHealth, settings.VisualScale);
             EnemyGoldReward goldReward = gameObject.AddComponent<EnemyGoldReward>();
-            goldReward.Initialize(enemyHealth, player != null ? player.GetComponent<DroneGoldWallet>() : null, settings.GoldReward);
+            goldReward.Initialize(_enemyHealth, player != null ? player.GetComponent<DroneGoldWallet>() : null, settings.GoldReward);
 
             _movement = gameObject.AddComponent<StormPyramidMovement>();
             _movement.Initialize(player, world, settings, identity);
@@ -319,6 +326,24 @@ namespace DuneVector
         {
             _movement.ApplyWorldShift(shift);
             _lightning.ApplyWorldShift(shift);
+        }
+
+        private void HandleDeath()
+        {
+            GroundExploderExplosionEffect.Spawn(
+                transform.position,
+                _player,
+                _playerHealth,
+                _materials,
+                _explosionSettings);
+        }
+
+        private void OnDestroy()
+        {
+            if (_enemyHealth != null)
+            {
+                _enemyHealth.Died -= HandleDeath;
+            }
         }
 
         public bool TryGetThreatWarning(out StormPyramidThreatWarning warning)
@@ -2098,6 +2123,7 @@ namespace DuneVector
         private DesertWorldStreamer _world;
         private DuneVectorMaterials _materials;
         private StormPyramidTuning _settings;
+        private GroundExploderTuning _groundExploderSettings;
         private PlayerStrikeOrbTuning _orbSettings;
         private StormPyramidThreatHUD _warningHud;
 
@@ -2107,6 +2133,7 @@ namespace DuneVector
             DesertWorldStreamer world,
             DuneVectorMaterials materials,
             StormPyramidTuning settings,
+            GroundExploderTuning groundExploderSettings,
             PlayerStrikeOrbTuning orbSettings)
         {
             _player = player;
@@ -2114,6 +2141,7 @@ namespace DuneVector
             _world = world;
             _materials = materials;
             _settings = settings;
+            _groundExploderSettings = groundExploderSettings;
             _orbSettings = orbSettings;
             _world.WorldShifted += HandleWorldShift;
             System.Random random = new System.Random(unchecked(world.EnemySpawnSeed ^ 0x2749a31));
@@ -2200,7 +2228,14 @@ namespace DuneVector
             enemyObject.transform.SetParent(transform, true);
             enemyObject.transform.position = spawnPosition;
             StormPyramidEnemy enemy = enemyObject.AddComponent<StormPyramidEnemy>();
-            enemy.Initialize(_player, _playerHealth, _world, _materials, _settings, identity);
+            enemy.Initialize(
+                _player,
+                _playerHealth,
+                _world,
+                _materials,
+                _settings,
+                _groundExploderSettings,
+                identity);
             _enemies.Add(enemy);
             return enemy;
         }

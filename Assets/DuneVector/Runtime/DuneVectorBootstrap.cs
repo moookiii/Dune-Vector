@@ -848,6 +848,7 @@ namespace DuneVector
                     World,
                     _materials,
                     StormPyramids,
+                    GroundExploders,
                     PlayerStrikeOrbs);
             }
         }

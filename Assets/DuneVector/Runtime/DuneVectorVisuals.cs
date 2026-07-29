@@ -2481,16 +2481,24 @@ namespace DuneVector
                 DisableRendererShadows(ring);
             }
 
+            CreateGroundExplosionVisual(root, materials);
+            return root;
+        }
+
+        public static Transform CreateGroundExplosionVisual(
+            Transform parent,
+            DuneVectorMaterials materials)
+        {
             Transform flash = CreatePart(
                 PrimitiveType.Sphere,
                 "Explosion Flash",
-                root,
+                parent,
                 Vector3.up * 0.18f,
                 Vector3.zero,
                 Quaternion.identity,
                 materials.GroundEnemyWarning);
             DisableRendererShadows(flash.gameObject);
-            return root;
+            return flash;
         }
 
         private static Mesh GetGroundExploderWheelMesh()

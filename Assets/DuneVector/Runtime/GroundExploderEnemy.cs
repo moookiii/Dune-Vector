@@ -15,7 +15,7 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class GroundExploderEnemy : MonoBehaviour
     {
-        private const float ExplosionPresentationDuration = 0.38f;
+        internal const float ExplosionPresentationDuration = 0.38f;
 
         public GroundExploderState CurrentState { get; private set; }
 
@@ -214,6 +214,74 @@ namespace DuneVector
             Gizmos.DrawWireSphere(
                 transform.position,
                 _settings.EvaluateExplosionRadius(DuneVectorContractRisk.CurrentRisk));
+        }
+    }
+
+    [DisallowMultipleComponent]
+    public sealed class GroundExploderExplosionEffect : MonoBehaviour
+    {
+        private Transform _flash;
+        private DroneHealth _playerHealth;
+        private float _radius;
+        private float _elapsed;
+
+        public static void Spawn(
+            Vector3 position,
+            DroneCharacterController player,
+            DroneHealth playerHealth,
+            DuneVectorMaterials materials,
+            GroundExploderTuning settings)
+        {
+            if (materials == null || settings == null)
+            {
+                return;
+            }
+
+            GameObject effectObject = new GameObject("Ground Exploder Explosion");
+            effectObject.transform.position = position;
+            GroundExploderExplosionEffect effect = effectObject.AddComponent<GroundExploderExplosionEffect>();
+            effect.Initialize(player, playerHealth, materials, settings);
+        }
+
+        private void Initialize(
+            DroneCharacterController player,
+            DroneHealth playerHealth,
+            DuneVectorMaterials materials,
+            GroundExploderTuning settings)
+        {
+            _playerHealth = playerHealth;
+            _radius = settings.EvaluateExplosionRadius(DuneVectorContractRisk.CurrentRisk);
+            _flash = DuneVectorVisuals.CreateGroundExplosionVisual(transform, materials);
+            _flash.localScale = Vector3.zero;
+
+            if (!string.IsNullOrWhiteSpace(settings.ExplosionEvent))
+            {
+                RuntimeManager.PlayOneShot(settings.ExplosionEvent, transform.position);
+            }
+
+            GroundExploderDamage damage = gameObject.AddComponent<GroundExploderDamage>();
+            damage.BindTarget(player, playerHealth);
+            damage.Detonate(
+                transform.position,
+                _radius,
+                settings.MaximumDamage * DuneVectorContractRisk.EnemyDamageMultiplier,
+                settings.ExplosionDeathMessage);
+        }
+
+        private void Update()
+        {
+            _elapsed += _playerHealth != null && _playerHealth.IsDead
+                ? Time.unscaledDeltaTime
+                : Time.deltaTime;
+            float progress = Mathf.Clamp01(
+                _elapsed / GroundExploderEnemy.ExplosionPresentationDuration);
+            float eased = 1f - Mathf.Pow(1f - progress, 3f);
+            _flash.localScale = Vector3.one * (_radius * 2f * eased);
+
+            if (_elapsed >= GroundExploderEnemy.ExplosionPresentationDuration)
+            {
+                Destroy(gameObject);
+            }
         }
     }
 
