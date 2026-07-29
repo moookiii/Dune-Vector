@@ -41,8 +41,8 @@ namespace DuneVector
         [Min(0f)] public float TangentialAcceleration = 46f;
         [Min(0f)] public float InwardAcceleration = 30f;
         [Min(0f)] public float TrajectorySpinDegreesPerSecond = 115f;
-        [Tooltip("How quickly an airborne drone yaws with the funnel while its normal flight controller is suspended.")]
-        [Min(0f)] public float DroneSpinDegreesPerSecond = 360f;
+        [Tooltip("How quickly the drone spins with the funnel during control loss. Outside control loss, funnel influence scales this rate.")]
+        [Min(0f)] public float DroneSpinDegreesPerSecond = 600f;
         [Range(0f, 1f)] public float GroundLaunchInfluenceThreshold = 0.2f;
         [Tooltip("One-time minimum upward speed applied when the drone crosses into the funnel's launch influence, even if it misses the core.")]
         [Min(0f)] public float MinimumEntryLaunchSpeed = 52f;
@@ -174,6 +174,9 @@ namespace DuneVector
 
         public DustDevilSample CurrentPlayerSample { get; private set; }
         public int ActiveDustDevilCount => _instances.Count;
+        public bool IsControlDisruptionActive => _playerInput != null
+            && _playerInput.IsHazardControlLocked;
+        public float ControlDisruptionSpinSign { get; private set; } = 1f;
 
         public void Initialize(
             DroneCharacterController player,
@@ -305,6 +308,7 @@ namespace DuneVector
             }
 
             _controlLossSourceId = CurrentPlayerSample.SourceId;
+            ControlDisruptionSpinSign = CurrentPlayerSample.SpinSign;
             _playerInput.ApplyHazardAirBrake(_settings.ControlLossDuration);
         }
 

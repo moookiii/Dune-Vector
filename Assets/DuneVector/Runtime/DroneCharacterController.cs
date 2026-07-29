@@ -484,6 +484,19 @@ namespace DuneVector
 
         public void UpdateRotation(ref Quaternion currentRotation, float deltaTime)
         {
+            if (_dustDevils != null
+                && _dustDevilSettings != null
+                && _dustDevils.IsControlDisruptionActive)
+            {
+                float disruptionSpinDegrees = _dustDevilSettings.DroneSpinDegreesPerSecond
+                    * _dustDevils.ControlDisruptionSpinSign
+                    * Mathf.Max(0f, deltaTime);
+                currentRotation = Quaternion.AngleAxis(
+                    disruptionSpinDegrees,
+                    Vector3.up) * currentRotation;
+                return;
+            }
+
             if (IsFlightSuspendedByDustDevil)
             {
                 float spinDegrees = _dustDevilSettings.DroneSpinDegreesPerSecond
