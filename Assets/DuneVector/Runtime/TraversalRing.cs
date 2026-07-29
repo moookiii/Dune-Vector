@@ -55,6 +55,16 @@ namespace DuneVector
         private Quaternion _billboardFacingRotation;
         private bool _hasBillboardFacingRotation;
         private Vector3 _restingLocalPosition;
+        private Quaternion _restingLocalRotation;
+        private Vector3 _driftOffset;
+        private float _driftPhase;
+        private float _driftVerticalPhase;
+        private float _driftDepthPhase;
+        private float _driftCycleDuration;
+        private float _driftSpeedScale = 1f;
+        private float _currentFlightModeHeight;
+        private Vector3 _previousRingWorldPosition;
+        private bool _hasPreviousRingWorldPosition;
         private Transform _collectibleIcon;
         private Quaternion _collectibleIconBaseRotation = Quaternion.identity;
         private DuneVectorMaterials _materials;
@@ -98,6 +108,8 @@ namespace DuneVector
                     Mathf.RoundToInt(_cachedTransform.position.y));
             _spinDirection = (spinHash & 1u) == 0u ? -1f : 1f;
             _restingLocalPosition = _cachedTransform.localPosition;
+            _restingLocalRotation = _cachedTransform.localRotation;
+            InitializeDrift(spinHash);
             _visualRoot = DuneVectorVisuals.CreateRingVisual(
                 _cachedTransform,
                 type,
@@ -142,6 +154,7 @@ namespace DuneVector
             gameObject.SetActive(available);
             _inside = false;
             _hasPreviousWorldPosition = false;
+            _hasPreviousRingWorldPosition = false;
         }
 
         public void BindTargets(DroneCharacterController controller, DroneHealth health)
@@ -151,11 +164,13 @@ namespace DuneVector
             _collectibleReward?.BindTargets(health, controller != null ? controller.GetComponent<DroneGoldWallet>() : null);
             _inside = false;
             _hasPreviousWorldPosition = false;
+            _hasPreviousRingWorldPosition = false;
             if (IsFlightRing
                 && _controller != null
                 && _controller.CurrentMode == DroneTraversalMode.Flight)
             {
-                _cachedTransform.localPosition = _restingLocalPosition + (Vector3.up * FlightModeHeightOffset);
+                _currentFlightModeHeight = FlightModeHeightOffset;
+                ApplyCurrentLocalPosition();
             }
             _upperLayerRing?.BindTargets(controller, health);
         }
@@ -193,7 +208,7 @@ namespace DuneVector
             upperRing.FlightModeHeightSharpness = _ringTuning.UpperFlightModeHeightSharpness;
             if (_controller != null && _controller.CurrentMode == DroneTraversalMode.Flight)
             {
-                upperRing.transform.localPosition = restingLocalPosition + (Vector3.up * flightModeHeightOffset);
+                upperRing.SnapToFlightModeHeight();
             }
             _upperLayerRing = upperRing;
         }
@@ -207,7 +222,7 @@ namespace DuneVector
                 return;
             }
 
-            _cachedTransform.localPosition = _restingLocalPosition + (Vector3.up * FlightModeHeightOffset);
+            SnapToFlightModeHeight();
             _modeScale = Mathf.Clamp(spawnScale, 0.01f, 1f);
             if (_visualRoot != null)
             {
@@ -230,22 +245,28 @@ namespace DuneVector
                 return;
             }
 
+            UpdateDrift(deltaTime);
+            UpdateFlightModeHeight(deltaTime);
+            ApplyCurrentLocalPosition();
+
             Vector3 worldPosition = _controller.WorldCenter;
             float activationRadius = InnerRadius * _modeScale;
             float activationRadiusSquared = activationRadius * activationRadius;
             Vector3 ringPosition = _cachedTransform.position;
             bool currentlyInside = (worldPosition - ringPosition).sqrMagnitude <= activationRadiusSquared;
             bool passedThrough = false;
-            if (_hasPreviousWorldPosition)
+            if (_hasPreviousWorldPosition && _hasPreviousRingWorldPosition)
             {
-                Vector3 segment = worldPosition - _previousWorldPosition;
-                float segmentLengthSquared = segment.sqrMagnitude;
+                Vector3 relativeStart = _previousWorldPosition - _previousRingWorldPosition;
+                Vector3 relativeEnd = worldPosition - ringPosition;
+                Vector3 relativeSegment = relativeEnd - relativeStart;
+                float segmentLengthSquared = relativeSegment.sqrMagnitude;
                 if (segmentLengthSquared > 0.0001f)
                 {
                     float interpolation = Mathf.Clamp01(
-                        Vector3.Dot(ringPosition - _previousWorldPosition, segment) / segmentLengthSquared);
-                    Vector3 closestPoint = _previousWorldPosition + (segment * interpolation);
-                    passedThrough = (closestPoint - ringPosition).sqrMagnitude <= activationRadiusSquared;
+                        -Vector3.Dot(relativeStart, relativeSegment) / segmentLengthSquared);
+                    Vector3 closestRelativePoint = relativeStart + (relativeSegment * interpolation);
+                    passedThrough = closestRelativePoint.sqrMagnitude <= activationRadiusSquared;
                 }
             }
 
@@ -257,6 +278,8 @@ namespace DuneVector
             _inside = currentlyInside;
             _previousWorldPosition = worldPosition;
             _hasPreviousWorldPosition = true;
+            _previousRingWorldPosition = ringPosition;
+            _hasPreviousRingWorldPosition = true;
 
             if (RingType != TraversalRingType.UpperFlight)
             {
@@ -336,8 +359,6 @@ namespace DuneVector
                 return;
             }
 
-            UpdateFlightModeHeight(deltaTime);
-
             if (RingType == TraversalRingType.UpperFlight)
             {
                 UpdateVisualPresentation(deltaTime);
@@ -393,12 +414,132 @@ namespace DuneVector
             }
 
             bool isFlying = _controller.CurrentMode == DroneTraversalMode.Flight;
-            Vector3 targetPosition = _restingLocalPosition
-                + (Vector3.up * (isFlying ? FlightModeHeightOffset : 0f));
-            _cachedTransform.localPosition = Vector3.Lerp(
-                _cachedTransform.localPosition,
-                targetPosition,
+            float targetHeight = isFlying ? FlightModeHeightOffset : 0f;
+            _currentFlightModeHeight = Mathf.Lerp(
+                _currentFlightModeHeight,
+                targetHeight,
                 DuneVectorMath.Sharpness(FlightModeHeightSharpness, deltaTime));
+        }
+
+        private void InitializeDrift(uint hash)
+        {
+            float unit = (hash & 0x0000ffffu) / 65535f;
+            float verticalUnit = ((hash >> 8) & 0x0000ffffu) / 65535f;
+            float depthUnit = ((hash >> 16) & 0x0000ffffu) / 65535f;
+            float minimumDuration = _ringTuning != null
+                ? Mathf.Max(0.1f, _ringTuning.PortalDriftMinimumCycleDuration)
+                : 1f;
+            float maximumDuration = _ringTuning != null
+                ? Mathf.Max(minimumDuration, _ringTuning.PortalDriftMaximumCycleDuration)
+                : minimumDuration;
+            _driftCycleDuration = Mathf.Lerp(minimumDuration, maximumDuration, depthUnit);
+            _driftPhase = unit * Mathf.PI * 2f;
+            _driftVerticalPhase = verticalUnit * Mathf.PI * 2f;
+            _driftDepthPhase = depthUnit * Mathf.PI * 2f;
+            _driftOffset = EvaluateDriftOffset();
+            ApplyCurrentLocalPosition();
+        }
+
+        private void UpdateDrift(float deltaTime)
+        {
+            if (_ringTuning == null || !_ringTuning.EnableTraversalPortalDrift)
+            {
+                _driftOffset = Vector3.zero;
+                return;
+            }
+
+            float targetSpeedScale = CalculateApproachSpeedScale();
+            _driftSpeedScale = Mathf.Lerp(
+                _driftSpeedScale,
+                targetSpeedScale,
+                DuneVectorMath.Sharpness(_ringTuning.PortalDriftApproachSharpness, deltaTime));
+            float angularSpeed = (Mathf.PI * 2f) / Mathf.Max(0.1f, _driftCycleDuration);
+            _driftPhase += angularSpeed * _driftSpeedScale * Mathf.Max(0f, deltaTime);
+            _driftOffset = EvaluateDriftOffset();
+        }
+
+        private float CalculateApproachSpeedScale()
+        {
+            if (_controller == null || _ringTuning == null)
+            {
+                return 1f;
+            }
+
+            Vector3 toRing = _cachedTransform.position - _controller.WorldCenter;
+            float distance = toRing.magnitude;
+            float approachDistance = Mathf.Max(0f, _ringTuning.PortalDriftApproachDistance);
+            float distanceStabilization = approachDistance > Mathf.Epsilon
+                ? 1f - Mathf.Clamp01(distance / approachDistance)
+                : 0f;
+
+            float interceptStabilization = 0f;
+            float lookAheadTime = Mathf.Max(0f, _ringTuning.PortalDriftApproachLookAheadTime);
+            if (lookAheadTime > Mathf.Epsilon
+                && distance > Mathf.Epsilon
+                && _controller.Motor != null)
+            {
+                float closingSpeed = Vector3.Dot(_controller.Motor.Velocity, toRing / distance);
+                if (closingSpeed > Mathf.Epsilon)
+                {
+                    float timeToIntercept = Mathf.Max(0f, distance - InnerRadius) / closingSpeed;
+                    interceptStabilization = 1f - Mathf.Clamp01(timeToIntercept / lookAheadTime);
+                }
+            }
+
+            float stabilization = Mathf.Max(distanceStabilization, interceptStabilization);
+            return Mathf.Lerp(
+                1f,
+                Mathf.Clamp01(_ringTuning.PortalDriftMinimumApproachSpeed),
+                stabilization);
+        }
+
+        private Vector3 EvaluateDriftOffset()
+        {
+            if (_ringTuning == null || !_ringTuning.EnableTraversalPortalDrift)
+            {
+                return Vector3.zero;
+            }
+
+            float distanceMultiplier = RingType switch
+            {
+                TraversalRingType.GroundBoost => _ringTuning.GroundBoostPortalDriftMultiplier,
+                TraversalRingType.Flight => _ringTuning.FlightPortalDriftMultiplier,
+                TraversalRingType.UpperFlight => _ringTuning.UpperFlightPortalDriftMultiplier,
+                _ => _ringTuning.CollectiblePortalDriftMultiplier,
+            };
+            distanceMultiplier = Mathf.Max(0f, distanceMultiplier);
+            Vector3 localRight = _restingLocalRotation * Vector3.right;
+            Vector3 localUp = _restingLocalRotation * Vector3.up;
+            Vector3 localForward = _restingLocalRotation * Vector3.forward;
+            float horizontal = Mathf.Sin(_driftPhase);
+            float vertical = Mathf.Sin(
+                (_driftPhase * Mathf.Max(0.01f, _ringTuning.PortalDriftVerticalFrequencyMultiplier))
+                + _driftVerticalPhase);
+            float depth = Mathf.Sin(
+                (_driftPhase * Mathf.Max(0.01f, _ringTuning.PortalDriftDepthFrequencyMultiplier))
+                + _driftDepthPhase);
+            return distanceMultiplier * (
+                (localRight * horizontal * Mathf.Max(0f, _ringTuning.PortalDriftHorizontalDistance))
+                + (localUp * vertical * Mathf.Max(0f, _ringTuning.PortalDriftVerticalDistance))
+                + (localForward * depth * Mathf.Max(0f, _ringTuning.PortalDriftDepthDistance)));
+        }
+
+        private void SnapToFlightModeHeight()
+        {
+            _currentFlightModeHeight = FlightModeHeightOffset;
+            ApplyCurrentLocalPosition();
+        }
+
+        private void ApplyCurrentLocalPosition()
+        {
+            if (_cachedTransform == null)
+            {
+                return;
+            }
+
+            _cachedTransform.localPosition = _restingLocalPosition
+                + (Vector3.up * _currentFlightModeHeight)
+                + _driftOffset;
         }
 
         private void TryActivate()
