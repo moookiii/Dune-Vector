@@ -318,6 +318,17 @@ namespace DuneVector
             _visualRoot = visualObject.transform;
 
             int segmentCount = Mathf.Max(3, _settings.SandAmbusherVisualSegmentCount);
+            Mesh jointMesh = DuneVectorSandAmbusherMeshUtility.CreateCapsuleMesh(
+                _settings.SandAmbusherJointMeshRadialSegments,
+                _settings.SandAmbusherJointMeshHemisphereRings);
+            jointMesh.name = "Sand Ambusher High Resolution Articulated Joint";
+            _ownedMeshes.Add(jointMesh);
+            Mesh ridgeMesh = DuneVectorSandAmbusherMeshUtility.CreateTaperedSpikeMesh(
+                _settings.SandAmbusherRidgeMeshLengthSegments,
+                _settings.SandAmbusherRidgeMeshRadialSegments,
+                _settings.SandAmbusherRidgeTipScale);
+            ridgeMesh.name = "Sand Ambusher Tapered Armor Spike";
+            _ownedMeshes.Add(ridgeMesh);
             for (int i = 0; i < segmentCount; i++)
             {
                 float t = i / (float)Mathf.Max(1, segmentCount - 1);
@@ -353,7 +364,7 @@ namespace DuneVector
                 renderer.shadowCastingMode = ShadowCastingMode.On;
                 renderer.receiveShadows = true;
 
-                BuildArmorRidges(segment.transform, radius, height, i, random);
+                BuildArmorRidges(segment.transform, radius, height, i, random, ridgeMesh);
                 BuildCreaseSand(segment.transform, radius, height, i);
                 _segments.Add(segment.transform);
                 _segmentBaseScales.Add(scale);
@@ -361,11 +372,10 @@ namespace DuneVector
 
                 if (i < segmentCount - 1)
                 {
-                    Transform joint = CreatePrimitive(PrimitiveType.Capsule, $"Articulated Joint {i + 1}", _visualRoot,
-                        Vector3.down * (i + 0.5f) * _settings.SandAmbusherSegmentSpacing,
-                        Vector3.one * _settings.SandAmbusherJointScale,
-                        Quaternion.identity,
-                        _palette.Underside);
+                    Transform joint = CreateMeshObject(
+                        $"Articulated Joint {i + 1}", _visualRoot, jointMesh, _palette.Underside).transform;
+                    joint.localPosition = Vector3.down * (i + 0.5f) * _settings.SandAmbusherSegmentSpacing;
+                    joint.localScale = Vector3.one * _settings.SandAmbusherJointScale;
                     _joints.Add(joint);
                 }
             }
@@ -373,7 +383,8 @@ namespace DuneVector
             BuildCrown(seed + 701);
         }
 
-        private void BuildArmorRidges(Transform parent, float radius, float height, int segmentIndex, System.Random random)
+        private void BuildArmorRidges(Transform parent, float radius, float height, int segmentIndex,
+            System.Random random, Mesh ridgeMesh)
         {
             int ridgeCount = Mathf.Max(0, _settings.SandAmbusherRidgesPerSegment);
             for (int ridgeIndex = 0; ridgeIndex < ridgeCount; ridgeIndex++)
@@ -386,16 +397,15 @@ namespace DuneVector
                     Mathf.Lerp(-_settings.SandAmbusherRidgeAngularVariation, _settings.SandAmbusherRidgeAngularVariation,
                         (float)random.NextDouble()) * Mathf.Deg2Rad;
                 Vector3 radial = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
-                Transform ridge = CreatePrimitive(
-                    PrimitiveType.Sphere,
-                    $"Eroded Armor Ridge {ridgeIndex + 1}",
-                    parent,
-                    radial * _settings.SandAmbusherRidgeRadialOffset,
-                    new Vector3(_settings.SandAmbusherRidgeWidth,
-                        _settings.SandAmbusherRidgeHeight,
-                        _settings.SandAmbusherRidgeDepth),
-                    Quaternion.Euler(0f, -angle * Mathf.Rad2Deg, _settings.SandAmbusherRidgeTilt),
-                    _palette.Ridge);
+                Transform ridge = CreateMeshObject(
+                    $"Tapered Armor Spike {ridgeIndex + 1}", parent, ridgeMesh, _palette.Ridge).transform;
+                ridge.localPosition = radial * _settings.SandAmbusherRidgeRadialOffset;
+                ridge.localScale = new Vector3(
+                    _settings.SandAmbusherRidgeWidth,
+                    _settings.SandAmbusherRidgeHeight,
+                    _settings.SandAmbusherRidgeDepth);
+                ridge.localRotation = Quaternion.Euler(
+                    0f, -angle * Mathf.Rad2Deg, _settings.SandAmbusherRidgeTilt);
                 ridge.localPosition += Vector3.up * Mathf.Lerp(
                     -_settings.SandAmbusherRidgeVerticalOffset,
                     _settings.SandAmbusherRidgeVerticalOffset,
@@ -435,15 +445,19 @@ namespace DuneVector
             _leftProng = CreateMeshObject("Split Crown - Left Fossil Prong", head, leftMesh, _palette.Ridge).transform;
             _rightProng = CreateMeshObject("Split Crown - Right Fossil Prong", head, rightMesh, _palette.Ridge).transform;
 
-            Transform crownCore = CreatePrimitive(
-                PrimitiveType.Sphere,
-                "Jaw Crown Mineral Core",
-                head,
-                Vector3.up * _settings.SandAmbusherCrownBaseHeight,
-                new Vector3(_settings.SandAmbusherCrownCoreWidth, _settings.SandAmbusherCrownCoreHeight,
-                    _settings.SandAmbusherCrownCoreDepth),
-                Quaternion.Euler(_settings.SandAmbusherCrownCoreTilt, 0f, 0f),
-                _palette.Underside);
+            Mesh crownCoreMesh = DuneVectorSandAmbusherMeshUtility.CreateSphereMesh(
+                _settings.SandAmbusherCrownCoreMeshRings,
+                _settings.SandAmbusherCrownCoreMeshRadialSegments);
+            crownCoreMesh.name = "Sand Ambusher High Resolution Crown Core";
+            _ownedMeshes.Add(crownCoreMesh);
+            Transform crownCore = CreateMeshObject(
+                "Jaw Crown Mineral Core", head, crownCoreMesh, _palette.Underside).transform;
+            crownCore.localPosition = Vector3.up * _settings.SandAmbusherCrownBaseHeight;
+            crownCore.localScale = new Vector3(
+                _settings.SandAmbusherCrownCoreWidth,
+                _settings.SandAmbusherCrownCoreHeight,
+                _settings.SandAmbusherCrownCoreDepth);
+            crownCore.localRotation = Quaternion.Euler(_settings.SandAmbusherCrownCoreTilt, 0f, 0f);
             crownCore.SetAsFirstSibling();
         }
 
@@ -494,24 +508,6 @@ namespace DuneVector
             renderer.shadowCastingMode = ShadowCastingMode.On;
             renderer.receiveShadows = true;
             return result;
-        }
-
-        private static Transform CreatePrimitive(PrimitiveType primitive, string name, Transform parent,
-            Vector3 localPosition, Vector3 localScale, Quaternion localRotation, Material material)
-        {
-            GameObject part = GameObject.CreatePrimitive(primitive);
-            part.name = name;
-            part.transform.SetParent(parent, false);
-            part.transform.localPosition = localPosition;
-            part.transform.localScale = localScale;
-            part.transform.localRotation = localRotation;
-            part.GetComponent<Renderer>().sharedMaterial = material;
-            Collider collider = part.GetComponent<Collider>();
-            if (collider != null)
-            {
-                Destroy(collider);
-            }
-            return part.transform;
         }
 
         private void OnDestroy()
@@ -928,41 +924,68 @@ namespace DuneVector
             ringCount = Mathf.Max(3, ringCount);
             radialSegments = Mathf.Max(5, radialSegments);
             System.Random random = new System.Random(seed);
-            Vector3[] vertices = new Vector3[(ringCount + 1) * radialSegments];
+            int interiorRingCount = ringCount - 1;
+            Vector3[] vertices = new Vector3[2 + (interiorRingCount * radialSegments)];
             Vector2[] uvs = new Vector2[vertices.Length];
             List<int> armorTriangles = new List<int>();
             List<int> undersideTriangles = new List<int>();
             float phaseA = (float)random.NextDouble() * Mathf.PI * 2f;
             float phaseB = (float)random.NextDouble() * Mathf.PI * 2f;
-            for (int ring = 0; ring <= ringCount; ring++)
+            float phaseC = (float)random.NextDouble() * Mathf.PI * 2f;
+            float phaseD = (float)random.NextDouble() * Mathf.PI * 2f;
+
+            vertices[0] = new Vector3(
+                Mathf.Sin(phaseA) * irregularity * 0.18f,
+                -0.5f,
+                Mathf.Cos(phaseB) * irregularity * 0.14f);
+            uvs[0] = new Vector2(0.5f, 0f);
+            for (int ring = 1; ring < ringCount; ring++)
             {
                 float v = ring / (float)ringCount;
-                float profile = Mathf.Pow(Mathf.Max(0.001f, Mathf.Sin(v * Mathf.PI)), 0.58f);
+                float profile = Mathf.Pow(Mathf.Sin(v * Mathf.PI), 0.58f);
                 float centerX = Mathf.Sin((v * Mathf.PI * 1.7f) + phaseA) * irregularity * 0.18f;
                 float centerZ = Mathf.Cos((v * Mathf.PI * 1.35f) + phaseB) * irregularity * 0.14f;
                 for (int radial = 0; radial < radialSegments; radial++)
                 {
                     float u = radial / (float)radialSegments;
                     float angle = u * Mathf.PI * 2f;
-                    float noise = 1f + (Mathf.Sin((angle * 3f) + phaseA + (ring * 0.7f)) * irregularity * 0.35f) +
-                        Mathf.Lerp(-irregularity, irregularity, (float)random.NextDouble()) * 0.22f;
-                    vertices[(ring * radialSegments) + radial] = new Vector3(
+                    float noise = 1f +
+                        (Mathf.Sin((angle * 3f) + phaseC + (v * Mathf.PI * 1.4f)) * irregularity * 0.34f) +
+                        (Mathf.Sin((angle * 5f) + phaseD - (v * Mathf.PI * 2.1f)) * irregularity * 0.16f);
+                    int vertex = 1 + ((ring - 1) * radialSegments) + radial;
+                    vertices[vertex] = new Vector3(
                         centerX + Mathf.Cos(angle) * profile * noise,
                         v - 0.5f,
                         centerZ + Mathf.Sin(angle) * profile * noise);
-                    uvs[(ring * radialSegments) + radial] = new Vector2(u, v);
+                    uvs[vertex] = new Vector2(u, v);
                 }
             }
-            for (int ring = 0; ring < ringCount; ring++)
+            int topVertex = vertices.Length - 1;
+            vertices[topVertex] = new Vector3(
+                Mathf.Sin((Mathf.PI * 1.7f) + phaseA) * irregularity * 0.18f,
+                0.5f,
+                Mathf.Cos((Mathf.PI * 1.35f) + phaseB) * irregularity * 0.14f);
+            uvs[topVertex] = new Vector2(0.5f, 1f);
+
+            for (int radial = 0; radial < radialSegments; radial++)
             {
-                List<int> target = ring < Mathf.CeilToInt(ringCount * 0.38f) ? undersideTriangles : armorTriangles;
+                int current = 1 + radial;
+                int next = 1 + ((radial + 1) % radialSegments);
+                undersideTriangles.Add(0);
+                undersideTriangles.Add(current);
+                undersideTriangles.Add(next);
+            }
+            for (int ring = 1; ring < ringCount - 1; ring++)
+            {
+                float bandV = (ring + 0.5f) / ringCount;
+                List<int> target = bandV < 0.38f ? undersideTriangles : armorTriangles;
                 for (int radial = 0; radial < radialSegments; radial++)
                 {
                     int next = (radial + 1) % radialSegments;
-                    int current = (ring * radialSegments) + radial;
-                    int currentNext = (ring * radialSegments) + next;
-                    int upper = ((ring + 1) * radialSegments) + radial;
-                    int upperNext = ((ring + 1) * radialSegments) + next;
+                    int current = 1 + ((ring - 1) * radialSegments) + radial;
+                    int currentNext = 1 + ((ring - 1) * radialSegments) + next;
+                    int upper = 1 + (ring * radialSegments) + radial;
+                    int upperNext = 1 + (ring * radialSegments) + next;
                     target.Add(current);
                     target.Add(upper);
                     target.Add(currentNext);
@@ -970,6 +993,15 @@ namespace DuneVector
                     target.Add(upper);
                     target.Add(upperNext);
                 }
+            }
+            int topRingStart = 1 + ((ringCount - 2) * radialSegments);
+            for (int radial = 0; radial < radialSegments; radial++)
+            {
+                int current = topRingStart + radial;
+                int next = topRingStart + ((radial + 1) % radialSegments);
+                armorTriangles.Add(topVertex);
+                armorTriangles.Add(next);
+                armorTriangles.Add(current);
             }
             Mesh mesh = new Mesh();
             mesh.vertices = vertices;
@@ -983,33 +1015,373 @@ namespace DuneVector
             return mesh;
         }
 
+        public static Mesh CreateCapsuleMesh(int radialSegments, int hemisphereRings)
+        {
+            radialSegments = Mathf.Max(8, radialSegments);
+            hemisphereRings = Mathf.Max(2, hemisphereRings);
+            int ringCount = (hemisphereRings * 2) + 2;
+            Vector3[] vertices = new Vector3[ringCount * radialSegments];
+            Vector2[] uvs = new Vector2[vertices.Length];
+            int[] triangles = new int[(ringCount - 1) * radialSegments * 6];
+
+            for (int ring = 0; ring < ringCount; ring++)
+            {
+                float profile;
+                float y;
+                if (ring <= hemisphereRings)
+                {
+                    float t = ring / (float)hemisphereRings;
+                    float angle = Mathf.Lerp(-Mathf.PI * 0.5f, 0f, t);
+                    profile = Mathf.Cos(angle) * 0.5f;
+                    y = -0.25f + (Mathf.Sin(angle) * 0.5f);
+                }
+                else
+                {
+                    float t = (ring - hemisphereRings - 1) / (float)hemisphereRings;
+                    float angle = Mathf.Lerp(0f, Mathf.PI * 0.5f, t);
+                    profile = Mathf.Cos(angle) * 0.5f;
+                    y = 0.25f + (Mathf.Sin(angle) * 0.5f);
+                }
+
+                for (int radial = 0; radial < radialSegments; radial++)
+                {
+                    float u = radial / (float)radialSegments;
+                    float angle = u * Mathf.PI * 2f;
+                    int index = (ring * radialSegments) + radial;
+                    vertices[index] = new Vector3(
+                        Mathf.Cos(angle) * profile,
+                        y,
+                        Mathf.Sin(angle) * profile);
+                    uvs[index] = new Vector2(u, ring / (float)(ringCount - 1));
+                }
+            }
+
+            FillRingTriangles(triangles, ringCount, radialSegments);
+            return BuildMesh(vertices, uvs, triangles);
+        }
+
+        public static Mesh CreateTaperedSpikeMesh(int lengthSegments, int radialSegments, float tipScale)
+        {
+            lengthSegments = Mathf.Max(2, lengthSegments);
+            radialSegments = Mathf.Max(5, radialSegments);
+            tipScale = Mathf.Clamp(tipScale, 0f, 0.35f);
+            int ringCount = lengthSegments + 1;
+            Vector3[] vertices = new Vector3[ringCount * radialSegments];
+            Vector2[] uvs = new Vector2[vertices.Length];
+            int[] triangles = new int[lengthSegments * radialSegments * 6];
+
+            for (int ring = 0; ring < ringCount; ring++)
+            {
+                float v = ring / (float)lengthSegments;
+                float radius = Mathf.Lerp(0.5f, tipScale * 0.5f, Mathf.SmoothStep(0f, 1f, v));
+                for (int radial = 0; radial < radialSegments; radial++)
+                {
+                    float u = radial / (float)radialSegments;
+                    float angle = u * Mathf.PI * 2f;
+                    int index = (ring * radialSegments) + radial;
+                    vertices[index] = new Vector3(
+                        Mathf.Cos(angle) * radius,
+                        v - 0.5f,
+                        Mathf.Sin(angle) * radius);
+                    uvs[index] = new Vector2(u, v);
+                }
+            }
+
+            FillRingTriangles(triangles, ringCount, radialSegments);
+            return BuildMesh(vertices, uvs, triangles);
+        }
+
+        public static Mesh CreateSphereMesh(int ringCount, int radialSegments)
+        {
+            ringCount = Mathf.Max(3, ringCount);
+            radialSegments = Mathf.Max(8, radialSegments);
+            int vertexRingCount = ringCount + 1;
+            Vector3[] vertices = new Vector3[vertexRingCount * radialSegments];
+            Vector2[] uvs = new Vector2[vertices.Length];
+            int[] triangles = new int[ringCount * radialSegments * 6];
+
+            for (int ring = 0; ring < vertexRingCount; ring++)
+            {
+                float v = ring / (float)ringCount;
+                float polarAngle = (v - 0.5f) * Mathf.PI;
+                float radius = Mathf.Cos(polarAngle) * 0.5f;
+                float y = Mathf.Sin(polarAngle) * 0.5f;
+                for (int radial = 0; radial < radialSegments; radial++)
+                {
+                    float u = radial / (float)radialSegments;
+                    float angle = u * Mathf.PI * 2f;
+                    int index = (ring * radialSegments) + radial;
+                    vertices[index] = new Vector3(
+                        Mathf.Cos(angle) * radius,
+                        y,
+                        Mathf.Sin(angle) * radius);
+                    uvs[index] = new Vector2(u, v);
+                }
+            }
+
+            FillRingTriangles(triangles, vertexRingCount, radialSegments);
+            return BuildMesh(vertices, uvs, triangles);
+        }
+
+        private static void FillRingTriangles(int[] triangles, int ringCount, int radialSegments)
+        {
+            int triangle = 0;
+            for (int ring = 0; ring < ringCount - 1; ring++)
+            {
+                for (int radial = 0; radial < radialSegments; radial++)
+                {
+                    int next = (radial + 1) % radialSegments;
+                    int current = (ring * radialSegments) + radial;
+                    int currentNext = (ring * radialSegments) + next;
+                    int upper = ((ring + 1) * radialSegments) + radial;
+                    int upperNext = ((ring + 1) * radialSegments) + next;
+                    triangles[triangle++] = current;
+                    triangles[triangle++] = upper;
+                    triangles[triangle++] = currentNext;
+                    triangles[triangle++] = currentNext;
+                    triangles[triangle++] = upper;
+                    triangles[triangle++] = upperNext;
+                }
+            }
+        }
+
+        private static Mesh BuildMesh(Vector3[] vertices, Vector2[] uvs, int[] triangles)
+        {
+            Mesh mesh = new Mesh
+            {
+                vertices = vertices,
+                uv = uvs,
+                triangles = triangles
+            };
+            mesh.RecalculateNormals();
+            mesh.RecalculateTangents();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        public static Mesh CreateTaperedSpikeMesh(int lengthSegments, int radialSegments, float tipScale)
+        {
+            lengthSegments = Mathf.Max(2, lengthSegments);
+            radialSegments = Mathf.Max(5, radialSegments);
+            tipScale = Mathf.Clamp(tipScale, 0f, 0.35f);
+            int ringVertexCount = (lengthSegments + 1) * radialSegments;
+            Vector3[] vertices = new Vector3[ringVertexCount + 2];
+            Vector2[] uvs = new Vector2[vertices.Length];
+            int[] triangles = new int[(lengthSegments * radialSegments * 6) + (radialSegments * 6)];
+
+            for (int length = 0; length <= lengthSegments; length++)
+            {
+                float t = length / (float)lengthSegments;
+                float radius = Mathf.Lerp(0.5f, 0.5f * tipScale, Mathf.SmoothStep(0f, 1f, t));
+                for (int radial = 0; radial < radialSegments; radial++)
+                {
+                    float u = radial / (float)radialSegments;
+                    float angle = u * Mathf.PI * 2f;
+                    int vertex = (length * radialSegments) + radial;
+                    vertices[vertex] = new Vector3(
+                        Mathf.Cos(angle) * radius,
+                        t - 0.5f,
+                        Mathf.Sin(angle) * radius);
+                    uvs[vertex] = new Vector2(u, t);
+                }
+            }
+
+            int triangle = 0;
+            for (int length = 0; length < lengthSegments; length++)
+            {
+                int lowerStart = length * radialSegments;
+                int upperStart = (length + 1) * radialSegments;
+                for (int radial = 0; radial < radialSegments; radial++)
+                {
+                    int next = (radial + 1) % radialSegments;
+                    int current = lowerStart + radial;
+                    int currentNext = lowerStart + next;
+                    int upper = upperStart + radial;
+                    int upperNext = upperStart + next;
+                    triangles[triangle++] = current;
+                    triangles[triangle++] = upper;
+                    triangles[triangle++] = currentNext;
+                    triangles[triangle++] = currentNext;
+                    triangles[triangle++] = upper;
+                    triangles[triangle++] = upperNext;
+                }
+            }
+
+            int baseCenter = ringVertexCount;
+            int tipCenter = ringVertexCount + 1;
+            vertices[baseCenter] = new Vector3(0f, -0.5f, 0f);
+            vertices[tipCenter] = new Vector3(0f, 0.5f, 0f);
+            uvs[baseCenter] = new Vector2(0.5f, 0f);
+            uvs[tipCenter] = new Vector2(0.5f, 1f);
+            int tipRingStart = lengthSegments * radialSegments;
+            for (int radial = 0; radial < radialSegments; radial++)
+            {
+                int next = (radial + 1) % radialSegments;
+                triangles[triangle++] = baseCenter;
+                triangles[triangle++] = radial;
+                triangles[triangle++] = next;
+                triangles[triangle++] = tipCenter;
+                triangles[triangle++] = tipRingStart + next;
+                triangles[triangle++] = tipRingStart + radial;
+            }
+
+            Mesh mesh = new Mesh { name = "Tapered Armor Spike" };
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateTangents();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        public static Mesh CreateCapsuleMesh(int radialSegments, int hemisphereRings)
+        {
+            radialSegments = Mathf.Max(8, radialSegments);
+            hemisphereRings = Mathf.Max(3, hemisphereRings);
+            List<Vector2> profile = new List<Vector2>((hemisphereRings * 2) + 2)
+            {
+                new Vector2(0f, -1f),
+            };
+            for (int ring = 1; ring <= hemisphereRings; ring++)
+            {
+                float angle = Mathf.Lerp(-Mathf.PI * 0.5f, 0f, ring / (float)hemisphereRings);
+                profile.Add(new Vector2(Mathf.Cos(angle) * 0.5f, -0.5f + (Mathf.Sin(angle) * 0.5f)));
+            }
+            profile.Add(new Vector2(0.5f, 0.5f));
+            for (int ring = 1; ring < hemisphereRings; ring++)
+            {
+                float angle = Mathf.Lerp(0f, Mathf.PI * 0.5f, ring / (float)hemisphereRings);
+                profile.Add(new Vector2(Mathf.Cos(angle) * 0.5f, 0.5f + (Mathf.Sin(angle) * 0.5f)));
+            }
+            profile.Add(new Vector2(0f, 1f));
+            return CreateRevolvedMesh(profile, radialSegments, "High Resolution Capsule");
+        }
+
+        public static Mesh CreateSphereMesh(int ringCount, int radialSegments)
+        {
+            ringCount = Mathf.Max(6, ringCount);
+            radialSegments = Mathf.Max(8, radialSegments);
+            List<Vector2> profile = new List<Vector2>(ringCount + 1);
+            for (int ring = 0; ring <= ringCount; ring++)
+            {
+                float angle = Mathf.Lerp(-Mathf.PI * 0.5f, Mathf.PI * 0.5f, ring / (float)ringCount);
+                profile.Add(new Vector2(Mathf.Cos(angle) * 0.5f, Mathf.Sin(angle) * 0.5f));
+            }
+            return CreateRevolvedMesh(profile, radialSegments, "High Resolution Sphere");
+        }
+
+        private static Mesh CreateRevolvedMesh(List<Vector2> profile, int radialSegments, string meshName)
+        {
+            int[] ringStarts = new int[profile.Count];
+            int vertexCount = 0;
+            for (int ring = 0; ring < profile.Count; ring++)
+            {
+                ringStarts[ring] = vertexCount;
+                vertexCount += profile[ring].x <= Mathf.Epsilon ? 1 : radialSegments;
+            }
+
+            Vector3[] vertices = new Vector3[vertexCount];
+            Vector2[] uvs = new Vector2[vertexCount];
+            for (int ring = 0; ring < profile.Count; ring++)
+            {
+                float v = ring / (float)Mathf.Max(1, profile.Count - 1);
+                float radius = profile[ring].x;
+                float y = profile[ring].y;
+                if (radius <= Mathf.Epsilon)
+                {
+                    vertices[ringStarts[ring]] = new Vector3(0f, y, 0f);
+                    uvs[ringStarts[ring]] = new Vector2(0.5f, v);
+                    continue;
+                }
+                for (int radial = 0; radial < radialSegments; radial++)
+                {
+                    float u = radial / (float)radialSegments;
+                    float angle = u * Mathf.PI * 2f;
+                    int vertex = ringStarts[ring] + radial;
+                    vertices[vertex] = new Vector3(Mathf.Cos(angle) * radius, y, Mathf.Sin(angle) * radius);
+                    uvs[vertex] = new Vector2(u, v);
+                }
+            }
+
+            List<int> triangles = new List<int>((profile.Count - 1) * radialSegments * 6);
+            for (int ring = 0; ring < profile.Count - 1; ring++)
+            {
+                bool lowerPoint = profile[ring].x <= Mathf.Epsilon;
+                bool upperPoint = profile[ring + 1].x <= Mathf.Epsilon;
+                for (int radial = 0; radial < radialSegments; radial++)
+                {
+                    int next = (radial + 1) % radialSegments;
+                    if (lowerPoint)
+                    {
+                        triangles.Add(ringStarts[ring]);
+                        triangles.Add(ringStarts[ring + 1] + radial);
+                        triangles.Add(ringStarts[ring + 1] + next);
+                    }
+                    else if (upperPoint)
+                    {
+                        triangles.Add(ringStarts[ring + 1]);
+                        triangles.Add(ringStarts[ring] + next);
+                        triangles.Add(ringStarts[ring] + radial);
+                    }
+                    else
+                    {
+                        int current = ringStarts[ring] + radial;
+                        int currentNext = ringStarts[ring] + next;
+                        int upper = ringStarts[ring + 1] + radial;
+                        int upperNext = ringStarts[ring + 1] + next;
+                        triangles.Add(current);
+                        triangles.Add(upper);
+                        triangles.Add(currentNext);
+                        triangles.Add(currentNext);
+                        triangles.Add(upper);
+                        triangles.Add(upperNext);
+                    }
+                }
+            }
+
+            Mesh mesh = new Mesh { name = meshName };
+            mesh.vertices = vertices;
+            mesh.uv = uvs;
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateTangents();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
         public static Mesh CreateCurvedProngMesh(float side, CourierContractTuning settings, int seed)
         {
             int pathSegments = Mathf.Max(3, settings.SandAmbusherCrownProngPathSegments);
             int radialSegments = Mathf.Max(5, settings.SandAmbusherCrownProngRadialSegments);
-            Vector3[] vertices = new Vector3[(pathSegments + 1) * radialSegments];
+            int ringVertexCount = (pathSegments + 1) * radialSegments;
+            Vector3[] vertices = new Vector3[ringVertexCount + 2];
             Vector2[] uvs = new Vector2[vertices.Length];
-            int[] triangles = new int[pathSegments * radialSegments * 6];
+            int[] triangles = new int[(pathSegments * radialSegments * 6) + (radialSegments * 6)];
             System.Random random = new System.Random(seed);
+            float depthPhase = (float)random.NextDouble();
             for (int path = 0; path <= pathSegments; path++)
             {
                 float t = path / (float)pathSegments;
-                float curve = Mathf.Sin(t * Mathf.PI * 0.5f);
-                Vector3 center = new Vector3(
-                    side * (settings.SandAmbusherCrownProngBaseSeparation +
-                        (curve * settings.SandAmbusherCrownProngSpread)),
-                    settings.SandAmbusherCrownBaseHeight + (t * settings.SandAmbusherCrownProngHeight),
-                    Mathf.Sin((t * Mathf.PI) + (float)random.NextDouble()) * settings.SandAmbusherCrownProngDepthCurve);
+                Vector3 center = EvaluateCurvedProngCenter(t, side, settings, depthPhase);
+                float tangentStep = 1f / pathSegments;
+                Vector3 previous = EvaluateCurvedProngCenter(Mathf.Max(0f, t - tangentStep), side, settings, depthPhase);
+                Vector3 nextCenter = EvaluateCurvedProngCenter(Mathf.Min(1f, t + tangentStep), side, settings, depthPhase);
+                Vector3 tangent = (nextCenter - previous).normalized;
+                Vector3 widthAxis = Vector3.Cross(tangent, Vector3.forward).normalized;
+                if (widthAxis.sqrMagnitude <= Mathf.Epsilon)
+                {
+                    widthAxis = Vector3.right;
+                }
+                Vector3 depthAxis = Vector3.Cross(widthAxis, tangent).normalized;
                 float radius = Mathf.Lerp(settings.SandAmbusherCrownProngBaseRadius,
                     settings.SandAmbusherCrownProngTipRadius, Mathf.Pow(t, settings.SandAmbusherCrownProngTaperPower));
                 for (int radial = 0; radial < radialSegments; radial++)
                 {
                     float u = radial / (float)radialSegments;
                     float angle = u * Mathf.PI * 2f;
-                    vertices[(path * radialSegments) + radial] = center + new Vector3(
-                        Mathf.Cos(angle) * radius,
-                        0f,
-                        Mathf.Sin(angle) * radius);
+                    vertices[(path * radialSegments) + radial] = center +
+                        ((widthAxis * Mathf.Cos(angle)) + (depthAxis * Mathf.Sin(angle))) * radius;
                     uvs[(path * radialSegments) + radial] = new Vector2(u, t);
                 }
             }
@@ -1031,6 +1403,23 @@ namespace DuneVector
                     triangles[triangle++] = upperNext;
                 }
             }
+            int baseCenter = ringVertexCount;
+            int tipCenter = ringVertexCount + 1;
+            vertices[baseCenter] = EvaluateCurvedProngCenter(0f, side, settings, depthPhase);
+            vertices[tipCenter] = EvaluateCurvedProngCenter(1f, side, settings, depthPhase);
+            uvs[baseCenter] = new Vector2(0.5f, 0f);
+            uvs[tipCenter] = new Vector2(0.5f, 1f);
+            int tipRingStart = pathSegments * radialSegments;
+            for (int radial = 0; radial < radialSegments; radial++)
+            {
+                int next = (radial + 1) % radialSegments;
+                triangles[triangle++] = baseCenter;
+                triangles[triangle++] = radial;
+                triangles[triangle++] = next;
+                triangles[triangle++] = tipCenter;
+                triangles[triangle++] = tipRingStart + next;
+                triangles[triangle++] = tipRingStart + radial;
+            }
             Mesh mesh = new Mesh { name = side < 0f ? "Left Split Crown Prong" : "Right Split Crown Prong" };
             mesh.vertices = vertices;
             mesh.uv = uvs;
@@ -1039,6 +1428,17 @@ namespace DuneVector
             mesh.RecalculateTangents();
             mesh.RecalculateBounds();
             return mesh;
+        }
+
+        private static Vector3 EvaluateCurvedProngCenter(float t, float side, CourierContractTuning settings,
+            float depthPhase)
+        {
+            float curve = Mathf.Sin(t * Mathf.PI * 0.5f);
+            return new Vector3(
+                side * (settings.SandAmbusherCrownProngBaseSeparation +
+                    (curve * settings.SandAmbusherCrownProngSpread)),
+                settings.SandAmbusherCrownBaseHeight + (t * settings.SandAmbusherCrownProngHeight),
+                Mathf.Sin((t * Mathf.PI) + depthPhase) * settings.SandAmbusherCrownProngDepthCurve);
         }
 
         public static Mesh CreateTerrainRibbon(List<Vector2> points, float width, Vector3 origin,
