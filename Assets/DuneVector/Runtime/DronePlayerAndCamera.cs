@@ -105,6 +105,7 @@ namespace DuneVector
                 _hazardControlLockTimeRemaining = Mathf.Max(
                     0f,
                     _hazardControlLockTimeRemaining - Time.deltaTime);
+                InputSource.Capture();
                 ClearCharacterInput(true);
                 return;
             }
@@ -152,13 +153,10 @@ namespace DuneVector
             }
 
             DroneRawInputFrame raw = AutomatedInputEnabled ? AutomatedInput : InputSource.Current;
-            bool cameraInputAllowed = !IsHazardControlLocked;
-            Vector2 look = cameraInputAllowed
-                && (Cursor.lockState == CursorLockMode.Locked || AutomatedInputEnabled)
-                    ? raw.LookDelta
-                    : Vector2.zero;
-            float scroll = cameraInputAllowed ? raw.Scroll : 0f;
-            CharacterCamera.UpdateWithInput(Time.deltaTime, look, scroll);
+            Vector2 look = Cursor.lockState == CursorLockMode.Locked || AutomatedInputEnabled
+                ? raw.LookDelta
+                : Vector2.zero;
+            CharacterCamera.UpdateWithInput(Time.deltaTime, look, raw.Scroll);
 
             if (AutomatedInputEnabled && raw.LookDelta.sqrMagnitude > 0f)
             {
