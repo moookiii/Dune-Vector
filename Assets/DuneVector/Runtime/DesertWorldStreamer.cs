@@ -1213,8 +1213,8 @@ namespace DuneVector
                 }
                 else
                 {
-                    _terrainMesh = BuildTerrainMesh(coordinate, chunkSize, _collisionResolution, heightField);
-                    IsVisualReady = _visualResolution == _collisionResolution;
+                    _terrainMesh = BuildTerrainMesh(coordinate, chunkSize, _visualResolution, heightField);
+                    IsVisualReady = true;
                 }
             }
             _terrainFilter = rootObject.AddComponent<MeshFilter>();
@@ -1238,7 +1238,8 @@ namespace DuneVector
             {
                 return;
             }
-            if (_terrainMesh != null)
+            if (_terrainMesh != null &&
+                (!IsVisualReady || _collisionResolution == _visualResolution))
             {
                 _collisionMesh = _terrainMesh;
                 AssignTerrainCollider();
