@@ -1750,6 +1750,10 @@ namespace DuneVector
             }
             else
             {
+                float flightMeterNormalized = player != null ? player.FlightTimeNormalized : 0f;
+                float flightRingAmountMultiplier = ringTuning.GetFlightRingAmountMultiplier(flightMeterNormalized);
+                float totalFlightRingDensity = aerialRingDensity * flightRingAmountMultiplier;
+                float baseFlightRingDensity = Mathf.Min(aerialRingDensity, totalFlightRingDensity);
                 float aerialChance = DuneVectorMath.Hash01(coordinate.x, coordinate.y, worldSeed, 701);
                 if (aerialChance < aerialRingDensity)
                 {
@@ -1762,7 +1766,10 @@ namespace DuneVector
                     Vector2 boostPosition = center - (forward2 * 11f);
                     Vector2 flightPosition = center + (forward2 * 11f);
                     CreateRing(boostPosition, forward, TraversalRingType.GroundBoost, ringTuning.GroundRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "route-boost", ringActivated);
-                    CreateRing(flightPosition, forward, TraversalRingType.Flight, ringTuning.FlightRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "route-flight", ringActivated);
+                    if (aerialChance < baseFlightRingDensity)
+                    {
+                        CreateRing(flightPosition, forward, TraversalRingType.Flight, ringTuning.FlightRingRadius, originX, originZ, heightField, materials, player, playerHealth, ringExclusions, worldSeed, ringTuning, "route-flight", ringActivated);
+                    }
                 }
                 else
                 {
@@ -1806,10 +1813,9 @@ namespace DuneVector
                     }
                 }
 
-                float flightMeterNormalized = player != null ? player.FlightTimeNormalized : 0f;
-                float flightRingAmountMultiplier = ringTuning.GetFlightRingAmountMultiplier(flightMeterNormalized);
-                float additionalFlightDensity = aerialRingDensity
-                    * Mathf.Max(0f, flightRingAmountMultiplier - 1f);
+                float additionalFlightDensity = Mathf.Max(
+                    0f,
+                    totalFlightRingDensity - aerialRingDensity);
                 int additionalFlightRingCount = CountFromDensity(
                     additionalFlightDensity,
                     coordinate,
