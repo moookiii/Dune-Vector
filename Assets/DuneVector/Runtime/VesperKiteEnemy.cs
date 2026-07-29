@@ -32,6 +32,7 @@ namespace DuneVector
         private float _attackCooldown;
         private float _windUpRemaining;
         private float _presentationPhase;
+        private Vector3 _movementDirection;
         private int _identity;
         private bool _isWindingUp;
 
@@ -60,6 +61,7 @@ namespace DuneVector
             _settings = settings;
             _identity = identity;
             _cachedTransform = transform;
+            _movementDirection = _cachedTransform.forward;
             _patrolAltitude = Mathf.Clamp(
                 patrolAltitude,
                 Mathf.Min(settings.MinimumAltitude, settings.MaximumAltitude),
@@ -111,7 +113,7 @@ namespace DuneVector
             Vector3 playerPosition = _player.WorldCenter;
             UpdatePatrol(deltaTime, playerPosition);
             UpdateAttack(deltaTime, playerPosition);
-            UpdatePresentation(deltaTime, playerPosition);
+            UpdatePresentation(deltaTime);
         }
 
         private void UpdatePatrol(float deltaTime, Vector3 playerPosition)
@@ -142,12 +144,18 @@ namespace DuneVector
                 (Time.time * _settings.HoverFrequency * Mathf.PI * 2f) +
                 _presentationPhase) * _settings.HoverAmplitude;
             targetPosition.y = terrainHeight + _patrolAltitude + hoverOffset;
+            Vector3 movementStart = _cachedTransform.position;
             _cachedTransform.position = Vector3.MoveTowards(
-                _cachedTransform.position,
+                movementStart,
                 targetPosition,
                 _settings.PatrolSpeed *
                 DuneVectorContractRisk.EnemySpeedMultiplier *
                 deltaTime);
+            Vector3 movement = _cachedTransform.position - movementStart;
+            if (movement.sqrMagnitude > Mathf.Epsilon)
+            {
+                _movementDirection = movement.normalized;
+            }
         }
 
         private void UpdateAttack(float deltaTime, Vector3 playerPosition)
@@ -226,15 +234,12 @@ namespace DuneVector
             }
         }
 
-        private void UpdatePresentation(float deltaTime, Vector3 playerPosition)
+        private void UpdatePresentation(float deltaTime)
         {
-            Vector3 toPlayer = Vector3.ProjectOnPlane(
-                playerPosition - _cachedTransform.position,
-                Vector3.up);
-            if (toPlayer.sqrMagnitude > Mathf.Epsilon)
+            if (_movementDirection.sqrMagnitude > Mathf.Epsilon)
             {
                 Quaternion targetRotation = Quaternion.LookRotation(
-                    toPlayer.normalized,
+                    _movementDirection,
                     Vector3.up);
                 _cachedTransform.rotation = Quaternion.Slerp(
                     _cachedTransform.rotation,
