@@ -80,9 +80,13 @@ namespace DuneVector
         [Min(0f)] public float StreamlineLength = 4.8f;
         [Min(0f)] public float ParticleVelocityStretch = 0.085f;
         [Min(0.1f)] public float ParticleEdgeFalloff = 1.7f;
+        [Tooltip("Opacity at the transparent end of each wind streak.")]
+        [Range(0f, 1f)] public float ParticleTransparentSideAlpha = 0.2f;
+        [Tooltip("Opacity at the solid end of each wind streak.")]
+        [Range(0f, 1f)] public float ParticleSolidSideAlpha = 1f;
         [Min(0f)] public float VisualTurbulenceStrength = 1.8f;
         [Min(0.001f)] public float VisualTurbulenceFrequency = 0.09f;
-        [ColorUsage(false)] public Color StreamlineColor = new Color(0.92f, 0.82f, 0.64f, 0.3f);
+        [ColorUsage(false)] public Color StreamlineColor = Color.white;
 
         [Header("Surface Sand")]
         [Range(0, 256)] public int SurfaceParticleBudget = 90;
@@ -90,7 +94,7 @@ namespace DuneVector
         [Min(0f)] public float SurfaceLayerHeight = 1.2f;
         [Min(0f)] public float SurfaceWindSpeedMultiplier = 1.25f;
         [Min(0f)] public float SurfaceStreakLength = 2.8f;
-        [ColorUsage(false)] public Color SurfaceSandColor = new Color(0.74f, 0.52f, 0.28f, 0.38f);
+        [ColorUsage(false)] public Color SurfaceSandColor = Color.white;
 
         [Header("Drone Interaction")]
         [Range(0, 128)] public int InteractionParticleBudget = 64;
@@ -186,7 +190,10 @@ namespace DuneVector
             _world = world;
             _settings = settings;
             _combinedWindSeed = unchecked(world.WorldSeed ^ settings.WindSeed);
-            _particleTexture = CreateSoftParticleTexture(_settings.ParticleEdgeFalloff);
+            _particleTexture = CreateSoftParticleTexture(
+                _settings.ParticleEdgeFalloff,
+                _settings.ParticleTransparentSideAlpha,
+                _settings.ParticleSolidSideAlpha);
             _particleMaterial = CreateParticleMaterial(_particleTexture);
 
             if (_settings.ProceduralPlacementEnabled)
@@ -797,9 +804,12 @@ namespace DuneVector
             return material;
         }
 
-        private static Texture2D CreateSoftParticleTexture(float edgeFalloff)
+        private static Texture2D CreateSoftParticleTexture(
+            float edgeFalloff,
+            float transparentSideAlpha,
+            float solidSideAlpha)
         {
-            const int textureSize = 32;
+            const int textureSize = 33;
             Texture2D texture = new Texture2D(textureSize, textureSize, TextureFormat.RGBA32, false, true)
             {
                 name = "Runtime Wind Streamline Texture",
@@ -811,12 +821,16 @@ namespace DuneVector
             {
                 for (int x = 0; x < textureSize; x++)
                 {
-                    Vector2 point = new Vector2(
-                        ((x + 0.5f) / textureSize) - 0.5f,
-                        ((y + 0.5f) / textureSize) - 0.5f);
-                    float alpha = Mathf.Pow(
-                        Mathf.Clamp01(1f - (point.magnitude * 2f)),
+                    float longitudinal = (float)x / (textureSize - 1);
+                    float transverse = Mathf.Abs(((float)y / (textureSize - 1)) - 0.5f) * 2f;
+                    float softEdge = Mathf.Pow(
+                        Mathf.Clamp01(1f - transverse),
                         Mathf.Max(0.1f, edgeFalloff));
+                    float directionalAlpha = Mathf.Lerp(
+                        Mathf.Clamp01(transparentSideAlpha),
+                        Mathf.Clamp01(solidSideAlpha),
+                        longitudinal);
+                    float alpha = softEdge * directionalAlpha;
                     pixels[(y * textureSize) + x] = new Color(1f, 1f, 1f, alpha);
                 }
             }
