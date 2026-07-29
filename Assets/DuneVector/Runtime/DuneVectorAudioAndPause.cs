@@ -698,7 +698,10 @@ namespace DuneVector
                 }
                 else if (IsPaused && _showGallery)
                 {
-                    _showGallery = false;
+                    if (_photography == null || !_photography.CloseGalleryViewer())
+                    {
+                        _showGallery = false;
+                    }
                 }
                 else if (IsPaused && _showCompendium)
                 {

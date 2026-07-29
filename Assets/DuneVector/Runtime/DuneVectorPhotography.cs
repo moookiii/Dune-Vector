@@ -799,6 +799,18 @@ namespace DuneVector
             return false;
         }
 
+        public bool CloseViewer()
+        {
+            if (string.IsNullOrEmpty(_selectedPhotographId))
+            {
+                return false;
+            }
+
+            _selectedPhotographId = null;
+            _confirmDelete = false;
+            return true;
+        }
+
         private void DrawGrid(Rect panel)
         {
             float padding = _settings.GalleryPadding;
@@ -872,7 +884,7 @@ namespace DuneVector
             Rect delete = new Rect(done.xMax + _settings.GalleryGap, done.y, buttonWidth, _settings.GalleryButtonHeight);
             if (!_confirmDelete)
             {
-                if (GUI.Button(done, _settings.GalleryDoneButton, _buttonStyle)) _selectedPhotographId = null;
+                if (GUI.Button(done, _settings.GalleryDoneButton, _buttonStyle)) CloseViewer();
                 Color previous = GUI.color;
                 GUI.color = _settings.GalleryDangerColor;
                 if (GUI.Button(delete, _settings.GalleryDeleteButton, _buttonStyle)) _confirmDelete = true;
@@ -1097,6 +1109,11 @@ namespace DuneVector
             _closeGalleryRequested = false;
             _gallery?.Draw();
             return _closeGalleryRequested;
+        }
+
+        public bool CloseGalleryViewer()
+        {
+            return _gallery != null && _gallery.CloseViewer();
         }
 
         public static void RequestCloseCompendium()
