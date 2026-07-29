@@ -24,6 +24,10 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DynamicCourierAgent : MonoBehaviour
     {
+        private static readonly HashSet<DynamicCourierAgent> ActiveAgentSet =
+            new HashSet<DynamicCourierAgent>();
+
+        public static IReadOnlyCollection<DynamicCourierAgent> ActiveAgents => ActiveAgentSet;
         public CourierDroneFaction Faction { get; private set; }
         public bool IsAlive => _currentHealth > 0f;
         public bool ReachedDestination { get; private set; }
@@ -111,6 +115,16 @@ namespace DuneVector
                 _cachedTransform.position += worldShift;
             }
             _destination += worldShift;
+        }
+
+        private void OnEnable()
+        {
+            ActiveAgentSet.Add(this);
+        }
+
+        private void OnDisable()
+        {
+            ActiveAgentSet.Remove(this);
         }
 
         private void Update()

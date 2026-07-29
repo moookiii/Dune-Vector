@@ -2208,6 +2208,15 @@ namespace DuneVector
                 heightSalt,
                 minimumHeight,
                 maximumHeight);
+            Vector3 candidatePosition = Root.TransformPoint(
+                new Vector3(local.x, terrainHeight + heightOffset, local.y));
+            if (IsNearDrone(
+                candidatePosition,
+                player,
+                Mathf.Max(0f, ringTuning.MinimumDroneSpawnSeparation)))
+            {
+                return;
+            }
 
             GameObject ringObject = new GameObject("Traversal Ring");
             ringObject.transform.SetParent(Root, false);
@@ -2290,6 +2299,41 @@ namespace DuneVector
                 }
             }
             return false;
+        }
+
+        private static bool IsNearDrone(
+            Vector3 position,
+            DroneCharacterController player,
+            float horizontalDistance)
+        {
+            if (horizontalDistance <= 0f)
+            {
+                return false;
+            }
+
+            float distanceSquared = horizontalDistance * horizontalDistance;
+            if (player != null && HorizontalSqrDistance(position, player.WorldCenter) < distanceSquared)
+            {
+                return true;
+            }
+
+            foreach (DynamicCourierAgent courier in DynamicCourierAgent.ActiveAgents)
+            {
+                if (courier != null
+                    && courier.IsAlive
+                    && HorizontalSqrDistance(position, courier.transform.position) < distanceSquared)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static float HorizontalSqrDistance(Vector3 a, Vector3 b)
+        {
+            float deltaX = a.x - b.x;
+            float deltaZ = a.z - b.z;
+            return (deltaX * deltaX) + (deltaZ * deltaZ);
         }
     }
 }
