@@ -1346,9 +1346,9 @@ namespace DuneVector
                 "_Color",
                 "_BaseColor",
                 Color.white);
-            mapColor.r *= materialColor.r;
-            mapColor.g *= materialColor.g;
-            mapColor.b *= materialColor.b;
+            mapColor.r *= materialColor.r * tuning.GlyphMapColor.r;
+            mapColor.g *= materialColor.g * tuning.GlyphMapColor.g;
+            mapColor.b *= materialColor.b * tuning.GlyphMapColor.b;
             _geoglyphMapMaterial.SetTexture("_SurfaceTexture", surfaceTexture);
             _geoglyphMapMaterial.SetVector(
                 "_SurfaceTextureTransform",

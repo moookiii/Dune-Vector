@@ -268,6 +268,8 @@ namespace DuneVector
         public string DisplayName = "Brushed Metal Glyphs";
         [TextArea] public string Description = "Recasts every discovered Atlas glyph with the BrushedMetal material finish.";
         public Material GlyphMaterial;
+        [Tooltip("Tint applied to brushed-metal glyph linework on the map while this upgrade is enabled.")]
+        [ColorUsage(false, true)] public Color GlyphMapColor;
         public Vector2 GlyphTextureTiling = Vector2.one;
         public Vector2 GlyphTextureOffset = Vector2.zero;
         [ColorUsage(false, true)] public Color GlyphEmissionColor = Color.black;
