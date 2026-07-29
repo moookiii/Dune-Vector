@@ -1,5 +1,7 @@
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
+using UnityEditor.IMGUI.Controls;
 using UnityEngine;
 
 namespace DuneVector.Editor
@@ -107,6 +109,8 @@ namespace DuneVector.Editor
         };
 
         private int _selectedTab;
+        private string _searchQuery = string.Empty;
+        private SearchField _searchField;
         private SerializedProperty _player;
         private SerializedProperty _bottomHud;
         private SerializedProperty _mapHud;
@@ -148,6 +152,7 @@ namespace DuneVector.Editor
 
         private void OnEnable()
         {
+            _searchField = new SearchField();
             _player = serializedObject.FindProperty("PlayerTuning");
             _bottomHud = serializedObject.FindProperty("BottomHud");
             _mapHud = serializedObject.FindProperty("MapHud");
@@ -201,6 +206,17 @@ namespace DuneVector.Editor
                 "This asset is shared by the scene. Edit it outside Play Mode for permanent tuning changes.",
                 MessageType.None);
 
+            EditorGUILayout.Space(3f);
+            _searchQuery = _searchField.OnGUI(_searchQuery);
+            EditorGUILayout.Space(3f);
+
+            if (!string.IsNullOrWhiteSpace(_searchQuery))
+            {
+                DrawSearchResults();
+                serializedObject.ApplyModifiedProperties();
+                return;
+            }
+
             _selectedTab = GUILayout.Toolbar(_selectedTab, Tabs, GUILayout.Height(26f));
             EditorGUILayout.Space(5f);
 
@@ -221,6 +237,82 @@ namespace DuneVector.Editor
             }
 
             serializedObject.ApplyModifiedProperties();
+        }
+
+        private void DrawSearchResults()
+        {
+            string[] searchTerms = _searchQuery.Split(
+                new[] { ' ' },
+                System.StringSplitOptions.RemoveEmptyEntries);
+            List<SerializedProperty> matches = new List<SerializedProperty>();
+            SerializedProperty iterator = serializedObject.GetIterator();
+            bool enterChildren = true;
+            while (iterator.NextVisible(enterChildren))
+            {
+                enterChildren = true;
+                if (IsSearchableProperty(iterator) && MatchesSearch(iterator, searchTerms))
+                {
+                    matches.Add(iterator.Copy());
+                }
+            }
+
+            EditorGUILayout.LabelField(
+                $"{matches.Count} matching {(matches.Count == 1 ? "setting" : "settings")}",
+                EditorStyles.miniLabel);
+
+            if (matches.Count == 0)
+            {
+                EditorGUILayout.HelpBox(
+                    $"No runtime settings match \"{_searchQuery.Trim()}\".",
+                    MessageType.Info);
+                return;
+            }
+
+            foreach (SerializedProperty property in matches)
+            {
+                using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+                {
+                    string rootName = GetRootPropertyName(property.propertyPath);
+                    if (property.depth > 0)
+                    {
+                        EditorGUILayout.LabelField(
+                            ObjectNames.NicifyVariableName(rootName),
+                            EditorStyles.miniBoldLabel);
+                    }
+
+                    EditorGUILayout.PropertyField(property, true);
+                }
+            }
+        }
+
+        private static bool IsSearchableProperty(SerializedProperty property)
+        {
+            return property.propertyPath != "m_Script"
+                && (!property.hasVisibleChildren
+                    || property.propertyType != SerializedPropertyType.Generic);
+        }
+
+        private static bool MatchesSearch(SerializedProperty property, string[] searchTerms)
+        {
+            string searchableText =
+                $"{property.displayName} {property.name} {property.propertyPath} {property.tooltip}";
+            foreach (string term in searchTerms)
+            {
+                if (searchableText.IndexOf(term, System.StringComparison.OrdinalIgnoreCase) < 0)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static string GetRootPropertyName(string propertyPath)
+        {
+            int separatorIndex = propertyPath.IndexOf('.');
+            return separatorIndex >= 0
+                ? propertyPath.Substring(0, separatorIndex)
+                : propertyPath;
         }
 
         private void DrawPlayerTab()
