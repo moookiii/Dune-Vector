@@ -630,8 +630,8 @@ namespace DuneVector
         [Min(0f)] public float ObjectiveRingBillboardDisableRadius = 36f;
 
         [Header("Package Visual")]
-        [Tooltip("Resources-relative path of the imported package model.")]
-        public string PackageModelResourcePath = "box_package";
+        [Tooltip("Resources-relative path of the package prefab.")]
+        public string PackageModelResourcePath = "box_packagePrefab";
         [Tooltip("Use the legacy procedural package instead of the imported model.")]
         public bool UseProceduralPackageFallback;
         public Vector3 PackageModelLocalOffset = Vector3.zero;

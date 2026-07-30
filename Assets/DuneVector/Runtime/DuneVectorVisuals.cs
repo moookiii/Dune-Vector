@@ -2057,8 +2057,7 @@ namespace DuneVector
             modelObject.name = packageModel.name;
             Transform modelTransform = modelObject.transform;
             modelTransform.localPosition = Vector3.zero;
-            modelTransform.localRotation = Quaternion.identity;
-            modelTransform.localScale = Vector3.one;
+            Vector3 prefabLocalScale = modelTransform.localScale;
             DisableImportedAnimationPlayback(modelObject);
 
             Collider[] colliders = modelObject.GetComponentsInChildren<Collider>(true);
@@ -2087,7 +2086,7 @@ namespace DuneVector
                 settings.PackageDropColliderSize.z);
             if (largestDimension > 0.0001f)
             {
-                modelTransform.localScale = Vector3.one *
+                modelTransform.localScale = prefabLocalScale *
                     (Mathf.Max(0.1f, targetSize) / largestDimension);
 
                 Bounds scaledBounds = renderers[0].bounds;
