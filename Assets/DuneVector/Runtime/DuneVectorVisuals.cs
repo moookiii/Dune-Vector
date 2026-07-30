@@ -49,6 +49,8 @@ namespace DuneVector
         public Material Cloud { get; }
         public Material CloudUnderbelly { get; }
         public Material Package { get; }
+        public GameObject PackageModel { get; }
+        public DeliveryTuning PackageVisualTuning { get; }
         public Material PickupRing { get; }
         public Material DeliveryRing { get; }
         public Material EnemyBody { get; }
@@ -103,6 +105,18 @@ namespace DuneVector
             RingTuning rings = ringTuning ?? new RingTuning();
             RingPortalTuning = rings;
             DeliveryTuning delivery = deliveryTuning ?? new DeliveryTuning();
+            PackageVisualTuning = delivery;
+            if (!delivery.UseProceduralPackageFallback &&
+                !string.IsNullOrWhiteSpace(delivery.PackageModelResourcePath))
+            {
+                PackageModel = Resources.Load<GameObject>(delivery.PackageModelResourcePath);
+                if (PackageModel == null)
+                {
+                    Debug.LogError(
+                        $"Package model was not found at Resources/{delivery.PackageModelResourcePath}. " +
+                        "Using the procedural fallback.");
+                }
+            }
             CloudTuning clouds = cloudTuning ?? new CloudTuning();
             DynamicCourierTuning couriers = dynamicCourierTuning ?? new DynamicCourierTuning();
             CactusTuning cacti = cactusTuning ?? new CactusTuning();
@@ -2011,12 +2025,78 @@ namespace DuneVector
             GameObject rootObject = new GameObject("Delivery Package");
             Transform root = rootObject.transform;
             root.SetParent(parent, false);
-            root.localScale = Vector3.one * scale;
 
-            CreatePart(PrimitiveType.Cube, "Package Body", root, Vector3.zero, new Vector3(1.2f, 0.82f, 1f), Quaternion.identity, materials.Package);
-            CreatePart(PrimitiveType.Cube, "Package Strap A", root, new Vector3(0f, 0.43f, 0f), new Vector3(0.18f, 0.05f, 1.04f), Quaternion.identity, materials.DroneDark);
-            CreatePart(PrimitiveType.Cube, "Package Strap B", root, new Vector3(0f, 0.43f, 0f), new Vector3(1.24f, 0.05f, 0.18f), Quaternion.identity, materials.DroneDark);
+            DeliveryTuning settings = materials.PackageVisualTuning;
+            if (!settings.UseProceduralPackageFallback && materials.PackageModel != null)
+            {
+                CreateImportedPackageModel(root, materials.PackageModel, settings);
+            }
+            else
+            {
+                CreatePart(PrimitiveType.Cube, "Package Body", root, Vector3.zero, new Vector3(1.2f, 0.82f, 1f), Quaternion.identity, materials.Package);
+                CreatePart(PrimitiveType.Cube, "Package Strap A", root, new Vector3(0f, 0.43f, 0f), new Vector3(0.18f, 0.05f, 1.04f), Quaternion.identity, materials.DroneDark);
+                CreatePart(PrimitiveType.Cube, "Package Strap B", root, new Vector3(0f, 0.43f, 0f), new Vector3(1.24f, 0.05f, 0.18f), Quaternion.identity, materials.DroneDark);
+            }
+
+            root.localScale = Vector3.one * scale;
             return root;
+        }
+
+        private static void CreateImportedPackageModel(
+            Transform root,
+            GameObject packageModel,
+            DeliveryTuning settings)
+        {
+            GameObject pivotObject = new GameObject("Package Model Pivot");
+            Transform pivot = pivotObject.transform;
+            pivot.SetParent(root, false);
+            pivot.localPosition = settings.PackageModelLocalOffset;
+            pivot.localRotation = Quaternion.Euler(settings.PackageModelLocalEulerAngles);
+
+            GameObject modelObject = UnityEngine.Object.Instantiate(packageModel, pivot, false);
+            modelObject.name = packageModel.name;
+            Transform modelTransform = modelObject.transform;
+            modelTransform.localPosition = Vector3.zero;
+            modelTransform.localRotation = Quaternion.identity;
+            modelTransform.localScale = Vector3.one;
+            DisableImportedAnimationPlayback(modelObject);
+
+            Collider[] colliders = modelObject.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                colliders[i].enabled = false;
+                UnityEngine.Object.Destroy(colliders[i]);
+            }
+
+            Renderer[] renderers = modelObject.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+            {
+                return;
+            }
+
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+
+            float largestDimension = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
+            float targetSize = Mathf.Max(
+                settings.PackageDropColliderSize.x,
+                settings.PackageDropColliderSize.y,
+                settings.PackageDropColliderSize.z);
+            if (largestDimension > 0.0001f)
+            {
+                modelTransform.localScale = Vector3.one *
+                    (Mathf.Max(0.1f, targetSize) / largestDimension);
+
+                Bounds scaledBounds = renderers[0].bounds;
+                for (int i = 1; i < renderers.Length; i++)
+                {
+                    scaledBounds.Encapsulate(renderers[i].bounds);
+                }
+                modelTransform.position += pivot.position - scaledBounds.center;
+            }
         }
 
         public static Transform CreateFlyingEnemyVisual(Transform parent, DuneVectorMaterials materials, float scale)

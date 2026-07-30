@@ -628,6 +628,14 @@ namespace DuneVector
         [Header("Billboarding")]
         [Tooltip("Distance from the drone center at which pickup and delivery rings freeze their current orientation instead of continuing to face the camera.")]
         [Min(0f)] public float ObjectiveRingBillboardDisableRadius = 36f;
+
+        [Header("Package Visual")]
+        [Tooltip("Resources-relative path of the imported package model.")]
+        public string PackageModelResourcePath = "box_package";
+        [Tooltip("Use the legacy procedural package instead of the imported model.")]
+        public bool UseProceduralPackageFallback;
+        public Vector3 PackageModelLocalOffset = Vector3.zero;
+        public Vector3 PackageModelLocalEulerAngles = Vector3.zero;
         [Min(0.1f)] public float PackageScale = 0.8f;
 
         [Header("Package Drop")]
