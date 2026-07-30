@@ -93,10 +93,14 @@ namespace DuneVector
             _package.name = $"Package {_jobIndex:000}";
 
             Vector3 approach = LogicalDirection(playerLogical, _packageLogicalPosition);
+            double pickupRingHeight = DuneVectorVisuals.CalculateGroundedPortalCenterHeight(
+                _packageHeight,
+                _settings.ObjectiveRingRadius,
+                _materials.RingPortalTuning);
             _pickupRing = CreateJobRing(
                 "Pickup Ring",
                 _packageLogicalPosition,
-                _packageHeight + _settings.PickupRingHeight,
+                pickupRingHeight,
                 approach,
                 true,
                 HandlePickup);

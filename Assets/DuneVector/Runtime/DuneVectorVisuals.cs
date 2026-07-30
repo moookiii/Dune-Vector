@@ -1604,6 +1604,16 @@ namespace DuneVector
             return Mathf.Clamp(authoredRadius * settings.PortalVisualRadiusMultiplier, minimum, maximum);
         }
 
+        public static double CalculateGroundedPortalCenterHeight(
+            double groundHeight,
+            float authoredRadius,
+            RingTuning settings)
+        {
+            float visualRadius = CalculatePortalVisualRadius(authoredRadius, settings);
+            float outerLineHalfThickness = Mathf.Max(0.01f, settings.PortalOuterLineThickness) * 0.5f;
+            return groundHeight + visualRadius + outerLineHalfThickness;
+        }
+
         public static Mesh GetInnermostPortalRingMesh(
             float radius,
             float thicknessMultiplier,

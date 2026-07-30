@@ -1639,13 +1639,20 @@ namespace DuneVector
             DuneVectorLandmarkInstance landmark = _routeLandmarks[0];
             Vector3 objectivePosition = landmark.ContractSocket.position;
             LogicalPosition objectiveLogical = LocalToLogical(objectivePosition);
+            double pickupGroundHeight = _world.HeightField.SampleHeight(
+                objectiveLogical.X,
+                objectiveLogical.Z);
+            double pickupRingHeight = DuneVectorVisuals.CalculateGroundedPortalCenterHeight(
+                pickupGroundHeight,
+                _deliverySettings.ObjectiveRingRadius,
+                _materials.RingPortalTuning);
             _package = DuneVectorVisuals.CreatePackageVisual(transform, _materials, _settings.ObjectivePackageScale);
             _package.name = $"Contract Cargo {ActiveContract.ContractId}";
             _package.position = objectivePosition;
             _objectiveRing = CreateObjectiveRing(
                 "Contract Pickup Ring",
                 objectiveLogical,
-                objectivePosition.y,
+                pickupRingHeight,
                 true,
                 HandlePackagePickup);
             ActiveObjective = _package;
