@@ -211,7 +211,10 @@ namespace DuneVector
                 0,
                 Mathf.Max(1, _settings.MaximumActivePilgrims) -
                 _activePilgrims.Count);
-            int count = Mathf.Min(Mathf.Max(1, _settings.PilgrimsPerProcession), available);
+            int count = Mathf.Min(
+                _settings.EvaluatePilgrimsPerProcession(
+                    DuneVectorContractRisk.CurrentRisk),
+                available);
             for (int i = 0; i < count; i++)
             {
                 float degrees = ((360f * i) / count) + (_identity % count);

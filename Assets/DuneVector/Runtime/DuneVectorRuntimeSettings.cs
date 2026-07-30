@@ -2504,7 +2504,12 @@ namespace DuneVector
         [Range(0f, 1f)] public float MinimumInitialAttackDelayMultiplier = 0.25f;
         [Range(0f, 1f)] public float MaximumInitialAttackDelayMultiplier = 0.85f;
         [Min(0f)] public float AttackWindUpDuration = 2.25f;
-        [Range(1, 8)] public int PilgrimsPerProcession = 1;
+        [Tooltip("Pilgrims fired per procession at rank 1.")]
+        [Range(1, 8)] public int PilgrimsPerProcessionAtRankOne = 1;
+        [Tooltip("Pilgrims fired per procession at the pilgrim count rank ceiling.")]
+        [Range(1, 8)] public int PilgrimsPerProcessionAtRankCeiling = 5;
+        [Tooltip("Rank at which pilgrims per procession reaches its ceiling value.")]
+        [Min(1)] public int PilgrimCountRankCeiling = 20;
         [Range(1, 16)] public int MaximumActivePilgrims = 6;
         [Min(0f)] public float PilgrimSpawnRadius = 4.2f;
         [Min(0f)] public float PilgrimSpawnForwardOffset = 1.2f;
@@ -2550,6 +2555,19 @@ namespace DuneVector
             return targetIsGrounded
                 ? range * Mathf.Clamp01(GroundedTargetDetectionRangeMultiplier)
                 : range;
+        }
+
+        public int EvaluatePilgrimsPerProcession(int rank)
+        {
+            int rankOneCount = Mathf.Max(1, PilgrimsPerProcessionAtRankOne);
+            int ceilingCount = Mathf.Max(
+                rankOneCount,
+                PilgrimsPerProcessionAtRankCeiling);
+            int ceilingRank = Mathf.Max(1, PilgrimCountRankCeiling);
+            float rankProgress = ceilingRank > 1
+                ? Mathf.InverseLerp(1, ceilingRank, Mathf.Clamp(rank, 1, ceilingRank))
+                : 1f;
+            return Mathf.RoundToInt(Mathf.Lerp(rankOneCount, ceilingCount, rankProgress));
         }
 
         public float EvaluatePilgrimAcceleration(
