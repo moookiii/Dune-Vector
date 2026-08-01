@@ -4249,6 +4249,59 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class MusicVisualSynthTuning
+    {
+        [Header("Music-Reactive Visual Synth")]
+        [Tooltip("Draws a radial spectrum instrument driven by the live FMOD music bus.")]
+        public bool Enabled = true;
+        [Tooltip("FFT analysis window. The runtime rounds this to the nearest supported power of two.")]
+        [Range(256, 4096)] public int FftWindowSize = 1024;
+        [Tooltip("Number of colored frequency bars in the radial instrument.")]
+        [Range(12, 96)] public int BandCount = 48;
+        [Min(20f)] public float MinimumFrequencyHz = 45f;
+        [Min(100f)] public float MaximumFrequencyHz = 12000f;
+        [Tooltip("Gain applied to FFT magnitudes before shaping and smoothing.")]
+        [Range(0.1f, 50f)] public float ResponseGain = 12f;
+        [Tooltip("Values below this FFT magnitude are treated as silence.")]
+        [Range(0f, 0.05f)] public float NoiseFloor = 0.0015f;
+        [Tooltip("Power curve applied to the normalized spectrum. Values below one reveal quieter detail.")]
+        [Range(0.2f, 2f)] public float ResponsePower = 0.58f;
+        [Min(0f)] public float AttackSharpness = 18f;
+        [Min(0f)] public float ReleaseSharpness = 4.5f;
+        [Tooltip("Minimum motion retained when the music bus is silent or unavailable.")]
+        [Range(0f, 0.2f)] public float IdleAmplitude = 0.018f;
+
+        [Header("Radial Instrument Layout")]
+        [Tooltip("Normalized screen position of the visual synth's center.")]
+        public Vector2 ScreenAnchor = new Vector2(0.5f, 0.87f);
+        [Min(0f)] public float CoreRadius = 66f;
+        [Min(0f)] public float CorePulseRadius = 16f;
+        [Min(0f)] public float SpectrumBaseRadius = 92f;
+        [Min(0f)] public float MaximumBarLength = 138f;
+        [Min(0.1f)] public float MinimumBarThickness = 2.5f;
+        [Tooltip("Fraction of the angular space occupied by each spectrum bar.")]
+        [Range(0.1f, 1f)] public float BarAngularFill = 0.72f;
+        public float ArcStartDegrees = 184f;
+        [Range(30f, 360f)] public float ArcDegrees = 172f;
+        [Range(8, 256)] public int RingResolution = 96;
+        [Range(0, 8)] public int EchoRingCount = 3;
+        [Min(0f)] public float EchoRingSpacing = 13f;
+        [Min(0.1f)] public float RingThickness = 2f;
+        [Tooltip("Opacity retained by the outermost echo ring relative to the innermost ring.")]
+        [Range(0f, 1f)] public float OuterRingOpacityMultiplier = 0.3f;
+        [Tooltip("Ring brightness retained during quiet passages.")]
+        [Range(0f, 1f)] public float QuietRingBrightness = 0.35f;
+
+        [Header("Visual Synth Palette")]
+        [ColorUsage(false)] public Color CoreColor = new Color(0.035f, 0.055f, 0.08f, 0.5f);
+        [ColorUsage(false)] public Color RingColor = new Color(1f, 0.48f, 0.1f, 0.35f);
+        [ColorUsage(false)] public Color LowBandColor = new Color(1f, 0.32f, 0.08f, 0.8f);
+        [ColorUsage(false)] public Color MidBandColor = new Color(1f, 0.18f, 0.58f, 0.82f);
+        [ColorUsage(false)] public Color HighBandColor = new Color(0.12f, 0.86f, 1f, 0.86f);
+        [Range(0f, 1f)] public float Opacity = 0.7f;
+    }
+
+    [System.Serializable]
     public sealed class AudioTuning
     {
         [Header("FMOD Events")]
@@ -4281,6 +4334,9 @@ namespace DuneVector
         [Tooltip("FMOD group bus reserved for gameplay and interface sound effects.")]
         public string SoundEffectsBusPath = "bus:/SFX";
 
+        [Header("Visual Synthesizer")]
+        public MusicVisualSynthTuning VisualSynth = new MusicVisualSynthTuning();
+
         [Header("Default Volumes")]
         [Range(0f, 1f)] public float DefaultMusicVolume = 1f;
         [Range(0f, 1f)] public float DefaultSoundEffectsVolume = 1f;
@@ -4298,6 +4354,7 @@ namespace DuneVector
 
         public void EnsureInitialized()
         {
+            VisualSynth ??= new MusicVisualSynthTuning();
             PauseMenu ??= new PauseMenuVisualTuning();
         }
     }
@@ -4946,7 +5003,7 @@ namespace DuneVector
         [Tooltip("Electrical sandstorm strikes, regional heat, temperature, cooling, and gameplay consequences.")]
         public EnvironmentalHazardTuning EnvironmentalHazards = new EnvironmentalHazardTuning();
 
-        [Tooltip("FMOD background music, July mixer bus routing, and pause-menu volume defaults.")]
+        [Tooltip("FMOD music and effects, the music-reactive visual synthesizer, mixer routing, and pause-menu volume defaults.")]
         public AudioTuning Audio = new AudioTuning();
 
         [Tooltip("Pickup, package, and drop-off job generation.")]

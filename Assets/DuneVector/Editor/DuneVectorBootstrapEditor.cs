@@ -150,6 +150,7 @@ namespace DuneVector.Editor
         private SerializedProperty _groundExploders;
         private SerializedProperty _rings;
         private SerializedProperty _permanentUpgrades;
+        private SerializedProperty _audio;
         private SerializedProperty _dunes;
         private SerializedProperty _duneTexture;
         private SerializedProperty _duneTextureTileSize;
@@ -192,6 +193,7 @@ namespace DuneVector.Editor
             _groundExploders = serializedObject.FindProperty("GroundExploders");
             _rings = serializedObject.FindProperty("Rings");
             _permanentUpgrades = serializedObject.FindProperty("PermanentUpgrades");
+            _audio = serializedObject.FindProperty("Audio");
             _dunes = serializedObject.FindProperty("DuneGeneration");
             _duneTexture = serializedObject.FindProperty("DuneTexture");
             _duneTextureTileSize = serializedObject.FindProperty("DuneTextureTileSize");
@@ -423,6 +425,10 @@ namespace DuneVector.Editor
 
         private void DrawGameplayTab()
         {
+            DuneVectorSettingsInspector.DrawSection(
+                "Music & Audio",
+                "FMOD events and buses, the music-reactive visual synthesizer, mixer defaults, and pause presentation.",
+                _audio);
             DuneVectorSettingsInspector.DrawSection(
                 "Pickup & Delivery",
                 "Objective placement, travel ranges, package size, and job rings.",
