@@ -28,7 +28,6 @@ namespace DuneVector
 
         private AudioTuning _settings;
         private EventInstance _musicInstance;
-        private DuneVectorMusicVisualSynth _musicVisualSynth;
         private EventInstance _flightBoostInstance;
         private bool _flightBoostFadingOut;
         private bool _flightBoostNeedsRandomSeek;
@@ -97,7 +96,6 @@ namespace DuneVector
             _hasSoundEffectsBus = TryGetBus(_settings.SoundEffectsBusPath, out _soundEffectsBus);
             ApplyMixerVolumes();
             StartBackgroundMusic();
-            StartMusicVisualSynth();
         }
 
         private void BindHealth(DroneHealth health)
@@ -406,17 +404,6 @@ namespace DuneVector
             }
         }
 
-        private void StartMusicVisualSynth()
-        {
-            if (_settings.VisualSynth == null || !_settings.VisualSynth.Enabled)
-            {
-                return;
-            }
-
-            _musicVisualSynth = gameObject.AddComponent<DuneVectorMusicVisualSynth>();
-            _musicVisualSynth.Initialize(_settings.VisualSynth, _hasMusicBus ? _musicBus : default);
-        }
-
         private void ApplyMixerVolumes()
         {
             if (_hasMusicBus && _musicBus.isValid())
@@ -596,7 +583,6 @@ namespace DuneVector
                 _musicInstance.release();
                 _musicInstance.clearHandle();
             }
-            _musicVisualSynth?.Shutdown();
             ReleaseFlightBoostAudio();
             if (_hasMasterBus && _masterBus.isValid())
             {
