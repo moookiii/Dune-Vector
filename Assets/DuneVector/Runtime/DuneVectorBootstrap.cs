@@ -598,7 +598,7 @@ namespace DuneVector
             sunObject.transform.rotation = Quaternion.Euler(38f, -28f, 0f);
             Light sun = sunObject.AddComponent<Light>();
             sun.type = LightType.Directional;
-            sun.color = WeatherSettings.Atmosphere.SunColor;
+            sun.color = new Color(1f, 0.78f, 0.58f);
             sun.shadows = LightShadows.Soft;
             sun.shadowStrength = 0.86f;
             sun.shadowResolution = LightShadowResolution.VeryHigh;
