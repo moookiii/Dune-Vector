@@ -1,5 +1,101 @@
 Shader "DuneVector/URP Y2K Sky"
 {
+    Properties
+    {
+        [HideInInspector] _SkyTop("Sky Top", Color) = (0, 0, 0, 1)
+        [HideInInspector] _SkyMiddle("Sky Middle", Color) = (0, 0, 0, 1)
+        [HideInInspector] _SkyBottom("Sky Bottom", Color) = (0, 0, 0, 1)
+        [HideInInspector] _GradientDiffusion("Gradient Diffusion", Float) = 0
+        [HideInInspector] _HorizonGlowColor("Horizon Glow Color", Color) = (0, 0, 0, 1)
+        [HideInInspector] _HorizonGlowSize("Horizon Glow Size", Float) = 0
+        [HideInInspector] _HorizonGlowIntensity("Horizon Glow Intensity", Float) = 0
+        [HideInInspector] _CloudColor("Cloud Color", Color) = (0, 0, 0, 1)
+        [HideInInspector] _CloudHighlight("Cloud Highlight", Color) = (0, 0, 0, 1)
+        [HideInInspector] _CloudPearl("Cloud Pearl", Color) = (0, 0, 0, 1)
+        [HideInInspector] _CloudOpacity("Cloud Opacity", Float) = 0
+        [HideInInspector] _CloudAltitude("Cloud Altitude", Float) = 0
+        [HideInInspector] _CloudThickness("Cloud Thickness", Float) = 0
+        [HideInInspector] _CloudScale("Cloud Scale", Float) = 0
+        [HideInInspector] _CloudSoftness("Cloud Softness", Float) = 0
+        [HideInInspector] _CloudHighlightStrength("Cloud Highlight Strength", Float) = 0
+        [HideInInspector] _CloudPearlStrength("Cloud Pearl Strength", Float) = 0
+        [HideInInspector] _CloudDriftSpeed("Cloud Drift Speed", Float) = 0
+        [HideInInspector] _StructureColor("Structure Color", Color) = (0, 0, 0, 1)
+        [HideInInspector] _StructureOpacity("Structure Opacity", Float) = 0
+        [HideInInspector] _ArcAltitude("Arc Altitude", Float) = 0
+        [HideInInspector] _ArcCurvature("Arc Curvature", Float) = 0
+        [HideInInspector] _ArcThickness("Arc Thickness", Float) = 0
+        [HideInInspector] _ArcFrequency("Arc Frequency", Float) = 0
+        [HideInInspector] _RingAltitude("Ring Altitude", Float) = 0
+        [HideInInspector] _RingSpacing("Ring Spacing", Float) = 0
+        [HideInInspector] _RingThickness("Ring Thickness", Float) = 0
+        [HideInInspector] _GridOpacity("Grid Opacity", Float) = 0
+        [HideInInspector] _GridScale("Grid Scale", Float) = 0
+        [HideInInspector] _GridHeight("Grid Height", Float) = 0
+        [HideInInspector] _GridLineThickness("Grid Line Thickness", Float) = 0
+        [HideInInspector] _ReactiveFrontColor("Reactive Front Color", Color) = (0, 0, 0, 1)
+        [HideInInspector] _ReactiveFrontIntensity("Reactive Front Intensity", Float) = 0
+        [HideInInspector] _ReactiveFrontCount("Reactive Front Count", Float) = 0
+        [HideInInspector] _ReactiveFrontTravelSpeed("Reactive Front Travel Speed", Float) = 0
+        [HideInInspector] _ReactiveFrontThickness("Reactive Front Thickness", Float) = 0
+        [HideInInspector] _ReactiveFrontCurvature("Reactive Front Curvature", Float) = 0
+        [HideInInspector] _ReactiveFrontAltitude("Reactive Front Altitude", Float) = 0
+        [HideInInspector] _ReactiveFrontVerticalSpan("Reactive Front Vertical Span", Float) = 0
+        [HideInInspector] _ReactiveBassExpansion("Reactive Bass Expansion", Float) = 0
+        [HideInInspector] _ReactiveFrontEnergyResponse("Reactive Front Energy Response", Float) = 0
+        [HideInInspector] _ReactiveFrontBassResponse("Reactive Front Bass Response", Float) = 0
+        [HideInInspector] _ReactiveFrontPulseResponse("Reactive Front Pulse Response", Float) = 0
+        [HideInInspector] _ReactiveFrontPressureWidth("Reactive Front Pressure Width", Float) = 0
+        [HideInInspector] _ReactiveFrontPressureOpacity("Reactive Front Pressure Opacity", Float) = 0
+        [HideInInspector] _ReactiveAuroraColor("Reactive Aurora Color", Color) = (0, 0, 0, 1)
+        [HideInInspector] _ReactiveAuroraIntensity("Reactive Aurora Intensity", Float) = 0
+        [HideInInspector] _ReactiveAuroraAltitude("Reactive Aurora Altitude", Float) = 0
+        [HideInInspector] _ReactiveAuroraThickness("Reactive Aurora Thickness", Float) = 0
+        [HideInInspector] _ReactiveAuroraWaviness("Reactive Aurora Waviness", Float) = 0
+        [HideInInspector] _ReactiveAuroraTravelSpeed("Reactive Aurora Travel Speed", Float) = 0
+        [HideInInspector] _ReactiveAuroraFrequency("Reactive Aurora Frequency", Float) = 0
+        [HideInInspector] _ReactiveAuroraSecondaryIntensity("Reactive Aurora Secondary Intensity", Float) = 0
+        [HideInInspector] _ReactiveAuroraShimmerAmount("Reactive Aurora Shimmer Amount", Float) = 0
+        [HideInInspector] _ReactiveShockRingColor("Reactive Shock Ring Color", Color) = (0, 0, 0, 1)
+        [HideInInspector] _ReactiveShockRingIntensity("Reactive Shock Ring Intensity", Float) = 0
+        [HideInInspector] _ReactiveShockRingCount("Reactive Shock Ring Count", Float) = 0
+        [HideInInspector] _ReactiveShockRingThickness("Reactive Shock Ring Thickness", Float) = 0
+        [HideInInspector] _ReactiveShockRingTravelSpeed("Reactive Shock Ring Travel Speed", Float) = 0
+        [HideInInspector] _ReactiveShockRingVerticalSpan("Reactive Shock Ring Vertical Span", Float) = 0
+        [HideInInspector] _ReactiveShockRingBassResponse("Reactive Shock Ring Bass Response", Float) = 0
+        [HideInInspector] _ReactiveShockRingBreakup("Reactive Shock Ring Breakup", Float) = 0
+        [HideInInspector] _ReactiveLightningColor("Reactive Lightning Color", Color) = (0, 0, 0, 1)
+        [HideInInspector] _ReactiveLightningIntensity("Reactive Lightning Intensity", Float) = 0
+        [HideInInspector] _ReactiveLightningSectorCount("Reactive Lightning Sector Count", Float) = 0
+        [HideInInspector] _ReactiveLightningWidth("Reactive Lightning Width", Float) = 0
+        [HideInInspector] _ReactiveLightningJaggedness("Reactive Lightning Jaggedness", Float) = 0
+        [HideInInspector] _ReactiveLightningRetargetRate("Reactive Lightning Retarget Rate", Float) = 0
+        [HideInInspector] _ReactiveLightningSustainResponse("Reactive Lightning Sustain Response", Float) = 0
+        [HideInInspector] _ReactiveLightningBranchIntensity("Reactive Lightning Branch Intensity", Float) = 0
+        [HideInInspector] _ReactiveLightningStrikeCount("Reactive Lightning Strike Count", Float) = 0
+        [HideInInspector] _ReactiveLightningHaloWidthMultiplier("Reactive Lightning Halo Width Multiplier", Float) = 0
+        [HideInInspector] _ReactiveLightningHaloIntensity("Reactive Lightning Halo Intensity", Float) = 0
+        [HideInInspector] _ReactiveLightningNodeIntensity("Reactive Lightning Node Intensity", Float) = 0
+        [HideInInspector] _ReactiveLightningNodeSpacing("Reactive Lightning Node Spacing", Float) = 0
+        [HideInInspector] _ReactiveCameraAzimuth("Reactive Camera Azimuth", Float) = 0
+        [HideInInspector] _ReactiveLightningAzimuthSpan("Reactive Lightning Azimuth Span", Float) = 0
+        [HideInInspector] _ReactiveSparkColor("Reactive Spark Color", Color) = (0, 0, 0, 1)
+        [HideInInspector] _ReactiveSparkIntensity("Reactive Spark Intensity", Float) = 0
+        [HideInInspector] _ReactiveSparkGridScale("Reactive Spark Grid Scale", Float) = 0
+        [HideInInspector] _ReactiveSparkDensity("Reactive Spark Density", Float) = 0
+        [HideInInspector] _ReactiveSparkSize("Reactive Spark Size", Float) = 0
+        [HideInInspector] _ReactiveSparkTwinkleSpeed("Reactive Spark Twinkle Speed", Float) = 0
+        [HideInInspector] _ReactiveSparkSustainResponse("Reactive Spark Sustain Response", Float) = 0
+        [HideInInspector] _ReactiveMusicEnergy("Reactive Music Energy", Float) = 0
+        [HideInInspector] _ReactiveMusicBass("Reactive Music Bass", Float) = 0
+        [HideInInspector] _ReactiveMusicMids("Reactive Music Mids", Float) = 0
+        [HideInInspector] _ReactiveMusicHighs("Reactive Music Highs", Float) = 0
+        [HideInInspector] _ReactiveBassPulse("Reactive Bass Pulse", Float) = 0
+        [HideInInspector] _ReactiveHighPulse("Reactive High Pulse", Float) = 0
+        [HideInInspector] _RenderForCubemap("Render For Cubemap", Float) = 0
+        [HideInInspector] _SkyIntensity("Sky Intensity", Float) = 1
+    }
+
     HLSLINCLUDE
 
     #pragma vertex Vert
