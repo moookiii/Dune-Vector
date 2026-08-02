@@ -3733,9 +3733,9 @@ namespace DuneVector
 
         [Header("Treble Star Bursts")]
         [ColorUsage(false, true)] public Color SparkColor = new Color(1.2f, 4.2f, 2.8f, 1f);
-        [Min(0f)] public float SparkIntensity = 1.1f;
+        [Min(0f)] public float SparkIntensity = 0f;
         [Range(4f, 64f)] public float SparkGridScale = 28f;
-        [Range(0f, 1f)] public float SparkDensity = 0.16f;
+        [Range(0f, 1f)] public float SparkDensity = 0f;
         [Range(0.002f, 0.2f)] public float SparkSize = 0.035f;
         [Min(0f)] public float SparkTwinkleSpeed = 9f;
         [Range(0f, 1f)] public float SparkSustainResponse = 0.08f;
