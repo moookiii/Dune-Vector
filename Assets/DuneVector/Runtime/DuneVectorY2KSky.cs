@@ -218,10 +218,7 @@ namespace DuneVector
                     _ => "_" + field.Name
                 };
                 int propertyId = Shader.PropertyToID(propertyName);
-                if (_skyMaterial.HasProperty(propertyId))
-                {
-                    _skyPropertyBindings.Add(new SkyPropertyBinding(propertyId, (VolumeParameter)parameter));
-                }
+                _skyPropertyBindings.Add(new SkyPropertyBinding(propertyId, (VolumeParameter)parameter));
             }
         }
 
