@@ -3527,10 +3527,12 @@ namespace DuneVector
     public sealed class DesertWeatherAtmosphereTuning
     {
         [Header("Desert Sun")]
-        [Min(0f)] public float SunIntensity = 3f;
+        [Min(0f)] public float SunIntensity = 2f;
         [Range(0f, 1f)] public float SunShadowDimmer = 0.75f;
 
         [Header("Visibility")]
+        [ColorUsage(false)] public Color ClearFogColor = new Color(0.23f, 0.3f, 0.36f);
+        [ColorUsage(false)] public Color StormFogColor = new Color(0.26f, 0.14f, 0.075f);
         [Min(10f)] public float ClearVisibilityDistance = 330f;
         [Min(10f)] public float StormVisibilityDistance = 72f;
         [Min(20f)] public float ClearMaximumFogDistance = 780f;
@@ -3540,6 +3542,13 @@ namespace DuneVector
         [Min(1f)] public float StormFogHeight = 160f;
         [Range(0f, 1f)] public float VolumetricFogThreshold = 0.08f;
 
+        [Header("URP Ambient Lighting")]
+        [ColorUsage(false)] public Color UrpAmbientSkyColor = new Color(0.18f, 0.15f, 0.13f);
+        [ColorUsage(false)] public Color UrpAmbientEquatorColor = new Color(0.07f, 0.06f, 0.055f);
+        [ColorUsage(false)] public Color UrpAmbientGroundColor = new Color(0.025f, 0.022f, 0.02f);
+        [Range(0f, 2f)] public float UrpAmbientIntensity = 0.65f;
+        [Range(0f, 2f)] public float UrpReflectionIntensity = 0.6f;
+
         [Header("Y2K Sky Gradient & Exposure")]
         [ColorUsage(false, true)] public Color ClearSkyTop = new Color(0.018f, 0.24f, 1.65f);
         [ColorUsage(false, true)] public Color ClearSkyMiddle = new Color(0.04f, 0.72f, 2.15f);
@@ -3548,9 +3557,7 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color StormSkyMiddle = new Color(0.54f, 0.29f, 0.1f);
         [ColorUsage(false, true)] public Color StormSkyBottom = new Color(1.15f, 0.54f, 0.15f);
         [Min(0f)] public float SkyGradientDiffusion = 1.48f;
-        [Min(0f)] public float SkyMultiplier = 0.82f;
-        public float ClearExposure = 2f;
-        public float StormExposure = 1.35f;
+        [Min(0f)] public float SkyMultiplier = 0.32f;
 
         [Header("Y2K Horizon Glow")]
         [ColorUsage(false, true)] public Color ClearHorizonGlowColor = new Color(0.38f, 2.8f, 4.4f, 1f);
@@ -3593,9 +3600,9 @@ namespace DuneVector
         [Range(0.001f, 0.08f)] public float DigitalGridLineThickness = 0.018f;
 
         [Header("Bloom Integration")]
-        [Min(0f)] public float BloomIntensity = 0.2f;
-        [Min(0f)] public float BloomThreshold = 1.05f;
-        [Range(0f, 1f)] public float BloomScatter = 0.62f;
+        [Min(0f)] public float BloomIntensity = 0.08f;
+        [Min(0f)] public float BloomThreshold = 2f;
+        [Range(0f, 1f)] public float BloomScatter = 0.5f;
     }
 
     [System.Serializable]
@@ -3622,7 +3629,7 @@ namespace DuneVector
         [Min(0f)] public float ParticleVelocityStretch = 0.06f;
         [Min(0f)] public float CameraVelocityStretch = 0.12f;
         [Min(0f)] public float AmbientAirborneSandSizeMultiplier = 2.5f;
-        [Min(0f)] public float AmbientAirborneSandOpacityMultiplier = 1.8f;
+        [Min(0f)] public float AmbientAirborneSandOpacityMultiplier = 0.75f;
         [ColorUsage(false)] public Color AmbientDustColor = new Color(0.9f, 0.61f, 0.3f, 0.26f);
         [ColorUsage(false)] public Color StormDustColor = new Color(0.88f, 0.47f, 0.16f, 0.58f);
 
@@ -3738,9 +3745,9 @@ namespace DuneVector
 
         [Header("Global Bloom Response")]
         [Tooltip("Maximum global bloom intensity allowed during the strongest musical peak. Never lowers the authored environment baseline.")]
-        [Min(0f)] public float BloomMaximumIntensity = 0.2f;
-        [Min(0f)] public float BloomEnergyBoost = 0.01f;
-        [Min(0f)] public float BloomBassPulseBoost = 0.02f;
+        [Min(0f)] public float BloomMaximumIntensity = 0.1f;
+        [Min(0f)] public float BloomEnergyBoost = 0.005f;
+        [Min(0f)] public float BloomBassPulseBoost = 0.01f;
         [Range(0f, 1f)] public float BloomThresholdReduction = 0f;
         [Min(0f)] public float BloomAttackSpeed = 12f;
         [Min(0f)] public float BloomReleaseSpeed = 3.8f;

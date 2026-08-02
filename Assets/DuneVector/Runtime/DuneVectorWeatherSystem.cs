@@ -1,7 +1,6 @@
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.Universal;
 
 namespace DuneVector
 {
@@ -182,7 +181,6 @@ namespace DuneVector
             DesertWorldStreamer world,
             DuneVectorUrpFogState fog,
             DuneVectorY2KSky sky,
-            ColorAdjustments exposure,
             DesertWeatherTuning settings)
         {
             settings.EnsureInitialized();
@@ -191,7 +189,7 @@ namespace DuneVector
             GameObject atmosphereObject = new GameObject("URP Weather Atmosphere");
             atmosphereObject.transform.SetParent(transform, false);
             _atmosphere = atmosphereObject.AddComponent<DuneVectorWeatherAtmosphere>();
-            _atmosphere.Initialize(fog, sky, exposure, settings.Atmosphere);
+            _atmosphere.Initialize(fog, sky, settings.Atmosphere);
 
             GameObject windObject = new GameObject("Global Desert Wind");
             windObject.transform.SetParent(transform, false);
@@ -233,18 +231,15 @@ namespace DuneVector
     {
         private DuneVectorUrpFogState _fog;
         private DuneVectorY2KSky _sky;
-        private ColorAdjustments _exposure;
         private DesertWeatherAtmosphereTuning _settings;
 
         public void Initialize(
             DuneVectorUrpFogState fog,
             DuneVectorY2KSky sky,
-            ColorAdjustments exposure,
             DesertWeatherAtmosphereTuning settings)
         {
             _fog = fog;
             _sky = sky;
-            _exposure = exposure;
             _settings = settings;
         }
 
@@ -258,6 +253,10 @@ namespace DuneVector
             float intensity = Mathf.SmoothStep(0f, 1f, snapshot.StormIntensity);
             if (_fog != null)
             {
+                _fog.color.value = Color.Lerp(
+                    _settings.ClearFogColor,
+                    _settings.StormFogColor,
+                    intensity);
                 _fog.meanFreePath.value = Mathf.Lerp(
                     Mathf.Max(10f, _settings.ClearVisibilityDistance),
                     Mathf.Max(10f, _settings.StormVisibilityDistance),
@@ -306,14 +305,6 @@ namespace DuneVector
                 _sky.StructureOpacity.value = Mathf.Lerp(
                     _settings.ClearDigitalStructureOpacity,
                     _settings.StormDigitalStructureOpacity,
-                    intensity);
-            }
-
-            if (_exposure != null)
-            {
-                _exposure.postExposure.value = Mathf.Lerp(
-                    _settings.ClearExposure,
-                    _settings.StormExposure,
                     intensity);
             }
 

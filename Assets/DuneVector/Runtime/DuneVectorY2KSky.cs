@@ -115,6 +115,7 @@ namespace DuneVector
 
     public sealed class DuneVectorUrpFogState
     {
+        public readonly ColorParameter color = new ColorParameter(Color.gray);
         public readonly FloatParameter meanFreePath = new FloatParameter(0f);
         public readonly FloatParameter maxFogDistance = new FloatParameter(0f);
         public readonly FloatParameter baseHeight = new FloatParameter(0f);
@@ -131,7 +132,14 @@ namespace DuneVector
         private Material _skyMaterial;
         private DuneVectorY2KSky _sky;
         private DuneVectorUrpFogState _fog;
+        private DesertWeatherAtmosphereTuning _atmosphere;
         private Material _previousSkybox;
+        private AmbientMode _previousAmbientMode;
+        private Color _previousAmbientSkyColor;
+        private Color _previousAmbientEquatorColor;
+        private Color _previousAmbientGroundColor;
+        private float _previousAmbientIntensity;
+        private float _previousReflectionIntensity;
         private bool _previousFogEnabled;
         private FogMode _previousFogMode;
         private float _previousFogStartDistance;
@@ -150,10 +158,14 @@ namespace DuneVector
             }
         }
 
-        public void Initialize(DuneVectorY2KSky sky, DuneVectorUrpFogState fog)
+        public void Initialize(
+            DuneVectorY2KSky sky,
+            DuneVectorUrpFogState fog,
+            DesertWeatherAtmosphereTuning atmosphere)
         {
             _sky = sky;
             _fog = fog;
+            _atmosphere = atmosphere;
             Shader shader = Shader.Find(ShaderName);
             if (shader == null)
             {
@@ -161,6 +173,12 @@ namespace DuneVector
             }
 
             _previousSkybox = RenderSettings.skybox;
+            _previousAmbientMode = RenderSettings.ambientMode;
+            _previousAmbientSkyColor = RenderSettings.ambientSkyColor;
+            _previousAmbientEquatorColor = RenderSettings.ambientEquatorColor;
+            _previousAmbientGroundColor = RenderSettings.ambientGroundColor;
+            _previousAmbientIntensity = RenderSettings.ambientIntensity;
+            _previousReflectionIntensity = RenderSettings.reflectionIntensity;
             _previousFogEnabled = RenderSettings.fog;
             _previousFogMode = RenderSettings.fogMode;
             _previousFogStartDistance = RenderSettings.fogStartDistance;
@@ -183,6 +201,12 @@ namespace DuneVector
             if (RenderSettings.skybox == _skyMaterial)
             {
                 RenderSettings.skybox = _previousSkybox;
+                RenderSettings.ambientMode = _previousAmbientMode;
+                RenderSettings.ambientSkyColor = _previousAmbientSkyColor;
+                RenderSettings.ambientEquatorColor = _previousAmbientEquatorColor;
+                RenderSettings.ambientGroundColor = _previousAmbientGroundColor;
+                RenderSettings.ambientIntensity = _previousAmbientIntensity;
+                RenderSettings.reflectionIntensity = _previousReflectionIntensity;
             }
             RenderSettings.fog = _previousFogEnabled;
             RenderSettings.fogMode = _previousFogMode;
@@ -243,13 +267,22 @@ namespace DuneVector
             }
 
             _skyMaterial.SetFloat("_SkyIntensity", _sky.Multiplier.value);
+            if (_atmosphere != null)
+            {
+                RenderSettings.ambientMode = AmbientMode.Trilight;
+                RenderSettings.ambientSkyColor = _atmosphere.UrpAmbientSkyColor;
+                RenderSettings.ambientEquatorColor = _atmosphere.UrpAmbientEquatorColor;
+                RenderSettings.ambientGroundColor = _atmosphere.UrpAmbientGroundColor;
+                RenderSettings.ambientIntensity = _atmosphere.UrpAmbientIntensity;
+                RenderSettings.reflectionIntensity = _atmosphere.UrpReflectionIntensity;
+            }
             RenderSettings.fog = _fog != null && _fog.maxFogDistance.value > 0f;
             if (RenderSettings.fog)
             {
                 RenderSettings.fogMode = FogMode.Linear;
                 RenderSettings.fogStartDistance = Mathf.Min(_fog.meanFreePath.value, _fog.maxFogDistance.value) * 0.15f;
                 RenderSettings.fogEndDistance = _fog.maxFogDistance.value;
-                RenderSettings.fogColor = _sky.Middle.value;
+                RenderSettings.fogColor = _fog.color.value;
             }
         }
     }
