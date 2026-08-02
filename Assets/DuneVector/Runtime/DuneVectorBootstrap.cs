@@ -654,9 +654,6 @@ namespace DuneVector
             _environmentExposure = _runtimeVolumeProfile.Add<ColorAdjustments>(true);
             _environmentExposure.postExposure.Override(atmosphere.ClearExposure);
 
-            Tonemapping tonemapping = _runtimeVolumeProfile.Add<Tonemapping>(true);
-            tonemapping.mode.Override(TonemappingMode.ACES);
-
             _environmentFog = new DuneVectorUrpFogState();
             _environmentFog.color.Override(atmosphere.ClearFogColor);
             _environmentFog.startDistance.Override(atmosphere.ClearFogStartDistance);

@@ -121,7 +121,6 @@ namespace DuneVector.Editor
             profile.name = "Dune Vector URP Volume Profile";
             profile.Add<Bloom>(true);
             profile.Add<ColorAdjustments>(true);
-            profile.Add<Tonemapping>(true);
             profile.Add<Vignette>(true);
             profile.Add<FilmGrain>(true);
             AssetDatabase.CreateAsset(profile, VolumePath);
