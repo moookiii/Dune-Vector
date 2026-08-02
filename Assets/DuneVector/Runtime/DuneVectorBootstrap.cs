@@ -659,14 +659,31 @@ namespace DuneVector
             _environmentFog.maxFogDistance.Override(atmosphere.ClearMaximumFogDistance);
             _environmentFog.enableVolumetricFog.Override(false);
 
-            _environmentBloom = _runtimeVolumeProfile.Add<Bloom>(true);
-            _environmentBloom.intensity.Override(atmosphere.BloomIntensity);
-            _environmentBloom.threshold.Override(atmosphere.BloomThreshold);
-            _environmentBloom.scatter.Override(atmosphere.BloomScatter);
+            _environmentBloom = FindGlobalBloom(volume);
 
             DuneVectorUrpEnvironmentDriver environmentDriver = volumeObject.AddComponent<DuneVectorUrpEnvironmentDriver>();
             environmentDriver.Initialize(_environmentSky, _environmentFog);
 
+        }
+
+        private static Bloom FindGlobalBloom(Volume runtimeEnvironmentVolume)
+        {
+            Volume[] volumes = FindObjectsByType<Volume>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (Volume volume in volumes)
+            {
+                if (volume == null || volume == runtimeEnvironmentVolume || !volume.isGlobal || volume.sharedProfile == null)
+                {
+                    continue;
+                }
+
+                if (volume.sharedProfile.TryGet(out Bloom bloom))
+                {
+                    return bloom;
+                }
+            }
+
+            Debug.LogWarning("Dune Vector global volume is missing Bloom; music-reactive bloom will be unavailable.");
+            return null;
         }
 
         private void BuildWeather()

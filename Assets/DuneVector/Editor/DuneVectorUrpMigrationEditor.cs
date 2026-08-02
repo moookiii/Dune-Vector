@@ -154,8 +154,14 @@ namespace DuneVector.Editor
                 colorAdjustments = profile.Add<ColorAdjustments>(true);
             }
 
+            if (!profile.TryGet(out Bloom bloom))
+            {
+                bloom = profile.Add<Bloom>(true);
+            }
+
             colorAdjustments.active = true;
             EditorUtility.SetDirty(colorAdjustments);
+            EditorUtility.SetDirty(bloom);
             EditorUtility.SetDirty(profile);
             return profile;
         }
