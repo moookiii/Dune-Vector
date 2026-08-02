@@ -665,9 +665,6 @@ namespace DuneVector
             DuneVectorUrpEnvironmentDriver environmentDriver = volumeObject.AddComponent<DuneVectorUrpEnvironmentDriver>();
             environmentDriver.Initialize(_environmentSky, _environmentFog);
 
-            DuneVectorY2KCloudLayer cloudLayer = volumeObject.AddComponent<DuneVectorY2KCloudLayer>();
-            cloudLayer.Initialize(_environmentSky);
-
         }
 
         private static Bloom FindGlobalBloom(Volume runtimeEnvironmentVolume)
