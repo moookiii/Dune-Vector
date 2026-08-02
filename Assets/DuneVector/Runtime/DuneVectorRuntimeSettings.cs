@@ -3527,7 +3527,8 @@ namespace DuneVector
     public sealed class DesertWeatherAtmosphereTuning
     {
         [Header("Desert Sun")]
-        [Min(0f)] public float SunIntensity = 3f;
+        [ColorUsage(false)] public Color SunColor = Color.white;
+        [Min(0f)] public float SunIntensity = 2f;
         [Range(0f, 1f)] public float SunShadowDimmer = 0.75f;
 
         [Header("Visibility")]
