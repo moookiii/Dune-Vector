@@ -3672,8 +3672,8 @@ namespace DuneVector
         [Min(0f)] public float FrontTravelSpeed = 0.11f;
         [Range(0.001f, 0.15f)] public float FrontThickness = 0.032f;
         [Range(0f, 2f)] public float FrontCurvature = 0.72f;
-        [Range(-0.2f, 0.8f)] public float FrontAltitude = 0.18f;
-        [Range(0.05f, 1f)] public float FrontVerticalSpan = 0.48f;
+        [Range(-0.2f, 0.8f)] public float FrontAltitude = 0f;
+        [Range(0.05f, 1f)] public float FrontVerticalSpan = 0.66f;
         [Range(0f, 2f)] public float BassFrontExpansion = 0.58f;
         [Range(0f, 2f)] public float FrontEnergyResponse = 0.28f;
         [Range(0f, 2f)] public float FrontBassResponse = 0.82f;

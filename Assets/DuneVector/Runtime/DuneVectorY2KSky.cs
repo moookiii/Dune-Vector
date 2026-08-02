@@ -52,8 +52,8 @@ namespace DuneVector
         public MinFloatParameter ReactiveFrontTravelSpeed = new MinFloatParameter(0.1f, 0f);
         public ClampedFloatParameter ReactiveFrontThickness = new ClampedFloatParameter(0.03f, 0.001f, 0.15f);
         public ClampedFloatParameter ReactiveFrontCurvature = new ClampedFloatParameter(0.7f, 0f, 2f);
-        public ClampedFloatParameter ReactiveFrontAltitude = new ClampedFloatParameter(0.18f, -0.2f, 0.8f);
-        public ClampedFloatParameter ReactiveFrontVerticalSpan = new ClampedFloatParameter(0.48f, 0.05f, 1f);
+        public ClampedFloatParameter ReactiveFrontAltitude = new ClampedFloatParameter(0f, -0.2f, 0.8f);
+        public ClampedFloatParameter ReactiveFrontVerticalSpan = new ClampedFloatParameter(0.66f, 0.05f, 1f);
         public ClampedFloatParameter ReactiveBassExpansion = new ClampedFloatParameter(0.58f, 0f, 2f);
         public ClampedFloatParameter ReactiveFrontEnergyResponse = new ClampedFloatParameter(0.28f, 0f, 2f);
         public ClampedFloatParameter ReactiveFrontBassResponse = new ClampedFloatParameter(0.82f, 0f, 2f);
