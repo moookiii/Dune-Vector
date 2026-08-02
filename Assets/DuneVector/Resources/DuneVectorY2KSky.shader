@@ -206,7 +206,6 @@ Shader "DuneVector/URP Y2K Sky"
     struct Varyings
     {
         float4 positionCS : SV_POSITION;
-        float3 directionWS : TEXCOORD0;
         UNITY_VERTEX_OUTPUT_STEREO
     };
 
@@ -216,7 +215,6 @@ Shader "DuneVector/URP Y2K Sky"
         UNITY_SETUP_INSTANCE_ID(input);
         UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
         output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
-        output.directionWS = TransformObjectToWorldDir(input.positionOS.xyz);
         return output;
     }
 
@@ -487,7 +485,18 @@ Shader "DuneVector/URP Y2K Sky"
     float4 Frag(Varyings input) : SV_Target
     {
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-        return float4(RenderY2KSky(normalize(input.directionWS)), 1.0);
+        float2 screenUV = GetNormalizedScreenSpaceUV(input.positionCS);
+        #if UNITY_REVERSED_Z
+            float farDepth = 0.0;
+        #else
+            float farDepth = 1.0;
+        #endif
+        float3 farPositionWS = ComputeWorldSpacePosition(
+            screenUV,
+            farDepth,
+            UNITY_MATRIX_I_VP);
+        float3 viewDirectionWS = normalize(farPositionWS - _WorldSpaceCameraPos);
+        return float4(RenderY2KSky(viewDirectionWS), 1.0);
     }
 
     ENDHLSL
