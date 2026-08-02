@@ -17,6 +17,7 @@ namespace DuneVector.Editor
         private const string RendererPath = AssetFolder + "/Dune Vector URP Renderer.asset";
         private const string PipelinePath = AssetFolder + "/Dune Vector URP Pipeline.asset";
         private const string VolumePath = AssetFolder + "/Dune Vector URP Volume Profile.asset";
+        private const string RuntimeSettingsPath = AssetFolder + "/Dune Vector Runtime Settings.asset";
         private const string MainScenePath = "Assets/DuneVector/Scenes/DuneVector.unity";
         private const string WebGlBuildPath = "Builds/WebGL";
 
@@ -47,6 +48,32 @@ namespace DuneVector.Editor
                 throw new InvalidOperationException("Exit Play Mode before opening the Dune Vector scene.");
             }
             EditorSceneManager.OpenScene(MainScenePath, OpenSceneMode.Single);
+        }
+
+        [MenuItem("Tools/Dune Vector/Apply Pre-Runtime Fog Settings")]
+        public static void ApplyPreRuntimeFogSettings()
+        {
+            if (EditorApplication.isPlaying)
+            {
+                throw new InvalidOperationException("Exit Play Mode before applying Dune Vector fog settings.");
+            }
+
+            DuneVectorRuntimeSettings runtimeSettings = LoadRuntimeSettings();
+            string originalScenePath = SceneManager.GetActiveScene().path;
+            try
+            {
+                Scene scene = EditorSceneManager.OpenScene(MainScenePath, OpenSceneMode.Single);
+                ApplyPreRuntimeFog(runtimeSettings.Weather.Atmosphere, runtimeSettings.Weather.Cycle);
+                EditorSceneManager.MarkSceneDirty(scene);
+                EditorSceneManager.SaveScene(scene);
+            }
+            finally
+            {
+                if (!string.IsNullOrEmpty(originalScenePath) && originalScenePath != MainScenePath)
+                {
+                    EditorSceneManager.OpenScene(originalScenePath, OpenSceneMode.Single);
+                }
+            }
         }
 
         [MenuItem("Tools/Dune Vector/Build WebGL")]
@@ -274,6 +301,7 @@ namespace DuneVector.Editor
         private static int MigrateScenes(VolumeProfile profile)
         {
             string originalScenePath = SceneManager.GetActiveScene().path;
+            DuneVectorRuntimeSettings runtimeSettings = LoadRuntimeSettings();
             int count = 0;
             try
             {
@@ -298,6 +326,11 @@ namespace DuneVector.Editor
                             }
                         }
                     }
+                    if (path == MainScenePath)
+                    {
+                        ApplyPreRuntimeFog(runtimeSettings.Weather.Atmosphere, runtimeSettings.Weather.Cycle);
+                        changed = true;
+                    }
                     if (changed)
                     {
                         EditorSceneManager.SaveScene(scene);
@@ -313,6 +346,33 @@ namespace DuneVector.Editor
                 }
             }
             return count;
+        }
+
+        private static DuneVectorRuntimeSettings LoadRuntimeSettings()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            if (runtimeSettings == null)
+            {
+                throw new InvalidOperationException($"Runtime settings were not found at {RuntimeSettingsPath}");
+            }
+            return runtimeSettings;
+        }
+
+        private static void ApplyPreRuntimeFog(
+            DesertWeatherAtmosphereTuning atmosphere,
+            DesertWeatherCycleTuning cycle)
+        {
+            bool startsWithStorm = cycle.StartWithFullSandstorm;
+            RenderSettings.fog = true;
+            RenderSettings.fogMode = FogMode.Linear;
+            RenderSettings.fogColor = startsWithStorm ? atmosphere.StormFogColor : atmosphere.ClearFogColor;
+            RenderSettings.fogStartDistance = startsWithStorm
+                ? atmosphere.StormFogStartDistance
+                : atmosphere.ClearFogStartDistance;
+            RenderSettings.fogEndDistance = startsWithStorm
+                ? atmosphere.StormMaximumFogDistance
+                : atmosphere.ClearMaximumFogDistance;
         }
 
         private static bool HasHdrpComponents(VolumeProfile profile)
