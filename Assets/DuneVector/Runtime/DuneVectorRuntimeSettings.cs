@@ -3527,12 +3527,10 @@ namespace DuneVector
     public sealed class DesertWeatherAtmosphereTuning
     {
         [Header("Desert Sun")]
-        [Min(0f)] public float SunIntensity = 2f;
+        [Min(0f)] public float SunIntensity = 3f;
         [Range(0f, 1f)] public float SunShadowDimmer = 0.75f;
 
         [Header("Visibility")]
-        [ColorUsage(false)] public Color ClearFogColor = new Color(0.23f, 0.3f, 0.36f);
-        [ColorUsage(false)] public Color StormFogColor = new Color(0.26f, 0.14f, 0.075f);
         [Min(10f)] public float ClearVisibilityDistance = 330f;
         [Min(10f)] public float StormVisibilityDistance = 72f;
         [Min(20f)] public float ClearMaximumFogDistance = 780f;
@@ -3541,13 +3539,6 @@ namespace DuneVector
         [Min(1f)] public float ClearFogHeight = 85f;
         [Min(1f)] public float StormFogHeight = 160f;
         [Range(0f, 1f)] public float VolumetricFogThreshold = 0.08f;
-
-        [Header("URP Ambient Lighting")]
-        [ColorUsage(false)] public Color UrpAmbientSkyColor = new Color(0.18f, 0.15f, 0.13f);
-        [ColorUsage(false)] public Color UrpAmbientEquatorColor = new Color(0.07f, 0.06f, 0.055f);
-        [ColorUsage(false)] public Color UrpAmbientGroundColor = new Color(0.025f, 0.022f, 0.02f);
-        [Range(0f, 2f)] public float UrpAmbientIntensity = 0.65f;
-        [Range(0f, 2f)] public float UrpReflectionIntensity = 0.6f;
 
         [Header("Y2K Sky Gradient & Exposure")]
         [ColorUsage(false, true)] public Color ClearSkyTop = new Color(0.018f, 0.24f, 1.65f);
@@ -3558,6 +3549,8 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color StormSkyBottom = new Color(1.15f, 0.54f, 0.15f);
         [Min(0f)] public float SkyGradientDiffusion = 1.48f;
         [Min(0f)] public float SkyMultiplier = 0.82f;
+        public float ClearExposure = 2f;
+        public float StormExposure = 1.35f;
 
         [Header("Y2K Horizon Glow")]
         [ColorUsage(false, true)] public Color ClearHorizonGlowColor = new Color(0.38f, 2.8f, 4.4f, 1f);
