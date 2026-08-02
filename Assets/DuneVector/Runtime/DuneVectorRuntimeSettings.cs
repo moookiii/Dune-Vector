@@ -3696,10 +3696,13 @@ namespace DuneVector
         [Header("Percussive Sky Filaments")]
         [ColorUsage(false, true)] public Color LightningColor = new Color(2.8f, 4.4f, 7f, 1f);
         [Min(0f)] public float LightningIntensity = 2.8f;
-        [Range(1f, 32f)] public float LightningSectorCount = 14f;
+        [Tooltip("Number of possible lightning strike slots distributed across the visible camera frustum.")]
+        [Range(1, 32)] public int LightningSectorCount = 14;
         [Range(0.0005f, 0.08f)] public float LightningWidth = 0.0024f;
         [Range(0f, 1f)] public float LightningJaggedness = 0.32f;
         [Min(0.1f)] public float LightningRetargetRate = 8f;
+        [Tooltip("Fraction of the horizontal camera frustum reserved at each edge so jagged bolts stay fully on screen.")]
+        [Range(0f, 0.8f)] public float LightningFrustumEdgePadding = 0.35f;
         [Range(0f, 1f)] public float LightningSustainResponse = 0.24f;
         [Range(0f, 1f)] public float LightningBranchIntensity = 0.75f;
 

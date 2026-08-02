@@ -609,6 +609,7 @@ namespace DuneVector
                 AudioManager,
                 _environmentSky,
                 _environmentBloom,
+                DroneCamera.Camera,
                 RuntimeSettings.MusicReactiveSky);
         }
 

@@ -73,6 +73,8 @@ Shader "Hidden/DuneVector/HDRP Y2K Sky"
     float _ReactiveLightningRetargetRate;
     float _ReactiveLightningSustainResponse;
     float _ReactiveLightningBranchIntensity;
+    float _ReactiveCameraAzimuth;
+    float _ReactiveLightningAzimuthSpan;
     float _ReactiveMusicEnergy;
     float _ReactiveMusicBass;
     float _ReactiveMusicMids;
@@ -270,9 +272,11 @@ Shader "Hidden/DuneVector/HDRP Y2K Sky"
 
         // Treble transients reveal a short-lived, retargeting celestial filament.
         float lightningTick = floor(reactiveTime * _ReactiveLightningRetargetRate);
-        float strikeAzimuth = Hash31(float3(lightningTick, 4.17, 9.31));
-        strikeAzimuth = floor(strikeAzimuth * _ReactiveLightningSectorCount + 0.5)
-            / max(_ReactiveLightningSectorCount, 1.0);
+        float strikeChoice = Hash31(float3(lightningTick, 4.17, 9.31));
+        float strikeSlotCount = max(1.0, round(_ReactiveLightningSectorCount));
+        float strikeSlot = (floor(strikeChoice * strikeSlotCount) + 0.5) / strikeSlotCount;
+        float strikeOffset = (strikeSlot * 2.0 - 1.0) * _ReactiveLightningAzimuthSpan;
+        float strikeAzimuth = frac(_ReactiveCameraAzimuth + strikeOffset + 1.0);
         float lightningVertical = smoothstep(0.02, 0.12, skyUp)
             * (1.0 - smoothstep(0.68, 0.9, skyUp));
         float lightningNoise = Noise3(float3(

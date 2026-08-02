@@ -79,6 +79,8 @@ namespace DuneVector
         public MinFloatParameter ReactiveLightningRetargetRate = new MinFloatParameter(8f, 0.1f);
         public ClampedFloatParameter ReactiveLightningSustainResponse = new ClampedFloatParameter(0.24f, 0f, 1f);
         public ClampedFloatParameter ReactiveLightningBranchIntensity = new ClampedFloatParameter(0.75f, 0f, 1f);
+        public ClampedFloatParameter ReactiveCameraAzimuth = new ClampedFloatParameter(0.5f, 0f, 1f);
+        public ClampedFloatParameter ReactiveLightningAzimuthSpan = new ClampedFloatParameter(0.1f, 0f, 0.5f);
 
         public ClampedFloatParameter ReactiveMusicEnergy = new ClampedFloatParameter(0f, 0f, 1f);
         public ClampedFloatParameter ReactiveMusicBass = new ClampedFloatParameter(0f, 0f, 1f);
@@ -238,6 +240,8 @@ namespace DuneVector
             SetFloat("_ReactiveLightningRetargetRate", sky.ReactiveLightningRetargetRate.value);
             SetFloat("_ReactiveLightningSustainResponse", sky.ReactiveLightningSustainResponse.value);
             SetFloat("_ReactiveLightningBranchIntensity", sky.ReactiveLightningBranchIntensity.value);
+            SetFloat("_ReactiveCameraAzimuth", sky.ReactiveCameraAzimuth.value);
+            SetFloat("_ReactiveLightningAzimuthSpan", sky.ReactiveLightningAzimuthSpan.value);
             SetFloat("_ReactiveMusicEnergy", sky.ReactiveMusicEnergy.value);
             SetFloat("_ReactiveMusicBass", sky.ReactiveMusicBass.value);
             SetFloat("_ReactiveMusicMids", sky.ReactiveMusicMids.value);

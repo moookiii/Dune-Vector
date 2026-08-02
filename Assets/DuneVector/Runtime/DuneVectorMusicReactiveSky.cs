@@ -12,6 +12,7 @@ namespace DuneVector
         private DuneVectorAudioManager _audio;
         private DuneVectorY2KSky _sky;
         private Bloom _bloom;
+        private Camera _camera;
         private MusicReactiveSkyTuning _settings;
 
         private FMOD.DSP _spectrumDsp;
@@ -35,11 +36,13 @@ namespace DuneVector
             DuneVectorAudioManager audio,
             DuneVectorY2KSky sky,
             Bloom bloom,
+            Camera camera,
             MusicReactiveSkyTuning settings)
         {
             _audio = audio;
             _sky = sky;
             _bloom = bloom;
+            _camera = camera;
             _settings = settings;
 
             if (_settings == null || !_settings.Enabled || _audio == null || _sky == null || _bloom == null)
@@ -103,6 +106,8 @@ namespace DuneVector
                 TryAttachSpectrumDsp();
             }
 
+            ApplyCameraFrustum();
+
             _analysisTimer -= deltaTime;
             if (_analysisTimer <= 0f)
             {
@@ -113,6 +118,39 @@ namespace DuneVector
 
             SmoothMusicResponse(deltaTime);
             ApplyMusicResponse(deltaTime);
+        }
+
+        private void ApplyCameraFrustum()
+        {
+            if (_camera == null)
+            {
+                _camera = Camera.main;
+            }
+            if (_camera == null)
+            {
+                return;
+            }
+
+            Vector3 horizontalForward = _camera.transform.forward;
+            horizontalForward.y = 0f;
+            if (horizontalForward.sqrMagnitude <= Mathf.Epsilon)
+            {
+                return;
+            }
+
+            horizontalForward.Normalize();
+            float cameraAzimuth = Mathf.Atan2(horizontalForward.x, horizontalForward.z);
+            float verticalHalfFov = _camera.fieldOfView * Mathf.Deg2Rad * 0.5f;
+            float horizontalHalfFov = Mathf.Atan(
+                Mathf.Tan(verticalHalfFov) * Mathf.Max(0.01f, _camera.aspect));
+            float usableFrustum = 1f - Mathf.Clamp01(_settings.LightningFrustumEdgePadding);
+
+            _sky.ReactiveCameraAzimuth.value = Mathf.Repeat(
+                cameraAzimuth / (Mathf.PI * 2f) + 0.5f,
+                1f);
+            _sky.ReactiveLightningAzimuthSpan.value = horizontalHalfFov
+                / (Mathf.PI * 2f)
+                * usableFrustum;
         }
 
         private void TryAttachSpectrumDsp()
