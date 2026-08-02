@@ -42,6 +42,43 @@ Shader "Hidden/DuneVector/HDRP Y2K Sky"
     float _GridScale;
     float _GridHeight;
     float _GridLineThickness;
+    float4 _ReactiveFrontColor;
+    float _ReactiveFrontIntensity;
+    float _ReactiveFrontCount;
+    float _ReactiveFrontTravelSpeed;
+    float _ReactiveFrontThickness;
+    float _ReactiveFrontCurvature;
+    float _ReactiveFrontAltitude;
+    float _ReactiveFrontVerticalSpan;
+    float _ReactiveBassExpansion;
+    float _ReactiveFrontEnergyResponse;
+    float _ReactiveFrontBassResponse;
+    float _ReactiveFrontPulseResponse;
+    float _ReactiveFrontPressureWidth;
+    float _ReactiveFrontPressureOpacity;
+    float4 _ReactiveAuroraColor;
+    float _ReactiveAuroraIntensity;
+    float _ReactiveAuroraAltitude;
+    float _ReactiveAuroraThickness;
+    float _ReactiveAuroraWaviness;
+    float _ReactiveAuroraTravelSpeed;
+    float _ReactiveAuroraFrequency;
+    float _ReactiveAuroraSecondaryIntensity;
+    float _ReactiveAuroraShimmerAmount;
+    float4 _ReactiveLightningColor;
+    float _ReactiveLightningIntensity;
+    float _ReactiveLightningSectorCount;
+    float _ReactiveLightningWidth;
+    float _ReactiveLightningJaggedness;
+    float _ReactiveLightningRetargetRate;
+    float _ReactiveLightningSustainResponse;
+    float _ReactiveLightningBranchIntensity;
+    float _ReactiveMusicEnergy;
+    float _ReactiveMusicBass;
+    float _ReactiveMusicMids;
+    float _ReactiveMusicHighs;
+    float _ReactiveBassPulse;
+    float _ReactiveHighPulse;
     float _RenderForCubemap;
     float _SkyIntensity;
 
@@ -171,6 +208,92 @@ Shader "Hidden/DuneVector/HDRP Y2K Sky"
 
         float structureMask = saturate(max(arc, rings * 0.72) + grid);
         color += _StructureColor.rgb * (structureMask * _StructureOpacity * screenOnly);
+
+        // The resonance front reads as a moving weather system instead of a conventional equalizer.
+        float reactiveTime = _TimeParameters.x;
+        float frontHeight = skyUp - _ReactiveFrontAltitude;
+        float frontWindow = smoothstep(-0.04, 0.04, frontHeight)
+            * (1.0 - smoothstep(
+                _ReactiveFrontVerticalSpan * 0.72,
+                _ReactiveFrontVerticalSpan,
+                frontHeight));
+        float frontWarp = (Noise3(skyDirection * 5.0 + reactiveTime * 0.035) - 0.5) * 0.42;
+        float frontCoordinate = normalizedAzimuth * _ReactiveFrontCount
+            + frontHeight * _ReactiveFrontCurvature
+            + frontWarp
+            - reactiveTime * _ReactiveFrontTravelSpeed;
+        float frontDistance = abs(frac(frontCoordinate) - 0.5);
+        float expandedThickness = _ReactiveFrontThickness
+            * (1.0 + _ReactiveMusicBass * _ReactiveBassExpansion);
+        float frontCore = SoftLine(frontDistance, expandedThickness);
+        float frontPressure = 1.0 - smoothstep(
+            expandedThickness,
+            expandedThickness * _ReactiveFrontPressureWidth,
+            frontDistance);
+        float frontResponse = saturate(
+            _ReactiveMusicEnergy * _ReactiveFrontEnergyResponse
+            + _ReactiveMusicBass * _ReactiveFrontBassResponse
+            + _ReactiveBassPulse * _ReactiveFrontPulseResponse);
+        float frontMask = (frontCore + frontPressure * _ReactiveFrontPressureOpacity)
+            * frontWindow
+            * frontResponse
+            * screenOnly;
+        color += _ReactiveFrontColor.rgb * (frontMask * _ReactiveFrontIntensity);
+
+        // Midrange energy grows two interwoven melodic currents high over the pressure front.
+        float auroraPhase = azimuth * _ReactiveAuroraFrequency
+            + reactiveTime * _ReactiveAuroraTravelSpeed;
+        float auroraNoise = Noise3(float3(
+            normalizedAzimuth * 7.0,
+            skyUp * 4.0,
+            reactiveTime * 0.045));
+        float auroraWave = sin(auroraPhase + auroraNoise * 2.2) * _ReactiveAuroraWaviness;
+        float auroraTarget = _ReactiveAuroraAltitude + auroraWave;
+        float auroraPrimary = SoftLine(abs(skyUp - auroraTarget), _ReactiveAuroraThickness);
+        float auroraSecondaryTarget = _ReactiveAuroraAltitude
+            + sin(auroraPhase * -0.73 + 1.8) * (_ReactiveAuroraWaviness * 0.62)
+            + _ReactiveAuroraThickness * 2.4;
+        float auroraSecondary = SoftLine(
+            abs(skyUp - auroraSecondaryTarget),
+            _ReactiveAuroraThickness * 0.62);
+        float auroraShimmer = (1.0 - _ReactiveAuroraShimmerAmount)
+            + _ReactiveAuroraShimmerAmount * sin(
+            normalizedAzimuth * 37.0
+            - reactiveTime * (_ReactiveAuroraTravelSpeed * 5.0));
+        float auroraMask = (auroraPrimary + auroraSecondary * _ReactiveAuroraSecondaryIntensity)
+            * saturate(auroraShimmer)
+            * _ReactiveMusicMids
+            * screenOnly;
+        color += _ReactiveAuroraColor.rgb * (auroraMask * _ReactiveAuroraIntensity);
+
+        // Treble transients reveal a short-lived, retargeting celestial filament.
+        float lightningTick = floor(reactiveTime * _ReactiveLightningRetargetRate);
+        float strikeAzimuth = Hash31(float3(lightningTick, 4.17, 9.31));
+        strikeAzimuth = floor(strikeAzimuth * _ReactiveLightningSectorCount + 0.5)
+            / max(_ReactiveLightningSectorCount, 1.0);
+        float lightningVertical = smoothstep(0.02, 0.12, skyUp)
+            * (1.0 - smoothstep(0.68, 0.9, skyUp));
+        float lightningNoise = Noise3(float3(
+            skyUp * 27.0,
+            lightningTick * 0.173,
+            floor(skyUp * 18.0)));
+        float lightningOffset = (lightningNoise - 0.5)
+            * _ReactiveLightningJaggedness
+            * 0.18;
+        float wrappedStrikeDistance = abs(frac(
+            normalizedAzimuth - strikeAzimuth - lightningOffset + 0.5) - 0.5);
+        float lightning = SoftLine(wrappedStrikeDistance, _ReactiveLightningWidth);
+        float branchGate = smoothstep(0.18, 0.42, skyUp)
+            * (1.0 - smoothstep(0.54, 0.7, skyUp));
+        float branchOffset = (skyUp - 0.38) * _ReactiveLightningJaggedness * 0.28;
+        float branchDistance = abs(frac(
+            normalizedAzimuth - strikeAzimuth - lightningOffset - branchOffset + 0.5) - 0.5);
+        float branch = SoftLine(branchDistance, _ReactiveLightningWidth * 0.62) * branchGate;
+        float lightningMask = (lightning + branch * _ReactiveLightningBranchIntensity)
+            * lightningVertical
+            * saturate(_ReactiveHighPulse + _ReactiveMusicHighs * _ReactiveLightningSustainResponse)
+            * screenOnly;
+        color += _ReactiveLightningColor.rgb * (lightningMask * _ReactiveLightningIntensity);
         return color * _SkyIntensity;
     }
 

@@ -126,6 +126,7 @@ namespace DuneVector.Editor
         private SerializedProperty _windFields;
         private SerializedProperty _clouds;
         private SerializedProperty _weather;
+        private SerializedProperty _musicReactiveSky;
         private SerializedProperty _environmentalHazards;
         private SerializedProperty _deliveries;
         private SerializedProperty _contracts;
@@ -168,6 +169,7 @@ namespace DuneVector.Editor
             _windFields = serializedObject.FindProperty("WindFields");
             _clouds = serializedObject.FindProperty("Clouds");
             _weather = serializedObject.FindProperty("Weather");
+            _musicReactiveSky = serializedObject.FindProperty("MusicReactiveSky");
             _environmentalHazards = serializedObject.FindProperty("EnvironmentalHazards");
             _deliveries = serializedObject.FindProperty("Deliveries");
             _contracts = serializedObject.FindProperty("Contracts");
@@ -525,6 +527,10 @@ namespace DuneVector.Editor
                 "Dynamic Desert Weather",
                 "Storm frequency and progression, global wind, HDRP visibility, and recycled dust layers.",
                 _weather);
+            DuneVectorSettingsInspector.DrawSection(
+                "Music Reactive Sky",
+                "FMOD spectrum bands, rolling pressure fronts, melodic currents, percussive filaments, and global bloom response.",
+                _musicReactiveSky);
             DuneVectorSettingsInspector.DrawSection(
                 "Environmental Hazards",
                 "Electrical sandstorm strikes, interference, deterministic heat zones, drone temperature, cooling, and gameplay consequences.",

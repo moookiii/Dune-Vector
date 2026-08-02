@@ -26,6 +26,14 @@ namespace DuneVector
         public float MusicVolume { get; private set; }
         public float SoundEffectsVolume { get; private set; }
 
+        public bool TryGetMusicChannelGroup(out FMOD.ChannelGroup channelGroup)
+        {
+            channelGroup = default;
+            return _musicInstance.isValid()
+                && _musicInstance.getChannelGroup(out channelGroup) == FMOD.RESULT.OK
+                && channelGroup.hasHandle();
+        }
+
         private AudioTuning _settings;
         private EventInstance _musicInstance;
         private EventInstance _flightBoostInstance;

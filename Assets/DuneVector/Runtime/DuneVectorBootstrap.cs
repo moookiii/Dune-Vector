@@ -96,6 +96,7 @@ namespace DuneVector
         public DuneVectorDustDevilSystem DustDevilSystem { get; private set; }
         public DuneVectorGameOverController GameOverController { get; private set; }
         public DuneVectorAudioManager AudioManager { get; private set; }
+        public DuneVectorMusicReactiveSky MusicReactiveSky { get; private set; }
         public DuneVectorPauseMenu PauseMenu { get; private set; }
         public DuneVectorPhotographySystem Photography { get; private set; }
         public DroneGoldWallet GoldWallet { get; private set; }
@@ -106,6 +107,7 @@ namespace DuneVector
         private Fog _environmentFog;
         private DuneVectorY2KSky _environmentSky;
         private Exposure _environmentExposure;
+        private Bloom _environmentBloom;
         private bool _ownsRuntimeSettings;
 
         public void ApplyDunePreset(DuneGenerationPreset preset)
@@ -359,6 +361,7 @@ namespace DuneVector
             BuildDroneAndCamera();
             BuildWindFields();
             BuildAudio();
+            BuildMusicReactiveSky();
             BuildWeather();
             BuildInterface();
             BuildEnemyGameplay();
@@ -592,6 +595,23 @@ namespace DuneVector
             AudioManager.Initialize(AudioSettings, DroneHealth, Drone);
         }
 
+        private void BuildMusicReactiveSky()
+        {
+            if (!RuntimeSettings.MusicReactiveSky.Enabled)
+            {
+                return;
+            }
+
+            GameObject reactiveSkyObject = new GameObject("Music Reactive Resonance Front");
+            reactiveSkyObject.transform.SetParent(transform, false);
+            MusicReactiveSky = reactiveSkyObject.AddComponent<DuneVectorMusicReactiveSky>();
+            MusicReactiveSky.Initialize(
+                AudioManager,
+                _environmentSky,
+                _environmentBloom,
+                RuntimeSettings.MusicReactiveSky);
+        }
+
         private void BuildEnvironment()
         {
             GameObject sunObject = new GameObject("Desert Sun");
@@ -676,10 +696,10 @@ namespace DuneVector
             _environmentFog.maxFogDistance.Override(atmosphere.ClearMaximumFogDistance);
             _environmentFog.enableVolumetricFog.Override(false);
 
-            Bloom bloom = _runtimeVolumeProfile.Add<Bloom>(true);
-            bloom.intensity.Override(atmosphere.BloomIntensity);
-            bloom.threshold.Override(atmosphere.BloomThreshold);
-            bloom.scatter.Override(atmosphere.BloomScatter);
+            _environmentBloom = _runtimeVolumeProfile.Add<Bloom>(true);
+            _environmentBloom.intensity.Override(atmosphere.BloomIntensity);
+            _environmentBloom.threshold.Override(atmosphere.BloomThreshold);
+            _environmentBloom.scatter.Override(atmosphere.BloomScatter);
 
         }
 

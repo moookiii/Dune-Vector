@@ -3640,6 +3640,76 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class MusicReactiveSkyTuning
+    {
+        public bool Enabled = true;
+
+        [Header("Music Analysis")]
+        [Tooltip("FFT sample count used to separate bass, midrange, and high-frequency energy.")]
+        [Range(128, 2048)] public int FftWindowSize = 512;
+        [Tooltip("Maximum number of FFT reads per second. Visual interpolation still runs every frame.")]
+        [Range(10f, 120f)] public float AnalysisRate = 45f;
+        [Min(20f)] public float MinimumFrequency = 35f;
+        [Min(40f)] public float BassMaximumFrequency = 220f;
+        [Min(200f)] public float MidMaximumFrequency = 3200f;
+        [Min(1000f)] public float HighMaximumFrequency = 14000f;
+        [Min(0f)] public float SpectrumGain = 34f;
+        [Range(0f, 1f)] public float SpectrumNoiseFloor = 0.015f;
+        [Min(0f)] public float BassGain = 1.35f;
+        [Min(0f)] public float MidGain = 1.7f;
+        [Min(0f)] public float HighGain = 2.4f;
+        [Min(0f)] public float AttackSpeed = 18f;
+        [Min(0f)] public float ReleaseSpeed = 4.2f;
+        [Min(0f)] public float BassTransientSensitivity = 5.5f;
+        [Min(0f)] public float HighTransientSensitivity = 8f;
+        [Min(0f)] public float PulseDecaySpeed = 3.8f;
+
+        [Header("Resonance Front")]
+        [ColorUsage(false, true)] public Color FrontColor = new Color(0.2f, 2.8f, 5.5f, 1f);
+        [Min(0f)] public float FrontIntensity = 1.25f;
+        [Range(1f, 12f)] public float FrontCount = 4.5f;
+        [Min(0f)] public float FrontTravelSpeed = 0.11f;
+        [Range(0.001f, 0.15f)] public float FrontThickness = 0.032f;
+        [Range(0f, 2f)] public float FrontCurvature = 0.72f;
+        [Range(-0.2f, 0.8f)] public float FrontAltitude = 0.18f;
+        [Range(0.05f, 1f)] public float FrontVerticalSpan = 0.48f;
+        [Range(0f, 2f)] public float BassFrontExpansion = 0.58f;
+        [Range(0f, 2f)] public float FrontEnergyResponse = 0.28f;
+        [Range(0f, 2f)] public float FrontBassResponse = 0.82f;
+        [Range(0f, 2f)] public float FrontPulseResponse = 1f;
+        [Range(1f, 8f)] public float FrontPressureWidth = 4.5f;
+        [Range(0f, 1f)] public float FrontPressureOpacity = 0.32f;
+
+        [Header("Melodic Sky Currents")]
+        [ColorUsage(false, true)] public Color AuroraColor = new Color(0.85f, 0.18f, 4.8f, 1f);
+        [Min(0f)] public float AuroraIntensity = 0.85f;
+        [Range(-0.1f, 0.9f)] public float AuroraAltitude = 0.42f;
+        [Range(0.001f, 0.2f)] public float AuroraThickness = 0.055f;
+        [Range(0f, 1f)] public float AuroraWaviness = 0.24f;
+        [Min(0f)] public float AuroraTravelSpeed = 0.075f;
+        [Range(1f, 12f)] public float AuroraFrequency = 3.5f;
+        [Range(0f, 1f)] public float AuroraSecondaryIntensity = 0.58f;
+        [Range(0f, 1f)] public float AuroraShimmerAmount = 0.38f;
+
+        [Header("Percussive Sky Filaments")]
+        [ColorUsage(false, true)] public Color LightningColor = new Color(2.8f, 4.4f, 7f, 1f);
+        [Min(0f)] public float LightningIntensity = 2.8f;
+        [Range(1f, 32f)] public float LightningSectorCount = 14f;
+        [Range(0.0005f, 0.08f)] public float LightningWidth = 0.012f;
+        [Range(0f, 1f)] public float LightningJaggedness = 0.32f;
+        [Min(0.1f)] public float LightningRetargetRate = 8f;
+        [Range(0f, 1f)] public float LightningSustainResponse = 0.24f;
+        [Range(0f, 1f)] public float LightningBranchIntensity = 0.75f;
+
+        [Header("Global Bloom Response")]
+        [Min(0f)] public float BloomEnergyBoost = 0.42f;
+        [Min(0f)] public float BloomBassPulseBoost = 0.7f;
+        [Range(0f, 1f)] public float BloomThresholdReduction = 0.2f;
+        [Min(0f)] public float BloomAttackSpeed = 10f;
+        [Min(0f)] public float BloomReleaseSpeed = 2.8f;
+    }
+
+    [System.Serializable]
     public sealed class DesertWeatherTuning
     {
         public bool Enabled = true;
@@ -4949,6 +5019,9 @@ namespace DuneVector
         [Tooltip("FMOD background music, July mixer bus routing, and pause-menu volume defaults.")]
         public AudioTuning Audio = new AudioTuning();
 
+        [Tooltip("FFT-driven pressure fronts, melodic currents, percussive filaments, and global bloom response.")]
+        public MusicReactiveSkyTuning MusicReactiveSky = new MusicReactiveSkyTuning();
+
         [Tooltip("Pickup, package, and drop-off job generation.")]
         public DeliveryTuning Deliveries = new DeliveryTuning();
 
@@ -5069,6 +5142,7 @@ namespace DuneVector
             EnvironmentalHazards.EnsureInitialized();
             Audio ??= new AudioTuning();
             Audio.EnsureInitialized();
+            MusicReactiveSky ??= new MusicReactiveSkyTuning();
             Deliveries ??= new DeliveryTuning();
             Deliveries.EnsureInitialized();
             Contracts ??= new CourierContractTuning();

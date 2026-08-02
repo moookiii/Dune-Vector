@@ -46,6 +46,47 @@ namespace DuneVector
         public ClampedFloatParameter GridHeight = new ClampedFloatParameter(0.11f, 0.02f, 0.35f);
         public ClampedFloatParameter GridLineThickness = new ClampedFloatParameter(0.018f, 0.001f, 0.08f);
 
+        public ColorParameter ReactiveFrontColor = new ColorParameter(Color.cyan, true, false, true);
+        public MinFloatParameter ReactiveFrontIntensity = new MinFloatParameter(1f, 0f);
+        public ClampedFloatParameter ReactiveFrontCount = new ClampedFloatParameter(4f, 1f, 12f);
+        public MinFloatParameter ReactiveFrontTravelSpeed = new MinFloatParameter(0.1f, 0f);
+        public ClampedFloatParameter ReactiveFrontThickness = new ClampedFloatParameter(0.03f, 0.001f, 0.15f);
+        public ClampedFloatParameter ReactiveFrontCurvature = new ClampedFloatParameter(0.7f, 0f, 2f);
+        public ClampedFloatParameter ReactiveFrontAltitude = new ClampedFloatParameter(0.18f, -0.2f, 0.8f);
+        public ClampedFloatParameter ReactiveFrontVerticalSpan = new ClampedFloatParameter(0.48f, 0.05f, 1f);
+        public ClampedFloatParameter ReactiveBassExpansion = new ClampedFloatParameter(0.58f, 0f, 2f);
+        public ClampedFloatParameter ReactiveFrontEnergyResponse = new ClampedFloatParameter(0.28f, 0f, 2f);
+        public ClampedFloatParameter ReactiveFrontBassResponse = new ClampedFloatParameter(0.82f, 0f, 2f);
+        public ClampedFloatParameter ReactiveFrontPulseResponse = new ClampedFloatParameter(1f, 0f, 2f);
+        public ClampedFloatParameter ReactiveFrontPressureWidth = new ClampedFloatParameter(4.5f, 1f, 8f);
+        public ClampedFloatParameter ReactiveFrontPressureOpacity = new ClampedFloatParameter(0.32f, 0f, 1f);
+
+        public ColorParameter ReactiveAuroraColor = new ColorParameter(Color.magenta, true, false, true);
+        public MinFloatParameter ReactiveAuroraIntensity = new MinFloatParameter(0.8f, 0f);
+        public ClampedFloatParameter ReactiveAuroraAltitude = new ClampedFloatParameter(0.42f, -0.1f, 0.9f);
+        public ClampedFloatParameter ReactiveAuroraThickness = new ClampedFloatParameter(0.055f, 0.001f, 0.2f);
+        public ClampedFloatParameter ReactiveAuroraWaviness = new ClampedFloatParameter(0.24f, 0f, 1f);
+        public MinFloatParameter ReactiveAuroraTravelSpeed = new MinFloatParameter(0.075f, 0f);
+        public ClampedFloatParameter ReactiveAuroraFrequency = new ClampedFloatParameter(3.5f, 1f, 12f);
+        public ClampedFloatParameter ReactiveAuroraSecondaryIntensity = new ClampedFloatParameter(0.58f, 0f, 1f);
+        public ClampedFloatParameter ReactiveAuroraShimmerAmount = new ClampedFloatParameter(0.38f, 0f, 1f);
+
+        public ColorParameter ReactiveLightningColor = new ColorParameter(Color.white, true, false, true);
+        public MinFloatParameter ReactiveLightningIntensity = new MinFloatParameter(2.8f, 0f);
+        public ClampedFloatParameter ReactiveLightningSectorCount = new ClampedFloatParameter(14f, 1f, 32f);
+        public ClampedFloatParameter ReactiveLightningWidth = new ClampedFloatParameter(0.012f, 0.0005f, 0.08f);
+        public ClampedFloatParameter ReactiveLightningJaggedness = new ClampedFloatParameter(0.32f, 0f, 1f);
+        public MinFloatParameter ReactiveLightningRetargetRate = new MinFloatParameter(8f, 0.1f);
+        public ClampedFloatParameter ReactiveLightningSustainResponse = new ClampedFloatParameter(0.24f, 0f, 1f);
+        public ClampedFloatParameter ReactiveLightningBranchIntensity = new ClampedFloatParameter(0.75f, 0f, 1f);
+
+        public ClampedFloatParameter ReactiveMusicEnergy = new ClampedFloatParameter(0f, 0f, 1f);
+        public ClampedFloatParameter ReactiveMusicBass = new ClampedFloatParameter(0f, 0f, 1f);
+        public ClampedFloatParameter ReactiveMusicMids = new ClampedFloatParameter(0f, 0f, 1f);
+        public ClampedFloatParameter ReactiveMusicHighs = new ClampedFloatParameter(0f, 0f, 1f);
+        public ClampedFloatParameter ReactiveBassPulse = new ClampedFloatParameter(0f, 0f, 1f);
+        public ClampedFloatParameter ReactiveHighPulse = new ClampedFloatParameter(0f, 0f, 1f);
+
         public override Type GetSkyRendererType()
         {
             return typeof(DuneVectorY2KSkyRenderer);
@@ -166,6 +207,43 @@ namespace DuneVector
             SetFloat("_GridScale", sky.GridScale.value);
             SetFloat("_GridHeight", sky.GridHeight.value);
             SetFloat("_GridLineThickness", sky.GridLineThickness.value);
+            SetColor("_ReactiveFrontColor", sky.ReactiveFrontColor.value);
+            SetFloat("_ReactiveFrontIntensity", sky.ReactiveFrontIntensity.value);
+            SetFloat("_ReactiveFrontCount", sky.ReactiveFrontCount.value);
+            SetFloat("_ReactiveFrontTravelSpeed", sky.ReactiveFrontTravelSpeed.value);
+            SetFloat("_ReactiveFrontThickness", sky.ReactiveFrontThickness.value);
+            SetFloat("_ReactiveFrontCurvature", sky.ReactiveFrontCurvature.value);
+            SetFloat("_ReactiveFrontAltitude", sky.ReactiveFrontAltitude.value);
+            SetFloat("_ReactiveFrontVerticalSpan", sky.ReactiveFrontVerticalSpan.value);
+            SetFloat("_ReactiveBassExpansion", sky.ReactiveBassExpansion.value);
+            SetFloat("_ReactiveFrontEnergyResponse", sky.ReactiveFrontEnergyResponse.value);
+            SetFloat("_ReactiveFrontBassResponse", sky.ReactiveFrontBassResponse.value);
+            SetFloat("_ReactiveFrontPulseResponse", sky.ReactiveFrontPulseResponse.value);
+            SetFloat("_ReactiveFrontPressureWidth", sky.ReactiveFrontPressureWidth.value);
+            SetFloat("_ReactiveFrontPressureOpacity", sky.ReactiveFrontPressureOpacity.value);
+            SetColor("_ReactiveAuroraColor", sky.ReactiveAuroraColor.value);
+            SetFloat("_ReactiveAuroraIntensity", sky.ReactiveAuroraIntensity.value);
+            SetFloat("_ReactiveAuroraAltitude", sky.ReactiveAuroraAltitude.value);
+            SetFloat("_ReactiveAuroraThickness", sky.ReactiveAuroraThickness.value);
+            SetFloat("_ReactiveAuroraWaviness", sky.ReactiveAuroraWaviness.value);
+            SetFloat("_ReactiveAuroraTravelSpeed", sky.ReactiveAuroraTravelSpeed.value);
+            SetFloat("_ReactiveAuroraFrequency", sky.ReactiveAuroraFrequency.value);
+            SetFloat("_ReactiveAuroraSecondaryIntensity", sky.ReactiveAuroraSecondaryIntensity.value);
+            SetFloat("_ReactiveAuroraShimmerAmount", sky.ReactiveAuroraShimmerAmount.value);
+            SetColor("_ReactiveLightningColor", sky.ReactiveLightningColor.value);
+            SetFloat("_ReactiveLightningIntensity", sky.ReactiveLightningIntensity.value);
+            SetFloat("_ReactiveLightningSectorCount", sky.ReactiveLightningSectorCount.value);
+            SetFloat("_ReactiveLightningWidth", sky.ReactiveLightningWidth.value);
+            SetFloat("_ReactiveLightningJaggedness", sky.ReactiveLightningJaggedness.value);
+            SetFloat("_ReactiveLightningRetargetRate", sky.ReactiveLightningRetargetRate.value);
+            SetFloat("_ReactiveLightningSustainResponse", sky.ReactiveLightningSustainResponse.value);
+            SetFloat("_ReactiveLightningBranchIntensity", sky.ReactiveLightningBranchIntensity.value);
+            SetFloat("_ReactiveMusicEnergy", sky.ReactiveMusicEnergy.value);
+            SetFloat("_ReactiveMusicBass", sky.ReactiveMusicBass.value);
+            SetFloat("_ReactiveMusicMids", sky.ReactiveMusicMids.value);
+            SetFloat("_ReactiveMusicHighs", sky.ReactiveMusicHighs.value);
+            SetFloat("_ReactiveBassPulse", sky.ReactiveBassPulse.value);
+            SetFloat("_ReactiveHighPulse", sky.ReactiveHighPulse.value);
             SetFloat("_RenderForCubemap", renderForCubemap ? 1f : 0f);
             SetFloat(SkyIntensityId, GetSkyIntensity(sky, builtinParams.debugSettings));
 
