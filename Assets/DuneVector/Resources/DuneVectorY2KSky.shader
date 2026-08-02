@@ -218,7 +218,8 @@ Shader "Hidden/DuneVector/HDRP Y2K Sky"
                 _ReactiveFrontVerticalSpan,
                 frontHeight));
         float frontWarp = (Noise3(skyDirection * 5.0 + reactiveTime * 0.035) - 0.5) * 0.42;
-        float frontCoordinate = normalizedAzimuth * _ReactiveFrontCount
+        float seamlessFrontCount = max(1.0, round(_ReactiveFrontCount));
+        float frontCoordinate = normalizedAzimuth * seamlessFrontCount
             + frontHeight * _ReactiveFrontCurvature
             + frontWarp
             - reactiveTime * _ReactiveFrontTravelSpeed;
@@ -241,17 +242,18 @@ Shader "Hidden/DuneVector/HDRP Y2K Sky"
         color += _ReactiveFrontColor.rgb * (frontMask * _ReactiveFrontIntensity);
 
         // Midrange energy grows two interwoven melodic currents high over the pressure front.
-        float auroraPhase = azimuth * _ReactiveAuroraFrequency
+        float seamlessAuroraFrequency = max(1.0, round(_ReactiveAuroraFrequency));
+        float auroraPhase = azimuth * seamlessAuroraFrequency
             + reactiveTime * _ReactiveAuroraTravelSpeed;
         float auroraNoise = Noise3(float3(
-            normalizedAzimuth * 7.0,
-            skyUp * 4.0,
-            reactiveTime * 0.045));
+            skyDirection.x * 3.5,
+            skyUp * 4.0 + reactiveTime * 0.045,
+            skyDirection.z * 3.5));
         float auroraWave = sin(auroraPhase + auroraNoise * 2.2) * _ReactiveAuroraWaviness;
         float auroraTarget = _ReactiveAuroraAltitude + auroraWave;
         float auroraPrimary = SoftLine(abs(skyUp - auroraTarget), _ReactiveAuroraThickness);
         float auroraSecondaryTarget = _ReactiveAuroraAltitude
-            + sin(auroraPhase * -0.73 + 1.8) * (_ReactiveAuroraWaviness * 0.62)
+            + sin(-auroraPhase + 1.8) * (_ReactiveAuroraWaviness * 0.62)
             + _ReactiveAuroraThickness * 2.4;
         float auroraSecondary = SoftLine(
             abs(skyUp - auroraSecondaryTarget),

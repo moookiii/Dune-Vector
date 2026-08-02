@@ -3667,7 +3667,8 @@ namespace DuneVector
         [Header("Resonance Front")]
         [ColorUsage(false, true)] public Color FrontColor = new Color(0.2f, 2.8f, 5.5f, 1f);
         [Min(0f)] public float FrontIntensity = 1.25f;
-        [Range(1f, 12f)] public float FrontCount = 4.5f;
+        [Tooltip("Whole number of pressure fronts around the sky. Integer counts keep the spherical wrap seamless.")]
+        [Range(1, 12)] public int FrontCount = 5;
         [Min(0f)] public float FrontTravelSpeed = 0.11f;
         [Range(0.001f, 0.15f)] public float FrontThickness = 0.032f;
         [Range(0f, 2f)] public float FrontCurvature = 0.72f;
@@ -3687,7 +3688,8 @@ namespace DuneVector
         [Range(0.001f, 0.2f)] public float AuroraThickness = 0.055f;
         [Range(0f, 1f)] public float AuroraWaviness = 0.24f;
         [Min(0f)] public float AuroraTravelSpeed = 0.075f;
-        [Range(1f, 12f)] public float AuroraFrequency = 3.5f;
+        [Tooltip("Whole number of melodic current waves around the sky. Integer counts keep the spherical wrap seamless.")]
+        [Range(1, 12)] public int AuroraFrequency = 4;
         [Range(0f, 1f)] public float AuroraSecondaryIntensity = 0.58f;
         [Range(0f, 1f)] public float AuroraShimmerAmount = 0.38f;
 
