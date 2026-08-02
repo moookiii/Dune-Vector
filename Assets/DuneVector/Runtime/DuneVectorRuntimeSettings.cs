@@ -3675,8 +3675,8 @@ namespace DuneVector
         [Min(0f)] public float PulseDecaySpeed = 5.5f;
 
         [Header("Resonance Front")]
-        [ColorUsage(false, true)] public Color FrontColor = new Color(0.2f, 2.8f, 5.5f, 1f);
-        [Min(0f)] public float FrontIntensity = 0.9f;
+        [ColorUsage(false, true)] public Color FrontColor = new Color(0.12f, 1.1f, 1.45f, 1f);
+        [Min(0f)] public float FrontIntensity = 0.85f;
         [Tooltip("Whole number of pressure fronts around the sky. Integer counts keep the spherical wrap seamless.")]
         [Range(1, 12)] public int FrontCount = 5;
         [Min(0f)] public float FrontTravelSpeed = 0.095f;
@@ -3689,7 +3689,7 @@ namespace DuneVector
         [Range(0f, 2f)] public float FrontBassResponse = 0.72f;
         [Range(0f, 2f)] public float FrontPulseResponse = 1.15f;
         [Range(1f, 8f)] public float FrontPressureWidth = 4.2f;
-        [Range(0f, 1f)] public float FrontPressureOpacity = 0.25f;
+        [Range(0f, 1f)] public float FrontPressureOpacity = 0.12f;
 
         [Header("Melodic Sky Currents")]
         [ColorUsage(false, true)] public Color AuroraColor = new Color(0.85f, 0.18f, 4.8f, 1f);
