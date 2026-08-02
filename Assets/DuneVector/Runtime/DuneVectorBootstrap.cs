@@ -658,6 +658,8 @@ namespace DuneVector
             tonemapping.mode.Override(TonemappingMode.ACES);
 
             _environmentFog = new DuneVectorUrpFogState();
+            _environmentFog.color.Override(atmosphere.ClearFogColor);
+            _environmentFog.startDistance.Override(atmosphere.ClearFogStartDistance);
             _environmentFog.meanFreePath.Override(atmosphere.ClearVisibilityDistance);
             _environmentFog.baseHeight.Override(atmosphere.FogBaseHeight);
             _environmentFog.maximumHeight.Override(atmosphere.ClearFogHeight);

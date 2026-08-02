@@ -115,6 +115,8 @@ namespace DuneVector
 
     public sealed class DuneVectorUrpFogState
     {
+        public readonly ColorParameter color = new ColorParameter(Color.gray);
+        public readonly FloatParameter startDistance = new FloatParameter(0f);
         public readonly FloatParameter meanFreePath = new FloatParameter(0f);
         public readonly FloatParameter maxFogDistance = new FloatParameter(0f);
         public readonly FloatParameter baseHeight = new FloatParameter(0f);
@@ -247,9 +249,9 @@ namespace DuneVector
             if (RenderSettings.fog)
             {
                 RenderSettings.fogMode = FogMode.Linear;
-                RenderSettings.fogStartDistance = Mathf.Min(_fog.meanFreePath.value, _fog.maxFogDistance.value) * 0.15f;
+                RenderSettings.fogStartDistance = Mathf.Min(_fog.startDistance.value, _fog.maxFogDistance.value);
                 RenderSettings.fogEndDistance = _fog.maxFogDistance.value;
-                RenderSettings.fogColor = _sky.Middle.value;
+                RenderSettings.fogColor = _fog.color.value;
             }
         }
     }

@@ -258,6 +258,14 @@ namespace DuneVector
             float intensity = Mathf.SmoothStep(0f, 1f, snapshot.StormIntensity);
             if (_fog != null)
             {
+                _fog.color.value = Color.Lerp(
+                    _settings.ClearFogColor,
+                    _settings.StormFogColor,
+                    intensity);
+                _fog.startDistance.value = Mathf.Lerp(
+                    _settings.ClearFogStartDistance,
+                    _settings.StormFogStartDistance,
+                    intensity);
                 _fog.meanFreePath.value = Mathf.Lerp(
                     Mathf.Max(10f, _settings.ClearVisibilityDistance),
                     Mathf.Max(10f, _settings.StormVisibilityDistance),

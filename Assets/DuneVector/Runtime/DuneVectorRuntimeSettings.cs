@@ -3531,6 +3531,10 @@ namespace DuneVector
         [Range(0f, 1f)] public float SunShadowDimmer = 0.75f;
 
         [Header("Visibility")]
+        [ColorUsage(false)] public Color ClearFogColor = new Color(0.45f, 0.52f, 0.6f);
+        [ColorUsage(false)] public Color StormFogColor = new Color(0.32f, 0.3f, 0.28f);
+        [Min(0f)] public float ClearFogStartDistance = 100f;
+        [Min(0f)] public float StormFogStartDistance = 45f;
         [Min(10f)] public float ClearVisibilityDistance = 330f;
         [Min(10f)] public float StormVisibilityDistance = 72f;
         [Min(20f)] public float ClearMaximumFogDistance = 780f;
