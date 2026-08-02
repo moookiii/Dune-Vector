@@ -106,7 +106,6 @@ namespace DuneVector
         private VolumeProfile _runtimeVolumeProfile;
         private DuneVectorUrpFogState _environmentFog;
         private DuneVectorY2KSky _environmentSky;
-        private ColorAdjustments _environmentExposure;
         private Bloom _environmentBloom;
         private bool _ownsRuntimeSettings;
 
@@ -661,11 +660,6 @@ namespace DuneVector
             _environmentFog.maxFogDistance.Override(atmosphere.ClearMaximumFogDistance);
             _environmentFog.enableVolumetricFog.Override(false);
 
-            _environmentExposure = _runtimeVolumeProfile.Add<ColorAdjustments>(true);
-            _environmentExposure.postExposure.Override(
-                DuneVectorWeatherAtmosphere.ConvertHdrpFixedExposureToUrpPostExposure(
-                    atmosphere.ClearExposure));
-
             _environmentBloom = FindGlobalBloom(volume);
 
             DuneVectorUrpEnvironmentDriver environmentDriver = volumeObject.AddComponent<DuneVectorUrpEnvironmentDriver>();
@@ -709,7 +703,6 @@ namespace DuneVector
                 World,
                 _environmentFog,
                 _environmentSky,
-                _environmentExposure,
                 WeatherSettings);
         }
 
