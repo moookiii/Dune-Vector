@@ -1,6 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 
 namespace DuneVector
 {
@@ -181,6 +182,7 @@ namespace DuneVector
             DesertWorldStreamer world,
             DuneVectorUrpFogState fog,
             DuneVectorY2KSky sky,
+            ColorAdjustments exposure,
             DesertWeatherTuning settings)
         {
             settings.EnsureInitialized();
@@ -189,7 +191,7 @@ namespace DuneVector
             GameObject atmosphereObject = new GameObject("URP Weather Atmosphere");
             atmosphereObject.transform.SetParent(transform, false);
             _atmosphere = atmosphereObject.AddComponent<DuneVectorWeatherAtmosphere>();
-            _atmosphere.Initialize(fog, sky, settings.Atmosphere);
+            _atmosphere.Initialize(fog, sky, exposure, settings.Atmosphere);
 
             GameObject windObject = new GameObject("Global Desert Wind");
             windObject.transform.SetParent(transform, false);
@@ -229,18 +231,28 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorWeatherAtmosphere : MonoBehaviour
     {
+        private const float HdrpLensImperfectionExposureScale = 1.2f;
+
         private DuneVectorUrpFogState _fog;
         private DuneVectorY2KSky _sky;
+        private ColorAdjustments _exposure;
         private DesertWeatherAtmosphereTuning _settings;
 
         public void Initialize(
             DuneVectorUrpFogState fog,
             DuneVectorY2KSky sky,
+            ColorAdjustments exposure,
             DesertWeatherAtmosphereTuning settings)
         {
             _fog = fog;
             _sky = sky;
+            _exposure = exposure;
             _settings = settings;
+        }
+
+        public static float ConvertHdrpFixedExposureToUrpPostExposure(float fixedExposure)
+        {
+            return -fixedExposure - Mathf.Log(HdrpLensImperfectionExposureScale, 2f);
         }
 
         public void Apply(DesertWeatherSnapshot snapshot)
@@ -251,6 +263,16 @@ namespace DuneVector
             }
 
             float intensity = Mathf.SmoothStep(0f, 1f, snapshot.StormIntensity);
+            if (_exposure != null)
+            {
+                float fixedExposure = Mathf.Lerp(
+                    _settings.ClearExposure,
+                    _settings.StormExposure,
+                    intensity);
+                _exposure.postExposure.value =
+                    ConvertHdrpFixedExposureToUrpPostExposure(fixedExposure);
+            }
+
             if (_fog != null)
             {
                 _fog.color.value = Color.Lerp(
