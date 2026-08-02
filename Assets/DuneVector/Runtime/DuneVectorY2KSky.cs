@@ -71,6 +71,15 @@ namespace DuneVector
         public ClampedFloatParameter ReactiveAuroraSecondaryIntensity = new ClampedFloatParameter(0.58f, 0f, 1f);
         public ClampedFloatParameter ReactiveAuroraShimmerAmount = new ClampedFloatParameter(0.38f, 0f, 1f);
 
+        public ColorParameter ReactiveShockRingColor = new ColorParameter(Color.yellow, true, false, true);
+        public MinFloatParameter ReactiveShockRingIntensity = new MinFloatParameter(0f, 0f);
+        public ClampedFloatParameter ReactiveShockRingCount = new ClampedFloatParameter(1f, 1f, 16f);
+        public ClampedFloatParameter ReactiveShockRingThickness = new ClampedFloatParameter(0.006f, 0.0005f, 0.08f);
+        public MinFloatParameter ReactiveShockRingTravelSpeed = new MinFloatParameter(0f, 0f);
+        public ClampedFloatParameter ReactiveShockRingVerticalSpan = new ClampedFloatParameter(0.72f, 0.05f, 1f);
+        public ClampedFloatParameter ReactiveShockRingBassResponse = new ClampedFloatParameter(1f, 0f, 2f);
+        public ClampedFloatParameter ReactiveShockRingBreakup = new ClampedFloatParameter(0f, 0f, 1f);
+
         public ColorParameter ReactiveLightningColor = new ColorParameter(Color.white, true, false, true);
         public MinFloatParameter ReactiveLightningIntensity = new MinFloatParameter(2.8f, 0f);
         public ClampedFloatParameter ReactiveLightningSectorCount = new ClampedFloatParameter(14f, 1f, 32f);
@@ -79,8 +88,21 @@ namespace DuneVector
         public MinFloatParameter ReactiveLightningRetargetRate = new MinFloatParameter(8f, 0.1f);
         public ClampedFloatParameter ReactiveLightningSustainResponse = new ClampedFloatParameter(0.24f, 0f, 1f);
         public ClampedFloatParameter ReactiveLightningBranchIntensity = new ClampedFloatParameter(0.75f, 0f, 1f);
+        public ClampedFloatParameter ReactiveLightningStrikeCount = new ClampedFloatParameter(1f, 1f, 4f);
+        public ClampedFloatParameter ReactiveLightningHaloWidthMultiplier = new ClampedFloatParameter(1f, 1f, 12f);
+        public ClampedFloatParameter ReactiveLightningHaloIntensity = new ClampedFloatParameter(0f, 0f, 1f);
+        public ClampedFloatParameter ReactiveLightningNodeIntensity = new ClampedFloatParameter(0f, 0f, 2f);
+        public ClampedFloatParameter ReactiveLightningNodeSpacing = new ClampedFloatParameter(9f, 2f, 24f);
         public ClampedFloatParameter ReactiveCameraAzimuth = new ClampedFloatParameter(0.5f, 0f, 1f);
         public ClampedFloatParameter ReactiveLightningAzimuthSpan = new ClampedFloatParameter(0.1f, 0f, 0.5f);
+
+        public ColorParameter ReactiveSparkColor = new ColorParameter(Color.white, true, false, true);
+        public MinFloatParameter ReactiveSparkIntensity = new MinFloatParameter(0f, 0f);
+        public ClampedFloatParameter ReactiveSparkGridScale = new ClampedFloatParameter(28f, 4f, 64f);
+        public ClampedFloatParameter ReactiveSparkDensity = new ClampedFloatParameter(0f, 0f, 1f);
+        public ClampedFloatParameter ReactiveSparkSize = new ClampedFloatParameter(0.035f, 0.002f, 0.2f);
+        public MinFloatParameter ReactiveSparkTwinkleSpeed = new MinFloatParameter(0f, 0f);
+        public ClampedFloatParameter ReactiveSparkSustainResponse = new ClampedFloatParameter(0f, 0f, 1f);
 
         public ClampedFloatParameter ReactiveMusicEnergy = new ClampedFloatParameter(0f, 0f, 1f);
         public ClampedFloatParameter ReactiveMusicBass = new ClampedFloatParameter(0f, 0f, 1f);
@@ -232,6 +254,14 @@ namespace DuneVector
             SetFloat("_ReactiveAuroraFrequency", sky.ReactiveAuroraFrequency.value);
             SetFloat("_ReactiveAuroraSecondaryIntensity", sky.ReactiveAuroraSecondaryIntensity.value);
             SetFloat("_ReactiveAuroraShimmerAmount", sky.ReactiveAuroraShimmerAmount.value);
+            SetColor("_ReactiveShockRingColor", sky.ReactiveShockRingColor.value);
+            SetFloat("_ReactiveShockRingIntensity", sky.ReactiveShockRingIntensity.value);
+            SetFloat("_ReactiveShockRingCount", sky.ReactiveShockRingCount.value);
+            SetFloat("_ReactiveShockRingThickness", sky.ReactiveShockRingThickness.value);
+            SetFloat("_ReactiveShockRingTravelSpeed", sky.ReactiveShockRingTravelSpeed.value);
+            SetFloat("_ReactiveShockRingVerticalSpan", sky.ReactiveShockRingVerticalSpan.value);
+            SetFloat("_ReactiveShockRingBassResponse", sky.ReactiveShockRingBassResponse.value);
+            SetFloat("_ReactiveShockRingBreakup", sky.ReactiveShockRingBreakup.value);
             SetColor("_ReactiveLightningColor", sky.ReactiveLightningColor.value);
             SetFloat("_ReactiveLightningIntensity", sky.ReactiveLightningIntensity.value);
             SetFloat("_ReactiveLightningSectorCount", sky.ReactiveLightningSectorCount.value);
@@ -240,8 +270,20 @@ namespace DuneVector
             SetFloat("_ReactiveLightningRetargetRate", sky.ReactiveLightningRetargetRate.value);
             SetFloat("_ReactiveLightningSustainResponse", sky.ReactiveLightningSustainResponse.value);
             SetFloat("_ReactiveLightningBranchIntensity", sky.ReactiveLightningBranchIntensity.value);
+            SetFloat("_ReactiveLightningStrikeCount", sky.ReactiveLightningStrikeCount.value);
+            SetFloat("_ReactiveLightningHaloWidthMultiplier", sky.ReactiveLightningHaloWidthMultiplier.value);
+            SetFloat("_ReactiveLightningHaloIntensity", sky.ReactiveLightningHaloIntensity.value);
+            SetFloat("_ReactiveLightningNodeIntensity", sky.ReactiveLightningNodeIntensity.value);
+            SetFloat("_ReactiveLightningNodeSpacing", sky.ReactiveLightningNodeSpacing.value);
             SetFloat("_ReactiveCameraAzimuth", sky.ReactiveCameraAzimuth.value);
             SetFloat("_ReactiveLightningAzimuthSpan", sky.ReactiveLightningAzimuthSpan.value);
+            SetColor("_ReactiveSparkColor", sky.ReactiveSparkColor.value);
+            SetFloat("_ReactiveSparkIntensity", sky.ReactiveSparkIntensity.value);
+            SetFloat("_ReactiveSparkGridScale", sky.ReactiveSparkGridScale.value);
+            SetFloat("_ReactiveSparkDensity", sky.ReactiveSparkDensity.value);
+            SetFloat("_ReactiveSparkSize", sky.ReactiveSparkSize.value);
+            SetFloat("_ReactiveSparkTwinkleSpeed", sky.ReactiveSparkTwinkleSpeed.value);
+            SetFloat("_ReactiveSparkSustainResponse", sky.ReactiveSparkSustainResponse.value);
             SetFloat("_ReactiveMusicEnergy", sky.ReactiveMusicEnergy.value);
             SetFloat("_ReactiveMusicBass", sky.ReactiveMusicBass.value);
             SetFloat("_ReactiveMusicMids", sky.ReactiveMusicMids.value);

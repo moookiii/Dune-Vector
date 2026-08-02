@@ -65,6 +65,14 @@ Shader "Hidden/DuneVector/HDRP Y2K Sky"
     float _ReactiveAuroraFrequency;
     float _ReactiveAuroraSecondaryIntensity;
     float _ReactiveAuroraShimmerAmount;
+    float4 _ReactiveShockRingColor;
+    float _ReactiveShockRingIntensity;
+    float _ReactiveShockRingCount;
+    float _ReactiveShockRingThickness;
+    float _ReactiveShockRingTravelSpeed;
+    float _ReactiveShockRingVerticalSpan;
+    float _ReactiveShockRingBassResponse;
+    float _ReactiveShockRingBreakup;
     float4 _ReactiveLightningColor;
     float _ReactiveLightningIntensity;
     float _ReactiveLightningSectorCount;
@@ -73,8 +81,20 @@ Shader "Hidden/DuneVector/HDRP Y2K Sky"
     float _ReactiveLightningRetargetRate;
     float _ReactiveLightningSustainResponse;
     float _ReactiveLightningBranchIntensity;
+    float _ReactiveLightningStrikeCount;
+    float _ReactiveLightningHaloWidthMultiplier;
+    float _ReactiveLightningHaloIntensity;
+    float _ReactiveLightningNodeIntensity;
+    float _ReactiveLightningNodeSpacing;
     float _ReactiveCameraAzimuth;
     float _ReactiveLightningAzimuthSpan;
+    float4 _ReactiveSparkColor;
+    float _ReactiveSparkIntensity;
+    float _ReactiveSparkGridScale;
+    float _ReactiveSparkDensity;
+    float _ReactiveSparkSize;
+    float _ReactiveSparkTwinkleSpeed;
+    float _ReactiveSparkSustainResponse;
     float _ReactiveMusicEnergy;
     float _ReactiveMusicBass;
     float _ReactiveMusicMids;
@@ -270,36 +290,102 @@ Shader "Hidden/DuneVector/HDRP Y2K Sky"
             * screenOnly;
         color += _ReactiveAuroraColor.rgb * (auroraMask * _ReactiveAuroraIntensity);
 
-        // Treble transients reveal a short-lived, retargeting celestial filament.
+        // Bass transients reveal broken, rising scanner rings instead of brightening the full sky.
+        float shockWindow = smoothstep(0.0, 0.025, skyUp)
+            * (1.0 - smoothstep(
+                _ReactiveShockRingVerticalSpan * 0.82,
+                _ReactiveShockRingVerticalSpan,
+                skyUp));
+        float shockCoordinate = skyUp * max(1.0, round(_ReactiveShockRingCount))
+            - reactiveTime * _ReactiveShockRingTravelSpeed;
+        float shockDistance = abs(frac(shockCoordinate + 0.5) - 0.5);
+        float shockLine = SoftLine(shockDistance, _ReactiveShockRingThickness);
+        float shockPattern = Noise3(float3(
+            floor(normalizedAzimuth * 24.0),
+            floor(shockCoordinate),
+            floor(reactiveTime * 2.0)));
+        float shockBreaks = smoothstep(
+            _ReactiveShockRingBreakup * 0.72,
+            _ReactiveShockRingBreakup,
+            shockPattern);
+        float shockMask = shockLine
+            * lerp(1.0, shockBreaks, _ReactiveShockRingBreakup)
+            * shockWindow
+            * saturate(_ReactiveBassPulse * _ReactiveShockRingBassResponse)
+            * screenOnly;
+        color += _ReactiveShockRingColor.rgb * (shockMask * _ReactiveShockRingIntensity);
+
+        // Treble transients reveal multiple retargeting filaments, each with a thin core and readable halo.
         float lightningTick = floor(reactiveTime * _ReactiveLightningRetargetRate);
-        float strikeChoice = Hash31(float3(lightningTick, 4.17, 9.31));
         float strikeSlotCount = max(1.0, round(_ReactiveLightningSectorCount));
-        float strikeSlot = (floor(strikeChoice * strikeSlotCount) + 0.5) / strikeSlotCount;
-        float strikeOffset = (strikeSlot * 2.0 - 1.0) * _ReactiveLightningAzimuthSpan;
-        float strikeAzimuth = frac(_ReactiveCameraAzimuth + strikeOffset + 1.0);
         float lightningVertical = smoothstep(0.02, 0.12, skyUp)
             * (1.0 - smoothstep(0.68, 0.9, skyUp));
-        float lightningNoise = Noise3(float3(
-            skyUp * 27.0,
-            lightningTick * 0.173,
-            floor(skyUp * 18.0)));
-        float lightningOffset = (lightningNoise - 0.5)
-            * _ReactiveLightningJaggedness
-            * 0.18;
-        float wrappedStrikeDistance = abs(frac(
-            normalizedAzimuth - strikeAzimuth - lightningOffset + 0.5) - 0.5);
-        float lightning = SoftLine(wrappedStrikeDistance, _ReactiveLightningWidth);
-        float branchGate = smoothstep(0.18, 0.42, skyUp)
-            * (1.0 - smoothstep(0.54, 0.7, skyUp));
-        float branchOffset = (skyUp - 0.38) * _ReactiveLightningJaggedness * 0.28;
-        float branchDistance = abs(frac(
-            normalizedAzimuth - strikeAzimuth - lightningOffset - branchOffset + 0.5) - 0.5);
-        float branch = SoftLine(branchDistance, _ReactiveLightningWidth * 0.62) * branchGate;
-        float lightningMask = (lightning + branch * _ReactiveLightningBranchIntensity)
-            * lightningVertical
-            * saturate(_ReactiveHighPulse + _ReactiveMusicHighs * _ReactiveLightningSustainResponse)
-            * screenOnly;
-        color += _ReactiveLightningColor.rgb * (lightningMask * _ReactiveLightningIntensity);
+        float lightningCore = 0.0;
+        float lightningHalo = 0.0;
+        float lightningNodes = 0.0;
+        float authoredStrikeCount = clamp(round(_ReactiveLightningStrikeCount), 1.0, 4.0);
+        [unroll]
+        for (int strikeIndex = 0; strikeIndex < 4; strikeIndex++)
+        {
+            float strikeEnabled = 1.0 - step(authoredStrikeCount, (float)strikeIndex);
+            float strikeChoice = Hash31(float3(lightningTick, 4.17 + strikeIndex * 7.13, 9.31));
+            float strikeSlot = (floor(strikeChoice * strikeSlotCount) + 0.5) / strikeSlotCount;
+            float strikeOffset = (strikeSlot * 2.0 - 1.0) * _ReactiveLightningAzimuthSpan;
+            float strikeAzimuth = frac(_ReactiveCameraAzimuth + strikeOffset + 1.0);
+            float lightningNoise = Noise3(float3(
+                skyUp * 27.0,
+                lightningTick * 0.173 + strikeIndex * 3.7,
+                floor(skyUp * 18.0)));
+            float lightningOffset = (lightningNoise - 0.5)
+                * _ReactiveLightningJaggedness
+                * 0.18;
+            float wrappedStrikeDistance = abs(frac(
+                normalizedAzimuth - strikeAzimuth - lightningOffset + 0.5) - 0.5);
+            float core = SoftLine(wrappedStrikeDistance, _ReactiveLightningWidth);
+            float halo = SoftLine(
+                wrappedStrikeDistance,
+                _ReactiveLightningWidth * _ReactiveLightningHaloWidthMultiplier);
+            float branchGate = smoothstep(0.18, 0.42, skyUp)
+                * (1.0 - smoothstep(0.54, 0.7, skyUp));
+            float branchOffset = (skyUp - 0.38) * _ReactiveLightningJaggedness * 0.28;
+            float branchDistance = abs(frac(
+                normalizedAzimuth - strikeAzimuth - lightningOffset - branchOffset + 0.5) - 0.5);
+            float branch = SoftLine(branchDistance, _ReactiveLightningWidth * 0.62) * branchGate;
+            float nodePhase = abs(frac(skyUp * _ReactiveLightningNodeSpacing + strikeChoice) - 0.5);
+            float node = SoftLine(
+                max(wrappedStrikeDistance, nodePhase * _ReactiveLightningWidth * 12.0),
+                _ReactiveLightningWidth * 1.8);
+            lightningCore += (core + branch * _ReactiveLightningBranchIntensity) * strikeEnabled;
+            lightningHalo += halo * strikeEnabled;
+            lightningNodes += node * strikeEnabled;
+        }
+        float lightningResponse = saturate(
+            _ReactiveHighPulse + _ReactiveMusicHighs * _ReactiveLightningSustainResponse);
+        float lightningMask = lightningVertical * lightningResponse * screenOnly;
+        float lightningShape = lightningCore
+            + lightningHalo * _ReactiveLightningHaloIntensity
+            + lightningNodes * _ReactiveLightningNodeIntensity;
+        color += _ReactiveLightningColor.rgb
+            * (lightningShape * lightningMask * _ReactiveLightningIntensity);
+
+        // Sparse diamond nodes flicker on treble hits, adding a second percussive scale to the sky.
+        float2 sparkCoordinate = float2(
+            normalizedAzimuth * _ReactiveSparkGridScale,
+            (skyUp + 0.08) * _ReactiveSparkGridScale * 0.5);
+        float2 sparkCell = floor(sparkCoordinate);
+        float2 sparkLocal = abs(frac(sparkCoordinate) - 0.5);
+        float sparkSeed = Hash31(float3(sparkCell, floor(reactiveTime * _ReactiveSparkTwinkleSpeed)));
+        float sparkPresent = step(1.0 - _ReactiveSparkDensity, sparkSeed);
+        float sparkDiamond = 1.0 - smoothstep(
+            _ReactiveSparkSize,
+            _ReactiveSparkSize + max(fwidth(sparkLocal.x), fwidth(sparkLocal.y)),
+            sparkLocal.x + sparkLocal.y);
+        float sparkWindow = smoothstep(0.03, 0.12, skyUp)
+            * (1.0 - smoothstep(0.62, 0.86, skyUp));
+        float sparkResponse = saturate(
+            _ReactiveHighPulse + _ReactiveMusicHighs * _ReactiveSparkSustainResponse);
+        float sparkMask = sparkPresent * sparkDiamond * sparkWindow * sparkResponse * screenOnly;
+        color += _ReactiveSparkColor.rgb * (sparkMask * _ReactiveSparkIntensity);
         return color * _SkyIntensity;
     }
 

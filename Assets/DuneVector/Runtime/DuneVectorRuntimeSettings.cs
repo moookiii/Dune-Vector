@@ -3666,7 +3666,7 @@ namespace DuneVector
 
         [Header("Resonance Front")]
         [ColorUsage(false, true)] public Color FrontColor = new Color(0.2f, 2.8f, 5.5f, 1f);
-        [Min(0f)] public float FrontIntensity = 1.05f;
+        [Min(0f)] public float FrontIntensity = 0.9f;
         [Tooltip("Whole number of pressure fronts around the sky. Integer counts keep the spherical wrap seamless.")]
         [Range(1, 12)] public int FrontCount = 5;
         [Min(0f)] public float FrontTravelSpeed = 0.095f;
@@ -3683,7 +3683,7 @@ namespace DuneVector
 
         [Header("Melodic Sky Currents")]
         [ColorUsage(false, true)] public Color AuroraColor = new Color(0.85f, 0.18f, 4.8f, 1f);
-        [Min(0f)] public float AuroraIntensity = 0.72f;
+        [Min(0f)] public float AuroraIntensity = 0.55f;
         [Range(-0.1f, 0.9f)] public float AuroraAltitude = 0.42f;
         [Range(0.001f, 0.2f)] public float AuroraThickness = 0.047f;
         [Range(0f, 1f)] public float AuroraWaviness = 0.3f;
@@ -3693,24 +3693,48 @@ namespace DuneVector
         [Range(0f, 1f)] public float AuroraSecondaryIntensity = 0.5f;
         [Range(0f, 1f)] public float AuroraShimmerAmount = 0.46f;
 
+        [Header("Bass Shock Rings")]
+        [ColorUsage(false, true)] public Color ShockRingColor = new Color(5.2f, 1.1f, 0.12f, 1f);
+        [Min(0f)] public float ShockRingIntensity = 0.9f;
+        [Range(1, 16)] public int ShockRingCount = 6;
+        [Range(0.0005f, 0.08f)] public float ShockRingThickness = 0.006f;
+        [Min(0f)] public float ShockRingTravelSpeed = 0.7f;
+        [Range(0.05f, 1f)] public float ShockRingVerticalSpan = 0.72f;
+        [Range(0f, 2f)] public float ShockRingBassResponse = 1.2f;
+        [Range(0f, 1f)] public float ShockRingBreakup = 0.42f;
+
         [Header("Percussive Sky Filaments")]
         [ColorUsage(false, true)] public Color LightningColor = new Color(2.8f, 4.4f, 7f, 1f);
-        [Min(0f)] public float LightningIntensity = 2.45f;
+        [Min(0f)] public float LightningIntensity = 3.2f;
         [Tooltip("Number of possible lightning strike slots distributed across the visible camera frustum.")]
         [Range(1, 32)] public int LightningSectorCount = 16;
-        [Range(0.0005f, 0.08f)] public float LightningWidth = 0.0024f;
-        [Range(0f, 1f)] public float LightningJaggedness = 0.32f;
+        [Range(0.0005f, 0.08f)] public float LightningWidth = 0.0005f;
+        [Range(0f, 1f)] public float LightningJaggedness = 0.18f;
         [Min(0.1f)] public float LightningRetargetRate = 5.5f;
         [Tooltip("Fraction of the horizontal camera frustum reserved at each edge so jagged bolts stay fully on screen.")]
         [Range(0f, 0.8f)] public float LightningFrustumEdgePadding = 0.35f;
-        [Range(0f, 1f)] public float LightningSustainResponse = 0.12f;
+        [Range(0f, 1f)] public float LightningSustainResponse = 0.06f;
         [Range(0f, 1f)] public float LightningBranchIntensity = 0.62f;
+        [Range(1, 4)] public int LightningStrikeCount = 2;
+        [Range(1f, 12f)] public float LightningHaloWidthMultiplier = 5f;
+        [Range(0f, 1f)] public float LightningHaloIntensity = 0.18f;
+        [Range(0f, 2f)] public float LightningNodeIntensity = 0.7f;
+        [Range(2f, 24f)] public float LightningNodeSpacing = 9f;
+
+        [Header("Treble Star Bursts")]
+        [ColorUsage(false, true)] public Color SparkColor = new Color(1.2f, 4.2f, 2.8f, 1f);
+        [Min(0f)] public float SparkIntensity = 1.1f;
+        [Range(4f, 64f)] public float SparkGridScale = 28f;
+        [Range(0f, 1f)] public float SparkDensity = 0.16f;
+        [Range(0.002f, 0.2f)] public float SparkSize = 0.035f;
+        [Min(0f)] public float SparkTwinkleSpeed = 9f;
+        [Range(0f, 1f)] public float SparkSustainResponse = 0.08f;
 
         [Header("Global Bloom Response")]
         [Tooltip("Maximum global bloom intensity allowed during the strongest musical peak. Never lowers the authored environment baseline.")]
-        [Min(0f)] public float BloomMaximumIntensity = 0.24f;
-        [Min(0f)] public float BloomEnergyBoost = 0.02f;
-        [Min(0f)] public float BloomBassPulseBoost = 0.045f;
+        [Min(0f)] public float BloomMaximumIntensity = 0.2f;
+        [Min(0f)] public float BloomEnergyBoost = 0.01f;
+        [Min(0f)] public float BloomBassPulseBoost = 0.02f;
         [Range(0f, 1f)] public float BloomThresholdReduction = 0f;
         [Min(0f)] public float BloomAttackSpeed = 12f;
         [Min(0f)] public float BloomReleaseSpeed = 3.8f;

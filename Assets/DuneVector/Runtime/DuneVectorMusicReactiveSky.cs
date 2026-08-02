@@ -83,6 +83,14 @@ namespace DuneVector
             _sky.ReactiveAuroraFrequency.Override(_settings.AuroraFrequency);
             _sky.ReactiveAuroraSecondaryIntensity.Override(_settings.AuroraSecondaryIntensity);
             _sky.ReactiveAuroraShimmerAmount.Override(_settings.AuroraShimmerAmount);
+            _sky.ReactiveShockRingColor.Override(_settings.ShockRingColor);
+            _sky.ReactiveShockRingIntensity.Override(_settings.ShockRingIntensity);
+            _sky.ReactiveShockRingCount.Override(_settings.ShockRingCount);
+            _sky.ReactiveShockRingThickness.Override(_settings.ShockRingThickness);
+            _sky.ReactiveShockRingTravelSpeed.Override(_settings.ShockRingTravelSpeed);
+            _sky.ReactiveShockRingVerticalSpan.Override(_settings.ShockRingVerticalSpan);
+            _sky.ReactiveShockRingBassResponse.Override(_settings.ShockRingBassResponse);
+            _sky.ReactiveShockRingBreakup.Override(_settings.ShockRingBreakup);
             _sky.ReactiveLightningColor.Override(_settings.LightningColor);
             _sky.ReactiveLightningIntensity.Override(_settings.LightningIntensity);
             _sky.ReactiveLightningSectorCount.Override(_settings.LightningSectorCount);
@@ -91,6 +99,18 @@ namespace DuneVector
             _sky.ReactiveLightningRetargetRate.Override(_settings.LightningRetargetRate);
             _sky.ReactiveLightningSustainResponse.Override(_settings.LightningSustainResponse);
             _sky.ReactiveLightningBranchIntensity.Override(_settings.LightningBranchIntensity);
+            _sky.ReactiveLightningStrikeCount.Override(_settings.LightningStrikeCount);
+            _sky.ReactiveLightningHaloWidthMultiplier.Override(_settings.LightningHaloWidthMultiplier);
+            _sky.ReactiveLightningHaloIntensity.Override(_settings.LightningHaloIntensity);
+            _sky.ReactiveLightningNodeIntensity.Override(_settings.LightningNodeIntensity);
+            _sky.ReactiveLightningNodeSpacing.Override(_settings.LightningNodeSpacing);
+            _sky.ReactiveSparkColor.Override(_settings.SparkColor);
+            _sky.ReactiveSparkIntensity.Override(_settings.SparkIntensity);
+            _sky.ReactiveSparkGridScale.Override(_settings.SparkGridScale);
+            _sky.ReactiveSparkDensity.Override(_settings.SparkDensity);
+            _sky.ReactiveSparkSize.Override(_settings.SparkSize);
+            _sky.ReactiveSparkTwinkleSpeed.Override(_settings.SparkTwinkleSpeed);
+            _sky.ReactiveSparkSustainResponse.Override(_settings.SparkSustainResponse);
         }
 
         private void Update()
