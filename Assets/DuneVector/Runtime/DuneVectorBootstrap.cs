@@ -106,7 +106,6 @@ namespace DuneVector
         private VolumeProfile _runtimeVolumeProfile;
         private DuneVectorUrpFogState _environmentFog;
         private DuneVectorY2KSky _environmentSky;
-        private ColorAdjustments _environmentExposure;
         private Bloom _environmentBloom;
         private bool _ownsRuntimeSettings;
 
@@ -651,8 +650,6 @@ namespace DuneVector
             _environmentSky.GridHeight.Override(atmosphere.DigitalGridHeight);
             _environmentSky.GridLineThickness.Override(atmosphere.DigitalGridLineThickness);
 
-            _environmentExposure = FindGlobalColorAdjustments(volume);
-
             _environmentFog = new DuneVectorUrpFogState();
             _environmentFog.color.Override(atmosphere.ClearFogColor);
             _environmentFog.startDistance.Override(atmosphere.ClearFogStartDistance);
@@ -672,26 +669,6 @@ namespace DuneVector
 
         }
 
-        private static ColorAdjustments FindGlobalColorAdjustments(Volume runtimeEnvironmentVolume)
-        {
-            Volume[] volumes = FindObjectsByType<Volume>(FindObjectsInactive.Include, FindObjectsSortMode.None);
-            foreach (Volume volume in volumes)
-            {
-                if (volume == null || volume == runtimeEnvironmentVolume || !volume.isGlobal || volume.sharedProfile == null)
-                {
-                    continue;
-                }
-
-                if (volume.sharedProfile.TryGet(out ColorAdjustments colorAdjustments))
-                {
-                    return colorAdjustments;
-                }
-            }
-
-            Debug.LogWarning("Dune Vector global volume is missing Color Adjustments; weather exposure will remain unchanged.");
-            return null;
-        }
-
         private void BuildWeather()
         {
             if (!WeatherSettings.Enabled)
@@ -708,7 +685,6 @@ namespace DuneVector
                 World,
                 _environmentFog,
                 _environmentSky,
-                _environmentExposure,
                 WeatherSettings);
         }
 
