@@ -3582,8 +3582,8 @@ namespace DuneVector
 
         [Header("Y2K Digital Structures")]
         [ColorUsage(false, true)] public Color DigitalStructureColor = new Color(0.32f, 1.9f, 3.1f, 1f);
-        [Range(0f, 1f)] public float ClearDigitalStructureOpacity = 0.105f;
-        [Range(0f, 1f)] public float StormDigitalStructureOpacity = 0.018f;
+        [Range(0f, 1f)] public float ClearDigitalStructureOpacity = 0f;
+        [Range(0f, 1f)] public float StormDigitalStructureOpacity = 0f;
         [Range(0.02f, 0.65f)] public float DigitalArcAltitude = 0.2f;
         [Range(0f, 1f)] public float DigitalArcCurvature = 0.32f;
         [Range(0.001f, 0.05f)] public float DigitalArcThickness = 0.006f;
