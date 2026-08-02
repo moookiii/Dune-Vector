@@ -3702,9 +3702,11 @@ namespace DuneVector
         [Range(0f, 1f)] public float LightningBranchIntensity = 0.75f;
 
         [Header("Global Bloom Response")]
-        [Min(0f)] public float BloomEnergyBoost = 0.42f;
-        [Min(0f)] public float BloomBassPulseBoost = 0.7f;
-        [Range(0f, 1f)] public float BloomThresholdReduction = 0.2f;
+        [Tooltip("Maximum global bloom intensity allowed during the strongest musical peak. Never lowers the authored environment baseline.")]
+        [Min(0f)] public float BloomMaximumIntensity = 0.32f;
+        [Min(0f)] public float BloomEnergyBoost = 0.04f;
+        [Min(0f)] public float BloomBassPulseBoost = 0.08f;
+        [Range(0f, 1f)] public float BloomThresholdReduction = 0f;
         [Min(0f)] public float BloomAttackSpeed = 10f;
         [Min(0f)] public float BloomReleaseSpeed = 2.8f;
     }

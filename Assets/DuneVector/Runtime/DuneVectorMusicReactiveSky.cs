@@ -255,6 +255,9 @@ namespace DuneVector
             float bloomTarget = _baseBloomIntensity
                 + energy * _settings.BloomEnergyBoost
                 + _bassPulse * _settings.BloomBassPulseBoost;
+            bloomTarget = Mathf.Min(
+                bloomTarget,
+                Mathf.Max(_baseBloomIntensity, _settings.BloomMaximumIntensity));
             float thresholdTarget = Mathf.Max(
                 0f,
                 _baseBloomThreshold - energy * _settings.BloomThresholdReduction);
