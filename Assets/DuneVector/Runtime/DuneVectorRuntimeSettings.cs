@@ -3646,74 +3646,74 @@ namespace DuneVector
 
         [Header("Music Analysis")]
         [Tooltip("FFT sample count used to separate bass, midrange, and high-frequency energy.")]
-        [Range(128, 2048)] public int FftWindowSize = 512;
+        [Range(128, 2048)] public int FftWindowSize = 1024;
         [Tooltip("Maximum number of FFT reads per second. Visual interpolation still runs every frame.")]
-        [Range(10f, 120f)] public float AnalysisRate = 45f;
+        [Range(10f, 120f)] public float AnalysisRate = 60f;
         [Min(20f)] public float MinimumFrequency = 35f;
-        [Min(40f)] public float BassMaximumFrequency = 220f;
-        [Min(200f)] public float MidMaximumFrequency = 3200f;
-        [Min(1000f)] public float HighMaximumFrequency = 14000f;
-        [Min(0f)] public float SpectrumGain = 34f;
-        [Range(0f, 1f)] public float SpectrumNoiseFloor = 0.015f;
-        [Min(0f)] public float BassGain = 1.35f;
-        [Min(0f)] public float MidGain = 1.7f;
-        [Min(0f)] public float HighGain = 2.4f;
-        [Min(0f)] public float AttackSpeed = 18f;
-        [Min(0f)] public float ReleaseSpeed = 4.2f;
-        [Min(0f)] public float BassTransientSensitivity = 5.5f;
-        [Min(0f)] public float HighTransientSensitivity = 8f;
-        [Min(0f)] public float PulseDecaySpeed = 3.8f;
+        [Min(40f)] public float BassMaximumFrequency = 190f;
+        [Min(200f)] public float MidMaximumFrequency = 4300f;
+        [Min(1000f)] public float HighMaximumFrequency = 12000f;
+        [Min(0f)] public float SpectrumGain = 27f;
+        [Range(0f, 1f)] public float SpectrumNoiseFloor = 0.02f;
+        [Min(0f)] public float BassGain = 1.05f;
+        [Min(0f)] public float MidGain = 1.65f;
+        [Min(0f)] public float HighGain = 2.65f;
+        [Min(0f)] public float AttackSpeed = 24f;
+        [Min(0f)] public float ReleaseSpeed = 6f;
+        [Min(0f)] public float BassTransientSensitivity = 8f;
+        [Min(0f)] public float HighTransientSensitivity = 11f;
+        [Min(0f)] public float PulseDecaySpeed = 5.5f;
 
         [Header("Resonance Front")]
         [ColorUsage(false, true)] public Color FrontColor = new Color(0.2f, 2.8f, 5.5f, 1f);
-        [Min(0f)] public float FrontIntensity = 1.25f;
+        [Min(0f)] public float FrontIntensity = 1.05f;
         [Tooltip("Whole number of pressure fronts around the sky. Integer counts keep the spherical wrap seamless.")]
         [Range(1, 12)] public int FrontCount = 5;
-        [Min(0f)] public float FrontTravelSpeed = 0.11f;
-        [Range(0.001f, 0.15f)] public float FrontThickness = 0.032f;
+        [Min(0f)] public float FrontTravelSpeed = 0.095f;
+        [Range(0.001f, 0.15f)] public float FrontThickness = 0.028f;
         [Range(0f, 2f)] public float FrontCurvature = 0.72f;
         [Range(-0.2f, 0.8f)] public float FrontAltitude = 0f;
         [Range(0.05f, 1f)] public float FrontVerticalSpan = 0.66f;
-        [Range(0f, 2f)] public float BassFrontExpansion = 0.58f;
-        [Range(0f, 2f)] public float FrontEnergyResponse = 0.28f;
-        [Range(0f, 2f)] public float FrontBassResponse = 0.82f;
-        [Range(0f, 2f)] public float FrontPulseResponse = 1f;
-        [Range(1f, 8f)] public float FrontPressureWidth = 4.5f;
-        [Range(0f, 1f)] public float FrontPressureOpacity = 0.32f;
+        [Range(0f, 2f)] public float BassFrontExpansion = 0.48f;
+        [Range(0f, 2f)] public float FrontEnergyResponse = 0.18f;
+        [Range(0f, 2f)] public float FrontBassResponse = 0.72f;
+        [Range(0f, 2f)] public float FrontPulseResponse = 1.15f;
+        [Range(1f, 8f)] public float FrontPressureWidth = 4.2f;
+        [Range(0f, 1f)] public float FrontPressureOpacity = 0.25f;
 
         [Header("Melodic Sky Currents")]
         [ColorUsage(false, true)] public Color AuroraColor = new Color(0.85f, 0.18f, 4.8f, 1f);
-        [Min(0f)] public float AuroraIntensity = 0.85f;
+        [Min(0f)] public float AuroraIntensity = 0.72f;
         [Range(-0.1f, 0.9f)] public float AuroraAltitude = 0.42f;
-        [Range(0.001f, 0.2f)] public float AuroraThickness = 0.055f;
-        [Range(0f, 1f)] public float AuroraWaviness = 0.24f;
-        [Min(0f)] public float AuroraTravelSpeed = 0.075f;
+        [Range(0.001f, 0.2f)] public float AuroraThickness = 0.047f;
+        [Range(0f, 1f)] public float AuroraWaviness = 0.3f;
+        [Min(0f)] public float AuroraTravelSpeed = 0.09f;
         [Tooltip("Whole number of melodic current waves around the sky. Integer counts keep the spherical wrap seamless.")]
         [Range(1, 12)] public int AuroraFrequency = 4;
-        [Range(0f, 1f)] public float AuroraSecondaryIntensity = 0.58f;
-        [Range(0f, 1f)] public float AuroraShimmerAmount = 0.38f;
+        [Range(0f, 1f)] public float AuroraSecondaryIntensity = 0.5f;
+        [Range(0f, 1f)] public float AuroraShimmerAmount = 0.46f;
 
         [Header("Percussive Sky Filaments")]
         [ColorUsage(false, true)] public Color LightningColor = new Color(2.8f, 4.4f, 7f, 1f);
-        [Min(0f)] public float LightningIntensity = 2.8f;
+        [Min(0f)] public float LightningIntensity = 2.45f;
         [Tooltip("Number of possible lightning strike slots distributed across the visible camera frustum.")]
-        [Range(1, 32)] public int LightningSectorCount = 14;
+        [Range(1, 32)] public int LightningSectorCount = 16;
         [Range(0.0005f, 0.08f)] public float LightningWidth = 0.0024f;
         [Range(0f, 1f)] public float LightningJaggedness = 0.32f;
-        [Min(0.1f)] public float LightningRetargetRate = 8f;
+        [Min(0.1f)] public float LightningRetargetRate = 5.5f;
         [Tooltip("Fraction of the horizontal camera frustum reserved at each edge so jagged bolts stay fully on screen.")]
         [Range(0f, 0.8f)] public float LightningFrustumEdgePadding = 0.35f;
-        [Range(0f, 1f)] public float LightningSustainResponse = 0.24f;
-        [Range(0f, 1f)] public float LightningBranchIntensity = 0.75f;
+        [Range(0f, 1f)] public float LightningSustainResponse = 0.12f;
+        [Range(0f, 1f)] public float LightningBranchIntensity = 0.62f;
 
         [Header("Global Bloom Response")]
         [Tooltip("Maximum global bloom intensity allowed during the strongest musical peak. Never lowers the authored environment baseline.")]
-        [Min(0f)] public float BloomMaximumIntensity = 0.32f;
-        [Min(0f)] public float BloomEnergyBoost = 0.04f;
-        [Min(0f)] public float BloomBassPulseBoost = 0.08f;
+        [Min(0f)] public float BloomMaximumIntensity = 0.24f;
+        [Min(0f)] public float BloomEnergyBoost = 0.02f;
+        [Min(0f)] public float BloomBassPulseBoost = 0.045f;
         [Range(0f, 1f)] public float BloomThresholdReduction = 0f;
-        [Min(0f)] public float BloomAttackSpeed = 10f;
-        [Min(0f)] public float BloomReleaseSpeed = 2.8f;
+        [Min(0f)] public float BloomAttackSpeed = 12f;
+        [Min(0f)] public float BloomReleaseSpeed = 3.8f;
     }
 
     [System.Serializable]
