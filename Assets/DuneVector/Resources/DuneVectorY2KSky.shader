@@ -263,9 +263,12 @@ Shader "DuneVector/URP Y2K Sky"
 
     float3 RenderY2KSky(float3 viewDirWS)
     {
-        float3 skyDirection = normalize(float3(viewDirWS.x, -viewDirWS.y, viewDirWS.z));
+        // URP's reconstructed ray already uses conventional world-space Y-up.
+        // HDRP's sky helper required a Y flip here, which moved every reactive
+        // upper-hemisphere mask below the visible horizon after the URP port.
+        float3 skyDirection = normalize(viewDirWS);
         float skyUp = skyDirection.y;
-        float verticalGradient = viewDirWS.y * _GradientDiffusion;
+        float verticalGradient = -viewDirWS.y * _GradientDiffusion;
         float topLerp = saturate(-verticalGradient);
         float bottomLerp = saturate(verticalGradient);
         float3 color = lerp(_SkyMiddle.rgb, _SkyBottom.rgb, bottomLerp);

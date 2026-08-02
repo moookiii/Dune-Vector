@@ -45,17 +45,20 @@ namespace DuneVector
             _camera = camera;
             _settings = settings;
 
-            if (_settings == null || !_settings.Enabled || _audio == null || _sky == null || _bloom == null)
+            if (_settings == null || !_settings.Enabled || _audio == null || _sky == null)
             {
                 enabled = false;
                 return;
             }
 
             ApplyAuthoredSkySettings();
-            _baseBloomIntensity = _bloom.intensity.value;
-            _baseBloomThreshold = _bloom.threshold.value;
-            _currentBloomIntensity = _baseBloomIntensity;
-            _currentBloomThreshold = _baseBloomThreshold;
+            if (_bloom != null)
+            {
+                _baseBloomIntensity = _bloom.intensity.value;
+                _baseBloomThreshold = _bloom.threshold.value;
+                _currentBloomIntensity = _baseBloomIntensity;
+                _currentBloomThreshold = _baseBloomThreshold;
+            }
         }
 
         private void ApplyAuthoredSkySettings()
@@ -309,6 +312,11 @@ namespace DuneVector
             _sky.ReactiveMusicHighs.value = _highs;
             _sky.ReactiveBassPulse.value = _bassPulse;
             _sky.ReactiveHighPulse.value = _highPulse;
+
+            if (_bloom == null)
+            {
+                return;
+            }
 
             float bloomTarget = _baseBloomIntensity
                 + energy * _settings.BloomEnergyBoost
