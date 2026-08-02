@@ -3557,7 +3557,7 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color StormSkyMiddle = new Color(0.54f, 0.29f, 0.1f);
         [ColorUsage(false, true)] public Color StormSkyBottom = new Color(1.15f, 0.54f, 0.15f);
         [Min(0f)] public float SkyGradientDiffusion = 1.48f;
-        [Min(0f)] public float SkyMultiplier = 0.32f;
+        [Min(0f)] public float SkyMultiplier = 0.82f;
 
         [Header("Y2K Horizon Glow")]
         [ColorUsage(false, true)] public Color ClearHorizonGlowColor = new Color(0.38f, 2.8f, 4.4f, 1f);
@@ -3600,9 +3600,9 @@ namespace DuneVector
         [Range(0.001f, 0.08f)] public float DigitalGridLineThickness = 0.018f;
 
         [Header("Bloom Integration")]
-        [Min(0f)] public float BloomIntensity = 0.08f;
-        [Min(0f)] public float BloomThreshold = 2f;
-        [Range(0f, 1f)] public float BloomScatter = 0.5f;
+        [Min(0f)] public float BloomIntensity = 0.2f;
+        [Min(0f)] public float BloomThreshold = 1.05f;
+        [Range(0f, 1f)] public float BloomScatter = 0.62f;
     }
 
     [System.Serializable]
@@ -3629,7 +3629,7 @@ namespace DuneVector
         [Min(0f)] public float ParticleVelocityStretch = 0.06f;
         [Min(0f)] public float CameraVelocityStretch = 0.12f;
         [Min(0f)] public float AmbientAirborneSandSizeMultiplier = 2.5f;
-        [Min(0f)] public float AmbientAirborneSandOpacityMultiplier = 0.75f;
+        [Min(0f)] public float AmbientAirborneSandOpacityMultiplier = 1.8f;
         [ColorUsage(false)] public Color AmbientDustColor = new Color(0.9f, 0.61f, 0.3f, 0.26f);
         [ColorUsage(false)] public Color StormDustColor = new Color(0.88f, 0.47f, 0.16f, 0.58f);
 
@@ -3745,9 +3745,9 @@ namespace DuneVector
 
         [Header("Global Bloom Response")]
         [Tooltip("Maximum global bloom intensity allowed during the strongest musical peak. Never lowers the authored environment baseline.")]
-        [Min(0f)] public float BloomMaximumIntensity = 0.1f;
-        [Min(0f)] public float BloomEnergyBoost = 0.005f;
-        [Min(0f)] public float BloomBassPulseBoost = 0.01f;
+        [Min(0f)] public float BloomMaximumIntensity = 0.2f;
+        [Min(0f)] public float BloomEnergyBoost = 0.01f;
+        [Min(0f)] public float BloomBassPulseBoost = 0.02f;
         [Range(0f, 1f)] public float BloomThresholdReduction = 0f;
         [Min(0f)] public float BloomAttackSpeed = 12f;
         [Min(0f)] public float BloomReleaseSpeed = 3.8f;
