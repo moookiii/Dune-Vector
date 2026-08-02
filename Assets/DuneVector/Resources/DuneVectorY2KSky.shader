@@ -494,14 +494,14 @@ Shader "DuneVector/URP Y2K Sky"
 
     SubShader
     {
-        Tags { "RenderPipeline" = "UniversalPipeline" "Queue" = "Background" "RenderType" = "Background" }
+        Tags { "RenderPipeline" = "UniversalPipeline" "Queue" = "Background" "RenderType" = "Background" "PreviewType" = "Skybox" }
 
         Pass
         {
             ZWrite Off
             ZTest LEqual
             Blend Off
-            Cull Front
+            Cull Off
 
             HLSLPROGRAM
                 #pragma fragment Frag
