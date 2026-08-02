@@ -476,7 +476,6 @@ namespace DuneVector
             GameObject cameraObject = new GameObject("Dune Vector Camera");
             cameraObject.tag = "MainCamera";
             Camera camera = cameraObject.AddComponent<Camera>();
-            camera.clearFlags = CameraClearFlags.Skybox;
             camera.allowHDR = true;
             camera.allowMSAA = false;
             camera.nearClipPlane = PlayerTuning.CameraNearClipPlane;

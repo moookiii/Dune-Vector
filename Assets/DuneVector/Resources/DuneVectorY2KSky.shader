@@ -216,7 +216,7 @@ Shader "DuneVector/URP Y2K Sky"
         UNITY_SETUP_INSTANCE_ID(input);
         UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
         output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
-        output.directionWS = input.positionOS.xyz;
+        output.directionWS = TransformObjectToWorldDir(input.positionOS.xyz);
         return output;
     }
 
@@ -494,14 +494,14 @@ Shader "DuneVector/URP Y2K Sky"
 
     SubShader
     {
-        Tags { "RenderPipeline" = "UniversalPipeline" "Queue" = "Background" "RenderType" = "Background" "PreviewType" = "Skybox" }
+        Tags { "RenderPipeline" = "UniversalPipeline" "Queue" = "Background" "RenderType" = "Background" }
 
         Pass
         {
             ZWrite Off
             ZTest LEqual
             Blend Off
-            Cull Off
+            Cull Front
 
             HLSLPROGRAM
                 #pragma fragment Frag
