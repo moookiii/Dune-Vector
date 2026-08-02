@@ -792,6 +792,7 @@ namespace DuneVector
                 AudioManager,
                 GoldWallet,
                 PermanentUpgrades,
+                DroneCamera,
                 AudioSettings.PauseMenu,
                 RuntimeSettings.PermanentUpgrades.ShopVisuals);
             Photography = gameObject.AddComponent<DuneVectorPhotographySystem>();

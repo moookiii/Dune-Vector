@@ -603,6 +603,15 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorPauseMenu : MonoBehaviour
     {
+        private const string DisplayPreferencesFileName = "DuneVectorDisplay.dat";
+
+        [Serializable]
+        private sealed class DisplayPreferencesData
+        {
+            public int Version = 1;
+            public float FieldOfView;
+        }
+
         public bool IsPaused { get; private set; }
         public bool IsCompendiumOpen => IsPaused && _showCompendium;
 
@@ -615,6 +624,10 @@ namespace DuneVector
         private DuneVectorUpgradeShopView _shopView;
         private DuneVectorCourierGame _courierGame;
         private DuneVectorPhotographySystem _photography;
+        private DroneCameraController _cameraController;
+        private string _displayPreferencesPath;
+        private float _fieldOfView;
+        private bool _displayPreferencesDirty;
         private bool _showShop;
         private bool _showGallery;
         private bool _showCompendium;
@@ -650,6 +663,7 @@ namespace DuneVector
             DuneVectorAudioManager audio,
             DroneGoldWallet wallet,
             DronePermanentUpgradeSystem upgrades,
+            DroneCameraController cameraController,
             PauseMenuVisualTuning visuals,
             UpgradeShopVisualTuning shopVisuals)
         {
@@ -658,8 +672,11 @@ namespace DuneVector
             _audio = audio;
             _wallet = wallet;
             _upgrades = upgrades;
+            _cameraController = cameraController;
             _visuals = visuals;
             _shopView = new DuneVectorUpgradeShopView(_upgrades, _wallet, shopVisuals);
+            _displayPreferencesPath = Path.Combine(Application.persistentDataPath, DisplayPreferencesFileName);
+            LoadFieldOfViewPreference();
             if (_health != null)
             {
                 _health.Died += HandleDeath;
@@ -753,6 +770,7 @@ namespace DuneVector
                 _showControls = false;
                 _controlsFade = 0f;
                 _audio?.FlushPreferences();
+                FlushDisplayPreferences();
             }
         }
 
@@ -944,6 +962,11 @@ namespace DuneVector
             {
                 _showControls = true;
             }
+            y += buttonHeight + gap;
+
+            DrawFieldOfViewRow(
+                new Rect(content.x, y, content.width, sliderRowHeight),
+                scale);
 
             float hintHeight = _hintStyle.lineHeight;
             GUI.Label(
@@ -1013,6 +1036,116 @@ namespace DuneVector
             if (!Mathf.Approximately(changedValue, value))
             {
                 apply?.Invoke(changedValue);
+            }
+        }
+
+        private void DrawFieldOfViewRow(Rect area, float scale)
+        {
+            float minimum = Mathf.Min(_visuals.MinimumFieldOfView, _visuals.MaximumFieldOfView);
+            float maximum = Mathf.Max(_visuals.MinimumFieldOfView, _visuals.MaximumFieldOfView);
+            float labelHeight = Mathf.Max(_mixerLabelStyle.lineHeight, _valueStyle.lineHeight);
+            GUI.Label(
+                new Rect(area.x, area.y, area.width * 0.7f, labelHeight),
+                _visuals.FieldOfViewLabel,
+                _mixerLabelStyle);
+            GUI.Label(
+                new Rect(area.x + (area.width * 0.7f), area.y, area.width * 0.3f, labelHeight),
+                $"{Mathf.RoundToInt(_fieldOfView)}°",
+                _valueStyle);
+
+            float thumbWidth = _visuals.SliderThumbWidth * scale;
+            float thumbHeight = _visuals.SliderThumbHeight * scale;
+            float trackHeight = Mathf.Max(1f, _visuals.SliderTrackHeight * scale);
+            float availableSliderHeight = Mathf.Max(thumbHeight, area.height - labelHeight);
+            float sliderY = area.y + labelHeight + ((availableSliderHeight - thumbHeight) * 0.5f);
+            Rect sliderRect = new Rect(area.x, sliderY, area.width, thumbHeight);
+            Rect trackRect = new Rect(
+                sliderRect.x + (thumbWidth * 0.5f),
+                sliderRect.center.y - (trackHeight * 0.5f),
+                Mathf.Max(1f, sliderRect.width - thumbWidth),
+                trackHeight);
+            float normalizedValue = Mathf.InverseLerp(minimum, maximum, _fieldOfView);
+
+            DrawSolidRect(trackRect, _visuals.SliderTrackColor);
+            DrawSolidRect(
+                new Rect(trackRect.x, trackRect.y, trackRect.width * normalizedValue, trackRect.height),
+                _visuals.SliderFillColor);
+
+            bool wasEnabled = GUI.enabled;
+            GUI.enabled = wasEnabled && _cameraController != null;
+            float changedValue = GUI.HorizontalSlider(
+                sliderRect,
+                _fieldOfView,
+                minimum,
+                maximum,
+                _sliderStyle,
+                _sliderThumbStyle);
+            GUI.enabled = wasEnabled;
+            changedValue = Mathf.Round(changedValue);
+            if (!Mathf.Approximately(changedValue, _fieldOfView))
+            {
+                SetFieldOfView(changedValue, true);
+            }
+        }
+
+        private void LoadFieldOfViewPreference()
+        {
+            float minimum = Mathf.Min(_visuals.MinimumFieldOfView, _visuals.MaximumFieldOfView);
+            float maximum = Mathf.Max(_visuals.MinimumFieldOfView, _visuals.MaximumFieldOfView);
+            float loadedFieldOfView = Mathf.Clamp(_visuals.DefaultFieldOfView, minimum, maximum);
+
+            if (_visuals.PersistFieldOfView && File.Exists(_displayPreferencesPath))
+            {
+                try
+                {
+                    DisplayPreferencesData data = JsonUtility.FromJson<DisplayPreferencesData>(
+                        File.ReadAllText(_displayPreferencesPath));
+                    if (data != null && data.Version == 1)
+                    {
+                        loadedFieldOfView = Mathf.Clamp(data.FieldOfView, minimum, maximum);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogWarning($"Could not load display preferences: {exception.Message}", this);
+                }
+            }
+
+            SetFieldOfView(loadedFieldOfView, false);
+        }
+
+        private void SetFieldOfView(float fieldOfView, bool markDirty)
+        {
+            float minimum = Mathf.Min(_visuals.MinimumFieldOfView, _visuals.MaximumFieldOfView);
+            float maximum = Mathf.Max(_visuals.MinimumFieldOfView, _visuals.MaximumFieldOfView);
+            _fieldOfView = Mathf.Clamp(fieldOfView, minimum, maximum);
+            if (_cameraController != null)
+            {
+                _cameraController.BaseFieldOfView = _fieldOfView;
+                if (_cameraController.Camera != null)
+                {
+                    _cameraController.Camera.fieldOfView = _fieldOfView;
+                }
+            }
+            _displayPreferencesDirty |= markDirty;
+        }
+
+        private void FlushDisplayPreferences()
+        {
+            if (!_displayPreferencesDirty || !_visuals.PersistFieldOfView)
+            {
+                return;
+            }
+
+            try
+            {
+                DisplayPreferencesData data = new DisplayPreferencesData { FieldOfView = _fieldOfView };
+                File.WriteAllText(_displayPreferencesPath, JsonUtility.ToJson(data));
+                _displayPreferencesDirty = false;
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"Could not save display preferences: {exception.Message}", this);
             }
         }
 
@@ -1208,6 +1341,7 @@ namespace DuneVector
         {
             _audio?.SetPausedDucking(false);
             _audio?.FlushPreferences();
+            FlushDisplayPreferences();
             Time.timeScale = 1f;
 #if UNITY_EDITOR
             UnityEditor.EditorApplication.isPlaying = false;
@@ -1218,6 +1352,7 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            FlushDisplayPreferences();
             if (_health != null)
             {
                 _health.Died -= HandleDeath;

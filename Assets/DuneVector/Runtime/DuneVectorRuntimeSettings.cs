@@ -4286,6 +4286,14 @@ namespace DuneVector
         [Min(24f)] public float ButtonHeight = 44f;
         [Min(0f)] public float ButtonGap = 10f;
 
+        [Header("Field Of View Control")]
+        public string FieldOfViewLabel = "FIELD OF VIEW";
+        [Range(1f, 179f)] public float MinimumFieldOfView = 60f;
+        [Range(1f, 179f)] public float MaximumFieldOfView = 120f;
+        [Range(1f, 179f)] public float DefaultFieldOfView = 64f;
+        [Tooltip("Remember the pause-menu field of view choice between runs.")]
+        public bool PersistFieldOfView = true;
+
         [Header("Controls Screen")]
         [Tooltip("Full-screen controls reference shown from the pause menu.")]
         public Texture2D ControlsImage;
