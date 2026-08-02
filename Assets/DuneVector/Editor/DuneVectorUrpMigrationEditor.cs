@@ -17,6 +17,7 @@ namespace DuneVector.Editor
         private const string RendererPath = AssetFolder + "/Dune Vector URP Renderer.asset";
         private const string PipelinePath = AssetFolder + "/Dune Vector URP Pipeline.asset";
         private const string VolumePath = AssetFolder + "/Dune Vector URP Volume Profile.asset";
+        private const string RuntimeSettingsPath = AssetFolder + "/Dune Vector Runtime Settings.asset";
         private const string MainScenePath = "Assets/DuneVector/Scenes/DuneVector.unity";
         private const string WebGlBuildPath = "Builds/WebGL";
 
@@ -112,18 +113,32 @@ namespace DuneVector.Editor
         private static VolumeProfile EnsureVolumeProfile()
         {
             VolumeProfile profile = AssetDatabase.LoadAssetAtPath<VolumeProfile>(VolumePath);
-            if (profile != null)
+            if (profile == null)
             {
-                return profile;
+                profile = ScriptableObject.CreateInstance<VolumeProfile>();
+                profile.name = "Dune Vector URP Volume Profile";
+                profile.Add<Bloom>(true);
+                profile.Add<Vignette>(true);
+                profile.Add<FilmGrain>(true);
+                AssetDatabase.CreateAsset(profile, VolumePath);
             }
 
-            profile = ScriptableObject.CreateInstance<VolumeProfile>();
-            profile.name = "Dune Vector URP Volume Profile";
-            profile.Add<Bloom>(true);
-            profile.Add<ColorAdjustments>(true);
-            profile.Add<Vignette>(true);
-            profile.Add<FilmGrain>(true);
-            AssetDatabase.CreateAsset(profile, VolumePath);
+            if (!profile.TryGet(out ColorAdjustments colorAdjustments))
+            {
+                colorAdjustments = profile.Add<ColorAdjustments>(true);
+            }
+
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            if (runtimeSettings == null)
+            {
+                throw new InvalidOperationException($"Runtime settings were not found at {RuntimeSettingsPath}");
+            }
+
+            colorAdjustments.active = true;
+            colorAdjustments.postExposure.Override(runtimeSettings.Weather.Atmosphere.ClearExposure);
+            EditorUtility.SetDirty(colorAdjustments);
+            EditorUtility.SetDirty(profile);
             return profile;
         }
 

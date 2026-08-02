@@ -651,8 +651,7 @@ namespace DuneVector
             _environmentSky.GridHeight.Override(atmosphere.DigitalGridHeight);
             _environmentSky.GridLineThickness.Override(atmosphere.DigitalGridLineThickness);
 
-            _environmentExposure = _runtimeVolumeProfile.Add<ColorAdjustments>(true);
-            _environmentExposure.postExposure.Override(atmosphere.ClearExposure);
+            _environmentExposure = FindGlobalColorAdjustments(volume);
 
             _environmentFog = new DuneVectorUrpFogState();
             _environmentFog.color.Override(atmosphere.ClearFogColor);
@@ -671,6 +670,26 @@ namespace DuneVector
             DuneVectorUrpEnvironmentDriver environmentDriver = volumeObject.AddComponent<DuneVectorUrpEnvironmentDriver>();
             environmentDriver.Initialize(_environmentSky, _environmentFog);
 
+        }
+
+        private static ColorAdjustments FindGlobalColorAdjustments(Volume runtimeEnvironmentVolume)
+        {
+            Volume[] volumes = FindObjectsByType<Volume>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            foreach (Volume volume in volumes)
+            {
+                if (volume == null || volume == runtimeEnvironmentVolume || !volume.isGlobal || volume.sharedProfile == null)
+                {
+                    continue;
+                }
+
+                if (volume.sharedProfile.TryGet(out ColorAdjustments colorAdjustments))
+                {
+                    return colorAdjustments;
+                }
+            }
+
+            Debug.LogWarning("Dune Vector global volume is missing Color Adjustments; weather exposure will remain unchanged.");
+            return null;
         }
 
         private void BuildWeather()
