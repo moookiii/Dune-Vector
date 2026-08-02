@@ -89,7 +89,7 @@ namespace DuneVector
         public bool Enabled = true;
 
         [ColorUsage(false, true)]
-        [Tooltip("HDR emission added to geoglyph linework. Values above 1 drive the HDRP bloom post-process.")]
+        [Tooltip("HDR emission added to geoglyph linework. Values above 1 drive the URP bloom post-process.")]
         public Color BloomEmissionColor = new Color(2.4f, 2.55f, 3f, 1f);
 
         [Tooltip("Unique persistent geoglyph landmarks. Entries are never spawned, tiled, randomized, or repeated by chunks.")]
@@ -2512,7 +2512,7 @@ namespace DuneVector
         [Range(0f, 1f)] public float MinimumInitialAttackDelayMultiplier = 0.25f;
         [Range(0f, 1f)] public float MaximumInitialAttackDelayMultiplier = 0.85f;
         [Min(0f)] public float AttackWindUpDuration = 2.25f;
-        [Tooltip("Pilgrims fired per procession at rank 1.")]
+        [Tooltip("Pilgrims fired per procession at ranks 0 and 1.")]
         [Range(1, 8)] public int PilgrimsPerProcessionAtRankOne = 1;
         [Tooltip("Pilgrims fired per procession at the pilgrim count rank ceiling.")]
         [Range(1, 8)] public int PilgrimsPerProcessionAtRankCeiling = 5;
@@ -2568,6 +2568,11 @@ namespace DuneVector
         public int EvaluatePilgrimsPerProcession(int rank)
         {
             int rankOneCount = Mathf.Max(1, PilgrimsPerProcessionAtRankOne);
+            if (rank <= 1)
+            {
+                return rankOneCount;
+            }
+
             int ceilingCount = Mathf.Max(
                 rankOneCount,
                 PilgrimsPerProcessionAtRankCeiling);
@@ -3522,6 +3527,7 @@ namespace DuneVector
     public sealed class DesertWeatherAtmosphereTuning
     {
         [Header("Desert Sun")]
+        [Min(0f)] public float SunIntensity = 3f;
         [Range(0f, 1f)] public float SunShadowDimmer = 0.75f;
 
         [Header("Visibility")]
@@ -4648,7 +4654,7 @@ namespace DuneVector
         [Min(0.001f)] public float CameraNearClipPlane = 0.01f;
         [Min(0.01f)] public float CameraFarClipPlane = 10000f;
 
-        [Header("Camera Anti-Aliasing (HDRP)")]
+        [Header("Camera Anti-Aliasing (URP)")]
         public DuneVectorCameraAntiAliasingMode CameraAntiAliasingMode =
             DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing;
         public DuneVectorSmaaQuality SmaaQuality = DuneVectorSmaaQuality.High;
@@ -5041,7 +5047,7 @@ namespace DuneVector
         [Tooltip("Authored stylized cloud archetypes, placement, shading, and motion.")]
         public CloudTuning Clouds = new CloudTuning();
 
-        [Tooltip("Dynamic clear-weather dust, sandstorm timing, wind, HDRP atmosphere, and particle layers.")]
+        [Tooltip("Dynamic clear-weather dust, sandstorm timing, wind, URP atmosphere, and particle layers.")]
         public DesertWeatherTuning Weather = new DesertWeatherTuning();
 
         [Tooltip("Electrical sandstorm strikes, regional heat, temperature, cooling, and gameplay consequences.")]

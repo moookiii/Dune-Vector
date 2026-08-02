@@ -1,4 +1,4 @@
-Shader "DuneVector/HDRP Sand Fracture"
+Shader "DuneVector/URP Sand Fracture"
 {
     Properties
     {
@@ -15,31 +15,27 @@ Shader "DuneVector/HDRP Sand Fracture"
     {
         Tags
         {
-            "RenderPipeline" = "HDRenderPipeline"
+            "RenderPipeline" = "UniversalPipeline"
             "RenderType" = "Transparent"
             "Queue" = "Transparent+40"
         }
 
         Pass
         {
-            Name "ForwardOnly"
-            Tags { "LightMode" = "ForwardOnly" }
+            Name "UniversalForward"
+            Tags { "LightMode" = "UniversalForward" }
             Blend SrcAlpha One
             Cull Off
             ZWrite Off
             ZTest LEqual
 
             HLSLPROGRAM
-            #pragma target 4.5
+            #pragma target 3.0
             #pragma vertex Vert
             #pragma fragment Frag
             #pragma multi_compile_instancing
-            #pragma only_renderers d3d11 playstation xboxone xboxseries vulkan metal switch switch2
 
-            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-            #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
-            #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariablesFunctions.hlsl"
-            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _Color;

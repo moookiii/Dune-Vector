@@ -459,8 +459,11 @@ namespace DuneVector
         private static Material CreateEmissionMaterial(Material source, string materialName, Color emission)
         {
             Material material = new Material(source) { name = materialName };
-            if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", emission);
-            if (material.HasProperty("_EmissiveExposureWeight")) material.SetFloat("_EmissiveExposureWeight", 0f);
+            if (material.HasProperty("_EmissionColor"))
+            {
+                material.SetColor("_EmissionColor", emission);
+                material.EnableKeyword("_EMISSION");
+            }
             return material;
         }
 

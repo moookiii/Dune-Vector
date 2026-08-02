@@ -2,7 +2,9 @@
     "name": "DuneVector.Editor",
     "rootNamespace": "DuneVector.Editor",
     "references": [
-        "DuneVector.Runtime"
+        "DuneVector.Runtime",
+        "Unity.RenderPipelines.Core.Runtime",
+        "Unity.RenderPipelines.Universal.Runtime"
     ],
     "includePlatforms": [
         "Editor"

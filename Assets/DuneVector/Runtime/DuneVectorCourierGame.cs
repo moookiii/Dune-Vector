@@ -3536,8 +3536,11 @@ namespace DuneVector
         private static void SetHubMaterialColors(Material material, Color baseColor, Color emission)
         {
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", baseColor);
-            if (material.HasProperty("_UnlitColor")) material.SetColor("_UnlitColor", baseColor);
-            if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", emission);
+            if (material.HasProperty("_EmissionColor"))
+            {
+                material.SetColor("_EmissionColor", emission);
+                material.EnableKeyword("_EMISSION");
+            }
         }
 
         private void OnDestroy()

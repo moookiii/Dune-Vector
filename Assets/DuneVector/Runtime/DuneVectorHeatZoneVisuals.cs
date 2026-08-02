@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.HighDefinition;
+using UnityEngine.Rendering.Universal;
 
 namespace DuneVector
 {
@@ -623,32 +623,25 @@ namespace DuneVector
 
         private Material CreateDistortionMaterial(string materialName, bool distortionOnly, Color tint, float strength)
         {
-            Shader shader = Shader.Find("HDRP/Unlit");
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
             Material material = new Material(shader) { name = materialName };
-            material.SetFloat("_SurfaceType", 1f);
-            material.SetFloat("_BlendMode", 0f);
-            material.SetFloat("_TransparentCullMode", 0f);
-            material.SetFloat("_DoubleSidedEnable", 1f);
-            material.SetFloat("_EnableFogOnTransparent", 1f);
-            material.SetColor("_UnlitColor", tint);
-            material.SetTexture("_UnlitColorMap", Texture2D.whiteTexture);
-            material.SetFloat("_DistortionEnable", 1f);
-            material.SetFloat("_DistortionOnly", distortionOnly ? 1f : 0f);
-            material.SetFloat("_DistortionDepthTest", 1f);
-            material.SetFloat("_DistortionBlendMode", 0f);
-            material.SetTexture("_DistortionVectorMap", _distortionTexture);
-            material.SetTextureScale("_DistortionVectorMap", Vector2.one * _settings.DistortionTextureScale);
-            material.SetFloat("_DistortionScale", Mathf.Max(0f, strength));
-            material.SetFloat("_DistortionVectorScale", 2f);
-            material.SetFloat("_DistortionVectorBias", -1f);
-            material.SetFloat("_DistortionBlurScale", _settings.DistortionBlurStrength);
-            HDMaterial.ValidateMaterial(material);
+            material.SetFloat("_Surface", 1f);
+            material.SetFloat("_Blend", 0f);
+            material.SetFloat("_Cull", (float)CullMode.Off);
+            material.SetFloat("_ZWrite", 0f);
+            material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            material.SetColor("_BaseColor", distortionOnly ? Color.clear : tint);
+            material.SetTexture("_BaseMap", Texture2D.whiteTexture);
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.renderQueue = (int)RenderQueue.Transparent;
             return material;
         }
 
         private Material CreateGroundDistortionMaterial(string materialName, float strength)
         {
-            Shader shader = Shader.Find("DuneVector/HDRP Dune Heat Distortion");
+            Shader shader = Shader.Find("DuneVector/URP Dune Heat Distortion");
             if (shader == null)
             {
                 return CreateDistortionMaterial(materialName, true, Color.clear, strength);
@@ -667,7 +660,7 @@ namespace DuneVector
 
         private Material CreateHeatPlumeMaterial()
         {
-            Shader shader = Shader.Find("DuneVector/HDRP Heat Plume Distortion");
+            Shader shader = Shader.Find("DuneVector/URP Heat Plume Distortion");
             if (shader == null)
             {
                 return CreateDistortionMaterial(
@@ -720,27 +713,30 @@ namespace DuneVector
 
         private Material CreateParticleMaterial(string materialName, Color tint)
         {
-            Shader shader = Shader.Find("DuneVector/HDRP Weather Particle");
+            Shader shader = Shader.Find("DuneVector/URP Weather Particle");
             if (shader == null)
             {
-                shader = Shader.Find("HDRP/Unlit");
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
             }
             Material material = new Material(shader) { name = materialName };
             if (material.HasProperty("_MainTex")) material.SetTexture("_MainTex", _particleTexture);
             if (material.HasProperty("_Tint")) material.SetColor("_Tint", tint);
-            if (material.HasProperty("_UnlitColorMap")) material.SetTexture("_UnlitColorMap", _particleTexture);
-            if (material.HasProperty("_UnlitColor")) material.SetColor("_UnlitColor", tint);
+            if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", _particleTexture);
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", tint);
             return material;
         }
 
         private Material CreateLitMaterial(string materialName, Color baseColor, Color emission)
         {
-            Shader shader = Shader.Find("HDRP/Lit");
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             Material material = new Material(shader) { name = materialName, enableInstancing = true };
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", baseColor);
             if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", _settings.HotSpotSmoothness);
-            if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", emission);
-            if (material.HasProperty("_EmissiveExposureWeight")) material.SetFloat("_EmissiveExposureWeight", 0f);
+            if (material.HasProperty("_EmissionColor"))
+            {
+                material.SetColor("_EmissionColor", emission);
+                material.EnableKeyword("_EMISSION");
+            }
             return material;
         }
 

@@ -1,4 +1,4 @@
-Shader "DuneVector/HDRP Heat Plume Distortion"
+Shader "DuneVector/URP Heat Plume Distortion"
 {
     Properties
     {
@@ -45,7 +45,7 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
     {
         Tags
         {
-            "RenderPipeline" = "HDRenderPipeline"
+            "RenderPipeline" = "UniversalPipeline"
             "RenderType" = "Transparent"
             "Queue" = "Transparent"
         }
@@ -53,7 +53,7 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
         Pass
         {
             Name "DuneVectorHeatDistortion"
-            Tags { "LightMode" = "DistortionVectors" }
+            Tags { "LightMode" = "DuneVectorLegacyDistortion" }
 
             Stencil
             {
@@ -69,16 +69,13 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
             Cull Off
 
             HLSLPROGRAM
-            #pragma target 4.5
+            #pragma target 3.0
             #pragma vertex Vert
             #pragma fragment Frag
             #pragma multi_compile_instancing
-            #pragma only_renderers d3d11 playstation xboxone xboxseries vulkan metal switch switch2
 
-            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-            #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
-            #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariablesFunctions.hlsl"
-            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
 
             TEXTURE2D(_NoiseTex);
             SAMPLER(sampler_NoiseTex);
@@ -199,8 +196,8 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
                     ((primary.b - 0.5) * _PrimaryEdgeNoise) +
                     ((secondary.b - 0.5) * _SecondaryEdgeNoise * detailFade));
 
-                uint2 pixelCoord = uint2(input.positionCS.xy);
-                float sceneDepth = LinearEyeDepth(LoadCameraDepth(pixelCoord), _ZBufferParams);
+                float2 screenUv = input.positionCS.xy / _ScaledScreenParams.xy;
+                float sceneDepth = LinearEyeDepth(SampleSceneDepth(screenUv), _ZBufferParams);
                 float cardDepth = LinearEyeDepth(input.positionCS.z, _ZBufferParams);
                 float intersectionFade = saturate((sceneDepth - cardDepth) / max(_DepthFadeDistance, 0.001));
                 float mask = sideMask * cardEdgeMask * bottomMask * topMask * verticalDissipation * turbulentEdge *
@@ -218,27 +215,23 @@ Shader "DuneVector/HDRP Heat Plume Distortion"
             ENDHLSL
         }
 
-        // HDRP strips DistortionVectors when distortion is disabled in the active
-        // frame settings. Keep an invisible forward pass so the shader remains
-        // valid instead of rendering the particle billboards with the error shader.
+        // URP does not expose HDRP-style distortion vectors. Keep an invisible
+        // forward pass so WebGL retains a valid heat-plume material.
         Pass
         {
             Name "FallbackInvisible"
-            Tags { "LightMode" = "ForwardOnly" }
+            Tags { "LightMode" = "UniversalForward" }
             Cull Off
             ZWrite Off
             ColorMask 0
 
             HLSLPROGRAM
-            #pragma target 4.5
+            #pragma target 3.0
             #pragma vertex VertFallback
             #pragma fragment FragFallback
             #pragma multi_compile_instancing
-            #pragma only_renderers d3d11 playstation xboxone xboxseries vulkan metal switch switch2
 
-            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-            #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
-            #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/SpaceTransforms.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             struct FallbackAttributes
             {

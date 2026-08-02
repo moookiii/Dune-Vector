@@ -339,15 +339,10 @@ namespace DuneVector
             }
 
             Vector2 tiling = Vector2.one / Mathf.Max(0.01f, tileSize);
-            if (material.HasProperty("_BaseColorMap"))
+            if (material.HasProperty("_BaseMap"))
             {
-                material.SetTexture("_BaseColorMap", texture);
-                material.SetTextureScale("_BaseColorMap", tiling);
-            }
-            if (material.HasProperty("_UnlitColorMap"))
-            {
-                material.SetTexture("_UnlitColorMap", texture);
-                material.SetTextureScale("_UnlitColorMap", tiling);
+                material.SetTexture("_BaseMap", texture);
+                material.SetTextureScale("_BaseMap", tiling);
             }
             if (material.HasProperty("_MainTex"))
             {
@@ -453,21 +448,24 @@ namespace DuneVector
                 return;
             }
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", baseColor);
-            if (material.HasProperty("_UnlitColor")) material.SetColor("_UnlitColor", baseColor);
-            if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", emission);
+            if (material.HasProperty("_EmissionColor"))
+            {
+                material.SetColor("_EmissionColor", emission);
+                material.EnableKeyword("_EMISSION");
+            }
         }
 
         private Material CreateLit(string name, Color baseColor, float smoothness, float metallic, Color? emission = null)
         {
-            Shader shader = Shader.Find("HDRP/Lit");
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             if (shader == null)
             {
-                shader = Shader.Find("HDRP/Unlit");
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
             }
 
             if (shader == null)
             {
-                throw new InvalidOperationException("Dune Vector requires an HDRP-compatible shader, but HDRP/Lit could not be found.");
+                throw new InvalidOperationException("Dune Vector requires a URP-compatible Lit shader.");
             }
 
             Material material = new Material(shader) { name = name };
@@ -475,10 +473,6 @@ namespace DuneVector
             if (material.HasProperty("_BaseColor"))
             {
                 material.SetColor("_BaseColor", baseColor);
-            }
-            if (material.HasProperty("_UnlitColor"))
-            {
-                material.SetColor("_UnlitColor", baseColor);
             }
             if (material.HasProperty("_Smoothness"))
             {
@@ -488,14 +482,10 @@ namespace DuneVector
             {
                 material.SetFloat("_Metallic", metallic);
             }
-            if (emission.HasValue && material.HasProperty("_EmissiveColor"))
+            if (emission.HasValue && material.HasProperty("_EmissionColor"))
             {
-                material.SetColor("_EmissiveColor", emission.Value);
-                if (material.HasProperty("_EmissiveExposureWeight"))
-                {
-                    material.SetFloat("_EmissiveExposureWeight", 0f);
-                }
-                material.EnableKeyword("_EMISSIVE_COLOR_MAP");
+                material.SetColor("_EmissionColor", emission.Value);
+                material.EnableKeyword("_EMISSION");
             }
 
             _ownedMaterials.Add(material);
@@ -504,18 +494,20 @@ namespace DuneVector
 
         private Material CreateUnlit(string name, Color baseColor, Color emission)
         {
-            Shader shader = Shader.Find("HDRP/Unlit");
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
             if (shader == null)
             {
-                throw new InvalidOperationException("Dune Vector requires the HDRP/Unlit shader for attack effects.");
+                throw new InvalidOperationException("Dune Vector requires the URP Unlit shader for attack effects.");
             }
 
             Material material = new Material(shader) { name = name };
             material.enableInstancing = true;
-            ConfigureLitColors(material, baseColor, emission);
-            if (material.HasProperty("_EmissiveExposureWeight"))
+            Color unlitColor = emission.maxColorComponent > baseColor.maxColorComponent
+                ? new Color(emission.r, emission.g, emission.b, baseColor.a)
+                : baseColor;
+            if (material.HasProperty("_BaseColor"))
             {
-                material.SetFloat("_EmissiveExposureWeight", 0f);
+                material.SetColor("_BaseColor", unlitColor);
             }
             _ownedMaterials.Add(material);
             return material;
@@ -629,7 +621,7 @@ namespace DuneVector
 
         private Material CreatePortal(string name, Color color, RingTuning settings)
         {
-            Shader shader = Shader.Find("DuneVector/HDRP Portal Energy");
+            Shader shader = Shader.Find("DuneVector/URP Portal Energy");
             if (shader == null)
             {
                 throw new InvalidOperationException(
@@ -750,7 +742,7 @@ namespace DuneVector
                 return Array.Empty<Material>();
             }
 
-            Shader shader = Shader.Find("DuneVector/HDRP World Geoglyph Overlay");
+            Shader shader = Shader.Find("DuneVector/URP World Geoglyph Overlay");
             if (shader == null)
             {
                 Debug.LogError("Geoglyph artwork requires Assets/DuneVector/Runtime/DuneVectorGeoglyphOverlay.shader.");

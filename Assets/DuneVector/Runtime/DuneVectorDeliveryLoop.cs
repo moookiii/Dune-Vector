@@ -532,8 +532,7 @@ namespace DuneVector
 
                 renderer.GetPropertyBlock(_colorProperties);
                 _colorProperties.SetColor("_BaseColor", baseColor);
-                _colorProperties.SetColor("_UnlitColor", baseColor);
-                _colorProperties.SetColor("_EmissiveColor", emissionColor);
+                _colorProperties.SetColor("_EmissionColor", emissionColor);
                 _colorProperties.SetColor("_PortalColor", emissionColor);
                 renderer.SetPropertyBlock(_colorProperties);
             }

@@ -1,15 +1,12 @@
-Shader "Hidden/DuneVector/HDRP Y2K Sky"
+Shader "DuneVector/URP Y2K Sky"
 {
     HLSLINCLUDE
 
     #pragma vertex Vert
     #pragma editor_sync_compilation
-    #pragma target 4.5
-    #pragma only_renderers d3d11 playstation xboxone xboxseries vulkan metal switch switch2
+    #pragma target 3.0
 
-    #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
-    #include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
-    #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Sky/SkyUtils.hlsl"
+    #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
     float4 _SkyTop;
     float4 _SkyMiddle;
@@ -106,13 +103,14 @@ Shader "Hidden/DuneVector/HDRP Y2K Sky"
 
     struct Attributes
     {
-        uint vertexID : SV_VertexID;
+        float4 positionOS : POSITION;
         UNITY_VERTEX_INPUT_INSTANCE_ID
     };
 
     struct Varyings
     {
         float4 positionCS : SV_POSITION;
+        float3 directionWS : TEXCOORD0;
         UNITY_VERTEX_OUTPUT_STEREO
     };
 
@@ -121,7 +119,8 @@ Shader "Hidden/DuneVector/HDRP Y2K Sky"
         Varyings output;
         UNITY_SETUP_INSTANCE_ID(input);
         UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
-        output.positionCS = GetFullScreenTriangleVertexPosition(input.vertexID, UNITY_RAW_FAR_CLIP_VALUE);
+        output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+        output.directionWS = TransformObjectToWorldDir(input.positionOS.xyz);
         return output;
     }
 
@@ -389,51 +388,27 @@ Shader "Hidden/DuneVector/HDRP Y2K Sky"
         return color * _SkyIntensity;
     }
 
-    float4 RenderSky(Varyings input)
-    {
-        return float4(RenderY2KSky(GetSkyViewDirWS(input.positionCS.xy)), 1.0);
-    }
-
-    float4 FragBaking(Varyings input) : SV_Target
-    {
-        return RenderSky(input);
-    }
-
-    float4 FragRender(Varyings input) : SV_Target
+    float4 Frag(Varyings input) : SV_Target
     {
         UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-        float4 color = RenderSky(input);
-        color.rgb *= GetCurrentExposureMultiplier();
-        return color;
+        return float4(RenderY2KSky(normalize(input.directionWS)), 1.0);
     }
 
     ENDHLSL
 
     SubShader
     {
-        Tags { "RenderPipeline" = "HDRenderPipeline" }
-
-        Pass
-        {
-            ZWrite Off
-            ZTest Always
-            Blend Off
-            Cull Off
-
-            HLSLPROGRAM
-                #pragma fragment FragBaking
-            ENDHLSL
-        }
+        Tags { "RenderPipeline" = "UniversalPipeline" "Queue" = "Background" "RenderType" = "Background" }
 
         Pass
         {
             ZWrite Off
             ZTest LEqual
             Blend Off
-            Cull Off
+            Cull Front
 
             HLSLPROGRAM
-                #pragma fragment FragRender
+                #pragma fragment Frag
             ENDHLSL
         }
     }

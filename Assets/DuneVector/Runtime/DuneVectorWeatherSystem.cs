@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.HighDefinition;
+using UnityEngine.Rendering.Universal;
 
 namespace DuneVector
 {
@@ -180,15 +180,15 @@ namespace DuneVector
             DroneCharacterController player,
             Camera viewCamera,
             DesertWorldStreamer world,
-            Fog fog,
+            DuneVectorUrpFogState fog,
             DuneVectorY2KSky sky,
-            Exposure exposure,
+            ColorAdjustments exposure,
             DesertWeatherTuning settings)
         {
             settings.EnsureInitialized();
             _stateMachine = new DesertWeatherStateMachine(settings.Cycle, settings.Wind, world.WorldSeed);
 
-            GameObject atmosphereObject = new GameObject("HDRP Weather Atmosphere");
+            GameObject atmosphereObject = new GameObject("URP Weather Atmosphere");
             atmosphereObject.transform.SetParent(transform, false);
             _atmosphere = atmosphereObject.AddComponent<DuneVectorWeatherAtmosphere>();
             _atmosphere.Initialize(fog, sky, exposure, settings.Atmosphere);
@@ -231,15 +231,15 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorWeatherAtmosphere : MonoBehaviour
     {
-        private Fog _fog;
+        private DuneVectorUrpFogState _fog;
         private DuneVectorY2KSky _sky;
-        private Exposure _exposure;
+        private ColorAdjustments _exposure;
         private DesertWeatherAtmosphereTuning _settings;
 
         public void Initialize(
-            Fog fog,
+            DuneVectorUrpFogState fog,
             DuneVectorY2KSky sky,
-            Exposure exposure,
+            ColorAdjustments exposure,
             DesertWeatherAtmosphereTuning settings)
         {
             _fog = fog;
@@ -311,7 +311,7 @@ namespace DuneVector
 
             if (_exposure != null)
             {
-                _exposure.fixedExposure.value = Mathf.Lerp(
+                _exposure.postExposure.value = Mathf.Lerp(
                     _settings.ClearExposure,
                     _settings.StormExposure,
                     intensity);
@@ -682,32 +682,27 @@ namespace DuneVector
 
         private Material CreateDustMaterial(string materialName)
         {
-            Shader shader = Shader.Find("DuneVector/HDRP Weather Particle");
+            Shader shader = Shader.Find("DuneVector/URP Weather Particle");
             if (shader == null)
             {
-                shader = Shader.Find("HDRP/Unlit");
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
             }
             Material material = new Material(shader) { name = materialName };
             material.renderQueue = (int)RenderQueue.Transparent;
-            SetMaterialFloat(material, "_SurfaceType", 1f);
-            SetMaterialFloat(material, "_BlendMode", 0f);
+            SetMaterialFloat(material, "_Surface", 1f);
+            SetMaterialFloat(material, "_Blend", 0f);
             SetMaterialFloat(material, "_ZWrite", 0f);
             SetMaterialFloat(material, "_SrcBlend", (float)BlendMode.SrcAlpha);
             SetMaterialFloat(material, "_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
             SetMaterialColor(material, "_BaseColor", Color.white);
-            SetMaterialColor(material, "_UnlitColor", Color.white);
             SetMaterialColor(material, "_Tint", Color.white);
             if (material.HasProperty("_MainTex"))
             {
                 material.SetTexture("_MainTex", _particleTexture);
             }
-            if (material.HasProperty("_BaseColorMap"))
+            if (material.HasProperty("_BaseMap"))
             {
-                material.SetTexture("_BaseColorMap", _particleTexture);
-            }
-            if (material.HasProperty("_UnlitColorMap"))
-            {
-                material.SetTexture("_UnlitColorMap", _particleTexture);
+                material.SetTexture("_BaseMap", _particleTexture);
             }
             material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             material.EnableKeyword("_BLENDMODE_ALPHA");

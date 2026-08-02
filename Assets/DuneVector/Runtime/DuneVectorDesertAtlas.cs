@@ -1261,14 +1261,15 @@ namespace DuneVector
                         0f,
                         Space.Self);
                 }
-                if (visual.SignalMaterial != null && visual.SignalMaterial.HasProperty("_EmissiveColor"))
+                if (visual.SignalMaterial != null && visual.SignalMaterial.HasProperty("_EmissionColor"))
                 {
                     float challengeEmission = challengeActive
                         ? Mathf.Lerp(1f, _settings.ActiveChallengeEmissionMultiplier, _scanProgress)
                         : 1f;
                     visual.SignalMaterial.SetColor(
-                        "_EmissiveColor",
+                        "_EmissionColor",
                         visual.SignalColor * (_settings.SignalEmissionMultiplier * challengeEmission));
+                    visual.SignalMaterial.EnableKeyword("_EMISSION");
                 }
                 if (visual.AmbientParticles != null)
                 {
@@ -2084,7 +2085,11 @@ namespace DuneVector
         {
             Material material = new Material(source) { hideFlags = HideFlags.HideAndDontSave };
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color * baseColorMultiplier);
-            if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", color * emissionMultiplier);
+            if (material.HasProperty("_EmissionColor"))
+            {
+                material.SetColor("_EmissionColor", color * emissionMultiplier);
+                material.EnableKeyword("_EMISSION");
+            }
             return material;
         }
 

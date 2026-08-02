@@ -1,20 +1,20 @@
 using System;
+using System.Collections.Generic;
+using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.HighDefinition;
 
 namespace DuneVector
 {
     [Serializable]
-    [VolumeComponentMenu("Sky/Dune Vector Y2K Sky")]
-    [SupportedOnRenderPipeline(typeof(HDRenderPipelineAsset))]
-    [SkyUniqueID(2000317)]
-    public sealed class DuneVectorY2KSky : SkySettings
+    [VolumeComponentMenu("Dune Vector/Y2K Sky Data")]
+    public sealed class DuneVectorY2KSky : VolumeComponent
     {
         public ColorParameter Top = new ColorParameter(Color.blue, true, false, true);
         public ColorParameter Middle = new ColorParameter(Color.cyan, true, false, true);
         public ColorParameter Bottom = new ColorParameter(Color.white, true, false, true);
         public MinFloatParameter GradientDiffusion = new MinFloatParameter(1f, 0f);
+        public MinFloatParameter Multiplier = new MinFloatParameter(1f, 0f);
 
         public ColorParameter HorizonGlowColor = new ColorParameter(Color.cyan, true, false, true);
         public ClampedFloatParameter HorizonGlowSize = new ClampedFloatParameter(0.14f, 0.01f, 0.5f);
@@ -111,212 +111,146 @@ namespace DuneVector
         public ClampedFloatParameter ReactiveBassPulse = new ClampedFloatParameter(0f, 0f, 1f);
         public ClampedFloatParameter ReactiveHighPulse = new ClampedFloatParameter(0f, 0f, 1f);
 
-        public override Type GetSkyRendererType()
-        {
-            return typeof(DuneVectorY2KSkyRenderer);
-        }
-
-        public override int GetHashCode()
-        {
-            unchecked
-            {
-                int hash = base.GetHashCode();
-                hash = hash * 23 + Top.GetHashCode();
-                hash = hash * 23 + Middle.GetHashCode();
-                hash = hash * 23 + Bottom.GetHashCode();
-                hash = hash * 23 + GradientDiffusion.GetHashCode();
-                hash = hash * 23 + HorizonGlowColor.GetHashCode();
-                hash = hash * 23 + HorizonGlowSize.GetHashCode();
-                hash = hash * 23 + HorizonGlowIntensity.GetHashCode();
-                hash = hash * 23 + CloudColor.GetHashCode();
-                hash = hash * 23 + CloudHighlight.GetHashCode();
-                hash = hash * 23 + CloudPearl.GetHashCode();
-                hash = hash * 23 + CloudOpacity.GetHashCode();
-                hash = hash * 23 + CloudAltitude.GetHashCode();
-                hash = hash * 23 + CloudThickness.GetHashCode();
-                hash = hash * 23 + CloudScale.GetHashCode();
-                hash = hash * 23 + CloudSoftness.GetHashCode();
-                hash = hash * 23 + CloudHighlightStrength.GetHashCode();
-                hash = hash * 23 + CloudPearlStrength.GetHashCode();
-                hash = hash * 23 + CloudDriftSpeed.GetHashCode();
-                hash = hash * 23 + StructureColor.GetHashCode();
-                hash = hash * 23 + StructureOpacity.GetHashCode();
-                hash = hash * 23 + ArcAltitude.GetHashCode();
-                hash = hash * 23 + ArcCurvature.GetHashCode();
-                hash = hash * 23 + ArcThickness.GetHashCode();
-                hash = hash * 23 + ArcFrequency.GetHashCode();
-                hash = hash * 23 + RingAltitude.GetHashCode();
-                hash = hash * 23 + RingSpacing.GetHashCode();
-                hash = hash * 23 + RingThickness.GetHashCode();
-                hash = hash * 23 + GridOpacity.GetHashCode();
-                hash = hash * 23 + GridScale.GetHashCode();
-                hash = hash * 23 + GridHeight.GetHashCode();
-                hash = hash * 23 + GridLineThickness.GetHashCode();
-                return hash;
-            }
-        }
     }
 
-    public sealed class DuneVectorY2KSkyRenderer : SkyRenderer
+    public sealed class DuneVectorUrpFogState
     {
-        private const string ShaderName = "Hidden/DuneVector/HDRP Y2K Sky";
+        public readonly FloatParameter meanFreePath = new FloatParameter(0f);
+        public readonly FloatParameter maxFogDistance = new FloatParameter(0f);
+        public readonly FloatParameter baseHeight = new FloatParameter(0f);
+        public readonly FloatParameter maximumHeight = new FloatParameter(0f);
+        public readonly BoolParameter enableVolumetricFog = new BoolParameter(false);
+    }
 
-        private static readonly int SkyIntensityId = Shader.PropertyToID("_SkyIntensity");
-        private static readonly int PixelCoordToViewDirectionId = Shader.PropertyToID("_PixelCoordToViewDirWS");
+    [DisallowMultipleComponent]
+    public sealed class DuneVectorUrpEnvironmentDriver : MonoBehaviour
+    {
+        private const string ShaderName = "DuneVector/URP Y2K Sky";
+        private static readonly FieldInfo[] SkyFields = typeof(DuneVectorY2KSky).GetFields(BindingFlags.Public | BindingFlags.Instance);
+        private readonly List<SkyPropertyBinding> _skyPropertyBindings = new List<SkyPropertyBinding>(SkyFields.Length);
+        private Material _skyMaterial;
+        private DuneVectorY2KSky _sky;
+        private DuneVectorUrpFogState _fog;
+        private Material _previousSkybox;
+        private bool _previousFogEnabled;
+        private FogMode _previousFogMode;
+        private float _previousFogStartDistance;
+        private float _previousFogEndDistance;
+        private Color _previousFogColor;
 
-        private Material _material;
-        private readonly MaterialPropertyBlock _propertyBlock = new MaterialPropertyBlock();
-
-        public DuneVectorY2KSkyRenderer()
+        private readonly struct SkyPropertyBinding
         {
-            SupportDynamicSunLight = false;
+            public readonly int PropertyId;
+            public readonly VolumeParameter Parameter;
+
+            public SkyPropertyBinding(int propertyId, VolumeParameter parameter)
+            {
+                PropertyId = propertyId;
+                Parameter = parameter;
+            }
         }
 
-        public override void Build()
+        public void Initialize(DuneVectorY2KSky sky, DuneVectorUrpFogState fog)
         {
+            _sky = sky;
+            _fog = fog;
             Shader shader = Shader.Find(ShaderName);
             if (shader == null)
             {
-                throw new InvalidOperationException(
-                    $"Dune Vector requires the Resources shader '{ShaderName}' for its HDRP sky.");
+                throw new InvalidOperationException($"Dune Vector requires the URP sky shader '{ShaderName}'.");
             }
 
-            _material = CoreUtils.CreateEngineMaterial(shader);
+            _previousSkybox = RenderSettings.skybox;
+            _previousFogEnabled = RenderSettings.fog;
+            _previousFogMode = RenderSettings.fogMode;
+            _previousFogStartDistance = RenderSettings.fogStartDistance;
+            _previousFogEndDistance = RenderSettings.fogEndDistance;
+            _previousFogColor = RenderSettings.fogColor;
+            _skyMaterial = new Material(shader) { name = "Runtime Dune Vector URP Sky" };
+            CacheSkyPropertyBindings();
+            RenderSettings.skybox = _skyMaterial;
+            Apply();
+            DynamicGI.UpdateEnvironment();
         }
 
-        public override void Cleanup()
+        private void LateUpdate()
         {
-            CoreUtils.Destroy(_material);
+            Apply();
         }
 
-        public override void RenderSky(
-            BuiltinSkyParameters builtinParams,
-            bool renderForCubemap,
-            bool renderSunDisk)
+        private void OnDestroy()
         {
-            DuneVectorY2KSky sky = builtinParams.skySettings as DuneVectorY2KSky;
-            if (sky == null || _material == null)
+            if (RenderSettings.skybox == _skyMaterial)
+            {
+                RenderSettings.skybox = _previousSkybox;
+            }
+            RenderSettings.fog = _previousFogEnabled;
+            RenderSettings.fogMode = _previousFogMode;
+            RenderSettings.fogStartDistance = _previousFogStartDistance;
+            RenderSettings.fogEndDistance = _previousFogEndDistance;
+            RenderSettings.fogColor = _previousFogColor;
+            CoreUtils.Destroy(_skyMaterial);
+        }
+
+        private void CacheSkyPropertyBindings()
+        {
+            _skyPropertyBindings.Clear();
+            foreach (FieldInfo field in SkyFields)
+            {
+                if (field.Name == nameof(DuneVectorY2KSky.Multiplier))
+                {
+                    continue;
+                }
+
+                object parameter = field.GetValue(_sky);
+                if (!(parameter is ColorParameter) && !(parameter is FloatParameter))
+                {
+                    continue;
+                }
+
+                string propertyName = field.Name switch
+                {
+                    nameof(DuneVectorY2KSky.Top) => "_SkyTop",
+                    nameof(DuneVectorY2KSky.Middle) => "_SkyMiddle",
+                    nameof(DuneVectorY2KSky.Bottom) => "_SkyBottom",
+                    _ => "_" + field.Name
+                };
+                int propertyId = Shader.PropertyToID(propertyName);
+                if (_skyMaterial.HasProperty(propertyId))
+                {
+                    _skyPropertyBindings.Add(new SkyPropertyBinding(propertyId, (VolumeParameter)parameter));
+                }
+            }
+        }
+
+        private void Apply()
+        {
+            if (_skyMaterial == null || _sky == null)
             {
                 return;
             }
 
-            SetColor("_SkyTop", sky.Top.value);
-            SetColor("_SkyMiddle", sky.Middle.value);
-            SetColor("_SkyBottom", sky.Bottom.value);
-            SetFloat("_GradientDiffusion", sky.GradientDiffusion.value);
-            SetColor("_HorizonGlowColor", sky.HorizonGlowColor.value);
-            SetFloat("_HorizonGlowSize", sky.HorizonGlowSize.value);
-            SetFloat("_HorizonGlowIntensity", sky.HorizonGlowIntensity.value);
-            SetColor("_CloudColor", sky.CloudColor.value);
-            SetColor("_CloudHighlight", sky.CloudHighlight.value);
-            SetColor("_CloudPearl", sky.CloudPearl.value);
-            SetFloat("_CloudOpacity", sky.CloudOpacity.value);
-            SetFloat("_CloudAltitude", sky.CloudAltitude.value);
-            SetFloat("_CloudThickness", sky.CloudThickness.value);
-            SetFloat("_CloudScale", sky.CloudScale.value);
-            SetFloat("_CloudSoftness", sky.CloudSoftness.value);
-            SetFloat("_CloudHighlightStrength", sky.CloudHighlightStrength.value);
-            SetFloat("_CloudPearlStrength", sky.CloudPearlStrength.value);
-            SetFloat("_CloudDriftSpeed", sky.CloudDriftSpeed.value);
-            SetColor("_StructureColor", sky.StructureColor.value);
-            SetFloat("_StructureOpacity", sky.StructureOpacity.value);
-            SetFloat("_ArcAltitude", sky.ArcAltitude.value);
-            SetFloat("_ArcCurvature", sky.ArcCurvature.value);
-            SetFloat("_ArcThickness", sky.ArcThickness.value);
-            SetFloat("_ArcFrequency", sky.ArcFrequency.value);
-            SetFloat("_RingAltitude", sky.RingAltitude.value);
-            SetFloat("_RingSpacing", sky.RingSpacing.value);
-            SetFloat("_RingThickness", sky.RingThickness.value);
-            SetFloat("_GridOpacity", sky.GridOpacity.value);
-            SetFloat("_GridScale", sky.GridScale.value);
-            SetFloat("_GridHeight", sky.GridHeight.value);
-            SetFloat("_GridLineThickness", sky.GridLineThickness.value);
-            SetColor("_ReactiveFrontColor", sky.ReactiveFrontColor.value);
-            SetFloat("_ReactiveFrontIntensity", sky.ReactiveFrontIntensity.value);
-            SetFloat("_ReactiveFrontCount", sky.ReactiveFrontCount.value);
-            SetFloat("_ReactiveFrontTravelSpeed", sky.ReactiveFrontTravelSpeed.value);
-            SetFloat("_ReactiveFrontThickness", sky.ReactiveFrontThickness.value);
-            SetFloat("_ReactiveFrontCurvature", sky.ReactiveFrontCurvature.value);
-            SetFloat("_ReactiveFrontAltitude", sky.ReactiveFrontAltitude.value);
-            SetFloat("_ReactiveFrontVerticalSpan", sky.ReactiveFrontVerticalSpan.value);
-            SetFloat("_ReactiveBassExpansion", sky.ReactiveBassExpansion.value);
-            SetFloat("_ReactiveFrontEnergyResponse", sky.ReactiveFrontEnergyResponse.value);
-            SetFloat("_ReactiveFrontBassResponse", sky.ReactiveFrontBassResponse.value);
-            SetFloat("_ReactiveFrontPulseResponse", sky.ReactiveFrontPulseResponse.value);
-            SetFloat("_ReactiveFrontPressureWidth", sky.ReactiveFrontPressureWidth.value);
-            SetFloat("_ReactiveFrontPressureOpacity", sky.ReactiveFrontPressureOpacity.value);
-            SetColor("_ReactiveAuroraColor", sky.ReactiveAuroraColor.value);
-            SetFloat("_ReactiveAuroraIntensity", sky.ReactiveAuroraIntensity.value);
-            SetFloat("_ReactiveAuroraAltitude", sky.ReactiveAuroraAltitude.value);
-            SetFloat("_ReactiveAuroraThickness", sky.ReactiveAuroraThickness.value);
-            SetFloat("_ReactiveAuroraWaviness", sky.ReactiveAuroraWaviness.value);
-            SetFloat("_ReactiveAuroraTravelSpeed", sky.ReactiveAuroraTravelSpeed.value);
-            SetFloat("_ReactiveAuroraFrequency", sky.ReactiveAuroraFrequency.value);
-            SetFloat("_ReactiveAuroraSecondaryIntensity", sky.ReactiveAuroraSecondaryIntensity.value);
-            SetFloat("_ReactiveAuroraShimmerAmount", sky.ReactiveAuroraShimmerAmount.value);
-            SetColor("_ReactiveShockRingColor", sky.ReactiveShockRingColor.value);
-            SetFloat("_ReactiveShockRingIntensity", sky.ReactiveShockRingIntensity.value);
-            SetFloat("_ReactiveShockRingCount", sky.ReactiveShockRingCount.value);
-            SetFloat("_ReactiveShockRingThickness", sky.ReactiveShockRingThickness.value);
-            SetFloat("_ReactiveShockRingTravelSpeed", sky.ReactiveShockRingTravelSpeed.value);
-            SetFloat("_ReactiveShockRingVerticalSpan", sky.ReactiveShockRingVerticalSpan.value);
-            SetFloat("_ReactiveShockRingBassResponse", sky.ReactiveShockRingBassResponse.value);
-            SetFloat("_ReactiveShockRingBreakup", sky.ReactiveShockRingBreakup.value);
-            SetColor("_ReactiveLightningColor", sky.ReactiveLightningColor.value);
-            SetFloat("_ReactiveLightningIntensity", sky.ReactiveLightningIntensity.value);
-            SetFloat("_ReactiveLightningSectorCount", sky.ReactiveLightningSectorCount.value);
-            SetFloat("_ReactiveLightningWidth", sky.ReactiveLightningWidth.value);
-            SetFloat("_ReactiveLightningJaggedness", sky.ReactiveLightningJaggedness.value);
-            SetFloat("_ReactiveLightningRetargetRate", sky.ReactiveLightningRetargetRate.value);
-            SetFloat("_ReactiveLightningSustainResponse", sky.ReactiveLightningSustainResponse.value);
-            SetFloat("_ReactiveLightningBranchIntensity", sky.ReactiveLightningBranchIntensity.value);
-            SetFloat("_ReactiveLightningStrikeCount", sky.ReactiveLightningStrikeCount.value);
-            SetFloat("_ReactiveLightningHaloWidthMultiplier", sky.ReactiveLightningHaloWidthMultiplier.value);
-            SetFloat("_ReactiveLightningHaloIntensity", sky.ReactiveLightningHaloIntensity.value);
-            SetFloat("_ReactiveLightningNodeIntensity", sky.ReactiveLightningNodeIntensity.value);
-            SetFloat("_ReactiveLightningNodeSpacing", sky.ReactiveLightningNodeSpacing.value);
-            SetFloat("_ReactiveCameraAzimuth", sky.ReactiveCameraAzimuth.value);
-            SetFloat("_ReactiveLightningAzimuthSpan", sky.ReactiveLightningAzimuthSpan.value);
-            SetColor("_ReactiveSparkColor", sky.ReactiveSparkColor.value);
-            SetFloat("_ReactiveSparkIntensity", sky.ReactiveSparkIntensity.value);
-            SetFloat("_ReactiveSparkGridScale", sky.ReactiveSparkGridScale.value);
-            SetFloat("_ReactiveSparkDensity", sky.ReactiveSparkDensity.value);
-            SetFloat("_ReactiveSparkSize", sky.ReactiveSparkSize.value);
-            SetFloat("_ReactiveSparkTwinkleSpeed", sky.ReactiveSparkTwinkleSpeed.value);
-            SetFloat("_ReactiveSparkSustainResponse", sky.ReactiveSparkSustainResponse.value);
-            SetFloat("_ReactiveMusicEnergy", sky.ReactiveMusicEnergy.value);
-            SetFloat("_ReactiveMusicBass", sky.ReactiveMusicBass.value);
-            SetFloat("_ReactiveMusicMids", sky.ReactiveMusicMids.value);
-            SetFloat("_ReactiveMusicHighs", sky.ReactiveMusicHighs.value);
-            SetFloat("_ReactiveBassPulse", sky.ReactiveBassPulse.value);
-            SetFloat("_ReactiveHighPulse", sky.ReactiveHighPulse.value);
-            SetFloat("_RenderForCubemap", renderForCubemap ? 1f : 0f);
-            SetFloat(SkyIntensityId, GetSkyIntensity(sky, builtinParams.debugSettings));
+            foreach (SkyPropertyBinding binding in _skyPropertyBindings)
+            {
+                if (binding.Parameter is ColorParameter color)
+                {
+                    _skyMaterial.SetColor(binding.PropertyId, color.value);
+                }
+                else if (binding.Parameter is FloatParameter number)
+                {
+                    _skyMaterial.SetFloat(binding.PropertyId, number.value);
+                }
+            }
 
-            _propertyBlock.SetMatrix(
-                PixelCoordToViewDirectionId,
-                builtinParams.pixelCoordToViewDirMatrix);
-
-            CoreUtils.DrawFullScreen(
-                builtinParams.commandBuffer,
-                _material,
-                _propertyBlock,
-                renderForCubemap ? 0 : 1);
-        }
-
-        private void SetColor(string propertyName, Color value)
-        {
-            _material.SetColor(propertyName, value);
-        }
-
-        private void SetFloat(string propertyName, float value)
-        {
-            _material.SetFloat(propertyName, value);
-        }
-
-        private void SetFloat(int propertyId, float value)
-        {
-            _material.SetFloat(propertyId, value);
+            _skyMaterial.SetFloat("_SkyIntensity", _sky.Multiplier.value);
+            RenderSettings.fog = _fog != null && _fog.maxFogDistance.value > 0f;
+            if (RenderSettings.fog)
+            {
+                RenderSettings.fogMode = FogMode.Linear;
+                RenderSettings.fogStartDistance = Mathf.Min(_fog.meanFreePath.value, _fog.maxFogDistance.value) * 0.15f;
+                RenderSettings.fogEndDistance = _fog.maxFogDistance.value;
+                RenderSettings.fogColor = _sky.Middle.value;
+            }
         }
     }
 }

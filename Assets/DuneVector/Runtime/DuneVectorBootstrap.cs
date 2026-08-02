@@ -3,7 +3,7 @@ using FMODUnity;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.HighDefinition;
+using UnityEngine.Rendering.Universal;
 
 namespace DuneVector
 {
@@ -104,9 +104,9 @@ namespace DuneVector
 
         private DuneVectorMaterials _materials;
         private VolumeProfile _runtimeVolumeProfile;
-        private Fog _environmentFog;
+        private DuneVectorUrpFogState _environmentFog;
         private DuneVectorY2KSky _environmentSky;
-        private Exposure _environmentExposure;
+        private ColorAdjustments _environmentExposure;
         private Bloom _environmentBloom;
         private bool _ownsRuntimeSettings;
 
@@ -482,16 +482,14 @@ namespace DuneVector
             camera.nearClipPlane = PlayerTuning.CameraNearClipPlane;
             camera.farClipPlane = Mathf.Max(PlayerTuning.CameraNearClipPlane, PlayerTuning.CameraFarClipPlane);
             cameraObject.AddComponent<StudioListener>();
-            HDAdditionalCameraData cameraData = cameraObject.GetComponent<HDAdditionalCameraData>();
+            UniversalAdditionalCameraData cameraData = cameraObject.GetComponent<UniversalAdditionalCameraData>();
             if (cameraData == null)
             {
-                cameraData = cameraObject.AddComponent<HDAdditionalCameraData>();
+                cameraData = cameraObject.AddComponent<UniversalAdditionalCameraData>();
             }
-            cameraData.customRenderingSettings = true;
-            cameraData.renderingPathCustomFrameSettings.SetEnabled(FrameSettingsField.Distortion, true);
-            cameraData.renderingPathCustomFrameSettingsOverrideMask.mask[(uint)FrameSettingsField.Distortion] = true;
-            cameraData.renderingPathCustomFrameSettings.SetEnabled(FrameSettingsField.FilmGrain, true);
-            cameraData.renderingPathCustomFrameSettingsOverrideMask.mask[(uint)FrameSettingsField.FilmGrain] = true;
+            cameraData.renderPostProcessing = true;
+            cameraData.requiresColorTexture = true;
+            cameraData.requiresDepthTexture = true;
             ConfigureCameraAntiAliasing(cameraData, PlayerTuning);
 
             LensFlareComponentSRP lensFlare = cameraObject.AddComponent<LensFlareComponentSRP>();
@@ -537,7 +535,7 @@ namespace DuneVector
                 boostSpeedModifier);
         }
 
-        private static void ConfigureCameraAntiAliasing(HDAdditionalCameraData cameraData, DroneTuning settings)
+        private static void ConfigureCameraAntiAliasing(UniversalAdditionalCameraData cameraData, DroneTuning settings)
         {
             if (cameraData == null || settings == null)
             {
@@ -547,37 +545,17 @@ namespace DuneVector
             cameraData.antialiasing = settings.CameraAntiAliasingMode switch
             {
                 DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing =>
-                    HDAdditionalCameraData.AntialiasingMode.TemporalAntialiasing,
+                    AntialiasingMode.TemporalAntiAliasing,
                 DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing =>
-                    HDAdditionalCameraData.AntialiasingMode.SubpixelMorphologicalAntiAliasing,
-                _ => HDAdditionalCameraData.AntialiasingMode.None,
+                    AntialiasingMode.SubpixelMorphologicalAntiAliasing,
+                _ => AntialiasingMode.None,
             };
-            cameraData.SMAAQuality = settings.SmaaQuality switch
+            cameraData.antialiasingQuality = settings.SmaaQuality switch
             {
-                DuneVectorSmaaQuality.Low => HDAdditionalCameraData.SMAAQualityLevel.Low,
-                DuneVectorSmaaQuality.Medium => HDAdditionalCameraData.SMAAQualityLevel.Medium,
-                _ => HDAdditionalCameraData.SMAAQualityLevel.High,
+                DuneVectorSmaaQuality.Low => AntialiasingQuality.Low,
+                DuneVectorSmaaQuality.Medium => AntialiasingQuality.Medium,
+                _ => AntialiasingQuality.High,
             };
-            cameraData.TAAQuality = settings.TemporalAntiAliasingQuality switch
-            {
-                DuneVectorTaaQuality.Low => HDAdditionalCameraData.TAAQualityLevel.Low,
-                DuneVectorTaaQuality.Medium => HDAdditionalCameraData.TAAQualityLevel.Medium,
-                _ => HDAdditionalCameraData.TAAQualityLevel.High,
-            };
-            cameraData.taaSharpenMode = settings.TemporalSharpenMode switch
-            {
-                DuneVectorTaaSharpenMode.LowQuality => HDAdditionalCameraData.TAASharpenMode.LowQuality,
-                DuneVectorTaaSharpenMode.ContrastAdaptiveSharpening => HDAdditionalCameraData.TAASharpenMode.ContrastAdaptiveSharpening,
-                _ => HDAdditionalCameraData.TAASharpenMode.PostSharpen,
-            };
-            cameraData.taaSharpenStrength = Mathf.Clamp(settings.TemporalSharpenStrength, 0f, 2f);
-            cameraData.taaRingingReduction = Mathf.Clamp01(settings.TemporalRingingReduction);
-            cameraData.taaHistorySharpening = Mathf.Clamp01(settings.TemporalHistorySharpening);
-            cameraData.taaAntiFlicker = Mathf.Clamp01(settings.TemporalAntiFlicker);
-            cameraData.taaMotionVectorRejection = Mathf.Clamp01(settings.TemporalMotionVectorRejection);
-            cameraData.taaAntiHistoryRinging = settings.TemporalAntiHistoryRinging;
-            cameraData.taaBaseBlendFactor = Mathf.Clamp(settings.TemporalBaseBlendFactor, 0.6f, 0.95f);
-            cameraData.taaJitterScale = Mathf.Clamp(settings.TemporalJitterScale, 0.1f, 1f);
         }
 
         private void BuildAudio()
@@ -624,30 +602,19 @@ namespace DuneVector
             sun.shadows = LightShadows.Soft;
             sun.shadowStrength = 0.86f;
             sun.shadowResolution = LightShadowResolution.VeryHigh;
-            HDAdditionalLightData sunData = sunObject.GetComponent<HDAdditionalLightData>();
-            if (sunData == null)
-            {
-                sunData = sunObject.AddComponent<HDAdditionalLightData>();
-            }
-            sunData.SetShadowResolutionOverride(false);
-            sunData.SetShadowResolutionLevel(3);
-            sunData.shadowDimmer = Mathf.Clamp01(WeatherSettings.Atmosphere.SunShadowDimmer);
             sun.lightUnit = LightUnit.Lux;
-            sun.intensity = 76f;
+            sun.intensity = WeatherSettings.Atmosphere.SunIntensity;
+            sun.shadowStrength = Mathf.Clamp01(WeatherSettings.Atmosphere.SunShadowDimmer);
 
-            GameObject volumeObject = new GameObject("HDRP Desert Environment");
+            GameObject volumeObject = new GameObject("URP Desert Environment");
             volumeObject.transform.SetParent(transform, false);
             Volume volume = volumeObject.AddComponent<Volume>();
             volume.isGlobal = true;
             volume.priority = 100f;
 
             _runtimeVolumeProfile = ScriptableObject.CreateInstance<VolumeProfile>();
-            _runtimeVolumeProfile.name = "Runtime Desert HDRP Profile";
+            _runtimeVolumeProfile.name = "Runtime Desert URP Profile";
             volume.sharedProfile = _runtimeVolumeProfile;
-
-            VisualEnvironment environment = _runtimeVolumeProfile.Add<VisualEnvironment>(true);
-            environment.skyType.Override(SkySettings.GetUniqueID<DuneVectorY2KSky>());
-            environment.skyAmbientMode.Override(SkyAmbientMode.Dynamic);
 
             DesertWeatherAtmosphereTuning atmosphere = WeatherSettings.Atmosphere;
             _environmentSky = _runtimeVolumeProfile.Add<DuneVectorY2KSky>(true);
@@ -655,7 +622,7 @@ namespace DuneVector
             _environmentSky.Middle.Override(atmosphere.ClearSkyMiddle);
             _environmentSky.Bottom.Override(atmosphere.ClearSkyBottom);
             _environmentSky.GradientDiffusion.Override(atmosphere.SkyGradientDiffusion);
-            _environmentSky.multiplier.Override(atmosphere.SkyMultiplier);
+            _environmentSky.Multiplier.Override(atmosphere.SkyMultiplier);
             _environmentSky.HorizonGlowColor.Override(atmosphere.ClearHorizonGlowColor);
             _environmentSky.HorizonGlowSize.Override(atmosphere.HorizonGlowSize);
             _environmentSky.HorizonGlowIntensity.Override(atmosphere.ClearHorizonGlowIntensity);
@@ -684,13 +651,13 @@ namespace DuneVector
             _environmentSky.GridHeight.Override(atmosphere.DigitalGridHeight);
             _environmentSky.GridLineThickness.Override(atmosphere.DigitalGridLineThickness);
 
-            _environmentExposure = _runtimeVolumeProfile.Add<Exposure>(true);
-            _environmentExposure.mode.Override(ExposureMode.Fixed);
-            _environmentExposure.fixedExposure.Override(atmosphere.ClearExposure);
+            _environmentExposure = _runtimeVolumeProfile.Add<ColorAdjustments>(true);
+            _environmentExposure.postExposure.Override(atmosphere.ClearExposure);
 
-            _environmentFog = _runtimeVolumeProfile.Add<Fog>(true);
-            _environmentFog.enabled.Override(true);
-            _environmentFog.colorMode.Override(FogColorMode.SkyColor);
+            Tonemapping tonemapping = _runtimeVolumeProfile.Add<Tonemapping>(true);
+            tonemapping.mode.Override(TonemappingMode.ACES);
+
+            _environmentFog = new DuneVectorUrpFogState();
             _environmentFog.meanFreePath.Override(atmosphere.ClearVisibilityDistance);
             _environmentFog.baseHeight.Override(atmosphere.FogBaseHeight);
             _environmentFog.maximumHeight.Override(atmosphere.ClearFogHeight);
@@ -701,6 +668,9 @@ namespace DuneVector
             _environmentBloom.intensity.Override(atmosphere.BloomIntensity);
             _environmentBloom.threshold.Override(atmosphere.BloomThreshold);
             _environmentBloom.scatter.Override(atmosphere.BloomScatter);
+
+            DuneVectorUrpEnvironmentDriver environmentDriver = volumeObject.AddComponent<DuneVectorUrpEnvironmentDriver>();
+            environmentDriver.Initialize(_environmentSky, _environmentFog);
 
         }
 

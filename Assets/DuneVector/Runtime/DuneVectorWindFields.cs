@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.HighDefinition;
+using UnityEngine.Rendering.Universal;
 
 namespace DuneVector
 {
@@ -769,10 +769,10 @@ namespace DuneVector
 
         private static Material CreateParticleMaterial(Texture2D particleTexture)
         {
-            Shader shader = Shader.Find("DuneVector/HDRP Weather Particle");
+            Shader shader = Shader.Find("DuneVector/URP Weather Particle");
             if (shader == null)
             {
-                shader = Shader.Find("HDRP/Unlit");
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
             }
             Material material = new Material(shader) { name = "Wind Field Streamline Material" };
             material.renderQueue = (int)RenderQueue.Transparent;
@@ -784,22 +784,20 @@ namespace DuneVector
             {
                 material.SetColor("_Tint", Color.white);
             }
-            if (material.HasProperty("_UnlitColorMap"))
+            if (material.HasProperty("_BaseMap"))
             {
-                material.SetTexture("_UnlitColorMap", particleTexture);
+                material.SetTexture("_BaseMap", particleTexture);
             }
-            if (material.HasProperty("_UnlitColor"))
+            if (shader.name == "Universal Render Pipeline/Unlit")
             {
-                material.SetColor("_UnlitColor", Color.white);
-            }
-            if (shader.name == "HDRP/Unlit")
-            {
-                material.SetFloat("_SurfaceType", 1f);
-                material.SetFloat("_BlendMode", 0f);
-                material.SetFloat("_TransparentCullMode", 0f);
-                material.SetFloat("_DoubleSidedEnable", 1f);
-                material.SetFloat("_EnableFogOnTransparent", 1f);
-                HDMaterial.ValidateMaterial(material);
+                material.SetFloat("_Surface", 1f);
+                material.SetFloat("_Blend", 0f);
+                material.SetFloat("_Cull", (float)CullMode.Off);
+                material.SetFloat("_ZWrite", 0f);
+                material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+                material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+                material.SetOverrideTag("RenderType", "Transparent");
+                material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             }
             return material;
         }

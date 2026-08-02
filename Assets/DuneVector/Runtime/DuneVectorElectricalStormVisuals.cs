@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.HighDefinition;
+using UnityEngine.Rendering.Universal;
 
 namespace DuneVector
 {
@@ -538,9 +538,10 @@ namespace DuneVector
                 (strength * _settings.InternalFlashEmissionMultiplier);
             for (int i = 0; i < _cloudMaterials.Count; i++)
             {
-                if (_cloudMaterials[i].HasProperty("_EmissiveColor"))
+                if (_cloudMaterials[i].HasProperty("_EmissionColor"))
                 {
-                    _cloudMaterials[i].SetColor("_EmissiveColor", emission);
+                    _cloudMaterials[i].SetColor("_EmissionColor", emission);
+                    _cloudMaterials[i].EnableKeyword("_EMISSION");
                 }
             }
             for (int i = 0; i < _internalLights.Count; i++)
@@ -1206,13 +1207,12 @@ namespace DuneVector
 
         private Material CreateCloudMaterial(string materialName, Color color)
         {
-            Shader shader = Shader.Find("HDRP/Lit");
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             Material material = new Material(shader) { name = materialName, enableInstancing = true };
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
             if (material.HasProperty("_Smoothness")) material.SetFloat("_Smoothness", _settings.StormCloudSmoothness);
             if (material.HasProperty("_Metallic")) material.SetFloat("_Metallic", 0f);
-            if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", Color.black);
-            if (material.HasProperty("_EmissiveExposureWeight")) material.SetFloat("_EmissiveExposureWeight", 0f);
+            if (material.HasProperty("_EmissionColor")) material.SetColor("_EmissionColor", Color.black);
             return material;
         }
 
@@ -1321,26 +1321,29 @@ namespace DuneVector
 
         private static Material CreateEnergyMaterial(string materialName, Color color)
         {
-            Shader shader = Shader.Find("HDRP/Unlit");
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
             Material material = new Material(shader) { name = materialName };
-            material.SetFloat("_SurfaceType", 1f);
-            material.SetFloat("_BlendMode", 1f);
-            material.SetColor("_UnlitColor", color);
-            material.SetColor("_EmissiveColor", color);
-            material.SetFloat("_EmissiveExposureWeight", 0f);
-            HDMaterial.ValidateMaterial(material);
+            material.SetFloat("_Surface", 1f);
+            material.SetFloat("_Blend", 2f);
+            material.SetFloat("_ZWrite", 0f);
+            material.SetFloat("_SrcBlend", (float)BlendMode.One);
+            material.SetFloat("_DstBlend", (float)BlendMode.One);
+            material.SetColor("_BaseColor", color);
+            material.SetOverrideTag("RenderType", "Transparent");
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.renderQueue = (int)RenderQueue.Transparent;
             return material;
         }
 
         private Material CreateParticleMaterial(string materialName, Color color)
         {
-            Shader shader = Shader.Find("DuneVector/HDRP Weather Particle");
-            if (shader == null) shader = Shader.Find("HDRP/Unlit");
+            Shader shader = Shader.Find("DuneVector/URP Weather Particle");
+            if (shader == null) shader = Shader.Find("Universal Render Pipeline/Unlit");
             Material material = new Material(shader) { name = materialName };
             if (material.HasProperty("_MainTex")) material.SetTexture("_MainTex", _softParticleTexture);
             if (material.HasProperty("_Tint")) material.SetColor("_Tint", color);
-            if (material.HasProperty("_UnlitColorMap")) material.SetTexture("_UnlitColorMap", _softParticleTexture);
-            if (material.HasProperty("_UnlitColor")) material.SetColor("_UnlitColor", color);
+            if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", _softParticleTexture);
+            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", color);
             return material;
         }
 

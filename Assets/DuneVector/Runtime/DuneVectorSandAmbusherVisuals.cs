@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
-using UnityEngine.Rendering.HighDefinition;
+using UnityEngine.Rendering.Universal;
 
 namespace DuneVector
 {
@@ -33,7 +33,7 @@ namespace DuneVector
             DisturbedSand = CreateTransparentLit("Sand Ambusher - Disturbed Dune", settings.SandAmbusherDisturbedSandColor,
                 settings.SandAmbusherDisturbedSandSmoothness);
 
-            Shader fractureShader = Shader.Find("DuneVector/HDRP Sand Fracture");
+            Shader fractureShader = Shader.Find("DuneVector/URP Sand Fracture");
             if (fractureShader == null)
             {
                 fractureShader = FindFallbackShader();
@@ -77,7 +77,7 @@ namespace DuneVector
 
         private Material CreateLit(string name, Color color, float smoothness, float metallic, Color emission)
         {
-            Shader shader = Shader.Find("HDRP/Lit");
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             if (shader == null)
             {
                 shader = FindFallbackShader();
@@ -86,9 +86,8 @@ namespace DuneVector
             material.SetColor("_BaseColor", color);
             material.SetFloat("_Smoothness", Mathf.Clamp01(smoothness));
             material.SetFloat("_Metallic", Mathf.Clamp01(metallic));
-            material.SetColor("_EmissiveColor", emission);
-            material.SetFloat("_EmissiveExposureWeight", 0f);
-            HDMaterial.ValidateMaterial(material);
+            material.SetColor("_EmissionColor", emission);
+            material.EnableKeyword("_EMISSION");
             _materials.Add(material);
             return material;
         }
@@ -96,19 +95,18 @@ namespace DuneVector
         private Material CreateTransparentLit(string name, Color color, float smoothness)
         {
             Material material = CreateLit(name, color, smoothness, 0f, Color.black);
-            material.SetFloat("_SurfaceType", 1f);
-            material.SetFloat("_BlendMode", 0f);
+            material.SetFloat("_Surface", 1f);
+            material.SetFloat("_Blend", 0f);
             material.SetFloat("_ZWrite", 0f);
             material.SetOverrideTag("RenderType", "Transparent");
             material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
             material.renderQueue = (int)RenderQueue.Transparent - 20;
-            HDMaterial.ValidateMaterial(material);
             return material;
         }
 
         private Material CreateParticleMaterial(string name, Color color, Texture texture)
         {
-            Shader shader = Shader.Find("DuneVector/HDRP Weather Particle");
+            Shader shader = Shader.Find("DuneVector/URP Weather Particle");
             if (shader == null)
             {
                 shader = FindFallbackShader();
@@ -122,7 +120,7 @@ namespace DuneVector
 
         private static Shader FindFallbackShader()
         {
-            return Shader.Find("HDRP/Unlit") ?? Shader.Find("Hidden/InternalErrorShader");
+            return Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Hidden/InternalErrorShader");
         }
 
         private static Texture2D CreateSoftParticleTexture(int resolution)

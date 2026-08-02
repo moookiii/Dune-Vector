@@ -802,21 +802,19 @@ namespace DuneVector
 
         private static Material CreateTransparentMaterial(string materialName, Color tint)
         {
-            Shader shader = Shader.Find("DuneVector/HDRP Weather Particle");
+            Shader shader = Shader.Find("DuneVector/URP Weather Particle");
             if (shader == null)
             {
-                shader = Shader.Find("HDRP/Unlit");
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
             }
             Material material = new Material(shader) { name = materialName };
             material.renderQueue = (int)RenderQueue.Transparent;
             if (material.HasProperty("_Tint")) material.SetColor("_Tint", tint);
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", tint);
-            if (material.HasProperty("_UnlitColor")) material.SetColor("_UnlitColor", tint);
-            if (material.HasProperty("_SurfaceType")) material.SetFloat("_SurfaceType", 1f);
-            if (material.HasProperty("_BlendMode")) material.SetFloat("_BlendMode", 0f);
+            if (material.HasProperty("_Surface")) material.SetFloat("_Surface", 1f);
+            if (material.HasProperty("_Blend")) material.SetFloat("_Blend", 0f);
             if (material.HasProperty("_ZWrite")) material.SetFloat("_ZWrite", 0f);
             material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            material.EnableKeyword("_BLENDMODE_ALPHA");
             return material;
         }
 

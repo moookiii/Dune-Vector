@@ -2,7 +2,7 @@ using System;
 using System.Runtime.InteropServices;
 using FMODUnity;
 using UnityEngine;
-using UnityEngine.Rendering.HighDefinition;
+using UnityEngine.Rendering.Universal;
 
 namespace DuneVector
 {

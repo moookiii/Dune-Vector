@@ -542,21 +542,23 @@ namespace DuneVector
 
         private static Material CreateEnergyMaterial(EnergyLauncherTuning settings)
         {
-            Shader shader = Shader.Find("HDRP/Lit");
+            Shader shader = Shader.Find("Universal Render Pipeline/Lit");
             if (shader == null)
             {
-                shader = Shader.Find("HDRP/Unlit");
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
             }
             if (shader == null)
             {
-                throw new InvalidOperationException("The energy launcher requires an HDRP-compatible shader.");
+                throw new InvalidOperationException("The energy launcher requires a URP-compatible shader.");
             }
 
             Material material = new Material(shader) { name = "Drone Energy Launcher - Runtime" };
             if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", settings.ProjectileColor);
-            if (material.HasProperty("_UnlitColor")) material.SetColor("_UnlitColor", settings.ProjectileColor);
-            if (material.HasProperty("_EmissiveColor")) material.SetColor("_EmissiveColor", settings.ProjectileEmission);
-            if (material.HasProperty("_EmissiveExposureWeight")) material.SetFloat("_EmissiveExposureWeight", 0f);
+            if (material.HasProperty("_EmissionColor"))
+            {
+                material.SetColor("_EmissionColor", settings.ProjectileEmission);
+                material.EnableKeyword("_EMISSION");
+            }
             return material;
         }
 

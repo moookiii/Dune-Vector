@@ -525,7 +525,7 @@ namespace DuneVector.Editor
 
             DuneVectorSettingsInspector.DrawSection(
                 "Dynamic Desert Weather",
-                "Storm frequency and progression, global wind, HDRP visibility, and recycled dust layers.",
+                "Storm frequency and progression, global wind, URP visibility, and recycled dust layers.",
                 _weather);
             DuneVectorSettingsInspector.DrawSection(
                 "Music Reactive Sky",
