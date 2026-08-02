@@ -364,7 +364,6 @@ namespace DuneVector.Editor
             DesertWeatherCycleTuning cycle)
         {
             bool startsWithStorm = cycle.StartWithFullSandstorm;
-            RenderSettings.fog = true;
             RenderSettings.fogMode = FogMode.Linear;
             RenderSettings.fogColor = startsWithStorm ? atmosphere.StormFogColor : atmosphere.ClearFogColor;
             RenderSettings.fogStartDistance = startsWithStorm

@@ -245,7 +245,7 @@ namespace DuneVector
             }
 
             _skyMaterial.SetFloat("_SkyIntensity", _sky.Multiplier.value);
-            RenderSettings.fog = _fog != null && _fog.maxFogDistance.value > 0f;
+            RenderSettings.fog = _previousFogEnabled && _fog != null && _fog.maxFogDistance.value > 0f;
             if (RenderSettings.fog)
             {
                 RenderSettings.fogMode = FogMode.Linear;
