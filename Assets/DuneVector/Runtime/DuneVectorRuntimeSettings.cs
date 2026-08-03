@@ -3198,6 +3198,16 @@ namespace DuneVector
         public string ExplosionEvent = "event:/Explosion_Ground_Exploder";
         public string ExplosionDeathMessage = "Destroyed by a Ground Exploder blast.";
         [Header("Presentation")]
+        [Tooltip("Optional visual effect spawned when the ground exploder detonates. If empty, the procedural explosion flash is used.")]
+        public GameObject ExplosionPrefab;
+        [Tooltip("Local position applied to the spawned explosion prefab.")]
+        public Vector3 ExplosionPrefabLocalPosition = Vector3.zero;
+        [Tooltip("Local Euler rotation offset added to the explosion prefab's authored rotation.")]
+        public Vector3 ExplosionPrefabLocalEulerAngles = Vector3.zero;
+        [Tooltip("Scale multiplier applied to the explosion prefab's authored scale.")]
+        public Vector3 ExplosionPrefabLocalScale = Vector3.one;
+        [Tooltip("Seconds before the spawned explosion prefab is destroyed. Set to 0 to let the prefab manage its own lifetime.")]
+        [Min(0f)] public float ExplosionPrefabLifetime = 5.5f;
         [Tooltip("Visual scale at risk 0.")]
         [Min(0.1f)] public float VisualScale = 3f;
         [Tooltip("Visual scale at the risk scaling ceiling.")]

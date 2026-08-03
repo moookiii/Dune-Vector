@@ -152,6 +152,7 @@ namespace DuneVector
         private void Detonate()
         {
             SetState(GroundExploderState.Exploding);
+            SpawnExplosionPrefab();
             if (!string.IsNullOrWhiteSpace(_settings.ExplosionEvent))
             {
                 RuntimeManager.PlayOneShot(_settings.ExplosionEvent, transform.position);
@@ -161,6 +162,30 @@ namespace DuneVector
                 _explosionRadius,
                 _settings.MaximumDamage * DuneVectorContractRisk.EnemyDamageMultiplier,
                 _settings.ExplosionDeathMessage);
+        }
+
+        private void SpawnExplosionPrefab()
+        {
+            if (_settings.ExplosionPrefab == null)
+            {
+                return;
+            }
+
+            GameObject effectRoot = new GameObject("Ground Exploder Explosion Effect");
+            effectRoot.transform.SetPositionAndRotation(transform.position, transform.rotation);
+            GameObject effect = Instantiate(_settings.ExplosionPrefab, effectRoot.transform, false);
+            effect.name = _settings.ExplosionPrefab.name;
+            effect.transform.localPosition = _settings.ExplosionPrefabLocalPosition;
+            effect.transform.localRotation = _settings.ExplosionPrefab.transform.localRotation
+                * Quaternion.Euler(_settings.ExplosionPrefabLocalEulerAngles);
+            effect.transform.localScale = Vector3.Scale(
+                _settings.ExplosionPrefab.transform.localScale,
+                _settings.ExplosionPrefabLocalScale);
+
+            if (_settings.ExplosionPrefabLifetime > 0f)
+            {
+                Destroy(effectRoot, _settings.ExplosionPrefabLifetime);
+            }
         }
 
         private void ApplyRiskScaling()
@@ -194,7 +219,7 @@ namespace DuneVector
                     _visual?.EnterWindUp();
                     break;
                 case GroundExploderState.Exploding:
-                    _visual?.EnterExplosion();
+                    _visual?.EnterExplosion(_settings.ExplosionPrefab == null);
                     break;
                 case GroundExploderState.Dead:
                     Destroy(gameObject);
@@ -673,17 +698,21 @@ namespace DuneVector
             // deliberately avoids moving their shared visual parent transform.
         }
 
-        public void EnterExplosion()
+        public void EnterExplosion(bool showProceduralExplosion)
         {
             _root.localPosition = Vector3.zero;
             SetAllRenderers(false);
-            if (_explosionFlash != null)
+            if (showProceduralExplosion && _explosionFlash != null)
             {
                 Renderer flashRenderer = _explosionFlash.GetComponent<Renderer>();
                 if (flashRenderer != null)
                 {
                     flashRenderer.enabled = true;
                 }
+            }
+            else if (_explosionFlash != null)
+            {
+                _explosionFlash.localScale = Vector3.zero;
             }
         }
 
