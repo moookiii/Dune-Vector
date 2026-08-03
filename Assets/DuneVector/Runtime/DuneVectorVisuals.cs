@@ -447,7 +447,14 @@ namespace DuneVector
             {
                 return;
             }
-            if (material.HasProperty("_BaseColor")) material.SetColor("_BaseColor", baseColor);
+
+            bool supportsEmission = material.HasProperty("_EmissionColor");
+            if (material.HasProperty("_BaseColor"))
+            {
+                // URP/Unlit has no separate emission input. Feed the HDR emission
+                // through its base color so post-processing can bloom the effect.
+                material.SetColor("_BaseColor", supportsEmission ? baseColor : emission);
+            }
             if (material.HasProperty("_EmissionColor"))
             {
                 material.SetColor("_EmissionColor", emission);
