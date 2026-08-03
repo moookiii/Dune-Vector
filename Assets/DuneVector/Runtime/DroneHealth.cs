@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -751,13 +752,27 @@ namespace DuneVector
             {
                 IsGameOver = false;
                 _health.GetComponent<DroneCharacterController>()?.SetHoverEnabled(true);
-                _courierGame.RestartAtHub();
+                _courierGame.RestartAtHub(playReturnEffect: false);
+                StartCoroutine(PlayDeathReturnEffectNextFrame());
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
                 return;
             }
 
             SceneManager.LoadScene(SceneManager.GetActiveScene().name);
+        }
+
+        private IEnumerator PlayDeathReturnEffectNextFrame()
+        {
+            yield return null;
+
+            if (_courierGame == null || _health == null || _health.IsDead)
+            {
+                yield break;
+            }
+
+            _health.GetComponent<DroneCharacterController>()?.PlayHubReturnEffect(
+                _courierGame.HubFloorPosition);
         }
 
         private static void QuitGame()

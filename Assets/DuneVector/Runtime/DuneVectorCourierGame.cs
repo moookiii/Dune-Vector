@@ -590,7 +590,7 @@ namespace DuneVector
             BeginTeleport(toHub: true);
         }
 
-        public void RestartAtHub()
+        public void RestartAtHub(bool playReturnEffect = true)
         {
             DestroyTeleportParticles();
             _routeEncounterDirector?.EndContract();
@@ -602,7 +602,10 @@ namespace DuneVector
             _deliveryCompletionInProgress = false;
             EndDeliveryMessageSafety();
             EnterHubImmediate(openTerminal: false);
-            _player.PlayHubReturnEffect(HubFloorPosition);
+            if (playReturnEffect)
+            {
+                _player.PlayHubReturnEffect(HubFloorPosition);
+            }
         }
 
         public bool AcceptOffer(int offerIndex)
