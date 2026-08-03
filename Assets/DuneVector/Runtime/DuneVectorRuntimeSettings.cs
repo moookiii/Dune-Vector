@@ -621,6 +621,18 @@ namespace DuneVector
         [Min(1f)] public float ObjectiveRingRadius = 3.2f;
         [Tooltip("Radius used by delivery objective rings.")]
         [Min(1f)] public float DeliveryRingRadius = 15f;
+        [Tooltip("Ground-ring effect used to mark delivery drop zones.")]
+        public GameObject DeliveryRingGroundPrefab;
+        [Tooltip("Radius, in meters, represented by the ground-ring prefab at its authored scale. The prefab is fitted from this radius to Delivery Ring Radius.")]
+        [Min(0.01f)] public float DeliveryRingPrefabAuthoredRadius = 1f;
+        [Tooltip("Independent scale multiplier applied after the ground-ring prefab is fitted to Delivery Ring Radius.")]
+        public Vector3 DeliveryRingPrefabScale = Vector3.one;
+        [Tooltip("Local position offset applied to the fitted ground-ring prefab.")]
+        public Vector3 DeliveryRingPrefabLocalOffset = Vector3.zero;
+        [Tooltip("Local rotation offset applied on top of the ground-ring prefab's authored rotation.")]
+        public Vector3 DeliveryRingPrefabLocalEulerAngles = Vector3.zero;
+        [Tooltip("Height of delivery ground rings above the sampled terrain surface, in meters.")]
+        [Min(0f)] public float DeliveryRingGroundOffset = 0.1f;
         [Tooltip("Height of pickup rings above the sampled terrain surface, in meters.")]
         [Min(0f)] public float PickupRingHeight = 1f;
         [Tooltip("Height of delivery rings above the sampled terrain surface, in meters.")]

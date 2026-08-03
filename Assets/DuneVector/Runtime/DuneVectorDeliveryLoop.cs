@@ -131,7 +131,7 @@ namespace DuneVector
             _deliveryRing = CreateJobRing(
                 "Delivery Ring",
                 _deliveryLogicalPosition,
-                _deliveryHeight + _settings.ObjectiveRingHeight,
+                _deliveryHeight + _settings.DeliveryRingGroundOffset,
                 deliveryApproach,
                 false,
                 HandleDelivery);
@@ -349,6 +349,7 @@ namespace DuneVector
         private DeliveryTuning _settings;
         private RingTuning _ringTuning;
         private bool _isPickup;
+        private bool _isGroundDropZone;
         private float _innerRadius;
         private float _speedScale = 1f;
         private Vector3 _previousWorldPosition;
@@ -375,6 +376,16 @@ namespace DuneVector
             _settings = settings;
             _ringTuning = materials.RingPortalTuning;
             _isPickup = isPickup;
+            _isGroundDropZone = !isPickup;
+            if (_isGroundDropZone)
+            {
+                _innerRadius = Mathf.Max(0.5f, radius);
+                _visual = CreateGroundDropZoneVisual(radius);
+                _renderers = Array.Empty<Renderer>();
+                _colorProperties = new MaterialPropertyBlock();
+                return;
+            }
+
             float visualRadius = DuneVectorVisuals.CalculatePortalVisualRadius(
                 radius,
                 _ringTuning);
@@ -420,6 +431,19 @@ namespace DuneVector
             }
 
             Vector3 worldPosition = _player.WorldCenter;
+            if (_isGroundDropZone)
+            {
+                if (CrossedGroundDropZone(worldPosition))
+                {
+                    Activate(Vector3.up);
+                    return;
+                }
+
+                _previousWorldPosition = worldPosition;
+                _hasPreviousPosition = true;
+                return;
+            }
+
             Vector3 localPosition = transform.InverseTransformPoint(worldPosition);
             if (_hasPreviousPosition)
             {
@@ -439,26 +463,7 @@ namespace DuneVector
                             : radialDistance <= _innerRadius;
                         if (crossedOpening)
                         {
-                            _activated = true;
-                            _portalVisual?.PlayActivationReaction(
-                                true,
-                                _spinSpeed * _spinDirection,
-                                Vector3.forward);
-                            _visual = null;
-                            _portalVisual = null;
-                            if (_isPickup)
-                            {
-                                DuneVectorAudioManager.Instance?.PlayFlightRingSwoosh(transform.position);
-                            }
-                            else
-                            {
-                                DuneVectorAudioManager.Instance?.PlayDeliveryRing(transform.position);
-                            }
-                            DuneVectorPortalEvents.NotifyPlayerCrossed(
-                                transform.position,
-                                transform.forward,
-                                _player);
-                            _onCrossed?.Invoke();
+                            Activate(transform.forward);
                             return;
                         }
                     }
@@ -481,9 +486,79 @@ namespace DuneVector
             }
         }
 
+        private Transform CreateGroundDropZoneVisual(float radius)
+        {
+            if (_settings == null || _settings.DeliveryRingGroundPrefab == null)
+            {
+                return null;
+            }
+
+            GameObject instance = Instantiate(_settings.DeliveryRingGroundPrefab, transform, false);
+            instance.name = "Delivery Ground Ring Visual";
+            Transform instanceTransform = instance.transform;
+            float fitScale = radius / Mathf.Max(0.01f, _settings.DeliveryRingPrefabAuthoredRadius);
+            instanceTransform.localScale = Vector3.Scale(
+                instanceTransform.localScale * fitScale,
+                _settings.DeliveryRingPrefabScale);
+            instanceTransform.localPosition += _settings.DeliveryRingPrefabLocalOffset;
+            instanceTransform.localRotation *= Quaternion.Euler(_settings.DeliveryRingPrefabLocalEulerAngles);
+            return instanceTransform;
+        }
+
+        private bool CrossedGroundDropZone(Vector3 worldPosition)
+        {
+            Vector2 center = new Vector2(transform.position.x, transform.position.z);
+            Vector2 current = new Vector2(worldPosition.x, worldPosition.z);
+            float radiusSquared = _innerRadius * _innerRadius;
+            if ((current - center).sqrMagnitude <= radiusSquared)
+            {
+                return true;
+            }
+            if (!_hasPreviousPosition)
+            {
+                return false;
+            }
+
+            Vector2 previous = new Vector2(_previousWorldPosition.x, _previousWorldPosition.z);
+            Vector2 segment = current - previous;
+            float segmentLengthSquared = segment.sqrMagnitude;
+            if (segmentLengthSquared <= Mathf.Epsilon)
+            {
+                return false;
+            }
+
+            float interpolation = Mathf.Clamp01(Vector2.Dot(center - previous, segment) / segmentLengthSquared);
+            Vector2 closestPoint = previous + (segment * interpolation);
+            return (closestPoint - center).sqrMagnitude <= radiusSquared;
+        }
+
+        private void Activate(Vector3 crossingDirection)
+        {
+            _activated = true;
+            _portalVisual?.PlayActivationReaction(
+                true,
+                _spinSpeed * _spinDirection,
+                crossingDirection);
+            _visual = null;
+            _portalVisual = null;
+            if (_isPickup)
+            {
+                DuneVectorAudioManager.Instance?.PlayFlightRingSwoosh(transform.position);
+            }
+            else
+            {
+                DuneVectorAudioManager.Instance?.PlayDeliveryRing(transform.position);
+            }
+            DuneVectorPortalEvents.NotifyPlayerCrossed(
+                transform.position,
+                crossingDirection,
+                _player);
+            _onCrossed?.Invoke();
+        }
+
         private void UpdateSpeedScale()
         {
-            if (_visual == null || _player == null || _ringTuning == null)
+            if (_isGroundDropZone || _visual == null || _player == null || _ringTuning == null)
             {
                 return;
             }
@@ -509,7 +584,7 @@ namespace DuneVector
 
         private void UpdateRgbBlend()
         {
-            if (_settings == null || _renderers == null || _colorProperties == null)
+            if (_isGroundDropZone || _settings == null || _renderers == null || _colorProperties == null)
             {
                 return;
             }
@@ -540,6 +615,11 @@ namespace DuneVector
 
         private void UpdateBillboard()
         {
+            if (_isGroundDropZone)
+            {
+                return;
+            }
+
             if (_billboardCamera == null)
             {
                 _billboardCamera = Camera.main;

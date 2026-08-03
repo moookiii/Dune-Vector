@@ -1804,8 +1804,15 @@ namespace DuneVector
             DuneVectorLandmarkInstance landmark = _routeLandmarks[_deliveryIndex + 1];
             Vector3 objectivePosition = landmark.DeliverySocket.position;
             LogicalPosition objectiveLogical = LocalToLogical(objectivePosition);
+            double groundHeight = _world.HeightField.SampleHeight(
+                objectiveLogical.X,
+                objectiveLogical.Z);
             _objectiveRing = CreateObjectiveRing(
-                $"Delivery Ring {_deliveryIndex + 1}", objectiveLogical, objectivePosition.y, false, HandleDelivery);
+                $"Delivery Ring {_deliveryIndex + 1}",
+                objectiveLogical,
+                groundHeight + _deliverySettings.DeliveryRingGroundOffset,
+                false,
+                HandleDelivery);
             ActiveObjective = _objectiveRing.transform;
             ActiveObjectiveLogicalPosition = objectiveLogical;
         }
