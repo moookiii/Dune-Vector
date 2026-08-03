@@ -281,14 +281,43 @@ namespace DuneVector
             }
 
             _combatTarget.SetTargetable(false);
+            bool spawnedPrefabExplosion = SpawnPrefabExplosion();
             GroundExploderExplosionEffect.Spawn(
                 transform.position,
                 _player,
                 _playerHealth,
                 _materials,
                 _explosionSettings,
-                _settings.ProximityExplosionRadiusMultiplier);
+                _settings.ProximityExplosionRadiusMultiplier,
+                !spawnedPrefabExplosion);
             Destroy(gameObject);
+        }
+
+        private bool SpawnPrefabExplosion()
+        {
+            if (!_settings.UseExplosionPrefab || _settings.ExplosionPrefab == null)
+            {
+                return false;
+            }
+
+            GameObject effectRoot = new GameObject("Storm Pyramid Explosion");
+            effectRoot.transform.position = transform.position;
+
+            GameObject effect = Instantiate(_settings.ExplosionPrefab, effectRoot.transform, false);
+            effect.name = _settings.ExplosionPrefab.name;
+            effect.transform.localPosition = _settings.ExplosionPrefabLocalPosition;
+            effect.transform.localRotation = _settings.ExplosionPrefab.transform.localRotation
+                * Quaternion.Euler(_settings.ExplosionPrefabLocalEulerAngles);
+            effect.transform.localScale = Vector3.Scale(
+                _settings.ExplosionPrefab.transform.localScale,
+                _settings.ExplosionPrefabLocalScale);
+
+            if (_settings.ExplosionPrefabLifetime > 0f)
+            {
+                Destroy(effectRoot, _settings.ExplosionPrefabLifetime);
+            }
+
+            return true;
         }
 
         private void UpdatePresentation(float deltaTime)

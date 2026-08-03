@@ -2258,6 +2258,18 @@ namespace DuneVector
         [Min(0.1f)] public float ProximityDetectionRadiusMultiplier = 3f;
         [Tooltip("Multiplies the Ground Exploders risk-scaled explosion radius for storm pyramid damage and presentation.")]
         [Min(0.1f)] public float ProximityExplosionRadiusMultiplier = 3f;
+        [Tooltip("Uses Explosion Prefab for storm pyramid detonations. Disable this, or leave the prefab empty, to use the original procedural explosion fallback.")]
+        public bool UseExplosionPrefab = true;
+        [Tooltip("Optional explosion effect spawned when a storm pyramid detonates. If empty, the original procedural explosion is used.")]
+        public GameObject ExplosionPrefab;
+        [Tooltip("Local position applied to the spawned explosion prefab.")]
+        public Vector3 ExplosionPrefabLocalPosition = Vector3.zero;
+        [Tooltip("Local Euler rotation offset added to the explosion prefab's authored rotation.")]
+        public Vector3 ExplosionPrefabLocalEulerAngles = Vector3.zero;
+        [Tooltip("Scale multiplier applied to the explosion prefab's authored scale.")]
+        public Vector3 ExplosionPrefabLocalScale = Vector3.one;
+        [Tooltip("Seconds before the spawned explosion prefab is destroyed. Set to 0 to let the prefab manage its own lifetime.")]
+        [Min(0f)] public float ExplosionPrefabLifetime = 3f;
 
         [Header("Lightning Attack")]
         [Tooltip("Delay before beginning another straight-down ground strike after returning to idle at risk 0.")]

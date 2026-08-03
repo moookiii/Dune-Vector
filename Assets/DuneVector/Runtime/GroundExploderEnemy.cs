@@ -231,7 +231,8 @@ namespace DuneVector
             DroneHealth playerHealth,
             DuneVectorMaterials materials,
             GroundExploderTuning settings,
-            float radiusMultiplier)
+            float radiusMultiplier,
+            bool createProceduralVisual = true)
         {
             if (materials == null || settings == null)
             {
@@ -241,7 +242,13 @@ namespace DuneVector
             GameObject effectObject = new GameObject("Ground Exploder Explosion");
             effectObject.transform.position = position;
             GroundExploderExplosionEffect effect = effectObject.AddComponent<GroundExploderExplosionEffect>();
-            effect.Initialize(player, playerHealth, materials, settings, radiusMultiplier);
+            effect.Initialize(
+                player,
+                playerHealth,
+                materials,
+                settings,
+                radiusMultiplier,
+                createProceduralVisual);
         }
 
         private void Initialize(
@@ -249,13 +256,17 @@ namespace DuneVector
             DroneHealth playerHealth,
             DuneVectorMaterials materials,
             GroundExploderTuning settings,
-            float radiusMultiplier)
+            float radiusMultiplier,
+            bool createProceduralVisual)
         {
             _playerHealth = playerHealth;
             _radius = settings.EvaluateExplosionRadius(DuneVectorContractRisk.CurrentRisk)
                 * Mathf.Max(0.1f, radiusMultiplier);
-            _flash = DuneVectorVisuals.CreateGroundExplosionVisual(transform, materials);
-            _flash.localScale = Vector3.zero;
+            if (createProceduralVisual)
+            {
+                _flash = DuneVectorVisuals.CreateGroundExplosionVisual(transform, materials);
+                _flash.localScale = Vector3.zero;
+            }
 
             if (!string.IsNullOrWhiteSpace(settings.ExplosionEvent))
             {
@@ -279,7 +290,10 @@ namespace DuneVector
             float progress = Mathf.Clamp01(
                 _elapsed / GroundExploderEnemy.ExplosionPresentationDuration);
             float eased = 1f - Mathf.Pow(1f - progress, 3f);
-            _flash.localScale = Vector3.one * (_radius * 2f * eased);
+            if (_flash != null)
+            {
+                _flash.localScale = Vector3.one * (_radius * 2f * eased);
+            }
 
             if (_elapsed >= GroundExploderEnemy.ExplosionPresentationDuration)
             {
