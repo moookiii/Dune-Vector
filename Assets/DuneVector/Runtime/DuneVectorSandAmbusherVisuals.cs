@@ -605,6 +605,7 @@ namespace DuneVector
             }
             _burst = true;
             _burstAge = 0f;
+            SpawnEmergencePrefab();
             for (int i = 0; i < _branches.Count; i++)
             {
                 SetCrackProperties(_branches[i], 1f, 1f, _settings.SandAmbusherFractureBurstIntensity, 1f);
@@ -616,6 +617,28 @@ namespace DuneVector
             }
             _dust.Emit(Mathf.Max(0, _settings.SandAmbusherDustBurstParticleCount));
             _debris.Emit(Mathf.Max(0, _settings.SandAmbusherDebrisParticleCount));
+        }
+
+        private void SpawnEmergencePrefab()
+        {
+            if (_settings.SandAmbusherEmergencePrefab == null)
+            {
+                return;
+            }
+
+            GameObject effect = Instantiate(_settings.SandAmbusherEmergencePrefab, transform, false);
+            Transform effectTransform = effect.transform;
+            effectTransform.localPosition = _settings.SandAmbusherEmergencePrefabLocalPosition;
+            effectTransform.localRotation *= Quaternion.Euler(_settings.SandAmbusherEmergencePrefabLocalEulerAngles);
+            effectTransform.localScale = Vector3.Scale(
+                effectTransform.localScale,
+                _settings.SandAmbusherEmergencePrefabLocalScale);
+
+            float lifetime = Mathf.Max(0f, _settings.SandAmbusherEmergencePrefabLifetime);
+            if (lifetime > 0f)
+            {
+                Destroy(effect, lifetime);
+            }
         }
 
         private void Update()

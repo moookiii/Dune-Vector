@@ -805,6 +805,16 @@ namespace DuneVector
         [Min(0f)] public float SandAmbusherWarningDuration = 1.15f;
         [Tooltip("FMOD one-shot event played at the terrain rupture when a Sand Ambusher emerges.")]
         public string SandAmbusherEmergenceEvent = "event:/Explosion_Sand_Ambusher";
+        [Tooltip("Effect spawned at the terrain rupture when a Sand Ambusher emerges.")]
+        public GameObject SandAmbusherEmergencePrefab;
+        [Tooltip("Local position applied to the spawned emergence effect.")]
+        public Vector3 SandAmbusherEmergencePrefabLocalPosition = Vector3.zero;
+        [Tooltip("Local Euler rotation offset added to the emergence prefab's authored rotation.")]
+        public Vector3 SandAmbusherEmergencePrefabLocalEulerAngles = Vector3.zero;
+        [Tooltip("Scale multiplier applied to the emergence prefab's authored scale.")]
+        public Vector3 SandAmbusherEmergencePrefabLocalScale = Vector3.one;
+        [Tooltip("Seconds before the spawned emergence effect is destroyed. Set to 0 to let the emergence object manage its lifetime.")]
+        [Min(0f)] public float SandAmbusherEmergencePrefabLifetime = 5f;
         [Min(0.1f)] public float SandAmbusherBuriedDepth = 8f;
         [Min(0.1f)] public float SandAmbusherAttackSpeed = 48f;
         [Min(0f)] public float SandAmbusherAttackOvershoot = 5f;
