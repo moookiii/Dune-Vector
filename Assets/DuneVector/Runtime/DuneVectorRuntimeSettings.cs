@@ -3221,14 +3221,16 @@ namespace DuneVector
         [Tooltip("Opacity of the emissive rings, spokes, glyphs, and exterior rays. Empty space remains fully transparent.")]
         [Range(0f, 1f)] public float PortalLineOpacity = 0.9f;
         [Tooltip("HDR brightness multiplier applied only to portal energy, pushing its lines and halo into bloom without brightening the rest of the scene.")]
-        [Min(0f)] public float PortalBloomIntensity = 2f;
+        [Min(0f)] public float PortalBloomIntensity = 0.6f;
+        [Tooltip("Strength of derivative-based edge smoothing applied to portal strokes as they approach subpixel size.")]
+        [Min(0f)] public float PortalScreenSpaceAntiAliasing = 0.25f;
         [Tooltip("Scales authored gameplay radii before drawing and testing the visible portal opening.")]
         [Range(0.25f, 1.5f)] public float PortalVisualRadiusMultiplier = 0.82f;
         [Min(0.5f)] public float PortalMinimumVisualRadius = 3.2f;
         [Min(0.5f)] public float PortalMaximumVisualRadius = 6.8f;
-        [Min(0.01f)] public float PortalOuterLineThickness = 0.11f;
-        [Min(0.01f)] public float PortalInnerLineThickness = 0.055f;
-        [Range(0.01f, 0.49f)] public float PortalLineEdgeSoftness = 0.14f;
+        [Min(0.01f)] public float PortalOuterLineThickness = 0.16f;
+        [Min(0.01f)] public float PortalInnerLineThickness = 0.09f;
+        [Range(0.01f, 0.49f)] public float PortalLineEdgeSoftness = 0.22f;
         [Range(1f, 8f)] public float PortalHaloWidthMultiplier = 3.2f;
         [Range(0f, 1f)] public float PortalHaloOpacity = 0.18f;
         [Range(24, 192)] public int PortalCircleSegments = 96;
@@ -3236,10 +3238,10 @@ namespace DuneVector
         [Range(0.1f, 0.9f)] public float PortalInnermostRingRadiusFraction = 0.38f;
         [Range(3, 32)] public int PortalSpokeCount = 12;
         [Range(0.1f, 0.9f)] public float PortalSpokeInnerRadiusFraction = 0.6f;
-        [Min(0.01f)] public float PortalSpokeThickness = 0.045f;
+        [Min(0.01f)] public float PortalSpokeThickness = 0.075f;
         [Range(3, 32)] public int PortalGlyphCount = 16;
         [Range(0.1f, 0.95f)] public float PortalGlyphRadiusFraction = 0.74f;
-        [Min(0.01f)] public float PortalGlyphStrokeThickness = 0.035f;
+        [Min(0.01f)] public float PortalGlyphStrokeThickness = 0.06f;
         [Range(0.01f, 0.25f)] public float PortalGlyphSizeFraction = 0.052f;
         [Header("Portal Rune Variation")]
         [Tooltip("Maximum proportional size difference above or below the base rune size. A value of 0.22 produces rune sizes from 78% to 122% of the base size.")]
@@ -3262,7 +3264,7 @@ namespace DuneVector
         [Tooltip("Length of each bright tracer as a fraction of the spacing between tracers.")]
         [Range(0.01f, 0.8f)] public float PortalTravelPulseWidth = 0.16f;
         [Tooltip("Additional HDR brightness applied at the center of a traveling tracer.")]
-        [Min(0f)] public float PortalTravelPulseBrightness = 2.4f;
+        [Min(0f)] public float PortalTravelPulseBrightness = 0.9f;
         [Tooltip("Phase difference between portal circles, preventing their tracers from lining up like spokes.")]
         [Range(0f, 1f)] public float PortalTravelPulseRingPhaseOffset = 0.17f;
 
@@ -3327,8 +3329,8 @@ namespace DuneVector
         [Min(0f)] public float PortalDistanceVisibilityStartDistance = 35f;
         [Tooltip("Camera distance where the portal reaches its maximum distance-visibility emission boost.")]
         [Min(0f)] public float PortalDistanceVisibilityEndDistance = 180f;
-        [Tooltip("Maximum HDR emission multiplier for distant portals. Portal size, opacity, and close-range appearance are unchanged.")]
-        [Min(1f)] public float PortalDistanceVisibilityBloomMultiplier = 3.2f;
+        [Tooltip("Maximum HDR emission multiplier for distant portals. A value of one disables additional distance bloom.")]
+        [Min(1f)] public float PortalDistanceVisibilityBloomMultiplier = 1.1f;
 
         [Header("Portal Animation and Layering")]
         [Min(0f)] public float PortalPulseSpeed = 1f;

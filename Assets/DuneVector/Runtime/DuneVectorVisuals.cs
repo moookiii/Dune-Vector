@@ -636,6 +636,7 @@ namespace DuneVector
             material.SetFloat("_DistanceFade", 1f);
             material.SetFloat("_DistanceBloomBoost", 1f);
             material.SetFloat("_LineEdgeSoftness", settings.PortalLineEdgeSoftness);
+            material.SetFloat("_ScreenSpaceAntiAliasing", settings.PortalScreenSpaceAntiAliasing);
             material.SetFloat("_TravelPulseCount", settings.PortalTravelPulseCount);
             material.SetFloat("_TravelPulseSpeed", settings.PortalTravelPulseSpeed);
             material.SetFloat("_TravelPulseWidth", settings.PortalTravelPulseWidth);

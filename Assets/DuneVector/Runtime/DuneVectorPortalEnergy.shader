@@ -9,6 +9,7 @@ Shader "DuneVector/URP Portal Energy"
         _DistanceFade("Distance Fade", Range(0, 1)) = 1
         _DistanceBloomBoost("Distance Bloom Boost", Float) = 1
         _LineEdgeSoftness("Line Edge Softness", Range(0.01, 0.49)) = 0.14
+        _ScreenSpaceAntiAliasing("Screen Space Anti-Aliasing", Float) = 0.25
         _TravelPulseCount("Travel Pulse Count", Float) = 3
         _TravelPulseSpeed("Travel Pulse Speed", Float) = 0.22
         _TravelPulseWidth("Travel Pulse Width", Range(0.01, 0.8)) = 0.16
@@ -58,6 +59,7 @@ Shader "DuneVector/URP Portal Energy"
                 float _DistanceFade;
                 float _DistanceBloomBoost;
                 float _LineEdgeSoftness;
+                float _ScreenSpaceAntiAliasing;
                 float _TravelPulseCount;
                 float _TravelPulseSpeed;
                 float _TravelPulseWidth;
@@ -155,8 +157,11 @@ Shader "DuneVector/URP Portal Energy"
                     }
                     else
                     {
+                        float screenSpaceSoftness = fwidth(distanceFromStrokeCenter) *
+                            max(0.0, _ScreenSpaceAntiAliasing);
+                        float edgeSoftness = saturate(max(_LineEdgeSoftness, screenSpaceSoftness));
                         alpha *= 1.0 - smoothstep(
-                            1.0 - _LineEdgeSoftness,
+                            1.0 - edgeSoftness,
                             1.0,
                             distanceFromStrokeCenter);
                     }
