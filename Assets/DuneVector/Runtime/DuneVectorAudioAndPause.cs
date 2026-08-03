@@ -8,6 +8,13 @@ using UnityEngine.SceneManagement;
 
 namespace DuneVector
 {
+    public enum MusicVisualizerMode
+    {
+        All = 0,
+        NoBassRings = 1,
+        Off = 2,
+    }
+
     [DisallowMultipleComponent]
     public sealed class DuneVectorAudioManager : MonoBehaviour
     {
@@ -18,13 +25,17 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 1;
+            public int Version = 3;
             public float MusicVolume;
             public float SoundEffectsVolume;
+            public bool MusicVisualizerEnabled = true;
+            public int MusicVisualizerMode;
         }
 
         public float MusicVolume { get; private set; }
         public float SoundEffectsVolume { get; private set; }
+        public MusicVisualizerMode VisualizerMode { get; private set; } = MusicVisualizerMode.All;
+        public event Action<MusicVisualizerMode> MusicVisualizerModeChanged;
 
         public bool TryGetMusicChannelGroup(out FMOD.ChannelGroup channelGroup)
         {
@@ -324,6 +335,23 @@ namespace DuneVector
             _preferencesDirty = true;
         }
 
+        public void SetMusicVisualizerMode(MusicVisualizerMode mode)
+        {
+            if (!Enum.IsDefined(typeof(MusicVisualizerMode), mode))
+            {
+                mode = MusicVisualizerMode.All;
+            }
+            if (VisualizerMode == mode)
+            {
+                return;
+            }
+
+            VisualizerMode = mode;
+            _preferencesDirty = true;
+            MusicVisualizerModeChanged?.Invoke(mode);
+            FlushPreferences();
+        }
+
         public void PlayDroneFire(Vector3 position)
         {
             PlayConfiguredOneShot(_settings != null ? _settings.DroneFireEvent : null, position, "drone-fire");
@@ -522,6 +550,7 @@ namespace DuneVector
         {
             MusicVolume = Mathf.Clamp01(_settings.DefaultMusicVolume);
             SoundEffectsVolume = Mathf.Clamp01(_settings.DefaultSoundEffectsVolume);
+            VisualizerMode = MusicVisualizerMode.All;
             if (!_settings.PersistVolumeSettings || !File.Exists(_preferencesPath))
             {
                 return;
@@ -530,10 +559,16 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version == 1)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 3)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
+                    VisualizerMode = stored.Version >= 3
+                        && Enum.IsDefined(typeof(MusicVisualizerMode), stored.MusicVisualizerMode)
+                            ? (MusicVisualizerMode)stored.MusicVisualizerMode
+                            : stored.Version >= 2 && !stored.MusicVisualizerEnabled
+                                ? MusicVisualizerMode.Off
+                                : MusicVisualizerMode.All;
                 }
             }
             catch (Exception exception)
@@ -561,6 +596,8 @@ namespace DuneVector
                 {
                     MusicVolume = MusicVolume,
                     SoundEffectsVolume = SoundEffectsVolume,
+                    MusicVisualizerEnabled = VisualizerMode != MusicVisualizerMode.Off,
+                    MusicVisualizerMode = (int)VisualizerMode,
                 };
                 File.WriteAllText(_preferencesPath, JsonUtility.ToJson(stored));
                 _preferencesDirty = false;
@@ -959,20 +996,57 @@ namespace DuneVector
             DrawSolidRect(new Rect(0f, 0f, Screen.width, Screen.height), background);
 
             Texture2D controlsImage = _visuals.ControlsImage;
-            if (controlsImage == null || controlsImage.width <= 0 || controlsImage.height <= 0)
+            if (controlsImage != null && controlsImage.width > 0 && controlsImage.height > 0)
             {
-                return;
+                float imageHeight = Screen.width * ((float)controlsImage.height / controlsImage.width);
+                Rect imageRect = new Rect(
+                    0f,
+                    (Screen.height - imageHeight) * 0.5f,
+                    Screen.width,
+                    imageHeight);
+                Color imagePreviousColor = GUI.color;
+                GUI.color = new Color(1f, 1f, 1f, alpha);
+                GUI.DrawTexture(imageRect, controlsImage, ScaleMode.StretchToFill, false);
+                GUI.color = imagePreviousColor;
             }
 
-            float imageHeight = Screen.width * ((float)controlsImage.height / controlsImage.width);
-            Rect imageRect = new Rect(
-                0f,
-                (Screen.height - imageHeight) * 0.5f,
-                Screen.width,
-                imageHeight);
+            float scale = CalculateScale();
+            float buttonWidth = Mathf.Min(
+                _visuals.ControlsVisualizerToggleWidth * scale,
+                Screen.width - (_visuals.ScreenMargin * scale * 2f));
+            float buttonHeight = _visuals.ControlsVisualizerToggleHeight * scale;
+            Rect buttonRect = new Rect(
+                (Screen.width - buttonWidth) * 0.5f,
+                Screen.height - (_visuals.ControlsVisualizerToggleBottomMargin * scale) - buttonHeight,
+                buttonWidth,
+                buttonHeight);
+            MusicVisualizerMode visualizerMode = _audio != null
+                ? _audio.VisualizerMode
+                : MusicVisualizerMode.All;
+            string stateLabel = visualizerMode switch
+            {
+                MusicVisualizerMode.NoBassRings => _visuals.ControlsVisualizerNoBassRingsLabel,
+                MusicVisualizerMode.Off => _visuals.ControlsVisualizerDisabledLabel,
+                _ => _visuals.ControlsVisualizerEnabledLabel,
+            };
             Color previousColor = GUI.color;
             GUI.color = new Color(1f, 1f, 1f, alpha);
-            GUI.DrawTexture(imageRect, controlsImage, ScaleMode.StretchToFill, false);
+            bool previousEnabled = GUI.enabled;
+            GUI.enabled = previousEnabled && _audio != null && alpha >= 1f;
+            if (GUI.Button(
+                    buttonRect,
+                    $"{_visuals.ControlsVisualizerLabel}  /  {stateLabel}",
+                    visualizerMode == MusicVisualizerMode.All ? _primaryButtonStyle : _secondaryButtonStyle))
+            {
+                MusicVisualizerMode nextMode = visualizerMode switch
+                {
+                    MusicVisualizerMode.All => MusicVisualizerMode.NoBassRings,
+                    MusicVisualizerMode.NoBassRings => MusicVisualizerMode.Off,
+                    _ => MusicVisualizerMode.All,
+                };
+                _audio.SetMusicVisualizerMode(nextMode);
+            }
+            GUI.enabled = previousEnabled;
             GUI.color = previousColor;
         }
 

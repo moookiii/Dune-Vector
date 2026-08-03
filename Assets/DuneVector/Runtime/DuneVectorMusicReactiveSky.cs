@@ -31,6 +31,7 @@ namespace DuneVector
         private float _baseBloomThreshold;
         private float _currentBloomIntensity;
         private float _currentBloomThreshold;
+        private MusicVisualizerMode _visualizerMode = MusicVisualizerMode.All;
 
         public void Initialize(
             DuneVectorAudioManager audio,
@@ -39,6 +40,11 @@ namespace DuneVector
             Camera camera,
             MusicReactiveSkyTuning settings)
         {
+            if (_audio != null)
+            {
+                _audio.MusicVisualizerModeChanged -= SetVisualizerMode;
+            }
+
             _audio = audio;
             _sky = sky;
             _bloom = bloom;
@@ -58,6 +64,23 @@ namespace DuneVector
                 _baseBloomThreshold = _bloom.threshold.value;
                 _currentBloomIntensity = _baseBloomIntensity;
                 _currentBloomThreshold = _baseBloomThreshold;
+            }
+
+            _audio.MusicVisualizerModeChanged += SetVisualizerMode;
+            SetVisualizerMode(_audio.VisualizerMode);
+        }
+
+        public void SetVisualizerMode(MusicVisualizerMode mode)
+        {
+            _visualizerMode = mode;
+            if (_sky != null)
+            {
+                _sky.ReactiveShockRingIntensity.Override(
+                    mode == MusicVisualizerMode.All ? _settings.ShockRingIntensity : 0f);
+            }
+            if (_visualizerMode == MusicVisualizerMode.Off)
+            {
+                ClearVisualResponse();
             }
         }
 
@@ -121,6 +144,11 @@ namespace DuneVector
 
         private void Update()
         {
+            if (_visualizerMode == MusicVisualizerMode.Off)
+            {
+                return;
+            }
+
             float deltaTime = Time.unscaledDeltaTime;
             if (deltaTime <= 0f)
             {
@@ -356,8 +384,42 @@ namespace DuneVector
             _rawHighs = 0f;
         }
 
+        private void ClearVisualResponse()
+        {
+            ClearRawSpectrum();
+            _bass = 0f;
+            _mids = 0f;
+            _highs = 0f;
+            _bassPulse = 0f;
+            _highPulse = 0f;
+            _analysisTimer = 0f;
+
+            if (_sky != null)
+            {
+                _sky.ReactiveMusicEnergy.value = 0f;
+                _sky.ReactiveMusicBass.value = 0f;
+                _sky.ReactiveMusicMids.value = 0f;
+                _sky.ReactiveMusicHighs.value = 0f;
+                _sky.ReactiveBassPulse.value = 0f;
+                _sky.ReactiveHighPulse.value = 0f;
+            }
+
+            if (_bloom != null)
+            {
+                _currentBloomIntensity = _baseBloomIntensity;
+                _currentBloomThreshold = _baseBloomThreshold;
+                _bloom.intensity.value = _baseBloomIntensity;
+                _bloom.threshold.value = _baseBloomThreshold;
+            }
+        }
+
         private void OnDestroy()
         {
+            if (_audio != null)
+            {
+                _audio.MusicVisualizerModeChanged -= SetVisualizerMode;
+            }
+
             if (_bloom != null)
             {
                 _bloom.intensity.value = _baseBloomIntensity;

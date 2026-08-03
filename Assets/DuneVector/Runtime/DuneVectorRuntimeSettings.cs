@@ -4336,6 +4336,17 @@ namespace DuneVector
         [Min(0f)] public float ControlsFadeDuration = 0.3f;
         [Tooltip("Letterbox and fade color behind the controls reference.")]
         [ColorUsage(false)] public Color ControlsBackgroundColor = Color.black;
+        [Tooltip("Label shown on the music visualizer toggle.")]
+        public string ControlsVisualizerLabel = "MUSIC VISUALIZER";
+        [Tooltip("State label shown while the music visualizer is active.")]
+        public string ControlsVisualizerEnabledLabel = "ALL";
+        [Tooltip("State label shown when the visualizer is active without bass rings.")]
+        public string ControlsVisualizerNoBassRingsLabel = "NO BASS RINGS";
+        [Tooltip("State label shown while the music visualizer is inactive.")]
+        public string ControlsVisualizerDisabledLabel = "OFF";
+        [Min(120f)] public float ControlsVisualizerToggleWidth = 460f;
+        [Min(24f)] public float ControlsVisualizerToggleHeight = 52f;
+        [Min(0f)] public float ControlsVisualizerToggleBottomMargin = 48f;
 
         [Header("Typography")]
         [Min(12)] public int TitleFontSize = 36;
