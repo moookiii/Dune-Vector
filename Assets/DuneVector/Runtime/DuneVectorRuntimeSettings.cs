@@ -3217,6 +3217,20 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color FlightRingBaseColor = new Color(0.004f, 0.19f, 0.32f);
         [ColorUsage(false, true)] public Color FlightRingEmissionColor = new Color(0f, 2f, 3.6f);
 
+        [Header("Portal Prefab Visuals")]
+        [Tooltip("When enabled, every traversal ring uses the built-in procedural portal visual instead of its assigned prefab. Individual missing prefab references also fall back procedurally.")]
+        public bool UseProceduralPortalFallbackForAll;
+        [Tooltip("Prefab used by standard flight portals.")]
+        public GameObject FlightPortalPrefab;
+        [Tooltip("Prefab used by ground boost portals.")]
+        public GameObject GroundBoostPortalPrefab;
+        [Tooltip("Prefab used by second-layer (upper flight) portals.")]
+        public GameObject UpperFlightPortalPrefab;
+        [Tooltip("Radius represented by one unit of prefab scale. Used to fit assigned portal prefabs to each ring's gameplay radius.")]
+        [Min(0.01f)] public float PortalPrefabAuthoredRadius = 5f;
+        [Tooltip("Additional scale applied after fitting an assigned portal prefab to its ring radius.")]
+        [Min(0.01f)] public float PortalPrefabScaleMultiplier = 1f;
+
         [Header("Portal Linework")]
         [Tooltip("Opacity of the emissive rings, spokes, glyphs, and exterior rays. Empty space remains fully transparent.")]
         [Range(0f, 1f)] public float PortalLineOpacity = 0.9f;
@@ -4626,6 +4640,16 @@ namespace DuneVector
 
         [Header("Jump")]
         [Min(0f)] public float JumpSpeed = 13f;
+        [Tooltip("Effect spawned on the ground beneath the drone when a ground jump succeeds.")]
+        public GameObject JumpEffectPrefab;
+        [Tooltip("World-space rotation applied to the spawned jump effect.")]
+        public Vector3 JumpEffectEulerAngles = new Vector3(90f, 0f, 0f);
+        [Tooltip("Vertical offset from the grounded surface for the spawned jump effect.")]
+        public float JumpEffectGroundOffset;
+        [Tooltip("Scale multiplier applied to the spawned jump effect's authored scale.")]
+        public Vector3 JumpEffectScale = Vector3.one;
+        [Tooltip("Seconds before the spawned jump effect root is destroyed.")]
+        [Min(0f)] public float JumpEffectLifetime = 3f;
 
         [Header("Boost Rings")]
         [Min(0f)] public float RingBoostAcceleration = 9.5f;
@@ -4703,6 +4727,12 @@ namespace DuneVector
             drone.RotationSharpness = GroundSteeringSharpness;
             drone.TrailMinimumSpeed = TrailMinimumSpeed;
             drone.JumpSpeed = JumpSpeed;
+            drone.ConfigureJumpEffect(
+                JumpEffectPrefab,
+                JumpEffectEulerAngles,
+                JumpEffectGroundOffset,
+                JumpEffectScale,
+                JumpEffectLifetime);
             drone.RingBoostAcceleration = RingBoostAcceleration;
             drone.RingBoostDuration = BoostDuration;
             drone.RingBoostMaxSpeed = BoostMaxSpeed;

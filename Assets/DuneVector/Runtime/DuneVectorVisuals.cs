@@ -1686,7 +1686,15 @@ namespace DuneVector
                 geometryParent.localRotation = Quaternion.Euler(90f, 0f, 0f);
             }
             float visualRadius = CalculatePortalVisualRadius(majorRadius, settings);
-            CreatePortalGeometry(geometryParent, materials, material, visualRadius, settings);
+            GameObject portalPrefab = GetPortalPrefab(type, settings);
+            if (portalPrefab != null)
+            {
+                CreatePortalPrefabGeometry(geometryParent, portalPrefab, visualRadius, settings);
+            }
+            else
+            {
+                CreatePortalGeometry(geometryParent, materials, material, visualRadius, settings);
+            }
 
             if (type == TraversalRingType.Health)
             {
@@ -1709,6 +1717,47 @@ namespace DuneVector
                     settings.CoinModelEulerAngles);
             }
             return visualRoot.transform;
+        }
+
+        private static GameObject GetPortalPrefab(TraversalRingType type, RingTuning settings)
+        {
+            if (settings == null || settings.UseProceduralPortalFallbackForAll)
+            {
+                return null;
+            }
+
+            return type switch
+            {
+                TraversalRingType.GroundBoost => settings.GroundBoostPortalPrefab,
+                TraversalRingType.Flight => settings.FlightPortalPrefab,
+                TraversalRingType.UpperFlight => settings.UpperFlightPortalPrefab,
+                _ => null,
+            };
+        }
+
+        private static void CreatePortalPrefabGeometry(
+            Transform parent,
+            GameObject portalPrefab,
+            float radius,
+            RingTuning settings)
+        {
+            GameObject prefabVisual = UnityEngine.Object.Instantiate(portalPrefab, parent, false);
+            prefabVisual.name = $"{portalPrefab.name} Visual";
+            prefabVisual.transform.localPosition = Vector3.zero;
+            float authoredRadius = Mathf.Max(0.01f, settings.PortalPrefabAuthoredRadius);
+            float fittedScale = (radius / authoredRadius)
+                * Mathf.Max(0.01f, settings.PortalPrefabScaleMultiplier);
+            prefabVisual.transform.localScale *= fittedScale;
+
+            Collider[] colliders = prefabVisual.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                colliders[i].enabled = false;
+            }
+
+            Renderer[] renderers = prefabVisual.GetComponentsInChildren<Renderer>(true);
+            DuneVectorPortalVisual portalVisual = parent.gameObject.AddComponent<DuneVectorPortalVisual>();
+            portalVisual.Initialize(renderers, null, null, settings);
         }
 
         private static void CreatePortalGeometry(
