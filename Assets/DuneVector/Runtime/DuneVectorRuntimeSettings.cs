@@ -620,6 +620,20 @@ namespace DuneVector
         [Min(20f)] public float MaximumDeliveryDistance = 210f;
         [Tooltip("Radius used by pickup objective rings.")]
         [Min(1f)] public float ObjectiveRingRadius = 3.2f;
+        [Header("Pickup Ground Ring")]
+        [Tooltip("Ground-ring effect used to mark package pickup zones.")]
+        public GameObject PickupRingGroundPrefab;
+        [Tooltip("Radius, in meters, represented by the pickup prefab at its authored scale. The prefab is fitted from this radius to Objective Ring Radius.")]
+        [Min(0.01f)] public float PickupRingPrefabAuthoredRadius = 1f;
+        [Tooltip("Independent scale multiplier applied after the pickup prefab is fitted to Objective Ring Radius.")]
+        public Vector3 PickupRingPrefabScale = Vector3.one;
+        [Tooltip("Local position offset applied to the fitted pickup prefab.")]
+        public Vector3 PickupRingPrefabLocalOffset = Vector3.zero;
+        [Tooltip("Local rotation offset applied on top of the pickup prefab's authored rotation.")]
+        public Vector3 PickupRingPrefabLocalEulerAngles = Vector3.zero;
+        [Tooltip("Height of pickup ground rings above the sampled terrain surface, in meters.")]
+        [Min(0f)] public float PickupRingGroundOffset = 0.1f;
+        [Header("Delivery Ground Ring")]
         [Tooltip("Radius used by delivery objective rings.")]
         [Min(1f)] public float DeliveryRingRadius = 15f;
         [Tooltip("Ground-ring effect used to mark delivery drop zones.")]

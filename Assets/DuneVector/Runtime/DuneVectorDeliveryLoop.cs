@@ -93,10 +93,7 @@ namespace DuneVector
             _package.name = $"Package {_jobIndex:000}";
 
             Vector3 approach = LogicalDirection(playerLogical, _packageLogicalPosition);
-            double pickupRingHeight = DuneVectorVisuals.CalculateGroundedPortalCenterHeight(
-                _packageHeight,
-                _settings.ObjectiveRingRadius,
-                _materials.RingPortalTuning);
+            double pickupRingHeight = _packageHeight + _settings.PickupRingGroundOffset;
             _pickupRing = CreateJobRing(
                 "Pickup Ring",
                 _packageLogicalPosition,
@@ -376,7 +373,7 @@ namespace DuneVector
             _settings = settings;
             _ringTuning = materials.RingPortalTuning;
             _isPickup = isPickup;
-            _isGroundDropZone = !isPickup;
+            _isGroundDropZone = true;
             if (_isGroundDropZone)
             {
                 _innerRadius = Mathf.Max(0.5f, radius);
@@ -488,20 +485,41 @@ namespace DuneVector
 
         private Transform CreateGroundDropZoneVisual(float radius)
         {
-            if (_settings == null || _settings.DeliveryRingGroundPrefab == null)
+            if (_settings == null)
             {
                 return null;
             }
 
-            GameObject instance = Instantiate(_settings.DeliveryRingGroundPrefab, transform, false);
-            instance.name = "Delivery Ground Ring Visual";
+            GameObject prefab = _isPickup
+                ? _settings.PickupRingGroundPrefab
+                : _settings.DeliveryRingGroundPrefab;
+            if (prefab == null)
+            {
+                return null;
+            }
+
+            float authoredRadius = _isPickup
+                ? _settings.PickupRingPrefabAuthoredRadius
+                : _settings.DeliveryRingPrefabAuthoredRadius;
+            Vector3 scaleMultiplier = _isPickup
+                ? _settings.PickupRingPrefabScale
+                : _settings.DeliveryRingPrefabScale;
+            Vector3 localOffset = _isPickup
+                ? _settings.PickupRingPrefabLocalOffset
+                : _settings.DeliveryRingPrefabLocalOffset;
+            Vector3 localEulerAngles = _isPickup
+                ? _settings.PickupRingPrefabLocalEulerAngles
+                : _settings.DeliveryRingPrefabLocalEulerAngles;
+
+            GameObject instance = Instantiate(prefab, transform, false);
+            instance.name = _isPickup ? "Pickup Ground Ring Visual" : "Delivery Ground Ring Visual";
             Transform instanceTransform = instance.transform;
-            float fitScale = radius / Mathf.Max(0.01f, _settings.DeliveryRingPrefabAuthoredRadius);
+            float fitScale = radius / Mathf.Max(0.01f, authoredRadius);
             instanceTransform.localScale = Vector3.Scale(
                 instanceTransform.localScale * fitScale,
-                _settings.DeliveryRingPrefabScale);
-            instanceTransform.localPosition += _settings.DeliveryRingPrefabLocalOffset;
-            instanceTransform.localRotation *= Quaternion.Euler(_settings.DeliveryRingPrefabLocalEulerAngles);
+                scaleMultiplier);
+            instanceTransform.localPosition += localOffset;
+            instanceTransform.localRotation *= Quaternion.Euler(localEulerAngles);
             return instanceTransform;
         }
 

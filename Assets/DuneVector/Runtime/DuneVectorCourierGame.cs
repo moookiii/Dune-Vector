@@ -1648,10 +1648,7 @@ namespace DuneVector
             double pickupGroundHeight = _world.HeightField.SampleHeight(
                 objectiveLogical.X,
                 objectiveLogical.Z);
-            double pickupRingHeight = DuneVectorVisuals.CalculateGroundedPortalCenterHeight(
-                pickupGroundHeight,
-                _deliverySettings.ObjectiveRingRadius,
-                _materials.RingPortalTuning);
+            double pickupRingHeight = pickupGroundHeight + _deliverySettings.PickupRingGroundOffset;
             _package = DuneVectorVisuals.CreatePackageVisual(transform, _materials, _settings.ObjectivePackageScale);
             _package.name = $"Contract Cargo {ActiveContract.ContractId}";
             _package.position = objectivePosition;
