@@ -311,6 +311,12 @@ namespace DuneVector
             effect.transform.localScale = Vector3.Scale(
                 _hubReturnEffectPrefab.transform.localScale,
                 _hubReturnEffectScale);
+            ParticleSystem[] particleSystems = effect.GetComponentsInChildren<ParticleSystem>(true);
+            foreach (ParticleSystem particleSystem in particleSystems)
+            {
+                particleSystem.Clear(withChildren: true);
+                particleSystem.Play(withChildren: true);
+            }
             if (_hubReturnEffectLifetime > 0f)
             {
                 Destroy(effect, _hubReturnEffectLifetime);
