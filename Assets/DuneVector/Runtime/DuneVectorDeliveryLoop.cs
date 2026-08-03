@@ -352,6 +352,7 @@ namespace DuneVector
         private Vector3 _previousWorldPosition;
         private bool _hasPreviousPosition;
         private bool _activated;
+        private bool _playDeliveryAudio = true;
         private float _spin;
         private float _spinSpeed;
         private float _spinDirection = 1f;
@@ -364,7 +365,8 @@ namespace DuneVector
             bool isPickup,
             float radius,
             Action onCrossed,
-            Func<bool> canActivate = null)
+            Func<bool> canActivate = null,
+            bool playDeliveryAudio = true)
         {
             _player = player;
             _billboardCamera = billboardCamera;
@@ -373,6 +375,7 @@ namespace DuneVector
             _settings = settings;
             _ringTuning = materials.RingPortalTuning;
             _isPickup = isPickup;
+            _playDeliveryAudio = playDeliveryAudio;
             _isGroundDropZone = true;
             if (_isGroundDropZone)
             {
@@ -559,7 +562,7 @@ namespace DuneVector
                 crossingDirection);
             _visual = null;
             _portalVisual = null;
-            if (_isPickup)
+            if (_isPickup || !_playDeliveryAudio)
             {
                 DuneVectorAudioManager.Instance?.PlayFlightRingSwoosh(transform.position);
             }

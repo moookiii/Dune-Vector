@@ -1702,7 +1702,8 @@ namespace DuneVector
             LogicalPosition logical,
             double height,
             bool pickup,
-            Action crossed)
+            Action crossed,
+            bool playDeliveryAudio = true)
         {
             GameObject ringObject = new GameObject(objectName);
             ringObject.transform.SetParent(transform, false);
@@ -1720,7 +1721,8 @@ namespace DuneVector
                     ? _deliverySettings.ObjectiveRingRadius
                     : _deliverySettings.DeliveryRingRadius),
                 crossed,
-                canActivate);
+                canActivate,
+                playDeliveryAudio);
             ring.LogicalPosition = logical;
             ring.LogicalHeight = height;
             ring.transform.position = _world.LogicalToLocal(logical.X, height, logical.Z);
@@ -1826,7 +1828,8 @@ namespace DuneVector
                 objectiveLogical,
                 groundHeight + _deliverySettings.DeliveryRingGroundOffset,
                 false,
-                HandleDelivery);
+                HandleDelivery,
+                _deliveryIndex == ActiveContract.DeliveryPositions.Count - 1);
             ActiveObjective = _objectiveRing.transform;
             ActiveObjectiveLogicalPosition = objectiveLogical;
         }
