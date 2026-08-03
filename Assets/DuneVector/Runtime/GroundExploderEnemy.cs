@@ -152,7 +152,8 @@ namespace DuneVector
         private void Detonate()
         {
             SetState(GroundExploderState.Exploding);
-            SpawnExplosionPrefab();
+            bool spawnedPrefabExplosion = SpawnExplosionPrefabs();
+            _visual?.EnterExplosion(!spawnedPrefabExplosion);
             if (!string.IsNullOrWhiteSpace(_settings.ExplosionEvent))
             {
                 RuntimeManager.PlayOneShot(_settings.ExplosionEvent, transform.position);
@@ -164,28 +165,55 @@ namespace DuneVector
                 _settings.ExplosionDeathMessage);
         }
 
-        private void SpawnExplosionPrefab()
+        private bool SpawnExplosionPrefabs()
         {
-            if (_settings.ExplosionPrefab == null)
+            bool spawnedPrimary = SpawnExplosionPrefab(
+                _settings.ExplosionPrefab,
+                _settings.ExplosionPrefabLocalPosition,
+                _settings.ExplosionPrefabLocalEulerAngles,
+                _settings.ExplosionPrefabLocalScale,
+                _settings.ExplosionPrefabLifetime,
+                "Ground Exploder Explosion Effect");
+            bool spawnedAdditional = SpawnExplosionPrefab(
+                _settings.AdditionalExplosionPrefab,
+                _settings.AdditionalExplosionPrefabLocalPosition,
+                _settings.AdditionalExplosionPrefabLocalEulerAngles,
+                _settings.AdditionalExplosionPrefabLocalScale,
+                _settings.AdditionalExplosionPrefabLifetime,
+                "Ground Exploder Additional Explosion Effect");
+            return spawnedPrimary || spawnedAdditional;
+        }
+
+        private bool SpawnExplosionPrefab(
+            GameObject prefab,
+            Vector3 localPosition,
+            Vector3 localEulerAngles,
+            Vector3 localScale,
+            float lifetime,
+            string rootName)
+        {
+            if (prefab == null)
             {
-                return;
+                return false;
             }
 
-            GameObject effectRoot = new GameObject("Ground Exploder Explosion Effect");
+            GameObject effectRoot = new GameObject(rootName);
             effectRoot.transform.SetPositionAndRotation(transform.position, transform.rotation);
-            GameObject effect = Instantiate(_settings.ExplosionPrefab, effectRoot.transform, false);
-            effect.name = _settings.ExplosionPrefab.name;
-            effect.transform.localPosition = _settings.ExplosionPrefabLocalPosition;
-            effect.transform.localRotation = _settings.ExplosionPrefab.transform.localRotation
-                * Quaternion.Euler(_settings.ExplosionPrefabLocalEulerAngles);
+            GameObject effect = Instantiate(prefab, effectRoot.transform, false);
+            effect.name = prefab.name;
+            effect.transform.localPosition = localPosition;
+            effect.transform.localRotation = prefab.transform.localRotation
+                * Quaternion.Euler(localEulerAngles);
             effect.transform.localScale = Vector3.Scale(
-                _settings.ExplosionPrefab.transform.localScale,
-                _settings.ExplosionPrefabLocalScale);
+                prefab.transform.localScale,
+                localScale);
 
-            if (_settings.ExplosionPrefabLifetime > 0f)
+            if (lifetime > 0f)
             {
-                Destroy(effectRoot, _settings.ExplosionPrefabLifetime);
+                Destroy(effectRoot, lifetime);
             }
+
+            return true;
         }
 
         private void ApplyRiskScaling()
@@ -219,7 +247,6 @@ namespace DuneVector
                     _visual?.EnterWindUp();
                     break;
                 case GroundExploderState.Exploding:
-                    _visual?.EnterExplosion(_settings.ExplosionPrefab == null);
                     break;
                 case GroundExploderState.Dead:
                     Destroy(gameObject);

@@ -293,26 +293,56 @@ namespace DuneVector
 
         private bool SpawnPrefabExplosion()
         {
-            if (!_settings.UseExplosionPrefab || _settings.ExplosionPrefab == null)
+            if (!_settings.UseExplosionPrefab)
             {
                 return false;
             }
 
-            GameObject effectRoot = new GameObject("Storm Pyramid Explosion");
+            bool spawnedPrimary = SpawnExplosionPrefab(
+                _settings.ExplosionPrefab,
+                _settings.ExplosionPrefabLocalPosition,
+                _settings.ExplosionPrefabLocalEulerAngles,
+                _settings.ExplosionPrefabLocalScale,
+                _settings.ExplosionPrefabLifetime,
+                "Storm Pyramid Explosion");
+            bool spawnedAdditional = SpawnExplosionPrefab(
+                _settings.AdditionalExplosionPrefab,
+                _settings.AdditionalExplosionPrefabLocalPosition,
+                _settings.AdditionalExplosionPrefabLocalEulerAngles,
+                _settings.AdditionalExplosionPrefabLocalScale,
+                _settings.AdditionalExplosionPrefabLifetime,
+                "Storm Pyramid Additional Explosion");
+            return spawnedPrimary || spawnedAdditional;
+        }
+
+        private bool SpawnExplosionPrefab(
+            GameObject prefab,
+            Vector3 localPosition,
+            Vector3 localEulerAngles,
+            Vector3 localScale,
+            float lifetime,
+            string rootName)
+        {
+            if (prefab == null)
+            {
+                return false;
+            }
+
+            GameObject effectRoot = new GameObject(rootName);
             effectRoot.transform.position = transform.position;
 
-            GameObject effect = Instantiate(_settings.ExplosionPrefab, effectRoot.transform, false);
-            effect.name = _settings.ExplosionPrefab.name;
-            effect.transform.localPosition = _settings.ExplosionPrefabLocalPosition;
-            effect.transform.localRotation = _settings.ExplosionPrefab.transform.localRotation
-                * Quaternion.Euler(_settings.ExplosionPrefabLocalEulerAngles);
+            GameObject effect = Instantiate(prefab, effectRoot.transform, false);
+            effect.name = prefab.name;
+            effect.transform.localPosition = localPosition;
+            effect.transform.localRotation = prefab.transform.localRotation
+                * Quaternion.Euler(localEulerAngles);
             effect.transform.localScale = Vector3.Scale(
-                _settings.ExplosionPrefab.transform.localScale,
-                _settings.ExplosionPrefabLocalScale);
+                prefab.transform.localScale,
+                localScale);
 
-            if (_settings.ExplosionPrefabLifetime > 0f)
+            if (lifetime > 0f)
             {
-                Destroy(effectRoot, _settings.ExplosionPrefabLifetime);
+                Destroy(effectRoot, lifetime);
             }
 
             return true;

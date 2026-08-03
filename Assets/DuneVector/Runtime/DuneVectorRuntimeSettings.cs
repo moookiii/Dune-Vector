@@ -2295,6 +2295,16 @@ namespace DuneVector
         public Vector3 ExplosionPrefabLocalScale = Vector3.one;
         [Tooltip("Seconds before the spawned explosion prefab is destroyed. Set to 0 to let the prefab manage its own lifetime.")]
         [Min(0f)] public float ExplosionPrefabLifetime = 3f;
+        [Tooltip("Optional second explosion effect spawned alongside Explosion Prefab when a storm pyramid detonates.")]
+        public GameObject AdditionalExplosionPrefab;
+        [Tooltip("Local position applied to the additional spawned explosion prefab.")]
+        public Vector3 AdditionalExplosionPrefabLocalPosition = Vector3.zero;
+        [Tooltip("Local Euler rotation offset added to the additional explosion prefab's authored rotation.")]
+        public Vector3 AdditionalExplosionPrefabLocalEulerAngles = Vector3.zero;
+        [Tooltip("Scale multiplier applied to the additional explosion prefab's authored scale.")]
+        public Vector3 AdditionalExplosionPrefabLocalScale = Vector3.one;
+        [Tooltip("Seconds before the additional spawned explosion prefab is destroyed. Set to 0 to let the prefab manage its own lifetime.")]
+        [Min(0f)] public float AdditionalExplosionPrefabLifetime = 3f;
 
         [Header("Lightning Attack")]
         [Tooltip("Delay before beginning another straight-down ground strike after returning to idle at risk 0.")]
@@ -3235,6 +3245,16 @@ namespace DuneVector
         public Vector3 ExplosionPrefabLocalScale = Vector3.one;
         [Tooltip("Seconds before the spawned explosion prefab is destroyed. Set to 0 to let the prefab manage its own lifetime.")]
         [Min(0f)] public float ExplosionPrefabLifetime = 5.5f;
+        [Tooltip("Optional second visual effect spawned alongside Explosion Prefab when the ground exploder detonates.")]
+        public GameObject AdditionalExplosionPrefab;
+        [Tooltip("Local position applied to the additional spawned explosion prefab.")]
+        public Vector3 AdditionalExplosionPrefabLocalPosition = Vector3.zero;
+        [Tooltip("Local Euler rotation offset added to the additional explosion prefab's authored rotation.")]
+        public Vector3 AdditionalExplosionPrefabLocalEulerAngles = Vector3.zero;
+        [Tooltip("Scale multiplier applied to the additional explosion prefab's authored scale.")]
+        public Vector3 AdditionalExplosionPrefabLocalScale = Vector3.one;
+        [Tooltip("Seconds before the additional spawned explosion prefab is destroyed. Set to 0 to let the prefab manage its own lifetime.")]
+        [Min(0f)] public float AdditionalExplosionPrefabLifetime = 5.5f;
         [Tooltip("Visual scale at risk 0.")]
         [Min(0.1f)] public float VisualScale = 3f;
         [Tooltip("Visual scale at the risk scaling ceiling.")]
