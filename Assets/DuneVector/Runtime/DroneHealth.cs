@@ -753,7 +753,7 @@ namespace DuneVector
                 DroneCharacterController drone = _health.GetComponent<DroneCharacterController>();
                 drone?.SetHoverEnabled(true);
                 _courierGame.RestartAtHub();
-                drone?.PlayDeathRespawnEffect();
+                drone?.PlayDeathRespawnEffect(_courierGame.HubFloorPosition);
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
                 return;
