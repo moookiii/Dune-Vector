@@ -94,6 +94,8 @@ namespace DuneVector
             _sky.ReactiveShockRingVerticalSpan.Override(_settings.ShockRingVerticalSpan);
             _sky.ReactiveShockRingBassResponse.Override(_settings.ShockRingBassResponse);
             _sky.ReactiveShockRingSustainResponse.Override(_settings.ShockRingSustainResponse);
+            _sky.ReactiveShockRingBeatRateBpm.Override(_settings.ShockRingBeatRateBpm);
+            _sky.ReactiveShockRingBeatDutyCycle.Override(_settings.ShockRingBeatDutyCycle);
             _sky.ReactiveShockRingBreakup.Override(_settings.ShockRingBreakup);
             _sky.ReactiveLightningColor.Override(_settings.LightningColor);
             _sky.ReactiveLightningIntensity.Override(_settings.LightningIntensity);

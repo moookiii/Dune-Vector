@@ -3715,7 +3715,9 @@ namespace DuneVector
         [Min(0f)] public float ShockRingTravelSpeed = 0.7f;
         [Range(0.05f, 1f)] public float ShockRingVerticalSpan = 0.72f;
         [Range(0f, 2f)] public float ShockRingBassResponse = 1.2f;
-        [Range(0f, 1f)] public float ShockRingSustainResponse = 0.65f;
+        [Range(0f, 1f)] public float ShockRingSustainResponse = 0.5f;
+        [Min(1f)] public float ShockRingBeatRateBpm = 167f;
+        [Range(0.02f, 0.8f)] public float ShockRingBeatDutyCycle = 0.24f;
         [Range(0f, 1f)] public float ShockRingBreakup = 0.42f;
 
         [Header("Percussive Sky Filaments")]

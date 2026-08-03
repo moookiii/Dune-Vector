@@ -79,6 +79,8 @@ namespace DuneVector
         public ClampedFloatParameter ReactiveShockRingVerticalSpan = new ClampedFloatParameter(0.72f, 0.05f, 1f);
         public ClampedFloatParameter ReactiveShockRingBassResponse = new ClampedFloatParameter(1f, 0f, 2f);
         public ClampedFloatParameter ReactiveShockRingSustainResponse = new ClampedFloatParameter(0f, 0f, 1f);
+        public MinFloatParameter ReactiveShockRingBeatRateBpm = new MinFloatParameter(1f, 1f);
+        public ClampedFloatParameter ReactiveShockRingBeatDutyCycle = new ClampedFloatParameter(0.24f, 0.02f, 0.8f);
         public ClampedFloatParameter ReactiveShockRingBreakup = new ClampedFloatParameter(0f, 0f, 1f);
 
         public ColorParameter ReactiveLightningColor = new ColorParameter(Color.white, true, false, true);
