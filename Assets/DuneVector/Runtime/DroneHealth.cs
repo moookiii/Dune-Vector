@@ -750,10 +750,8 @@ namespace DuneVector
             if (_courierGame != null && _health.ReviveAtFullHealth())
             {
                 IsGameOver = false;
-                DroneCharacterController drone = _health.GetComponent<DroneCharacterController>();
-                drone?.SetHoverEnabled(true);
+                _health.GetComponent<DroneCharacterController>()?.SetHoverEnabled(true);
                 _courierGame.RestartAtHub();
-                drone?.PlayDeathRespawnEffect();
                 Cursor.lockState = CursorLockMode.Locked;
                 Cursor.visible = false;
                 return;
