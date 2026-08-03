@@ -182,7 +182,7 @@ namespace DuneVector
         private Vector3 _jumpEffectScale = Vector3.one;
         private float _jumpEffectLifetime;
         private GameObject _deathRespawnEffectPrefab;
-        private Vector3 _deathRespawnEffectFloorOffset;
+        private Vector3 _deathRespawnEffectLocalPosition;
         private Quaternion _deathRespawnEffectRotationOffset = Quaternion.identity;
         private Vector3 _deathRespawnEffectScale = Vector3.one;
         private float _deathRespawnEffectLifetime;
@@ -283,32 +283,32 @@ namespace DuneVector
 
         public void ConfigureDeathRespawnEffect(
             GameObject prefab,
-            Vector3 floorOffset,
+            Vector3 localPosition,
             Vector3 eulerOffset,
             Vector3 scale,
             float lifetime)
         {
             _deathRespawnEffectPrefab = prefab;
-            _deathRespawnEffectFloorOffset = floorOffset;
+            _deathRespawnEffectLocalPosition = localPosition;
             _deathRespawnEffectRotationOffset = Quaternion.Euler(eulerOffset);
             _deathRespawnEffectScale = scale;
             _deathRespawnEffectLifetime = Mathf.Max(0f, lifetime);
         }
 
-        public void PlayDeathRespawnEffect(Vector3 hubFloorPosition)
+        public void PlayDeathRespawnEffect()
         {
             if (_deathRespawnEffectPrefab == null)
             {
                 return;
             }
 
-            Quaternion effectRotation =
+            Transform effectParent = DroneVisualRoot != null ? DroneVisualRoot : transform;
+            GameObject effect = Instantiate(_deathRespawnEffectPrefab, effectParent);
+            Transform effectTransform = effect.transform;
+            effectTransform.localPosition = _deathRespawnEffectLocalPosition;
+            effectTransform.localRotation =
                 _deathRespawnEffectPrefab.transform.localRotation * _deathRespawnEffectRotationOffset;
-            GameObject effect = Instantiate(
-                _deathRespawnEffectPrefab,
-                hubFloorPosition + _deathRespawnEffectFloorOffset,
-                effectRotation);
-            effect.transform.localScale = Vector3.Scale(
+            effectTransform.localScale = Vector3.Scale(
                 _deathRespawnEffectPrefab.transform.localScale,
                 _deathRespawnEffectScale);
             if (_deathRespawnEffectLifetime > 0f)

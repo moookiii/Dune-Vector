@@ -3273,7 +3273,7 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color FlightRingEmissionColor = new Color(0f, 2f, 3.6f);
 
         [Header("Portal Prefab Visuals")]
-        [Tooltip("When enabled, every traversal ring uses only the built-in procedural portal visual. When disabled, assigned prefabs are layered over the procedural portals; missing references simply leave the original portal unchanged.")]
+        [Tooltip("When enabled, every traversal ring uses the built-in procedural portal visual instead of its assigned prefab. Individual missing prefab references also fall back procedurally.")]
         public bool UseProceduralPortalFallbackForAll;
         [Tooltip("Prefab used by standard flight portals.")]
         public GameObject FlightPortalPrefab;
@@ -4707,10 +4707,10 @@ namespace DuneVector
         [Min(0f)] public float JumpEffectLifetime = 3f;
 
         [Header("Death Respawn Effect")]
-        [Tooltip("Effect spawned on the hub floor beneath the drone after death recovery returns it to the hub.")]
+        [Tooltip("Effect attached to the drone after death recovery returns it to the hub.")]
         public GameObject DeathRespawnEffectPrefab;
-        [Tooltip("World-space offset from the hub floor position where the death respawn effect is spawned.")]
-        public Vector3 DeathRespawnEffectFloorOffset;
+        [Tooltip("Local position of the death respawn effect relative to the drone visual root.")]
+        public Vector3 DeathRespawnEffectLocalPosition;
         [Tooltip("Euler rotation offset added to the effect prefab's authored local rotation.")]
         public Vector3 DeathRespawnEffectEulerOffset;
         [Tooltip("Scale multiplier applied to the death respawn effect's authored scale.")]
@@ -4802,7 +4802,7 @@ namespace DuneVector
                 JumpEffectLifetime);
             drone.ConfigureDeathRespawnEffect(
                 DeathRespawnEffectPrefab,
-                DeathRespawnEffectFloorOffset,
+                DeathRespawnEffectLocalPosition,
                 DeathRespawnEffectEulerOffset,
                 DeathRespawnEffectScale,
                 DeathRespawnEffectLifetime);
