@@ -176,6 +176,11 @@ namespace DuneVector
         private bool _jumpedThisUpdate;
         private float _timeSinceJumpRequested = float.PositiveInfinity;
         private float _timeSinceStableGround = float.PositiveInfinity;
+        private GameObject _jumpEffectPrefab;
+        private Quaternion _jumpEffectRotation = Quaternion.identity;
+        private float _jumpEffectGroundOffset;
+        private Vector3 _jumpEffectScale = Vector3.one;
+        private float _jumpEffectLifetime;
 
         private float _ringBoostTimeRemaining;
         private float _ringBurstTimeRemaining;
@@ -255,6 +260,20 @@ namespace DuneVector
         {
             _stamina = stamina;
             _boostSpeedModifier = boostSpeedModifier;
+        }
+
+        public void ConfigureJumpEffect(
+            GameObject prefab,
+            Vector3 eulerAngles,
+            float groundOffset,
+            Vector3 scale,
+            float lifetime)
+        {
+            _jumpEffectPrefab = prefab;
+            _jumpEffectRotation = Quaternion.Euler(eulerAngles);
+            _jumpEffectGroundOffset = groundOffset;
+            _jumpEffectScale = scale;
+            _jumpEffectLifetime = Mathf.Max(0f, lifetime);
         }
 
         public void RestoreStaminaToFull()
@@ -784,11 +803,38 @@ namespace DuneVector
                 && !_jumpConsumed
                 && (Motor.GroundingStatus.IsStableOnGround || _timeSinceStableGround <= CoyoteTime))
             {
+                PlayJumpEffect();
                 Motor.ForceUnground(0.12f);
                 currentVelocity += (Motor.CharacterUp * JumpSpeed) - Vector3.Project(currentVelocity, Motor.CharacterUp);
                 _jumpRequested = false;
                 _jumpConsumed = true;
                 _jumpedThisUpdate = true;
+            }
+        }
+
+        private void PlayJumpEffect()
+        {
+            if (_jumpEffectPrefab == null || Motor == null)
+            {
+                return;
+            }
+
+            Vector3 effectPosition = Motor.TransientPosition;
+            if (Motor.GroundingStatus.IsStableOnGround)
+            {
+                effectPosition.y = Motor.GroundingStatus.GroundPoint.y;
+            }
+            else if (World != null)
+            {
+                effectPosition.y = World.SampleHeightAtLocal(effectPosition.x, effectPosition.z);
+            }
+
+            effectPosition.y += _jumpEffectGroundOffset;
+            GameObject effect = Instantiate(_jumpEffectPrefab, effectPosition, _jumpEffectRotation);
+            effect.transform.localScale = Vector3.Scale(effect.transform.localScale, _jumpEffectScale);
+            if (_jumpEffectLifetime > 0f)
+            {
+                Destroy(effect, _jumpEffectLifetime);
             }
         }
 
