@@ -210,8 +210,10 @@ namespace DuneVector
             Color pickupColor = ringSettings.HealthPickupFeedbackColor;
             pickupColor.a *= Mathf.Clamp01((_feedbackUntil - Time.unscaledTime) / duration);
             _pickupStyle.normal.textColor = pickupColor;
+            float feedbackTop = ringSettings.HealthPickupFeedbackTop +
+                (Screen.height * ringSettings.HealthPickupFeedbackVerticalScreenOffset);
             GUI.Label(
-                new Rect(0f, ringSettings.HealthPickupFeedbackTop, Screen.width, ringSettings.HealthPickupFeedbackHeight),
+                new Rect(0f, feedbackTop, Screen.width, ringSettings.HealthPickupFeedbackHeight),
                 string.Format(
                     ringSettings.HealthPickupFeedbackFormat,
                     Mathf.CeilToInt(Mathf.Max(0f, _healthRestored))),
