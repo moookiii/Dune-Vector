@@ -47,6 +47,8 @@ namespace DuneVector
         [Min(0f)] public float StartingAreaExclusionRadius = 120f;
         [Tooltip("Additional horizontal clearance kept between active contract objective rings and wind-field boundaries.")]
         [Min(0f)] public float ContractObjectivePadding = 20f;
+        [Tooltip("Horizontal clearance kept between a contract player insertion point and wind-field boundaries.")]
+        [Min(0f)] public float ContractPlayerSpawnPadding = 50f;
         [Range(0f, 60f)] public float MaximumGroundSlope = 38f;
         [Range(0f, 0.49f)] public float PositionJitterFraction = 0.38f;
         [Min(0.1f)] public float MinimumSizeMultiplier = 0.78f;
@@ -136,11 +138,13 @@ namespace DuneVector
     {
         public readonly Vector2 LogicalPosition;
         public readonly float Radius;
+        public readonly bool IsPlayerSpawn;
 
-        public WindFieldExclusion(Vector2 logicalPosition, float radius)
+        public WindFieldExclusion(Vector2 logicalPosition, float radius, bool isPlayerSpawn = false)
         {
             LogicalPosition = logicalPosition;
             Radius = Mathf.Max(0f, radius);
+            IsPlayerSpawn = isPlayerSpawn;
         }
     }
 
@@ -517,7 +521,10 @@ namespace DuneVector
                 Vector2 delta = exclusion.LogicalPosition - definition.LogicalPosition;
                 float outsideX = Mathf.Max(0f, Mathf.Abs(delta.x) - halfSize.x);
                 float outsideZ = Mathf.Max(0f, Mathf.Abs(delta.y) - halfSize.y);
-                float clearance = exclusion.Radius + Mathf.Max(0f, _settings.ContractObjectivePadding);
+                float padding = exclusion.IsPlayerSpawn
+                    ? _settings.ContractPlayerSpawnPadding
+                    : _settings.ContractObjectivePadding;
+                float clearance = exclusion.Radius + Mathf.Max(0f, padding);
                 if ((outsideX * outsideX) + (outsideZ * outsideZ) <= clearance * clearance)
                 {
                     return true;

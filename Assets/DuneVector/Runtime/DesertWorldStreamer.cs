@@ -111,6 +111,65 @@ namespace DuneVector
 
         public static readonly Vector2 StartingLogicalPosition = new Vector2(10f, 8f);
 
+        public LogicalPosition ResolvePlayerSpawnAwayFromPortals(
+            LogicalPosition desiredPosition,
+            Vector3 preferredDirection)
+        {
+            float clearance = Rings != null
+                ? Mathf.Max(0f, Rings.MinimumDroneSpawnSeparation)
+                : 0f;
+            if (TraversalRing.ActiveRings.Count == 0)
+            {
+                return desiredPosition;
+            }
+
+            Vector2 candidate = new Vector2((float)desiredPosition.X, (float)desiredPosition.Z);
+            Vector2 fallbackDirection = new Vector2(preferredDirection.x, preferredDirection.z);
+            fallbackDirection = fallbackDirection.sqrMagnitude > Mathf.Epsilon
+                ? fallbackDirection.normalized
+                : Vector2.right;
+            bool adjusted = false;
+            int maximumPasses = TraversalRing.ActiveRings.Count + 1;
+            for (int pass = 0; pass < maximumPasses; pass++)
+            {
+                bool moved = false;
+                foreach (TraversalRing ring in TraversalRing.ActiveRings)
+                {
+                    if (ring == null || !ring.isActiveAndEnabled)
+                    {
+                        continue;
+                    }
+
+                    Vector3 ringWorldPosition = ring.transform.position;
+                    Vector2 ringLogicalPosition = new Vector2(
+                        (float)(OriginOffsetX + ringWorldPosition.x),
+                        (float)(OriginOffsetZ + ringWorldPosition.z));
+                    Vector2 delta = candidate - ringLogicalPosition;
+                    float ringClearance = Mathf.Max(clearance, ring.InnerRadius);
+                    if (delta.sqrMagnitude >= ringClearance * ringClearance)
+                    {
+                        continue;
+                    }
+
+                    Vector2 direction = delta.sqrMagnitude > Mathf.Epsilon
+                        ? delta.normalized
+                        : fallbackDirection;
+                    candidate = ringLogicalPosition + (direction * ringClearance);
+                    moved = true;
+                    adjusted = true;
+                }
+
+                if (!moved)
+                {
+                    break;
+                }
+            }
+
+            return adjusted
+                ? new LogicalPosition(candidate.x, candidate.y)
+                : desiredPosition;
+        }
+
         public event Action<Vector3> WorldShifted;
 
         private readonly Dictionary<Vector2Int, DesertChunk> _chunks = new Dictionary<Vector2Int, DesertChunk>();

@@ -1509,7 +1509,6 @@ namespace DuneVector
             _desertSpawn = _world.LogicalToLocal(routeOrigin.X, insertionHeight, routeOrigin.Z);
             _desertRotation = Quaternion.LookRotation(pickupForward, Vector3.up);
             BuildPickupObjective();
-            ProtectContractObjectivesFromWind();
 
             double objectiveDeltaX = ActiveObjectiveLogicalPosition.X - routeOrigin.X;
             double objectiveDeltaZ = ActiveObjectiveLogicalPosition.Z - routeOrigin.Z;
@@ -1528,11 +1527,18 @@ namespace DuneVector
                 _desertSpawn = _world.LogicalToLocal(routeOrigin.X, insertionHeight, routeOrigin.Z);
             }
 
+            routeOrigin = _world.ResolvePlayerSpawnAwayFromPortals(routeOrigin, -pickupForward);
+            insertionHeight =
+                (float)_world.HeightField.SampleHeight(routeOrigin.X, routeOrigin.Z) +
+                _hubSettings.DesertInsertionHeight;
+            _desertSpawn = _world.LogicalToLocal(routeOrigin.X, insertionHeight, routeOrigin.Z);
+
             Vector3 actualPickupForward = Vector3.ProjectOnPlane(_package.position - _desertSpawn, Vector3.up);
             if (actualPickupForward.sqrMagnitude > 0.001f)
             {
                 _desertRotation = Quaternion.LookRotation(actualPickupForward.normalized, Vector3.up);
             }
+            ProtectContractObjectivesFromWind();
         }
 
         private void ResolveRouteLandmarks(CourierContract contract)
@@ -1670,7 +1676,12 @@ namespace DuneVector
             }
 
             List<WindFieldExclusion> exclusions =
-                new List<WindFieldExclusion>(_routeLandmarks.Count);
+                new List<WindFieldExclusion>(_routeLandmarks.Count + 1);
+            LogicalPosition spawnLogical = LocalToLogical(_desertSpawn);
+            exclusions.Add(new WindFieldExclusion(
+                new Vector2((float)spawnLogical.X, (float)spawnLogical.Z),
+                0f,
+                isPlayerSpawn: true));
             for (int i = 0; i < _routeLandmarks.Count; i++)
             {
                 DuneVectorLandmarkInstance landmark = _routeLandmarks[i];
@@ -2245,6 +2256,10 @@ namespace DuneVector
             if (!_teleportMoved && _teleportTimer >= vanishAt)
             {
                 _teleportMoved = true;
+                if (!toHub)
+                {
+                    EnsureDesertSpawnClearOfPortals();
+                }
                 Vector3 position = toHub ? _hubSpawn : _desertSpawn;
                 Quaternion rotation = toHub ? Quaternion.identity : _desertRotation;
                 _player.Motor.SetPositionAndRotation(position, rotation, true);
@@ -2299,6 +2314,37 @@ namespace DuneVector
                         ? $"RISK {risk} // SAND AMBUSHERS ACTIVE"
                         : "CONTRACT DEPLOYED — LOCATE CARGO",
                     3f);
+            }
+        }
+
+        private void EnsureDesertSpawnClearOfPortals()
+        {
+            LogicalPosition original = LocalToLogical(_desertSpawn);
+            LogicalPosition resolved = _world.ResolvePlayerSpawnAwayFromPortals(
+                original,
+                -(_desertRotation * Vector3.forward));
+            if (resolved.X == original.X && resolved.Z == original.Z)
+            {
+                return;
+            }
+
+            float insertionHeight =
+                (float)_world.HeightField.SampleHeight(resolved.X, resolved.Z) +
+                _hubSettings.DesertInsertionHeight;
+            _desertSpawn = _world.LogicalToLocal(resolved.X, insertionHeight, resolved.Z);
+            if (_package != null)
+            {
+                Vector3 pickupForward = Vector3.ProjectOnPlane(
+                    _package.position - _desertSpawn,
+                    Vector3.up);
+                if (pickupForward.sqrMagnitude > 0.001f)
+                {
+                    _desertRotation = Quaternion.LookRotation(pickupForward.normalized, Vector3.up);
+                }
+            }
+            if (ActiveContract != null)
+            {
+                ProtectContractObjectivesFromWind();
             }
         }
 
