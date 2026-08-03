@@ -1283,6 +1283,7 @@ namespace DuneVector
                 _cameraController?.SnapToTarget();
             }
             SetCombatSystemsActive(false);
+            _stormDirector?.SetHubLightningActive();
             _sandAmbusherSystem?.EndContract();
             DuneVectorContractRisk.Reset();
             State = CourierRunState.Hub;

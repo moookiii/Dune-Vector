@@ -82,6 +82,7 @@ namespace DuneVector
         private float _attackTimer;
         private int _identity;
         private bool _gameplayActive = true;
+        private bool _proximityDetonationActive = true;
 
         public void Initialize(
             DroneCharacterController player,
@@ -174,7 +175,7 @@ namespace DuneVector
                 return;
             }
 
-            if (_proximity.IsTargetInside(
+            if (_proximityDetonationActive && _proximity.IsTargetInside(
                 _explosionSettings.DetectionRadius
                 * Mathf.Max(0.1f, _settings.ProximityDetectionRadiusMultiplier)))
             {
@@ -367,6 +368,7 @@ namespace DuneVector
         public void SetGameplayActive(bool active)
         {
             _gameplayActive = active;
+            _proximityDetonationActive = active;
             if (!active)
             {
                 _lightning?.CancelAttack();
@@ -460,6 +462,13 @@ namespace DuneVector
                     _explosionSettings.EvaluateExplosionRadius(DuneVectorContractRisk.CurrentRisk)
                     * Mathf.Max(0.1f, _settings.ProximityExplosionRadiusMultiplier));
             }
+        }
+
+        public void SetLightningOnlyActive()
+        {
+            _gameplayActive = true;
+            _proximityDetonationActive = false;
+            _attackTimer = Mathf.Min(_attackTimer, GetAttackInterval());
         }
     }
 
@@ -2462,6 +2471,30 @@ namespace DuneVector
             if (_warningHud != null)
             {
                 _warningHud.enabled = active;
+            }
+        }
+
+        public void SetHubLightningActive()
+        {
+            enabled = true;
+            ClearRiskEnemies();
+            for (int i = 0; i < _enemies.Count; i++)
+            {
+                if (_enemies[i] != null)
+                {
+                    _enemies[i].SetLightningOnlyActive();
+                }
+            }
+            for (int i = 0; i < _orbEnemies.Count; i++)
+            {
+                if (_orbEnemies[i] != null)
+                {
+                    _orbEnemies[i].SetGameplayActive(false);
+                }
+            }
+            if (_warningHud != null)
+            {
+                _warningHud.enabled = true;
             }
         }
 
