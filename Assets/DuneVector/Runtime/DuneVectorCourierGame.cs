@@ -334,6 +334,7 @@ namespace DuneVector
         public bool IsTerminalOpen => _hubTerminalMode != HubTerminalMode.None;
         public bool IsDeliveryMessageOpen => _messagePresenter != null && _messagePresenter.IsOpen;
         public Vector3 HubSpawnPosition => _hubSpawn;
+        public Vector3 HubFloorPosition => _hubSpawn - (Vector3.up * _hubSettings.PlayerSpawnHeight);
         public Transform ContractTerminal => _terminal;
         public Transform MessageArchiveTerminal => _messageArchiveTerminal;
         public Transform FreeRoamTerminal => _freeRoamTerminal;
@@ -601,6 +602,7 @@ namespace DuneVector
             _deliveryCompletionInProgress = false;
             EndDeliveryMessageSafety();
             EnterHubImmediate(openTerminal: false);
+            _player.PlayHubReturnEffect(HubFloorPosition);
         }
 
         public bool AcceptOffer(int offerIndex)
@@ -2310,6 +2312,7 @@ namespace DuneVector
             _deliveryCompletionInProgress = false;
             EnterHubImmediate(openTerminal: false, placePlayerAtSpawn: false);
             EndDeliveryMessageSafety();
+            _player.PlayHubReturnEffect(HubFloorPosition);
             ShowStatus("RETURNED TO COURIER AERIE", 2.5f);
         }
 

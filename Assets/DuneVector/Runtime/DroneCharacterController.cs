@@ -181,6 +181,11 @@ namespace DuneVector
         private float _jumpEffectGroundOffset;
         private Vector3 _jumpEffectScale = Vector3.one;
         private float _jumpEffectLifetime;
+        private GameObject _hubReturnEffectPrefab;
+        private Vector3 _hubReturnEffectFloorOffset;
+        private Quaternion _hubReturnEffectRotationOffset = Quaternion.identity;
+        private Vector3 _hubReturnEffectScale = Vector3.one;
+        private float _hubReturnEffectLifetime;
 
         private float _ringBoostTimeRemaining;
         private float _ringBurstTimeRemaining;
@@ -274,6 +279,42 @@ namespace DuneVector
             _jumpEffectGroundOffset = groundOffset;
             _jumpEffectScale = scale;
             _jumpEffectLifetime = Mathf.Max(0f, lifetime);
+        }
+
+        public void ConfigureHubReturnEffect(
+            GameObject prefab,
+            Vector3 floorOffset,
+            Vector3 eulerOffset,
+            Vector3 scale,
+            float lifetime)
+        {
+            _hubReturnEffectPrefab = prefab;
+            _hubReturnEffectFloorOffset = floorOffset;
+            _hubReturnEffectRotationOffset = Quaternion.Euler(eulerOffset);
+            _hubReturnEffectScale = scale;
+            _hubReturnEffectLifetime = Mathf.Max(0f, lifetime);
+        }
+
+        public void PlayHubReturnEffect(Vector3 hubFloorPosition)
+        {
+            if (_hubReturnEffectPrefab == null)
+            {
+                return;
+            }
+
+            Quaternion effectRotation =
+                _hubReturnEffectPrefab.transform.localRotation * _hubReturnEffectRotationOffset;
+            GameObject effect = Instantiate(
+                _hubReturnEffectPrefab,
+                hubFloorPosition + _hubReturnEffectFloorOffset,
+                effectRotation);
+            effect.transform.localScale = Vector3.Scale(
+                _hubReturnEffectPrefab.transform.localScale,
+                _hubReturnEffectScale);
+            if (_hubReturnEffectLifetime > 0f)
+            {
+                Destroy(effect, _hubReturnEffectLifetime);
+            }
         }
 
         public void RestoreStaminaToFull()

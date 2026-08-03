@@ -4382,7 +4382,7 @@ namespace DuneVector
         [Range(0.5f, 2f)] public float MinimumScale = 0.7f;
         [Range(0.5f, 2f)] public float MaximumScale = 1.2f;
         [Min(280f)] public float PanelWidth = 540f;
-        [Min(340f)] public float PanelHeight = 760f;
+        [Min(340f)] public float PanelHeight = 824f;
         [Min(8f)] public float ScreenMargin = 24f;
         [Min(12f)] public float PanelPadding = 36f;
         [Min(1f)] public float AccentBarHeight = 6f;
@@ -4413,6 +4413,14 @@ namespace DuneVector
         public string ControlsVisualizerNoBassRingsLabel = "NO BASS RINGS";
         [Tooltip("State label shown while the music visualizer is inactive.")]
         public string ControlsVisualizerDisabledLabel = "OFF";
+        [Tooltip("Whether chromatic aberration is enabled before a saved player preference is available.")]
+        public bool DefaultChromaticAberrationEnabled = true;
+        [Tooltip("Label shown on the chromatic-aberration toggle.")]
+        public string ControlsChromaticAberrationLabel = "CHROMATIC ABERRATION";
+        [Tooltip("State label shown while chromatic aberration is active.")]
+        public string ControlsChromaticAberrationEnabledLabel = "ON";
+        [Tooltip("State label shown while chromatic aberration is inactive.")]
+        public string ControlsChromaticAberrationDisabledLabel = "OFF";
 
         [Header("Typography")]
         [Min(12)] public int TitleFontSize = 36;
@@ -4706,6 +4714,18 @@ namespace DuneVector
         [Tooltip("Seconds before the spawned jump effect root is destroyed.")]
         [Min(0f)] public float JumpEffectLifetime = 3f;
 
+        [Header("Hub Return Effect")]
+        [Tooltip("Effect spawned on the hub floor whenever the drone returns to the hub.")]
+        public GameObject HubReturnEffectPrefab;
+        [Tooltip("World-space offset from the hub floor position where the return effect is spawned.")]
+        public Vector3 HubReturnEffectFloorOffset;
+        [Tooltip("Euler rotation offset added to the effect prefab's authored rotation.")]
+        public Vector3 HubReturnEffectEulerOffset;
+        [Tooltip("Scale multiplier applied to the hub return effect's authored scale.")]
+        public Vector3 HubReturnEffectScale = Vector3.one;
+        [Tooltip("Seconds before the hub return effect root is destroyed. Set to 0 to let the prefab manage its own lifetime.")]
+        [Min(0f)] public float HubReturnEffectLifetime = 3f;
+
         [Header("Boost Rings")]
         [Min(0f)] public float RingBoostAcceleration = 9.5f;
         [Min(0f)] public float BoostDuration = 2.6f;
@@ -4788,6 +4808,12 @@ namespace DuneVector
                 JumpEffectGroundOffset,
                 JumpEffectScale,
                 JumpEffectLifetime);
+            drone.ConfigureHubReturnEffect(
+                HubReturnEffectPrefab,
+                HubReturnEffectFloorOffset,
+                HubReturnEffectEulerOffset,
+                HubReturnEffectScale,
+                HubReturnEffectLifetime);
             drone.RingBoostAcceleration = RingBoostAcceleration;
             drone.RingBoostDuration = BoostDuration;
             drone.RingBoostMaxSpeed = BoostMaxSpeed;
