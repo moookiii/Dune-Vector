@@ -62,6 +62,8 @@ namespace DuneVector
         public Material PlayerStrikeOrbBody { get; }
         public Material PlayerStrikeOrbCore { get; }
         public Material PlayerStrikeOrbTrail { get; }
+        public Material PlayerStrikeOrbLightning { get; }
+        public Material PlayerStrikeOrbLightningWarning { get; }
         public Material PlayerStrikeOrbExplosionWhite { get; }
         public Material PlayerStrikeOrbExplosionBlue { get; }
         public Material VesperKiteBody { get; }
@@ -297,6 +299,14 @@ namespace DuneVector
                 "Strike Orb - Satellite Trails",
                 strikeOrbs.OrbTrailColor,
                 strikeOrbs.OrbTrailEmission);
+            PlayerStrikeOrbLightning = CreateUnlit(
+                "Strike Orb - Lightning",
+                strikeOrbs.LightningColor,
+                strikeOrbs.LightningEmission * strikeOrbs.LightningBloomIntensity);
+            PlayerStrikeOrbLightningWarning = CreateUnlit(
+                "Strike Orb - Lightning Warning",
+                strikeOrbs.WarningColor,
+                strikeOrbs.WarningEmission * strikeOrbs.WarningBloomIntensity);
             PlayerStrikeOrbExplosionWhite = CreateUnlit(
                 "Strike Orb Explosion - White",
                 strikeOrbs.FlyThroughExplosionWhiteColor,
@@ -432,13 +442,21 @@ namespace DuneVector
                 settings.OrbTrailColor,
                 settings.OrbTrailEmission);
             ConfigureLitColors(
+                PlayerStrikeOrbLightning,
+                settings.LightningColor,
+                settings.LightningEmission * settings.LightningBloomIntensity);
+            ConfigureLitColors(
+                PlayerStrikeOrbLightningWarning,
+                settings.WarningColor,
+                settings.WarningEmission * settings.WarningBloomIntensity);
+            ConfigureLitColors(
                 PlayerStrikeOrbExplosionWhite,
                 settings.FlyThroughExplosionWhiteColor,
-                settings.FlyThroughExplosionWhiteEmission);
+                settings.FlyThroughExplosionWhiteEmission * settings.FlyThroughExplosionBloomIntensity);
             ConfigureLitColors(
                 PlayerStrikeOrbExplosionBlue,
                 settings.FlyThroughExplosionBlueColor,
-                settings.FlyThroughExplosionBlueEmission);
+                settings.FlyThroughExplosionBlueEmission * settings.FlyThroughExplosionBloomIntensity);
         }
 
         private static void ConfigureLitColors(Material material, Color baseColor, Color emission)
@@ -2626,7 +2644,7 @@ namespace DuneVector
                 "Charge Halo",
                 root,
                 GetTorusMesh(settings.ChargeHaloRadius, settings.ChargeHaloThickness, 48, 6),
-                materials.LightningWarning);
+                materials.PlayerStrikeOrbLightningWarning);
             halo.transform.localPosition = new Vector3(0f, 0f, 0.025f);
             halo.transform.localScale = Vector3.zero;
             DisableRendererShadows(halo);
@@ -2795,6 +2813,19 @@ namespace DuneVector
             DuneVectorMaterials materials,
             float radius)
         {
+            return CreateStormStrikeMarker(
+                parent,
+                materials.LightningWarning,
+                materials.Lightning,
+                radius);
+        }
+
+        public static Transform CreateStormStrikeMarker(
+            Transform parent,
+            Material warningMaterial,
+            Material lightningMaterial,
+            float radius)
+        {
             GameObject rootObject = new GameObject("Lightning Strike Marker");
             Transform root = rootObject.transform;
             root.SetParent(parent, true);
@@ -2803,7 +2834,7 @@ namespace DuneVector
                 "Outer Warning Ring",
                 root,
                 GetTorusMesh(Mathf.Max(0.2f, radius), 0.09f, 48, 6),
-                materials.LightningWarning);
+                warningMaterial);
             outerRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             DisableRendererShadows(outerRing);
 
@@ -2811,7 +2842,7 @@ namespace DuneVector
                 "Inner Warning Ring",
                 root,
                 GetTorusMesh(Mathf.Max(0.12f, radius * 0.58f), 0.055f, 42, 6),
-                materials.LightningWarning);
+                warningMaterial);
             innerRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
             DisableRendererShadows(innerRing);
 
@@ -2822,7 +2853,7 @@ namespace DuneVector
                 Vector3.zero,
                 Vector3.zero,
                 Quaternion.identity,
-                materials.Lightning);
+                lightningMaterial);
             DisableRendererShadows(impactFlash.gameObject);
             rootObject.SetActive(false);
             return root;

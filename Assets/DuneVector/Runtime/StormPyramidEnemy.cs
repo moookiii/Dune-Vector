@@ -1779,10 +1779,20 @@ namespace DuneVector
             _settings = settings;
             _damage = damage;
             _identity = identity;
-            _marker = DuneVectorVisuals.CreateStormStrikeMarker(owner.parent, materials, settings.StrikeRadius);
+            _marker = DuneVectorVisuals.CreateStormStrikeMarker(
+                owner.parent,
+                materials.PlayerStrikeOrbLightningWarning,
+                materials.PlayerStrikeOrbLightning,
+                settings.StrikeRadius);
             _impactFlash = _marker.Find("Strike Impact Flash");
-            _chargeLine = CreateLine("Player Strike Charge Telegraph", materials.LightningWarning, settings.ChargeTelegraphWidth);
-            _lightningLine = CreateLine("Player Strike Lightning Bolt", materials.Lightning, settings.LightningWidth);
+            _chargeLine = CreateLine(
+                "Player Strike Charge Telegraph",
+                materials.PlayerStrikeOrbLightningWarning,
+                settings.ChargeTelegraphWidth);
+            _lightningLine = CreateLine(
+                "Player Strike Lightning Bolt",
+                materials.PlayerStrikeOrbLightning,
+                settings.LightningWidth);
             CancelAttack();
         }
 

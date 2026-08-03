@@ -2460,6 +2460,10 @@ namespace DuneVector
         [Min(0.05f)] public float LightningVisualDuration = 0.32f;
         [Min(0.01f)] public float ChargeTelegraphWidth = 0.14f;
         [Min(0.01f)] public float LightningWidth = 0.52f;
+        [Tooltip("Multiplies the strike orb lightning HDR emission without affecting storm pyramid lightning.")]
+        [Min(0f)] public float LightningBloomIntensity = 1f;
+        [Tooltip("Multiplies the strike orb charge telegraph and impact marker HDR emission.")]
+        [Min(0f)] public float WarningBloomIntensity = 1f;
         [Min(0f)] public float ChargePulseSpeed = 12f;
         [Range(0f, 0.5f)] public float ChargePulseAmount = 0.12f;
         [Min(0.01f)] public float ChargeMarkerStartScale = 0.25f;
@@ -2490,6 +2494,8 @@ namespace DuneVector
         [Min(0.1f)] public float FlyThroughShockwaveEndRadius = 27f;
         [Min(0f)] public float FlyThroughExplosionLightIntensity = 85000f;
         [Min(0f)] public float FlyThroughExplosionLightRange = 48f;
+        [Tooltip("Multiplies both fly-through explosion HDR emission colors without changing the explosion light.")]
+        [Min(0f)] public float FlyThroughExplosionBloomIntensity = 1f;
         [ColorUsage(false)] public Color FlyThroughExplosionWhiteColor = Color.white;
         [ColorUsage(false, true)] public Color FlyThroughExplosionWhiteEmission = new Color(18f, 22f, 28f);
         [ColorUsage(false)] public Color FlyThroughExplosionBlueColor = new Color(0.16f, 0.62f, 1f);
@@ -2523,6 +2529,10 @@ namespace DuneVector
         [Min(0f)] public float FacingSharpness = 9f;
         [ColorUsage(false)] public Color BodyColor = new Color(0.018f, 0.028f, 0.07f);
         [ColorUsage(false, true)] public Color BodyEmission = new Color(0.08f, 0.18f, 0.8f);
+        [ColorUsage(false)] public Color LightningColor = new Color(0.55f, 0.86f, 1f);
+        [ColorUsage(false, true)] public Color LightningEmission = new Color(7.5f, 12f, 18f);
+        [ColorUsage(false)] public Color WarningColor = new Color(0.18f, 0.42f, 0.62f);
+        [ColorUsage(false, true)] public Color WarningEmission = new Color(0.45f, 2.8f, 5.8f);
         [ColorUsage(false, true)] public Color OrbInnerColor;
         [ColorUsage(false, true)] public Color OrbOuterColor;
         [Range(0.01f, 1f)] public float OrbGradientWidth;
