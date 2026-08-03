@@ -3488,6 +3488,8 @@ namespace DuneVector
     public sealed class DesertWeatherCycleTuning
     {
         [Header("Storm Frequency")]
+        [Tooltip("Keep the dynamic weather in a full sandstorm for the entire session, without fading back to clear weather.")]
+        public bool AlwaysFullSandstorm;
         [Tooltip("Start a new game directly in a full sandstorm, bypassing the initial clear, dust-building, and approaching phases.")]
         public bool StartWithFullSandstorm;
         [Tooltip("Clear time before the first storm begins, in seconds.")]

@@ -55,7 +55,12 @@ namespace DuneVector
             _cycle = cycle;
             _wind = wind;
             _random = new System.Random(unchecked(worldSeed ^ cycle.RandomSeedOffset));
-            if (cycle.StartWithFullSandstorm)
+            if (cycle.AlwaysFullSandstorm)
+            {
+                CurrentState = DesertWeatherState.FullSandstorm;
+                _stateDuration = float.PositiveInfinity;
+            }
+            else if (cycle.StartWithFullSandstorm)
             {
                 CurrentState = DesertWeatherState.FullSandstorm;
                 _stateDuration = RandomRange(
