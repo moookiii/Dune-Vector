@@ -1687,14 +1687,16 @@ namespace DuneVector
             }
             float visualRadius = CalculatePortalVisualRadius(majorRadius, settings);
             GameObject portalPrefab = GetPortalPrefab(type, settings);
-            if (portalPrefab != null)
-            {
-                CreatePortalPrefabGeometry(geometryParent, portalPrefab, visualRadius, settings);
-            }
-            else
-            {
-                CreatePortalGeometry(geometryParent, materials, material, visualRadius, settings);
-            }
+            Renderer[] prefabRenderers = portalPrefab != null
+                ? CreatePortalPrefabGeometry(geometryParent, portalPrefab, visualRadius, settings)
+                : null;
+            CreatePortalGeometry(
+                geometryParent,
+                materials,
+                material,
+                visualRadius,
+                settings,
+                prefabRenderers);
 
             if (type == TraversalRingType.Health)
             {
@@ -1735,19 +1737,23 @@ namespace DuneVector
             };
         }
 
-        private static void CreatePortalPrefabGeometry(
+        private static Renderer[] CreatePortalPrefabGeometry(
             Transform parent,
             GameObject portalPrefab,
             float radius,
             RingTuning settings)
         {
-            GameObject prefabVisual = UnityEngine.Object.Instantiate(portalPrefab, parent, false);
-            prefabVisual.name = $"{portalPrefab.name} Visual";
-            prefabVisual.transform.localPosition = Vector3.zero;
+            GameObject scaleAnchorObject = new GameObject("Portal Prefab Scale Anchor");
+            Transform scaleAnchor = scaleAnchorObject.transform;
+            scaleAnchor.SetParent(parent, false);
             float authoredRadius = Mathf.Max(0.01f, settings.PortalPrefabAuthoredRadius);
             float fittedScale = (radius / authoredRadius)
                 * Mathf.Max(0.01f, settings.PortalPrefabScaleMultiplier);
-            prefabVisual.transform.localScale *= fittedScale;
+            scaleAnchor.localScale = Vector3.one * fittedScale;
+
+            GameObject prefabVisual = UnityEngine.Object.Instantiate(portalPrefab, scaleAnchor, false);
+            prefabVisual.name = $"{portalPrefab.name} Visual";
+            prefabVisual.transform.localPosition = Vector3.zero;
 
             Collider[] colliders = prefabVisual.GetComponentsInChildren<Collider>(true);
             for (int i = 0; i < colliders.Length; i++)
@@ -1755,9 +1761,7 @@ namespace DuneVector
                 colliders[i].enabled = false;
             }
 
-            Renderer[] renderers = prefabVisual.GetComponentsInChildren<Renderer>(true);
-            DuneVectorPortalVisual portalVisual = parent.gameObject.AddComponent<DuneVectorPortalVisual>();
-            portalVisual.Initialize(renderers, null, null, settings);
+            return prefabVisual.GetComponentsInChildren<Renderer>(true);
         }
 
         private static void CreatePortalGeometry(
@@ -1765,7 +1769,8 @@ namespace DuneVector
             DuneVectorMaterials materials,
             Material lineMaterial,
             float radius,
-            RingTuning settings)
+            RingTuning settings,
+            Renderer[] additionalRenderers = null)
         {
             float lineLayerDepth = Mathf.Max(0f, settings.PortalLineLayerDepth);
             Material haloMaterial = materials.CreatePortalHaloMaterial(lineMaterial);
@@ -1861,19 +1866,25 @@ namespace DuneVector
             activationPulseRenderer.sortingOrder = 3;
             activationPulse.SetActive(false);
 
+            List<Renderer> portalRenderers = new List<Renderer>
+            {
+                rearHaloRenderer,
+                centerHaloRenderer,
+                frontHaloRenderer,
+                rearLineRenderer,
+                centerLineRenderer,
+                frontLineRenderer,
+                sparkRenderer,
+                activationPulseRenderer,
+            };
+            if (additionalRenderers != null)
+            {
+                portalRenderers.AddRange(additionalRenderers);
+            }
+
             DuneVectorPortalVisual portalVisual = parent.gameObject.AddComponent<DuneVectorPortalVisual>();
             portalVisual.Initialize(
-                new Renderer[]
-                {
-                    rearHaloRenderer,
-                    centerHaloRenderer,
-                    frontHaloRenderer,
-                    rearLineRenderer,
-                    centerLineRenderer,
-                    frontLineRenderer,
-                    sparkRenderer,
-                    activationPulseRenderer,
-                },
+                portalRenderers.ToArray(),
                 activationPulseRenderer,
                 activationPulse.transform,
                 settings);
