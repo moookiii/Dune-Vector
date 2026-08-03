@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.Serialization;
 
 namespace DuneVector
@@ -3614,6 +3615,9 @@ namespace DuneVector
         [Header("Desert Sun")]
         [Min(0f)] public float SunIntensity = 3f;
         [Range(0f, 1f)] public float SunShadowDimmer = 0.75f;
+        public LightShadows SunShadowType = LightShadows.Soft;
+        public LightShadowResolution SunShadowResolution = LightShadowResolution.VeryHigh;
+        public SoftShadowQuality SunSoftShadowQuality = SoftShadowQuality.High;
 
         [Header("Visibility")]
         [ColorUsage(false)] public Color ClearFogColor = new Color(0.45f, 0.52f, 0.6f);

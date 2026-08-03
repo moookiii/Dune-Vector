@@ -593,18 +593,19 @@ namespace DuneVector
 
         private void BuildEnvironment()
         {
+            DesertWeatherAtmosphereTuning atmosphere = WeatherSettings.Atmosphere;
             GameObject sunObject = new GameObject("Desert Sun");
             sunObject.transform.SetParent(transform, false);
             sunObject.transform.rotation = Quaternion.Euler(38f, -28f, 0f);
             Light sun = sunObject.AddComponent<Light>();
             sun.type = LightType.Directional;
             sun.color = new Color(1f, 0.78f, 0.58f);
-            sun.shadows = LightShadows.Soft;
-            sun.shadowStrength = 0.86f;
-            sun.shadowResolution = LightShadowResolution.VeryHigh;
+            sun.shadows = atmosphere.SunShadowType;
+            sun.shadowResolution = atmosphere.SunShadowResolution;
+            sun.GetUniversalAdditionalLightData().softShadowQuality = atmosphere.SunSoftShadowQuality;
             sun.lightUnit = LightUnit.Lux;
-            sun.intensity = WeatherSettings.Atmosphere.SunIntensity;
-            sun.shadowStrength = Mathf.Clamp01(WeatherSettings.Atmosphere.SunShadowDimmer);
+            sun.intensity = atmosphere.SunIntensity;
+            sun.shadowStrength = Mathf.Clamp01(atmosphere.SunShadowDimmer);
 
             GameObject volumeObject = new GameObject("URP Desert Environment");
             volumeObject.transform.SetParent(transform, false);
@@ -616,7 +617,6 @@ namespace DuneVector
             _runtimeVolumeProfile.name = "Runtime Desert URP Profile";
             volume.sharedProfile = _runtimeVolumeProfile;
 
-            DesertWeatherAtmosphereTuning atmosphere = WeatherSettings.Atmosphere;
             _environmentSky = _runtimeVolumeProfile.Add<DuneVectorY2KSky>(true);
             _environmentSky.Top.Override(atmosphere.ClearSkyTop);
             _environmentSky.Middle.Override(atmosphere.ClearSkyMiddle);
