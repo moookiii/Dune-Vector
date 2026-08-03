@@ -2343,7 +2343,49 @@ namespace DuneVector
                     materials.VesperPilgrim);
                 DisableRendererShadows(node.gameObject);
             }
+
+            GameObject centerEffectsObject = new GameObject("Pilgrim Center Effects");
+            Transform centerEffects = centerEffectsObject.transform;
+            centerEffects.SetParent(root, false);
+            CreateVesperPilgrimCenterEffect(
+                centerEffects,
+                "Pilgrim Purple Rift Effect",
+                settings.PilgrimRiftEffectResourcePath,
+                settings.PilgrimRiftEffectLocalPosition,
+                settings.PilgrimRiftEffectLocalEulerAngles,
+                settings.PilgrimRiftEffectLocalScale);
             return root;
+        }
+
+        private static void CreateVesperPilgrimCenterEffect(
+            Transform parent,
+            string instanceName,
+            string resourcePath,
+            Vector3 localPosition,
+            Vector3 localEulerAngles,
+            Vector3 localScale)
+        {
+            if (parent == null || string.IsNullOrWhiteSpace(resourcePath))
+            {
+                return;
+            }
+
+            GameObject prefab = Resources.Load<GameObject>(resourcePath);
+            if (prefab == null)
+            {
+                Debug.LogWarning(
+                    $"Vesper missile center effect was not found at Resources/{resourcePath}.");
+                return;
+            }
+
+            GameObject instance = UnityEngine.Object.Instantiate(prefab, parent, false);
+            instance.name = instanceName;
+            Transform instanceTransform = instance.transform;
+            instanceTransform.localPosition = localPosition;
+            instanceTransform.localRotation = Quaternion.Euler(localEulerAngles);
+            instanceTransform.localScale = Vector3.Scale(
+                prefab.transform.localScale,
+                localScale);
         }
 
         public static Transform CreateStormPyramidVisual(

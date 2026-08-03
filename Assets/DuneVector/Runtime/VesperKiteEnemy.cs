@@ -416,7 +416,17 @@ namespace DuneVector
                 materials,
                 settings);
             _vowRing = _visual.Find("Pilgrim Vow Ring");
-            _renderers = _visual.GetComponentsInChildren<Renderer>(true);
+            Renderer[] visualRenderers = _visual.GetComponentsInChildren<Renderer>(true);
+            List<Renderer> reflectedRenderers = new List<Renderer>();
+            for (int i = 0; i < visualRenderers.Length; i++)
+            {
+                Renderer visualRenderer = visualRenderers[i];
+                if (visualRenderer != null && visualRenderer.transform.parent == _visual)
+                {
+                    reflectedRenderers.Add(visualRenderer);
+                }
+            }
+            _renderers = reflectedRenderers.ToArray();
             CreateTether();
             DuneVectorPortalEvents.PlayerCrossed += HandlePortalCrossing;
         }
