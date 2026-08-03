@@ -176,11 +176,11 @@ namespace DuneVector
         private bool _jumpedThisUpdate;
         private float _timeSinceJumpRequested = float.PositiveInfinity;
         private float _timeSinceStableGround = float.PositiveInfinity;
-        private GameObject _jumpEffectPrefab;
-        private Quaternion _jumpEffectRotation = Quaternion.identity;
-        private float _jumpEffectGroundOffset;
-        private Vector3 _jumpEffectScale = Vector3.one;
-        private float _jumpEffectLifetime;
+        private GameObject _flightStartEffectPrefab;
+        private Quaternion _flightStartEffectRotationOffset = Quaternion.identity;
+        private float _flightStartEffectGroundOffset;
+        private Vector3 _flightStartEffectScale = Vector3.one;
+        private float _flightStartEffectLifetime;
         private GameObject _hubReturnEffectPrefab;
         private Vector3 _hubReturnEffectFloorOffset;
         private Quaternion _hubReturnEffectRotationOffset = Quaternion.identity;
@@ -267,18 +267,18 @@ namespace DuneVector
             _boostSpeedModifier = boostSpeedModifier;
         }
 
-        public void ConfigureJumpEffect(
+        public void ConfigureFlightStartEffect(
             GameObject prefab,
             Vector3 eulerAngles,
             float groundOffset,
             Vector3 scale,
             float lifetime)
         {
-            _jumpEffectPrefab = prefab;
-            _jumpEffectRotation = Quaternion.Euler(eulerAngles);
-            _jumpEffectGroundOffset = groundOffset;
-            _jumpEffectScale = scale;
-            _jumpEffectLifetime = Mathf.Max(0f, lifetime);
+            _flightStartEffectPrefab = prefab;
+            _flightStartEffectRotationOffset = Quaternion.Euler(eulerAngles);
+            _flightStartEffectGroundOffset = groundOffset;
+            _flightStartEffectScale = scale;
+            _flightStartEffectLifetime = Mathf.Max(0f, lifetime);
         }
 
         public void ConfigureHubReturnEffect(
@@ -537,6 +537,7 @@ namespace DuneVector
                 _flightDirection = _requestedFlightDirection.normalized;
                 _flightSpeedMultiplier = _requestedFlightSpeedMultiplier;
                 _flightJustEntered = true;
+                PlayFlightStartEffect();
                 _flightEntryLiftTimeRemaining = FlightEntryLiftDuration;
                 _flightLandingVisualActive = false;
                 _flightLandingSurfaceValid = false;
@@ -850,7 +851,6 @@ namespace DuneVector
                 && !_jumpConsumed
                 && (Motor.GroundingStatus.IsStableOnGround || _timeSinceStableGround <= CoyoteTime))
             {
-                PlayJumpEffect();
                 Motor.ForceUnground(0.12f);
                 currentVelocity += (Motor.CharacterUp * JumpSpeed) - Vector3.Project(currentVelocity, Motor.CharacterUp);
                 _jumpRequested = false;
@@ -859,9 +859,9 @@ namespace DuneVector
             }
         }
 
-        private void PlayJumpEffect()
+        private void PlayFlightStartEffect()
         {
-            if (_jumpEffectPrefab == null || Motor == null)
+            if (_flightStartEffectPrefab == null || Motor == null)
             {
                 return;
             }
@@ -876,13 +876,17 @@ namespace DuneVector
                 effectPosition.y = World.SampleHeightAtLocal(effectPosition.x, effectPosition.z);
             }
 
-            effectPosition.y += _jumpEffectGroundOffset;
-            Quaternion effectRotation = _jumpEffectPrefab.transform.rotation * _jumpEffectRotation;
-            GameObject effect = Instantiate(_jumpEffectPrefab, effectPosition, effectRotation);
-            effect.transform.localScale = Vector3.Scale(effect.transform.localScale, _jumpEffectScale);
-            if (_jumpEffectLifetime > 0f)
+            effectPosition.y += _flightStartEffectGroundOffset;
+            Quaternion droneRotation = AimRotation;
+            Quaternion backFacingRotation = Quaternion.LookRotation(
+                droneRotation * Vector3.back,
+                droneRotation * Vector3.up);
+            Quaternion effectRotation = backFacingRotation * _flightStartEffectRotationOffset;
+            GameObject effect = Instantiate(_flightStartEffectPrefab, effectPosition, effectRotation);
+            effect.transform.localScale = Vector3.Scale(effect.transform.localScale, _flightStartEffectScale);
+            if (_flightStartEffectLifetime > 0f)
             {
-                Destroy(effect, _jumpEffectLifetime);
+                Destroy(effect, _flightStartEffectLifetime);
             }
         }
 

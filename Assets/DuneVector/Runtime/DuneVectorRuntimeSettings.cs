@@ -4703,16 +4703,18 @@ namespace DuneVector
 
         [Header("Jump")]
         [Min(0f)] public float JumpSpeed = 13f;
-        [Tooltip("Effect spawned on the ground beneath the drone when a ground jump succeeds.")]
-        public GameObject JumpEffectPrefab;
-        [Tooltip("Euler rotation offset added to the jump effect prefab's authored rotation.")]
-        public Vector3 JumpEffectEulerAngles;
-        [Tooltip("Vertical offset from the grounded surface for the spawned jump effect.")]
-        public float JumpEffectGroundOffset;
-        [Tooltip("Scale multiplier applied to the spawned jump effect's authored scale.")]
-        public Vector3 JumpEffectScale = Vector3.one;
-        [Tooltip("Seconds before the spawned jump effect root is destroyed.")]
-        [Min(0f)] public float JumpEffectLifetime = 3f;
+
+        [Header("Flight Start Effect")]
+        [Tooltip("Effect spawned on the ground beneath the drone when flight begins.")]
+        public GameObject FlightStartEffectPrefab;
+        [Tooltip("Euler rotation offset applied after local +Z is aligned with the back of the drone.")]
+        public Vector3 FlightStartEffectEulerAngles;
+        [Tooltip("Vertical offset from the grounded surface for the spawned flight-start effect.")]
+        public float FlightStartEffectGroundOffset;
+        [Tooltip("Scale multiplier applied to the spawned flight-start effect's authored scale.")]
+        public Vector3 FlightStartEffectScale = Vector3.one;
+        [Tooltip("Seconds before the spawned flight-start effect root is destroyed.")]
+        [Min(0f)] public float FlightStartEffectLifetime = 3f;
 
         [Header("Hub Return Effect")]
         [Tooltip("Effect spawned on the hub floor whenever the drone returns to the hub.")]
@@ -4802,12 +4804,12 @@ namespace DuneVector
             drone.RotationSharpness = GroundSteeringSharpness;
             drone.TrailMinimumSpeed = TrailMinimumSpeed;
             drone.JumpSpeed = JumpSpeed;
-            drone.ConfigureJumpEffect(
-                JumpEffectPrefab,
-                JumpEffectEulerAngles,
-                JumpEffectGroundOffset,
-                JumpEffectScale,
-                JumpEffectLifetime);
+            drone.ConfigureFlightStartEffect(
+                FlightStartEffectPrefab,
+                FlightStartEffectEulerAngles,
+                FlightStartEffectGroundOffset,
+                FlightStartEffectScale,
+                FlightStartEffectLifetime);
             drone.ConfigureHubReturnEffect(
                 HubReturnEffectPrefab,
                 HubReturnEffectFloorOffset,
