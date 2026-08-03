@@ -4705,8 +4705,8 @@ namespace DuneVector
         [Min(0f)] public float JumpSpeed = 13f;
         [Tooltip("Effect spawned on the ground beneath the drone when a ground jump succeeds.")]
         public GameObject JumpEffectPrefab;
-        [Tooltip("World-space rotation applied to the spawned jump effect.")]
-        public Vector3 JumpEffectEulerAngles = new Vector3(90f, 0f, 0f);
+        [Tooltip("Euler rotation offset added to the jump effect prefab's authored rotation.")]
+        public Vector3 JumpEffectEulerAngles;
         [Tooltip("Vertical offset from the grounded surface for the spawned jump effect.")]
         public float JumpEffectGroundOffset;
         [Tooltip("Scale multiplier applied to the spawned jump effect's authored scale.")]

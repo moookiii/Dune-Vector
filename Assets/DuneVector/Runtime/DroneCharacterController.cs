@@ -877,7 +877,8 @@ namespace DuneVector
             }
 
             effectPosition.y += _jumpEffectGroundOffset;
-            GameObject effect = Instantiate(_jumpEffectPrefab, effectPosition, _jumpEffectRotation);
+            Quaternion effectRotation = _jumpEffectPrefab.transform.rotation * _jumpEffectRotation;
+            GameObject effect = Instantiate(_jumpEffectPrefab, effectPosition, effectRotation);
             effect.transform.localScale = Vector3.Scale(effect.transform.localScale, _jumpEffectScale);
             if (_jumpEffectLifetime > 0f)
             {
