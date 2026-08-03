@@ -640,6 +640,7 @@ namespace DuneVector
         private Transform _outerWarningRing;
         private Transform _innerWarningRing;
         private Transform _groundImpactWave;
+        private Transform _spawnedGroundImpact;
         private LineRenderer _chargeLine;
         private LineRenderer _lightningLine;
         private StormPyramidTuning _settings;
@@ -674,12 +675,15 @@ namespace DuneVector
             _impactFlash = _marker.Find("Strike Impact Flash");
             _outerWarningRing = _marker.Find("Outer Warning Ring");
             _innerWarningRing = _marker.Find("Inner Warning Ring");
-            _groundImpactWave = DuneVectorVisuals.CreateStormGroundImpactWave(
-                _marker,
-                materials,
-                settings.StrikeRadius,
-                settings.GroundImpactRingThickness,
-                settings.GroundImpactHeightOffset);
+            if (settings.GroundImpactPrefab == null)
+            {
+                _groundImpactWave = DuneVectorVisuals.CreateStormGroundImpactWave(
+                    _marker,
+                    materials,
+                    settings.StrikeRadius,
+                    settings.GroundImpactRingThickness,
+                    settings.GroundImpactHeightOffset);
+            }
             _chargeLine = CreateLine("Lightning Charge Telegraph", materials.LightningWarning, settings.ChargeTelegraphWidth);
             _lightningLine = CreateLine("Lightning Bolt", materials.Lightning, settings.LightningWidth);
             CancelAttack();
@@ -738,6 +742,7 @@ namespace DuneVector
                 _groundImpactWave.gameObject.SetActive(true);
                 _groundImpactWave.localScale = Vector3.one * _settings.GroundImpactStartScale;
             }
+            SpawnGroundImpactPrefab();
             _damage.ResolveStrike(
                 _target.Position,
                 _strikeRadius,
@@ -816,6 +821,10 @@ namespace DuneVector
             {
                 _marker.position += shift;
             }
+            if (_spawnedGroundImpact != null)
+            {
+                _spawnedGroundImpact.position += shift;
+            }
             if (_charging)
             {
                 float charge01 = Mathf.Clamp01(_timer / Mathf.Max(0.01f, _chargeDuration));
@@ -836,6 +845,40 @@ namespace DuneVector
         {
             if (_outerWarningRing != null) _outerWarningRing.gameObject.SetActive(active);
             if (_innerWarningRing != null) _innerWarningRing.gameObject.SetActive(active);
+        }
+
+        private void SpawnGroundImpactPrefab()
+        {
+            if (_settings.GroundImpactPrefab == null)
+            {
+                return;
+            }
+
+            GameObject effectRoot = new GameObject("Storm Pyramid Ground Impact");
+            Transform effectRootTransform = effectRoot.transform;
+            effectRootTransform.SetParent(_owner.parent, true);
+            effectRootTransform.position = _target.Position;
+
+            GameObject effect = UnityEngine.Object.Instantiate(
+                _settings.GroundImpactPrefab,
+                effectRootTransform,
+                false);
+            effect.name = _settings.GroundImpactPrefab.name;
+            effect.transform.localPosition = _settings.GroundImpactPrefabLocalPosition;
+            effect.transform.localRotation = _settings.GroundImpactPrefab.transform.localRotation
+                * Quaternion.Euler(_settings.GroundImpactPrefabLocalEulerAngles);
+
+            float radiusFitScale = _strikeRadius
+                / Mathf.Max(0.01f, _settings.GroundImpactPrefabReferenceRadius);
+            effect.transform.localScale = Vector3.Scale(
+                _settings.GroundImpactPrefab.transform.localScale,
+                _settings.GroundImpactPrefabScale) * radiusFitScale;
+            _spawnedGroundImpact = effectRootTransform;
+
+            if (_settings.GroundImpactPrefabLifetime > 0f)
+            {
+                UnityEngine.Object.Destroy(effectRoot, _settings.GroundImpactPrefabLifetime);
+            }
         }
 
         private void UpdateChargeVisual(float charge01)

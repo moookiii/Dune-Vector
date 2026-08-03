@@ -2312,6 +2312,18 @@ namespace DuneVector
         [Min(0f)] public float LightningBloomIntensity = 4f;
 
         [Header("Ground Impact Effect")]
+        [Tooltip("Optional effect spawned at the lightning strike point. If empty, the procedural ground shockwave is used.")]
+        public GameObject GroundImpactPrefab;
+        [Tooltip("Local position applied to the spawned ground impact effect.")]
+        public Vector3 GroundImpactPrefabLocalPosition = Vector3.zero;
+        [Tooltip("Local Euler rotation offset added to the ground impact prefab's authored rotation.")]
+        public Vector3 GroundImpactPrefabLocalEulerAngles = Vector3.zero;
+        [Tooltip("The prefab's world-space effect radius at a scale of one. The spawned effect is scaled so this radius matches the current gameplay Strike Radius.")]
+        [Min(0.01f)] public float GroundImpactPrefabReferenceRadius = 4.5f;
+        [Tooltip("Additional scale multiplier applied after fitting the ground impact prefab to the current gameplay Strike Radius.")]
+        public Vector3 GroundImpactPrefabScale = Vector3.one;
+        [Tooltip("Seconds before the spawned ground impact effect is destroyed. Set to 0 to let the prefab manage its own lifetime.")]
+        [Min(0f)] public float GroundImpactPrefabLifetime = 2f;
         [Tooltip("Time for the ground shockwave to expand from the strike point to Strike Radius.")]
         [Min(0.01f)] public float GroundImpactExpansionDuration = 0.42f;
         [Tooltip("Time the ground shockwave remains at the full Strike Radius before disappearing.")]
