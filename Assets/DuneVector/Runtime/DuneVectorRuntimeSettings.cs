@@ -4313,7 +4313,7 @@ namespace DuneVector
         [Range(0.5f, 2f)] public float MinimumScale = 0.7f;
         [Range(0.5f, 2f)] public float MaximumScale = 1.2f;
         [Min(280f)] public float PanelWidth = 540f;
-        [Min(340f)] public float PanelHeight = 630f;
+        [Min(340f)] public float PanelHeight = 760f;
         [Min(8f)] public float ScreenMargin = 24f;
         [Min(12f)] public float PanelPadding = 36f;
         [Min(1f)] public float AccentBarHeight = 6f;
@@ -4344,9 +4344,6 @@ namespace DuneVector
         public string ControlsVisualizerNoBassRingsLabel = "NO BASS RINGS";
         [Tooltip("State label shown while the music visualizer is inactive.")]
         public string ControlsVisualizerDisabledLabel = "OFF";
-        [Min(120f)] public float ControlsVisualizerToggleWidth = 460f;
-        [Min(24f)] public float ControlsVisualizerToggleHeight = 52f;
-        [Min(0f)] public float ControlsVisualizerToggleBottomMargin = 48f;
 
         [Header("Typography")]
         [Min(12)] public int TitleFontSize = 36;

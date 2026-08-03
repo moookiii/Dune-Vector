@@ -981,6 +981,34 @@ namespace DuneVector
             {
                 _showControls = true;
             }
+            y += buttonHeight + gap;
+
+            MusicVisualizerMode visualizerMode = _audio != null
+                ? _audio.VisualizerMode
+                : MusicVisualizerMode.All;
+            string visualizerStateLabel = visualizerMode switch
+            {
+                MusicVisualizerMode.NoBassRings => _visuals.ControlsVisualizerNoBassRingsLabel,
+                MusicVisualizerMode.Off => _visuals.ControlsVisualizerDisabledLabel,
+                _ => _visuals.ControlsVisualizerEnabledLabel,
+            };
+            bool visualizerPreviousEnabled = GUI.enabled;
+            GUI.enabled = visualizerPreviousEnabled && _audio != null;
+            if (GUI.Button(
+                    new Rect(content.x, y, content.width, buttonHeight),
+                    $"{_visuals.ControlsVisualizerLabel}  /  {visualizerStateLabel}",
+                    visualizerMode == MusicVisualizerMode.All ? _primaryButtonStyle : _secondaryButtonStyle))
+            {
+                MusicVisualizerMode nextMode = visualizerMode switch
+                {
+                    MusicVisualizerMode.All => MusicVisualizerMode.NoBassRings,
+                    MusicVisualizerMode.NoBassRings => MusicVisualizerMode.Off,
+                    _ => MusicVisualizerMode.All,
+                };
+                _audio.SetMusicVisualizerMode(nextMode);
+            }
+            GUI.enabled = visualizerPreviousEnabled;
+
             float hintHeight = _hintStyle.lineHeight;
             GUI.Label(
                 new Rect(content.x, content.yMax - hintHeight, content.width, hintHeight),
@@ -1010,44 +1038,6 @@ namespace DuneVector
                 GUI.color = imagePreviousColor;
             }
 
-            float scale = CalculateScale();
-            float buttonWidth = Mathf.Min(
-                _visuals.ControlsVisualizerToggleWidth * scale,
-                Screen.width - (_visuals.ScreenMargin * scale * 2f));
-            float buttonHeight = _visuals.ControlsVisualizerToggleHeight * scale;
-            Rect buttonRect = new Rect(
-                (Screen.width - buttonWidth) * 0.5f,
-                Screen.height - (_visuals.ControlsVisualizerToggleBottomMargin * scale) - buttonHeight,
-                buttonWidth,
-                buttonHeight);
-            MusicVisualizerMode visualizerMode = _audio != null
-                ? _audio.VisualizerMode
-                : MusicVisualizerMode.All;
-            string stateLabel = visualizerMode switch
-            {
-                MusicVisualizerMode.NoBassRings => _visuals.ControlsVisualizerNoBassRingsLabel,
-                MusicVisualizerMode.Off => _visuals.ControlsVisualizerDisabledLabel,
-                _ => _visuals.ControlsVisualizerEnabledLabel,
-            };
-            Color previousColor = GUI.color;
-            GUI.color = new Color(1f, 1f, 1f, alpha);
-            bool previousEnabled = GUI.enabled;
-            GUI.enabled = previousEnabled && _audio != null && alpha >= 1f;
-            if (GUI.Button(
-                    buttonRect,
-                    $"{_visuals.ControlsVisualizerLabel}  /  {stateLabel}",
-                    visualizerMode == MusicVisualizerMode.All ? _primaryButtonStyle : _secondaryButtonStyle))
-            {
-                MusicVisualizerMode nextMode = visualizerMode switch
-                {
-                    MusicVisualizerMode.All => MusicVisualizerMode.NoBassRings,
-                    MusicVisualizerMode.NoBassRings => MusicVisualizerMode.Off,
-                    _ => MusicVisualizerMode.All,
-                };
-                _audio.SetMusicVisualizerMode(nextMode);
-            }
-            GUI.enabled = previousEnabled;
-            GUI.color = previousColor;
         }
 
         private void DrawVolumeRow(
