@@ -617,6 +617,75 @@ namespace DuneVector
             return new UpgradePurchaseResult(UpgradePurchaseFailure.None, id, purchasedTier, goldCost);
         }
 
+        public bool TryUnlockAllUpgrades()
+        {
+            if (!IsInitialized || _saveRepository == null)
+            {
+                return false;
+            }
+
+            IReadOnlyList<DroneUpgradeDefinition> definitions = Definitions;
+            var previousTiers = new Dictionary<DroneUpgradeId, int>();
+            var upgradedIds = new List<DroneUpgradeId>();
+            for (int index = 0; index < definitions.Count; index++)
+            {
+                DroneUpgradeDefinition definition = definitions[index];
+                if (definition == null || previousTiers.ContainsKey(definition.Id))
+                {
+                    continue;
+                }
+
+                int previousTier = _tierState.Get(definition.Id);
+                previousTiers.Add(definition.Id, previousTier);
+                int maximumTier = Mathf.Max(1, definition.MaximumTier);
+                if (previousTier < maximumTier)
+                {
+                    _tierState.Set(definition.Id, maximumTier);
+                    upgradedIds.Add(definition.Id);
+                }
+            }
+
+            bool previousHubRgbFloorUnlocked = _tierState.HubRgbFloorUnlocked;
+            bool previousHubRgbTerminalsEnabled = _tierState.HubRgbTerminalsEnabled;
+            bool previousAtlasGlyphBrushedMetalEnabled = _tierState.AtlasGlyphBrushedMetalEnabled;
+            _tierState.HubRgbFloorUnlocked = true;
+            _tierState.HubRgbTerminalsEnabled = true;
+            _tierState.AtlasGlyphBrushedMetalEnabled = true;
+
+            if (!_saveRepository.Save(_tierState, definitions))
+            {
+                foreach (KeyValuePair<DroneUpgradeId, int> tier in previousTiers)
+                {
+                    _tierState.Set(tier.Key, tier.Value);
+                }
+                _tierState.HubRgbFloorUnlocked = previousHubRgbFloorUnlocked;
+                _tierState.HubRgbTerminalsEnabled = previousHubRgbTerminalsEnabled;
+                _tierState.AtlasGlyphBrushedMetalEnabled = previousAtlasGlyphBrushedMetalEnabled;
+                return false;
+            }
+
+            ApplyAllStats();
+            ApplyAtlasGlyphMaterial();
+            for (int index = 0; index < upgradedIds.Count; index++)
+            {
+                DroneUpgradeId id = upgradedIds[index];
+                UpgradePurchased?.Invoke(id, _tierState.Get(id), 0);
+            }
+            if (!previousHubRgbFloorUnlocked)
+            {
+                HubRgbTerminalsUnlocked?.Invoke(0);
+            }
+            if (!previousHubRgbTerminalsEnabled)
+            {
+                HubRgbTerminalsEnabledChanged?.Invoke(true);
+            }
+            if (!previousAtlasGlyphBrushedMetalEnabled)
+            {
+                AtlasGlyphBrushedMetalEnabledChanged?.Invoke(true);
+            }
+            return true;
+        }
+
         private void CaptureTierZeroValues(DuneVectorRuntimeSettings settings)
         {
             _tierZeroValues.Clear();

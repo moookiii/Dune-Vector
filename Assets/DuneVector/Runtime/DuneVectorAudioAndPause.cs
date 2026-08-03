@@ -681,6 +681,8 @@ namespace DuneVector
         private bool _showCompendium;
         private bool _showControls;
         private float _controlsFade;
+        private Keyboard _textInputKeyboard;
+        private int _upgradeCheatProgress;
         private readonly Dictionary<ChromaticAberration, bool> _chromaticAberrationOriginalStates = new();
 
         private GUIStyle _titleStyle;
@@ -741,6 +743,7 @@ namespace DuneVector
 
         private void Update()
         {
+            BindTextInputKeyboard();
             UpdateControlsFade();
             if (!IsPaused || !_showCompendium)
             {
@@ -790,6 +793,54 @@ namespace DuneVector
             }
         }
 
+        private void BindTextInputKeyboard()
+        {
+            Keyboard currentKeyboard = Keyboard.current;
+            if (_textInputKeyboard == currentKeyboard)
+            {
+                return;
+            }
+
+            if (_textInputKeyboard != null)
+            {
+                _textInputKeyboard.onTextInput -= HandleTextInput;
+            }
+            _textInputKeyboard = currentKeyboard;
+            if (_textInputKeyboard != null)
+            {
+                _textInputKeyboard.onTextInput += HandleTextInput;
+            }
+        }
+
+        private void HandleTextInput(char character)
+        {
+            string cheatCode = _visuals?.UpgradeUnlockCheatCode;
+            if (!IsPaused || string.IsNullOrEmpty(cheatCode))
+            {
+                _upgradeCheatProgress = 0;
+                return;
+            }
+            if (_upgradeCheatProgress >= cheatCode.Length)
+            {
+                _upgradeCheatProgress = 0;
+            }
+
+            char typedCharacter = char.ToLowerInvariant(character);
+            char expectedCharacter = char.ToLowerInvariant(cheatCode[_upgradeCheatProgress]);
+            if (typedCharacter == expectedCharacter)
+            {
+                _upgradeCheatProgress++;
+                if (_upgradeCheatProgress >= cheatCode.Length)
+                {
+                    _upgradeCheatProgress = 0;
+                    _upgrades?.TryUnlockAllUpgrades();
+                }
+                return;
+            }
+
+            _upgradeCheatProgress = typedCharacter == char.ToLowerInvariant(cheatCode[0]) ? 1 : 0;
+        }
+
         private void SetPaused(bool paused)
         {
             if (paused && _health != null && _health.IsDead)
@@ -810,6 +861,7 @@ namespace DuneVector
             _audio?.SetPausedDucking(paused);
             if (!paused)
             {
+                _upgradeCheatProgress = 0;
                 _showShop = false;
                 _showGallery = false;
                 _showCompendium = false;
@@ -1350,6 +1402,11 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            if (_textInputKeyboard != null)
+            {
+                _textInputKeyboard.onTextInput -= HandleTextInput;
+                _textInputKeyboard = null;
+            }
             if (_health != null)
             {
                 _health.Died -= HandleDeath;

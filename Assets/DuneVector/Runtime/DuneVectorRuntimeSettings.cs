@@ -4434,6 +4434,10 @@ namespace DuneVector
         [Tooltip("State label shown while chromatic aberration is inactive.")]
         public string ControlsChromaticAberrationDisabledLabel = "OFF";
 
+        [Header("Cheat Codes")]
+        [Tooltip("Typing this phrase while the pause screen is open permanently unlocks every upgrade.")]
+        public string UpgradeUnlockCheatCode = "giveallupgradespls";
+
         [Header("Typography")]
         [Min(12)] public int TitleFontSize = 36;
         [Min(10)] public int SubtitleFontSize = 13;
