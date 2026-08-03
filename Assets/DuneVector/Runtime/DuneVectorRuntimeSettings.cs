@@ -2284,6 +2284,8 @@ namespace DuneVector
         [Header("Lightning Attack")]
         [Tooltip("Delay before beginning another straight-down ground strike after returning to idle at risk 0.")]
         [Min(0f)] public float AttackInterval = 4.5f;
+        [Tooltip("Smallest fraction of the current attack interval used when staggering Storm Pyramid attacks after spawning, repositioning, or reactivation.")]
+        [Range(0f, 1f)] public float MinimumInitialAttackDelayMultiplier = 0.35f;
         [Tooltip("Delay between ground strikes at the attack interval risk ceiling.")]
         [Min(0f)] public float AttackIntervalAtRiskCeiling = 0f;
         [Tooltip("Risk at which the storm pyramid reaches Attack Interval At Risk Ceiling.")]

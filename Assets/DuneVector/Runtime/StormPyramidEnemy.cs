@@ -136,10 +136,7 @@ namespace DuneVector
                 damage,
                 identity);
 
-            _attackTimer = GetAttackInterval() * Mathf.Lerp(
-                0.35f,
-                1f,
-                Mathf.Repeat((identity * 0.417f) + 0.21f, 1f));
+            _attackTimer = GetStaggeredAttackDelay();
             SetState(StormPyramidState.IdleHovering);
             DuneVectorPhotographableMarker.Register(
                 gameObject,
@@ -361,7 +358,7 @@ namespace DuneVector
         {
             _lightning.CancelAttack();
             _movement.RepositionNearPlayer();
-            _attackTimer = GetAttackInterval();
+            _attackTimer = GetStaggeredAttackDelay();
             SetState(StormPyramidState.IdleHovering);
         }
 
@@ -372,7 +369,7 @@ namespace DuneVector
             if (!active)
             {
                 _lightning?.CancelAttack();
-                _attackTimer = GetAttackInterval();
+                _attackTimer = GetStaggeredAttackDelay();
                 SetState(StormPyramidState.IdleHovering);
             }
             else
@@ -395,6 +392,13 @@ namespace DuneVector
                 _settings.AttackInterval,
                 _settings.AttackIntervalAtRiskCeiling,
                 riskProgress));
+        }
+
+        private float GetStaggeredAttackDelay()
+        {
+            float minimumMultiplier = Mathf.Clamp01(_settings.MinimumInitialAttackDelayMultiplier);
+            float identityPhase = Mathf.Repeat((_identity * 0.417f) + 0.21f, 1f);
+            return GetAttackInterval() * Mathf.Lerp(minimumMultiplier, 1f, identityPhase);
         }
 
         private void SetState(StormPyramidState state)
