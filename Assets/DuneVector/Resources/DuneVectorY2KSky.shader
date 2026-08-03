@@ -63,6 +63,7 @@ Shader "DuneVector/URP Y2K Sky"
         [HideInInspector] _ReactiveShockRingTravelSpeed("Reactive Shock Ring Travel Speed", Float) = 0
         [HideInInspector] _ReactiveShockRingVerticalSpan("Reactive Shock Ring Vertical Span", Float) = 0
         [HideInInspector] _ReactiveShockRingBassResponse("Reactive Shock Ring Bass Response", Float) = 0
+        [HideInInspector] _ReactiveShockRingSustainResponse("Reactive Shock Ring Sustain Response", Float) = 0
         [HideInInspector] _ReactiveShockRingBreakup("Reactive Shock Ring Breakup", Float) = 0
         [HideInInspector] _ReactiveLightningColor("Reactive Lightning Color", Color) = (0, 0, 0, 1)
         [HideInInspector] _ReactiveLightningIntensity("Reactive Lightning Intensity", Float) = 0
@@ -165,6 +166,7 @@ Shader "DuneVector/URP Y2K Sky"
     float _ReactiveShockRingTravelSpeed;
     float _ReactiveShockRingVerticalSpan;
     float _ReactiveShockRingBassResponse;
+    float _ReactiveShockRingSustainResponse;
     float _ReactiveShockRingBreakup;
     float4 _ReactiveLightningColor;
     float _ReactiveLightningIntensity;
@@ -404,10 +406,13 @@ Shader "DuneVector/URP Y2K Sky"
             _ReactiveShockRingBreakup * 0.72,
             _ReactiveShockRingBreakup,
             shockPattern);
+        float shockResponse = saturate(
+            _ReactiveBassPulse * _ReactiveShockRingBassResponse
+            + _ReactiveMusicBass * _ReactiveShockRingSustainResponse);
         float shockMask = shockLine
             * lerp(1.0, shockBreaks, _ReactiveShockRingBreakup)
             * shockWindow
-            * saturate(_ReactiveBassPulse * _ReactiveShockRingBassResponse)
+            * shockResponse
             * screenOnly;
         color += _ReactiveShockRingColor.rgb * (shockMask * _ReactiveShockRingIntensity);
 
