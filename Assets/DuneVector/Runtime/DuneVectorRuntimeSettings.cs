@@ -4663,6 +4663,18 @@ namespace DuneVector
         [Tooltip("Seconds before the spawned jump effect root is destroyed.")]
         [Min(0f)] public float JumpEffectLifetime = 3f;
 
+        [Header("Death Respawn Effect")]
+        [Tooltip("Effect attached to the drone after death recovery returns it to the hub.")]
+        public GameObject DeathRespawnEffectPrefab;
+        [Tooltip("Local position of the death respawn effect relative to the drone visual root.")]
+        public Vector3 DeathRespawnEffectLocalPosition;
+        [Tooltip("Euler rotation offset added to the effect prefab's authored local rotation.")]
+        public Vector3 DeathRespawnEffectEulerOffset;
+        [Tooltip("Scale multiplier applied to the death respawn effect's authored scale.")]
+        public Vector3 DeathRespawnEffectScale = Vector3.one;
+        [Tooltip("Seconds before the death respawn effect root is destroyed. Set to 0 to keep it until another system destroys it.")]
+        [Min(0f)] public float DeathRespawnEffectLifetime = 3f;
+
         [Header("Boost Rings")]
         [Min(0f)] public float RingBoostAcceleration = 9.5f;
         [Min(0f)] public float BoostDuration = 2.6f;
@@ -4745,6 +4757,12 @@ namespace DuneVector
                 JumpEffectGroundOffset,
                 JumpEffectScale,
                 JumpEffectLifetime);
+            drone.ConfigureDeathRespawnEffect(
+                DeathRespawnEffectPrefab,
+                DeathRespawnEffectLocalPosition,
+                DeathRespawnEffectEulerOffset,
+                DeathRespawnEffectScale,
+                DeathRespawnEffectLifetime);
             drone.RingBoostAcceleration = RingBoostAcceleration;
             drone.RingBoostDuration = BoostDuration;
             drone.RingBoostMaxSpeed = BoostMaxSpeed;
