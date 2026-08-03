@@ -2499,6 +2499,10 @@ namespace DuneVector
         public Vector3 RingPrefabLocalPosition;
         public Vector3 RingPrefabLocalEulerAngles;
         [Min(0.001f)] public float RingPrefabScale;
+        [Tooltip("Uses ModularSphereMissile for each orbiting satellite. Disable this, or leave the prefab empty, to use the original procedural sphere and trail fallback.")]
+        public bool UseModularSphereMissileVisual = true;
+        public GameObject ModularSphereMissilePrefab;
+        [Min(0.001f)] public float ModularSphereMissileScale = 0.3f;
         [Min(0.05f)] public float OrbitingOrbRadius = 0.3f;
         [Min(0.1f)] public float OrbitRadius = 2.2f;
         public PlayerStrikeOrbSatelliteTuning[] OrbitingOrbs;

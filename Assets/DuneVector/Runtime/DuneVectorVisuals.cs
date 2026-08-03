@@ -2682,6 +2682,23 @@ namespace DuneVector
             Transform pivot = pivotObject.transform;
             pivot.SetParent(parent, false);
             pivot.localRotation = Quaternion.Euler(tilt, 0f, startAngle);
+
+            if (settings.UseModularSphereMissileVisual
+                && settings.ModularSphereMissilePrefab != null)
+            {
+                GameObject missile = UnityEngine.Object.Instantiate(
+                    settings.ModularSphereMissilePrefab,
+                    pivot,
+                    false);
+                missile.name = orbName;
+                missile.transform.localPosition = Vector3.right * orbitRadius;
+                missile.transform.localRotation = Quaternion.identity;
+                missile.transform.localScale =
+                    Vector3.one * settings.ModularSphereMissileScale;
+                DisableRendererShadowsRecursively(missile);
+                return;
+            }
+
             Transform orb = CreatePart(
                 PrimitiveType.Sphere,
                 orbName,
