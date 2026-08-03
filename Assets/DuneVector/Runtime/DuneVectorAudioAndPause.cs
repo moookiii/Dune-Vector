@@ -1,12 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using FMOD.Studio;
 using FMODUnity;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.Rendering;
-using UnityEngine.Rendering.Universal;
 using UnityEngine.SceneManagement;
 
 namespace DuneVector
@@ -28,18 +25,16 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 4;
+            public int Version = 3;
             public float MusicVolume;
             public float SoundEffectsVolume;
             public bool MusicVisualizerEnabled = true;
             public int MusicVisualizerMode;
-            public bool ChromaticAberrationEnabled = true;
         }
 
         public float MusicVolume { get; private set; }
         public float SoundEffectsVolume { get; private set; }
         public MusicVisualizerMode VisualizerMode { get; private set; } = MusicVisualizerMode.All;
-        public bool ChromaticAberrationEnabled { get; private set; } = true;
         public event Action<MusicVisualizerMode> MusicVisualizerModeChanged;
 
         public bool TryGetMusicChannelGroup(out FMOD.ChannelGroup channelGroup)
@@ -357,18 +352,6 @@ namespace DuneVector
             FlushPreferences();
         }
 
-        public void SetChromaticAberrationEnabled(bool enabled)
-        {
-            if (ChromaticAberrationEnabled == enabled)
-            {
-                return;
-            }
-
-            ChromaticAberrationEnabled = enabled;
-            _preferencesDirty = true;
-            FlushPreferences();
-        }
-
         public void PlayDroneFire(Vector3 position)
         {
             PlayConfiguredOneShot(_settings != null ? _settings.DroneFireEvent : null, position, "drone-fire");
@@ -568,8 +551,6 @@ namespace DuneVector
             MusicVolume = Mathf.Clamp01(_settings.DefaultMusicVolume);
             SoundEffectsVolume = Mathf.Clamp01(_settings.DefaultSoundEffectsVolume);
             VisualizerMode = MusicVisualizerMode.All;
-            ChromaticAberrationEnabled = _settings.PauseMenu == null
-                || _settings.PauseMenu.DefaultChromaticAberrationEnabled;
             if (!_settings.PersistVolumeSettings || !File.Exists(_preferencesPath))
             {
                 return;
@@ -578,7 +559,7 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version >= 1 && stored.Version <= 4)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 3)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
@@ -588,10 +569,6 @@ namespace DuneVector
                             : stored.Version >= 2 && !stored.MusicVisualizerEnabled
                                 ? MusicVisualizerMode.Off
                                 : MusicVisualizerMode.All;
-                    if (stored.Version >= 4)
-                    {
-                        ChromaticAberrationEnabled = stored.ChromaticAberrationEnabled;
-                    }
                 }
             }
             catch (Exception exception)
@@ -621,7 +598,6 @@ namespace DuneVector
                     SoundEffectsVolume = SoundEffectsVolume,
                     MusicVisualizerEnabled = VisualizerMode != MusicVisualizerMode.Off,
                     MusicVisualizerMode = (int)VisualizerMode,
-                    ChromaticAberrationEnabled = ChromaticAberrationEnabled,
                 };
                 File.WriteAllText(_preferencesPath, JsonUtility.ToJson(stored));
                 _preferencesDirty = false;
@@ -681,7 +657,6 @@ namespace DuneVector
         private bool _showCompendium;
         private bool _showControls;
         private float _controlsFade;
-        private readonly Dictionary<ChromaticAberration, bool> _chromaticAberrationOriginalStates = new();
 
         private GUIStyle _titleStyle;
         private GUIStyle _subtitleStyle;
@@ -726,7 +701,6 @@ namespace DuneVector
             {
                 _health.Died += HandleDeath;
             }
-            ApplyChromaticAberrationPreference();
         }
 
         public void BindCourierGame(DuneVectorCourierGame courierGame)
@@ -1034,55 +1008,12 @@ namespace DuneVector
                 _audio.SetMusicVisualizerMode(nextMode);
             }
             GUI.enabled = visualizerPreviousEnabled;
-            y += buttonHeight + gap;
-
-            bool chromaticAberrationEnabled = _audio == null || _audio.ChromaticAberrationEnabled;
-            bool chromaticPreviousEnabled = GUI.enabled;
-            GUI.enabled = chromaticPreviousEnabled && _audio != null;
-            string chromaticStateLabel = chromaticAberrationEnabled
-                ? _visuals.ControlsChromaticAberrationEnabledLabel
-                : _visuals.ControlsChromaticAberrationDisabledLabel;
-            if (GUI.Button(
-                    new Rect(content.x, y, content.width, buttonHeight),
-                    $"{_visuals.ControlsChromaticAberrationLabel}  /  {chromaticStateLabel}",
-                    chromaticAberrationEnabled ? _primaryButtonStyle : _secondaryButtonStyle))
-            {
-                _audio.SetChromaticAberrationEnabled(!chromaticAberrationEnabled);
-                ApplyChromaticAberrationPreference();
-            }
-            GUI.enabled = chromaticPreviousEnabled;
 
             float hintHeight = _hintStyle.lineHeight;
             GUI.Label(
                 new Rect(content.x, content.yMax - hintHeight, content.width, hintHeight),
                 "ESC  /  RETURN TO THE DESERT",
                 _hintStyle);
-        }
-
-        private void ApplyChromaticAberrationPreference()
-        {
-            bool enabled = _audio == null || _audio.ChromaticAberrationEnabled;
-            Volume[] volumes = FindObjectsByType<Volume>(FindObjectsInactive.Include);
-            foreach (Volume volume in volumes)
-            {
-                if (volume == null || volume.sharedProfile == null)
-                {
-                    continue;
-                }
-
-                VolumeProfile runtimeProfile = volume.profile;
-                if (runtimeProfile == null || !runtimeProfile.TryGet(out ChromaticAberration chromaticAberration))
-                {
-                    continue;
-                }
-
-                if (!_chromaticAberrationOriginalStates.ContainsKey(chromaticAberration))
-                {
-                    _chromaticAberrationOriginalStates.Add(chromaticAberration, chromaticAberration.active);
-                }
-
-                chromaticAberration.active = enabled && _chromaticAberrationOriginalStates[chromaticAberration];
-            }
         }
 
         private void DrawControlsScreen()
