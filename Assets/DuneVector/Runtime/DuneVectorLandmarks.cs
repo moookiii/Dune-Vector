@@ -947,61 +947,19 @@ namespace DuneVector
 
         private void BuildCarrier(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
-            float scale = _settings.CarrierScale;
-            float length = _settings.CarrierLength;
             root.localRotation *= Quaternion.Euler(8f, 0f, -13f);
-            Part(PrimitiveType.Cube, "Carrier Hull", root, new Vector3(0f, 4f, 0f), new Vector3(12f, 6f, length) * scale, Quaternion.identity, _materials.DroneDark);
-            Part(PrimitiveType.Cube, "Carrier Nose", root, new Vector3(0f, 3.8f, length * 0.54f) * scale,
-                new Vector3(8f, 3.8f, length * 0.16f) * scale, Quaternion.Euler(12f, 0f, 0f), _materials.DroneBody);
-            Part(PrimitiveType.Cube, "Carrier Tail Spine", root, new Vector3(0f, 7f, -length * 0.44f) * scale,
-                new Vector3(2.2f, 8f, length * 0.18f) * scale, Quaternion.Euler(-8f, 0f, 0f), _materials.DroneDark);
-            Part(PrimitiveType.Sphere, "Fractured Cockpit Canopy", root, new Vector3(0f, 6.2f, length * 0.42f) * scale,
-                new Vector3(5.8f, 2.2f, 7.2f) * scale * _settings.CarrierCockpitScale,
-                Quaternion.Euler(9f, 0f, 0f), _materials.DroneAccent, false);
-            int engineCount = Mathf.Max(1, _settings.CarrierEngineCount);
-            float engineStart = -((engineCount - 1) * _settings.CarrierEngineRadius * 1.35f);
-            for (int i = 0; i < engineCount; i++)
+            if (_settings.CrashedCarrierPrefab == null)
             {
-                float engineX = engineStart + (i * _settings.CarrierEngineRadius * 2.7f);
-                Vector3 enginePosition = new Vector3(engineX, 4.1f, -length * 0.53f) * scale;
-                Part(PrimitiveType.Cylinder, $"Carrier Engine Housing {i + 1}", root, enginePosition,
-                    new Vector3(_settings.CarrierEngineRadius, _settings.CarrierEngineDepth * 0.5f, _settings.CarrierEngineRadius) * scale,
-                    Quaternion.Euler(90f, 0f, 0f), _materials.DroneBody);
-                Part(PrimitiveType.Cylinder, $"Carrier Engine Core {i + 1}", root,
-                    enginePosition + (Vector3.back * (_settings.CarrierEngineDepth * 0.54f * scale)),
-                    new Vector3(_settings.CarrierEngineRadius * 0.58f, 0.12f, _settings.CarrierEngineRadius * 0.58f) * scale,
-                    Quaternion.Euler(90f, 0f, 0f), _materials.DroneAccent, false);
+                Debug.LogWarning("Crashed carrier landmark prefab is not assigned in Dune Vector Runtime Settings.", root);
+                return;
             }
-            int hullRibCount = Mathf.Max(3, _settings.CarrierHullRibCount);
-            for (int i = 0; i < hullRibCount; i++)
-            {
-                float alongHull = Mathf.Lerp(-length * 0.34f, length * 0.34f, i / (float)(hullRibCount - 1));
-                Part(PrimitiveType.Cube, $"Carrier Hull Rib {i + 1}", root,
-                    new Vector3(0f, 7.05f, alongHull) * scale,
-                    new Vector3(12.8f, _settings.CarrierHullRibThickness, 0.48f) * scale,
-                    Quaternion.Euler(0f, 0f, i % 2 == 0 ? 2f : -2f), _materials.DroneBody, false);
-            }
-            Transform exposedCore = Part(PrimitiveType.Sphere, "Exposed Carrier Power Core", root,
-                new Vector3(-5.4f, 4.8f, -length * 0.05f) * scale,
-                Vector3.one * (1.65f * scale), Quaternion.identity, _materials.EnemyCore, false);
-            animator.RegisterPulse(exposedCore, _settings.BeaconPulseAmount, _settings.BeaconPulseSpeed);
-            Part(PrimitiveType.Cube, "Broken Left Wing", root, new Vector3(-16f, 5f, 3f) * scale, new Vector3(24f, 1.6f, 10f) * scale, Quaternion.Euler(0f, -12f, 7f), _materials.Sandstone);
-            Part(PrimitiveType.Cube, "Broken Right Wing", root, new Vector3(14f, 3f, -8f) * scale, new Vector3(17f, 1.4f, 8f) * scale, Quaternion.Euler(0f, 18f, -11f), _materials.Sandstone);
-            int wreckageCount = Mathf.Max(2, _settings.CarrierWreckageCount);
-            for (int i = 0; i < wreckageCount; i++)
-            {
-                float side = (i % 2 == 0) ? -1f : 1f;
-                Part(PrimitiveType.Cube, $"Scattered Cargo {i + 1}", root, new Vector3(side * (10f + (i * 2f)), 1.2f, -18f + (i * 8f)) * scale, new Vector3(3.6f, 2.4f, 3f) * scale, Quaternion.Euler(0f, seed + (i * 31f), 0f), _materials.Package);
-            }
-            int variant = PositiveVariant(seed);
-            for (int i = 0; i < variant; i++)
-            {
-                float side = i % 2 == 0 ? -1f : 1f;
-                Part(PrimitiveType.Cube, $"Detached Hull Rib {i + 1}", root,
-                    new Vector3(side * (20f + (i * 2f)), 2f + i, -10f + (i * 11f)) * scale,
-                    new Vector3(1.2f, 6f, 12f) * scale,
-                    Quaternion.Euler(5f * i, seed + (i * 37f), 18f * side), _materials.DroneBody);
-            }
+
+            Vector3 prefabScale = _settings.CrashedCarrierPrefab.transform.localScale;
+            GameObject carrier = UnityEngine.Object.Instantiate(_settings.CrashedCarrierPrefab, root, false);
+            carrier.name = _settings.CrashedCarrierPrefab.name;
+            carrier.transform.localPosition = Vector3.down * _settings.CrashedCarrierGroundSink;
+            carrier.transform.localRotation = Quaternion.identity;
+            carrier.transform.localScale = prefabScale;
         }
 
         private void BuildBeacon(Transform root, int seed, DuneVectorLandmarkAnimator animator)

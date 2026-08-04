@@ -1336,6 +1336,10 @@ namespace DuneVector
         [Min(0.05f)] public float RelayMastBraceThickness = 0.22f;
 
         [Header("Crashed Carrier Detail")]
+        [Tooltip("Prefab used for the crashed carrier landmark. Its authored transform scale is preserved when instantiated.")]
+        public GameObject CrashedCarrierPrefab;
+        [Tooltip("Distance the crashed carrier prefab is sunk below the landmark's ground position.")]
+        [Min(0f)] public float CrashedCarrierGroundSink = 2f;
         [Range(1, 6)] public int CarrierEngineCount = 3;
         [Min(0.1f)] public float CarrierEngineRadius = 1.85f;
         [Min(0.1f)] public float CarrierEngineDepth = 3.6f;
