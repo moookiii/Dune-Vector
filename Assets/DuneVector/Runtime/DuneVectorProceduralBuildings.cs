@@ -165,58 +165,69 @@ namespace DuneVector
 
         private bool TrySpawnBuilding(Transform cellRoot, Vector2Int cell, int slot, float cellSize)
         {
-            int saltOffset = slot * 53;
             float inset = cellSize * Mathf.Clamp(_settings.CellInsetFraction, 0.05f, 0.45f);
-            double logicalX = (cell.x * (double)cellSize) + DuneVectorMath.HashRange(
-                cell.x, cell.y, _world.WorldSeed, PositionXSalt + saltOffset, inset, cellSize - inset);
-            double logicalZ = (cell.y * (double)cellSize) + DuneVectorMath.HashRange(
-                cell.x, cell.y, _world.WorldSeed, PositionZSalt + saltOffset, inset, cellSize - inset);
-
-            Vector2 hubOffset = new Vector2(
-                (float)(logicalX - DesertWorldStreamer.StartingLogicalPosition.x),
-                (float)(logicalZ - DesertWorldStreamer.StartingLogicalPosition.y));
-            if (hubOffset.sqrMagnitude < _settings.HubExclusionRadius * _settings.HubExclusionRadius)
+            int attempts = Mathf.Clamp(_settings.PlacementAttemptsPerBuilding, 1, 8);
+            for (int attempt = 0; attempt < attempts; attempt++)
             {
-                return false;
+                int saltOffset = (slot * 53) + (attempt * 997);
+                double logicalX = (cell.x * (double)cellSize) + DuneVectorMath.HashRange(
+                    cell.x, cell.y, _world.WorldSeed,
+                    PositionXSalt + saltOffset, inset, cellSize - inset);
+                double logicalZ = (cell.y * (double)cellSize) + DuneVectorMath.HashRange(
+                    cell.x, cell.y, _world.WorldSeed,
+                    PositionZSalt + saltOffset, inset, cellSize - inset);
+
+                Vector2 hubOffset = new Vector2(
+                    (float)(logicalX - DesertWorldStreamer.StartingLogicalPosition.x),
+                    (float)(logicalZ - DesertWorldStreamer.StartingLogicalPosition.y));
+                if (hubOffset.sqrMagnitude <
+                    _settings.HubExclusionRadius * _settings.HubExclusionRadius)
+                {
+                    continue;
+                }
+
+                Vector3 normal = _world.HeightField.SampleNormal(logicalX, logicalZ);
+                float slope = Vector3.Angle(normal, Vector3.up);
+                if (slope > Mathf.Clamp(_settings.MaximumPlacementSlope, 0f, 50f))
+                {
+                    continue;
+                }
+
+                int prefabIndex = Mathf.Min(
+                    _prefabs.Length - 1,
+                    Mathf.FloorToInt(DuneVectorMath.Hash01(
+                        cell.x, cell.y, _world.WorldSeed,
+                        PrefabSalt + saltOffset) * _prefabs.Length));
+                GameObject prefab = _prefabs[prefabIndex];
+                if (prefab == null)
+                {
+                    continue;
+                }
+
+                float height = (float)_world.HeightField.SampleHeight(logicalX, logicalZ);
+                GameObject placement = new GameObject(
+                    $"{prefab.name} [{cell.x}, {cell.y}:{slot}]");
+                placement.transform.SetParent(cellRoot, false);
+                placement.transform.position = _world.LogicalToLocal(logicalX, height, logicalZ);
+                placement.transform.rotation = Quaternion.Euler(0f,
+                    DuneVectorMath.HashRange(cell.x, cell.y, _world.WorldSeed,
+                        RotationSalt + saltOffset, 0f, 360f), 0f);
+
+                GameObject instance = Instantiate(prefab, placement.transform, false);
+                instance.name = prefab.name;
+                instance.transform.localPosition = prefab.transform.localPosition;
+                instance.transform.localRotation = prefab.transform.localRotation;
+                instance.transform.localScale = prefab.transform.localScale;
+
+                GroundToDunes(instance.transform);
+                if (_settings.GenerateMeshColliders)
+                {
+                    AddMissingMeshColliders(instance);
+                }
+                return true;
             }
 
-            Vector3 normal = _world.HeightField.SampleNormal(logicalX, logicalZ);
-            float slope = Vector3.Angle(normal, Vector3.up);
-            if (slope > Mathf.Clamp(_settings.MaximumPlacementSlope, 0f, 50f))
-            {
-                return false;
-            }
-
-            float height = (float)_world.HeightField.SampleHeight(logicalX, logicalZ);
-            int prefabIndex = Mathf.Min(
-                _prefabs.Length - 1,
-                Mathf.FloorToInt(DuneVectorMath.Hash01(
-                    cell.x, cell.y, _world.WorldSeed, PrefabSalt + saltOffset) * _prefabs.Length));
-            GameObject prefab = _prefabs[prefabIndex];
-            if (prefab == null)
-            {
-                return false;
-            }
-
-            GameObject placement = new GameObject($"{prefab.name} [{cell.x}, {cell.y}:{slot}]");
-            placement.transform.SetParent(cellRoot, false);
-            placement.transform.position = _world.LogicalToLocal(logicalX, height, logicalZ);
-            placement.transform.rotation = Quaternion.Euler(0f,
-                DuneVectorMath.HashRange(cell.x, cell.y, _world.WorldSeed,
-                    RotationSalt + saltOffset, 0f, 360f), 0f);
-
-            GameObject instance = Instantiate(prefab, placement.transform, false);
-            instance.name = prefab.name;
-            instance.transform.localPosition = prefab.transform.localPosition;
-            instance.transform.localRotation = prefab.transform.localRotation;
-            instance.transform.localScale = prefab.transform.localScale;
-
-            GroundToDunes(instance.transform);
-            if (_settings.GenerateMeshColliders)
-            {
-                AddMissingMeshColliders(instance);
-            }
-            return true;
+            return false;
         }
 
         private void GroundToDunes(Transform prefab)
