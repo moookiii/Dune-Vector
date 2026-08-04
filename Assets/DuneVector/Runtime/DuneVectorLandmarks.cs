@@ -1195,6 +1195,7 @@ namespace DuneVector
             bool hasBounds = false;
             Vector2 minimum = Vector2.zero;
             Vector2 maximum = Vector2.zero;
+            float lowestRenderedHeight = float.PositiveInfinity;
             for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
             {
                 Renderer renderer = renderers[rendererIndex];
@@ -1212,8 +1213,9 @@ namespace DuneVector
                             (corner & 1) == 0 ? -1f : 1f,
                             (corner & 2) == 0 ? -1f : 1f,
                             (corner & 4) == 0 ? -1f : 1f));
-                    Vector3 excavationCorner = prefab.InverseTransformPoint(
-                        renderer.transform.TransformPoint(rendererCorner));
+                    Vector3 worldCorner = renderer.transform.TransformPoint(rendererCorner);
+                    Vector3 excavationCorner = prefab.InverseTransformPoint(worldCorner);
+                    lowestRenderedHeight = Mathf.Min(lowestRenderedHeight, worldCorner.y);
                     Vector2 horizontal = new Vector2(excavationCorner.x, excavationCorner.z);
                     if (!hasBounds)
                     {
@@ -1252,10 +1254,10 @@ namespace DuneVector
                 }
             }
 
-            if (float.IsFinite(lowestTerrainHeight))
+            if (float.IsFinite(lowestTerrainHeight) && float.IsFinite(lowestRenderedHeight))
             {
                 prefab.position += Vector3.up * (
-                    lowestTerrainHeight - prefab.position.y - Mathf.Max(0f, groundOffsetDown));
+                    lowestTerrainHeight - lowestRenderedHeight - Mathf.Max(0f, groundOffsetDown));
             }
         }
 
