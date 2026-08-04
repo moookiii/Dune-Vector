@@ -150,20 +150,23 @@ Shader "DuneVector/URP Portal Energy"
                     travelBrightness += circularLine * travelPulse * _TravelPulseBrightness;
 
                     float distanceFromStrokeCenter = abs((input.uv.y * 2.0) - 1.0);
+                    float screenSpaceFootprint = max(
+                        fwidth(distanceFromStrokeCenter) * max(0.0, _ScreenSpaceAntiAliasing),
+                        0.0001);
+                    float coverageCompensation = max(1.0, screenSpaceFootprint);
                     if (_CoreMode > 1.5)
                     {
                         float halo = saturate(1.0 - distanceFromStrokeCenter);
-                        alpha *= halo * halo;
+                        alpha *= saturate(halo * halo * coverageCompensation);
                     }
                     else
                     {
-                        float screenSpaceSoftness = fwidth(distanceFromStrokeCenter) *
-                            max(0.0, _ScreenSpaceAntiAliasing);
-                        float edgeSoftness = saturate(max(_LineEdgeSoftness, screenSpaceSoftness));
-                        alpha *= 1.0 - smoothstep(
+                        float edgeSoftness = saturate(max(_LineEdgeSoftness, screenSpaceFootprint));
+                        float edgeCoverage = 1.0 - smoothstep(
                             1.0 - edgeSoftness,
                             1.0,
                             distanceFromStrokeCenter);
+                        alpha *= saturate(edgeCoverage * coverageCompensation);
                     }
                 }
 
