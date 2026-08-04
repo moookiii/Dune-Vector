@@ -1380,6 +1380,10 @@ namespace DuneVector
         [Min(0.05f)] public float SpireBaseRingThickness = 0.38f;
 
         [Header("Excavation Detail")]
+        [Tooltip("Prefab used in place of the procedural excavation landmark. Its authored scale and rotation are preserved.")]
+        public GameObject ExcavationPrefab;
+        [Tooltip("Resources path used when the direct excavation prefab reference cannot be resolved.")]
+        public string ExcavationResourcePath = "desert_obelisk_Prefab";
         [Range(2, 8)] public int ExcavationScaffoldCount = 4;
         [Range(1, 5)] public int ExcavationPitTerraceCount = 3;
         [Min(4f)] public float ExcavationPitWidth = 32f;

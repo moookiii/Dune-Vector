@@ -1137,78 +1137,25 @@ namespace DuneVector
 
         private void BuildExcavation(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
-            float scale = _settings.ExcavationScale;
-            float craneHeight = _settings.ExcavationCraneHeight;
-            int terraceCount = Mathf.Max(1, _settings.ExcavationPitTerraceCount);
-            for (int i = 0; i < terraceCount; i++)
+            GameObject excavationPrefab = _settings.ExcavationPrefab;
+            if (excavationPrefab == null && !string.IsNullOrWhiteSpace(_settings.ExcavationResourcePath))
             {
-                float inset = i * _settings.ExcavationTerraceStep;
-                float terraceWidth = Mathf.Max(4f, _settings.ExcavationPitWidth - (inset * 2f));
-                float terraceLength = Mathf.Max(4f, _settings.ExcavationPitLength - (inset * 2f));
-                RectangularFrame(
-                    root,
-                    $"Excavation Terrace {i + 1}",
-                    new Vector3(0f, 0.3f - (i * 0.42f), 0f) * scale,
-                    terraceWidth * scale,
-                    terraceLength * scale,
-                    Mathf.Max(0.2f, _settings.ExcavationTerraceStep * 0.34f) * scale,
-                    0.55f * scale,
-                    i == 0 ? _materials.DroneDark : _materials.Sandstone);
+                excavationPrefab = Resources.Load<GameObject>(_settings.ExcavationResourcePath);
             }
-            Part(PrimitiveType.Cube, "Buried Structure", root, new Vector3(0f, -1.5f, 0f) * scale, new Vector3(28f, 8f, 24f) * scale, Quaternion.Euler(0f, 12f, 6f), _materials.Sandstone);
-            Part(PrimitiveType.Cube, "Crane Mast", root, new Vector3(-15f, craneHeight * 0.5f, -8f) * scale, new Vector3(2f, craneHeight, 2f) * scale, Quaternion.identity, _materials.DroneDark);
-            Part(PrimitiveType.Cube, "Crane Boom", root, new Vector3(-3f, craneHeight, -8f) * scale, new Vector3(26f, 1.5f, 1.5f) * scale, Quaternion.Euler(0f, 0f, -5f), _materials.DroneDark);
-            int trussCount = Mathf.Max(2, _settings.ExcavationCraneTrussCount);
-            for (int i = 0; i < trussCount; i++)
+
+            if (excavationPrefab == null)
             {
-                float t = trussCount == 1 ? 0.5f : i / (float)(trussCount - 1);
-                float x = Mathf.Lerp(-15f, 9f, t);
-                Part(PrimitiveType.Cube, $"Crane Truss Upright {i + 1}", root,
-                    new Vector3(x, craneHeight - 1.45f, -8f) * scale,
-                    new Vector3(0.28f, 3.2f, 1.9f) * scale,
-                    Quaternion.Euler(0f, 0f, -5f), _materials.DroneBody, false);
+                Debug.LogWarning("Excavation replacement prefab could not be resolved from Dune Vector Runtime Settings.", root);
+                return;
             }
-            Part(PrimitiveType.Cylinder, "Crane Cable", root, new Vector3(8f, craneHeight * 0.65f, -8f) * scale, new Vector3(0.18f, craneHeight * 0.35f, 0.18f) * scale, Quaternion.identity, _materials.DroneDark, false);
-            int scaffoldCount = Mathf.Max(2, _settings.ExcavationScaffoldCount);
-            for (int i = 0; i < scaffoldCount; i++)
-            {
-                float scaffoldX = Mathf.Lerp(-10f, 11f, scaffoldCount == 1 ? 0.5f : i / (float)(scaffoldCount - 1));
-                Part(PrimitiveType.Cube, $"Scaffold {i + 1}", root,
-                    new Vector3(scaffoldX, 5f + (i % 2) * 3f, 12f) * scale,
-                    new Vector3(5f, 0.8f, 10f) * scale, Quaternion.identity, _materials.DroneBody);
-            }
-            int cargoStackCount = Mathf.Max(1, _settings.ExcavationCargoStackCount);
-            for (int i = 0; i < cargoStackCount; i++)
-            {
-                float row = i / 3;
-                float column = i % 3;
-                Part(PrimitiveType.Cube, $"Excavation Supply Crate {i + 1}", root,
-                    new Vector3(10f + (column * 2.5f), 1.1f + ((i % 2) * 0.45f), -3f + (row * 3f)) * scale,
-                    new Vector3(2.1f, 2.2f, 2.1f) * scale,
-                    Quaternion.Euler(0f, seed + (i * 23f), 0f), _materials.Package);
-            }
-            int lightCount = Mathf.Max(2, _settings.ExcavationWorkLightCount);
-            for (int i = 0; i < lightCount; i++)
-            {
-                float angle = (360f / lightCount) * i;
-                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
-                Transform workLight = Part(PrimitiveType.Sphere, $"Excavation Work Light {i + 1}", root,
-                    (direction * 13f + Vector3.up * (3f + (i % 2) * 3f)) * scale,
-                    Vector3.one * 0.7f * scale, Quaternion.identity, _materials.DroneAccent, false);
-                animator.RegisterPulse(workLight, _settings.BeaconPulseAmount, _settings.ExcavationWorkLightPulseSpeed, i);
-            }
-            int variant = PositiveVariant(seed);
-            if (variant >= 2)
-            {
-                Part(PrimitiveType.Cube, "Secondary Crane Mast", root,
-                    new Vector3(14f, craneHeight * 0.34f, 9f) * scale,
-                    new Vector3(1.2f, craneHeight * 0.68f, 1.2f) * scale,
-                    Quaternion.Euler(0f, 25f, 0f), _materials.DroneDark);
-                Part(PrimitiveType.Cube, "Secondary Crane Boom", root,
-                    new Vector3(7f, craneHeight * 0.68f, 9f) * scale,
-                    new Vector3(15f, 0.8f, 0.8f) * scale,
-                    Quaternion.Euler(0f, 25f, 4f), _materials.DroneDark);
-            }
+
+            Vector3 prefabScale = excavationPrefab.transform.localScale;
+            Quaternion prefabRotation = excavationPrefab.transform.localRotation;
+            GameObject excavation = UnityEngine.Object.Instantiate(excavationPrefab, root, false);
+            excavation.name = excavationPrefab.name;
+            excavation.transform.localPosition = Vector3.zero;
+            excavation.transform.localRotation = prefabRotation;
+            excavation.transform.localScale = prefabScale;
         }
 
         private void BuildFallenOrbitalArray(Transform root, int seed, DuneVectorLandmarkAnimator animator)
