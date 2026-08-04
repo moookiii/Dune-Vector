@@ -693,8 +693,6 @@ namespace DuneVector
             _environmentBloom = FindGlobalBloom(volume);
 
             PauseMenuVisualTuning videoSettings = AudioSettings.PauseMenu;
-            LensDistortion lensDistortion = _runtimeVolumeProfile.Add<LensDistortion>(true);
-            lensDistortion.intensity.Override(videoSettings.VideoLensDistortionIntensity);
             FilmGrain filmGrain = _runtimeVolumeProfile.Add<FilmGrain>(true);
             filmGrain.intensity.Override(videoSettings.VideoFilmGrainIntensity);
             filmGrain.response.Override(videoSettings.VideoFilmGrainResponse);

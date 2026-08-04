@@ -4558,7 +4558,6 @@ namespace DuneVector
         public bool DefaultLensDistortionEnabled = true;
         public bool DefaultCrtLinesEnabled = true;
         public bool DefaultFilmGrainEnabled = true;
-        [Range(-1f, 1f)] public float VideoLensDistortionIntensity = -0.12f;
         [Range(0f, 1f)] public float VideoFilmGrainIntensity = 0.18f;
         [Range(0f, 1f)] public float VideoFilmGrainResponse = 0.8f;
 
