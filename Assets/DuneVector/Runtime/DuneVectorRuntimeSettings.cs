@@ -4542,6 +4542,10 @@ namespace DuneVector
         public string VideoSettingsSectionLabel = "POST-PROCESSING";
         public string VideoSettingsBackButtonLabel = "BACK TO PAUSE";
         public string VideoSettingsHintLabel = "ESC  /  BACK TO PAUSE";
+        public string VideoAntiAliasingLabel = "ANTI-ALIASING";
+        public string VideoAntiAliasingOffLabel = "OFF";
+        public string VideoAntiAliasingSmaaLabel = "SMAA";
+        public string VideoAntiAliasingTaaLabel = "TAA";
         public string VideoChromaticAberrationLabel = "CHROMATIC ABERRATION";
         public string VideoLensDistortionLabel = "LENS DISTORTION";
         public string VideoCrtLinesLabel = "CRT LINES";

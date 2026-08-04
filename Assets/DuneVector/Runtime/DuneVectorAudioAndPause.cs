@@ -28,7 +28,7 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 5;
+            public int Version = 6;
             public float MusicVolume;
             public float SoundEffectsVolume;
             public bool MusicVisualizerEnabled = true;
@@ -37,6 +37,7 @@ namespace DuneVector
             public bool LensDistortionEnabled = true;
             public bool CrtLinesEnabled = true;
             public bool FilmGrainEnabled = true;
+            public int AntiAliasingMode;
         }
 
         public float MusicVolume { get; private set; }
@@ -46,6 +47,7 @@ namespace DuneVector
         public bool LensDistortionEnabled { get; private set; } = true;
         public bool CrtLinesEnabled { get; private set; } = true;
         public bool FilmGrainEnabled { get; private set; } = true;
+        public DuneVectorCameraAntiAliasingMode AntiAliasingMode { get; private set; }
         public event Action<MusicVisualizerMode> MusicVisualizerModeChanged;
 
         public bool TryGetMusicChannelGroup(out FMOD.ChannelGroup channelGroup)
@@ -77,6 +79,7 @@ namespace DuneVector
         private string _preferencesPath;
         private bool _preferencesDirty;
         private bool _initialized;
+        private DuneVectorCameraAntiAliasingMode _defaultAntiAliasingMode;
 
         private void Awake()
         {
@@ -94,9 +97,11 @@ namespace DuneVector
         public void Initialize(
             AudioTuning settings,
             DroneHealth health,
-            DroneCharacterController drone)
+            DroneCharacterController drone,
+            DuneVectorCameraAntiAliasingMode defaultAntiAliasingMode)
         {
             _settings = settings;
+            _defaultAntiAliasingMode = defaultAntiAliasingMode;
             if (_settings == null)
             {
                 Debug.LogError("Dune Vector audio requires Audio Tuning in the Runtime Settings asset.", this);
@@ -411,6 +416,22 @@ namespace DuneVector
             FlushPreferences();
         }
 
+        public void SetAntiAliasingMode(DuneVectorCameraAntiAliasingMode mode)
+        {
+            if (!Enum.IsDefined(typeof(DuneVectorCameraAntiAliasingMode), mode))
+            {
+                mode = DuneVectorCameraAntiAliasingMode.None;
+            }
+            if (AntiAliasingMode == mode)
+            {
+                return;
+            }
+
+            AntiAliasingMode = mode;
+            _preferencesDirty = true;
+            FlushPreferences();
+        }
+
         public void PlayDroneFire(Vector3 position)
         {
             PlayConfiguredOneShot(_settings != null ? _settings.DroneFireEvent : null, position, "drone-fire");
@@ -618,6 +639,7 @@ namespace DuneVector
                 || _settings.PauseMenu.DefaultCrtLinesEnabled;
             FilmGrainEnabled = _settings.PauseMenu == null
                 || _settings.PauseMenu.DefaultFilmGrainEnabled;
+            AntiAliasingMode = _defaultAntiAliasingMode;
             if (!_settings.PersistVolumeSettings || !File.Exists(_preferencesPath))
             {
                 return;
@@ -626,7 +648,7 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version >= 1 && stored.Version <= 5)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 6)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
@@ -645,6 +667,11 @@ namespace DuneVector
                         LensDistortionEnabled = stored.LensDistortionEnabled;
                         CrtLinesEnabled = stored.CrtLinesEnabled;
                         FilmGrainEnabled = stored.FilmGrainEnabled;
+                    }
+                    if (stored.Version >= 6 &&
+                        Enum.IsDefined(typeof(DuneVectorCameraAntiAliasingMode), stored.AntiAliasingMode))
+                    {
+                        AntiAliasingMode = (DuneVectorCameraAntiAliasingMode)stored.AntiAliasingMode;
                     }
                 }
             }
@@ -679,6 +706,7 @@ namespace DuneVector
                     LensDistortionEnabled = LensDistortionEnabled,
                     CrtLinesEnabled = CrtLinesEnabled,
                     FilmGrainEnabled = FilmGrainEnabled,
+                    AntiAliasingMode = (int)AntiAliasingMode,
                 };
                 File.WriteAllText(_preferencesPath, JsonUtility.ToJson(stored));
                 _preferencesDirty = false;
@@ -1222,6 +1250,28 @@ namespace DuneVector
             y += sectionHeight + gap;
 
             float buttonHeight = _visuals.ButtonHeight * scale;
+            GUI.Label(
+                new Rect(content.x, y, content.width, sectionHeight),
+                _visuals.VideoAntiAliasingLabel,
+                _sectionStyle);
+            y += sectionHeight + gap;
+
+            float segmentedGap = gap;
+            float segmentedWidth = (content.width - (segmentedGap * 2f)) / 3f;
+            DrawAntiAliasingButton(
+                new Rect(content.x, y, segmentedWidth, buttonHeight),
+                _visuals.VideoAntiAliasingOffLabel,
+                DuneVectorCameraAntiAliasingMode.None);
+            DrawAntiAliasingButton(
+                new Rect(content.x + segmentedWidth + segmentedGap, y, segmentedWidth, buttonHeight),
+                _visuals.VideoAntiAliasingSmaaLabel,
+                DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing);
+            DrawAntiAliasingButton(
+                new Rect(content.x + ((segmentedWidth + segmentedGap) * 2f), y, segmentedWidth, buttonHeight),
+                _visuals.VideoAntiAliasingTaaLabel,
+                DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing);
+            y += buttonHeight + (gap * 2f);
+
             DrawVideoToggle(
                 new Rect(content.x, y, content.width, buttonHeight),
                 _visuals.VideoChromaticAberrationLabel,
@@ -1283,8 +1333,25 @@ namespace DuneVector
             GUI.enabled = previousEnabled;
         }
 
+        private void DrawAntiAliasingButton(
+            Rect rect,
+            string label,
+            DuneVectorCameraAntiAliasingMode mode)
+        {
+            bool selected = _audio != null && _audio.AntiAliasingMode == mode;
+            bool previousEnabled = GUI.enabled;
+            GUI.enabled = previousEnabled && _audio != null;
+            if (GUI.Button(rect, label, selected ? _primaryButtonStyle : _secondaryButtonStyle))
+            {
+                _audio.SetAntiAliasingMode(mode);
+                ApplyAntiAliasingPreference();
+            }
+            GUI.enabled = previousEnabled;
+        }
+
         private void ApplyVideoPreferences()
         {
+            ApplyAntiAliasingPreference();
             ApplyVolumePreference(
                 _audio == null || _audio.ChromaticAberrationEnabled,
                 _chromaticAberrationOriginalStates);
@@ -1302,6 +1369,28 @@ namespace DuneVector
                     "_ScanlineStrength",
                     enabled ? Mathf.Clamp01(_retroCrtScanlines.ScanlineStrength) : 0f);
             }
+        }
+
+        private void ApplyAntiAliasingPreference()
+        {
+            Camera gameplayCamera = _player?.CharacterCamera?.Camera;
+            if (gameplayCamera == null)
+            {
+                return;
+            }
+
+            UniversalAdditionalCameraData cameraData = gameplayCamera.GetUniversalAdditionalCameraData();
+            DuneVectorCameraAntiAliasingMode mode = _audio != null
+                ? _audio.AntiAliasingMode
+                : DuneVectorCameraAntiAliasingMode.None;
+            cameraData.antialiasing = mode switch
+            {
+                DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing =>
+                    AntialiasingMode.TemporalAntiAliasing,
+                DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing =>
+                    AntialiasingMode.SubpixelMorphologicalAntiAliasing,
+                _ => AntialiasingMode.None,
+            };
         }
 
         private static void ApplyVolumePreference<T>(bool enabled, Dictionary<T, bool> originalStates)
