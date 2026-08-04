@@ -4549,13 +4549,11 @@ namespace DuneVector
         public string VideoAntiAliasingSmaaLabel = "SMAA";
         public string VideoAntiAliasingTaaLabel = "TAA";
         public string VideoChromaticAberrationLabel = "CHROMATIC ABERRATION";
-        public string VideoLensDistortionLabel = "LENS DISTORTION";
         public string VideoCrtLinesLabel = "CRT LINES";
         public string VideoFilmGrainLabel = "FILM GRAIN";
         public string VideoEffectEnabledLabel = "ON";
         public string VideoEffectDisabledLabel = "OFF";
         public bool DefaultChromaticAberrationEnabled = true;
-        public bool DefaultLensDistortionEnabled = true;
         public bool DefaultCrtLinesEnabled = true;
         public bool DefaultFilmGrainEnabled = true;
         [Range(0f, 1f)] public float VideoFilmGrainIntensity = 0.18f;
