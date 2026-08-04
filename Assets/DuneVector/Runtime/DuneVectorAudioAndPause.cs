@@ -833,7 +833,11 @@ namespace DuneVector
                 if (_upgradeCheatProgress >= cheatCode.Length)
                 {
                     _upgradeCheatProgress = 0;
-                    _upgrades?.TryUnlockAllUpgrades();
+                    if (_upgrades != null && _upgrades.TryUnlockAllUpgrades())
+                    {
+                        Vector3 position = _player != null ? _player.transform.position : transform.position;
+                        _audio?.PlayFlightRingSwoosh(position);
+                    }
                 }
                 return;
             }
