@@ -966,7 +966,10 @@ namespace DuneVector
             carrier.transform.localPosition = Vector3.down * _settings.CrashedCarrierGroundSink;
             carrier.transform.localRotation = Quaternion.identity;
             carrier.transform.localScale = prefabScale;
-            BuildCarrierColliders(carrier.transform);
+            if (carrier.GetComponentInChildren<Collider>(true) == null)
+            {
+                BuildCarrierColliders(carrier.transform);
+            }
         }
 
         private void BuildCarrierColliders(Transform carrier)
