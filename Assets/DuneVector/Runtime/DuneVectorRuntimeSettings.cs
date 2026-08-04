@@ -5264,12 +5264,33 @@ namespace DuneVector
         [ColorUsage(false)] public Color DetailColor = new Color(0.45f, 0.72f, 0.78f, 1f);
     }
 
+    [System.Serializable]
+    public sealed class RetroCrtScanlineTuning
+    {
+        [Tooltip("Enables the fullscreen scanline treatment derived from URP_RetroCRTShader-master.")]
+        public bool Enabled = true;
+
+        [Min(1f)]
+        [Tooltip("Vertical scanline density. This matches the source Retro shader's Scanline Height control.")]
+        public float ScanlineHeight = 10f;
+
+        [Range(0f, 1f)]
+        [Tooltip("Amount by which every other scan band darkens the rendered scene.")]
+        public float ScanlineStrength = 0.4f;
+
+        [Tooltip("Fullscreen material consumed by the Dune Vector URP renderer feature.")]
+        public Material Material;
+    }
+
     [CreateAssetMenu(fileName = "Dune Vector Runtime Settings", menuName = "Dune Vector/Runtime Settings", order = 0)]
     public sealed class DuneVectorRuntimeSettings : ScriptableObject
     {
         [Header("Runtime Camera Rendering")]
         [Tooltip("Data-driven SRP lens flare assigned to the dynamically created gameplay camera.")]
         public LensFlareDataSRP RuntimeCameraLensFlare;
+
+        [Tooltip("Fullscreen scanline presentation based on URP_RetroCRTShader-master.")]
+        public RetroCrtScanlineTuning RetroCrtScanlines = new RetroCrtScanlineTuning();
 
         [Tooltip("Movement, flight, boost, and camera controls for the drone.")]
         public DroneTuning PlayerTuning = new DroneTuning();
@@ -5419,6 +5440,7 @@ namespace DuneVector
 
         public void EnsureInitialized()
         {
+            RetroCrtScanlines ??= new RetroCrtScanlineTuning();
             PlayerTuning ??= new DroneTuning();
             PlayerTuning.EnsureInitialized();
             CompassHud ??= new CompassHudTuning();

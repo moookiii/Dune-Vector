@@ -327,6 +327,7 @@ namespace DuneVector
                     this);
             }
             RuntimeSettings.EnsureInitialized();
+            ApplyRetroCrtScanlines();
 
             QualitySettings.vSyncCount = Mathf.Clamp(RuntimeSettings.Performance.VSyncCount, 0, 4);
             Application.targetFrameRate = Mathf.Clamp(RuntimeSettings.Performance.TargetFrameRate, -1, 360);
@@ -381,6 +382,25 @@ namespace DuneVector
                 gameObject.AddComponent<DuneVectorPlayModeValidator>();
             }
 #endif
+        }
+
+        private void ApplyRetroCrtScanlines()
+        {
+            RetroCrtScanlineTuning scanlines = RuntimeSettings.RetroCrtScanlines;
+            if (scanlines?.Material == null)
+            {
+                Debug.LogWarning(
+                    "Dune Vector Retro CRT scanlines have no fullscreen material assigned in Runtime Settings.",
+                    this);
+                return;
+            }
+
+            scanlines.Material.SetFloat(
+                "_ScanlineHeight",
+                Mathf.Max(1f, scanlines.ScanlineHeight));
+            scanlines.Material.SetFloat(
+                "_ScanlineStrength",
+                scanlines.Enabled ? Mathf.Clamp01(scanlines.ScanlineStrength) : 0f);
         }
 
         private void BuildWorld()
