@@ -13,7 +13,6 @@ namespace DuneVector
         public Material Ridge { get; }
         public Material CreaseSand { get; }
         public Material Fracture { get; }
-        public Material DisturbedSand { get; }
         public Material Dust { get; }
         public Mesh DebrisMesh { get; }
 
@@ -30,9 +29,6 @@ namespace DuneVector
                 settings.SandAmbusherRidgeSmoothness, settings.SandAmbusherRidgeMetallic, settings.SandAmbusherRidgeEmission);
             CreaseSand = CreateLit("Sand Ambusher - Crease Sand", settings.SandAmbusherCreaseSandColor,
                 settings.SandAmbusherCreaseSandSmoothness, 0f, Color.black);
-            DisturbedSand = CreateTransparentLit("Sand Ambusher - Disturbed Dune", settings.SandAmbusherDisturbedSandColor,
-                settings.SandAmbusherDisturbedSandSmoothness);
-
             Shader fractureShader = Shader.Find("DuneVector/URP Sand Fracture");
             if (fractureShader == null)
             {
@@ -89,18 +85,6 @@ namespace DuneVector
             material.SetColor("_EmissionColor", emission);
             material.EnableKeyword("_EMISSION");
             _materials.Add(material);
-            return material;
-        }
-
-        private Material CreateTransparentLit(string name, Color color, float smoothness)
-        {
-            Material material = CreateLit(name, color, smoothness, 0f, Color.black);
-            material.SetFloat("_Surface", 1f);
-            material.SetFloat("_Blend", 0f);
-            material.SetFloat("_ZWrite", 0f);
-            material.SetOverrideTag("RenderType", "Transparent");
-            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
-            material.renderQueue = (int)RenderQueue.Transparent - 20;
             return material;
         }
 
@@ -535,8 +519,6 @@ namespace DuneVector
         private CourierContractTuning _settings;
         private DesertWorldStreamer _world;
         private DuneVectorSandAmbusherPalette _palette;
-        private MeshRenderer _disturbedRenderer;
-        private MaterialPropertyBlock _disturbedProperties;
         private ParticleSystem[] _sandBursts;
         private ParticleSystem _dust;
         private ParticleSystem _debris;
@@ -554,7 +536,6 @@ namespace DuneVector
             _palette = palette;
             _world.WorldShifted += HandleWorldShift;
             BuildFracture(seed);
-            BuildDisturbedSand(seed + 101);
             BuildParticles();
             TickWarning(0f);
         }
@@ -578,8 +559,6 @@ namespace DuneVector
                     Mathf.Lerp(_settings.SandAmbusherFractureInitialWidth, _settings.SandAmbusherFracturePreBurstWidth, warning),
                     intensity, 1f);
             }
-            SetDisturbedAlpha(_settings.SandAmbusherDisturbedSandColor.a * warning *
-                _settings.SandAmbusherDisturbedSandPreBurstAlphaMultiplier);
             float preBreak = Mathf.InverseLerp(_settings.SandAmbusherPreBreakStartFraction, 1f, warning);
             _preBreakDustAccumulator += Time.deltaTime * _settings.SandAmbusherPreBreakDustEmissionRate * preBreak;
             _preBreakDebrisAccumulator += Time.deltaTime * _settings.SandAmbusherPreBreakDebrisEmissionRate * preBreak;
@@ -610,7 +589,6 @@ namespace DuneVector
             {
                 SetCrackProperties(_branches[i], 1f, 1f, _settings.SandAmbusherFractureBurstIntensity, 1f);
             }
-            SetDisturbedAlpha(_settings.SandAmbusherDisturbedSandColor.a);
             for (int i = 0; i < _sandBursts.Length; i++)
             {
                 _sandBursts[i].Emit(Mathf.Max(0, _settings.SandAmbusherDirectionalBurstParticleCount));
@@ -657,14 +635,8 @@ namespace DuneVector
                     Mathf.Lerp(_settings.SandAmbusherFractureMaximumIntensity,
                         _settings.SandAmbusherFractureBurstIntensity, crackFade), crackFade);
             }
-            float disturbedFade = 1f - Mathf.SmoothStep(0f, 1f,
-                Mathf.Clamp01((_burstAge - _settings.SandAmbusherDisturbedSandHoldDuration) /
-                    Mathf.Max(0.01f, _settings.SandAmbusherDisturbedSandFadeDuration)));
-            SetDisturbedAlpha(_settings.SandAmbusherDisturbedSandColor.a * disturbedFade);
-
-            float lifetime = Mathf.Max(
-                _settings.SandAmbusherFractureBurstHoldDuration + _settings.SandAmbusherFractureFadeDuration,
-                _settings.SandAmbusherDisturbedSandHoldDuration + _settings.SandAmbusherDisturbedSandFadeDuration);
+            float lifetime = _settings.SandAmbusherFractureBurstHoldDuration +
+                _settings.SandAmbusherFractureFadeDuration;
             if (_burstAge >= lifetime)
             {
                 Destroy(gameObject);
@@ -757,28 +729,6 @@ namespace DuneVector
                 Delay = delay,
                 Spread = spread,
             });
-        }
-
-        private void BuildDisturbedSand(int seed)
-        {
-            Mesh mesh = DuneVectorSandAmbusherMeshUtility.CreateTerrainPatch(
-                _settings.SandAmbusherDisturbedSandRadius,
-                _settings.SandAmbusherDisturbedSandVertexCount,
-                _settings.SandAmbusherDisturbedSandIrregularity,
-                transform.position,
-                _world,
-                _settings.SandAmbusherDisturbedSandSurfaceOffset,
-                seed);
-            mesh.name = "Irregular Disturbed Dune Surface";
-            _ownedMeshes.Add(mesh);
-            GameObject patch = new GameObject("Temporary Disturbed Sand and Contact Shadow");
-            patch.transform.SetParent(transform, false);
-            patch.AddComponent<MeshFilter>().sharedMesh = mesh;
-            _disturbedRenderer = patch.AddComponent<MeshRenderer>();
-            _disturbedRenderer.sharedMaterial = _palette.DisturbedSand;
-            _disturbedRenderer.shadowCastingMode = ShadowCastingMode.Off;
-            _disturbedRenderer.receiveShadows = true;
-            _disturbedProperties = new MaterialPropertyBlock();
         }
 
         private void BuildParticles()
@@ -889,18 +839,6 @@ namespace DuneVector
             branch.Properties.SetFloat("_Intensity", intensity);
             branch.Properties.SetFloat("_Fade", fade);
             branch.Renderer.SetPropertyBlock(branch.Properties);
-        }
-
-        private void SetDisturbedAlpha(float alpha)
-        {
-            if (_disturbedRenderer == null)
-            {
-                return;
-            }
-            Color color = _settings.SandAmbusherDisturbedSandColor;
-            color.a = Mathf.Clamp01(alpha);
-            _disturbedProperties.SetColor("_BaseColor", color);
-            _disturbedRenderer.SetPropertyBlock(_disturbedProperties);
         }
 
         private static Vector2 RandomDirectionInCone(
@@ -1370,35 +1308,5 @@ namespace DuneVector
             return mesh;
         }
 
-        public static Mesh CreateTerrainPatch(float radius, int vertexCount, float irregularity, Vector3 origin,
-            DesertWorldStreamer world, float heightOffset, int seed)
-        {
-            vertexCount = Mathf.Max(5, vertexCount);
-            Vector3[] vertices = new Vector3[vertexCount + 1];
-            Vector2[] uvs = new Vector2[vertexCount + 1];
-            int[] triangles = new int[vertexCount * 3];
-            System.Random random = new System.Random(seed);
-            vertices[0] = new Vector3(0f, world.SampleHeightAtLocal(origin.x, origin.z) - origin.y + heightOffset, 0f);
-            uvs[0] = new Vector2(0.5f, 0.5f);
-            for (int i = 0; i < vertexCount; i++)
-            {
-                float angle = (i / (float)vertexCount) * Mathf.PI * 2f;
-                float variedRadius = radius * Mathf.Lerp(1f - irregularity, 1f + irregularity, (float)random.NextDouble());
-                Vector2 point = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * variedRadius;
-                float terrainY = world.SampleHeightAtLocal(origin.x + point.x, origin.z + point.y);
-                vertices[i + 1] = new Vector3(point.x, terrainY - origin.y + heightOffset, point.y);
-                uvs[i + 1] = new Vector2((point.x / (radius * 2f)) + 0.5f, (point.y / (radius * 2f)) + 0.5f);
-                triangles[i * 3] = 0;
-                triangles[(i * 3) + 1] = ((i + 1) % vertexCount) + 1;
-                triangles[(i * 3) + 2] = i + 1;
-            }
-            Mesh mesh = new Mesh();
-            mesh.vertices = vertices;
-            mesh.uv = uvs;
-            mesh.triangles = triangles;
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            return mesh;
-        }
     }
 }

@@ -966,15 +966,6 @@ namespace DuneVector
         [Min(0.1f)] public float SandAmbusherFractureIntensityPower = 2.4f;
         [Min(0f)] public float SandAmbusherFractureBurstHoldDuration = 0.09f;
         [Min(0.01f)] public float SandAmbusherFractureFadeDuration = 0.65f;
-        public Color SandAmbusherDisturbedSandColor = new Color(0.32f, 0.16f, 0.065f, 0.68f);
-        [Range(0f, 1f)] public float SandAmbusherDisturbedSandSmoothness = 0.05f;
-        [Min(0.1f)] public float SandAmbusherDisturbedSandRadius = 11f;
-        [Range(5, 64)] public int SandAmbusherDisturbedSandVertexCount = 24;
-        [Range(0f, 0.8f)] public float SandAmbusherDisturbedSandIrregularity = 0.28f;
-        [Min(0f)] public float SandAmbusherDisturbedSandSurfaceOffset = 0.035f;
-        [Range(0f, 1f)] public float SandAmbusherDisturbedSandPreBurstAlphaMultiplier = 0.2f;
-        [Min(0f)] public float SandAmbusherDisturbedSandHoldDuration = 2.5f;
-        [Min(0.01f)] public float SandAmbusherDisturbedSandFadeDuration = 4.5f;
 
         [Header("Risk Sand Ambusher Sand VFX")]
         [Range(8, 256)] public int SandAmbusherParticleTextureResolution = 64;
@@ -1486,14 +1477,16 @@ namespace DuneVector
         [Tooltip("Density multiplier for procedural buildings. Zero disables placement; values above one allow multiple buildings per cell.")]
         [Range(0f, 4f)] public float AmountMultiplier = 1f;
         [Tooltip("Size of the coarse logical-world placement grid. Larger values spread buildings farther apart.")]
-        [Min(100f)] public float PlacementCellSize = 420f;
-        [Range(1, 5)] public int ActiveCellRadius = 2;
+        [Min(100f)] public float PlacementCellSize = 300f;
+        [Range(1, 5)] public int ActiveCellRadius = 3;
         [Tooltip("Expected building count per cell before applying Amount Multiplier.")]
-        [Range(0f, 1f)] public float BaseCellAmount = 0.5f;
+        [Range(0f, 1f)] public float BaseCellAmount = 0.8f;
         [Tooltip("Keeps placements away from cell edges so neighboring cells remain visibly separated.")]
         [Range(0.05f, 0.45f)] public float CellInsetFraction = 0.25f;
-        [Min(0f)] public float HubExclusionRadius = 260f;
-        [Range(0f, 50f)] public float MaximumPlacementSlope = 22f;
+        [Min(0f)] public float HubExclusionRadius = 100f;
+        [Range(0f, 50f)] public float MaximumPlacementSlope = 35f;
+        [Tooltip("Alternative deterministic positions tried when a candidate lands inside an exclusion zone or on an excessive slope.")]
+        [Range(1, 8)] public int PlacementAttemptsPerBuilding = 4;
         [Tooltip("Terrain samples taken across each rotated building footprint before sinking it into the dunes.")]
         [Range(2, 9)] public int GroundingSamplesPerAxis = 5;
         [Tooltip("Additional vertical sink after footprint grounding.")]
