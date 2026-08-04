@@ -1153,9 +1153,79 @@ namespace DuneVector
             Quaternion prefabRotation = excavationPrefab.transform.localRotation;
             GameObject excavation = UnityEngine.Object.Instantiate(excavationPrefab, root, false);
             excavation.name = excavationPrefab.name;
-            excavation.transform.localPosition = Vector3.down * _settings.ExcavationPrefabGroundSink;
+            excavation.transform.localPosition = Vector3.zero;
             excavation.transform.localRotation = prefabRotation;
             excavation.transform.localScale = prefabScale;
+            GroundExcavationToDunes(excavation.transform);
+        }
+
+        private void GroundExcavationToDunes(Transform excavation)
+        {
+            Renderer[] renderers = excavation.GetComponentsInChildren<Renderer>(true);
+            bool hasBounds = false;
+            Vector2 minimum = Vector2.zero;
+            Vector2 maximum = Vector2.zero;
+            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            {
+                Renderer renderer = renderers[rendererIndex];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                Bounds localBounds = renderer.localBounds;
+                for (int corner = 0; corner < 8; corner++)
+                {
+                    Vector3 rendererCorner = localBounds.center + Vector3.Scale(
+                        localBounds.extents,
+                        new Vector3(
+                            (corner & 1) == 0 ? -1f : 1f,
+                            (corner & 2) == 0 ? -1f : 1f,
+                            (corner & 4) == 0 ? -1f : 1f));
+                    Vector3 excavationCorner = excavation.InverseTransformPoint(
+                        renderer.transform.TransformPoint(rendererCorner));
+                    Vector2 horizontal = new Vector2(excavationCorner.x, excavationCorner.z);
+                    if (!hasBounds)
+                    {
+                        minimum = horizontal;
+                        maximum = horizontal;
+                        hasBounds = true;
+                    }
+                    else
+                    {
+                        minimum = Vector2.Min(minimum, horizontal);
+                        maximum = Vector2.Max(maximum, horizontal);
+                    }
+                }
+            }
+
+            if (!hasBounds)
+            {
+                return;
+            }
+
+            int samplesPerAxis = Mathf.Max(2, _settings.ExcavationGroundingSamplesPerAxis);
+            float lowestTerrainHeight = float.PositiveInfinity;
+            for (int z = 0; z < samplesPerAxis; z++)
+            {
+                float z01 = z / (float)(samplesPerAxis - 1);
+                for (int x = 0; x < samplesPerAxis; x++)
+                {
+                    float x01 = x / (float)(samplesPerAxis - 1);
+                    Vector3 worldSample = excavation.TransformPoint(new Vector3(
+                        Mathf.Lerp(minimum.x, maximum.x, x01),
+                        0f,
+                        Mathf.Lerp(minimum.y, maximum.y, z01)));
+                    lowestTerrainHeight = Mathf.Min(
+                        lowestTerrainHeight,
+                        _world.SampleHeightAtLocal(worldSample.x, worldSample.z));
+                }
+            }
+
+            if (float.IsFinite(lowestTerrainHeight))
+            {
+                excavation.position += Vector3.up * (lowestTerrainHeight - excavation.position.y);
+            }
         }
 
         private void BuildFallenOrbitalArray(Transform root, int seed, DuneVectorLandmarkAnimator animator)
