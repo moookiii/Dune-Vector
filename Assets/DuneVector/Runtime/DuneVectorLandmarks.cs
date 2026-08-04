@@ -735,12 +735,21 @@ namespace DuneVector
                 return ChooseFromPool(cell, _settings.RareLandmarkTypes, 7108,
                     DuneLandmarkType.AncientSpire);
             }
-            int choice = Mathf.FloorToInt(DuneVectorMath.Hash01(cell.x, cell.y, _world.WorldSeed, 7109) * 4f);
-            switch (Mathf.Clamp(choice, 0, 3))
+            float typeRoll = DuneVectorMath.Hash01(cell.x, cell.y, _world.WorldSeed, 7109);
+            float carrierChance = Mathf.Clamp01(_settings.CrashedCarrierSelectionChance);
+            if (typeRoll < carrierChance)
+            {
+                return DuneLandmarkType.CrashedCarrier;
+            }
+
+            float nonCarrierRoll = carrierChance < 1f
+                ? (typeRoll - carrierChance) / (1f - carrierChance)
+                : 0f;
+            int choice = Mathf.Clamp(Mathf.FloorToInt(nonCarrierRoll * 3f), 0, 2);
+            switch (choice)
             {
                 case 0: return DuneLandmarkType.DesertRelayStation;
-                case 1: return DuneLandmarkType.CrashedCarrier;
-                case 2: return DuneLandmarkType.RaiderBeacon;
+                case 1: return DuneLandmarkType.RaiderBeacon;
                 default: return DuneLandmarkType.SandExcavationSite;
             }
         }

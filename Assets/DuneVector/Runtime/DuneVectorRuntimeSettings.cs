@@ -1266,6 +1266,8 @@ namespace DuneVector
         [Min(0.1f)] public float RefreshInterval = 0.55f;
         [Range(0f, 1f)] public float CommonCellChance = 0.42f;
         [Range(0f, 1f)] public float StandardCellChance = 0.22f;
+        [Tooltip("Share of common and standard landmark selections that become crashed carriers.")]
+        [Range(0f, 1f)] public float CrashedCarrierSelectionChance = 0.08f;
         [Range(0f, 1f)] public float RareCellChance = 0.035f;
         [Tooltip("Chance that a cell proposes a region-defining landmark before other rarity tiers are evaluated.")]
         [Range(0f, 1f)] public float RegionDefiningCellChance;
