@@ -1338,6 +1338,8 @@ namespace DuneVector
         [Header("Crashed Carrier Detail")]
         [Tooltip("Prefab used for the crashed carrier landmark. Its authored transform scale is preserved when instantiated.")]
         public GameObject CrashedCarrierPrefab;
+        [Tooltip("Resources path used when the direct crashed carrier prefab reference cannot be resolved.")]
+        public string CrashedCarrierResourcePath = "DC-10/DC-10_Prefab";
         [Tooltip("Distance the crashed carrier prefab is sunk below the landmark's ground position.")]
         [Min(0f)] public float CrashedCarrierGroundSink = 2f;
         [Range(1, 6)] public int CarrierEngineCount = 3;

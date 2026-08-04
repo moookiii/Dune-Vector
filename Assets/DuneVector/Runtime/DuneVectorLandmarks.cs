@@ -948,15 +948,21 @@ namespace DuneVector
         private void BuildCarrier(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
             root.localRotation *= Quaternion.Euler(8f, 0f, -13f);
-            if (_settings.CrashedCarrierPrefab == null)
+            GameObject carrierPrefab = _settings.CrashedCarrierPrefab;
+            if (carrierPrefab == null && !string.IsNullOrWhiteSpace(_settings.CrashedCarrierResourcePath))
             {
-                Debug.LogWarning("Crashed carrier landmark prefab is not assigned in Dune Vector Runtime Settings.", root);
+                carrierPrefab = Resources.Load<GameObject>(_settings.CrashedCarrierResourcePath);
+            }
+
+            if (carrierPrefab == null)
+            {
+                Debug.LogWarning("Crashed carrier landmark prefab could not be resolved from Dune Vector Runtime Settings.", root);
                 return;
             }
 
-            Vector3 prefabScale = _settings.CrashedCarrierPrefab.transform.localScale;
-            GameObject carrier = UnityEngine.Object.Instantiate(_settings.CrashedCarrierPrefab, root, false);
-            carrier.name = _settings.CrashedCarrierPrefab.name;
+            Vector3 prefabScale = carrierPrefab.transform.localScale;
+            GameObject carrier = UnityEngine.Object.Instantiate(carrierPrefab, root, false);
+            carrier.name = carrierPrefab.name;
             carrier.transform.localPosition = Vector3.down * _settings.CrashedCarrierGroundSink;
             carrier.transform.localRotation = Quaternion.identity;
             carrier.transform.localScale = prefabScale;
