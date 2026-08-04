@@ -5272,7 +5272,7 @@ namespace DuneVector
 
         [Min(1f)]
         [Tooltip("Vertical scanline density. This matches the source Retro shader's Scanline Height control.")]
-        public float ScanlineHeight = 10f;
+        public float ScanlineHeight = 2.5f;
 
         [Range(0f, 1f)]
         [Tooltip("Amount by which every other scan band darkens the rendered scene.")]
