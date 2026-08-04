@@ -1156,12 +1156,12 @@ namespace DuneVector
             excavation.transform.localPosition = Vector3.zero;
             excavation.transform.localRotation = prefabRotation;
             excavation.transform.localScale = prefabScale;
-            GroundExcavationToDunes(excavation.transform);
+            GroundPrefabToDunes(excavation.transform, _settings.ExcavationGroundingSamplesPerAxis);
         }
 
-        private void GroundExcavationToDunes(Transform excavation)
+        private void GroundPrefabToDunes(Transform prefab, int configuredSamplesPerAxis)
         {
-            Renderer[] renderers = excavation.GetComponentsInChildren<Renderer>(true);
+            Renderer[] renderers = prefab.GetComponentsInChildren<Renderer>(true);
             bool hasBounds = false;
             Vector2 minimum = Vector2.zero;
             Vector2 maximum = Vector2.zero;
@@ -1182,7 +1182,7 @@ namespace DuneVector
                             (corner & 1) == 0 ? -1f : 1f,
                             (corner & 2) == 0 ? -1f : 1f,
                             (corner & 4) == 0 ? -1f : 1f));
-                    Vector3 excavationCorner = excavation.InverseTransformPoint(
+                    Vector3 excavationCorner = prefab.InverseTransformPoint(
                         renderer.transform.TransformPoint(rendererCorner));
                     Vector2 horizontal = new Vector2(excavationCorner.x, excavationCorner.z);
                     if (!hasBounds)
@@ -1204,7 +1204,7 @@ namespace DuneVector
                 return;
             }
 
-            int samplesPerAxis = Mathf.Max(2, _settings.ExcavationGroundingSamplesPerAxis);
+            int samplesPerAxis = Mathf.Max(2, configuredSamplesPerAxis);
             float lowestTerrainHeight = float.PositiveInfinity;
             for (int z = 0; z < samplesPerAxis; z++)
             {
@@ -1212,7 +1212,7 @@ namespace DuneVector
                 for (int x = 0; x < samplesPerAxis; x++)
                 {
                     float x01 = x / (float)(samplesPerAxis - 1);
-                    Vector3 worldSample = excavation.TransformPoint(new Vector3(
+                    Vector3 worldSample = prefab.TransformPoint(new Vector3(
                         Mathf.Lerp(minimum.x, maximum.x, x01),
                         0f,
                         Mathf.Lerp(minimum.y, maximum.y, z01)));
@@ -1224,7 +1224,7 @@ namespace DuneVector
 
             if (float.IsFinite(lowestTerrainHeight))
             {
-                excavation.position += Vector3.up * (lowestTerrainHeight - excavation.position.y);
+                prefab.position += Vector3.up * (lowestTerrainHeight - prefab.position.y);
             }
         }
 
@@ -1505,6 +1505,30 @@ namespace DuneVector
         }
 
         private void BuildBuriedArcology(Transform root, int seed, DuneVectorLandmarkAnimator animator)
+        {
+            GameObject arcologyPrefab = _settings.BuriedArcologyPrefab;
+            if (arcologyPrefab == null && !string.IsNullOrWhiteSpace(_settings.BuriedArcologyResourcePath))
+            {
+                arcologyPrefab = Resources.Load<GameObject>(_settings.BuriedArcologyResourcePath);
+            }
+
+            if (arcologyPrefab == null)
+            {
+                Debug.LogWarning("Buried arcology replacement prefab could not be resolved from Dune Vector Runtime Settings.", root);
+                return;
+            }
+
+            Vector3 prefabScale = arcologyPrefab.transform.localScale;
+            Quaternion prefabRotation = arcologyPrefab.transform.localRotation;
+            GameObject arcology = UnityEngine.Object.Instantiate(arcologyPrefab, root, false);
+            arcology.name = arcologyPrefab.name;
+            arcology.transform.localPosition = Vector3.zero;
+            arcology.transform.localRotation = prefabRotation;
+            arcology.transform.localScale = prefabScale;
+            GroundPrefabToDunes(arcology.transform, _settings.BuriedArcologyGroundingSamplesPerAxis);
+        }
+
+        private void BuildProceduralBuriedArcology(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
             float coreRadius = Mathf.Max(8f, _settings.ArcologyCoreRadius);
             float coreHeight = Mathf.Max(8f, _settings.ArcologyCoreHeight);

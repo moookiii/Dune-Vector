@@ -1436,6 +1436,12 @@ namespace DuneVector
         [Min(8f)] public float HarvesterFieldRadius;
 
         [Header("Buried Arcology Detail")]
+        [Tooltip("Prefab used in place of the procedural buried arcology landmark. Its authored scale and rotation are preserved.")]
+        public GameObject BuriedArcologyPrefab;
+        [Tooltip("Resources path used when the direct buried arcology prefab reference cannot be resolved.")]
+        public string BuriedArcologyResourcePath = "desert_shop_Prefab";
+        [Tooltip("Samples per axis used to fit the desert shop foundation to the lowest dune height beneath its rendered footprint.")]
+        [Range(2, 9)] public int BuriedArcologyGroundingSamplesPerAxis = 5;
         [Min(8f)] public float ArcologyCoreRadius;
         [Min(8f)] public float ArcologyCoreHeight;
         [Range(0.5f, 0.95f)] public float ArcologyBurialRatio;
