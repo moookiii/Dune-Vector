@@ -5289,7 +5289,7 @@ namespace DuneVector
 
         [Range(0f, 1f)]
         [Tooltip("Amount by which every other scan band darkens the rendered scene.")]
-        public float ScanlineStrength = 0.4f;
+        public float ScanlineStrength = 0.3f;
 
         [Tooltip("Fullscreen material consumed by the Dune Vector URP renderer feature.")]
         public Material Material;
