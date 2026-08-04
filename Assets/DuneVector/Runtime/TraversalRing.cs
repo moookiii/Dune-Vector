@@ -61,7 +61,6 @@ namespace DuneVector
         private RingTuning _ringTuning;
         private TraversalRing _upperLayerRing;
         private Transform _cachedTransform;
-        private float _visualRadius;
 
         private void OnEnable()
         {
@@ -88,8 +87,8 @@ namespace DuneVector
             _materials = materials;
             _ringTuning = ringTuning;
             _cachedTransform = transform;
-            _visualRadius = DuneVectorVisuals.CalculatePortalVisualRadius(majorRadius, ringTuning);
-            InnerRadius = Mathf.Max(0.1f, _visualRadius - 0.58f);
+            float visualRadius = DuneVectorVisuals.CalculatePortalVisualRadius(majorRadius, ringTuning);
+            InnerRadius = Mathf.Max(0.1f, visualRadius - 0.58f);
             ProceduralIdentity = identity;
             uint spinHash = !string.IsNullOrEmpty(ProceduralIdentity)
                 ? DuneVectorMath.StableHash(ProceduralIdentity)
@@ -361,8 +360,6 @@ namespace DuneVector
                 return;
             }
 
-            ApplyDistanceLegibilityScale();
-
             float billboardDisableRadius = _ringTuning != null
                 ? Mathf.Max(0f, _ringTuning.BillboardDisableRadius)
                 : 0f;
@@ -390,61 +387,6 @@ namespace DuneVector
             Vector3 spinAxis = IsCollectible ? Vector3.up : Vector3.forward;
             _visualRoot.rotation = _billboardFacingRotation
                 * Quaternion.AngleAxis(_visualSpin, spinAxis);
-        }
-
-        private void ApplyDistanceLegibilityScale()
-        {
-            float baseScale = Mathf.Max(0.01f, _modeScale);
-            if (_ringTuning == null || _billboardCamera == null)
-            {
-                _visualRoot.localScale = Vector3.one * baseScale;
-                return;
-            }
-
-            float minimumScreenRadius = Mathf.Max(
-                0f,
-                _ringTuning.PortalDistanceMinimumScreenRadiusPixels);
-            float maximumDistanceScale = Mathf.Max(
-                1f,
-                _ringTuning.PortalDistanceMaximumVisualScale);
-            if (minimumScreenRadius <= 0f || maximumDistanceScale <= 1f)
-            {
-                _visualRoot.localScale = Vector3.one * baseScale;
-                return;
-            }
-
-            Vector3 centerScreen = _billboardCamera.WorldToScreenPoint(_visualRoot.position);
-            if (centerScreen.z <= 0f)
-            {
-                _visualRoot.localScale = Vector3.one * baseScale;
-                return;
-            }
-
-            Vector3 radiusWorldPoint = _visualRoot.position
-                + (_billboardCamera.transform.up * (_visualRadius * baseScale));
-            float projectedRadius = Vector2.Distance(
-                centerScreen,
-                _billboardCamera.WorldToScreenPoint(radiusWorldPoint));
-            float requiredDistanceScale = projectedRadius > 0.01f
-                ? minimumScreenRadius / projectedRadius
-                : maximumDistanceScale;
-            requiredDistanceScale = Mathf.Clamp(requiredDistanceScale, 1f, maximumDistanceScale);
-
-            float distance = Vector3.Distance(
-                _billboardCamera.transform.position,
-                _visualRoot.position);
-            float distanceStart = Mathf.Max(
-                0f,
-                _ringTuning.PortalDistanceVisibilityStartDistance);
-            float distanceEnd = Mathf.Max(
-                distanceStart + 0.01f,
-                _ringTuning.PortalDistanceVisibilityEndDistance);
-            float distanceBlend = Mathf.SmoothStep(
-                0f,
-                1f,
-                Mathf.InverseLerp(distanceStart, distanceEnd, distance));
-            float visualScale = baseScale * Mathf.Lerp(1f, requiredDistanceScale, distanceBlend);
-            _visualRoot.localScale = Vector3.one * visualScale;
         }
 
         private void UpdateFlightModeHeight(float deltaTime)
