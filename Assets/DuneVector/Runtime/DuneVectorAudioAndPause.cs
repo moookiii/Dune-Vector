@@ -34,6 +34,7 @@ namespace DuneVector
             public bool MusicVisualizerEnabled = true;
             public int MusicVisualizerMode;
             public bool ChromaticAberrationEnabled = true;
+            public bool LensDistortionEnabled = true;
             public bool CrtLinesEnabled = true;
             public bool FilmGrainEnabled = true;
             public int AntiAliasingMode;
@@ -43,6 +44,7 @@ namespace DuneVector
         public float SoundEffectsVolume { get; private set; }
         public MusicVisualizerMode VisualizerMode { get; private set; } = MusicVisualizerMode.All;
         public bool ChromaticAberrationEnabled { get; private set; } = true;
+        public bool LensDistortionEnabled { get; private set; } = true;
         public bool CrtLinesEnabled { get; private set; } = true;
         public bool FilmGrainEnabled { get; private set; } = true;
         public DuneVectorCameraAntiAliasingMode AntiAliasingMode { get; private set; }
@@ -378,6 +380,18 @@ namespace DuneVector
             FlushPreferences();
         }
 
+        public void SetLensDistortionEnabled(bool enabled)
+        {
+            if (LensDistortionEnabled == enabled)
+            {
+                return;
+            }
+
+            LensDistortionEnabled = enabled;
+            _preferencesDirty = true;
+            FlushPreferences();
+        }
+
         public void SetCrtLinesEnabled(bool enabled)
         {
             if (CrtLinesEnabled == enabled)
@@ -619,6 +633,8 @@ namespace DuneVector
             VisualizerMode = MusicVisualizerMode.All;
             ChromaticAberrationEnabled = _settings.PauseMenu == null
                 || _settings.PauseMenu.DefaultChromaticAberrationEnabled;
+            LensDistortionEnabled = _settings.PauseMenu == null
+                || _settings.PauseMenu.DefaultLensDistortionEnabled;
             CrtLinesEnabled = _settings.PauseMenu == null
                 || _settings.PauseMenu.DefaultCrtLinesEnabled;
             FilmGrainEnabled = _settings.PauseMenu == null
@@ -648,6 +664,7 @@ namespace DuneVector
                     }
                     if (stored.Version >= 5)
                     {
+                        LensDistortionEnabled = stored.LensDistortionEnabled;
                         CrtLinesEnabled = stored.CrtLinesEnabled;
                         FilmGrainEnabled = stored.FilmGrainEnabled;
                     }
@@ -686,6 +703,7 @@ namespace DuneVector
                     MusicVisualizerEnabled = VisualizerMode != MusicVisualizerMode.Off,
                     MusicVisualizerMode = (int)VisualizerMode,
                     ChromaticAberrationEnabled = ChromaticAberrationEnabled,
+                    LensDistortionEnabled = LensDistortionEnabled,
                     CrtLinesEnabled = CrtLinesEnabled,
                     FilmGrainEnabled = FilmGrainEnabled,
                     AntiAliasingMode = (int)AntiAliasingMode,
@@ -752,6 +770,7 @@ namespace DuneVector
         private Keyboard _textInputKeyboard;
         private int _upgradeCheatProgress;
         private readonly Dictionary<ChromaticAberration, bool> _chromaticAberrationOriginalStates = new();
+        private readonly Dictionary<LensDistortion, bool> _lensDistortionOriginalStates = new();
         private readonly Dictionary<FilmGrain, bool> _filmGrainOriginalStates = new();
         private RetroCrtScanlineTuning _retroCrtScanlines;
 
@@ -1262,6 +1281,13 @@ namespace DuneVector
 
             DrawVideoToggle(
                 new Rect(content.x, y, content.width, buttonHeight),
+                _visuals.VideoLensDistortionLabel,
+                _audio == null || _audio.LensDistortionEnabled,
+                value => _audio?.SetLensDistortionEnabled(value));
+            y += buttonHeight + gap;
+
+            DrawVideoToggle(
+                new Rect(content.x, y, content.width, buttonHeight),
                 _visuals.VideoCrtLinesLabel,
                 _audio == null || _audio.CrtLinesEnabled,
                 value => _audio?.SetCrtLinesEnabled(value));
@@ -1329,6 +1355,9 @@ namespace DuneVector
             ApplyVolumePreference(
                 _audio == null || _audio.ChromaticAberrationEnabled,
                 _chromaticAberrationOriginalStates);
+            ApplyVolumePreference(
+                _audio == null || _audio.LensDistortionEnabled,
+                _lensDistortionOriginalStates);
             ApplyVolumePreference(
                 _audio == null || _audio.FilmGrainEnabled,
                 _filmGrainOriginalStates);
