@@ -20,6 +20,27 @@ namespace DuneVector
         SandRing = 9,
     }
 
+    public static class DuneLandmarkNames
+    {
+        public static string GetDisplayName(DuneLandmarkType type)
+        {
+            return type switch
+            {
+                DuneLandmarkType.DesertRelayStation => "UNION PACIFIC RAILROAD CAR",
+                DuneLandmarkType.CrashedCarrier => "DC-10",
+                DuneLandmarkType.RaiderBeacon => "RAIDER BEACON",
+                DuneLandmarkType.AncientSpire => "ANCIENT SPIRE",
+                DuneLandmarkType.SandExcavationSite => "DESERT OBELISK",
+                DuneLandmarkType.FallenOrbitalArray => "FALLEN ORBITAL ARRAY",
+                DuneLandmarkType.DesertMegagate => "DESERT MEGAGATE",
+                DuneLandmarkType.WindHarvesterGraveyard => "WIND HARVESTER GRAVEYARD",
+                DuneLandmarkType.BuriedArcology => "DESERT SHOP",
+                DuneLandmarkType.SandRing => "SAND RING",
+                _ => type.ToString().ToUpperInvariant(),
+            };
+        }
+    }
+
     public enum DuneLandmarkRarity
     {
         Common,
@@ -784,7 +805,8 @@ namespace DuneVector
             bool pinned,
             float? authoredRotation = null)
         {
-            GameObject landmarkObject = new GameObject($"{type} {(pinned ? "Contract" : rarity.ToString())}");
+            GameObject landmarkObject = new GameObject(
+                $"{DuneLandmarkNames.GetDisplayName(type)} {(pinned ? "Contract" : rarity.ToString())}");
             landmarkObject.transform.SetParent(_root, false);
             double height = _world.HeightField.SampleHeight(logical.X, logical.Z);
             landmarkObject.transform.position = _world.LogicalToLocal(logical.X, height, logical.Z);

@@ -3474,7 +3474,7 @@ namespace DuneVector
                     }
                 }
             }
-            return type.ToString().ToUpperInvariant();
+            return DuneLandmarkNames.GetDisplayName(type);
         }
 
         private DuneLandmarkType ChooseLandmarkType(System.Random random)

@@ -1259,7 +1259,7 @@ namespace DuneVector
         [Min(0.1f)] public float RefreshInterval = 0.55f;
         [Range(0f, 1f)] public float CommonCellChance = 0.42f;
         [Range(0f, 1f)] public float StandardCellChance = 0.22f;
-        [Tooltip("Share of common and standard landmark selections that become crashed carriers.")]
+        [Tooltip("Share of common and standard landmark selections that become DC-10 wrecks.")]
         [Range(0f, 1f)] public float CrashedCarrierSelectionChance = 0.08f;
         [Range(0f, 1f)] public float RareCellChance = 0.035f;
         [Tooltip("Chance that a cell proposes a region-defining landmark before other rarity tiers are evaluated.")]
@@ -1328,8 +1328,8 @@ namespace DuneVector
         [Min(0f)] public float ExcavationWorkLightPulseSpeed = 3.2f;
         [Range(0.2f, 1f)] public float LandmarkRingSegmentFill = 0.72f;
 
-        [Header("Relay Station Detail")]
-        [Tooltip("Prefab used in place of the procedural relay station landmark. Its authored scale and rotation are preserved.")]
+        [Header("Union Pacific Railroad Car Detail")]
+        [Tooltip("Prefab used for the Union Pacific railroad car landmark. Its authored scale and rotation are preserved.")]
         public GameObject RelayStationPrefab;
         [Tooltip("Resources path used when the direct relay station prefab reference cannot be resolved.")]
         public string RelayStationResourcePath = "union_pacific_railroad_car_rhyolite_Prefab";
@@ -1346,8 +1346,8 @@ namespace DuneVector
         [Min(0.1f)] public float RelayMastBraceHeight = 13f;
         [Min(0.05f)] public float RelayMastBraceThickness = 0.22f;
 
-        [Header("Crashed Carrier Detail")]
-        [Tooltip("Prefab used for the crashed carrier landmark. Its authored transform scale is preserved when instantiated.")]
+        [Header("DC-10 Detail")]
+        [Tooltip("Prefab used for the DC-10 landmark. Its authored transform scale is preserved when instantiated.")]
         public GameObject CrashedCarrierPrefab;
         [Tooltip("Resources path used when the direct crashed carrier prefab reference cannot be resolved.")]
         public string CrashedCarrierResourcePath = "DC-10/DC-10_Prefab";
@@ -1378,7 +1378,7 @@ namespace DuneVector
         [Min(1f)] public float SpireBaseRingRadius = 18f;
         [Min(0.05f)] public float SpireBaseRingThickness = 0.38f;
 
-        [Header("Excavation Detail")]
+        [Header("Desert Obelisk Detail")]
         [Tooltip("Prefab used in place of the procedural excavation landmark. Its authored scale and rotation are preserved.")]
         public GameObject ExcavationPrefab;
         [Tooltip("Resources path used when the direct excavation prefab reference cannot be resolved.")]
@@ -1434,8 +1434,8 @@ namespace DuneVector
         [Range(0, 60)] public int HarvesterDebrisCount;
         [Min(8f)] public float HarvesterFieldRadius;
 
-        [Header("Buried Arcology Detail")]
-        [Tooltip("Prefab used in place of the procedural buried arcology landmark. Its authored scale and rotation are preserved.")]
+        [Header("Desert Shop Detail")]
+        [Tooltip("Prefab used for the desert shop landmark. Its authored scale and rotation are preserved.")]
         public GameObject BuriedArcologyPrefab;
         [Tooltip("Resources path used when the direct buried arcology prefab reference cannot be resolved.")]
         public string BuriedArcologyResourcePath = "desert_shop_Prefab";
