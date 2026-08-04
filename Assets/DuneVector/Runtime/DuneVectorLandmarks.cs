@@ -1153,7 +1153,7 @@ namespace DuneVector
             Quaternion prefabRotation = excavationPrefab.transform.localRotation;
             GameObject excavation = UnityEngine.Object.Instantiate(excavationPrefab, root, false);
             excavation.name = excavationPrefab.name;
-            excavation.transform.localPosition = Vector3.zero;
+            excavation.transform.localPosition = Vector3.down * _settings.ExcavationPrefabGroundSink;
             excavation.transform.localRotation = prefabRotation;
             excavation.transform.localScale = prefabScale;
         }

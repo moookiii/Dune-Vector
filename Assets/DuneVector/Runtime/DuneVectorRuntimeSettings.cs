@@ -1384,6 +1384,8 @@ namespace DuneVector
         public GameObject ExcavationPrefab;
         [Tooltip("Resources path used when the direct excavation prefab reference cannot be resolved.")]
         public string ExcavationResourcePath = "desert_obelisk_Prefab";
+        [Tooltip("Distance the desert obelisk prefab is sunk below the landmark's sampled ground position so its foundation does not protrude from the dunes.")]
+        [Min(0f)] public float ExcavationPrefabGroundSink = 2f;
         [Range(2, 8)] public int ExcavationScaffoldCount = 4;
         [Range(1, 5)] public int ExcavationPitTerraceCount = 3;
         [Min(4f)] public float ExcavationPitWidth = 32f;
