@@ -1246,9 +1246,6 @@ namespace DuneVector
             y += gap * 1.5f;
 
             float sectionHeight = _sectionStyle.lineHeight;
-            GUI.Label(new Rect(content.x, y, content.width, sectionHeight), _visuals.VideoSettingsSectionLabel, _sectionStyle);
-            y += sectionHeight + gap;
-
             float buttonHeight = _visuals.ButtonHeight * scale;
             GUI.Label(
                 new Rect(content.x, y, content.width, sectionHeight),
@@ -1271,6 +1268,9 @@ namespace DuneVector
                 _visuals.VideoAntiAliasingTaaLabel,
                 DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing);
             y += buttonHeight + (gap * 2f);
+
+            GUI.Label(new Rect(content.x, y, content.width, sectionHeight), _visuals.VideoSettingsSectionLabel, _sectionStyle);
+            y += sectionHeight + gap;
 
             DrawVideoToggle(
                 new Rect(content.x, y, content.width, buttonHeight),
