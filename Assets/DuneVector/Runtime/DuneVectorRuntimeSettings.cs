@@ -1329,9 +1329,9 @@ namespace DuneVector
         [Range(0.2f, 1f)] public float LandmarkRingSegmentFill = 0.72f;
 
         [Header("Ruins Detail")]
-        [Tooltip("Prefab used for the ruins landmark. Its authored scale and rotation are preserved.")]
+        [Tooltip("Optional direct fallback prefab used when the ruins Resources path cannot be resolved. Its authored scale and rotation are preserved.")]
         public GameObject RelayStationPrefab;
-        [Tooltip("Resources path used when the direct ruins prefab reference cannot be resolved.")]
+        [Tooltip("Primary Resources path used to load the ruins prefab.")]
         public string RelayStationResourcePath = "ruinsPrefab";
         [Tooltip("Samples per axis used to fit the ruins to the lowest dune height beneath its rendered footprint.")]
         [Range(2, 9)] public int RelayGroundingSamplesPerAxis = 5;

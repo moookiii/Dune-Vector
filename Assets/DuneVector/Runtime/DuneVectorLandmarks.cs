@@ -914,10 +914,15 @@ namespace DuneVector
 
         private void BuildRelay(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
-            GameObject relayPrefab = _settings.RelayStationPrefab;
-            if (relayPrefab == null && !string.IsNullOrWhiteSpace(_settings.RelayStationResourcePath))
+            GameObject relayPrefab = null;
+            if (!string.IsNullOrWhiteSpace(_settings.RelayStationResourcePath))
             {
                 relayPrefab = Resources.Load<GameObject>(_settings.RelayStationResourcePath);
+            }
+
+            if (relayPrefab == null)
+            {
+                relayPrefab = _settings.RelayStationPrefab;
             }
 
             if (relayPrefab == null)
