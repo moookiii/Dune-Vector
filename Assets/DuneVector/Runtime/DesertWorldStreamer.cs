@@ -2318,7 +2318,7 @@ namespace DuneVector
             {
                 ring.Activated += ringActivated;
             }
-            if (type == TraversalRingType.Flight)
+            if (type == TraversalRingType.Flight || type == TraversalRingType.Health)
             {
                 float minimumLift = Mathf.Max(0f, ringTuning.FlightModeMinimumHeightOffset);
                 float maximumLift = Mathf.Max(minimumLift, ringTuning.FlightModeMaximumHeightOffset);

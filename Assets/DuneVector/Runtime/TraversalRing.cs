@@ -151,7 +151,7 @@ namespace DuneVector
             _collectibleReward?.BindTargets(health, controller != null ? controller.GetComponent<DroneGoldWallet>() : null);
             _inside = false;
             _hasPreviousWorldPosition = false;
-            if (IsFlightRing
+            if (UsesFlightModeHeight
                 && _controller != null
                 && _controller.CurrentMode == DroneTraversalMode.Flight)
             {
@@ -200,7 +200,7 @@ namespace DuneVector
 
         public void ApplyInitialFlightModePresentation(float spawnScale)
         {
-            if (RingType != TraversalRingType.Flight
+            if (!UsesFlightModeHeight
                 || _controller == null
                 || _controller.CurrentMode != DroneTraversalMode.Flight)
             {
@@ -208,14 +208,18 @@ namespace DuneVector
             }
 
             _cachedTransform.localPosition = _restingLocalPosition + (Vector3.up * FlightModeHeightOffset);
-            _modeScale = Mathf.Clamp(spawnScale, 0.01f, 1f);
-            if (_visualRoot != null)
+            if (RingType == TraversalRingType.Flight)
             {
-                _visualRoot.localScale = Vector3.one * _modeScale;
+                _modeScale = Mathf.Clamp(spawnScale, 0.01f, 1f);
+                if (_visualRoot != null)
+                {
+                    _visualRoot.localScale = Vector3.one * _modeScale;
+                }
             }
         }
 
         private bool IsFlightRing => RingType == TraversalRingType.Flight || RingType == TraversalRingType.UpperFlight;
+        private bool UsesFlightModeHeight => IsFlightRing || RingType == TraversalRingType.Health;
 
         internal void Tick(float deltaTime)
         {
@@ -387,7 +391,7 @@ namespace DuneVector
 
         private void UpdateFlightModeHeight(float deltaTime)
         {
-            if (!IsFlightRing || _controller == null)
+            if (!UsesFlightModeHeight || _controller == null)
             {
                 return;
             }
