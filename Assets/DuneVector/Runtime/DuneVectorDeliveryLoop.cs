@@ -513,6 +513,9 @@ namespace DuneVector
             Vector3 localEulerAngles = _isPickup
                 ? _settings.PickupRingPrefabLocalEulerAngles
                 : _settings.DeliveryRingPrefabLocalEulerAngles;
+            float groundOffset = _isPickup
+                ? _settings.PickupRingGroundOffset
+                : _settings.DeliveryRingGroundOffset;
 
             GameObject instance = Instantiate(prefab, transform, false);
             instance.name = _isPickup ? "Pickup Ground Ring Visual" : "Delivery Ground Ring Visual";
@@ -521,6 +524,7 @@ namespace DuneVector
             instanceTransform.localScale = Vector3.Scale(
                 instanceTransform.localScale * fitScale,
                 scaleMultiplier);
+            localOffset.y -= groundOffset + _settings.GroundRingPrefabTerrainInset;
             instanceTransform.localPosition += localOffset;
             instanceTransform.localRotation *= Quaternion.Euler(localEulerAngles);
             return instanceTransform;

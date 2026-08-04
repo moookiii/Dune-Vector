@@ -648,6 +648,8 @@ namespace DuneVector
         public Vector3 DeliveryRingPrefabLocalEulerAngles = Vector3.zero;
         [Tooltip("Height of delivery ground rings above the sampled terrain surface, in meters.")]
         [Min(0f)] public float DeliveryRingGroundOffset = 0.1f;
+        [Tooltip("Depth below the sampled terrain surface where pickup and delivery ground-ring prefab roots begin, in meters.")]
+        [Min(0f)] public float GroundRingPrefabTerrainInset = 1f;
         [Tooltip("Height of pickup rings above the sampled terrain surface, in meters.")]
         [Min(0f)] public float PickupRingHeight = 1f;
         [Tooltip("Height of delivery rings above the sampled terrain surface, in meters.")]
