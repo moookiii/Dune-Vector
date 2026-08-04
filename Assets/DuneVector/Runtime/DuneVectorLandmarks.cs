@@ -892,6 +892,33 @@ namespace DuneVector
 
         private void BuildRelay(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
+            GameObject relayPrefab = _settings.RelayStationPrefab;
+            if (relayPrefab == null && !string.IsNullOrWhiteSpace(_settings.RelayStationResourcePath))
+            {
+                relayPrefab = Resources.Load<GameObject>(_settings.RelayStationResourcePath);
+            }
+
+            if (relayPrefab == null)
+            {
+                Debug.LogWarning("Relay station replacement prefab could not be resolved from Dune Vector Runtime Settings.", root);
+                return;
+            }
+
+            Vector3 prefabScale = relayPrefab.transform.localScale;
+            Quaternion prefabRotation = relayPrefab.transform.localRotation;
+            GameObject relay = UnityEngine.Object.Instantiate(relayPrefab, root, false);
+            relay.name = relayPrefab.name;
+            relay.transform.localPosition = Vector3.zero;
+            relay.transform.localRotation = prefabRotation;
+            relay.transform.localScale = prefabScale;
+            GroundPrefabToDunes(
+                relay.transform,
+                _settings.RelayGroundingSamplesPerAxis,
+                _settings.RelayPrefabGroundOffsetDown);
+        }
+
+        private void BuildProceduralRelay(Transform root, int seed, DuneVectorLandmarkAnimator animator)
+        {
             float scale = _settings.RelayScale;
             Part(PrimitiveType.Cube, "Relay Platform", root, new Vector3(0f, 0.6f, 0f), new Vector3(22f, 1.2f, 16f) * scale, Quaternion.identity, _materials.DroneDark);
             Part(PrimitiveType.Cube, "Relay Building", root, new Vector3(0f, 3.5f, 0f), new Vector3(11f, 5.8f, 8f) * scale, Quaternion.identity, _materials.Sandstone);
@@ -1156,10 +1183,13 @@ namespace DuneVector
             excavation.transform.localPosition = Vector3.zero;
             excavation.transform.localRotation = prefabRotation;
             excavation.transform.localScale = prefabScale;
-            GroundPrefabToDunes(excavation.transform, _settings.ExcavationGroundingSamplesPerAxis);
+            GroundPrefabToDunes(excavation.transform, _settings.ExcavationGroundingSamplesPerAxis, 0f);
         }
 
-        private void GroundPrefabToDunes(Transform prefab, int configuredSamplesPerAxis)
+        private void GroundPrefabToDunes(
+            Transform prefab,
+            int configuredSamplesPerAxis,
+            float groundOffsetDown)
         {
             Renderer[] renderers = prefab.GetComponentsInChildren<Renderer>(true);
             bool hasBounds = false;
@@ -1224,7 +1254,8 @@ namespace DuneVector
 
             if (float.IsFinite(lowestTerrainHeight))
             {
-                prefab.position += Vector3.up * (lowestTerrainHeight - prefab.position.y);
+                prefab.position += Vector3.up * (
+                    lowestTerrainHeight - prefab.position.y - Mathf.Max(0f, groundOffsetDown));
             }
         }
 
@@ -1525,7 +1556,7 @@ namespace DuneVector
             arcology.transform.localPosition = Vector3.zero;
             arcology.transform.localRotation = prefabRotation;
             arcology.transform.localScale = prefabScale;
-            GroundPrefabToDunes(arcology.transform, _settings.BuriedArcologyGroundingSamplesPerAxis);
+            GroundPrefabToDunes(arcology.transform, _settings.BuriedArcologyGroundingSamplesPerAxis, 0f);
         }
 
         private void BuildProceduralBuriedArcology(Transform root, int seed, DuneVectorLandmarkAnimator animator)

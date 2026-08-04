@@ -1338,6 +1338,14 @@ namespace DuneVector
         [Range(0.2f, 1f)] public float LandmarkRingSegmentFill = 0.72f;
 
         [Header("Relay Station Detail")]
+        [Tooltip("Prefab used in place of the procedural relay station landmark. Its authored scale and rotation are preserved.")]
+        public GameObject RelayStationPrefab;
+        [Tooltip("Resources path used when the direct relay station prefab reference cannot be resolved.")]
+        public string RelayStationResourcePath = "union_pacific_railroad_car_rhyolite_Prefab";
+        [Tooltip("Samples per axis used to fit the railroad car to the lowest dune height beneath its rendered footprint.")]
+        [Range(2, 9)] public int RelayGroundingSamplesPerAxis = 5;
+        [Tooltip("Additional distance the dynamically grounded railroad car is lowered into the dunes.")]
+        [Min(0f)] public float RelayPrefabGroundOffsetDown = 1f;
         [Range(6, 24)] public int RelayDishRimSegments = 12;
         [Range(2, 9)] public int RelayWindowCount = 5;
         [Min(0f)] public float RelayWindowSpacing = 1.65f;
