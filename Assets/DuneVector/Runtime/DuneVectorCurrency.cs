@@ -29,7 +29,12 @@ namespace DuneVector
 
         public bool TryReward()
         {
-            return _health != null && _health.RestoreHealth(_amount);
+            if (_health == null || _health.IsDead)
+            {
+                return false;
+            }
+
+            return _health.CurrentHealth >= _health.MaximumHealth || _health.RestoreHealth(_amount);
         }
     }
 
