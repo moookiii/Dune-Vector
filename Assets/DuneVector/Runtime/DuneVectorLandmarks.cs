@@ -26,7 +26,7 @@ namespace DuneVector
         {
             return type switch
             {
-                DuneLandmarkType.DesertRelayStation => "UNION PACIFIC RAILROAD CAR",
+                DuneLandmarkType.DesertRelayStation => "RUINS",
                 DuneLandmarkType.CrashedCarrier => "DC-10",
                 DuneLandmarkType.RaiderBeacon => "RAIDER BEACON",
                 DuneLandmarkType.AncientSpire => "ANCIENT SPIRE",
@@ -922,7 +922,7 @@ namespace DuneVector
 
             if (relayPrefab == null)
             {
-                Debug.LogWarning("Relay station replacement prefab could not be resolved from Dune Vector Runtime Settings.", root);
+                Debug.LogWarning("Ruins landmark prefab could not be resolved from Dune Vector Runtime Settings.", root);
                 return;
             }
 

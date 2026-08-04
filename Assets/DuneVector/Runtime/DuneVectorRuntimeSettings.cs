@@ -1328,14 +1328,14 @@ namespace DuneVector
         [Min(0f)] public float ExcavationWorkLightPulseSpeed = 3.2f;
         [Range(0.2f, 1f)] public float LandmarkRingSegmentFill = 0.72f;
 
-        [Header("Union Pacific Railroad Car Detail")]
-        [Tooltip("Prefab used for the Union Pacific railroad car landmark. Its authored scale and rotation are preserved.")]
+        [Header("Ruins Detail")]
+        [Tooltip("Prefab used for the ruins landmark. Its authored scale and rotation are preserved.")]
         public GameObject RelayStationPrefab;
-        [Tooltip("Resources path used when the direct relay station prefab reference cannot be resolved.")]
-        public string RelayStationResourcePath = "union_pacific_railroad_car_rhyolite_Prefab";
-        [Tooltip("Samples per axis used to fit the railroad car to the lowest dune height beneath its rendered footprint.")]
+        [Tooltip("Resources path used when the direct ruins prefab reference cannot be resolved.")]
+        public string RelayStationResourcePath = "ruinsPrefab";
+        [Tooltip("Samples per axis used to fit the ruins to the lowest dune height beneath its rendered footprint.")]
         [Range(2, 9)] public int RelayGroundingSamplesPerAxis = 5;
-        [Tooltip("Signed vertical grounding offset for the railroad car. Positive values sink it into the dunes; negative values raise it.")]
+        [Tooltip("Signed vertical grounding offset for the ruins. Positive values sink it into the dunes; negative values raise it.")]
         public float RelayPrefabGroundOffsetDown = 1f;
         [Range(6, 24)] public int RelayDishRimSegments = 12;
         [Range(2, 9)] public int RelayWindowCount = 5;
