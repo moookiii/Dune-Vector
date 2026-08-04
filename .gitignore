@@ -114,3 +114,5 @@ InitTestScene*.unity*
 
 !*.meta
 fmod_editor.log
+
+/Assets/Archanor/
