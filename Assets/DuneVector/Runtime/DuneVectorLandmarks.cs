@@ -1279,7 +1279,7 @@ namespace DuneVector
             if (float.IsFinite(lowestTerrainHeight) && float.IsFinite(lowestRenderedHeight))
             {
                 prefab.position += Vector3.up * (
-                    lowestTerrainHeight - lowestRenderedHeight - Mathf.Max(0f, groundOffsetDown));
+                    lowestTerrainHeight - lowestRenderedHeight - groundOffsetDown);
             }
         }
 
