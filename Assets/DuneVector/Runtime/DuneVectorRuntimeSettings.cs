@@ -3518,6 +3518,10 @@ namespace DuneVector
         [Min(0f)] public float PortalDistanceVisibilityEndDistance = 180f;
         [Tooltip("Maximum HDR emission multiplier for distant portals. A value of one disables additional distance bloom.")]
         [Min(1f)] public float PortalDistanceVisibilityBloomMultiplier = 1.1f;
+        [Tooltip("Minimum on-screen radius, in pixels, maintained by distant traversal-ring visuals. Gameplay trigger size is unchanged. Set to zero to disable distance scaling.")]
+        [Min(0f)] public float PortalDistanceMinimumScreenRadiusPixels = 32f;
+        [Tooltip("Maximum visual-only scale that distance legibility may apply to a traversal ring.")]
+        [Min(1f)] public float PortalDistanceMaximumVisualScale = 2.75f;
 
         [Header("Portal Animation and Layering")]
         [Min(0f)] public float PortalPulseSpeed = 1f;
