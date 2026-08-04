@@ -1478,6 +1478,32 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class ProceduralBuildingSystemTuning
+    {
+        public bool Enabled = true;
+        [Tooltip("Resources-relative folder containing every building prefab used by the procedural system.")]
+        public string ResourceFolder = "buildings";
+        [Tooltip("Density multiplier for procedural buildings. Zero disables placement; values above one allow multiple buildings per cell.")]
+        [Range(0f, 4f)] public float AmountMultiplier = 1f;
+        [Tooltip("Size of the coarse logical-world placement grid. Larger values spread buildings farther apart.")]
+        [Min(100f)] public float PlacementCellSize = 420f;
+        [Range(1, 5)] public int ActiveCellRadius = 2;
+        [Tooltip("Expected building count per cell before applying Amount Multiplier.")]
+        [Range(0f, 1f)] public float BaseCellAmount = 0.5f;
+        [Tooltip("Keeps placements away from cell edges so neighboring cells remain visibly separated.")]
+        [Range(0.05f, 0.45f)] public float CellInsetFraction = 0.25f;
+        [Min(0f)] public float HubExclusionRadius = 260f;
+        [Range(0f, 50f)] public float MaximumPlacementSlope = 22f;
+        [Tooltip("Terrain samples taken across each rotated building footprint before sinking it into the dunes.")]
+        [Range(2, 9)] public int GroundingSamplesPerAxis = 5;
+        [Tooltip("Additional vertical sink after footprint grounding.")]
+        [Min(0f)] public float GroundOffsetDown = 0.5f;
+        [Tooltip("Adds static mesh colliders to prefab meshes that do not already have colliders.")]
+        public bool GenerateMeshColliders = true;
+        [Min(0.1f)] public float RefreshInterval = 0.8f;
+    }
+
+    [System.Serializable]
     public sealed class RouteEncounterTuning
     {
         public bool Enabled = true;
@@ -5312,6 +5338,9 @@ namespace DuneVector
         [Tooltip("Authored procedural landmark placement and archetype dimensions.")]
         public LandmarkSystemTuning Landmarks = new LandmarkSystemTuning();
 
+        [Tooltip("Coarse streamed procedural building placement, density, dune grounding, and collision.")]
+        public ProceduralBuildingSystemTuning Buildings = new ProceduralBuildingSystemTuning();
+
         [Tooltip("Unique mask-authored ground artworks placed in persistent logical world coordinates.")]
         public GeoglyphSystemTuning Geoglyphs = new GeoglyphSystemTuning();
 
@@ -5425,6 +5454,7 @@ namespace DuneVector
             DeliveryMessages.EnsureInitialized();
             WorldHub ??= new WorldHubTuning();
             Landmarks ??= new LandmarkSystemTuning();
+            Buildings ??= new ProceduralBuildingSystemTuning();
             Geoglyphs ??= new GeoglyphSystemTuning();
             Geoglyphs.EnsureInitialized();
             DesertAtlas ??= new DesertAtlasTuning();

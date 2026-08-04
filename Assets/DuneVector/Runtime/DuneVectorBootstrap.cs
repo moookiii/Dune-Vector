@@ -78,6 +78,7 @@ namespace DuneVector
         public DuneVectorMapHUD MapHUD { get; private set; }
         public DuneVectorDeliveryLoop DeliveryLoop { get; private set; }
         public DuneVectorLandmarkDirector LandmarkDirector { get; private set; }
+        public DuneVectorProceduralBuildingDirector BuildingDirector { get; private set; }
         public DuneVectorCourierGame CourierGame { get; private set; }
         public DuneVectorRouteEncounterDirector RouteEncounterDirector { get; private set; }
         public DuneVectorDynamicCourierDirector DynamicCourierDirector { get; private set; }
@@ -358,6 +359,7 @@ namespace DuneVector
             BuildEnvironment();
             BuildWorld();
             BuildDroneAndCamera();
+            BuildProceduralBuildings();
             BuildWindFields();
             BuildAudio();
             BuildMusicReactiveSky();
@@ -665,6 +667,19 @@ namespace DuneVector
             DuneVectorUrpEnvironmentDriver environmentDriver = volumeObject.AddComponent<DuneVectorUrpEnvironmentDriver>();
             environmentDriver.Initialize(_environmentSky, _environmentFog);
 
+        }
+
+        private void BuildProceduralBuildings()
+        {
+            if (!RuntimeSettings.Buildings.Enabled)
+            {
+                return;
+            }
+
+            GameObject buildingObject = new GameObject("Procedural Building Director");
+            buildingObject.transform.SetParent(transform, false);
+            BuildingDirector = buildingObject.AddComponent<DuneVectorProceduralBuildingDirector>();
+            BuildingDirector.Initialize(World, RuntimeSettings.Buildings);
         }
 
         private static Bloom FindGlobalBloom(Volume runtimeEnvironmentVolume)
