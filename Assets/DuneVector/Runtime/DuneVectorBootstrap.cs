@@ -684,6 +684,13 @@ namespace DuneVector
 
             _environmentBloom = FindGlobalBloom(volume);
 
+            PauseMenuVisualTuning videoSettings = AudioSettings.PauseMenu;
+            LensDistortion lensDistortion = _runtimeVolumeProfile.Add<LensDistortion>(true);
+            lensDistortion.intensity.Override(videoSettings.VideoLensDistortionIntensity);
+            FilmGrain filmGrain = _runtimeVolumeProfile.Add<FilmGrain>(true);
+            filmGrain.intensity.Override(videoSettings.VideoFilmGrainIntensity);
+            filmGrain.response.Override(videoSettings.VideoFilmGrainResponse);
+
             DuneVectorUrpEnvironmentDriver environmentDriver = volumeObject.AddComponent<DuneVectorUrpEnvironmentDriver>();
             environmentDriver.Initialize(_environmentSky, _environmentFog);
 
@@ -810,7 +817,8 @@ namespace DuneVector
                 GoldWallet,
                 PermanentUpgrades,
                 AudioSettings.PauseMenu,
-                RuntimeSettings.PermanentUpgrades.ShopVisuals);
+                RuntimeSettings.PermanentUpgrades.ShopVisuals,
+                RuntimeSettings.RetroCrtScanlines);
             Photography = gameObject.AddComponent<DuneVectorPhotographySystem>();
             Photography.Initialize(
                 Player,

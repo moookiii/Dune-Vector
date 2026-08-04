@@ -28,18 +28,24 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 4;
+            public int Version = 5;
             public float MusicVolume;
             public float SoundEffectsVolume;
             public bool MusicVisualizerEnabled = true;
             public int MusicVisualizerMode;
             public bool ChromaticAberrationEnabled = true;
+            public bool LensDistortionEnabled = true;
+            public bool CrtLinesEnabled = true;
+            public bool FilmGrainEnabled = true;
         }
 
         public float MusicVolume { get; private set; }
         public float SoundEffectsVolume { get; private set; }
         public MusicVisualizerMode VisualizerMode { get; private set; } = MusicVisualizerMode.All;
         public bool ChromaticAberrationEnabled { get; private set; } = true;
+        public bool LensDistortionEnabled { get; private set; } = true;
+        public bool CrtLinesEnabled { get; private set; } = true;
+        public bool FilmGrainEnabled { get; private set; } = true;
         public event Action<MusicVisualizerMode> MusicVisualizerModeChanged;
 
         public bool TryGetMusicChannelGroup(out FMOD.ChannelGroup channelGroup)
@@ -369,6 +375,42 @@ namespace DuneVector
             FlushPreferences();
         }
 
+        public void SetLensDistortionEnabled(bool enabled)
+        {
+            if (LensDistortionEnabled == enabled)
+            {
+                return;
+            }
+
+            LensDistortionEnabled = enabled;
+            _preferencesDirty = true;
+            FlushPreferences();
+        }
+
+        public void SetCrtLinesEnabled(bool enabled)
+        {
+            if (CrtLinesEnabled == enabled)
+            {
+                return;
+            }
+
+            CrtLinesEnabled = enabled;
+            _preferencesDirty = true;
+            FlushPreferences();
+        }
+
+        public void SetFilmGrainEnabled(bool enabled)
+        {
+            if (FilmGrainEnabled == enabled)
+            {
+                return;
+            }
+
+            FilmGrainEnabled = enabled;
+            _preferencesDirty = true;
+            FlushPreferences();
+        }
+
         public void PlayDroneFire(Vector3 position)
         {
             PlayConfiguredOneShot(_settings != null ? _settings.DroneFireEvent : null, position, "drone-fire");
@@ -570,6 +612,12 @@ namespace DuneVector
             VisualizerMode = MusicVisualizerMode.All;
             ChromaticAberrationEnabled = _settings.PauseMenu == null
                 || _settings.PauseMenu.DefaultChromaticAberrationEnabled;
+            LensDistortionEnabled = _settings.PauseMenu == null
+                || _settings.PauseMenu.DefaultLensDistortionEnabled;
+            CrtLinesEnabled = _settings.PauseMenu == null
+                || _settings.PauseMenu.DefaultCrtLinesEnabled;
+            FilmGrainEnabled = _settings.PauseMenu == null
+                || _settings.PauseMenu.DefaultFilmGrainEnabled;
             if (!_settings.PersistVolumeSettings || !File.Exists(_preferencesPath))
             {
                 return;
@@ -578,7 +626,7 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version >= 1 && stored.Version <= 4)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 5)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
@@ -591,6 +639,12 @@ namespace DuneVector
                     if (stored.Version >= 4)
                     {
                         ChromaticAberrationEnabled = stored.ChromaticAberrationEnabled;
+                    }
+                    if (stored.Version >= 5)
+                    {
+                        LensDistortionEnabled = stored.LensDistortionEnabled;
+                        CrtLinesEnabled = stored.CrtLinesEnabled;
+                        FilmGrainEnabled = stored.FilmGrainEnabled;
                     }
                 }
             }
@@ -622,6 +676,9 @@ namespace DuneVector
                     MusicVisualizerEnabled = VisualizerMode != MusicVisualizerMode.Off,
                     MusicVisualizerMode = (int)VisualizerMode,
                     ChromaticAberrationEnabled = ChromaticAberrationEnabled,
+                    LensDistortionEnabled = LensDistortionEnabled,
+                    CrtLinesEnabled = CrtLinesEnabled,
+                    FilmGrainEnabled = FilmGrainEnabled,
                 };
                 File.WriteAllText(_preferencesPath, JsonUtility.ToJson(stored));
                 _preferencesDirty = false;
@@ -680,10 +737,14 @@ namespace DuneVector
         private bool _showGallery;
         private bool _showCompendium;
         private bool _showControls;
+        private bool _showVideoSettings;
         private float _controlsFade;
         private Keyboard _textInputKeyboard;
         private int _upgradeCheatProgress;
         private readonly Dictionary<ChromaticAberration, bool> _chromaticAberrationOriginalStates = new();
+        private readonly Dictionary<LensDistortion, bool> _lensDistortionOriginalStates = new();
+        private readonly Dictionary<FilmGrain, bool> _filmGrainOriginalStates = new();
+        private RetroCrtScanlineTuning _retroCrtScanlines;
 
         private GUIStyle _titleStyle;
         private GUIStyle _subtitleStyle;
@@ -715,7 +776,8 @@ namespace DuneVector
             DroneGoldWallet wallet,
             DronePermanentUpgradeSystem upgrades,
             PauseMenuVisualTuning visuals,
-            UpgradeShopVisualTuning shopVisuals)
+            UpgradeShopVisualTuning shopVisuals,
+            RetroCrtScanlineTuning retroCrtScanlines)
         {
             _player = player;
             _health = health;
@@ -723,12 +785,13 @@ namespace DuneVector
             _wallet = wallet;
             _upgrades = upgrades;
             _visuals = visuals;
+            _retroCrtScanlines = retroCrtScanlines;
             _shopView = new DuneVectorUpgradeShopView(_upgrades, _wallet, shopVisuals);
             if (_health != null)
             {
                 _health.Died += HandleDeath;
             }
-            ApplyChromaticAberrationPreference();
+            ApplyVideoPreferences();
         }
 
         public void BindCourierGame(DuneVectorCourierGame courierGame)
@@ -770,6 +833,10 @@ namespace DuneVector
                 if (IsPaused && (_showControls || _controlsFade > 0f))
                 {
                     _showControls = false;
+                }
+                else if (IsPaused && _showVideoSettings)
+                {
+                    _showVideoSettings = false;
                 }
                 else if (IsPaused && _showShop)
                 {
@@ -870,6 +937,7 @@ namespace DuneVector
                 _showGallery = false;
                 _showCompendium = false;
                 _showControls = false;
+                _showVideoSettings = false;
                 _controlsFade = 0f;
                 _audio?.FlushPreferences();
             }
@@ -891,6 +959,7 @@ namespace DuneVector
             _showGallery = false;
             _showCompendium = false;
             _showControls = false;
+            _showVideoSettings = false;
             _controlsFade = 0f;
             _audio?.SetPausedDucking(false);
             _player?.SetInputEnabled(false);
@@ -923,6 +992,12 @@ namespace DuneVector
             if (_showControls || _controlsFade > 0f)
             {
                 DrawControlsScreen();
+                return;
+            }
+
+            if (_showVideoSettings)
+            {
+                DrawVideoSettingsScreen(scale);
                 return;
             }
 
@@ -1092,21 +1167,13 @@ namespace DuneVector
             GUI.enabled = visualizerPreviousEnabled;
             y += buttonHeight + gap;
 
-            bool chromaticAberrationEnabled = _audio == null || _audio.ChromaticAberrationEnabled;
-            bool chromaticPreviousEnabled = GUI.enabled;
-            GUI.enabled = chromaticPreviousEnabled && _audio != null;
-            string chromaticStateLabel = chromaticAberrationEnabled
-                ? _visuals.ControlsChromaticAberrationEnabledLabel
-                : _visuals.ControlsChromaticAberrationDisabledLabel;
             if (GUI.Button(
                     new Rect(content.x, y, content.width, buttonHeight),
-                    $"{_visuals.ControlsChromaticAberrationLabel}  /  {chromaticStateLabel}",
-                    chromaticAberrationEnabled ? _primaryButtonStyle : _secondaryButtonStyle))
+                    _visuals.VideoSettingsButtonLabel,
+                    _secondaryButtonStyle))
             {
-                _audio.SetChromaticAberrationEnabled(!chromaticAberrationEnabled);
-                ApplyChromaticAberrationPreference();
+                _showVideoSettings = true;
             }
-            GUI.enabled = chromaticPreviousEnabled;
 
             float hintHeight = _hintStyle.lineHeight;
             GUI.Label(
@@ -1115,9 +1182,131 @@ namespace DuneVector
                 _hintStyle);
         }
 
-        private void ApplyChromaticAberrationPreference()
+        private void DrawVideoSettingsScreen(float scale)
         {
-            bool enabled = _audio == null || _audio.ChromaticAberrationEnabled;
+            float screenMargin = _visuals.ScreenMargin * scale;
+            float panelWidth = Mathf.Min(_visuals.PanelWidth * scale, Screen.width - (screenMargin * 2f));
+            float panelHeight = Mathf.Min(_visuals.PanelHeight * scale, Screen.height - (screenMargin * 2f));
+            Rect panel = new Rect(
+                (Screen.width - panelWidth) * 0.5f,
+                (Screen.height - panelHeight) * 0.5f,
+                panelWidth,
+                panelHeight);
+
+            float shadowOffset = _visuals.ShadowOffset * scale;
+            DrawSolidRect(new Rect(panel.x + shadowOffset, panel.y + shadowOffset, panel.width, panel.height), _visuals.ShadowColor);
+            DrawSolidRect(panel, _visuals.PanelColor);
+            DrawBorder(panel, _visuals.PanelBorderColor, Mathf.Max(1f, scale * 2f));
+            DrawSolidRect(
+                new Rect(panel.x, panel.y, panel.width, Mathf.Max(1f, _visuals.AccentBarHeight * scale)),
+                _visuals.AccentColor);
+
+            float padding = _visuals.PanelPadding * scale;
+            Rect content = new Rect(panel.x + padding, panel.y + padding, panel.width - (padding * 2f), panel.height - (padding * 2f));
+            float gap = _visuals.ButtonGap * scale;
+            float y = content.y;
+
+            float titleHeight = _titleStyle.lineHeight;
+            GUI.Label(new Rect(content.x, y, content.width, titleHeight), _visuals.VideoSettingsTitle, _titleStyle);
+            y += titleHeight;
+
+            float subtitleHeight = _subtitleStyle.lineHeight;
+            GUI.Label(new Rect(content.x, y, content.width, subtitleHeight), _visuals.VideoSettingsSubtitle, _subtitleStyle);
+            y += subtitleHeight + gap;
+
+            DrawSolidRect(new Rect(content.x, y, content.width, Mathf.Max(1f, scale)), _visuals.DividerColor);
+            y += gap * 1.5f;
+
+            float sectionHeight = _sectionStyle.lineHeight;
+            GUI.Label(new Rect(content.x, y, content.width, sectionHeight), _visuals.VideoSettingsSectionLabel, _sectionStyle);
+            y += sectionHeight + gap;
+
+            float buttonHeight = _visuals.ButtonHeight * scale;
+            DrawVideoToggle(
+                new Rect(content.x, y, content.width, buttonHeight),
+                _visuals.VideoChromaticAberrationLabel,
+                _audio == null || _audio.ChromaticAberrationEnabled,
+                value => _audio?.SetChromaticAberrationEnabled(value));
+            y += buttonHeight + gap;
+
+            DrawVideoToggle(
+                new Rect(content.x, y, content.width, buttonHeight),
+                _visuals.VideoLensDistortionLabel,
+                _audio == null || _audio.LensDistortionEnabled,
+                value => _audio?.SetLensDistortionEnabled(value));
+            y += buttonHeight + gap;
+
+            DrawVideoToggle(
+                new Rect(content.x, y, content.width, buttonHeight),
+                _visuals.VideoCrtLinesLabel,
+                _audio == null || _audio.CrtLinesEnabled,
+                value => _audio?.SetCrtLinesEnabled(value));
+            y += buttonHeight + gap;
+
+            DrawVideoToggle(
+                new Rect(content.x, y, content.width, buttonHeight),
+                _visuals.VideoFilmGrainLabel,
+                _audio == null || _audio.FilmGrainEnabled,
+                value => _audio?.SetFilmGrainEnabled(value));
+            y += buttonHeight + (gap * 2f);
+
+            if (GUI.Button(
+                    new Rect(content.x, y, content.width, buttonHeight),
+                    _visuals.VideoSettingsBackButtonLabel,
+                    _secondaryButtonStyle))
+            {
+                _showVideoSettings = false;
+            }
+
+            float hintHeight = _hintStyle.lineHeight;
+            GUI.Label(
+                new Rect(content.x, content.yMax - hintHeight, content.width, hintHeight),
+                _visuals.VideoSettingsHintLabel,
+                _hintStyle);
+        }
+
+        private void DrawVideoToggle(Rect rect, string label, bool enabled, Action<bool> apply)
+        {
+            bool previousEnabled = GUI.enabled;
+            GUI.enabled = previousEnabled && _audio != null;
+            string stateLabel = enabled
+                ? _visuals.VideoEffectEnabledLabel
+                : _visuals.VideoEffectDisabledLabel;
+            if (GUI.Button(
+                    rect,
+                    $"{label}  /  {stateLabel}",
+                    enabled ? _primaryButtonStyle : _secondaryButtonStyle))
+            {
+                apply?.Invoke(!enabled);
+                ApplyVideoPreferences();
+            }
+            GUI.enabled = previousEnabled;
+        }
+
+        private void ApplyVideoPreferences()
+        {
+            ApplyVolumePreference(
+                _audio == null || _audio.ChromaticAberrationEnabled,
+                _chromaticAberrationOriginalStates);
+            ApplyVolumePreference(
+                _audio == null || _audio.LensDistortionEnabled,
+                _lensDistortionOriginalStates);
+            ApplyVolumePreference(
+                _audio == null || _audio.FilmGrainEnabled,
+                _filmGrainOriginalStates);
+
+            if (_retroCrtScanlines?.Material != null)
+            {
+                bool enabled = (_audio == null || _audio.CrtLinesEnabled) && _retroCrtScanlines.Enabled;
+                _retroCrtScanlines.Material.SetFloat(
+                    "_ScanlineStrength",
+                    enabled ? Mathf.Clamp01(_retroCrtScanlines.ScanlineStrength) : 0f);
+            }
+        }
+
+        private static void ApplyVolumePreference<T>(bool enabled, Dictionary<T, bool> originalStates)
+            where T : VolumeComponent
+        {
             Volume[] volumes = FindObjectsByType<Volume>(FindObjectsInactive.Include);
             foreach (Volume volume in volumes)
             {
@@ -1127,17 +1316,17 @@ namespace DuneVector
                 }
 
                 VolumeProfile runtimeProfile = volume.profile;
-                if (runtimeProfile == null || !runtimeProfile.TryGet(out ChromaticAberration chromaticAberration))
+                if (runtimeProfile == null || !runtimeProfile.TryGet(out T component))
                 {
                     continue;
                 }
 
-                if (!_chromaticAberrationOriginalStates.ContainsKey(chromaticAberration))
+                if (!originalStates.ContainsKey(component))
                 {
-                    _chromaticAberrationOriginalStates.Add(chromaticAberration, chromaticAberration.active);
+                    originalStates.Add(component, component.active);
                 }
 
-                chromaticAberration.active = enabled && _chromaticAberrationOriginalStates[chromaticAberration];
+                component.active = enabled && originalStates[component];
             }
         }
 

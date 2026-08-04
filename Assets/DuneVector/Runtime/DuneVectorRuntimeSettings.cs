@@ -4534,14 +4534,27 @@ namespace DuneVector
         public string ControlsVisualizerNoBassRingsLabel = "NO BASS RINGS";
         [Tooltip("State label shown while the music visualizer is inactive.")]
         public string ControlsVisualizerDisabledLabel = "OFF";
-        [Tooltip("Whether chromatic aberration is enabled before a saved player preference is available.")]
+
+        [Header("Video Settings")]
+        public string VideoSettingsButtonLabel = "VIDEO SETTINGS";
+        public string VideoSettingsTitle = "VIDEO SETTINGS";
+        public string VideoSettingsSubtitle = "DUNE VECTOR  /  DISPLAY EFFECTS";
+        public string VideoSettingsSectionLabel = "POST-PROCESSING";
+        public string VideoSettingsBackButtonLabel = "BACK TO PAUSE";
+        public string VideoSettingsHintLabel = "ESC  /  BACK TO PAUSE";
+        public string VideoChromaticAberrationLabel = "CHROMATIC ABERRATION";
+        public string VideoLensDistortionLabel = "LENS DISTORTION";
+        public string VideoCrtLinesLabel = "CRT LINES";
+        public string VideoFilmGrainLabel = "FILM GRAIN";
+        public string VideoEffectEnabledLabel = "ON";
+        public string VideoEffectDisabledLabel = "OFF";
         public bool DefaultChromaticAberrationEnabled = true;
-        [Tooltip("Label shown on the chromatic-aberration toggle.")]
-        public string ControlsChromaticAberrationLabel = "CHROMATIC ABERRATION";
-        [Tooltip("State label shown while chromatic aberration is active.")]
-        public string ControlsChromaticAberrationEnabledLabel = "ON";
-        [Tooltip("State label shown while chromatic aberration is inactive.")]
-        public string ControlsChromaticAberrationDisabledLabel = "OFF";
+        public bool DefaultLensDistortionEnabled = true;
+        public bool DefaultCrtLinesEnabled = true;
+        public bool DefaultFilmGrainEnabled = true;
+        [Range(-1f, 1f)] public float VideoLensDistortionIntensity = -0.12f;
+        [Range(0f, 1f)] public float VideoFilmGrainIntensity = 0.18f;
+        [Range(0f, 1f)] public float VideoFilmGrainResponse = 0.8f;
 
         [Header("Cheat Codes")]
         [Tooltip("Typing this phrase while the pause screen is open permanently unlocks every upgrade.")]
