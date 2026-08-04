@@ -1250,6 +1250,14 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class LandmarkBoxColliderTuning
+    {
+        public Vector3 Center;
+        public Vector3 Size = Vector3.one;
+        public Vector3 EulerAngles;
+    }
+
+    [System.Serializable]
     public sealed class LandmarkSystemTuning
     {
         public bool Enabled = true;
@@ -1342,6 +1350,8 @@ namespace DuneVector
         public string CrashedCarrierResourcePath = "DC-10/DC-10_Prefab";
         [Tooltip("Distance the crashed carrier prefab is sunk below the landmark's ground position.")]
         [Min(0f)] public float CrashedCarrierGroundSink = 2f;
+        [Tooltip("Low-poly compound box collider fit for the crashed carrier prefab, in prefab-local coordinates.")]
+        public LandmarkBoxColliderTuning[] CrashedCarrierColliderBoxes;
         [Range(1, 6)] public int CarrierEngineCount = 3;
         [Min(0.1f)] public float CarrierEngineRadius = 1.85f;
         [Min(0.1f)] public float CarrierEngineDepth = 3.6f;

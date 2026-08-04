@@ -966,6 +966,33 @@ namespace DuneVector
             carrier.transform.localPosition = Vector3.down * _settings.CrashedCarrierGroundSink;
             carrier.transform.localRotation = Quaternion.identity;
             carrier.transform.localScale = prefabScale;
+            BuildCarrierColliders(carrier.transform);
+        }
+
+        private void BuildCarrierColliders(Transform carrier)
+        {
+            LandmarkBoxColliderTuning[] colliderBoxes = _settings.CrashedCarrierColliderBoxes;
+            if (colliderBoxes == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < colliderBoxes.Length; i++)
+            {
+                LandmarkBoxColliderTuning boxTuning = colliderBoxes[i];
+                if (boxTuning == null || boxTuning.Size.x <= 0f || boxTuning.Size.y <= 0f || boxTuning.Size.z <= 0f)
+                {
+                    continue;
+                }
+
+                GameObject colliderObject = new GameObject($"DC-10 Collider {i + 1}");
+                colliderObject.layer = carrier.gameObject.layer;
+                colliderObject.transform.SetParent(carrier, false);
+                colliderObject.transform.localPosition = boxTuning.Center;
+                colliderObject.transform.localRotation = Quaternion.Euler(boxTuning.EulerAngles);
+                BoxCollider boxCollider = colliderObject.AddComponent<BoxCollider>();
+                boxCollider.size = boxTuning.Size;
+            }
         }
 
         private void BuildBeacon(Transform root, int seed, DuneVectorLandmarkAnimator animator)
