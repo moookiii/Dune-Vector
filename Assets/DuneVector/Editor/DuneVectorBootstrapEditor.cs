@@ -133,6 +133,7 @@ namespace DuneVector.Editor
         private SerializedProperty _deliveryMessages;
         private SerializedProperty _worldHub;
         private SerializedProperty _landmarks;
+        private SerializedProperty _buildings;
         private SerializedProperty _geoglyphs;
         private SerializedProperty _desertAtlas;
         private SerializedProperty _photography;
@@ -176,6 +177,7 @@ namespace DuneVector.Editor
             _deliveryMessages = serializedObject.FindProperty("DeliveryMessages");
             _worldHub = serializedObject.FindProperty("WorldHub");
             _landmarks = serializedObject.FindProperty("Landmarks");
+            _buildings = serializedObject.FindProperty("Buildings");
             _geoglyphs = serializedObject.FindProperty("Geoglyphs");
             _desertAtlas = serializedObject.FindProperty("DesertAtlas");
             _photography = serializedObject.FindProperty("Photography");
@@ -555,6 +557,10 @@ namespace DuneVector.Editor
                 "Authored Landmarks",
                 "Placement tiers, spacing, silhouettes, sockets, and all ten landmark templates.",
                 _landmarks);
+            DuneVectorSettingsInspector.DrawSection(
+                "Procedural Buildings",
+                "Coarse streamed placement, amount, slope limits, dune grounding, collision, and geoglyph clearance.",
+                _buildings);
             DuneVectorSettingsInspector.DrawSection(
                 "World Geoglyph Artwork",
                 "Unique mask landmarks projected once in persistent logical world coordinates across streamed dunes.",

@@ -1484,6 +1484,8 @@ namespace DuneVector
         [Tooltip("Keeps placements away from cell edges so neighboring cells remain visibly separated.")]
         [Range(0.05f, 0.45f)] public float CellInsetFraction = 0.25f;
         [Min(0f)] public float HubExclusionRadius = 100f;
+        [Tooltip("Extra horizontal clearance around each geoglyph's visible authored footprint.")]
+        [Min(0f)] public float GeoglyphClearance = 35f;
         [Range(0f, 50f)] public float MaximumPlacementSlope = 35f;
         [Tooltip("Alternative deterministic positions tried when a candidate lands inside an exclusion zone or on an excessive slope.")]
         [Range(1, 8)] public int PlacementAttemptsPerBuilding = 4;

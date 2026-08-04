@@ -19,14 +19,19 @@ namespace DuneVector
 
         private DesertWorldStreamer _world;
         private ProceduralBuildingSystemTuning _settings;
+        private GeoglyphSystemTuning _geoglyphs;
         private GameObject[] _prefabs = Array.Empty<GameObject>();
         private Transform _buildingRoot;
         private float _refreshTimer;
 
-        public void Initialize(DesertWorldStreamer world, ProceduralBuildingSystemTuning settings)
+        public void Initialize(
+            DesertWorldStreamer world,
+            ProceduralBuildingSystemTuning settings,
+            GeoglyphSystemTuning geoglyphs)
         {
             _world = world;
             _settings = settings;
+            _geoglyphs = geoglyphs;
             _prefabs = Resources.LoadAll<GameObject>(_settings.ResourceFolder ?? string.Empty);
             Array.Sort(_prefabs, (left, right) =>
                 string.Compare(left != null ? left.name : string.Empty,
@@ -186,6 +191,11 @@ namespace DuneVector
                     continue;
                 }
 
+                if (OverlapsGeoglyph(logicalX, logicalZ))
+                {
+                    continue;
+                }
+
                 Vector3 normal = _world.HeightField.SampleNormal(logicalX, logicalZ);
                 float slope = Vector3.Angle(normal, Vector3.up);
                 if (slope > Mathf.Clamp(_settings.MaximumPlacementSlope, 0f, 50f))
@@ -225,6 +235,54 @@ namespace DuneVector
                     AddMissingMeshColliders(instance);
                 }
                 return true;
+            }
+
+            return false;
+        }
+
+        private bool OverlapsGeoglyph(double logicalX, double logicalZ)
+        {
+            if (_geoglyphs == null || !_geoglyphs.Enabled || _geoglyphs.Placements == null)
+            {
+                return false;
+            }
+
+            float clearance = Mathf.Max(0f, _settings.GeoglyphClearance);
+            for (int i = 0; i < _geoglyphs.Placements.Count; i++)
+            {
+                GeoglyphArtworkPlacement placement = _geoglyphs.Placements[i];
+                if (placement == null || placement.Mask == null ||
+                    placement.WorldSize.x <= 0f || placement.WorldSize.y <= 0f)
+                {
+                    continue;
+                }
+
+                Vector2 contentCenter = placement.MaskContentCenter;
+                Vector2 contentSize = placement.MaskContentSize;
+                if (contentSize.x <= 0f || contentSize.y <= 0f)
+                {
+                    contentCenter = new Vector2(0.5f, 0.5f);
+                    contentSize = Vector2.one;
+                }
+
+                Quaternion artworkRotation = Quaternion.Euler(
+                    0f, -placement.RotationDegrees, 0f);
+                Vector2 normalizedCenterOffset = contentCenter - new Vector2(0.5f, 0.5f);
+                Vector3 centerOffset = artworkRotation * new Vector3(
+                    normalizedCenterOffset.x * placement.WorldSize.x,
+                    0f,
+                    normalizedCenterOffset.y * placement.WorldSize.y);
+                Vector3 relative = new Vector3(
+                    (float)(logicalX - placement.WorldCenter.x) - centerOffset.x,
+                    0f,
+                    (float)(logicalZ - placement.WorldCenter.y) - centerOffset.z);
+                Vector3 artworkSpace = Quaternion.Inverse(artworkRotation) * relative;
+                Vector2 halfSize = Vector2.Scale(placement.WorldSize, contentSize) * 0.5f;
+                if (Mathf.Abs(artworkSpace.x) <= halfSize.x + clearance &&
+                    Mathf.Abs(artworkSpace.z) <= halfSize.y + clearance)
+                {
+                    return true;
+                }
             }
 
             return false;
