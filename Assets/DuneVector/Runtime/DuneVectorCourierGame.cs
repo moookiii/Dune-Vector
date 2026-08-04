@@ -981,14 +981,13 @@ namespace DuneVector
                 return;
             }
 
-            Quaternion prefabRotation = runeRingPrefab.transform.localRotation;
-            Vector3 prefabScale = runeRingPrefab.transform.localScale;
-            GameObject runeRing = Instantiate(runeRingPrefab, _hubRoot, false);
+            GameObject runeRing = Instantiate(runeRingPrefab);
             runeRing.name = runeRingPrefab.name;
             _hubRuneRing = runeRing.transform;
-            _hubRuneRing.localPosition = Vector3.zero;
-            _hubRuneRing.localRotation = prefabRotation;
-            _hubRuneRing.localScale = prefabScale;
+
+            // Preserve the prefab-authored world position, rotation, and scale, then make the
+            // ring part of the hub so floating-origin shifts cannot leave copies in the desert.
+            _hubRuneRing.SetParent(_hubRoot, true);
         }
 
         private Transform BuildPhysicalTerminal(string objectName, Vector3 localPosition, Quaternion localRotation)
