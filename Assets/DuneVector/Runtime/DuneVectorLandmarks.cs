@@ -114,10 +114,10 @@ namespace DuneVector
             switch (type)
             {
                 case DuneLandmarkType.DesertRelayStation:
-                    contractOffset = new Vector3(0f, settings.ContractSocketHeight, -13f * settings.RelayScale);
+                    contractOffset = settings.RelayContractSocketOffset;
                     break;
                 case DuneLandmarkType.CrashedCarrier:
-                    contractOffset = new Vector3(18f * settings.CarrierScale, settings.ContractSocketHeight, -30f * settings.CarrierScale);
+                    contractOffset = settings.CarrierContractSocketOffset;
                     break;
                 case DuneLandmarkType.RaiderBeacon:
                     contractOffset = new Vector3(13f * settings.BeaconScale, settings.ContractSocketHeight, 0f);
@@ -141,7 +141,7 @@ namespace DuneVector
                     contractOffset = settings.SandRingContractSocketOffset;
                     break;
                 default:
-                    contractOffset = new Vector3(0f, settings.ContractSocketHeight, 19f * settings.ExcavationScale);
+                    contractOffset = settings.ExcavationContractSocketOffset;
                     break;
             }
             Vector3 pickupDirection = Vector3.ProjectOnPlane(contractOffset, Vector3.up).normalized;
@@ -151,6 +151,17 @@ namespace DuneVector
             EncounterSocket = CreateSocket("Encounter Socket", Vector3.up * settings.EncounterSocketHeight);
             LootSocket = CreateSocket("Loot Socket", new Vector3(4f, 2f, -3f));
             FlightPathSocket = CreateSocket("Flight Path Socket", Vector3.up * settings.FlightSocketHeight);
+        }
+
+        public void PositionContractSocket(Vector3 localOffset, float landmarkClearance)
+        {
+            if (ContractSocket == null)
+            {
+                return;
+            }
+
+            Vector3 pickupDirection = Vector3.ProjectOnPlane(localOffset, Vector3.up).normalized;
+            ContractSocket.localPosition = localOffset + pickupDirection * Mathf.Max(0f, landmarkClearance);
         }
 
         public void PositionDeliverySocketAboveVisuals(float clearance)
@@ -1261,7 +1272,14 @@ namespace DuneVector
             excavation.transform.localPosition = Vector3.zero;
             excavation.transform.localRotation = prefabRotation;
             excavation.transform.localScale = prefabScale;
-            GroundPrefabToDunes(excavation.transform, _settings.ExcavationGroundingSamplesPerAxis, 0f);
+            // Match the foundation's local underside to the dune envelope. On level ground this
+            // preserves the existing placement; only uneven placements with an exposed underside
+            // receive the additional downward correction needed to keep the base in the sand.
+            GroundPrefabToDunes(
+                excavation.transform,
+                _settings.ExcavationGroundingSamplesPerAxis,
+                0f,
+                lowerEnvelopeCoverage: 1f);
         }
 
         private void GroundPrefabToDunes(
@@ -1602,6 +1620,14 @@ namespace DuneVector
                 installation.localPosition = offset;
                 installation.localRotation = Quaternion.Euler(0f, SeedRange(seed, i, 7303, 0f, 360f), 0f);
 
+                if (i == 0)
+                {
+                    DuneVectorLandmarkInstance instance = root.GetComponent<DuneVectorLandmarkInstance>();
+                    instance?.PositionContractSocket(
+                        offset + _settings.HarvesterContractSocketOffset,
+                        _settings.PickupRingLandmarkClearance);
+                }
+
                 float state = SeedRange(seed, i, 7305, 0f, 1f);
                 bool fallen = state < _settings.HarvesterFallenChance;
                 if (!hasFallen && i == count - 1 && _settings.HarvesterFallenChance > 0f)
@@ -1657,6 +1683,9 @@ namespace DuneVector
                     float wingsRotation = SeedRange(seed, i, 7327, minimum, maximum);
                     wings.localRotation *= Quaternion.Euler(0f, 0f, wingsRotation);
                 }
+
+                // Keep the prefab's authored root scale as the final placement operation.
+                harvester.transform.localScale = prefabScale;
             }
             BuildDebrisTrail(root, "Harvester Field Debris", seed + 79, _settings.HarvesterDebrisCount,
                 fieldRadius, _settings.HarvesterRingThickness * 2.5f, Vector3.forward,
@@ -1818,6 +1847,9 @@ namespace DuneVector
                 sandRing.transform,
                 _settings.SandRingGroundingSamplesPerAxis,
                 _settings.SandRingBurialDepth);
+
+            // Grounding only moves the prefab; restore its authored scale last so it remains exact.
+            sandRing.transform.localScale = prefabScale;
         }
 
         private void BuildCurvedTower(Transform parent, float height, float curve,

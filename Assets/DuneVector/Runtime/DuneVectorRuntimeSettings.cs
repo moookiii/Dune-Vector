@@ -1354,7 +1354,13 @@ namespace DuneVector
         [Range(0f, 1f)] public float LandmarkMetallic;
 
         [Header("Landmark Contract Sockets")]
-        [Tooltip("Objective socket offsets for the five large and region-defining landmark compositions.")]
+        [Tooltip("Objective socket offset for the ruins prefab used by the Relay Station landmark.")]
+        public Vector3 RelayContractSocketOffset;
+        [Tooltip("Objective socket offset for the DC-10 prefab used by the Crashed Carrier landmark.")]
+        public Vector3 CarrierContractSocketOffset;
+        [Tooltip("Objective socket offset for the desert obelisk prefab used by the Excavation landmark.")]
+        public Vector3 ExcavationContractSocketOffset;
+        [Tooltip("Objective socket offsets for the large and region-defining landmark compositions.")]
         public Vector3 OrbitalContractSocketOffset;
         public Vector3 MegagateContractSocketOffset;
         public Vector3 HarvesterContractSocketOffset;
