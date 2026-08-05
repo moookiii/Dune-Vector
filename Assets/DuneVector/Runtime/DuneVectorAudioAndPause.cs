@@ -655,7 +655,9 @@ namespace DuneVector
                 || _settings.PauseMenu.DefaultFilmGrainEnabled;
             VignetteEnabled = _settings.PauseMenu == null
                 || _settings.PauseMenu.DefaultVignetteEnabled;
-            AntiAliasingMode = _defaultAntiAliasingMode;
+            AntiAliasingMode = _defaultAntiAliasingMode == DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing
+                ? DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing
+                : _defaultAntiAliasingMode;
             if (!_settings.PersistVolumeSettings || !File.Exists(_preferencesPath))
             {
                 return;
@@ -685,7 +687,8 @@ namespace DuneVector
                         FilmGrainEnabled = stored.FilmGrainEnabled;
                     }
                     if (stored.Version >= 6 &&
-                        Enum.IsDefined(typeof(DuneVectorCameraAntiAliasingMode), stored.AntiAliasingMode))
+                        Enum.IsDefined(typeof(DuneVectorCameraAntiAliasingMode), stored.AntiAliasingMode) &&
+                        stored.AntiAliasingMode != (int)DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing)
                     {
                         AntiAliasingMode = (DuneVectorCameraAntiAliasingMode)stored.AntiAliasingMode;
                     }
@@ -1276,7 +1279,7 @@ namespace DuneVector
             y += sectionHeight + gap;
 
             float segmentedGap = gap;
-            float segmentedWidth = (content.width - (segmentedGap * 2f)) / 3f;
+            float segmentedWidth = (content.width - segmentedGap) / 2f;
             DrawAntiAliasingButton(
                 new Rect(content.x, y, segmentedWidth, buttonHeight),
                 _visuals.VideoAntiAliasingOffLabel,
@@ -1285,10 +1288,6 @@ namespace DuneVector
                 new Rect(content.x + segmentedWidth + segmentedGap, y, segmentedWidth, buttonHeight),
                 _visuals.VideoAntiAliasingSmaaLabel,
                 DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing);
-            DrawAntiAliasingButton(
-                new Rect(content.x + ((segmentedWidth + segmentedGap) * 2f), y, segmentedWidth, buttonHeight),
-                _visuals.VideoAntiAliasingTaaLabel,
-                DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing);
             y += buttonHeight + (gap * 2f);
 
             GUI.Label(new Rect(content.x, y, content.width, sectionHeight), _visuals.VideoSettingsSectionLabel, _sectionStyle);
