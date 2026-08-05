@@ -16,7 +16,6 @@ Shader "DuneVector/URP Sand Macro Variation"
         [HideInInspector] _DVSandMacroNoiseOffset("Macro Offset", Vector) = (1200, -800, 0, 0)
         [HideInInspector] _DVSandBrightnessNoiseOffset("Brightness Offset", Vector) = (-370, 910, 0, 0)
         [HideInInspector] _DVSandSaturationNoiseOffset("Saturation Offset", Vector) = (1420, 480, 0, 0)
-        [HideInInspector] _DVSandLogicalOriginOffset("Logical Origin Offset", Vector) = (0, 0, 0, 0)
         [HideInInspector] _DVSandDarkThreshold("Dark Threshold", Range(0, 1)) = 0.38
         [HideInInspector] _DVSandLightThreshold("Light Threshold", Range(0, 1)) = 0.62
         [HideInInspector] _DVSandTransitionSoftness("Transition Softness", Range(0.01, 0.25)) = 0.08
@@ -68,7 +67,6 @@ Shader "DuneVector/URP Sand Macro Variation"
                 float4 _DVSandMacroNoiseOffset;
                 float4 _DVSandBrightnessNoiseOffset;
                 float4 _DVSandSaturationNoiseOffset;
-                float4 _DVSandLogicalOriginOffset;
                 float4 _DVSandBrightnessRange;
                 float4 _DVSandSaturationRange;
                 half _Smoothness;
@@ -99,6 +97,7 @@ Shader "DuneVector/URP Sand Macro Variation"
                 half3 normalWS : TEXCOORD1;
                 float2 uv : TEXCOORD2;
                 half fogFactor : TEXCOORD3;
+                float2 logicalWorldXZ : TEXCOORD4;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
@@ -144,7 +143,7 @@ Shader "DuneVector/URP Sand Macro Variation"
                 half noise = GradientNoise(coordinate) * 0.625h;
                 noise += GradientNoise(coordinate * 2.03 + float2(19.1, -7.7)) * 0.25h;
                 noise += GradientNoise(coordinate * 4.11 + float2(-3.4, 13.8)) * 0.125h;
-                return saturate((noise - 0.5h) * 1.45h + 0.5h);
+                return saturate((noise - 0.5h) * 1.15h + 0.5h);
             }
 
             half3 ApplySaturation(half3 color, half saturation)
@@ -166,6 +165,7 @@ Shader "DuneVector/URP Sand Macro Variation"
                 output.positionWS = positionInputs.positionWS;
                 output.normalWS = NormalizeNormalPerVertex(normalInputs.normalWS);
                 output.uv = TRANSFORM_TEX(input.uv, _BaseMap);
+                output.logicalWorldXZ = input.uv;
                 output.fogFactor = ComputeFogFactor(positionInputs.positionCS.z);
                 return output;
             }
@@ -176,7 +176,7 @@ Shader "DuneVector/URP Sand Macro Variation"
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
 
                 half4 textureSample = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv) * _BaseColor;
-                float2 logicalWorldXZ = input.positionWS.xz + _DVSandLogicalOriginOffset.xy;
+                float2 logicalWorldXZ = input.logicalWorldXZ;
                 float macroPatternSize = max(_DVSandMacroPatternSize, 0.01);
                 float secondaryPatternSize = max(_DVSandSecondaryPatternSize, 0.01);
 

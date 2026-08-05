@@ -5589,7 +5589,7 @@ namespace DuneVector
         [ColorUsage(false)] public Color DuneSandMidColor = new Color(0.92f, 0.45f, 0.13f, 1f);
 
         [Tooltip("Darker, slightly desaturated reddish-brown assigned to low macro-noise regions.")]
-        [ColorUsage(false)] public Color DuneSandDarkColor = new Color(0.42f, 0.16f, 0.07f, 1f);
+        [ColorUsage(false)] public Color DuneSandDarkColor = new Color(0.62f, 0.24f, 0.08f, 1f);
 
         [Tooltip("World-space width, in meters, of the broad geographic sand-color pattern.")]
         [Range(300f, 700f)] public float DuneMacroColorPatternSize = 340f;
@@ -5613,13 +5613,13 @@ namespace DuneVector
         [Range(0f, 1f)] public float DuneMacroLightThreshold = 0.56f;
 
         [Tooltip("Softness of transitions between dark, mid, and light macro regions.")]
-        [Range(0.01f, 0.25f)] public float DuneMacroColorTransitionSoftness = 0.06f;
+        [Range(0.01f, 0.25f)] public float DuneMacroColorTransitionSoftness = 0.1f;
 
         [Tooltip("How strongly the three-color macro palette modifies the existing dune texture.")]
-        [Range(0f, 0.5f)] public float DuneMacroColorBlendStrength = 0.42f;
+        [Range(0f, 0.5f)] public float DuneMacroColorBlendStrength = 0.34f;
 
         [Tooltip("Lowest secondary brightness multiplier. Keep within 0.82 to 1.08 for natural sand.")]
-        [Range(0.82f, 1.08f)] public float DuneBrightnessMultiplierMinimum = 0.88f;
+        [Range(0.82f, 1.08f)] public float DuneBrightnessMultiplierMinimum = 0.94f;
 
         [Tooltip("Highest secondary brightness multiplier. Keep within 0.82 to 1.08 for natural sand.")]
         [Range(0.82f, 1.08f)] public float DuneBrightnessMultiplierMaximum = 1.07f;
@@ -5631,7 +5631,7 @@ namespace DuneVector
         [Range(0.92f, 1.06f)] public float DuneSaturationMultiplierMaximum = 1.05f;
 
         [Tooltip("Additional saturation multiplier applied only to dark macro regions.")]
-        [Range(0.9f, 1f)] public float DuneDarkRegionSaturationMultiplier = 0.92f;
+        [Range(0.9f, 1f)] public float DuneDarkRegionSaturationMultiplier = 0.94f;
 
         [Tooltip("Base smoothness of the streamed dune terrain.")]
         [Range(0f, 1f)] public float DuneSurfaceSmoothness = 0.14f;

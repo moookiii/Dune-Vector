@@ -470,7 +470,6 @@ namespace DuneVector
         public void SetTerrainLogicalOrigin(double originOffsetX, double originOffsetZ)
         {
             Vector4 origin = new Vector4((float)originOffsetX, (float)originOffsetZ, 0f, 0f);
-            Sand.SetVector("_DVSandLogicalOriginOffset", origin);
             for (int i = 0; i < GeoglyphOverlays.Length; i++)
             {
                 GeoglyphOverlays[i].SetVector("_DVGeoglyphOriginOffset", origin);
