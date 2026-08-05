@@ -16,8 +16,11 @@ namespace DuneVector
         private readonly Dictionary<Vector2Int, GameObject> _loadedCells =
             new Dictionary<Vector2Int, GameObject>();
         private readonly List<Vector2Int> _removalBuffer = new List<Vector2Int>();
+        private readonly Dictionary<GameObject, float> _prefabFootprintRadii =
+            new Dictionary<GameObject, float>();
 
         private DesertWorldStreamer _world;
+        private DuneVectorLandmarkDirector _landmarks;
         private ProceduralBuildingSystemTuning _settings;
         private GeoglyphSystemTuning _geoglyphs;
         private GameObject[] _prefabs = Array.Empty<GameObject>();
@@ -27,11 +30,13 @@ namespace DuneVector
         public void Initialize(
             DesertWorldStreamer world,
             ProceduralBuildingSystemTuning settings,
-            GeoglyphSystemTuning geoglyphs)
+            GeoglyphSystemTuning geoglyphs,
+            DuneVectorLandmarkDirector landmarks)
         {
             _world = world;
             _settings = settings;
             _geoglyphs = geoglyphs;
+            _landmarks = landmarks;
             _prefabs = Resources.LoadAll<GameObject>(_settings.ResourceFolder ?? string.Empty);
             Array.Sort(_prefabs, (left, right) =>
                 string.Compare(left != null ? left.name : string.Empty,
@@ -182,6 +187,17 @@ namespace DuneVector
                     cell.x, cell.y, _world.WorldSeed,
                     PositionZSalt + saltOffset, inset, cellSize - inset);
 
+                int prefabIndex = Mathf.Min(
+                    _prefabs.Length - 1,
+                    Mathf.FloorToInt(DuneVectorMath.Hash01(
+                        cell.x, cell.y, _world.WorldSeed,
+                        PrefabSalt + saltOffset) * _prefabs.Length));
+                GameObject prefab = _prefabs[prefabIndex];
+                if (prefab == null)
+                {
+                    continue;
+                }
+
                 Vector2 hubOffset = new Vector2(
                     (float)(logicalX - DesertWorldStreamer.StartingLogicalPosition.x),
                     (float)(logicalZ - DesertWorldStreamer.StartingLogicalPosition.y));
@@ -196,20 +212,14 @@ namespace DuneVector
                     continue;
                 }
 
-                Vector3 normal = _world.HeightField.SampleNormal(logicalX, logicalZ);
-                float slope = Vector3.Angle(normal, Vector3.up);
-                if (slope > Mathf.Clamp(_settings.MaximumPlacementSlope, 0f, 50f))
+                if (OverlapsLandmark(logicalX, logicalZ, prefab))
                 {
                     continue;
                 }
 
-                int prefabIndex = Mathf.Min(
-                    _prefabs.Length - 1,
-                    Mathf.FloorToInt(DuneVectorMath.Hash01(
-                        cell.x, cell.y, _world.WorldSeed,
-                        PrefabSalt + saltOffset) * _prefabs.Length));
-                GameObject prefab = _prefabs[prefabIndex];
-                if (prefab == null)
+                Vector3 normal = _world.HeightField.SampleNormal(logicalX, logicalZ);
+                float slope = Vector3.Angle(normal, Vector3.up);
+                if (slope > Mathf.Clamp(_settings.MaximumPlacementSlope, 0f, 50f))
                 {
                     continue;
                 }
@@ -246,6 +256,55 @@ namespace DuneVector
                 logicalX,
                 logicalZ,
                 _settings.GeoglyphClearance);
+        }
+
+        private bool OverlapsLandmark(double logicalX, double logicalZ, GameObject prefab)
+        {
+            if (_landmarks == null)
+            {
+                return false;
+            }
+
+            return _landmarks.OverlapsLandmarkFootprint(
+                logicalX,
+                logicalZ,
+                GetPrefabFootprintRadius(prefab) + _settings.LandmarkClearance);
+        }
+
+        private float GetPrefabFootprintRadius(GameObject prefab)
+        {
+            if (_prefabFootprintRadii.TryGetValue(prefab, out float cachedRadius))
+            {
+                return cachedRadius;
+            }
+
+            float radius = 0f;
+            Renderer[] renderers = prefab.GetComponentsInChildren<Renderer>(true);
+            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            {
+                Renderer renderer = renderers[rendererIndex];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                Bounds localBounds = renderer.localBounds;
+                for (int corner = 0; corner < 8; corner++)
+                {
+                    Vector3 rendererCorner = localBounds.center + Vector3.Scale(
+                        localBounds.extents,
+                        new Vector3(
+                            (corner & 1) == 0 ? -1f : 1f,
+                            (corner & 2) == 0 ? -1f : 1f,
+                            (corner & 4) == 0 ? -1f : 1f));
+                    Vector3 worldCorner = renderer.transform.TransformPoint(rendererCorner);
+                    Vector3 fromRoot = worldCorner - prefab.transform.position;
+                    radius = Mathf.Max(radius, new Vector2(fromRoot.x, fromRoot.z).magnitude);
+                }
+            }
+
+            _prefabFootprintRadii[prefab] = radius;
+            return radius;
         }
 
         private void GroundToDunes(Transform prefab)

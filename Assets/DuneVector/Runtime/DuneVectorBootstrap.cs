@@ -716,7 +716,11 @@ namespace DuneVector
             GameObject buildingObject = new GameObject("Procedural Building Director");
             buildingObject.transform.SetParent(transform, false);
             BuildingDirector = buildingObject.AddComponent<DuneVectorProceduralBuildingDirector>();
-            BuildingDirector.Initialize(World, RuntimeSettings.Buildings, RuntimeSettings.Geoglyphs);
+            BuildingDirector.Initialize(
+                World,
+                RuntimeSettings.Buildings,
+                RuntimeSettings.Geoglyphs,
+                LandmarkDirector);
         }
 
         private static Bloom FindGlobalBloom(Volume runtimeEnvironmentVolume)

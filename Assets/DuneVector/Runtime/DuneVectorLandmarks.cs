@@ -351,6 +351,51 @@ namespace DuneVector
         public IReadOnlyList<DuneVectorLandmarkInstance> ContractLandmarks => _pinned;
         public IReadOnlyDictionary<Vector2Int, DuneLandmarkPlacementRecord> PlacementRecords => _placementRecords;
 
+        public bool OverlapsLandmarkFootprint(
+            double logicalX,
+            double logicalZ,
+            float additionalClearance)
+        {
+            if (_world == null || _settings == null || !_settings.Enabled)
+            {
+                return false;
+            }
+
+            float clearance = Mathf.Max(0f, additionalClearance);
+            float maximumLandmarkRadius = Mathf.Max(
+                GetExclusionRadius(DuneLandmarkType.DesertRelayStation),
+                GetExclusionRadius(DuneLandmarkType.AncientSpire),
+                GetExclusionRadius(DuneLandmarkType.SandRing));
+            float cellSize = Mathf.Max(1f, _settings.PlacementCellSize);
+            int searchRadius = Mathf.Max(1, Mathf.CeilToInt(
+                (maximumLandmarkRadius + clearance) / cellSize));
+            Vector2Int center = LogicalToCell(new LogicalPosition(logicalX, logicalZ));
+
+            for (int z = -searchRadius; z <= searchRadius; z++)
+            {
+                for (int x = -searchRadius; x <= searchRadius; x++)
+                {
+                    DuneLandmarkPlacementRecord record = GetOrCreatePlacementRecord(
+                        center + new Vector2Int(x, z));
+                    if (record == null)
+                    {
+                        continue;
+                    }
+
+                    double deltaX = record.LogicalPosition.X - logicalX;
+                    double deltaZ = record.LogicalPosition.Z - logicalZ;
+                    double requiredSeparation = record.ExclusionRadius + clearance;
+                    if ((deltaX * deltaX) + (deltaZ * deltaZ) <
+                        requiredSeparation * requiredSeparation)
+                    {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
         public void Initialize(
             DesertWorldStreamer world,
             DuneVectorMaterials materials,

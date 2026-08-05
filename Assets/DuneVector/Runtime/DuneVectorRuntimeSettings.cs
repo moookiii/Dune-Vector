@@ -1589,6 +1589,8 @@ namespace DuneVector
         [Min(0f)] public float HubExclusionRadius = 100f;
         [Tooltip("Extra horizontal clearance around each geoglyph's visible authored footprint.")]
         [Min(0f)] public float GeoglyphClearance = 35f;
+        [Tooltip("Extra horizontal clearance between a building's measured prefab footprint and every landmark exclusion footprint.")]
+        [Min(0f)] public float LandmarkClearance = 20f;
         [Range(0f, 50f)] public float MaximumPlacementSlope = 35f;
         [Tooltip("Alternative deterministic positions tried when a candidate lands inside an exclusion zone or on an excessive slope.")]
         [Range(1, 8)] public int PlacementAttemptsPerBuilding = 4;
