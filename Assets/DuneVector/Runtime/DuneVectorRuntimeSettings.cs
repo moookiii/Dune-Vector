@@ -4780,7 +4780,7 @@ namespace DuneVector
         [Tooltip("State label shown while the music visualizer is active.")]
         public string ControlsVisualizerEnabledLabel = "ALL";
         [Tooltip("State label shown when the visualizer is active without bass rings.")]
-        public string ControlsVisualizerNoBassRingsLabel = "NO BASS RINGS";
+        public string ControlsVisualizerNoBassRingsLabel = "NO RINGS / NO FLASH";
         [Tooltip("State label shown while the music visualizer is inactive.")]
         public string ControlsVisualizerDisabledLabel = "OFF";
 

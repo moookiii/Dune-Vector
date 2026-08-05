@@ -53,6 +53,11 @@ namespace DuneVector
 
         public void ApplyContinuous(in MusicReactiveRuntimeState state)
         {
+            if ((state.Permissions & MusicVisualEffectGroups.Glitch) == 0
+                && (_strength > 0f || DuneVectorMusicGlitchRuntime.Intensity > 0f))
+            {
+                ResetMusicResponse();
+            }
         }
 
         public void Dispatch(in MusicVisualDispatchCommand command, in MusicReactiveRuntimeState state)

@@ -119,6 +119,14 @@ namespace DuneVector
         public void ApplyContinuous(in MusicReactiveRuntimeState state)
         {
             _continuousBass = state.Bass;
+            if ((state.Permissions & MusicVisualEffectGroups.Structures) == 0
+                && _reactionLight != null)
+            {
+                _reactionLightAge = 0f;
+                _reactionLightStrength = 0f;
+                _reactionLight.intensity = 0f;
+                _reactionLight.enabled = false;
+            }
             using (ShaderGlobalsMarker.Auto())
             {
                 Shader.SetGlobalVector(ContinuousId, new Vector4(state.Bass, state.Mid, state.High, state.Energy));

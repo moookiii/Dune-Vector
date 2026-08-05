@@ -103,6 +103,13 @@ namespace DuneVector
             {
                 ClearVisualResponse();
             }
+            else if (_visualizerMode == MusicVisualizerMode.NoBassRings && _bloom != null)
+            {
+                _currentBloomIntensity = _baseBloomIntensity;
+                _currentBloomThreshold = _baseBloomThreshold;
+                _bloom.intensity.value = _baseBloomIntensity;
+                _bloom.threshold.value = _baseBloomThreshold;
+            }
         }
 
         private void ApplyAuthoredSkySettings()
@@ -439,9 +446,10 @@ namespace DuneVector
                 return;
             }
 
+            bool bloomAllowed = _visualizerMode == MusicVisualizerMode.All;
             float bloomTarget = _baseBloomIntensity
-                + energy * _settings.BloomEnergyBoost
-                + _bassPulse * _settings.BloomBassPulseBoost;
+                + (bloomAllowed ? energy * _settings.BloomEnergyBoost : 0f)
+                + (bloomAllowed ? _bassPulse * _settings.BloomBassPulseBoost : 0f);
             bloomTarget = Mathf.Min(
                 bloomTarget,
                 Mathf.Max(_baseBloomIntensity, _settings.BloomMaximumIntensity));
@@ -483,7 +491,9 @@ namespace DuneVector
             float contribution = bloomAllowed ? state.Bloom : 0f;
             float bloomTarget = _baseBloomIntensity
                 + contribution * _settings.BloomEnergyBoost
-                + state.Analysis.BassTransient * _settings.BloomBassPulseBoost;
+                + (bloomAllowed
+                    ? state.Analysis.BassTransient * _settings.BloomBassPulseBoost
+                    : 0f);
             bloomTarget = Mathf.Min(
                 bloomTarget,
                 Mathf.Max(_baseBloomIntensity, _settings.BloomMaximumIntensity));

@@ -656,6 +656,14 @@ namespace DuneVector
             _state.VisualTier = section.VisualTier;
             _state.Multipliers = multipliers;
             _state.Permissions = section.Permissions;
+            if (_audio.VisualizerMode == MusicVisualizerMode.NoBassRings)
+            {
+                _state.Permissions &= ~(
+                    MusicVisualEffectGroups.Structures
+                    | MusicVisualEffectGroups.Glitch
+                    | MusicVisualEffectGroups.HudBorder
+                    | MusicVisualEffectGroups.Bloom);
+            }
             _state.Bass = Mathf.Clamp01(analysis.SmoothedBass * multipliers.Bass);
             _state.Mid = Mathf.Clamp01(analysis.SmoothedMid * multipliers.Mid);
             _state.High = Mathf.Clamp01(analysis.SmoothedHigh * multipliers.High);
@@ -903,7 +911,7 @@ namespace DuneVector
                 Type = cue.Cue,
                 Strength = cue.Strength,
                 DurationBeats = cue.DurationBeats,
-                AllowedEffects = cue.AllowedEffects,
+                AllowedEffects = cue.AllowedEffects & _state.Permissions,
                 CueIndex = cueIndex,
                 DeterministicSeed = cue.Seed ^ _state.Timeline.PlaybackGeneration ^ (uint)_profile.StableTrackHash,
                 IsAuthored = true,
