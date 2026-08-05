@@ -28,7 +28,7 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 6;
+            public int Version = 7;
             public float MusicVolume;
             public float SoundEffectsVolume;
             public bool MusicVisualizerEnabled = true;
@@ -37,6 +37,7 @@ namespace DuneVector
             public bool LensDistortionEnabled = true;
             public bool CrtLinesEnabled = true;
             public bool FilmGrainEnabled = true;
+            public bool VignetteEnabled = true;
             public int AntiAliasingMode;
         }
 
@@ -47,6 +48,7 @@ namespace DuneVector
         public bool LensDistortionEnabled { get; private set; } = true;
         public bool CrtLinesEnabled { get; private set; } = true;
         public bool FilmGrainEnabled { get; private set; } = true;
+        public bool VignetteEnabled { get; private set; } = true;
         public DuneVectorCameraAntiAliasingMode AntiAliasingMode { get; private set; }
         public event Action<MusicVisualizerMode> MusicVisualizerModeChanged;
 
@@ -416,6 +418,18 @@ namespace DuneVector
             FlushPreferences();
         }
 
+        public void SetVignetteEnabled(bool enabled)
+        {
+            if (VignetteEnabled == enabled)
+            {
+                return;
+            }
+
+            VignetteEnabled = enabled;
+            _preferencesDirty = true;
+            FlushPreferences();
+        }
+
         public void SetAntiAliasingMode(DuneVectorCameraAntiAliasingMode mode)
         {
             if (!Enum.IsDefined(typeof(DuneVectorCameraAntiAliasingMode), mode))
@@ -639,6 +653,8 @@ namespace DuneVector
                 || _settings.PauseMenu.DefaultCrtLinesEnabled;
             FilmGrainEnabled = _settings.PauseMenu == null
                 || _settings.PauseMenu.DefaultFilmGrainEnabled;
+            VignetteEnabled = _settings.PauseMenu == null
+                || _settings.PauseMenu.DefaultVignetteEnabled;
             AntiAliasingMode = _defaultAntiAliasingMode;
             if (!_settings.PersistVolumeSettings || !File.Exists(_preferencesPath))
             {
@@ -648,7 +664,7 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version >= 1 && stored.Version <= 6)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 7)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
@@ -672,6 +688,10 @@ namespace DuneVector
                         Enum.IsDefined(typeof(DuneVectorCameraAntiAliasingMode), stored.AntiAliasingMode))
                     {
                         AntiAliasingMode = (DuneVectorCameraAntiAliasingMode)stored.AntiAliasingMode;
+                    }
+                    if (stored.Version >= 7)
+                    {
+                        VignetteEnabled = stored.VignetteEnabled;
                     }
                 }
             }
@@ -706,6 +726,7 @@ namespace DuneVector
                     LensDistortionEnabled = LensDistortionEnabled,
                     CrtLinesEnabled = CrtLinesEnabled,
                     FilmGrainEnabled = FilmGrainEnabled,
+                    VignetteEnabled = VignetteEnabled,
                     AntiAliasingMode = (int)AntiAliasingMode,
                 };
                 File.WriteAllText(_preferencesPath, JsonUtility.ToJson(stored));
@@ -772,6 +793,7 @@ namespace DuneVector
         private readonly Dictionary<ChromaticAberration, bool> _chromaticAberrationOriginalStates = new();
         private readonly Dictionary<LensDistortion, bool> _lensDistortionOriginalStates = new();
         private readonly Dictionary<FilmGrain, bool> _filmGrainOriginalStates = new();
+        private readonly Dictionary<Vignette, bool> _vignetteOriginalStates = new();
         private RetroCrtScanlineTuning _retroCrtScanlines;
 
         private GUIStyle _titleStyle;
@@ -1298,6 +1320,13 @@ namespace DuneVector
                 _visuals.VideoFilmGrainLabel,
                 _audio == null || _audio.FilmGrainEnabled,
                 value => _audio?.SetFilmGrainEnabled(value));
+            y += buttonHeight + gap;
+
+            DrawVideoToggle(
+                new Rect(content.x, y, content.width, buttonHeight),
+                _visuals.VideoVignetteLabel,
+                _audio == null || _audio.VignetteEnabled,
+                value => _audio?.SetVignetteEnabled(value));
             y += buttonHeight + (gap * 2f);
 
             if (GUI.Button(
@@ -1361,6 +1390,10 @@ namespace DuneVector
             ApplyVolumePreference(
                 _audio == null || _audio.FilmGrainEnabled,
                 _filmGrainOriginalStates);
+            ApplyVolumePreference(
+                _audio == null || _audio.VignetteEnabled,
+                _vignetteOriginalStates,
+                true);
 
             if (_retroCrtScanlines?.Material != null)
             {
@@ -1393,13 +1426,18 @@ namespace DuneVector
             };
         }
 
-        private static void ApplyVolumePreference<T>(bool enabled, Dictionary<T, bool> originalStates)
+        private static void ApplyVolumePreference<T>(
+            bool enabled,
+            Dictionary<T, bool> originalStates,
+            bool globalVolumesOnly = false)
             where T : VolumeComponent
         {
             Volume[] volumes = FindObjectsByType<Volume>(FindObjectsInactive.Include);
             foreach (Volume volume in volumes)
             {
-                if (volume == null || volume.sharedProfile == null)
+                if (volume == null
+                    || volume.sharedProfile == null
+                    || (globalVolumesOnly && !volume.isGlobal))
                 {
                     continue;
                 }
