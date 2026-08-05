@@ -384,7 +384,7 @@ Shader "DuneVector/URP Y2K Sky"
             _ReactiveAuroraThickness * 0.62);
         float auroraShimmer = (1.0 - _ReactiveAuroraShimmerAmount)
             + _ReactiveAuroraShimmerAmount * sin(
-            normalizedAzimuth * 37.0
+            normalizedAzimuth * TWO_PI * 37.0
             - reactiveTime * (_ReactiveAuroraTravelSpeed * 5.0));
         float auroraMask = (auroraPrimary + auroraSecondary * _ReactiveAuroraSecondaryIntensity)
             * saturate(auroraShimmer)
