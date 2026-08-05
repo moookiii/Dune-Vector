@@ -1148,7 +1148,7 @@ namespace DuneVector
     {
         public bool Enabled = true;
         [Min(0f)] public float PlatformHeightAboveTerrain = 24f;
-        [Tooltip("Hub-local anchor for the rune ring. Its lowest mesh point is aligned to this height.")]
+        [Tooltip("Hub-local horizontal anchor for the rune ring. Y offsets its highest mesh point from the platform underside.")]
         public Vector3 RuneRingLocalPosition = Vector3.zero;
         [Min(8f)] public float PlatformRadius = 26f;
         [Min(0.5f)] public float PlatformThickness = 2.4f;

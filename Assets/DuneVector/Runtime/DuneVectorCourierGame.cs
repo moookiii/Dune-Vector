@@ -990,6 +990,43 @@ namespace DuneVector
             _hubRuneRing.localPosition = _hubSettings.RuneRingLocalPosition;
             _hubRuneRing.localRotation = prefabRotation;
             _hubRuneRing.localScale = prefabScale;
+
+            if (TryGetHubLocalMeshMaximumY(_hubRuneRing, out float maximumY))
+            {
+                float desiredTopY = _hubSettings.RuneRingLocalPosition.y
+                    - (_hubSettings.PlatformThickness * 0.5f);
+                float topAlignment = desiredTopY - maximumY;
+                _hubRuneRing.localPosition += Vector3.up * topAlignment;
+            }
+        }
+
+        private bool TryGetHubLocalMeshMaximumY(Transform root, out float maximumY)
+        {
+            maximumY = float.NegativeInfinity;
+            MeshFilter[] meshFilters = root.GetComponentsInChildren<MeshFilter>(true);
+            for (int meshIndex = 0; meshIndex < meshFilters.Length; meshIndex++)
+            {
+                MeshFilter meshFilter = meshFilters[meshIndex];
+                Mesh mesh = meshFilter.sharedMesh;
+                if (mesh == null)
+                {
+                    continue;
+                }
+
+                Bounds bounds = mesh.bounds;
+                for (int cornerIndex = 0; cornerIndex < 8; cornerIndex++)
+                {
+                    Vector3 meshCorner = new Vector3(
+                        (cornerIndex & 1) == 0 ? bounds.min.x : bounds.max.x,
+                        (cornerIndex & 2) == 0 ? bounds.min.y : bounds.max.y,
+                        (cornerIndex & 4) == 0 ? bounds.min.z : bounds.max.z);
+                    Vector3 hubLocalCorner = _hubRoot.InverseTransformPoint(
+                        meshFilter.transform.TransformPoint(meshCorner));
+                    maximumY = Mathf.Max(maximumY, hubLocalCorner.y);
+                }
+            }
+
+            return !float.IsNegativeInfinity(maximumY);
         }
 
         private Transform BuildPhysicalTerminal(string objectName, Vector3 localPosition, Quaternion localRotation)
