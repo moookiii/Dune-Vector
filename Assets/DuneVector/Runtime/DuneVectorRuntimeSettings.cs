@@ -1492,6 +1492,12 @@ namespace DuneVector
         [Range(0, 50)] public int ArcologyDebrisCount;
 
         [Header("Sand Ring Detail")]
+        [Tooltip("Optional direct fallback prefab used when the ruined rings Resources path cannot be resolved. Its authored scale and rotation are preserved.")]
+        public GameObject SandRingPrefab;
+        [Tooltip("Primary Resources path used to load the ruined rings prefab.")]
+        public string SandRingResourcePath = "RuinedRingsPrefab";
+        [Tooltip("Samples per axis used to ground the ruined rings across the dunes.")]
+        [Range(2, 9)] public int SandRingGroundingSamplesPerAxis = 5;
         [Min(4f)] public float SandRingRadius;
         [Range(12, 64)] public int SandRingSegmentCount;
         [Min(0.2f)] public float SandRingThickness;

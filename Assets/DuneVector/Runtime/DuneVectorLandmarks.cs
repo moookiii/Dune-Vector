@@ -1780,77 +1780,32 @@ namespace DuneVector
 
         private void BuildSandRing(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
-            float radius = Mathf.Max(4f, _settings.SandRingRadius);
-            float centerHeight = radius - _settings.SandRingBurialDepth;
-            Transform ring = new GameObject("Colossal Sand Ring").transform;
-            ring.SetParent(root, false);
-            ring.localPosition = Vector3.up * centerHeight;
-            ring.localRotation = Quaternion.Euler(0f, 0f, _settings.SandRingTilt);
-            VerticalSegmentedRing(ring, "Sand Ring Segment", radius, _settings.SandRingThickness,
-                _settings.SandRingSegmentCount, _settings.SandRingMissingSegmentCount, seed,
-                _materials.LandmarkMetal, true, _materials.LandmarkSecondary);
-            VerticalSegmentedRing(ring, "Sand Ring Inner Spine",
-                radius - (_settings.SandRingThickness * 0.92f),
-                _settings.SandRingThickness * 0.28f,
-                _settings.SandRingSegmentCount, _settings.SandRingMissingSegmentCount,
-                seed, _materials.LandmarkInterior, false, _materials.LandmarkAccent);
-
-            int segmentCount = Mathf.Max(3, _settings.SandRingSegmentCount);
-            for (int i = 0; i < segmentCount; i++)
+            GameObject sandRingPrefab = null;
+            if (!string.IsNullOrWhiteSpace(_settings.SandRingResourcePath))
             {
-                if (!IsMissingSegment(i, segmentCount, _settings.SandRingMissingSegmentCount, seed))
-                {
-                    continue;
-                }
-                float angle = (360f / segmentCount) * i;
-                Vector3 edge = Quaternion.Euler(0f, 0f, angle) * Vector3.right * radius;
-                Part(PrimitiveType.Cube, $"Exposed Ring Break Framework {i + 1}", ring, edge,
-                    Vector3.one * (_settings.SandRingThickness * 0.72f),
-                    Quaternion.Euler(angle, angle * 0.4f, 45f), _materials.LandmarkAccent, false);
+                sandRingPrefab = Resources.Load<GameObject>(_settings.SandRingResourcePath);
+            }
+            if (sandRingPrefab == null)
+            {
+                sandRingPrefab = _settings.SandRingPrefab;
+            }
+            if (sandRingPrefab == null)
+            {
+                Debug.LogWarning("Sand ring replacement prefab could not be resolved from Dune Vector Runtime Settings.", root);
+                return;
             }
 
-            int supportCount = Mathf.Max(0, _settings.SandRingSupportCount);
-            for (int i = 0; i < supportCount; i++)
-            {
-                float t = supportCount == 1 ? 0.5f : i / (float)(supportCount - 1);
-                float side = i % 2 == 0 ? -1f : 1f;
-                float x = Mathf.Lerp(-radius * 0.82f, radius * 0.82f, t);
-                Vector3 ground = new Vector3(x, 0f, side * _settings.SandRingSupportRadius * 0.34f);
-                ground.y = TerrainLocalHeight(root, ground) - _settings.SandRingBurialDepth * 0.12f;
-                float normalizedX = Mathf.Clamp(x / radius, -1f, 1f);
-                float ringY = centerHeight - Mathf.Sqrt(Mathf.Max(0f, radius * radius - x * x));
-                Vector3 anchor = new Vector3(x, ringY + radius * 0.12f, 0f);
-                BeamBetween(root, $"Sand Ring Stabilizer {i + 1}", ground, anchor,
-                    _settings.SandRingThickness * 0.55f, _materials.LandmarkInterior, true);
-                Part(PrimitiveType.Cube, $"Sand Ring Footing {i + 1}", root, ground,
-                    new Vector3(_settings.SandRingThickness * 2.2f,
-                        _settings.SandRingThickness * 0.65f, _settings.SandRingThickness * 2.8f),
-                    Quaternion.Euler(0f, side * 12f, normalizedX * 6f),
-                    _materials.LandmarkStone, true);
-                if (i % 2 == 0)
-                {
-                    Vector3 cableEnd = ground + new Vector3(side * _settings.SandRingThickness,
-                        _settings.SandRingThickness * 0.4f, -side * _settings.SandRingThickness * 1.8f);
-                    BeamBetween(root, $"Broken Ring Cable {i + 1}", anchor, cableEnd,
-                        _settings.SandRingThickness * 0.1f, _materials.LandmarkInterior, false);
-                }
-            }
-
-            int accentCount = Mathf.Max(3, segmentCount / 8);
-            for (int i = 0; i < accentCount; i++)
-            {
-                float angle = (360f / accentCount) * i + SeedRange(seed, i, 7481, -8f, 8f);
-                Vector3 point = Quaternion.Euler(0f, 0f, angle) * Vector3.right *
-                    (radius - _settings.SandRingThickness * 1.1f);
-                Transform accent = Part(PrimitiveType.Sphere, $"Ring Energy Node {i + 1}", ring, point,
-                    Vector3.one * (_settings.SandRingThickness * 0.32f), Quaternion.identity,
-                    _materials.LandmarkAccent, false);
-                animator.RegisterPulse(accent, _settings.BeaconPulseAmount,
-                    _settings.BeaconPulseSpeed, i * 0.4f);
-            }
-            BuildDebrisTrail(root, "Sand Ring Damage Debris", seed + 151, _settings.SandRingDebrisCount,
-                _settings.SandRingDebrisSpread, _settings.SandRingThickness * 1.15f,
-                Vector3.right, _materials.LandmarkInterior, 7491);
+            Vector3 prefabScale = sandRingPrefab.transform.localScale;
+            Quaternion prefabRotation = sandRingPrefab.transform.localRotation;
+            GameObject sandRing = UnityEngine.Object.Instantiate(sandRingPrefab, root, false);
+            sandRing.name = sandRingPrefab.name;
+            sandRing.transform.localPosition = Vector3.zero;
+            sandRing.transform.localRotation = prefabRotation;
+            sandRing.transform.localScale = prefabScale;
+            GroundPrefabToDunes(
+                sandRing.transform,
+                _settings.SandRingGroundingSamplesPerAxis,
+                _settings.SandRingBurialDepth);
         }
 
         private void BuildCurvedTower(Transform parent, float height, float curve,
