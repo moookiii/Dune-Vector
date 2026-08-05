@@ -5440,6 +5440,12 @@ namespace DuneVector
         [Min(20f)] public float WorldMapHeaderHeight = 58f;
         [Min(20f)] public float WorldMapFooterHeight = 44f;
         [Range(0f, 1f)] public float OverlayOpacity = 0.96f;
+        [Tooltip("Fullscreen artwork shown behind the world-map panel.")]
+        public Texture2D WorldMapBackdropImage;
+        [Tooltip("Color tint applied to the world-map backdrop artwork.")]
+        [ColorUsage(false)] public Color WorldMapBackdropTint = Color.white;
+        [Tooltip("Opacity of the world-map backdrop artwork over the fallback overlay color.")]
+        [Range(0f, 1f)] public float WorldMapBackdropOpacity = 1f;
 
         [Header("Panel")]
         [Min(0f)] public float ContentPadding = 12f;

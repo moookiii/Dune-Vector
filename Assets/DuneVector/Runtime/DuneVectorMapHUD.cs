@@ -390,9 +390,11 @@ namespace DuneVector
 
         private void DrawWorldMap()
         {
+            Rect screenRect = new Rect(0f, 0f, Screen.width, Screen.height);
             Color overlay = _settings.OverlayColor;
             overlay.a *= _settings.OverlayOpacity;
-            DrawSolidRect(new Rect(0f, 0f, Screen.width, Screen.height), overlay);
+            DrawSolidRect(screenRect, overlay);
+            DrawWorldMapBackdrop(screenRect);
 
             Rect panelRect = GetWorldMapPanelRect();
             float scale = GetMapScale();
@@ -500,6 +502,26 @@ namespace DuneVector
                     footerRect.height),
                 _settings.WorldMapHint,
                 _worldMapHintStyle);
+        }
+
+        private void DrawWorldMapBackdrop(Rect screenRect)
+        {
+            Texture2D backdrop = _settings.WorldMapBackdropImage;
+            if (backdrop == null || _settings.WorldMapBackdropOpacity <= 0f)
+            {
+                return;
+            }
+
+            Color previousColor = GUI.color;
+            Color backdropColor = _settings.WorldMapBackdropTint;
+            backdropColor.a *= _settings.WorldMapBackdropOpacity;
+            GUI.color = backdropColor;
+            GUI.DrawTexture(
+                screenRect,
+                backdrop,
+                ScaleMode.ScaleAndCrop,
+                true);
+            GUI.color = previousColor;
         }
 
         private void HandleWorldMapInput(
