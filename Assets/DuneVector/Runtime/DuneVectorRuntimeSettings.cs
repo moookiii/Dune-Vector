@@ -4070,6 +4070,22 @@ namespace DuneVector
         [Min(0f)] public float ForegroundStreakForwardOffset = 4f;
         [Min(0f)] public float ForegroundStreakVelocityScale = 0.18f;
         [Min(0f)] public float ForegroundStreakLengthScale = 1.6f;
+        [Tooltip("Music energy at or below which center-out streak bursts receive the slow-passage punch multiplier.")]
+        [Range(0f, 1f)] public float ForegroundStreakSlowEnergyThreshold = 0.62f;
+        [Tooltip("Burst-count and travel-speed multiplier used during low-energy passages.")]
+        [Range(1f, 5f)] public float ForegroundStreakSlowPunchMultiplier = 3f;
+        [Tooltip("Number of evenly spaced hues in the center-out streak palette.")]
+        [Range(2, 64)] public int ForegroundStreakPaletteColorCount = 20;
+        [Range(0f, 1f)] public float ForegroundStreakPaletteSaturation = 0.9f;
+        [Range(0f, 1f)] public float ForegroundStreakPaletteValue = 1f;
+        [Min(0f)] public float ForegroundStreakPaletteEmission = 3.2f;
+        [Tooltip("Controls how sharply the premium streak silhouette tapers toward both ends.")]
+        [Range(0.25f, 4f)] public float ForegroundStreakTipSharpness = 1.35f;
+        [Range(0f, 0.5f)] public float ForegroundStreakMinimumWidth = 0.06f;
+        [Range(0.02f, 1f)] public float ForegroundStreakCoreWidth = 0.24f;
+        [Min(0f)] public float ForegroundStreakCoreBrightness = 1.8f;
+        [Min(0f)] public float ForegroundStreakHaloBrightness = 0.42f;
+        [Range(0.001f, 0.25f)] public float ForegroundStreakEndFade = 0.08f;
         [ColorUsage(false, true)] public Color ForegroundStreakColor = new Color(1.2f, 0.25f, 2.8f, 0.8f);
 
         [Header("Camera Response")]

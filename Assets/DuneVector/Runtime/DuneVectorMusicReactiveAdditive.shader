@@ -3,6 +3,14 @@ Shader "DuneVector/URP Music Reactive Additive"
     Properties
     {
         [HideInInspector] _EdgeSoftness("Edge Softness", Range(0.001, 0.5)) = 0.18
+        [HideInInspector] _ShapeMode("Shape Mode", Float) = 0
+        [HideInInspector] _StreakEmission("Streak Emission", Float) = 1
+        [HideInInspector] _StreakTipSharpness("Streak Tip Sharpness", Float) = 1
+        [HideInInspector] _StreakMinimumWidth("Streak Minimum Width", Float) = 0.06
+        [HideInInspector] _StreakCoreWidth("Streak Core Width", Float) = 0.24
+        [HideInInspector] _StreakCoreBrightness("Streak Core Brightness", Float) = 1.8
+        [HideInInspector] _StreakHaloBrightness("Streak Halo Brightness", Float) = 0.42
+        [HideInInspector] _StreakEndFade("Streak End Fade", Float) = 0.08
     }
 
     SubShader
@@ -31,6 +39,14 @@ Shader "DuneVector/URP Music Reactive Additive"
 
             CBUFFER_START(UnityPerMaterial)
                 half _EdgeSoftness;
+                half _ShapeMode;
+                half _StreakEmission;
+                half _StreakTipSharpness;
+                half _StreakMinimumWidth;
+                half _StreakCoreWidth;
+                half _StreakCoreBrightness;
+                half _StreakHaloBrightness;
+                half _StreakEndFade;
             CBUFFER_END
 
             struct Attributes
@@ -62,6 +78,35 @@ Shader "DuneVector/URP Music Reactive Additive"
 
             half4 Frag(Varyings input) : SV_Target
             {
+                if (_ShapeMode > 0.5h)
+                {
+                    half longitudinal = saturate(input.uv.x);
+                    half triangularProfile = 1.0h - abs(longitudinal * 2.0h - 1.0h);
+                    half silhouetteWidth = lerp(
+                        _StreakMinimumWidth,
+                        1.0h,
+                        pow(saturate(triangularProfile), _StreakTipSharpness));
+                    half transverse = abs(input.uv.y * 2.0h - 1.0h);
+                    half antialias = max(fwidth(transverse), 0.001h);
+                    half body = 1.0h - smoothstep(
+                        silhouetteWidth - antialias,
+                        silhouetteWidth + antialias,
+                        transverse);
+                    half coreWidth = max(
+                        _StreakMinimumWidth,
+                        silhouetteWidth * _StreakCoreWidth);
+                    half core = 1.0h - smoothstep(
+                        coreWidth - antialias,
+                        coreWidth + antialias,
+                        transverse);
+                    half endFade = smoothstep(0.0h, _StreakEndFade, longitudinal)
+                        * (1.0h - smoothstep(1.0h - _StreakEndFade, 1.0h, longitudinal));
+                    half brightness = _StreakHaloBrightness + core * _StreakCoreBrightness;
+                    return half4(
+                        input.color.rgb * (_StreakEmission * brightness),
+                        input.color.a * body * endFade);
+                }
+
                 half edgeDistance = min(input.uv.y, 1.0h - input.uv.y);
                 half edge = smoothstep(0.0h, max(_EdgeSoftness, 0.001h), edgeDistance);
                 return half4(input.color.rgb, input.color.a * edge);

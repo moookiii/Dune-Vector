@@ -34,6 +34,8 @@ namespace DuneVector
         private float _reactionLightAge;
         private float _reactionLightStrength;
         private ParticleSystem _streaks;
+        private Material _streakMaterial;
+        private Color[] _streakPalette;
         private TrailRenderer[] _droneTrails;
         private float[] _baseTrailWidths;
         private float _droneKickEnvelope;
@@ -111,9 +113,35 @@ namespace DuneVector
             renderer.renderMode = ParticleSystemRenderMode.Stretch;
             renderer.velocityScale = _settings.ForegroundStreakVelocityScale;
             renderer.lengthScale = _settings.ForegroundStreakLengthScale;
-            renderer.sharedMaterial = sharedMaterial;
+            _streakMaterial = new Material(sharedMaterial)
+            {
+                name = "Music Visualizer - Premium Center-Out Streaks",
+                enableInstancing = true,
+            };
+            _streakMaterial.SetFloat("_ShapeMode", 1f);
+            _streakMaterial.SetFloat("_StreakEmission", _settings.ForegroundStreakPaletteEmission);
+            _streakMaterial.SetFloat("_StreakTipSharpness", _settings.ForegroundStreakTipSharpness);
+            _streakMaterial.SetFloat("_StreakMinimumWidth", _settings.ForegroundStreakMinimumWidth);
+            _streakMaterial.SetFloat("_StreakCoreWidth", _settings.ForegroundStreakCoreWidth);
+            _streakMaterial.SetFloat("_StreakCoreBrightness", _settings.ForegroundStreakCoreBrightness);
+            _streakMaterial.SetFloat("_StreakHaloBrightness", _settings.ForegroundStreakHaloBrightness);
+            _streakMaterial.SetFloat("_StreakEndFade", _settings.ForegroundStreakEndFade);
+            renderer.sharedMaterial = _streakMaterial;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
+
+            int paletteCount = Mathf.Clamp(_settings.ForegroundStreakPaletteColorCount, 2, 64);
+            _streakPalette = new Color[paletteCount];
+            for (int i = 0; i < paletteCount; i++)
+            {
+                Color color = Color.HSVToRGB(
+                    i / (float)paletteCount,
+                    _settings.ForegroundStreakPaletteSaturation,
+                    _settings.ForegroundStreakPaletteValue,
+                    true);
+                color.a = _settings.ForegroundStreakColor.a;
+                _streakPalette[i] = color;
+            }
         }
 
         public void ApplyContinuous(in MusicReactiveRuntimeState state)
@@ -168,7 +196,7 @@ namespace DuneVector
                         || command.Type == MusicVisualCueType.TrebleBurst
                         || command.Type == MusicVisualCueType.ReactorDischarge))
                 {
-                    EmitStreaks(command.Strength, command.DeterministicSeed);
+                    EmitStreaks(command.Strength, command.DeterministicSeed, state.Energy);
                 }
             }
         }
@@ -199,14 +227,22 @@ namespace DuneVector
             _roadPulseCursor = (selected + 1) % _roadPulses.Length;
         }
 
-        private void EmitStreaks(float strength, uint seed)
+        private void EmitStreaks(float strength, uint seed, float musicEnergy)
         {
             if (_streaks == null)
             {
                 return;
             }
             int available = Mathf.Max(0, _settings.ForegroundStreakParticleBudget - _streaks.particleCount);
-            int count = Mathf.Min(available, Mathf.CeilToInt(_settings.ForegroundStreakBurstCount * Mathf.Clamp01(strength)));
+            float punch = musicEnergy <= _settings.ForegroundStreakSlowEnergyThreshold
+                ? Mathf.Max(1f, _settings.ForegroundStreakSlowPunchMultiplier)
+                : 1f;
+            int count = Mathf.Min(
+                available,
+                Mathf.CeilToInt(
+                    _settings.ForegroundStreakBurstCount
+                    * Mathf.Clamp01(strength)
+                    * punch));
             for (int i = 0; i < count; i++)
             {
                 float sideSelector = Next01(ref seed) < 0.5f ? -1f : 1f;
@@ -218,11 +254,17 @@ namespace DuneVector
                     -_settings.ForegroundStreakPeripheralHeight,
                     _settings.ForegroundStreakPeripheralHeight,
                     Next01(ref seed));
+                int paletteIndex = Mathf.Min(
+                    _streakPalette.Length - 1,
+                    Mathf.FloorToInt(Next01(ref seed) * _streakPalette.Length));
                 ParticleSystem.EmitParams emit = new ParticleSystem.EmitParams
                 {
                     position = new Vector3(x, y, _settings.ForegroundStreakForwardOffset),
-                    velocity = new Vector3(-x * 0.08f, -y * 0.05f, -_settings.ForegroundStreakSpeed),
-                    startColor = _settings.ForegroundStreakColor,
+                    velocity = new Vector3(
+                        -x * 0.08f,
+                        -y * 0.05f,
+                        -_settings.ForegroundStreakSpeed * punch),
+                    startColor = _streakPalette[paletteIndex],
                     startLifetime = _settings.ForegroundStreakLifetime,
                     startSize = _settings.ForegroundStreakSize,
                 };
@@ -395,6 +437,15 @@ namespace DuneVector
         private void OnDisable()
         {
             ResetMusicResponse();
+        }
+
+        private void OnDestroy()
+        {
+            if (_streakMaterial != null)
+            {
+                Destroy(_streakMaterial);
+                _streakMaterial = null;
+            }
         }
     }
 }
