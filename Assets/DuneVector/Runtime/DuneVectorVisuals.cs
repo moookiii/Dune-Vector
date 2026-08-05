@@ -98,8 +98,7 @@ namespace DuneVector
         private readonly Material[] _sandOnlyTerrainMaterials;
 
         public DuneVectorMaterials(
-            Texture2D duneTexture,
-            float duneTextureTileSize,
+            DuneVectorRuntimeSettings runtimeSettings,
             RingTuning ringTuning = null,
             DeliveryTuning deliveryTuning = null,
             CloudTuning cloudTuning = null,
@@ -115,6 +114,11 @@ namespace DuneVector
             FlyingEnemyTuning flyingEnemyTuning = null,
             VesperKiteTuning vesperKiteTuning = null)
         {
+            if (runtimeSettings == null)
+            {
+                throw new ArgumentNullException(nameof(runtimeSettings));
+            }
+
             RingTuning rings = ringTuning ?? new RingTuning();
             RingPortalTuning = rings;
             DeliveryTuning delivery = deliveryTuning ?? new DeliveryTuning();
@@ -149,8 +153,7 @@ namespace DuneVector
                         "Using the procedural fallback.");
                 }
             }
-            Sand = CreateLit("Sand - Textured Dunes", Color.white, 0.14f, 0f);
-            ConfigureDuneTexture(Sand, duneTexture, duneTextureTileSize);
+            Sand = CreateSandMaterial(runtimeSettings);
             _sandOnlyTerrainMaterials = new[] { Sand };
             GeoglyphOverlays = CreateGeoglyphOverlays(geoglyphTuning);
             GeoglyphOverlay = GeoglyphOverlays.Length > 0 ? GeoglyphOverlays[0] : null;
@@ -406,29 +409,70 @@ namespace DuneVector
             LightningWarning = CreateUnlit("Storm Pyramid - Warning", new Color(0.18f, 0.42f, 0.62f), new Color(0.45f, 2.8f, 5.8f));
         }
 
-        private static void ConfigureDuneTexture(Material material, Texture2D texture, float tileSize)
+        private Material CreateSandMaterial(DuneVectorRuntimeSettings settings)
         {
-            if (material == null || texture == null)
+            Shader shader = Shader.Find("DuneVector/URP Sand Macro Variation");
+            if (shader == null)
             {
-                return;
+                throw new InvalidOperationException(
+                    "Dune Vector requires the DuneVector/URP Sand Macro Variation shader.");
             }
 
-            Vector2 tiling = Vector2.one / Mathf.Max(0.01f, tileSize);
-            if (material.HasProperty("_BaseMap"))
+            Material material = new Material(shader)
             {
-                material.SetTexture("_BaseMap", texture);
+                name = "Sand - Textured Dunes",
+                enableInstancing = true,
+            };
+
+            if (settings.DuneTexture != null)
+            {
+                Vector2 tiling = Vector2.one / Mathf.Max(0.01f, settings.DuneTextureTileSize);
+                material.SetTexture("_BaseMap", settings.DuneTexture);
                 material.SetTextureScale("_BaseMap", tiling);
             }
-            if (material.HasProperty("_MainTex"))
-            {
-                material.SetTexture("_MainTex", texture);
-                material.SetTextureScale("_MainTex", tiling);
-            }
+
+            material.SetFloat("_DVSandVariationEnabled", settings.DuneColorVariationEnabled ? 1f : 0f);
+            material.SetColor("_DVSandLightColor", settings.DuneSandLightColor);
+            material.SetColor("_DVSandMidColor", settings.DuneSandMidColor);
+            material.SetColor("_DVSandDarkColor", settings.DuneSandDarkColor);
+            material.SetFloat("_DVSandMacroPatternSize", settings.DuneMacroColorPatternSize);
+            material.SetFloat("_DVSandSecondaryPatternSize", settings.DuneSecondaryColorPatternSize);
+            material.SetVector("_DVSandMacroNoiseOffset", settings.DuneMacroColorNoiseOffset);
+            material.SetVector("_DVSandBrightnessNoiseOffset", settings.DuneSecondaryBrightnessNoiseOffset);
+            material.SetVector("_DVSandSaturationNoiseOffset", settings.DuneSecondarySaturationNoiseOffset);
+            material.SetFloat("_DVSandDarkThreshold", settings.DuneMacroDarkThreshold);
+            material.SetFloat("_DVSandLightThreshold", settings.DuneMacroLightThreshold);
+            material.SetFloat("_DVSandTransitionSoftness", settings.DuneMacroColorTransitionSoftness);
+            material.SetFloat("_DVSandMacroBlendStrength", settings.DuneMacroColorBlendStrength);
+            material.SetVector(
+                "_DVSandBrightnessRange",
+                new Vector4(
+                    settings.DuneBrightnessMultiplierMinimum,
+                    settings.DuneBrightnessMultiplierMaximum,
+                    0f,
+                    0f));
+            material.SetVector(
+                "_DVSandSaturationRange",
+                new Vector4(
+                    settings.DuneSaturationMultiplierMinimum,
+                    settings.DuneSaturationMultiplierMaximum,
+                    0f,
+                    0f));
+            material.SetFloat(
+                "_DVSandDarkSaturationMultiplier",
+                settings.DuneDarkRegionSaturationMultiplier);
+            material.SetFloat("_Smoothness", settings.DuneSurfaceSmoothness);
+            material.SetFloat("_DVSandSmoothnessVariation", settings.DuneSmoothnessVariation);
+            material.SetFloat("_Metallic", settings.DuneSurfaceMetallic);
+
+            _ownedMaterials.Add(material);
+            return material;
         }
 
-        public void SetGeoglyphLogicalOrigin(double originOffsetX, double originOffsetZ)
+        public void SetTerrainLogicalOrigin(double originOffsetX, double originOffsetZ)
         {
             Vector4 origin = new Vector4((float)originOffsetX, (float)originOffsetZ, 0f, 0f);
+            Sand.SetVector("_DVSandLogicalOriginOffset", origin);
             for (int i = 0; i < GeoglyphOverlays.Length; i++)
             {
                 GeoglyphOverlays[i].SetVector("_DVGeoglyphOriginOffset", origin);

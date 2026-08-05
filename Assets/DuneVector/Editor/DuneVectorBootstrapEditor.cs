@@ -156,6 +156,27 @@ namespace DuneVector.Editor
         private SerializedProperty _dunes;
         private SerializedProperty _duneTexture;
         private SerializedProperty _duneTextureTileSize;
+        private SerializedProperty _duneColorVariationEnabled;
+        private SerializedProperty _duneSandLightColor;
+        private SerializedProperty _duneSandMidColor;
+        private SerializedProperty _duneSandDarkColor;
+        private SerializedProperty _duneMacroColorPatternSize;
+        private SerializedProperty _duneSecondaryColorPatternSize;
+        private SerializedProperty _duneMacroColorNoiseOffset;
+        private SerializedProperty _duneSecondaryBrightnessNoiseOffset;
+        private SerializedProperty _duneSecondarySaturationNoiseOffset;
+        private SerializedProperty _duneMacroDarkThreshold;
+        private SerializedProperty _duneMacroLightThreshold;
+        private SerializedProperty _duneMacroColorTransitionSoftness;
+        private SerializedProperty _duneMacroColorBlendStrength;
+        private SerializedProperty _duneBrightnessMultiplierMinimum;
+        private SerializedProperty _duneBrightnessMultiplierMaximum;
+        private SerializedProperty _duneSaturationMultiplierMinimum;
+        private SerializedProperty _duneSaturationMultiplierMaximum;
+        private SerializedProperty _duneDarkRegionSaturationMultiplier;
+        private SerializedProperty _duneSurfaceSmoothness;
+        private SerializedProperty _duneSmoothnessVariation;
+        private SerializedProperty _duneSurfaceMetallic;
         private SerializedProperty _meshResolution;
         private SerializedProperty _chunkSize;
 
@@ -201,6 +222,27 @@ namespace DuneVector.Editor
             _dunes = serializedObject.FindProperty("DuneGeneration");
             _duneTexture = serializedObject.FindProperty("DuneTexture");
             _duneTextureTileSize = serializedObject.FindProperty("DuneTextureTileSize");
+            _duneColorVariationEnabled = serializedObject.FindProperty("DuneColorVariationEnabled");
+            _duneSandLightColor = serializedObject.FindProperty("DuneSandLightColor");
+            _duneSandMidColor = serializedObject.FindProperty("DuneSandMidColor");
+            _duneSandDarkColor = serializedObject.FindProperty("DuneSandDarkColor");
+            _duneMacroColorPatternSize = serializedObject.FindProperty("DuneMacroColorPatternSize");
+            _duneSecondaryColorPatternSize = serializedObject.FindProperty("DuneSecondaryColorPatternSize");
+            _duneMacroColorNoiseOffset = serializedObject.FindProperty("DuneMacroColorNoiseOffset");
+            _duneSecondaryBrightnessNoiseOffset = serializedObject.FindProperty("DuneSecondaryBrightnessNoiseOffset");
+            _duneSecondarySaturationNoiseOffset = serializedObject.FindProperty("DuneSecondarySaturationNoiseOffset");
+            _duneMacroDarkThreshold = serializedObject.FindProperty("DuneMacroDarkThreshold");
+            _duneMacroLightThreshold = serializedObject.FindProperty("DuneMacroLightThreshold");
+            _duneMacroColorTransitionSoftness = serializedObject.FindProperty("DuneMacroColorTransitionSoftness");
+            _duneMacroColorBlendStrength = serializedObject.FindProperty("DuneMacroColorBlendStrength");
+            _duneBrightnessMultiplierMinimum = serializedObject.FindProperty("DuneBrightnessMultiplierMinimum");
+            _duneBrightnessMultiplierMaximum = serializedObject.FindProperty("DuneBrightnessMultiplierMaximum");
+            _duneSaturationMultiplierMinimum = serializedObject.FindProperty("DuneSaturationMultiplierMinimum");
+            _duneSaturationMultiplierMaximum = serializedObject.FindProperty("DuneSaturationMultiplierMaximum");
+            _duneDarkRegionSaturationMultiplier = serializedObject.FindProperty("DuneDarkRegionSaturationMultiplier");
+            _duneSurfaceSmoothness = serializedObject.FindProperty("DuneSurfaceSmoothness");
+            _duneSmoothnessVariation = serializedObject.FindProperty("DuneSmoothnessVariation");
+            _duneSurfaceMetallic = serializedObject.FindProperty("DuneSurfaceMetallic");
             _meshResolution = serializedObject.FindProperty("DuneMeshResolution");
             _chunkSize = serializedObject.FindProperty("DuneChunkSize");
         }
@@ -503,11 +545,33 @@ namespace DuneVector.Editor
             {
                 EditorGUILayout.LabelField("Dune Surface", EditorStyles.boldLabel);
                 EditorGUILayout.LabelField(
-                    "Terrain PNG and the world-space size of each repeated tile.",
+                    "Terrain texture, three-color macro regions, and independent secondary surface variation.",
                     EditorStyles.wordWrappedMiniLabel);
                 EditorGUILayout.Space(3f);
                 EditorGUILayout.PropertyField(_duneTexture);
                 EditorGUILayout.PropertyField(_duneTextureTileSize);
+                EditorGUILayout.Space(4f);
+                EditorGUILayout.PropertyField(_duneColorVariationEnabled);
+                EditorGUILayout.PropertyField(_duneSandLightColor);
+                EditorGUILayout.PropertyField(_duneSandMidColor);
+                EditorGUILayout.PropertyField(_duneSandDarkColor);
+                EditorGUILayout.PropertyField(_duneMacroColorPatternSize);
+                EditorGUILayout.PropertyField(_duneSecondaryColorPatternSize);
+                EditorGUILayout.PropertyField(_duneMacroColorNoiseOffset);
+                EditorGUILayout.PropertyField(_duneSecondaryBrightnessNoiseOffset);
+                EditorGUILayout.PropertyField(_duneSecondarySaturationNoiseOffset);
+                EditorGUILayout.PropertyField(_duneMacroDarkThreshold);
+                EditorGUILayout.PropertyField(_duneMacroLightThreshold);
+                EditorGUILayout.PropertyField(_duneMacroColorTransitionSoftness);
+                EditorGUILayout.PropertyField(_duneMacroColorBlendStrength);
+                EditorGUILayout.PropertyField(_duneBrightnessMultiplierMinimum);
+                EditorGUILayout.PropertyField(_duneBrightnessMultiplierMaximum);
+                EditorGUILayout.PropertyField(_duneSaturationMultiplierMinimum);
+                EditorGUILayout.PropertyField(_duneSaturationMultiplierMaximum);
+                EditorGUILayout.PropertyField(_duneDarkRegionSaturationMultiplier);
+                EditorGUILayout.PropertyField(_duneSurfaceSmoothness);
+                EditorGUILayout.PropertyField(_duneSmoothnessVariation);
+                EditorGUILayout.PropertyField(_duneSurfaceMetallic);
             }
 
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))

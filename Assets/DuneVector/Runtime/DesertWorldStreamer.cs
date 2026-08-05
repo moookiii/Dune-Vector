@@ -234,7 +234,7 @@ namespace DuneVector
 
             _initialized = true;
             _materials = materials ?? throw new ArgumentNullException(nameof(materials));
-            _materials.SetGeoglyphLogicalOrigin(OriginOffsetX, OriginOffsetZ);
+            _materials.SetTerrainLogicalOrigin(OriginOffsetX, OriginOffsetZ);
             _coinRingSeed = Guid.NewGuid().GetHashCode();
             EnemySpawnSeed = Guid.NewGuid().GetHashCode();
             Rings ??= new RingTuning();
@@ -582,7 +582,7 @@ namespace DuneVector
             Vector3 motorPosition = _motor.TransientPosition;
             OriginOffsetX += localShift.x;
             OriginOffsetZ += localShift.z;
-            _materials.SetGeoglyphLogicalOrigin(OriginOffsetX, OriginOffsetZ);
+            _materials.SetTerrainLogicalOrigin(OriginOffsetX, OriginOffsetZ);
 
             foreach (DesertChunk chunk in _chunks.Values)
             {

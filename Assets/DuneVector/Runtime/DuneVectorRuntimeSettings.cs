@@ -5564,6 +5564,70 @@ namespace DuneVector
         [Tooltip("World-space width and length, in meters, covered by one repeat of the dune texture.")]
         [Min(0.01f)] public float DuneTextureTileSize = 18f;
 
+        [Header("Dune Sand Surface Recoloring")]
+        [Tooltip("Enables world-space macro sand colors and independent secondary surface variation.")]
+        public bool DuneColorVariationEnabled = true;
+
+        [Tooltip("Warm gold assigned to the lightest macro sand regions.")]
+        [ColorUsage(false)] public Color DuneSandLightColor = new Color(1f, 0.72f, 0.32f, 1f);
+
+        [Tooltip("Primary orange sand color used as the neutral macro-region reference.")]
+        [ColorUsage(false)] public Color DuneSandMidColor = new Color(0.93f, 0.48f, 0.16f, 1f);
+
+        [Tooltip("Darker, slightly desaturated reddish-brown assigned to low macro-noise regions.")]
+        [ColorUsage(false)] public Color DuneSandDarkColor = new Color(0.48f, 0.2f, 0.09f, 1f);
+
+        [Tooltip("World-space width, in meters, of the broad geographic sand-color pattern.")]
+        [Range(300f, 700f)] public float DuneMacroColorPatternSize = 500f;
+
+        [Tooltip("World-space width, in meters, of the secondary brightness and saturation pattern.")]
+        [Range(60f, 150f)] public float DuneSecondaryColorPatternSize = 100f;
+
+        [Tooltip("World-space offset of the macro color pattern. Change this to explore a different layout.")]
+        public Vector2 DuneMacroColorNoiseOffset = new Vector2(1200f, -800f);
+
+        [Tooltip("World-space offset of the secondary brightness pattern.")]
+        public Vector2 DuneSecondaryBrightnessNoiseOffset = new Vector2(-370f, 910f);
+
+        [Tooltip("Independent world-space offset of the secondary saturation pattern.")]
+        public Vector2 DuneSecondarySaturationNoiseOffset = new Vector2(1420f, 480f);
+
+        [Tooltip("Macro-noise value below which darker sand regions dominate.")]
+        [Range(0f, 1f)] public float DuneMacroDarkThreshold = 0.38f;
+
+        [Tooltip("Macro-noise value above which light golden sand regions dominate.")]
+        [Range(0f, 1f)] public float DuneMacroLightThreshold = 0.62f;
+
+        [Tooltip("Softness of transitions between dark, mid, and light macro regions.")]
+        [Range(0.01f, 0.25f)] public float DuneMacroColorTransitionSoftness = 0.08f;
+
+        [Tooltip("How strongly the three-color macro palette modifies the existing dune texture.")]
+        [Range(0f, 0.5f)] public float DuneMacroColorBlendStrength = 0.24f;
+
+        [Tooltip("Lowest secondary brightness multiplier. Keep within 0.82 to 1.08 for natural sand.")]
+        [Range(0.82f, 1.08f)] public float DuneBrightnessMultiplierMinimum = 0.94f;
+
+        [Tooltip("Highest secondary brightness multiplier. Keep within 0.82 to 1.08 for natural sand.")]
+        [Range(0.82f, 1.08f)] public float DuneBrightnessMultiplierMaximum = 1.04f;
+
+        [Tooltip("Lowest secondary saturation multiplier. Keep within 0.92 to 1.06 for natural sand.")]
+        [Range(0.92f, 1.06f)] public float DuneSaturationMultiplierMinimum = 0.94f;
+
+        [Tooltip("Highest secondary saturation multiplier. Keep within 0.92 to 1.06 for natural sand.")]
+        [Range(0.92f, 1.06f)] public float DuneSaturationMultiplierMaximum = 1.04f;
+
+        [Tooltip("Additional saturation multiplier applied only to dark macro regions.")]
+        [Range(0.9f, 1f)] public float DuneDarkRegionSaturationMultiplier = 0.96f;
+
+        [Tooltip("Base smoothness of the streamed dune terrain.")]
+        [Range(0f, 1f)] public float DuneSurfaceSmoothness = 0.14f;
+
+        [Tooltip("Maximum smoothness change introduced by a decorrelated secondary noise sample.")]
+        [Range(0f, 0.05f)] public float DuneSmoothnessVariation = 0.025f;
+
+        [Tooltip("Metallic response of the streamed dune terrain.")]
+        [Range(0f, 1f)] public float DuneSurfaceMetallic = 0f;
+
         [Tooltip("Vertices along one edge of each generated terrain chunk. Higher values are smoother but cost more.")]
         [Range(8, 96)] public int DuneMeshResolution = 32;
 

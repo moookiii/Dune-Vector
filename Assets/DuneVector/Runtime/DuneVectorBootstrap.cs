@@ -337,8 +337,7 @@ namespace DuneVector
                 Application.runInBackground = RuntimeSettings.Performance.RunDevelopmentBuildsInBackground;
             }
             _materials = new DuneVectorMaterials(
-                RuntimeSettings.DuneTexture,
-                RuntimeSettings.DuneTextureTileSize,
+                RuntimeSettings,
                 Rings,
                 Deliveries,
                 Clouds,
