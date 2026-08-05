@@ -1147,9 +1147,9 @@ namespace DuneVector
                 beacon.transform.localRotation = Quaternion.identity;
                 beacon.transform.localScale = beaconPrefab.transform.localScale * scale;
                 BuildBeaconColliders(beacon.transform);
+                ReplaceImportedBeaconTopWithUnitySphere(beacon.transform);
 
                 Transform importedOrbit = null;
-                Transform importedPulse = null;
                 Transform[] importedTransforms = beacon.GetComponentsInChildren<Transform>(true);
                 for (int i = 0; i < importedTransforms.Length; i++)
                 {
@@ -1158,14 +1158,9 @@ namespace DuneVector
                     {
                         importedOrbit = importedTransform;
                     }
-                    else if (importedTransform.name == "RB_CORE_PULSE")
-                    {
-                        importedPulse = importedTransform;
-                    }
                 }
 
                 animator.RegisterSpin(importedOrbit, Vector3.up, _settings.BeaconOrbitSpeed);
-                animator.RegisterPulse(importedPulse, _settings.BeaconPulseAmount, _settings.BeaconPulseSpeed);
                 return;
             }
 
@@ -1191,7 +1186,7 @@ namespace DuneVector
                     new Vector3(0.32f, height * 0.56f, 3.4f) * scale,
                     Quaternion.Euler(0f, angle, 0f), _materials.DroneDark, false);
             }
-            Transform beaconEnergy = Part(PrimitiveType.Sphere, "Beacon Energy", root, new Vector3(0f, height, 0f) * scale, Vector3.one * 4.8f * scale, Quaternion.identity, _materials.EnemyCore);
+            Part(PrimitiveType.Sphere, "Beacon Energy", root, new Vector3(0f, height, 0f) * scale, Vector3.one * 4.8f * scale, Quaternion.identity, _materials.EnemyCore);
             Transform orbit = new GameObject("Raider Signal Orbit").transform;
             orbit.SetParent(root, false);
             Transform signalRing = new GameObject("Raider Signal Ring").transform;
@@ -1212,7 +1207,6 @@ namespace DuneVector
                 Part(PrimitiveType.Cylinder, $"Floating Antenna {i + 1}", orbit, (direction * 7f + Vector3.up * (height * 0.62f)) * scale, new Vector3(0.5f, 4f, 0.5f) * scale, Quaternion.Euler(90f, angle, 0f), _materials.EnemyCore, false);
             }
             animator.RegisterSpin(orbit, Vector3.up, _settings.BeaconOrbitSpeed);
-            animator.RegisterPulse(beaconEnergy, _settings.BeaconPulseAmount, _settings.BeaconPulseSpeed);
             int variant = PositiveVariant(seed);
             for (int i = 0; i < variant + 2; i++)
             {
@@ -1223,6 +1217,69 @@ namespace DuneVector
                     new Vector3(0.35f, 0.35f, 5f) * scale,
                     Quaternion.Euler(0f, angle, 0f), _materials.EnemyBody, false);
             }
+        }
+
+        private static void ReplaceImportedBeaconTopWithUnitySphere(Transform beacon)
+        {
+            Transform sourceSphere = null;
+            Transform pulseRoot = null;
+            Transform[] importedTransforms = beacon.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < importedTransforms.Length; i++)
+            {
+                Transform importedTransform = importedTransforms[i];
+                if (importedTransform.name == "Raider Beacon Orb")
+                {
+                    sourceSphere = importedTransform;
+                }
+                else if (importedTransform.name == "RB_CORE_PULSE")
+                {
+                    pulseRoot = importedTransform;
+                }
+            }
+
+            if (sourceSphere == null)
+            {
+                return;
+            }
+
+            MeshFilter sourceMeshFilter = sourceSphere.GetComponent<MeshFilter>();
+            Renderer sourceRenderer = sourceSphere.GetComponent<Renderer>();
+            if (sourceMeshFilter == null || sourceMeshFilter.sharedMesh == null || sourceRenderer == null)
+            {
+                return;
+            }
+
+            Bounds sourceBounds = sourceMeshFilter.sharedMesh.bounds;
+            Vector3 scaledSize = Vector3.Scale(sourceBounds.size, new Vector3(
+                Mathf.Abs(sourceSphere.localScale.x),
+                Mathf.Abs(sourceSphere.localScale.y),
+                Mathf.Abs(sourceSphere.localScale.z)));
+            float diameter = Mathf.Max(scaledSize.x, scaledSize.y, scaledSize.z);
+            Transform sphereParent = sourceSphere.parent;
+            Vector3 spherePosition = sourceSphere.localPosition;
+            int sphereLayer = sourceSphere.gameObject.layer;
+            Material sphereMaterial = sourceRenderer.sharedMaterial;
+
+            if (pulseRoot != null)
+            {
+                for (int childIndex = 0; childIndex < pulseRoot.childCount; childIndex++)
+                {
+                    pulseRoot.GetChild(childIndex).gameObject.SetActive(false);
+                }
+            }
+            else
+            {
+                sourceSphere.gameObject.SetActive(false);
+            }
+
+            GameObject unitySphere = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            unitySphere.name = "Raider Beacon Unity Sphere";
+            unitySphere.layer = sphereLayer;
+            unitySphere.transform.SetParent(sphereParent, false);
+            unitySphere.transform.localPosition = spherePosition;
+            unitySphere.transform.localRotation = Quaternion.identity;
+            unitySphere.transform.localScale = Vector3.one * diameter;
+            unitySphere.GetComponent<Renderer>().sharedMaterial = sphereMaterial;
         }
 
         private static void BuildBeaconColliders(Transform beacon)

@@ -113,6 +113,8 @@ def sphere(name, location, radius, material, parent):
     bpy.ops.mesh.primitive_uv_sphere_add(segments=24, ring_count=12, radius=radius, location=location)
     obj = bpy.context.object
     obj.name = name
+    for polygon in obj.data.polygons:
+        polygon.use_smooth = True
     assign_material(obj, material)
     obj.parent = parent
     return obj
@@ -276,10 +278,8 @@ def build_beacon(materials):
     cylinder("Orb Lower Socket", (0.0, 0.0, 35.0), 1.55, 1.20, 12, black, static, bevel=0.14)
     cylinder("Orb Hot Collar", (0.0, 0.0, 35.72), 1.88, 0.36, 12, amber, static, bevel=0.08)
 
-    # The iconic spherical beacon stays dominant and simple, with only a thin equatorial detail.
+    # The iconic spherical beacon stays dominant, perfectly round, and completely unadorned.
     sphere("Raider Beacon Orb", (0.0, 0.0, 0.0), 3.18, magenta, pulse)
-    torus("Beacon Orb Equator", (0.0, 0.0, 0.0), 3.19, 0.13, pink, pulse)
-    cylinder("Beacon Orb Top Cap", (0.0, 0.0, 3.08), 0.65, 0.35, 10, amber, pulse, bevel=0.06)
 
     # Segmented magenta orbit ring and three long signal bars match the reference animation.
     segment_count = 16
