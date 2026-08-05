@@ -800,7 +800,7 @@ namespace DuneVector
             float bonusMultiplier = Mathf.Max(
                 0f,
                 DuneVectorContractRisk.EnemySpawnMultiplier - 1f);
-            int bonusCount = Mathf.CeilToInt(
+            int bonusCount = Mathf.FloorToInt(
                 Mathf.Max(1, _settings.EnemyCount) * bonusMultiplier);
             if (bonusCount <= 0)
             {
