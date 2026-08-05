@@ -822,6 +822,8 @@ namespace DuneVector
         [Min(1f)] public float DualModifierRewardMultiplier = 1.75f;
         [Min(1f)] public float TripleModifierRewardMultiplier = 2.4f;
         [Min(0f)] public float ContractRefreshSeconds = 240f;
+        [Tooltip("Gold charged when the player manually refreshes the contract board.")]
+        [Min(0)] public int ContractRefreshGoldCost = 100;
         [Tooltip("Designer-authored contract-board location label for each landmark type.")]
         public LandmarkContractLocation[] LandmarkLocations;
         [Tooltip("Landmark archetypes eligible for pickup and delivery contract objectives.")]
@@ -1255,6 +1257,8 @@ namespace DuneVector
         [Min(9)] public int TerminalMetaFontSize = 12;
         [Min(0f)] public float TerminalHeaderHeight = 122f;
         [Min(0f)] public float TerminalFooterHeight = 38f;
+        [Min(1f)] public float TerminalContractRefreshButtonWidth = 260f;
+        [Min(1f)] public float TerminalContractRefreshButtonHeight = 30f;
         [Min(0f)] public float TerminalAccentBarHeight = 4f;
         [Min(0f)] public float TerminalCardAccentWidth = 5f;
         [Min(0f)] public float TerminalContractOrderPipSize = 5f;

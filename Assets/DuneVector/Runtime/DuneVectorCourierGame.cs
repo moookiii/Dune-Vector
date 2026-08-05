@@ -423,6 +423,7 @@ namespace DuneVector
         private float _hazardPulseTimer;
         private float _unknownRevealTimer;
         private float _offerRefreshTimer;
+        private int _paidOfferRefreshIndex;
         private float _teleportTimer;
         private bool _teleportMoved;
         private bool _returnStartsVanished;
@@ -1298,7 +1299,8 @@ namespace DuneVector
             int count = Mathf.Clamp(_settings.OfferedContractCount, 5, 8);
             int batch = Mathf.FloorToInt(Time.unscaledTime / Mathf.Max(1f, _settings.ContractRefreshSeconds));
             System.Random random = new System.Random(unchecked(
-                _world.WorldSeed ^ _settings.ContractSeedOffset ^ (completionTier * 486187739) ^ batch));
+                _world.WorldSeed ^ _settings.ContractSeedOffset ^ (completionTier * 486187739) ^ batch ^
+                _paidOfferRefreshIndex));
             int offerIndex = 0;
             while (_offers.Count < count)
             {
@@ -1310,6 +1312,20 @@ namespace DuneVector
                 }
             }
             _offerRefreshTimer = Mathf.Max(5f, _settings.ContractRefreshSeconds);
+        }
+
+        private void TryPurchaseOfferRefresh()
+        {
+            int refreshCost = Mathf.Max(0, _settings.ContractRefreshGoldCost);
+            if (refreshCost > 0 && (_wallet == null || !_wallet.TrySpendGold(refreshCost)))
+            {
+                return;
+            }
+
+            _paidOfferRefreshIndex = _paidOfferRefreshIndex == int.MaxValue
+                ? int.MinValue
+                : _paidOfferRefreshIndex + 1;
+            GenerateOffers();
         }
 
         private CourierContract CreateOffer(System.Random random, int index, int completed)
@@ -2836,20 +2852,45 @@ namespace DuneVector
             DrawSolidRect(
                 new Rect(panel.x + padding, panel.yMax - _hubSettings.TerminalFooterHeight, contentWidth, 1f),
                 _hubSettings.TerminalDividerColor);
+            float refreshButtonWidth = Mathf.Min(
+                _hubSettings.TerminalContractRefreshButtonWidth,
+                contentWidth);
+            float refreshButtonHeight = Mathf.Min(
+                _hubSettings.TerminalContractRefreshButtonHeight,
+                _hubSettings.TerminalFooterHeight);
+            Rect refreshButton = new Rect(
+                panel.center.x - (refreshButtonWidth * 0.5f),
+                panel.yMax - _hubSettings.TerminalFooterHeight +
+                    ((_hubSettings.TerminalFooterHeight - refreshButtonHeight) * 0.5f),
+                refreshButtonWidth,
+                refreshButtonHeight);
+            float footerSideWidth = Mathf.Max(0f, refreshButton.x - (panel.x + padding) - gap);
             GUI.Label(
                 new Rect(
                     panel.x + padding,
                     panel.yMax - _hubSettings.TerminalFooterHeight + 7f,
-                    contentWidth * 0.5f,
+                    footerSideWidth,
                     22f),
                 "SELECT A CONTRACT TO DEPLOY",
                 _terminalMetaStyle);
+            int refreshCost = Mathf.Max(0, _settings.ContractRefreshGoldCost);
+            bool canAffordRefresh = refreshCost == 0 || (_wallet != null && _wallet.Gold >= refreshCost);
+            bool previousEnabled = GUI.enabled;
+            GUI.enabled = canAffordRefresh;
+            if (GUI.Button(
+                    refreshButton,
+                    $"REFRESH CONTRACTS  ·  {refreshCost:N0} GOLD",
+                    _terminalButtonStyle))
+            {
+                TryPurchaseOfferRefresh();
+            }
+            GUI.enabled = previousEnabled;
             _terminalActionStyle.normal.textColor = GuiTextColor(_hubSettings.TerminalAccentColor);
             GUI.Label(
                 new Rect(
-                    panel.center.x,
+                    refreshButton.xMax + gap,
                     panel.yMax - _hubSettings.TerminalFooterHeight + 7f,
-                    contentWidth * 0.5f,
+                    footerSideWidth,
                     22f),
                 "CONTRACTS REFRESH AUTOMATICALLY",
                 _terminalActionStyle);
