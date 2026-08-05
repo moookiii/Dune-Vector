@@ -1620,14 +1620,6 @@ namespace DuneVector
                 installation.localPosition = offset;
                 installation.localRotation = Quaternion.Euler(0f, SeedRange(seed, i, 7303, 0f, 360f), 0f);
 
-                if (i == 0)
-                {
-                    DuneVectorLandmarkInstance instance = root.GetComponent<DuneVectorLandmarkInstance>();
-                    instance?.PositionContractSocket(
-                        offset + _settings.HarvesterContractSocketOffset,
-                        _settings.PickupRingLandmarkClearance);
-                }
-
                 float state = SeedRange(seed, i, 7305, 0f, 1f);
                 bool fallen = state < _settings.HarvesterFallenChance;
                 if (!hasFallen && i == count - 1 && _settings.HarvesterFallenChance > 0f)
