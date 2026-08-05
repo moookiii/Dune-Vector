@@ -64,6 +64,7 @@ namespace DuneVector
         public DesertShrubTuning Shrubs;
         public LandmarkSystemTuning Landmarks;
         public CactusTuning Cacti;
+        public PyramidTuning Obelisks;
 
         [Header("Spawning - expected count per chunk")]
         [Min(0f)] public float PyramidDensity = 0.22f;
@@ -988,6 +989,7 @@ namespace DuneVector
                     PyramidMaximumPlacementSlope,
                     PyramidMinimumBurialDepth,
                     PyramidMaximumBurialDepth,
+                    Obelisks,
                     GroundRingDensity,
                     AerialRingDensity,
                     Rings,
@@ -1340,6 +1342,7 @@ namespace DuneVector
             float pyramidMaximumPlacementSlope,
             float pyramidMinimumBurialDepth,
             float pyramidMaximumBurialDepth,
+            PyramidTuning obeliskTuning,
             float groundRingDensity,
             float aerialRingDensity,
             RingTuning ringTuning,
@@ -1375,6 +1378,7 @@ namespace DuneVector
                     pyramidMaximumPlacementSlope,
                     pyramidMinimumBurialDepth,
                     pyramidMaximumBurialDepth,
+                    obeliskTuning,
                     groundRingDensity,
                     aerialRingDensity,
                     ringTuning,
@@ -1789,6 +1793,7 @@ namespace DuneVector
             float pyramidMaximumPlacementSlope,
             float pyramidMinimumBurialDepth,
             float pyramidMaximumBurialDepth,
+            PyramidTuning obeliskTuning,
             float groundRingDensity,
             float aerialRingDensity,
             RingTuning ringTuning,
@@ -2076,6 +2081,63 @@ namespace DuneVector
                     materials.Sandstone,
                     materials.PyramidLodTuning);
                 sceneryExclusions.Add(local);
+            }
+
+            if (obeliskTuning != null && materials.ObeliskPrefab != null)
+            {
+                int obeliskCount = CountFromDensity(obeliskTuning.DensityPerChunk, coordinate, worldSeed, 947);
+                for (int i = 0; i < obeliskCount; i++)
+                {
+                    Vector2 local = new Vector2(
+                        DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 953 + (i * 17), 12f, chunkSize - 12f),
+                        DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 967 + (i * 17), 12f, chunkSize - 12f));
+                    if (IsNearAny(local, ringExclusions, 13f) || IsNearAny(local, sceneryExclusions, 13f))
+                    {
+                        continue;
+                    }
+
+                    double logicalX = originX + local.x;
+                    double logicalZ = originZ + local.y;
+                    if (Vector3.Angle(heightField.SampleNormal(logicalX, logicalZ), Vector3.up) > obeliskTuning.MaximumPlacementSlope)
+                    {
+                        continue;
+                    }
+
+                    float minimumScale = Mathf.Max(0.1f, obeliskTuning.MinimumScale);
+                    float maximumScale = Mathf.Max(minimumScale, obeliskTuning.MaximumScale);
+                    float scale = DuneVectorMath.HashRange(
+                        coordinate.x,
+                        coordinate.y,
+                        worldSeed,
+                        971 + (i * 17),
+                        minimumScale,
+                        maximumScale);
+                    float yaw = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 977 + (i * 17), 0f, 360f);
+                    float minimumBurial = Mathf.Max(0f, obeliskTuning.MinimumBurialDepth);
+                    float maximumBurial = Mathf.Max(minimumBurial, obeliskTuning.MaximumBurialDepth);
+                    float burial = DuneVectorMath.HashRange(
+                        coordinate.x,
+                        coordinate.y,
+                        worldSeed,
+                        983 + (i * 17),
+                        minimumBurial,
+                        maximumBurial);
+                    float footprintFloor = SampleLowestPyramidFootprintHeight(
+                        heightField,
+                        logicalX,
+                        logicalZ,
+                        scale,
+                        yaw);
+                    float y = footprintFloor - burial;
+                    DuneVectorVisuals.CreateObelisk(
+                        Root,
+                        new Vector3(local.x, y, local.y),
+                        scale,
+                        yaw,
+                        materials.ObeliskPrefab,
+                        materials.ObeliskLodTuning);
+                    sceneryExclusions.Add(local);
+                }
             }
 
             SpawnGroundExploders(

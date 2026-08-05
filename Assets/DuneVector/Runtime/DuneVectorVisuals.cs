@@ -31,6 +31,7 @@ namespace DuneVector
         public IReadOnlyList<Material> Shrubs => _shrubMaterials;
         public Material Sandstone { get; }
         public GameObject PyramidPrefab { get; }
+        public GameObject ObeliskPrefab { get; }
         public Material LandmarkStone { get; }
         public Material LandmarkMetal { get; }
         public Material LandmarkSecondary { get; }
@@ -78,6 +79,7 @@ namespace DuneVector
         public Material LightningWarning { get; }
         public RingTuning RingPortalTuning { get; }
         public PyramidTuning PyramidLodTuning { get; }
+        public PyramidTuning ObeliskLodTuning { get; }
         public FlyingEnemyTuning FlyingEnemyVisualTuning { get; }
         public GameObject FlyingEnemyModel { get; }
 
@@ -104,6 +106,7 @@ namespace DuneVector
             LandmarkSystemTuning landmarkTuning = null,
             PlayerStrikeOrbTuning playerStrikeOrbTuning = null,
             PyramidTuning pyramidLodTuning = null,
+            PyramidTuning obeliskLodTuning = null,
             FlyingEnemyTuning flyingEnemyTuning = null,
             VesperKiteTuning vesperKiteTuning = null)
         {
@@ -129,6 +132,7 @@ namespace DuneVector
             PlayerStrikeOrbTuning strikeOrbs = playerStrikeOrbTuning ?? new PlayerStrikeOrbTuning();
             VesperKiteTuning vesperKites = vesperKiteTuning ?? new VesperKiteTuning();
             PyramidLodTuning = pyramidLodTuning ?? new PyramidTuning();
+            ObeliskLodTuning = obeliskLodTuning ?? new PyramidTuning();
             FlyingEnemyVisualTuning = flyingEnemyTuning ?? new FlyingEnemyTuning();
             if (!FlyingEnemyVisualTuning.UseProceduralVisualFallback)
             {
@@ -275,6 +279,13 @@ namespace DuneVector
                 MegagateStone = Sandstone;
                 MegagateMetal = DroneBody;
                 MegagateSignal = DroneAccent;
+            }
+            ObeliskPrefab = Resources.Load<GameObject>("obelisk");
+            if (ObeliskPrefab == null)
+            {
+                Debug.LogError(
+                    "World generation obelisks require " +
+                    "Assets/DuneVector/Resources/obelisk.glb.");
             }
             BoostRing = CreatePortal("Portal - Boost Amber", rings.BoostRingEmissionColor, rings);
             FlightRing = CreatePortal("Portal - Flight Cyan", rings.FlightRingEmissionColor, rings);
@@ -1691,6 +1702,73 @@ namespace DuneVector
                 false,
                 pyramidLodTuning,
                 retainPhotographyRenderer: true);
+            return root.transform;
+        }
+
+        public static Transform CreateObelisk(
+            Transform parent,
+            Vector3 localPosition,
+            float scale,
+            float yaw,
+            GameObject model,
+            PyramidTuning lodTuning)
+        {
+            if (model == null)
+            {
+                return null;
+            }
+
+            GameObject root = new GameObject("Small Obelisk");
+            root.transform.SetParent(parent, false);
+            root.transform.localPosition = localPosition;
+            root.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
+
+            GameObject visual = UnityEngine.Object.Instantiate(model, root.transform, false);
+            visual.name = "Obelisk Visual";
+
+            Collider[] importedColliders = visual.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < importedColliders.Length; i++)
+            {
+                importedColliders[i].enabled = false;
+                UnityEngine.Object.Destroy(importedColliders[i]);
+            }
+
+            MeshRenderer[] renderers = visual.GetComponentsInChildren<MeshRenderer>(true);
+            if (!TryCalculateLocalMeshBounds(root.transform, renderers, out Bounds bounds))
+            {
+                UnityEngine.Object.Destroy(root);
+                return null;
+            }
+
+            float targetHalfExtent = Mathf.Max(0.1f, scale);
+            float horizontalHalfExtent = Mathf.Max(bounds.extents.x, bounds.extents.z);
+            if (horizontalHalfExtent > 0.0001f)
+            {
+                visual.transform.localScale *= targetHalfExtent / horizontalHalfExtent;
+                TryCalculateLocalMeshBounds(root.transform, renderers, out bounds);
+            }
+            visual.transform.localPosition += new Vector3(-bounds.center.x, -bounds.min.y, -bounds.center.z);
+            TryCalculateLocalMeshBounds(root.transform, renderers, out bounds);
+
+            BoxCollider collider = root.AddComponent<BoxCollider>();
+            collider.center = bounds.center;
+            collider.size = bounds.size;
+
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                renderers[i].shadowCastingMode = ShadowCastingMode.On;
+                renderers[i].receiveShadows = true;
+                Material[] materials = renderers[i].sharedMaterials;
+                for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    if (materials[materialIndex] != null)
+                    {
+                        materials[materialIndex].enableInstancing = true;
+                    }
+                }
+            }
+
+            DuneVectorSpatialInstancing.Capture(root, false, lodTuning);
             return root.transform;
         }
 

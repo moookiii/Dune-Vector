@@ -5409,6 +5409,9 @@ namespace DuneVector
         [Tooltip("Procedural pyramid density and size range.")]
         public PyramidTuning Pyramids = new PyramidTuning();
 
+        [Tooltip("Procedural obelisk density, size range, burial, and LOD distances.")]
+        public PyramidTuning Obelisks = new PyramidTuning();
+
         [Tooltip("Procedural saguaro distribution, silhouette, ribbing, and blossoms.")]
         public CactusTuning Cacti = new CactusTuning();
 
@@ -5515,6 +5518,7 @@ namespace DuneVector
             RouteEncounters ??= new RouteEncounterTuning();
             DynamicCouriers ??= new DynamicCourierTuning();
             Pyramids ??= new PyramidTuning();
+            Obelisks ??= new PyramidTuning();
             Cacti ??= new CactusTuning();
             DesertShrubs ??= new DesertShrubTuning();
             DesertShrubs.EnsureInitialized();

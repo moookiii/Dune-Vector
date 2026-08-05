@@ -140,6 +140,7 @@ namespace DuneVector.Editor
         private SerializedProperty _routeEncounters;
         private SerializedProperty _dynamicCouriers;
         private SerializedProperty _pyramids;
+        private SerializedProperty _obelisks;
         private SerializedProperty _cacti;
         private SerializedProperty _worldStreaming;
         private SerializedProperty _rendererFrustumCulling;
@@ -184,6 +185,7 @@ namespace DuneVector.Editor
             _routeEncounters = serializedObject.FindProperty("RouteEncounters");
             _dynamicCouriers = serializedObject.FindProperty("DynamicCouriers");
             _pyramids = serializedObject.FindProperty("Pyramids");
+            _obelisks = serializedObject.FindProperty("Obelisks");
             _cacti = serializedObject.FindProperty("Cacti");
             _worldStreaming = serializedObject.FindProperty("WorldStreaming");
             _rendererFrustumCulling = serializedObject.FindProperty("RendererFrustumCulling");
@@ -549,6 +551,10 @@ namespace DuneVector.Editor
                 "Pyramids",
                 "Landmark density and randomized size range.",
                 _pyramids);
+            DuneVectorSettingsInspector.DrawSection(
+                "Obelisks",
+                "Obelisk density, randomized size range, burial, and LOD distances.",
+                _obelisks);
             DuneVectorSettingsInspector.DrawSection(
                 "Cacti",
                 "Saguaro density, proportions, ribbing, arm silhouettes, color, and blossoms.",
