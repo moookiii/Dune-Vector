@@ -5642,6 +5642,9 @@ namespace DuneVector
         [Tooltip("Metallic response of the streamed dune terrain.")]
         [Range(0f, 1f)] public float DuneSurfaceMetallic = 0f;
 
+        [Tooltip("Minimum directional-light contribution retained inside shadows on the dune terrain.")]
+        [Range(0f, 1f)] public float DuneMinimumShadowAttenuation = 0.72f;
+
         [Tooltip("Vertices along one edge of each generated terrain chunk. Higher values are smoother but cost more.")]
         [Range(8, 96)] public int DuneMeshResolution = 32;
 

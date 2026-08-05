@@ -177,6 +177,7 @@ namespace DuneVector.Editor
         private SerializedProperty _duneSurfaceSmoothness;
         private SerializedProperty _duneSmoothnessVariation;
         private SerializedProperty _duneSurfaceMetallic;
+        private SerializedProperty _duneMinimumShadowAttenuation;
         private SerializedProperty _meshResolution;
         private SerializedProperty _chunkSize;
 
@@ -243,6 +244,7 @@ namespace DuneVector.Editor
             _duneSurfaceSmoothness = serializedObject.FindProperty("DuneSurfaceSmoothness");
             _duneSmoothnessVariation = serializedObject.FindProperty("DuneSmoothnessVariation");
             _duneSurfaceMetallic = serializedObject.FindProperty("DuneSurfaceMetallic");
+            _duneMinimumShadowAttenuation = serializedObject.FindProperty("DuneMinimumShadowAttenuation");
             _meshResolution = serializedObject.FindProperty("DuneMeshResolution");
             _chunkSize = serializedObject.FindProperty("DuneChunkSize");
         }
@@ -572,6 +574,7 @@ namespace DuneVector.Editor
                 EditorGUILayout.PropertyField(_duneSurfaceSmoothness);
                 EditorGUILayout.PropertyField(_duneSmoothnessVariation);
                 EditorGUILayout.PropertyField(_duneSurfaceMetallic);
+                EditorGUILayout.PropertyField(_duneMinimumShadowAttenuation);
             }
 
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))

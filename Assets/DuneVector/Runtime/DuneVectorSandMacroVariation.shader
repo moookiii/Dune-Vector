@@ -24,6 +24,7 @@ Shader "DuneVector/URP Sand Macro Variation"
         [HideInInspector] _DVSandSaturationRange("Saturation Range", Vector) = (0.94, 1.04, 0, 0)
         [HideInInspector] _DVSandDarkSaturationMultiplier("Dark Saturation", Range(0.9, 1)) = 0.96
         [HideInInspector] _DVSandSmoothnessVariation("Smoothness Variation", Range(0, 0.05)) = 0.025
+        [HideInInspector] _DVSandMinimumShadowAttenuation("Minimum Shadow Attenuation", Range(0, 1)) = 0.72
     }
 
     SubShader
@@ -80,6 +81,7 @@ Shader "DuneVector/URP Sand Macro Variation"
                 half _DVSandMacroBlendStrength;
                 half _DVSandDarkSaturationMultiplier;
                 half _DVSandSmoothnessVariation;
+                half _DVSandMinimumShadowAttenuation;
             CBUFFER_END
 
             struct Attributes
@@ -223,7 +225,11 @@ Shader "DuneVector/URP Sand Macro Variation"
                 half3 viewDirectionWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
                 float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS);
                 Light mainLight = GetMainLight(shadowCoord);
-                half attenuation = mainLight.distanceAttenuation * mainLight.shadowAttenuation;
+                half softenedShadowAttenuation = lerp(
+                    saturate(_DVSandMinimumShadowAttenuation),
+                    1.0h,
+                    mainLight.shadowAttenuation);
+                half attenuation = mainLight.distanceAttenuation * softenedShadowAttenuation;
                 half diffuseTerm = saturate(dot(normalWS, mainLight.direction));
                 half3 halfDirection = SafeNormalize(mainLight.direction + viewDirectionWS);
                 half specularPower = exp2(3.0h + smoothness * 8.0h);

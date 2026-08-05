@@ -462,6 +462,9 @@ namespace DuneVector
             material.SetFloat("_Smoothness", settings.DuneSurfaceSmoothness);
             material.SetFloat("_DVSandSmoothnessVariation", settings.DuneSmoothnessVariation);
             material.SetFloat("_Metallic", settings.DuneSurfaceMetallic);
+            material.SetFloat(
+                "_DVSandMinimumShadowAttenuation",
+                settings.DuneMinimumShadowAttenuation);
 
             _ownedMaterials.Add(material);
             return material;
