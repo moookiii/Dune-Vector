@@ -8,6 +8,7 @@ Shader "DuneVector/URP Portal Energy"
         _CoreMode("Core Mode", Float) = 0
         _DistanceFade("Distance Fade", Range(0, 1)) = 1
         _DistanceBloomBoost("Distance Bloom Boost", Float) = 1
+        _DistanceHaloOpacityBoost("Distance Halo Opacity Boost", Float) = 1
         _LineEdgeSoftness("Line Edge Softness", Range(0.01, 0.49)) = 0.14
         _ScreenSpaceAntiAliasing("Screen Space Anti-Aliasing", Float) = 0.25
         _TravelPulseCount("Travel Pulse Count", Float) = 3
@@ -58,6 +59,7 @@ Shader "DuneVector/URP Portal Energy"
                 float _CoreMode;
                 float _DistanceFade;
                 float _DistanceBloomBoost;
+                float _DistanceHaloOpacityBoost;
                 float _LineEdgeSoftness;
                 float _ScreenSpaceAntiAliasing;
                 float _TravelPulseCount;
@@ -157,7 +159,8 @@ Shader "DuneVector/URP Portal Energy"
                     if (_CoreMode > 1.5)
                     {
                         float halo = saturate(1.0 - distanceFromStrokeCenter);
-                        alpha *= saturate(halo * halo * coverageCompensation);
+                        alpha *= saturate(
+                            halo * halo * coverageCompensation * _DistanceHaloOpacityBoost);
                     }
                     else
                     {
