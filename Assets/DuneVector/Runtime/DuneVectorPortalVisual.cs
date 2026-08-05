@@ -7,8 +7,7 @@ namespace DuneVector
     {
         private static readonly int DistanceFadeProperty = Shader.PropertyToID("_DistanceFade");
         private static readonly int DistanceBloomBoostProperty = Shader.PropertyToID("_DistanceBloomBoost");
-        private static readonly int DistanceHaloOpacityBoostProperty =
-            Shader.PropertyToID("_DistanceHaloOpacityBoost");
+        private static readonly int DistanceLodBlendProperty = Shader.PropertyToID("_DistanceLodBlend");
         private static readonly int ActivationBloomBoostProperty = Shader.PropertyToID("_ActivationBloomBoost");
         private static readonly int OpacityProperty = Shader.PropertyToID("_Opacity");
 
@@ -21,7 +20,6 @@ namespace DuneVector
         private float _distanceVisibilityStartDistance;
         private float _distanceVisibilityEndDistance;
         private float _distanceVisibilityBloomMultiplier;
-        private float _distanceHaloOpacityMultiplier;
         private float _reactionDuration;
         private float _reactionBloomMultiplier;
         private float _reactionMinimumVisibility;
@@ -56,15 +54,13 @@ namespace DuneVector
                 settings.PortalDistanceVisibilityEndDistance);
             _distanceVisibilityBloomMultiplier =
                 Mathf.Max(1f, settings.PortalDistanceVisibilityBloomMultiplier);
-            _distanceHaloOpacityMultiplier =
-                Mathf.Max(1f, settings.PortalDistanceHaloOpacityMultiplier);
             _reactionDuration = Mathf.Max(0.01f, settings.PortalActivationReactionDuration);
             _reactionBloomMultiplier = Mathf.Max(1f, settings.PortalActivationBloomMultiplier);
             _reactionMinimumVisibility = Mathf.Clamp01(settings.PortalActivationMinimumVisibility);
             _reactionRotationMultiplier = Mathf.Max(1f, settings.PortalActivationRotationMultiplier);
             _reactionPulseExpansion = Mathf.Max(1f, settings.PortalActivationPulseExpansion);
             _reactionPulseOpacity = Mathf.Clamp01(settings.PortalActivationPulseOpacity);
-            ApplyDistanceVisibility(1f, 1f, 1f);
+            ApplyDistanceVisibility(1f, 1f, 0f);
             ApplyActivationBloom(1f);
             if (_activationPulseRenderer != null)
             {
@@ -124,9 +120,7 @@ namespace DuneVector
                     distance));
             float distanceBloomBoost =
                 Mathf.Lerp(1f, _distanceVisibilityBloomMultiplier, distanceVisibility);
-            float distanceHaloOpacityBoost =
-                Mathf.Lerp(1f, _distanceHaloOpacityMultiplier, distanceVisibility);
-            ApplyDistanceVisibility(fade, distanceBloomBoost, distanceHaloOpacityBoost);
+            ApplyDistanceVisibility(fade, distanceBloomBoost, distanceVisibility);
         }
 
         private void UpdateActivationReaction(float deltaTime)
@@ -187,10 +181,7 @@ namespace DuneVector
             ApplyPulseOpacity(_reactionPulseOpacity * reactionStrength);
         }
 
-        private void ApplyDistanceVisibility(
-            float fade,
-            float bloomBoost,
-            float haloOpacityBoost)
+        private void ApplyDistanceVisibility(float fade, float bloomBoost, float lodBlend)
         {
             for (int i = 0; i < _renderers.Length; i++)
             {
@@ -203,7 +194,7 @@ namespace DuneVector
                 renderer.GetPropertyBlock(_properties);
                 _properties.SetFloat(DistanceFadeProperty, fade);
                 _properties.SetFloat(DistanceBloomBoostProperty, bloomBoost);
-                _properties.SetFloat(DistanceHaloOpacityBoostProperty, haloOpacityBoost);
+                _properties.SetFloat(DistanceLodBlendProperty, lodBlend);
                 renderer.SetPropertyBlock(_properties);
             }
         }

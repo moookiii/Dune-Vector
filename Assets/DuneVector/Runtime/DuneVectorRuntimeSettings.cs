@@ -3624,8 +3624,10 @@ namespace DuneVector
         [Min(0f)] public float PortalDistanceVisibilityEndDistance = 180f;
         [Tooltip("Maximum HDR emission multiplier for distant portals. A value of one disables additional distance bloom.")]
         [Min(1f)] public float PortalDistanceVisibilityBloomMultiplier = 1.1f;
-        [Tooltip("Maximum opacity multiplier applied to the wide portal halo at long range. This keeps thin rings continuous under scanlines without changing their size.")]
-        [Min(1f)] public float PortalDistanceHaloOpacityMultiplier = 4f;
+        [Tooltip("Opacity of the analytic outer rim that blends in at long range to replace subpixel mesh-strip coverage.")]
+        [Range(0f, 1f)] public float PortalDistantSmoothRimOpacity = 0.8f;
+        [Tooltip("Minimum screen-space width, in pixels, maintained by the analytic distant rim without changing the ring's diameter.")]
+        [Range(0.5f, 4f)] public float PortalDistantSmoothRimMinimumPixelWidth = 2f;
 
         [Header("Portal Animation and Layering")]
         [Min(0f)] public float PortalPulseSpeed = 1f;

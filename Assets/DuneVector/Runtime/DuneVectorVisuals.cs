@@ -90,6 +90,8 @@ namespace DuneVector
         private readonly List<Material> _shrubMaterials = new List<Material>();
         private readonly List<GeoglyphMaterialBatch> _geoglyphBatches = new List<GeoglyphMaterialBatch>();
         private readonly Dictionary<Material, Material> _portalHaloMaterials = new Dictionary<Material, Material>();
+        private readonly Dictionary<Material, Material> _portalDistantSmoothRimMaterials =
+            new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalRearLineMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalFrontLineMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalParticleMaterials = new Dictionary<Material, Material>();
@@ -771,7 +773,7 @@ namespace DuneVector
             material.SetFloat("_CoreMode", 0f);
             material.SetFloat("_DistanceFade", 1f);
             material.SetFloat("_DistanceBloomBoost", 1f);
-            material.SetFloat("_DistanceHaloOpacityBoost", 1f);
+            material.SetFloat("_DistanceLodBlend", 0f);
             material.SetFloat("_LineEdgeSoftness", settings.PortalLineEdgeSoftness);
             material.SetFloat("_ScreenSpaceAntiAliasing", settings.PortalScreenSpaceAntiAliasing);
             material.SetFloat("_TravelPulseCount", settings.PortalTravelPulseCount);
@@ -807,6 +809,31 @@ namespace DuneVector
             material.SetFloat("_CoreMode", 2f);
             _ownedMaterials.Add(material);
             _portalHaloMaterials.Add(lineMaterial, material);
+            return material;
+        }
+
+        public Material CreatePortalDistantSmoothRimMaterial(Material lineMaterial)
+        {
+            if (_portalDistantSmoothRimMaterials.TryGetValue(
+                lineMaterial,
+                out Material existing) && existing != null)
+            {
+                return existing;
+            }
+
+            Material material = new Material(lineMaterial)
+            {
+                name = $"{lineMaterial.name} - Distant Smooth Rim",
+                enableInstancing = true,
+            };
+            material.SetFloat("_Opacity", Mathf.Clamp01(RingPortalTuning.PortalDistantSmoothRimOpacity));
+            material.SetFloat("_CoreMode", 4f);
+            material.SetFloat(
+                "_SmoothRimMinimumPixelWidth",
+                Mathf.Max(0.5f, RingPortalTuning.PortalDistantSmoothRimMinimumPixelWidth));
+            material.SetFloat("_DistanceLodBlend", 0f);
+            _ownedMaterials.Add(material);
+            _portalDistantSmoothRimMaterials.Add(lineMaterial, material);
             return material;
         }
 
@@ -2050,6 +2077,24 @@ namespace DuneVector
             MeshRenderer frontLineRenderer = frontLinework.GetComponent<MeshRenderer>();
             frontLineRenderer.sortingOrder = 1;
 
+            float smoothRimThickness = Mathf.Max(0.01f, settings.PortalOuterLineThickness);
+            float smoothRimHalfExtent = radius + smoothRimThickness;
+            GameObject distantSmoothRim = CreateMeshObject(
+                "Distant Analytic Smooth Rim",
+                parent,
+                GetPortalDistantSmoothRimMesh(smoothRimHalfExtent),
+                materials.CreatePortalDistantSmoothRimMaterial(lineMaterial));
+            distantSmoothRim.transform.localPosition = Vector3.forward * lineLayerDepth;
+            DisableRendererShadows(distantSmoothRim);
+            MeshRenderer distantSmoothRimRenderer = distantSmoothRim.GetComponent<MeshRenderer>();
+            distantSmoothRimRenderer.sortingOrder = 2;
+            MaterialPropertyBlock smoothRimProperties = new MaterialPropertyBlock();
+            smoothRimProperties.SetFloat("_SmoothRimRadius", radius / smoothRimHalfExtent);
+            smoothRimProperties.SetFloat(
+                "_SmoothRimHalfThickness",
+                (smoothRimThickness * 0.5f) / smoothRimHalfExtent);
+            distantSmoothRimRenderer.SetPropertyBlock(smoothRimProperties);
+
             ParticleSystemRenderer sparkRenderer = CreatePortalEdgeSparks(
                 parent,
                 materials.CreatePortalParticleMaterial(lineMaterial),
@@ -2078,6 +2123,7 @@ namespace DuneVector
                 rearLineRenderer,
                 centerLineRenderer,
                 frontLineRenderer,
+                distantSmoothRimRenderer,
                 sparkRenderer,
                 activationPulseRenderer,
             };
@@ -2092,6 +2138,36 @@ namespace DuneVector
                 activationPulseRenderer,
                 activationPulse.transform,
                 settings);
+        }
+
+        private static Mesh GetPortalDistantSmoothRimMesh(float halfExtent)
+        {
+            float extent = Mathf.Max(0.25f, halfExtent);
+            string key = $"portal-distant-smooth-rim:{extent:0.000}";
+            if (MeshCache.TryGetValue(key, out Mesh cached) && cached != null)
+            {
+                return cached;
+            }
+
+            Mesh mesh = new Mesh { name = "Portal Distant Analytic Smooth Rim" };
+            mesh.vertices = new[]
+            {
+                new Vector3(-extent, -extent, 0f),
+                new Vector3(-extent, extent, 0f),
+                new Vector3(extent, extent, 0f),
+                new Vector3(extent, -extent, 0f),
+            };
+            mesh.uv = new[]
+            {
+                new Vector2(0f, 0f),
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(1f, 0f),
+            };
+            mesh.triangles = new[] { 0, 1, 2, 0, 2, 3 };
+            mesh.RecalculateBounds();
+            MeshCache[key] = mesh;
+            return mesh;
         }
 
         private static Mesh GetPortalActivationPulseMesh(float radius, float thickness, int segmentCount)
