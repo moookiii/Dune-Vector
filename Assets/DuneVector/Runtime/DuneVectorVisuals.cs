@@ -638,7 +638,7 @@ namespace DuneVector
                 return;
             }
 
-            Vector2 textureScale = Vector2.one * Mathf.Max(0.01f, tiling);
+            Vector2 textureScale = Vector2.one * Mathf.Max(0.001f, tiling);
             if (material.HasProperty("_BaseMap"))
             {
                 material.SetTexture("_BaseMap", texture);

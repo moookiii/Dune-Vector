@@ -1455,19 +1455,19 @@ namespace DuneVector
                     CreateTaperedPrismMesh(width, height, width * 0.62f, _settings.MegagateTaper),
                     _materials.MegagateStone, true);
 
-                Part(PrimitiveType.Cube, $"Pylon {i + 1} Outer Buttress", root,
+                TexturedBoxPart($"Pylon {i + 1} Outer Buttress", root,
                     basePosition + new Vector3(side * width * 0.38f, height * 0.43f, width * 0.03f),
                     new Vector3(width * 0.16f, height * 0.7f, width * 0.72f),
                     Quaternion.Euler(0f, 0f, -side * 3f), _materials.MegagateMetal, true);
-                Part(PrimitiveType.Cube, $"Pylon {i + 1} Inset Face", root,
+                TexturedBoxPart($"Pylon {i + 1} Inset Face", root,
                     basePosition + new Vector3(-side * width * 0.32f, height * 0.49f, -width * 0.08f),
                     new Vector3(width * 0.04f, height * 0.5f, width * 0.52f),
                     Quaternion.identity, _materials.MegagateMetal, false);
-                Part(PrimitiveType.Cube, $"Pylon {i + 1} Crown Band", root,
+                TexturedBoxPart($"Pylon {i + 1} Crown Band", root,
                     basePosition + new Vector3(0f, height * 0.91f, 0f),
                     new Vector3(width * 1.08f, height * 0.055f, width * 0.72f),
                     Quaternion.identity, _materials.MegagateStone, true);
-                Part(PrimitiveType.Cube, $"Pylon {i + 1} Mid Band", root,
+                TexturedBoxPart($"Pylon {i + 1} Mid Band", root,
                     basePosition + new Vector3(0f, height * 0.55f, 0f),
                     new Vector3(width * 1.03f, height * 0.025f, width * 0.68f),
                     Quaternion.identity, _materials.MegagateMetal, false);
@@ -1476,7 +1476,7 @@ namespace DuneVector
                 for (int strip = 0; strip < stripCount; strip++)
                 {
                     float stripHeight = height * Mathf.Lerp(0.2f, 0.86f, strip / (float)(stripCount - 1));
-                    Part(PrimitiveType.Cube, $"Pylon {i + 1} Recessed Signal Strip {strip + 1}", root,
+                    TexturedBoxPart($"Pylon {i + 1} Recessed Signal Strip {strip + 1}", root,
                         basePosition + new Vector3(-side * width * 0.315f, stripHeight, -width * 0.12f),
                         new Vector3(width * 0.025f, height * 0.012f, width * 0.34f),
                         Quaternion.identity,
@@ -1492,7 +1492,7 @@ namespace DuneVector
                 float fragmentLength = opening * SeedRange(seed, i, 7241, 0.14f, 0.28f);
                 float x = side * ((opening * 0.5f) - (fragmentLength * 0.5f));
                 float y = height * SeedRange(seed, i, 7243, 0.68f, 0.9f);
-                Part(PrimitiveType.Cube, $"Suspended Bridge Fragment {i + 1}", root,
+                TexturedBoxPart($"Suspended Bridge Fragment {i + 1}", root,
                     new Vector3(x, y, (i - bridgeCount * 0.5f) * width * 0.08f),
                     new Vector3(fragmentLength, width * 0.11f, width * 0.3f),
                     Quaternion.Euler(SeedRange(seed, i, 7245, -8f, 8f), 0f,
@@ -1506,7 +1506,7 @@ namespace DuneVector
                 Vector3 offset = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * distance;
                 offset.y = TerrainLocalHeight(root, offset) - _settings.MegagateBurialDepth *
                     SeedRange(seed, i, 7255, 0.15f, 0.7f);
-                Part(PrimitiveType.Cube, $"Collapsed Gate Base {i + 1}", root, offset,
+                TexturedBoxPart($"Collapsed Gate Base {i + 1}", root, offset,
                     new Vector3(width * SeedRange(seed, i, 7257, 0.3f, 0.7f),
                         height * SeedRange(seed, i, 7259, 0.05f, 0.14f),
                         width * SeedRange(seed, i, 7261, 0.35f, 0.85f)),
@@ -1514,7 +1514,7 @@ namespace DuneVector
                         SeedRange(seed, i, 7265, -28f, 28f)), _materials.MegagateStone, true);
             }
             BuildDebrisTrail(root, "Megagate Debris", seed + 31, _settings.MegagateDebrisCount,
-                opening * 1.5f, width * 0.16f, Vector3.right, _materials.MegagateMetal, 7271);
+                opening * 1.5f, width * 0.16f, Vector3.right, _materials.MegagateMetal, 7271, true);
         }
 
         private void BuildWindHarvesterGraveyard(Transform root, int seed, DuneVectorLandmarkAnimator animator)
@@ -1849,7 +1849,8 @@ namespace DuneVector
         }
 
         private void BuildDebrisTrail(Transform root, string namePrefix, int seed, int count,
-            float spread, float size, Vector3 trailDirection, Material material, int salt)
+            float spread, float size, Vector3 trailDirection, Material material, int salt,
+            bool useWorldScaleBoxUvs = false)
         {
             Vector3 direction = trailDirection.sqrMagnitude > 0.001f ? trailDirection.normalized : Vector3.forward;
             Vector3 lateral = new Vector3(-direction.z, 0f, direction.x);
@@ -1860,13 +1861,25 @@ namespace DuneVector
                 Vector3 offset = direction * distance + lateral * lateralOffset;
                 offset.y = TerrainLocalHeight(root, offset) + SeedRange(seed, i, salt + 4, -size * 0.4f, size * 0.35f);
                 float pieceScale = size * SeedRange(seed, i, salt + 6, 0.45f, 1.35f);
-                Part(i % 4 == 0 ? PrimitiveType.Cylinder : PrimitiveType.Cube,
-                    $"{namePrefix} {i + 1:00}", root, offset,
-                    new Vector3(pieceScale, pieceScale * SeedRange(seed, i, salt + 8, 0.35f, 1.2f),
-                        pieceScale * SeedRange(seed, i, salt + 10, 0.5f, 1.6f)),
-                    Quaternion.Euler(SeedRange(seed, i, salt + 12, 0f, 360f),
-                        SeedRange(seed, i, salt + 14, 0f, 360f),
-                        SeedRange(seed, i, salt + 16, 0f, 360f)), material, true);
+                Vector3 pieceSize = new Vector3(
+                    pieceScale,
+                    pieceScale * SeedRange(seed, i, salt + 8, 0.35f, 1.2f),
+                    pieceScale * SeedRange(seed, i, salt + 10, 0.5f, 1.6f));
+                Quaternion rotation = Quaternion.Euler(
+                    SeedRange(seed, i, salt + 12, 0f, 360f),
+                    SeedRange(seed, i, salt + 14, 0f, 360f),
+                    SeedRange(seed, i, salt + 16, 0f, 360f));
+                if (useWorldScaleBoxUvs)
+                {
+                    TexturedBoxPart($"{namePrefix} {i + 1:00}", root, offset,
+                        pieceSize, rotation, material, true);
+                }
+                else
+                {
+                    Part(i % 4 == 0 ? PrimitiveType.Cylinder : PrimitiveType.Cube,
+                        $"{namePrefix} {i + 1:00}", root, offset,
+                        pieceSize, rotation, material, true);
+                }
             }
         }
 
@@ -2184,15 +2197,7 @@ namespace DuneVector
                 16, 17, 18, 16, 18, 19,
                 20, 21, 22, 20, 22, 23,
             };
-            Vector2[] uv = new Vector2[vertices.Length];
-            for (int face = 0; face < 6; face++)
-            {
-                int index = face * 4;
-                uv[index] = new Vector2(0f, 0f);
-                uv[index + 1] = new Vector2(1f, 0f);
-                uv[index + 2] = new Vector2(1f, 1f);
-                uv[index + 3] = new Vector2(0f, 1f);
-            }
+            Vector2[] uv = CreateBoxFaceUvs(width, height, depth);
             Mesh mesh = new Mesh { name = "Procedural Tapered Landmark Prism" };
             mesh.vertices = vertices;
             mesh.uv = uv;
@@ -2200,6 +2205,92 @@ namespace DuneVector
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
             return mesh;
+        }
+
+        private static Transform TexturedBoxPart(
+            string partName,
+            Transform parent,
+            Vector3 localPosition,
+            Vector3 size,
+            Quaternion localRotation,
+            Material material,
+            bool collider)
+        {
+            Mesh mesh = CreateTexturedBoxMesh(size);
+            GameObject part = new GameObject(partName);
+            part.transform.SetParent(parent, false);
+            part.transform.localPosition = localPosition;
+            part.transform.localRotation = localRotation;
+            MeshFilter filter = part.AddComponent<MeshFilter>();
+            filter.sharedMesh = mesh;
+            part.AddComponent<DuneVectorGeneratedLandmarkMesh>().Initialize(mesh);
+            MeshRenderer renderer = part.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = ShadowCastingMode.On;
+            if (collider)
+            {
+                BoxCollider boxCollider = part.AddComponent<BoxCollider>();
+                boxCollider.size = size;
+            }
+            return part.transform;
+        }
+
+        private static Mesh CreateTexturedBoxMesh(Vector3 size)
+        {
+            float halfX = size.x * 0.5f;
+            float halfY = size.y * 0.5f;
+            float halfZ = size.z * 0.5f;
+            Vector3 b0 = new Vector3(-halfX, -halfY, -halfZ);
+            Vector3 b1 = new Vector3(halfX, -halfY, -halfZ);
+            Vector3 b2 = new Vector3(halfX, -halfY, halfZ);
+            Vector3 b3 = new Vector3(-halfX, -halfY, halfZ);
+            Vector3 t0 = new Vector3(-halfX, halfY, -halfZ);
+            Vector3 t1 = new Vector3(halfX, halfY, -halfZ);
+            Vector3 t2 = new Vector3(halfX, halfY, halfZ);
+            Vector3 t3 = new Vector3(-halfX, halfY, halfZ);
+            Vector3[] vertices =
+            {
+                b0, b1, b2, b3,
+                t0, t3, t2, t1,
+                b0, t0, t1, b1,
+                b1, t1, t2, b2,
+                b2, t2, t3, b3,
+                b3, t3, t0, b0,
+            };
+            int[] triangles =
+            {
+                0, 1, 2, 0, 2, 3,
+                4, 5, 6, 4, 6, 7,
+                8, 9, 10, 8, 10, 11,
+                12, 13, 14, 12, 14, 15,
+                16, 17, 18, 16, 18, 19,
+                20, 21, 22, 20, 22, 23,
+            };
+            Mesh mesh = new Mesh { name = "Procedural World-Scale Textured Box" };
+            mesh.vertices = vertices;
+            mesh.uv = CreateBoxFaceUvs(size.x, size.y, size.z);
+            mesh.triangles = triangles;
+            mesh.RecalculateNormals();
+            mesh.RecalculateBounds();
+            return mesh;
+        }
+
+        private static Vector2[] CreateBoxFaceUvs(float width, float height, float depth)
+        {
+            Vector2[] uv = new Vector2[24];
+            uv[0] = new Vector2(0f, 0f); uv[1] = new Vector2(width, 0f);
+            uv[2] = new Vector2(width, depth); uv[3] = new Vector2(0f, depth);
+            uv[4] = new Vector2(0f, 0f); uv[5] = new Vector2(0f, depth);
+            uv[6] = new Vector2(width, depth); uv[7] = new Vector2(width, 0f);
+            uv[8] = new Vector2(0f, 0f); uv[9] = new Vector2(0f, height);
+            uv[10] = new Vector2(width, height); uv[11] = new Vector2(width, 0f);
+            uv[12] = new Vector2(0f, 0f); uv[13] = new Vector2(0f, height);
+            uv[14] = new Vector2(depth, height); uv[15] = new Vector2(depth, 0f);
+            uv[16] = new Vector2(0f, 0f); uv[17] = new Vector2(0f, height);
+            uv[18] = new Vector2(width, height); uv[19] = new Vector2(width, 0f);
+            uv[20] = new Vector2(0f, 0f); uv[21] = new Vector2(0f, height);
+            uv[22] = new Vector2(depth, height); uv[23] = new Vector2(depth, 0f);
+            return uv;
         }
 
         private static Transform Part(

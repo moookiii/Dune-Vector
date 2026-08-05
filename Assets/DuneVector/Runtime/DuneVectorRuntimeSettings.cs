@@ -1427,9 +1427,12 @@ namespace DuneVector
         [ColorUsage(false)] public Color MegagateStoneTextureTint;
         [ColorUsage(false)] public Color MegagateMetalTextureTint;
         [ColorUsage(false)] public Color MegagateSignalTextureTint;
-        [Min(0.01f)] public float MegagateStoneTextureTiling;
-        [Min(0.01f)] public float MegagateMetalTextureTiling;
-        [Min(0.01f)] public float MegagateSignalTextureTiling;
+        [Tooltip("Stone texture repetitions per meter on megagate geometry.")]
+        [Min(0.001f)] public float MegagateStoneTextureTiling;
+        [Tooltip("Metal texture repetitions per meter on megagate geometry.")]
+        [Min(0.001f)] public float MegagateMetalTextureTiling;
+        [Tooltip("Signal texture repetitions per meter on megagate geometry.")]
+        [Min(0.001f)] public float MegagateSignalTextureTiling;
         [Tooltip("Local-space center of the megagate silhouette used by the photography camera frame.")]
         public Vector3 MegagatePhotographyBoundsCenter;
         [Tooltip("Local-space size of the megagate silhouette used by the photography camera frame. Set any axis to zero to use renderer bounds.")]
