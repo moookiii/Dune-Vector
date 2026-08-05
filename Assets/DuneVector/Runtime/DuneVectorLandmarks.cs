@@ -1675,7 +1675,7 @@ namespace DuneVector
 
             BuildDebrisTrail(root, "Orbital Impact Debris", seed, _settings.OrbitalDebrisCount,
                 _settings.OrbitalDebrisSpread, radius * 0.12f, Vector3.back,
-                _materials.OrbitalConcreteDark, 7221, true);
+                _materials.OrbitalConcreteGray, 7221, true);
         }
 
         private void BuildDesertMegagate(Transform root, int seed, DuneVectorLandmarkAnimator animator)
