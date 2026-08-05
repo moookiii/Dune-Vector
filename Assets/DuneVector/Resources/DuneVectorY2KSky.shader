@@ -73,6 +73,7 @@ Shader "DuneVector/URP Y2K Sky"
         [HideInInspector] _ReactiveLightningWidth("Reactive Lightning Width", Float) = 0
         [HideInInspector] _ReactiveLightningJaggedness("Reactive Lightning Jaggedness", Float) = 0
         [HideInInspector] _ReactiveLightningRetargetRate("Reactive Lightning Retarget Rate", Float) = 0
+        [HideInInspector] _ReactiveLightningHorizonDepth("Reactive Lightning Horizon Depth", Float) = 0
         [HideInInspector] _ReactiveLightningSustainResponse("Reactive Lightning Sustain Response", Float) = 0
         [HideInInspector] _ReactiveLightningBranchIntensity("Reactive Lightning Branch Intensity", Float) = 0
         [HideInInspector] _ReactiveLightningStrikeCount("Reactive Lightning Strike Count", Float) = 0
@@ -178,6 +179,7 @@ Shader "DuneVector/URP Y2K Sky"
     float _ReactiveLightningWidth;
     float _ReactiveLightningJaggedness;
     float _ReactiveLightningRetargetRate;
+    float _ReactiveLightningHorizonDepth;
     float _ReactiveLightningSustainResponse;
     float _ReactiveLightningBranchIntensity;
     float _ReactiveLightningStrikeCount;
@@ -429,7 +431,7 @@ Shader "DuneVector/URP Y2K Sky"
         // Treble transients reveal multiple retargeting filaments, each with a thin core and readable halo.
         float lightningTick = floor(reactiveTime * _ReactiveLightningRetargetRate);
         float strikeSlotCount = max(1.0, round(_ReactiveLightningSectorCount));
-        float lightningVertical = smoothstep(0.02, 0.12, skyUp)
+        float lightningVertical = smoothstep(-_ReactiveLightningHorizonDepth, 0.05, skyUp)
             * (1.0 - smoothstep(0.68, 0.9, skyUp));
         float lightningCore = 0.0;
         float lightningHalo = 0.0;
