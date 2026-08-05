@@ -659,6 +659,7 @@ namespace DuneVector
             DuneVectorMusicWorldGlitchSink glitch = reactiveSkyObject.AddComponent<DuneVectorMusicWorldGlitchSink>();
             glitch.Initialize(RuntimeSettings.MusicReactiveSky);
             conductor.RegisterSink(glitch);
+            conductor.ValidateRuntimeIntegration();
         }
 
         private void BuildEnvironment()

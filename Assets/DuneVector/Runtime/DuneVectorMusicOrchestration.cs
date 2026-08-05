@@ -544,6 +544,10 @@ namespace DuneVector
         private bool[] _observedMarkers;
         private int _lastObservedMarkerId;
         private uint _validatedPlaybackGeneration;
+        private DuneVectorPerspectivePressureFronts _pressureFronts;
+        private DuneVectorMusicForegroundResponse _foreground;
+        private DuneVectorMusicCameraEffects _cameraEffects;
+        private DuneVectorMusicWorldGlitchSink _glitch;
 
         public MusicReactiveRuntimeState RuntimeState => _state;
         public int NextCueIndex => _cueCursor;
@@ -557,6 +561,8 @@ namespace DuneVector
             _cueCursor = 0;
             _previousTimelinePosition = 0;
             _observedSeekGeneration = 0;
+            int initialTimeline = _audio != null ? _audio.TimelineState.TimelinePositionMilliseconds : 0;
+            _previousTimelinePosition = initialTimeline;
             if (_profile == null)
             {
                 Debug.LogWarning("Music visualizer track profile is unavailable; authored cues remain disabled.", this);
@@ -564,6 +570,7 @@ namespace DuneVector
             else
             {
                 _observedMarkers = new bool[_profile.Markers.Length];
+                ReconstructCueCursor(initialTimeline);
                 ValidateProfileAuthoring();
             }
         }
@@ -582,7 +589,43 @@ namespace DuneVector
                 }
             }
             _sinks[_sinkCount++] = sink;
+            if (sink is DuneVectorPerspectivePressureFronts pressureFronts)
+            {
+                _pressureFronts = pressureFronts;
+            }
+            else if (sink is DuneVectorMusicForegroundResponse foreground)
+            {
+                _foreground = foreground;
+            }
+            else if (sink is DuneVectorMusicCameraEffects cameraEffects)
+            {
+                _cameraEffects = cameraEffects;
+            }
+            else if (sink is DuneVectorMusicWorldGlitchSink glitch)
+            {
+                _glitch = glitch;
+            }
             return true;
+        }
+
+        public void ValidateRuntimeIntegration()
+        {
+            if (_pressureFronts == null)
+            {
+                Debug.LogWarning("Music visualizer pressure-front pool is unavailable.", this);
+            }
+            if (_foreground == null)
+            {
+                Debug.LogWarning("Music visualizer foreground responder is unavailable.", this);
+            }
+            if (_cameraEffects == null)
+            {
+                Debug.LogWarning("Music visualizer camera-effects sink is unavailable.", this);
+            }
+            if (_glitch == null || !DuneVectorMusicGlitchRuntime.FeatureAvailable)
+            {
+                Debug.LogWarning("Gameplay camera uses Renderer Data without the visualizer glitch feature.", this);
+            }
         }
 
         private void Update()
@@ -630,21 +673,32 @@ namespace DuneVector
                     Multipliers = MusicVisualContinuousMultipliers.Identity,
                     Permissions = MusicVisualEffectGroups.All,
                 };
+            MusicVisualContinuousMultipliers multipliers = section.Multipliers;
+            if (_profile != null && sectionIndex > 0 && section.TransitionBeats > 0f)
+            {
+                MusicVisualSectionDefinition previousSection = _profile.Sections[sectionIndex - 1];
+                float beatMilliseconds = 60000f / Mathf.Max(1f, _profile.BeatsPerMinute);
+                float transitionMilliseconds = section.TransitionBeats * beatMilliseconds;
+                float transition = Mathf.Clamp01(
+                    (timeline.TimelinePositionMilliseconds - section.StartTimelineMilliseconds)
+                    / Mathf.Max(1f, transitionMilliseconds));
+                multipliers = LerpMultipliers(previousSection.Multipliers, section.Multipliers, transition);
+            }
 
             _state.Analysis = analysis;
             _state.Timeline = timeline;
             _state.SectionIndex = sectionIndex;
             _state.Section = section.Section;
             _state.VisualTier = section.VisualTier;
-            _state.Multipliers = section.Multipliers;
+            _state.Multipliers = multipliers;
             _state.Permissions = section.Permissions;
-            _state.Bass = Mathf.Clamp01(analysis.SmoothedBass * section.Multipliers.Bass);
-            _state.Mid = Mathf.Clamp01(analysis.SmoothedMid * section.Multipliers.Mid);
-            _state.High = Mathf.Clamp01(analysis.SmoothedHigh * section.Multipliers.High);
-            _state.Energy = Mathf.Clamp01(analysis.TotalEnergy * section.Multipliers.Energy);
-            _state.Pressure = Mathf.Clamp01(_state.Bass * section.Multipliers.Pressure);
-            _state.Foreground = Mathf.Clamp01(_state.Energy * section.Multipliers.Foreground);
-            _state.Bloom = Mathf.Clamp01(_state.Energy * section.Multipliers.Bloom);
+            _state.Bass = Mathf.Clamp01(analysis.SmoothedBass * multipliers.Bass);
+            _state.Mid = Mathf.Clamp01(analysis.SmoothedMid * multipliers.Mid);
+            _state.High = Mathf.Clamp01(analysis.SmoothedHigh * multipliers.High);
+            _state.Energy = Mathf.Clamp01(analysis.TotalEnergy * multipliers.Energy);
+            _state.Pressure = Mathf.Clamp01(_state.Bass * multipliers.Pressure);
+            _state.Foreground = Mathf.Clamp01(_state.Energy * multipliers.Foreground);
+            _state.Bloom = Mathf.Clamp01(_state.Energy * multipliers.Bloom);
             _state.SuppressTransientEvents = !timeline.IsValid || !timeline.IsPlaying || timeline.IsPaused;
 
             if (timeline.SeekGeneration != _observedSeekGeneration || timeline.DiscontinuousJump)
@@ -653,6 +707,23 @@ namespace DuneVector
                 ReconstructCueCursor(timeline.TimelinePositionMilliseconds);
                 ResetSinks();
             }
+        }
+
+        private static MusicVisualContinuousMultipliers LerpMultipliers(
+            in MusicVisualContinuousMultipliers from,
+            in MusicVisualContinuousMultipliers to,
+            float t)
+        {
+            return new MusicVisualContinuousMultipliers
+            {
+                Bass = Mathf.Lerp(from.Bass, to.Bass, t),
+                Mid = Mathf.Lerp(from.Mid, to.Mid, t),
+                High = Mathf.Lerp(from.High, to.High, t),
+                Energy = Mathf.Lerp(from.Energy, to.Energy, t),
+                Pressure = Mathf.Lerp(from.Pressure, to.Pressure, t),
+                Foreground = Mathf.Lerp(from.Foreground, to.Foreground, t),
+                Bloom = Mathf.Lerp(from.Bloom, to.Bloom, t),
+            };
         }
 
         private void ValidateProfileAuthoring()
@@ -933,7 +1004,14 @@ namespace DuneVector
             GUILayout.Label($"FFT raw: {analysis.RawBass:0.000} / {analysis.RawMid:0.000} / {analysis.RawHigh:0.000}");
             GUILayout.Label($"FFT smooth: {analysis.SmoothedBass:0.000} / {analysis.SmoothedMid:0.000} / {analysis.SmoothedHigh:0.000}");
             GUILayout.Label($"Transient: bass={analysis.BassTransient:0.000} high={analysis.HighTransient:0.000} energy={analysis.TotalEnergy:0.000}");
+            GUILayout.Label($"Thresholds: kick={_settings.MinorKickThreshold:0.00}/{_settings.MajorKickThreshold:0.00} snare={_settings.MinorSnareThreshold:0.00}/{_settings.AccentSnareThreshold:0.00} armed={_bassTransientArmed}/{_highTransientArmed}");
             GUILayout.Label($"Discontinuous jump: {timeline.DiscontinuousJump}  suppressed={_state.SuppressTransientEvents}");
+            GUILayout.Label($"Fronts: ordinary={(_pressureFronts != null ? _pressureFronts.ActiveOrdinaryCount : 0)} reactor={(_pressureFronts != null ? _pressureFronts.ActiveReactorCount : 0)} dropped={(_pressureFronts != null ? _pressureFronts.DroppedFrontCount : 0)}");
+            GUILayout.Label($"Foreground: road={(_foreground != null ? _foreground.ActiveRoadPulseCount : 0)} streaks={(_foreground != null ? _foreground.LiveStreakCount : 0)} light={(_foreground != null && _foreground.ReactionLightActive)}");
+            GUILayout.Label($"Glitch: {(_glitch != null ? _glitch.Intensity : 0f):0.000} feature={DuneVectorMusicGlitchRuntime.FeatureAvailable} HUD=OnGUI/post-world");
+            GUILayout.Label($"Camera: FOV option={(_audio != null && _audio.VisualizerFovEnabled)} request={(_cameraEffects != null ? _cameraEffects.RequestedFovOffset : 0f):0.000} applied={(_cameraEffects != null ? _cameraEffects.AppliedFovOffset : 0f):0.000}");
+            GUILayout.Label($"Camera: roll={(_cameraEffects != null ? _cameraEffects.AppliedRoll : 0f):0.000} position={(_cameraEffects != null ? _cameraEffects.AppliedPosition : 0f):0.000}");
+            GUILayout.Label("Rendering: renderer index=0 color=Camera depth=not used by glitch");
 
             GUILayout.BeginHorizontal();
             if (GUILayout.Button("Previous Section"))

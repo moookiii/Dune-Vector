@@ -75,6 +75,7 @@ namespace DuneVector
         private uint _musicPlaybackGeneration;
         private bool _gameplayPaused;
         private int _lastPolledTimelinePosition;
+        private bool _restartIssuedForStoppedState;
         private EventInstance _flightBoostInstance;
         private bool _flightBoostFadingOut;
         private bool _flightBoostNeedsRandomSeek;
@@ -179,13 +180,20 @@ namespace DuneVector
             UpdateFlightBoostAudio();
             UpdateMusicTimelineState();
             if (_musicInstance.isValid()
-                && _musicInstance.getPlaybackState(out PLAYBACK_STATE playbackState) == FMOD.RESULT.OK
-                && playbackState == PLAYBACK_STATE.STOPPED)
+                && _musicInstance.getPlaybackState(out PLAYBACK_STATE playbackState) == FMOD.RESULT.OK)
             {
-                _musicPlaybackGeneration++;
-                _timelineBridge?.SetGeneration(_musicPlaybackGeneration);
-                _timelineState.PlaybackGeneration = _musicPlaybackGeneration;
-                _musicInstance.start();
+                if (playbackState == PLAYBACK_STATE.STOPPED && !_restartIssuedForStoppedState)
+                {
+                    _restartIssuedForStoppedState = true;
+                    _musicPlaybackGeneration++;
+                    _timelineBridge?.SetGeneration(_musicPlaybackGeneration);
+                    _timelineState.PlaybackGeneration = _musicPlaybackGeneration;
+                    _musicInstance.start();
+                }
+                else if (playbackState != PLAYBACK_STATE.STOPPED)
+                {
+                    _restartIssuedForStoppedState = false;
+                }
             }
         }
 
@@ -259,6 +267,7 @@ namespace DuneVector
             _timelineState.PlaybackGeneration = _musicPlaybackGeneration;
             _timelineState.SeekGeneration++;
             _lastPolledTimelinePosition = 0;
+            _restartIssuedForStoppedState = false;
             return _musicInstance.setTimelinePosition(0) == FMOD.RESULT.OK
                 && _musicInstance.start() == FMOD.RESULT.OK;
         }
@@ -549,6 +558,27 @@ namespace DuneVector
             VisualizerFovEnabled = enabled;
             _preferencesDirty = true;
             VisualizerFovEnabledChanged?.Invoke(enabled);
+            FlushPreferences();
+        }
+
+        public void ResetVideoSettingsToDefaults()
+        {
+            PauseMenuVisualTuning defaults = _settings != null ? _settings.PauseMenu : null;
+            ChromaticAberrationEnabled = defaults == null || defaults.DefaultChromaticAberrationEnabled;
+            LensDistortionEnabled = defaults == null || defaults.DefaultLensDistortionEnabled;
+            CrtLinesEnabled = defaults == null || defaults.DefaultCrtLinesEnabled;
+            FilmGrainEnabled = defaults == null || defaults.DefaultFilmGrainEnabled;
+            VignetteEnabled = defaults == null || defaults.DefaultVignetteEnabled;
+            AntiAliasingMode = _defaultAntiAliasingMode == DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing
+                ? DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing
+                : _defaultAntiAliasingMode;
+            bool fovChanged = VisualizerFovEnabled;
+            VisualizerFovEnabled = false;
+            _preferencesDirty = true;
+            if (fovChanged)
+            {
+                VisualizerFovEnabledChanged?.Invoke(false);
+            }
             FlushPreferences();
         }
 
@@ -1477,8 +1507,17 @@ namespace DuneVector
                 value => _audio?.SetVisualizerFovEnabled(value));
             y += buttonHeight + (gap * 2f);
 
+            float navigationWidth = (content.width - gap) * 0.5f;
             if (GUI.Button(
-                    new Rect(content.x, y, content.width, buttonHeight),
+                    new Rect(content.x, y, navigationWidth, buttonHeight),
+                    _visuals.VideoSettingsResetButtonLabel,
+                    _secondaryButtonStyle))
+            {
+                _audio?.ResetVideoSettingsToDefaults();
+                ApplyVideoPreferences();
+            }
+            if (GUI.Button(
+                    new Rect(content.x + navigationWidth + gap, y, navigationWidth, buttonHeight),
                     _visuals.VideoSettingsBackButtonLabel,
                     _secondaryButtonStyle))
             {

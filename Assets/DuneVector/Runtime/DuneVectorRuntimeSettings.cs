@@ -4765,6 +4765,7 @@ namespace DuneVector
         public string VideoSettingsSubtitle = "DUNE VECTOR  /  DISPLAY EFFECTS";
         public string VideoSettingsSectionLabel = "POST-PROCESSING";
         public string VideoSettingsBackButtonLabel = "BACK TO PAUSE";
+        public string VideoSettingsResetButtonLabel = "RESET DEFAULTS";
         public string VideoSettingsHintLabel = "ESC  /  BACK TO PAUSE";
         public string VideoAntiAliasingLabel = "ANTI-ALIASING";
         public string VideoAntiAliasingOffLabel = "OFF";

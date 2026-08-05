@@ -10,6 +10,7 @@ namespace DuneVector
     public static class DuneVectorMusicGlitchRuntime
     {
         public static float Intensity { get; private set; }
+        public static bool FeatureAvailable { get; internal set; }
 
         public static void SetIntensity(float intensity)
         {
@@ -31,10 +32,17 @@ namespace DuneVector
 
         public override void Create()
         {
+            DuneVectorMusicGlitchRuntime.FeatureAvailable = true;
             _pass = new WorldGlitchPass
             {
                 renderPassEvent = injectionPoint,
             };
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            DuneVectorMusicGlitchRuntime.FeatureAvailable = false;
+            base.Dispose(disposing);
         }
 
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
