@@ -89,7 +89,6 @@ namespace DuneVector
         public ClampedFloatParameter ReactiveLightningWidth = new ClampedFloatParameter(0.012f, 0.0005f, 0.08f);
         public ClampedFloatParameter ReactiveLightningJaggedness = new ClampedFloatParameter(0.32f, 0f, 1f);
         public MinFloatParameter ReactiveLightningRetargetRate = new MinFloatParameter(8f, 0.1f);
-        public ClampedFloatParameter ReactiveLightningHorizonDepth = new ClampedFloatParameter(0.22f, 0f, 0.5f);
         public ClampedFloatParameter ReactiveLightningSustainResponse = new ClampedFloatParameter(0.24f, 0f, 1f);
         public ClampedFloatParameter ReactiveLightningBranchIntensity = new ClampedFloatParameter(0.75f, 0f, 1f);
         public ClampedFloatParameter ReactiveLightningStrikeCount = new ClampedFloatParameter(1f, 1f, 4f);

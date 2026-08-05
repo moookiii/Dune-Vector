@@ -4149,8 +4149,6 @@ namespace DuneVector
         [Range(0.0005f, 0.08f)] public float LightningWidth = 0.0005f;
         [Range(0f, 1f)] public float LightningJaggedness = 0.18f;
         [Min(0.1f)] public float LightningRetargetRate = 5.5f;
-        [Tooltip("How far lightning filaments may extend below the sky horizon before fading out.")]
-        [Range(0f, 0.5f)] public float LightningHorizonDepth = 0.22f;
         [Tooltip("Fraction of the horizontal camera frustum reserved at each edge so jagged bolts stay fully on screen.")]
         [Range(0f, 0.8f)] public float LightningFrustumEdgePadding = 0.35f;
         [Range(0f, 1f)] public float LightningSustainResponse = 0.06f;

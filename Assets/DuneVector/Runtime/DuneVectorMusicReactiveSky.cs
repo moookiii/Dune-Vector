@@ -11,11 +11,6 @@ namespace DuneVector
     public sealed class DuneVectorMusicReactiveSky : MonoBehaviour, IMusicReactiveSink
     {
         private static readonly ProfilerMarker AnalysisIngestMarker = new ProfilerMarker("MusicVisualizer.AnalysisIngest");
-        private static readonly int LightningOverlayResponseId = Shader.PropertyToID("_DVMusicLightningOverlayResponse");
-        private static readonly int LightningOverlayGeometryId = Shader.PropertyToID("_DVMusicLightningOverlayGeometry");
-        private static readonly int LightningOverlayShapeId = Shader.PropertyToID("_DVMusicLightningOverlayShape");
-        private static readonly int LightningOverlayPlacementId = Shader.PropertyToID("_DVMusicLightningOverlayPlacement");
-        private static readonly int LightningOverlayColorId = Shader.PropertyToID("_DVMusicLightningOverlayColor");
         private DuneVectorAudioManager _audio;
         private DuneVectorY2KSky _sky;
         private Bloom _bloom;
@@ -151,7 +146,6 @@ namespace DuneVector
             _sky.ReactiveLightningWidth.Override(_settings.LightningWidth);
             _sky.ReactiveLightningJaggedness.Override(_settings.LightningJaggedness);
             _sky.ReactiveLightningRetargetRate.Override(_settings.LightningRetargetRate);
-            _sky.ReactiveLightningHorizonDepth.Override(_settings.LightningHorizonDepth);
             _sky.ReactiveLightningSustainResponse.Override(_settings.LightningSustainResponse);
             _sky.ReactiveLightningBranchIntensity.Override(_settings.LightningBranchIntensity);
             _sky.ReactiveLightningStrikeCount.Override(_settings.LightningStrikeCount);
@@ -401,7 +395,6 @@ namespace DuneVector
             _sky.ReactiveMusicHighs.value = _highs;
             _sky.ReactiveBassPulse.value = _bassPulse;
             _sky.ReactiveHighPulse.value = _highPulse;
-            ApplyLightningOverlayGlobals();
 
             if (_bloom == null)
             {
@@ -442,7 +435,6 @@ namespace DuneVector
             _sky.ReactiveMusicHighs.value = state.High;
             _sky.ReactiveBassPulse.value = state.Analysis.BassTransient;
             _sky.ReactiveHighPulse.value = state.Analysis.HighTransient;
-            ApplyLightningOverlayGlobals();
 
             if (_bloom == null)
             {
@@ -489,45 +481,6 @@ namespace DuneVector
                     _sky.ReactiveHighPulse.value = Mathf.Max(_sky.ReactiveHighPulse.value, command.Strength);
                     break;
             }
-            ApplyLightningOverlayGlobals();
-        }
-
-        private void ApplyLightningOverlayGlobals()
-        {
-            float response = Mathf.Clamp01(
-                _sky.ReactiveHighPulse.value
-                + _sky.ReactiveMusicHighs.value * _settings.LightningSustainResponse);
-            DuneVectorMusicGlitchRuntime.SetLightningOverlayIntensity(
-                response * _settings.LightningIntensity);
-            Shader.SetGlobalVector(
-                LightningOverlayResponseId,
-                new Vector4(
-                    _sky.ReactiveHighPulse.value,
-                    _sky.ReactiveMusicHighs.value,
-                    _settings.LightningSustainResponse,
-                    _settings.LightningIntensity));
-            Shader.SetGlobalVector(
-                LightningOverlayGeometryId,
-                new Vector4(
-                    _settings.LightningSectorCount,
-                    _settings.LightningWidth,
-                    _settings.LightningJaggedness,
-                    _settings.LightningRetargetRate));
-            Shader.SetGlobalVector(
-                LightningOverlayShapeId,
-                new Vector4(
-                    _settings.LightningStrikeCount,
-                    _settings.LightningHaloWidthMultiplier,
-                    _settings.LightningHaloIntensity,
-                    _settings.LightningHorizonDepth));
-            Shader.SetGlobalVector(
-                LightningOverlayPlacementId,
-                new Vector4(
-                    _sky.ReactiveLightningAzimuthSpan.value,
-                    _settings.LightningNodeIntensity,
-                    _settings.LightningNodeSpacing,
-                    _settings.LightningBranchIntensity));
-            Shader.SetGlobalColor(LightningOverlayColorId, _settings.LightningColor);
         }
 
         public void ResetMusicResponse()
@@ -559,8 +512,6 @@ namespace DuneVector
             _highPulse = 0f;
             _analysisTimer = 0f;
             LatestAnalysisFrame = default;
-            DuneVectorMusicGlitchRuntime.ResetLightningOverlay();
-            Shader.SetGlobalVector(LightningOverlayResponseId, Vector4.zero);
 
             if (_sky != null)
             {
@@ -583,7 +534,6 @@ namespace DuneVector
 
         private void OnDestroy()
         {
-            DuneVectorMusicGlitchRuntime.ResetLightningOverlay();
             if (_audio != null)
             {
                 _audio.MusicVisualizerModeChanged -= SetVisualizerMode;

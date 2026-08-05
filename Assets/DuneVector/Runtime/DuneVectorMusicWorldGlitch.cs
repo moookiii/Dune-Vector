@@ -7,7 +7,6 @@ namespace DuneVector
         private static int _availableFeatureCount;
 
         public static float Intensity { get; private set; }
-        public static float LightningOverlayIntensity { get; private set; }
         public static bool FeatureAvailable => _availableFeatureCount > 0;
 
         internal static void RegisterFeature()
@@ -23,16 +22,6 @@ namespace DuneVector
         public static void SetIntensity(float intensity)
         {
             Intensity = Mathf.Clamp01(intensity);
-        }
-
-        public static void SetLightningOverlayIntensity(float intensity)
-        {
-            LightningOverlayIntensity = Mathf.Max(0f, intensity);
-        }
-
-        public static void ResetLightningOverlay()
-        {
-            LightningOverlayIntensity = 0f;
         }
 
         public static void Reset()
