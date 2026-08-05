@@ -1147,8 +1147,9 @@ namespace DuneVector
     public sealed class WorldHubTuning
     {
         public bool Enabled = true;
-        [Min(0f)] public float PlatformHeightAboveTerrain = 24f;
-        [Tooltip("Hub-local anchor for the rune ring. Its lowest mesh point is aligned to this height.")]
+        [Tooltip("Clearance between the terrain and the physical bottom of the hub platform.")]
+        [Min(0f)] public float PlatformHeightAboveTerrain = 0f;
+        [Tooltip("Hub-local horizontal anchor for the rune ring. Y is clearance above the platform's physical bottom.")]
         public Vector3 RuneRingLocalPosition = Vector3.zero;
         [Min(8f)] public float PlatformRadius = 26f;
         [Min(0.5f)] public float PlatformThickness = 2.4f;
