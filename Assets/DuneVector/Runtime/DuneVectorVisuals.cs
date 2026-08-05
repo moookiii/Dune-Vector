@@ -435,9 +435,11 @@ namespace DuneVector
             material.SetColor("_DVSandDarkColor", settings.DuneSandDarkColor);
             material.SetFloat("_DVSandMacroPatternSize", settings.DuneMacroColorPatternSize);
             material.SetFloat("_DVSandSecondaryPatternSize", settings.DuneSecondaryColorPatternSize);
+            material.SetFloat("_DVSandDetailPatternSize", settings.DuneDetailColorPatternSize);
             material.SetVector("_DVSandMacroNoiseOffset", settings.DuneMacroColorNoiseOffset);
             material.SetVector("_DVSandBrightnessNoiseOffset", settings.DuneSecondaryBrightnessNoiseOffset);
             material.SetVector("_DVSandSaturationNoiseOffset", settings.DuneSecondarySaturationNoiseOffset);
+            material.SetVector("_DVSandDetailBrightnessNoiseOffset", settings.DuneDetailBrightnessNoiseOffset);
             material.SetFloat("_DVSandDarkThreshold", settings.DuneMacroDarkThreshold);
             material.SetFloat("_DVSandLightThreshold", settings.DuneMacroLightThreshold);
             material.SetFloat("_DVSandTransitionSoftness", settings.DuneMacroColorTransitionSoftness);
@@ -459,6 +461,9 @@ namespace DuneVector
             material.SetFloat(
                 "_DVSandDarkSaturationMultiplier",
                 settings.DuneDarkRegionSaturationMultiplier);
+            material.SetFloat(
+                "_DVSandDetailBrightnessVariation",
+                settings.DuneDetailBrightnessVariation);
             material.SetFloat("_Smoothness", settings.DuneSurfaceSmoothness);
             material.SetFloat("_DVSandSmoothnessVariation", settings.DuneSmoothnessVariation);
             material.SetFloat("_Metallic", settings.DuneSurfaceMetallic);

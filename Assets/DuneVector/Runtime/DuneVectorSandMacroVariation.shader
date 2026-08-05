@@ -13,9 +13,11 @@ Shader "DuneVector/URP Sand Macro Variation"
         [HideInInspector] _DVSandDarkColor("Dark Sand", Color) = (0.48, 0.2, 0.09, 1)
         [HideInInspector] _DVSandMacroPatternSize("Macro Pattern Size", Float) = 500
         [HideInInspector] _DVSandSecondaryPatternSize("Secondary Pattern Size", Float) = 100
+        [HideInInspector] _DVSandDetailPatternSize("Detail Pattern Size", Float) = 24
         [HideInInspector] _DVSandMacroNoiseOffset("Macro Offset", Vector) = (1200, -800, 0, 0)
         [HideInInspector] _DVSandBrightnessNoiseOffset("Brightness Offset", Vector) = (-370, 910, 0, 0)
         [HideInInspector] _DVSandSaturationNoiseOffset("Saturation Offset", Vector) = (1420, 480, 0, 0)
+        [HideInInspector] _DVSandDetailBrightnessNoiseOffset("Detail Brightness Offset", Vector) = (280, -1640, 0, 0)
         [HideInInspector] _DVSandDarkThreshold("Dark Threshold", Range(0, 1)) = 0.38
         [HideInInspector] _DVSandLightThreshold("Light Threshold", Range(0, 1)) = 0.62
         [HideInInspector] _DVSandTransitionSoftness("Transition Softness", Range(0.01, 0.25)) = 0.08
@@ -23,6 +25,7 @@ Shader "DuneVector/URP Sand Macro Variation"
         [HideInInspector] _DVSandBrightnessRange("Brightness Range", Vector) = (0.94, 1.04, 0, 0)
         [HideInInspector] _DVSandSaturationRange("Saturation Range", Vector) = (0.94, 1.04, 0, 0)
         [HideInInspector] _DVSandDarkSaturationMultiplier("Dark Saturation", Range(0.9, 1)) = 0.96
+        [HideInInspector] _DVSandDetailBrightnessVariation("Detail Brightness Variation", Range(0, 0.05)) = 0.025
         [HideInInspector] _DVSandSmoothnessVariation("Smoothness Variation", Range(0, 0.05)) = 0.025
         [HideInInspector] _DVSandMinimumShadowAttenuation("Minimum Shadow Attenuation", Range(0, 1)) = 0.72
     }
@@ -68,6 +71,7 @@ Shader "DuneVector/URP Sand Macro Variation"
                 float4 _DVSandMacroNoiseOffset;
                 float4 _DVSandBrightnessNoiseOffset;
                 float4 _DVSandSaturationNoiseOffset;
+                float4 _DVSandDetailBrightnessNoiseOffset;
                 float4 _DVSandBrightnessRange;
                 float4 _DVSandSaturationRange;
                 half _Smoothness;
@@ -75,11 +79,13 @@ Shader "DuneVector/URP Sand Macro Variation"
                 half _DVSandVariationEnabled;
                 float _DVSandMacroPatternSize;
                 float _DVSandSecondaryPatternSize;
+                float _DVSandDetailPatternSize;
                 half _DVSandDarkThreshold;
                 half _DVSandLightThreshold;
                 half _DVSandTransitionSoftness;
                 half _DVSandMacroBlendStrength;
                 half _DVSandDarkSaturationMultiplier;
+                half _DVSandDetailBrightnessVariation;
                 half _DVSandSmoothnessVariation;
                 half _DVSandMinimumShadowAttenuation;
             CBUFFER_END
@@ -181,6 +187,7 @@ Shader "DuneVector/URP Sand Macro Variation"
                 float2 logicalWorldXZ = input.logicalWorldXZ;
                 float macroPatternSize = max(_DVSandMacroPatternSize, 0.01);
                 float secondaryPatternSize = max(_DVSandSecondaryPatternSize, 0.01);
+                float detailPatternSize = max(_DVSandDetailPatternSize, 0.01);
 
                 half macroNoise = FractalGradientNoise(
                     (logicalWorldXZ + _DVSandMacroNoiseOffset.xy) / macroPatternSize);
@@ -212,6 +219,15 @@ Shader "DuneVector/URP Sand Macro Variation"
                 saturation *= lerp(1.0h, _DVSandDarkSaturationMultiplier, darkWeight);
                 albedo *= lerp(1.0h, brightness, _DVSandVariationEnabled);
                 albedo = lerp(albedo, ApplySaturation(albedo, saturation), _DVSandVariationEnabled);
+
+                half detailNoise = GradientNoise(
+                    (logicalWorldXZ + _DVSandDetailBrightnessNoiseOffset.xy) / detailPatternSize);
+                half detailVariation = saturate(_DVSandDetailBrightnessVariation);
+                half detailBrightness = lerp(
+                    1.0h - detailVariation,
+                    1.0h + detailVariation,
+                    detailNoise);
+                albedo *= lerp(1.0h, detailBrightness, _DVSandVariationEnabled);
 
                 float2 smoothnessCoordinate = float2(logicalWorldXZ.y, -logicalWorldXZ.x) +
                     float2(_DVSandSaturationNoiseOffset.y, -_DVSandSaturationNoiseOffset.x);

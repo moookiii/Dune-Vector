@@ -5601,6 +5601,9 @@ namespace DuneVector
         [Tooltip("World-space width, in meters, of the secondary brightness and saturation pattern.")]
         [Range(60f, 150f)] public float DuneSecondaryColorPatternSize = 90f;
 
+        [Tooltip("World-space width, in meters, of the fine brightness variation layered over the broad sand colors.")]
+        [Range(15f, 40f)] public float DuneDetailColorPatternSize = 24f;
+
         [Tooltip("World-space offset of the macro color pattern. Change this to explore a different layout.")]
         public Vector2 DuneMacroColorNoiseOffset = new Vector2(1200f, -800f);
 
@@ -5609,6 +5612,9 @@ namespace DuneVector
 
         [Tooltip("Independent world-space offset of the secondary saturation pattern.")]
         public Vector2 DuneSecondarySaturationNoiseOffset = new Vector2(1420f, 480f);
+
+        [Tooltip("Independent world-space offset of the fine brightness pattern.")]
+        public Vector2 DuneDetailBrightnessNoiseOffset = new Vector2(280f, -1640f);
 
         [Tooltip("Macro-noise value below which darker sand regions dominate.")]
         [Range(0f, 1f)] public float DuneMacroDarkThreshold = 0.44f;
@@ -5620,19 +5626,22 @@ namespace DuneVector
         [Range(0.01f, 0.25f)] public float DuneMacroColorTransitionSoftness = 0.1f;
 
         [Tooltip("How strongly the three-color macro palette modifies the existing dune texture.")]
-        [Range(0f, 0.5f)] public float DuneMacroColorBlendStrength = 0.34f;
+        [Range(0f, 0.5f)] public float DuneMacroColorBlendStrength = 0.4f;
 
         [Tooltip("Lowest secondary brightness multiplier. Keep within 0.82 to 1.08 for natural sand.")]
-        [Range(0.82f, 1.08f)] public float DuneBrightnessMultiplierMinimum = 0.94f;
+        [Range(0.82f, 1.08f)] public float DuneBrightnessMultiplierMinimum = 0.92f;
 
         [Tooltip("Highest secondary brightness multiplier. Keep within 0.82 to 1.08 for natural sand.")]
-        [Range(0.82f, 1.08f)] public float DuneBrightnessMultiplierMaximum = 1.07f;
+        [Range(0.82f, 1.08f)] public float DuneBrightnessMultiplierMaximum = 1.08f;
+
+        [Tooltip("Maximum fine-scale brightness change. Values around two to three percent avoid a speckled appearance.")]
+        [Range(0f, 0.05f)] public float DuneDetailBrightnessVariation = 0.025f;
 
         [Tooltip("Lowest secondary saturation multiplier. Keep within 0.92 to 1.06 for natural sand.")]
         [Range(0.92f, 1.06f)] public float DuneSaturationMultiplierMinimum = 0.92f;
 
         [Tooltip("Highest secondary saturation multiplier. Keep within 0.92 to 1.06 for natural sand.")]
-        [Range(0.92f, 1.06f)] public float DuneSaturationMultiplierMaximum = 1.05f;
+        [Range(0.92f, 1.06f)] public float DuneSaturationMultiplierMaximum = 1.06f;
 
         [Tooltip("Additional saturation multiplier applied only to dark macro regions.")]
         [Range(0.9f, 1f)] public float DuneDarkRegionSaturationMultiplier = 0.94f;
