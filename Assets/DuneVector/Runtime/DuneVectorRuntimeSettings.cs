@@ -1470,6 +1470,14 @@ namespace DuneVector
         [Min(0f)] public float OrbitalBurialDepth;
 
         [Header("Desert Megagate Detail")]
+        [Tooltip("Optional direct fallback prefab used when the Desert Megagate Resources path cannot be resolved. Its authored scale and rotation are preserved.")]
+        public GameObject MegagatePrefab;
+        [Tooltip("Primary Resources path used to load the Desert Megagate prefab.")]
+        public string MegagateResourcePath = "DesertMegagatePrefab";
+        [Tooltip("Samples per axis used to ground the Desert Megagate across the dunes.")]
+        [Range(2, 9)] public int MegagateGroundingSamplesPerAxis = 5;
+        [Tooltip("Adds mesh colliders to Desert Megagate meshes that do not already have colliders.")]
+        public bool MegagateGenerateMeshColliders = true;
         [Range(2, 6)] public int MegagatePylonCount;
         [Min(8f)] public float MegagatePylonHeight;
         [Min(2f)] public float MegagatePylonWidth;

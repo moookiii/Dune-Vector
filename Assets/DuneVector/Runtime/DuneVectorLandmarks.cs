@@ -1552,82 +1552,55 @@ namespace DuneVector
 
         private void BuildDesertMegagate(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
-            int pylonCount = Mathf.Max(2, _settings.MegagatePylonCount);
-            float height = Mathf.Max(8f, _settings.MegagatePylonHeight);
-            float width = Mathf.Max(2f, _settings.MegagatePylonWidth);
-            float opening = Mathf.Max(4f, _settings.MegagateOpeningWidth);
-            for (int i = 0; i < pylonCount; i++)
+            GameObject megagatePrefab = null;
+            if (!string.IsNullOrWhiteSpace(_settings.MegagateResourcePath))
             {
-                int pairIndex = i / 2;
-                float side = i % 2 == 0 ? -1f : 1f;
-                float x = side * ((opening * 0.5f) + (width * 0.5f) + (pairIndex * width * 1.7f));
-                Vector3 basePosition = new Vector3(x, 0f, pairIndex * width * 0.35f);
-                basePosition.y = TerrainLocalHeight(root, basePosition) - _settings.MegagateBurialDepth;
-                MeshPart($"Megagate Pylon {i + 1}", root,
-                    basePosition + (Vector3.up * (height * 0.5f)), Quaternion.identity, Vector3.one,
-                    CreateTaperedPrismMesh(width, height, width * 0.62f, _settings.MegagateTaper),
-                    _materials.MegagateStone, true);
+                megagatePrefab = Resources.Load<GameObject>(_settings.MegagateResourcePath);
+            }
+            if (megagatePrefab == null)
+            {
+                megagatePrefab = _settings.MegagatePrefab;
+            }
+            if (megagatePrefab == null)
+            {
+                Debug.LogWarning("Desert Megagate replacement prefab could not be resolved from Dune Vector Runtime Settings.", root);
+                return;
+            }
 
-                TexturedBoxPart($"Pylon {i + 1} Outer Buttress", root,
-                    basePosition + new Vector3(side * width * 0.38f, height * 0.43f, width * 0.03f),
-                    new Vector3(width * 0.16f, height * 0.7f, width * 0.72f),
-                    Quaternion.Euler(0f, 0f, -side * 3f), _materials.MegagateMetal, true);
-                TexturedBoxPart($"Pylon {i + 1} Inset Face", root,
-                    basePosition + new Vector3(-side * width * 0.32f, height * 0.49f, -width * 0.08f),
-                    new Vector3(width * 0.04f, height * 0.5f, width * 0.52f),
-                    Quaternion.identity, _materials.MegagateMetal, false);
-                TexturedBoxPart($"Pylon {i + 1} Crown Band", root,
-                    basePosition + new Vector3(0f, height * 0.91f, 0f),
-                    new Vector3(width * 1.08f, height * 0.055f, width * 0.72f),
-                    Quaternion.identity, _materials.MegagateStone, true);
-                TexturedBoxPart($"Pylon {i + 1} Mid Band", root,
-                    basePosition + new Vector3(0f, height * 0.55f, 0f),
-                    new Vector3(width * 1.03f, height * 0.025f, width * 0.68f),
-                    Quaternion.identity, _materials.MegagateMetal, false);
+            Vector3 prefabScale = megagatePrefab.transform.localScale;
+            Quaternion prefabRotation = megagatePrefab.transform.localRotation;
+            GameObject megagate = UnityEngine.Object.Instantiate(megagatePrefab, root, false);
+            megagate.name = megagatePrefab.name;
+            megagate.transform.localPosition = Vector3.zero;
+            megagate.transform.localRotation = prefabRotation;
+            megagate.transform.localScale = prefabScale;
+            GroundPrefabToDunes(
+                megagate.transform,
+                _settings.MegagateGroundingSamplesPerAxis,
+                _settings.MegagateBurialDepth);
+            megagate.transform.localScale = prefabScale;
 
-                int stripCount = 5;
-                for (int strip = 0; strip < stripCount; strip++)
+            if (_settings.MegagateGenerateMeshColliders)
+            {
+                AddMissingMeshColliders(megagate);
+            }
+        }
+
+        private static void AddMissingMeshColliders(GameObject instance)
+        {
+            MeshFilter[] filters = instance.GetComponentsInChildren<MeshFilter>(true);
+            for (int i = 0; i < filters.Length; i++)
+            {
+                MeshFilter filter = filters[i];
+                if (filter == null || filter.sharedMesh == null ||
+                    filter.GetComponent<Collider>() != null)
                 {
-                    float stripHeight = height * Mathf.Lerp(0.2f, 0.86f, strip / (float)(stripCount - 1));
-                    TexturedBoxPart($"Pylon {i + 1} Recessed Signal Strip {strip + 1}", root,
-                        basePosition + new Vector3(-side * width * 0.315f, stripHeight, -width * 0.12f),
-                        new Vector3(width * 0.025f, height * 0.012f, width * 0.34f),
-                        Quaternion.identity,
-                        strip % 2 == 0 ? _materials.MegagateSignal : _materials.MegagateMetal,
-                        false);
+                    continue;
                 }
-            }
 
-            int bridgeCount = Mathf.Max(0, _settings.MegagateBridgeFragmentCount);
-            for (int i = 0; i < bridgeCount; i++)
-            {
-                float side = i % 2 == 0 ? -1f : 1f;
-                float fragmentLength = opening * SeedRange(seed, i, 7241, 0.14f, 0.28f);
-                float x = side * ((opening * 0.5f) - (fragmentLength * 0.5f));
-                float y = height * SeedRange(seed, i, 7243, 0.68f, 0.9f);
-                TexturedBoxPart($"Suspended Bridge Fragment {i + 1}", root,
-                    new Vector3(x, y, (i - bridgeCount * 0.5f) * width * 0.08f),
-                    new Vector3(fragmentLength, width * 0.11f, width * 0.3f),
-                    Quaternion.Euler(SeedRange(seed, i, 7245, -8f, 8f), 0f,
-                        SeedRange(seed, i, 7247, -6f, 6f)), _materials.MegagateMetal, true);
+                MeshCollider meshCollider = filter.gameObject.AddComponent<MeshCollider>();
+                meshCollider.sharedMesh = filter.sharedMesh;
             }
-
-            for (int i = 0; i < Mathf.Max(0, _settings.MegagateBaseRuinCount); i++)
-            {
-                float angle = SeedRange(seed, i, 7251, 0f, 360f);
-                float distance = SeedRange(seed, i, 7253, opening * 0.62f, opening * 1.15f);
-                Vector3 offset = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * distance;
-                offset.y = TerrainLocalHeight(root, offset) - _settings.MegagateBurialDepth *
-                    SeedRange(seed, i, 7255, 0.15f, 0.7f);
-                TexturedBoxPart($"Collapsed Gate Base {i + 1}", root, offset,
-                    new Vector3(width * SeedRange(seed, i, 7257, 0.3f, 0.7f),
-                        height * SeedRange(seed, i, 7259, 0.05f, 0.14f),
-                        width * SeedRange(seed, i, 7261, 0.35f, 0.85f)),
-                    Quaternion.Euler(SeedRange(seed, i, 7263, -18f, 18f), angle,
-                        SeedRange(seed, i, 7265, -28f, 28f)), _materials.MegagateStone, true);
-            }
-            BuildDebrisTrail(root, "Megagate Debris", seed + 31, _settings.MegagateDebrisCount,
-                opening * 1.5f, width * 0.16f, Vector3.right, _materials.MegagateMetal, 7271, true);
         }
 
         private void BuildWindHarvesterGraveyard(Transform root, int seed, DuneVectorLandmarkAnimator animator)
