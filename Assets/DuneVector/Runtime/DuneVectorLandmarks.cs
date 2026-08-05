@@ -1136,6 +1136,39 @@ namespace DuneVector
         private void BuildBeacon(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
             float scale = _settings.BeaconScale;
+            const string beaconResourcePath = "RaiderBeacon/RaiderBeacon";
+            GameObject beaconPrefab = Resources.Load<GameObject>(beaconResourcePath);
+
+            if (beaconPrefab != null)
+            {
+                GameObject beacon = UnityEngine.Object.Instantiate(beaconPrefab, root, false);
+                beacon.name = "Raider Beacon";
+                beacon.transform.localPosition = Vector3.zero;
+                beacon.transform.localRotation = Quaternion.identity;
+                beacon.transform.localScale = beaconPrefab.transform.localScale * scale;
+                BuildBeaconColliders(beacon.transform);
+
+                Transform importedOrbit = null;
+                Transform importedPulse = null;
+                Transform[] importedTransforms = beacon.GetComponentsInChildren<Transform>(true);
+                for (int i = 0; i < importedTransforms.Length; i++)
+                {
+                    Transform importedTransform = importedTransforms[i];
+                    if (importedTransform.name == "RB_SIGNAL_ORBIT")
+                    {
+                        importedOrbit = importedTransform;
+                    }
+                    else if (importedTransform.name == "RB_CORE_PULSE")
+                    {
+                        importedPulse = importedTransform;
+                    }
+                }
+
+                animator.RegisterSpin(importedOrbit, Vector3.up, _settings.BeaconOrbitSpeed);
+                animator.RegisterPulse(importedPulse, _settings.BeaconPulseAmount, _settings.BeaconPulseSpeed);
+                return;
+            }
+
             float height = _settings.BeaconHeight;
             int foundationArmCount = Mathf.Max(3, _settings.BeaconFoundationArmCount);
             for (int i = 0; i < foundationArmCount; i++)
@@ -1189,6 +1222,34 @@ namespace DuneVector
                     (direction * 5.5f + Vector3.up * height) * scale,
                     new Vector3(0.35f, 0.35f, 5f) * scale,
                     Quaternion.Euler(0f, angle, 0f), _materials.EnemyBody, false);
+            }
+        }
+
+        private static void BuildBeaconColliders(Transform beacon)
+        {
+            Transform[] importedTransforms = beacon.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < importedTransforms.Length; i++)
+            {
+                Transform importedTransform = importedTransforms[i];
+                bool isCollisionPart = importedTransform.name == "Tower Inner Column" ||
+                    importedTransform.name == "Foundation Arm 1" ||
+                    importedTransform.name == "Foundation Arm 2" ||
+                    importedTransform.name == "Foundation Arm 3";
+                if (!isCollisionPart || importedTransform.GetComponent<Collider>() != null)
+                {
+                    continue;
+                }
+
+                MeshFilter meshFilter = importedTransform.GetComponent<MeshFilter>();
+                if (meshFilter == null || meshFilter.sharedMesh == null)
+                {
+                    continue;
+                }
+
+                Bounds meshBounds = meshFilter.sharedMesh.bounds;
+                BoxCollider boxCollider = importedTransform.gameObject.AddComponent<BoxCollider>();
+                boxCollider.center = meshBounds.center;
+                boxCollider.size = meshBounds.size;
             }
         }
 
