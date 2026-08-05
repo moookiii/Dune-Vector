@@ -82,6 +82,10 @@ Shader "DuneVector/URP Y2K Sky"
         [HideInInspector] _ReactiveLightningNodeSpacing("Reactive Lightning Node Spacing", Float) = 0
         [HideInInspector] _ReactiveCameraAzimuth("Reactive Camera Azimuth", Float) = 0
         [HideInInspector] _ReactiveLightningAzimuthSpan("Reactive Lightning Azimuth Span", Float) = 0
+        [HideInInspector] _ReactiveLightningWorldAzimuth0("Reactive Lightning World Azimuth 0", Float) = 0
+        [HideInInspector] _ReactiveLightningWorldAzimuth1("Reactive Lightning World Azimuth 1", Float) = 0
+        [HideInInspector] _ReactiveLightningWorldAzimuth2("Reactive Lightning World Azimuth 2", Float) = 0
+        [HideInInspector] _ReactiveLightningWorldAzimuth3("Reactive Lightning World Azimuth 3", Float) = 0
         [HideInInspector] _ReactiveSparkColor("Reactive Spark Color", Color) = (0, 0, 0, 1)
         [HideInInspector] _ReactiveSparkIntensity("Reactive Spark Intensity", Float) = 0
         [HideInInspector] _ReactiveSparkGridScale("Reactive Spark Grid Scale", Float) = 0
@@ -187,6 +191,10 @@ Shader "DuneVector/URP Y2K Sky"
     float _ReactiveLightningNodeSpacing;
     float _ReactiveCameraAzimuth;
     float _ReactiveLightningAzimuthSpan;
+    float _ReactiveLightningWorldAzimuth0;
+    float _ReactiveLightningWorldAzimuth1;
+    float _ReactiveLightningWorldAzimuth2;
+    float _ReactiveLightningWorldAzimuth3;
     float4 _ReactiveSparkColor;
     float _ReactiveSparkIntensity;
     float _ReactiveSparkGridScale;
@@ -428,7 +436,6 @@ Shader "DuneVector/URP Y2K Sky"
 
         // Treble transients reveal multiple retargeting filaments, each with a thin core and readable halo.
         float lightningTick = floor(reactiveTime * _ReactiveLightningRetargetRate);
-        float strikeSlotCount = max(1.0, round(_ReactiveLightningSectorCount));
         float lightningVertical = smoothstep(0.0, 0.05, skyUp)
             * (1.0 - smoothstep(0.68, 0.9, skyUp));
         float lightningCore = 0.0;
@@ -440,9 +447,13 @@ Shader "DuneVector/URP Y2K Sky"
         {
             float strikeEnabled = 1.0 - step(authoredStrikeCount, (float)strikeIndex);
             float strikeChoice = Hash31(float3(lightningTick, 4.17 + strikeIndex * 7.13, 9.31));
-            float strikeSlot = (floor(strikeChoice * strikeSlotCount) + 0.5) / strikeSlotCount;
-            float strikeOffset = (strikeSlot * 2.0 - 1.0) * _ReactiveLightningAzimuthSpan;
-            float strikeAzimuth = frac(_ReactiveCameraAzimuth + strikeOffset + 1.0);
+            float strikeAzimuth = strikeIndex == 0
+                ? _ReactiveLightningWorldAzimuth0
+                : strikeIndex == 1
+                    ? _ReactiveLightningWorldAzimuth1
+                    : strikeIndex == 2
+                        ? _ReactiveLightningWorldAzimuth2
+                        : _ReactiveLightningWorldAzimuth3;
             float lightningNoise = Noise3(float3(
                 skyUp * 27.0,
                 lightningTick * 0.173 + strikeIndex * 3.7,

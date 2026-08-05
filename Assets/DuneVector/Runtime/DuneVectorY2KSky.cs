@@ -98,6 +98,10 @@ namespace DuneVector
         public ClampedFloatParameter ReactiveLightningNodeSpacing = new ClampedFloatParameter(9f, 2f, 24f);
         public ClampedFloatParameter ReactiveCameraAzimuth = new ClampedFloatParameter(0.5f, 0f, 1f);
         public ClampedFloatParameter ReactiveLightningAzimuthSpan = new ClampedFloatParameter(0.1f, 0f, 0.5f);
+        public ClampedFloatParameter ReactiveLightningWorldAzimuth0 = new ClampedFloatParameter(0.125f, 0f, 1f);
+        public ClampedFloatParameter ReactiveLightningWorldAzimuth1 = new ClampedFloatParameter(0.375f, 0f, 1f);
+        public ClampedFloatParameter ReactiveLightningWorldAzimuth2 = new ClampedFloatParameter(0.625f, 0f, 1f);
+        public ClampedFloatParameter ReactiveLightningWorldAzimuth3 = new ClampedFloatParameter(0.875f, 0f, 1f);
 
         public ColorParameter ReactiveSparkColor = new ColorParameter(Color.white, true, false, true);
         public MinFloatParameter ReactiveSparkIntensity = new MinFloatParameter(0f, 0f);

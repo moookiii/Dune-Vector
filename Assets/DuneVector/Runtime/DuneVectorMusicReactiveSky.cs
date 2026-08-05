@@ -35,6 +35,7 @@ namespace DuneVector
         private float _currentBloomThreshold;
         private MusicVisualizerMode _visualizerMode = MusicVisualizerMode.All;
         private uint _analysisSequence;
+        private int _lightningWorldAnchorTick = int.MinValue;
         private bool _conductorControlsResponse;
 
         public MusicAnalysisFrame LatestAnalysisFrame { get; private set; }
@@ -232,6 +233,43 @@ namespace DuneVector
             _sky.ReactiveLightningAzimuthSpan.value = horizontalHalfFov
                 / (Mathf.PI * 2f)
                 * usableFrustum;
+
+            int retargetTick = Mathf.FloorToInt(Time.time * _settings.LightningRetargetRate);
+            if (retargetTick == _lightningWorldAnchorTick)
+            {
+                return;
+            }
+
+            _lightningWorldAnchorTick = retargetTick;
+            float cameraAzimuth01 = _sky.ReactiveCameraAzimuth.value;
+            float azimuthSpan = _sky.ReactiveLightningAzimuthSpan.value;
+            float slotCount = Mathf.Max(1f, _settings.LightningSectorCount);
+            _sky.ReactiveLightningWorldAzimuth0.value = ResolveLightningWorldAzimuth(
+                retargetTick, 0, cameraAzimuth01, azimuthSpan, slotCount);
+            _sky.ReactiveLightningWorldAzimuth1.value = ResolveLightningWorldAzimuth(
+                retargetTick, 1, cameraAzimuth01, azimuthSpan, slotCount);
+            _sky.ReactiveLightningWorldAzimuth2.value = ResolveLightningWorldAzimuth(
+                retargetTick, 2, cameraAzimuth01, azimuthSpan, slotCount);
+            _sky.ReactiveLightningWorldAzimuth3.value = ResolveLightningWorldAzimuth(
+                retargetTick, 3, cameraAzimuth01, azimuthSpan, slotCount);
+        }
+
+        private static float ResolveLightningWorldAzimuth(
+            int retargetTick,
+            int strikeIndex,
+            float cameraAzimuth,
+            float azimuthSpan,
+            float slotCount)
+        {
+            uint state = unchecked((uint)retargetTick * 747796405u)
+                ^ unchecked((uint)(strikeIndex + 1) * 2891336453u);
+            state ^= state >> 16;
+            state *= 2246822519u;
+            state ^= state >> 13;
+            float choice = (state & 0x00FFFFFFu) / 16777216f;
+            float slot = (Mathf.Floor(choice * slotCount) + 0.5f) / slotCount;
+            float offset = (slot * 2f - 1f) * azimuthSpan;
+            return Mathf.Repeat(cameraAzimuth + offset, 1f);
         }
 
         private void TryAttachSpectrumDsp()
