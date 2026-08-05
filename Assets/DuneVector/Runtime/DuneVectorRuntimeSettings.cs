@@ -1148,8 +1148,12 @@ namespace DuneVector
     {
         public bool Enabled = true;
         [Min(0f)] public float PlatformHeightAboveTerrain = 24f;
-        [Tooltip("Hub-local horizontal anchor for the rune ring. Y offsets its highest mesh point from the platform underside.")]
+        [Tooltip("Exact hub-local position for the rune ring when automatic top alignment is disabled.")]
         public Vector3 RuneRingLocalPosition = Vector3.zero;
+        public Vector3 RuneRingLocalEulerAngles = Vector3.zero;
+        public Vector3 RuneRingLocalScale = Vector3.one;
+        [Tooltip("Offsets the authored transform so the rune ring's highest mesh point meets the platform underside.")]
+        public bool RuneRingAlignTopToPlatformUnderside = true;
         [Header("Premium Hub Visuals")]
         [Tooltip("Optional authored visual shell placed above the rune-ring foundation. Gameplay colliders and terminals remain runtime-built.")]
         public GameObject PremiumVisualPrefab;
@@ -4163,7 +4167,7 @@ namespace DuneVector
         [Min(0f)] public float LightningIntensity = 0f;
         [Tooltip("Number of possible lightning strike slots distributed across the visible camera frustum.")]
         [Range(1, 32)] public int LightningSectorCount = 16;
-        [Range(0.0005f, 0.08f)] public float LightningWidth = 0.0005f;
+        [Range(0.0001f, 0.08f)] public float LightningWidth = 0.0005f;
         [Range(0f, 1f)] public float LightningJaggedness = 0.18f;
         [Min(0.1f)] public float LightningRetargetRate = 5.5f;
         [Tooltip("Fraction of the horizontal camera frustum reserved at each edge so jagged bolts stay fully on screen.")]

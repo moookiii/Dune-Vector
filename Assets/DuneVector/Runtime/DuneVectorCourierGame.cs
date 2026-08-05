@@ -1005,16 +1005,16 @@ namespace DuneVector
                 return;
             }
 
-            Quaternion prefabRotation = runeRingPrefab.transform.localRotation;
-            Vector3 prefabScale = runeRingPrefab.transform.localScale;
             GameObject runeRing = Instantiate(runeRingPrefab, _hubRoot, false);
             runeRing.name = runeRingPrefab.name;
             _hubRuneRing = runeRing.transform;
-            _hubRuneRing.localPosition = _hubSettings.RuneRingLocalPosition;
-            _hubRuneRing.localRotation = prefabRotation;
-            _hubRuneRing.localScale = prefabScale;
+            _hubRuneRing.SetLocalPositionAndRotation(
+                _hubSettings.RuneRingLocalPosition,
+                Quaternion.Euler(_hubSettings.RuneRingLocalEulerAngles));
+            _hubRuneRing.localScale = _hubSettings.RuneRingLocalScale;
 
-            if (TryGetHubLocalMeshMaximumY(_hubRuneRing, out float maximumY))
+            if (_hubSettings.RuneRingAlignTopToPlatformUnderside
+                && TryGetHubLocalMeshMaximumY(_hubRuneRing, out float maximumY))
             {
                 float desiredTopY = _hubSettings.RuneRingLocalPosition.y
                     - (_hubSettings.PlatformThickness * 0.5f);
