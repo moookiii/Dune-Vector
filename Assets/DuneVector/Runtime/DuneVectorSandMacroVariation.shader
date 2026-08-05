@@ -62,6 +62,11 @@ Shader "DuneVector/URP Sand Macro Variation"
             TEXTURE2D(_BaseMap);
             SAMPLER(sampler_BaseMap);
 
+            float4 _DVMusicPulseOrigins[4];
+            float4 _DVMusicPulseParameters[4];
+            float4 _DVMusicContinuous;
+            half4 _DVMusicPulseColor;
+
             CBUFFER_START(UnityPerMaterial)
                 float4 _BaseMap_ST;
                 half4 _BaseColor;
@@ -256,6 +261,16 @@ Shader "DuneVector/URP Sand Macro Variation"
                 half3 direct = mainLight.color * attenuation *
                     ((albedo * diffuseTerm) + (specularColor * specularTerm));
                 half3 color = ambient + direct;
+                half roadPulse = 0.0h;
+                [unroll]
+                for (int pulseIndex = 0; pulseIndex < 4; pulseIndex++)
+                {
+                    float pulseDistance = distance(input.positionWS.xz, _DVMusicPulseOrigins[pulseIndex].xy);
+                    float pulseWidth = max(_DVMusicPulseParameters[pulseIndex].x, 0.001);
+                    half pulseBand = saturate(1.0 - abs(pulseDistance - _DVMusicPulseOrigins[pulseIndex].z) / pulseWidth);
+                    roadPulse = max(roadPulse, pulseBand * _DVMusicPulseOrigins[pulseIndex].w);
+                }
+                color += _DVMusicPulseColor.rgb * roadPulse;
                 color = MixFog(color, input.fogFactor);
                 return half4(color, textureSample.a);
             }

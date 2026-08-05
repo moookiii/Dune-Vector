@@ -114,7 +114,9 @@ namespace DuneVector
         public void ApplyDunePreset(DuneGenerationPreset preset)
         {
             int preservedSeed = DuneGeneration != null ? DuneGeneration.WorldSeed : 19770503;
+            DuneFieldSettings previousGeneration = DuneGeneration;
             DuneGeneration = new DuneFieldSettings { WorldSeed = preservedSeed };
+            DuneGeneration.CopyRollingElevationFrom(previousGeneration);
             SelectedDunePreset = preset;
             DuneChunkSize = 80f;
             DuneMeshResolution = 32;
@@ -644,6 +646,13 @@ namespace DuneVector
             DuneVectorPerspectivePressureFronts pressureFronts = reactiveSkyObject.AddComponent<DuneVectorPerspectivePressureFronts>();
             pressureFronts.Initialize(DroneCamera.Camera, _materials.BoostRing, RuntimeSettings.MusicReactiveSky);
             conductor.RegisterSink(pressureFronts);
+            DuneVectorMusicForegroundResponse foreground = reactiveSkyObject.AddComponent<DuneVectorMusicForegroundResponse>();
+            foreground.Initialize(
+                DroneCamera.Camera,
+                Drone.transform,
+                _materials.Trail,
+                RuntimeSettings.MusicReactiveSky);
+            conductor.RegisterSink(foreground);
         }
 
         private void BuildEnvironment()

@@ -1,0 +1,388 @@
+using Unity.Profiling;
+using UnityEngine;
+using UnityEngine.Rendering;
+
+namespace DuneVector
+{
+    [DisallowMultipleComponent]
+    public sealed class DuneVectorMusicForegroundResponse : MonoBehaviour, IMusicReactiveSink
+    {
+        private static readonly int PulseOriginsId = Shader.PropertyToID("_DVMusicPulseOrigins");
+        private static readonly int PulseParametersId = Shader.PropertyToID("_DVMusicPulseParameters");
+        private static readonly int ContinuousId = Shader.PropertyToID("_DVMusicContinuous");
+        private static readonly int PulseColorId = Shader.PropertyToID("_DVMusicPulseColor");
+        private static readonly ProfilerMarker ShaderGlobalsMarker = new ProfilerMarker("MusicVisualizer.ShaderGlobals");
+        private static readonly ProfilerMarker VfxDispatchMarker = new ProfilerMarker("MusicVisualizer.VFXDispatch");
+
+        private struct RoadPulse
+        {
+            public Vector3 Origin;
+            public float Age;
+            public float Strength;
+            public bool Active;
+        }
+
+        private Camera _camera;
+        private Transform _drone;
+        private MusicReactiveSkyTuning _settings;
+        private RoadPulse[] _roadPulses;
+        private readonly Vector4[] _pulseOrigins = new Vector4[4];
+        private readonly Vector4[] _pulseParameters = new Vector4[4];
+        private int _roadPulseCursor;
+        private int _droppedRoadPulses;
+        private Light _reactionLight;
+        private float _reactionLightAge;
+        private float _reactionLightStrength;
+        private ParticleSystem _streaks;
+        private TrailRenderer[] _droneTrails;
+        private float[] _baseTrailWidths;
+        private float _droneKickEnvelope;
+        private float _continuousBass;
+
+        public int ActiveRoadPulseCount => CountActiveRoadPulses();
+        public int DroppedRoadPulseCount => _droppedRoadPulses;
+        public bool ReactionLightActive => _reactionLight != null && _reactionLight.enabled;
+        public int LiveStreakCount => _streaks != null ? _streaks.particleCount : 0;
+
+        public void Initialize(
+            Camera camera,
+            Transform drone,
+            Material streakMaterial,
+            MusicReactiveSkyTuning settings)
+        {
+            _camera = camera;
+            _drone = drone;
+            _settings = settings;
+            _roadPulses = new RoadPulse[Mathf.Clamp(settings.MaximumRoadPulseCount, 1, _pulseOrigins.Length)];
+            CacheDroneTrails();
+            BuildReactionLight();
+            BuildStreakSystem(streakMaterial);
+            ResetShaderGlobals();
+        }
+
+        private void CacheDroneTrails()
+        {
+            _droneTrails = _drone != null
+                ? _drone.GetComponentsInChildren<TrailRenderer>(true)
+                : new TrailRenderer[0];
+            _baseTrailWidths = new float[_droneTrails.Length];
+            for (int i = 0; i < _droneTrails.Length; i++)
+            {
+                _baseTrailWidths[i] = _droneTrails[i].widthMultiplier;
+            }
+        }
+
+        private void BuildReactionLight()
+        {
+            GameObject lightObject = new GameObject("Music Structure Reaction Light");
+            lightObject.transform.SetParent(transform, false);
+            _reactionLight = lightObject.AddComponent<Light>();
+            _reactionLight.type = LightType.Point;
+            _reactionLight.color = _settings.StructureLightColor;
+            _reactionLight.range = _settings.StructureLightRange;
+            _reactionLight.intensity = 0f;
+            _reactionLight.shadows = LightShadows.None;
+            _reactionLight.enabled = false;
+        }
+
+        private void BuildStreakSystem(Material sharedMaterial)
+        {
+            GameObject streakObject = new GameObject("Music Peripheral Streaks");
+            streakObject.transform.SetParent(_camera.transform, false);
+            _streaks = streakObject.AddComponent<ParticleSystem>();
+            _streaks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            ParticleSystem.MainModule main = _streaks.main;
+            main.playOnAwake = false;
+            main.loop = false;
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            main.maxParticles = _settings.ForegroundStreakParticleBudget;
+            main.startLifetime = _settings.ForegroundStreakLifetime;
+            main.startSpeed = 0f;
+            main.startSize = _settings.ForegroundStreakSize;
+            main.startColor = _settings.ForegroundStreakColor;
+
+            ParticleSystem.EmissionModule emission = _streaks.emission;
+            emission.enabled = false;
+            ParticleSystem.ShapeModule shape = _streaks.shape;
+            shape.enabled = false;
+
+            ParticleSystemRenderer renderer = streakObject.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.velocityScale = 0.18f;
+            renderer.lengthScale = 1.6f;
+            renderer.sharedMaterial = sharedMaterial;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
+        public void ApplyContinuous(in MusicReactiveRuntimeState state)
+        {
+            _continuousBass = state.Bass;
+            using (ShaderGlobalsMarker.Auto())
+            {
+                Shader.SetGlobalVector(ContinuousId, new Vector4(state.Bass, state.Mid, state.High, state.Energy));
+                Shader.SetGlobalColor(PulseColorId, _settings.RoadPulseColor * _settings.RoadPulseEmissionIntensity);
+            }
+        }
+
+        public void Dispatch(in MusicVisualDispatchCommand command, in MusicReactiveRuntimeState state)
+        {
+            using (VfxDispatchMarker.Auto())
+            {
+                if ((command.AllowedEffects & MusicVisualEffectGroups.Road) != 0
+                    && (command.Type == MusicVisualCueType.MajorKick
+                        || command.Type == MusicVisualCueType.ReactorDischarge))
+                {
+                    EmitRoadPulse(command.Strength);
+                }
+                if ((command.AllowedEffects & MusicVisualEffectGroups.Structures) != 0
+                    && (command.Type == MusicVisualCueType.MajorKick
+                        || command.Type == MusicVisualCueType.ReactorDischarge))
+                {
+                    _reactionLightAge = 0f;
+                    _reactionLightStrength = Mathf.Max(_reactionLightStrength, command.Strength);
+                    _reactionLight.enabled = true;
+                }
+                if ((command.AllowedEffects & MusicVisualEffectGroups.Drone) != 0
+                    && (command.Type == MusicVisualCueType.MinorKick
+                        || command.Type == MusicVisualCueType.MajorKick
+                        || command.Type == MusicVisualCueType.ReactorDischarge))
+                {
+                    _droneKickEnvelope = Mathf.Max(_droneKickEnvelope, command.Strength);
+                }
+                if ((command.AllowedEffects & MusicVisualEffectGroups.Streaks) != 0
+                    && (command.Type == MusicVisualCueType.TrebleBurst
+                        || command.Type == MusicVisualCueType.AccentSnare
+                        || command.Type == MusicVisualCueType.ReactorDischarge))
+                {
+                    EmitStreaks(command.Strength, command.DeterministicSeed);
+                }
+            }
+        }
+
+        private void EmitRoadPulse(float strength)
+        {
+            int selected = -1;
+            for (int offset = 0; offset < _roadPulses.Length; offset++)
+            {
+                int index = (_roadPulseCursor + offset) % _roadPulses.Length;
+                if (!_roadPulses[index].Active)
+                {
+                    selected = index;
+                    break;
+                }
+            }
+            if (selected < 0)
+            {
+                _droppedRoadPulses++;
+                return;
+            }
+            _roadPulses[selected] = new RoadPulse
+            {
+                Origin = _drone != null ? _drone.position : _camera.transform.position,
+                Strength = Mathf.Clamp01(strength),
+                Active = true,
+            };
+            _roadPulseCursor = (selected + 1) % _roadPulses.Length;
+        }
+
+        private void EmitStreaks(float strength, uint seed)
+        {
+            if (_streaks == null)
+            {
+                return;
+            }
+            int available = Mathf.Max(0, _settings.ForegroundStreakParticleBudget - _streaks.particleCount);
+            int count = Mathf.Min(available, Mathf.CeilToInt(_settings.ForegroundStreakBurstCount * Mathf.Clamp01(strength)));
+            for (int i = 0; i < count; i++)
+            {
+                float sideSelector = Next01(ref seed) < 0.5f ? -1f : 1f;
+                float x = sideSelector * Mathf.Lerp(
+                    _settings.ForegroundStreakPeripheralWidth * 0.55f,
+                    _settings.ForegroundStreakPeripheralWidth,
+                    Next01(ref seed));
+                float y = Mathf.Lerp(
+                    -_settings.ForegroundStreakPeripheralHeight,
+                    _settings.ForegroundStreakPeripheralHeight,
+                    Next01(ref seed));
+                ParticleSystem.EmitParams emit = new ParticleSystem.EmitParams
+                {
+                    position = new Vector3(x, y, _settings.ForegroundStreakForwardOffset),
+                    velocity = new Vector3(-x * 0.08f, -y * 0.05f, -_settings.ForegroundStreakSpeed),
+                    startColor = _settings.ForegroundStreakColor,
+                    startLifetime = _settings.ForegroundStreakLifetime,
+                    startSize = _settings.ForegroundStreakSize,
+                };
+                _streaks.Emit(emit, 1);
+            }
+        }
+
+        private static float Next01(ref uint state)
+        {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            return (state & 0x00FFFFFFu) / 16777216f;
+        }
+
+        private void Update()
+        {
+            if (_settings == null)
+            {
+                return;
+            }
+            float deltaTime = Time.unscaledDeltaTime;
+            UpdateRoadPulses(deltaTime);
+            UpdateReactionLight(deltaTime);
+            UpdateDroneTrails(deltaTime);
+        }
+
+        private void UpdateRoadPulses(float deltaTime)
+        {
+            for (int i = 0; i < _roadPulses.Length; i++)
+            {
+                RoadPulse pulse = _roadPulses[i];
+                if (!pulse.Active)
+                {
+                    continue;
+                }
+                pulse.Age += deltaTime;
+                if (pulse.Age >= _settings.RoadPulseDurationSeconds)
+                {
+                    pulse.Active = false;
+                }
+                _roadPulses[i] = pulse;
+            }
+
+            for (int shaderIndex = 0; shaderIndex < _pulseOrigins.Length; shaderIndex++)
+            {
+                if (shaderIndex < _roadPulses.Length && _roadPulses[shaderIndex].Active)
+                {
+                    RoadPulse pulse = _roadPulses[shaderIndex];
+                    float normalizedAge = Mathf.Clamp01(pulse.Age / _settings.RoadPulseDurationSeconds);
+                    float fade = 1f - normalizedAge;
+                    _pulseOrigins[shaderIndex] = new Vector4(
+                        pulse.Origin.x,
+                        pulse.Origin.z,
+                        pulse.Age * _settings.RoadPulseTravelSpeed,
+                        pulse.Strength * fade);
+                    _pulseParameters[shaderIndex] = new Vector4(_settings.RoadPulseWidth, 0f, 0f, 0f);
+                }
+                else
+                {
+                    _pulseOrigins[shaderIndex] = Vector4.zero;
+                    _pulseParameters[shaderIndex] = Vector4.zero;
+                }
+            }
+            using (ShaderGlobalsMarker.Auto())
+            {
+                Shader.SetGlobalVectorArray(PulseOriginsId, _pulseOrigins);
+                Shader.SetGlobalVectorArray(PulseParametersId, _pulseParameters);
+            }
+        }
+
+        private void UpdateReactionLight(float deltaTime)
+        {
+            if (_reactionLight == null || !_reactionLight.enabled)
+            {
+                return;
+            }
+            _reactionLightAge += deltaTime;
+            float duration = Mathf.Max(0.01f, _settings.StructureLightDurationSeconds);
+            float fade = 1f - Mathf.Clamp01(_reactionLightAge / duration);
+            _reactionLight.intensity = _settings.StructureLightMaximumIntensity * _reactionLightStrength * fade * fade;
+            _reactionLight.range = _settings.StructureLightRange;
+            _reactionLight.color = _settings.StructureLightColor;
+            Transform anchor = _drone != null ? _drone : _camera.transform;
+            _reactionLight.transform.position = anchor.position + _camera.transform.forward * _settings.StructureLightForwardOffset;
+            if (fade <= 0f)
+            {
+                _reactionLight.enabled = false;
+                _reactionLightStrength = 0f;
+            }
+        }
+
+        private void UpdateDroneTrails(float deltaTime)
+        {
+            float duration = Mathf.Max(0.01f, _settings.DroneKickResponseDurationSeconds);
+            _droneKickEnvelope = Mathf.MoveTowards(_droneKickEnvelope, 0f, deltaTime / duration);
+            float multiplier = 1f
+                + _continuousBass * _settings.DroneTrailBassMultiplier
+                + _droneKickEnvelope * _settings.DroneTrailKickMultiplier;
+            for (int i = 0; i < _droneTrails.Length; i++)
+            {
+                if (_droneTrails[i] != null)
+                {
+                    _droneTrails[i].widthMultiplier = _baseTrailWidths[i] * multiplier;
+                }
+            }
+        }
+
+        public void ResetMusicResponse()
+        {
+            if (_roadPulses != null)
+            {
+                for (int i = 0; i < _roadPulses.Length; i++)
+                {
+                    _roadPulses[i] = default;
+                }
+            }
+            _droneKickEnvelope = 0f;
+            _continuousBass = 0f;
+            if (_reactionLight != null)
+            {
+                _reactionLight.enabled = false;
+                _reactionLight.intensity = 0f;
+            }
+            if (_streaks != null)
+            {
+                _streaks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            }
+            int trailCount = _droneTrails != null ? _droneTrails.Length : 0;
+            for (int i = 0; i < trailCount; i++)
+            {
+                if (_droneTrails[i] != null)
+                {
+                    _droneTrails[i].widthMultiplier = _baseTrailWidths[i];
+                }
+            }
+            ResetShaderGlobals();
+        }
+
+        private void ResetShaderGlobals()
+        {
+            for (int i = 0; i < _pulseOrigins.Length; i++)
+            {
+                _pulseOrigins[i] = Vector4.zero;
+                _pulseParameters[i] = Vector4.zero;
+            }
+            Shader.SetGlobalVectorArray(PulseOriginsId, _pulseOrigins);
+            Shader.SetGlobalVectorArray(PulseParametersId, _pulseParameters);
+            Shader.SetGlobalVector(ContinuousId, Vector4.zero);
+            Shader.SetGlobalColor(PulseColorId, Color.clear);
+        }
+
+        private int CountActiveRoadPulses()
+        {
+            int count = 0;
+            if (_roadPulses == null)
+            {
+                return count;
+            }
+            for (int i = 0; i < _roadPulses.Length; i++)
+            {
+                if (_roadPulses[i].Active)
+                {
+                    count++;
+                }
+            }
+            return count;
+        }
+
+        private void OnDisable()
+        {
+            ResetMusicResponse();
+        }
+    }
+}

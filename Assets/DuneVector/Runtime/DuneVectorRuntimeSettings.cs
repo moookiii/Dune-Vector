@@ -4015,6 +4015,31 @@ namespace DuneVector
         [Min(0f)] public float ReactorFrontStaggerSeconds = 0.09f;
         [Min(0f)] public float ReactorFrontWidthMultiplier = 1.25f;
 
+        [Header("Foreground Response")]
+        [Range(1, 4)] public int MaximumRoadPulseCount = 4;
+        [Min(0.01f)] public float RoadPulseDurationSeconds = 2.4f;
+        [Min(0f)] public float RoadPulseTravelSpeed = 68f;
+        [Min(0.01f)] public float RoadPulseWidth = 7.5f;
+        [Range(0f, 4f)] public float RoadPulseEmissionIntensity = 1.25f;
+        [ColorUsage(false, true)] public Color RoadPulseColor = new Color(0.1f, 1.8f, 3.8f, 1f);
+        [Min(0f)] public float StructureLightMaximumIntensity = 1800f;
+        [Min(0f)] public float StructureLightRange = 32f;
+        [Min(0.01f)] public float StructureLightDurationSeconds = 0.32f;
+        [Min(0f)] public float StructureLightForwardOffset = 8f;
+        [ColorUsage(false, true)] public Color StructureLightColor = new Color(0.25f, 0.85f, 1f, 1f);
+        [Range(0f, 4f)] public float DroneTrailBassMultiplier = 1.4f;
+        [Range(0f, 4f)] public float DroneTrailKickMultiplier = 1.8f;
+        [Min(0.01f)] public float DroneKickResponseDurationSeconds = 0.24f;
+        [Range(8, 1024)] public int ForegroundStreakParticleBudget = 160;
+        [Range(1, 64)] public int ForegroundStreakBurstCount = 12;
+        [Min(0.01f)] public float ForegroundStreakLifetime = 0.48f;
+        [Min(0f)] public float ForegroundStreakSpeed = 34f;
+        [Min(0.001f)] public float ForegroundStreakSize = 0.045f;
+        [Min(0f)] public float ForegroundStreakPeripheralWidth = 8f;
+        [Min(0f)] public float ForegroundStreakPeripheralHeight = 4.5f;
+        [Min(0f)] public float ForegroundStreakForwardOffset = 4f;
+        [ColorUsage(false, true)] public Color ForegroundStreakColor = new Color(1.2f, 0.25f, 2.8f, 0.8f);
+
         [Header("Music Analysis")]
         [Tooltip("FFT sample count used to separate bass, midrange, and high-frequency energy.")]
         [Range(128, 2048)] public int FftWindowSize = 1024;
@@ -5780,7 +5805,9 @@ namespace DuneVector
         {
             EnsureInitialized();
             int preservedSeed = DuneGeneration.WorldSeed;
+            DuneFieldSettings previousGeneration = DuneGeneration;
             DuneGeneration = new DuneFieldSettings { WorldSeed = preservedSeed };
+            DuneGeneration.CopyRollingElevationFrom(previousGeneration);
             SelectedDunePreset = preset;
             DuneChunkSize = 80f;
             DuneMeshResolution = 32;
