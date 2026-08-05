@@ -3556,7 +3556,7 @@ namespace DuneVector
         [Header("Upper Flight Ring HUD")]
         public bool ShowUpperFlightRingHud = true;
         public string UpperFlightRingHudTitle = "UPPER FLIGHT LAYER";
-        public string UpperFlightRingHudProgressLabel = "BLUE RINGS";
+        public string UpperFlightRingHudProgressLabel = "UNIQUE WHITE RINGS";
         public string UpperFlightRingHudUnlockedLabel = "UPPER RING UNLOCKED";
         [Min(0f)]
         [Tooltip("Seconds the HUD remains visible after the upper flight layer unlocks. Uses unscaled time.")]
