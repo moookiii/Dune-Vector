@@ -1436,12 +1436,31 @@ namespace DuneVector
             excavation.transform.localPosition = Vector3.zero;
             excavation.transform.localRotation = prefabRotation;
             excavation.transform.localScale = prefabScale;
+            AddMissingBoxColliders(excavation);
             GroundPrefabToDunes(
                 excavation.transform,
                 _settings.ExcavationGroundingSamplesPerAxis,
                 0f,
                 _settings.ExcavationGroundingBurialCoverage,
                 _settings.ExcavationMaximumAdditionalGroundSink);
+        }
+
+        private static void AddMissingBoxColliders(GameObject instance)
+        {
+            MeshFilter[] meshFilters = instance.GetComponentsInChildren<MeshFilter>(true);
+            for (int i = 0; i < meshFilters.Length; i++)
+            {
+                MeshFilter meshFilter = meshFilters[i];
+                if (meshFilter.sharedMesh == null || meshFilter.GetComponent<Collider>() != null)
+                {
+                    continue;
+                }
+
+                Bounds meshBounds = meshFilter.sharedMesh.bounds;
+                BoxCollider boxCollider = meshFilter.gameObject.AddComponent<BoxCollider>();
+                boxCollider.center = meshBounds.center;
+                boxCollider.size = meshBounds.size;
+            }
         }
 
         private void GroundPrefabToDunes(
