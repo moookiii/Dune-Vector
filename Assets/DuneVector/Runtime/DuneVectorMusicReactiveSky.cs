@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using FMODUnity;
+using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
@@ -9,6 +10,7 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorMusicReactiveSky : MonoBehaviour
     {
+        private static readonly ProfilerMarker AnalysisIngestMarker = new ProfilerMarker("MusicVisualizer.AnalysisIngest");
         private DuneVectorAudioManager _audio;
         private DuneVectorY2KSky _sky;
         private Bloom _bloom;
@@ -32,6 +34,9 @@ namespace DuneVector
         private float _currentBloomIntensity;
         private float _currentBloomThreshold;
         private MusicVisualizerMode _visualizerMode = MusicVisualizerMode.All;
+        private uint _analysisSequence;
+
+        public MusicAnalysisFrame LatestAnalysisFrame { get; private set; }
 
         public void Initialize(
             DuneVectorAudioManager audio,
@@ -170,7 +175,11 @@ namespace DuneVector
                 ReadSpectrum();
             }
 
-            SmoothMusicResponse(deltaTime);
+            using (AnalysisIngestMarker.Auto())
+            {
+                SmoothMusicResponse(deltaTime);
+                PublishAnalysisFrame();
+            }
             ApplyMusicResponse(deltaTime);
         }
 
@@ -334,6 +343,31 @@ namespace DuneVector
             return Mathf.Lerp(current, target, blend);
         }
 
+        private void PublishAnalysisFrame()
+        {
+            float energy = Mathf.Clamp01((_bass + _mids + _highs) / 3f);
+            LatestAnalysisFrame = new MusicAnalysisFrame
+            {
+                RawBass = _rawBass,
+                RawMid = _rawMids,
+                RawHigh = _rawHighs,
+                NormalizedBass = _rawBass,
+                NormalizedMid = _rawMids,
+                NormalizedHigh = _rawHighs,
+                SmoothedBass = _bass,
+                SmoothedMid = _mids,
+                SmoothedHigh = _highs,
+                BassTransient = _bassPulse,
+                HighTransient = _highPulse,
+                TotalEnergy = energy,
+                LowHighBalance = Mathf.Clamp((_bass - _highs) * 0.5f + 0.5f, 0f, 1f),
+                Sequence = ++_analysisSequence,
+                TimelinePositionMilliseconds = _audio != null
+                    ? _audio.TimelineState.TimelinePositionMilliseconds
+                    : 0,
+            };
+        }
+
         private void ApplyMusicResponse(float deltaTime)
         {
             float energy = Mathf.Clamp01((_bass + _mids + _highs) / 3f);
@@ -393,6 +427,7 @@ namespace DuneVector
             _bassPulse = 0f;
             _highPulse = 0f;
             _analysisTimer = 0f;
+            LatestAnalysisFrame = default;
 
             if (_sky != null)
             {

@@ -51,6 +51,7 @@ namespace DuneVector
         public bool VignetteEnabled { get; private set; } = true;
         public DuneVectorCameraAntiAliasingMode AntiAliasingMode { get; private set; }
         public event Action<MusicVisualizerMode> MusicVisualizerModeChanged;
+        public MusicTimelineState TimelineState => _timelineState;
 
         public bool TryGetMusicChannelGroup(out FMOD.ChannelGroup channelGroup)
         {
@@ -61,7 +62,13 @@ namespace DuneVector
         }
 
         private AudioTuning _settings;
+        private MusicReactiveSkyTuning _musicReactiveSettings;
         private EventInstance _musicInstance;
+        private MusicTimelineCallbackBridge _timelineBridge;
+        private MusicTimelineState _timelineState;
+        private uint _musicPlaybackGeneration;
+        private bool _gameplayPaused;
+        private int _lastPolledTimelinePosition;
         private EventInstance _flightBoostInstance;
         private bool _flightBoostFadingOut;
         private bool _flightBoostNeedsRandomSeek;
@@ -98,11 +105,13 @@ namespace DuneVector
 
         public void Initialize(
             AudioTuning settings,
+            MusicReactiveSkyTuning musicReactiveSettings,
             DroneHealth health,
             DroneCharacterController drone,
             DuneVectorCameraAntiAliasingMode defaultAntiAliasingMode)
         {
             _settings = settings;
+            _musicReactiveSettings = musicReactiveSettings;
             _defaultAntiAliasingMode = defaultAntiAliasingMode;
             if (_settings == null)
             {
@@ -162,12 +171,90 @@ namespace DuneVector
         {
             UpdatePauseDucking();
             UpdateFlightBoostAudio();
+            UpdateMusicTimelineState();
             if (_musicInstance.isValid()
                 && _musicInstance.getPlaybackState(out PLAYBACK_STATE playbackState) == FMOD.RESULT.OK
                 && playbackState == PLAYBACK_STATE.STOPPED)
             {
+                _musicPlaybackGeneration++;
+                _timelineBridge?.SetGeneration(_musicPlaybackGeneration);
+                _timelineState.PlaybackGeneration = _musicPlaybackGeneration;
                 _musicInstance.start();
             }
+        }
+
+        private void UpdateMusicTimelineState()
+        {
+            if (_timelineBridge == null)
+            {
+                _timelineState.IsValid = false;
+                return;
+            }
+
+            _timelineBridge.Consume(ref _timelineState);
+            _timelineState.IsValid = _musicInstance.isValid();
+            if (!_timelineState.IsValid)
+            {
+                return;
+            }
+
+            if (_musicInstance.getTimelinePosition(out int position) == FMOD.RESULT.OK)
+            {
+                int jumpThreshold = _musicReactiveSettings != null
+                    ? Mathf.Max(250, _musicReactiveSettings.TimelineJumpThresholdMilliseconds)
+                    : 2000;
+                int delta = position - _lastPolledTimelinePosition;
+                if (delta < 0 || delta > jumpThreshold)
+                {
+                    _timelineState.DiscontinuousJump = true;
+                    _timelineState.SeekGeneration++;
+                }
+                _timelineState.TimelinePositionMilliseconds = position;
+                _lastPolledTimelinePosition = position;
+            }
+            if (_musicInstance.getPaused(out bool paused) == FMOD.RESULT.OK)
+            {
+                _timelineState.IsPaused = paused || _gameplayPaused;
+            }
+            if (_musicInstance.getPlaybackState(out PLAYBACK_STATE playbackState) == FMOD.RESULT.OK)
+            {
+                _timelineState.IsPlaying = playbackState == PLAYBACK_STATE.PLAYING
+                    || playbackState == PLAYBACK_STATE.STARTING
+                    || playbackState == PLAYBACK_STATE.SUSTAINING;
+            }
+        }
+
+        public bool SeekMusicTimeline(int timelineMilliseconds)
+        {
+            if (!_musicInstance.isValid())
+            {
+                return false;
+            }
+            int clamped = Mathf.Max(0, timelineMilliseconds);
+            if (_musicInstance.setTimelinePosition(clamped) != FMOD.RESULT.OK)
+            {
+                return false;
+            }
+            _lastPolledTimelinePosition = clamped;
+            _timelineState.TimelinePositionMilliseconds = clamped;
+            _timelineState.SeekGeneration++;
+            _timelineState.DiscontinuousJump = true;
+            return true;
+        }
+
+        public bool RestartMusicTimeline()
+        {
+            if (!_musicInstance.isValid())
+            {
+                return false;
+            }
+            _musicPlaybackGeneration++;
+            _timelineBridge?.SetGeneration(_musicPlaybackGeneration);
+            _timelineState.PlaybackGeneration = _musicPlaybackGeneration;
+            _timelineState.SeekGeneration++;
+            _lastPolledTimelinePosition = 0;
+            return _musicInstance.setTimelinePosition(0) == FMOD.RESULT.OK
+                && _musicInstance.start() == FMOD.RESULT.OK;
         }
 
         private void UpdateFlightBoostAudio()
@@ -321,6 +408,7 @@ namespace DuneVector
 
         public void SetPausedDucking(bool paused)
         {
+            _gameplayPaused = paused;
             float pausedMultiplier = Mathf.Clamp01(_settings.PausedVolumeMultiplier);
             _masterTargetVolume = _masterFullVolume * (paused ? pausedMultiplier : 1f);
             if (_settings.PauseFadeDuration <= 0f)
@@ -516,6 +604,24 @@ namespace DuneVector
             try
             {
                 _musicInstance = RuntimeManager.CreateInstance(_settings.BackgroundMusicEvent);
+                _musicPlaybackGeneration++;
+                int queueCapacity = _musicReactiveSettings != null
+                    ? _musicReactiveSettings.TimelineCallbackQueueCapacity
+                    : 128;
+                _timelineBridge = new MusicTimelineCallbackBridge(queueCapacity);
+                bool callbackRegistered = _timelineBridge.Attach(_musicInstance, _musicPlaybackGeneration);
+                _timelineState = new MusicTimelineState
+                {
+                    IsValid = true,
+                    TrackId = _musicReactiveSettings != null && _musicReactiveSettings.TrackProfile != null
+                        ? _musicReactiveSettings.TrackProfile.StableTrackHash
+                        : 0,
+                    PlaybackGeneration = _musicPlaybackGeneration,
+                };
+                if (!callbackRegistered)
+                {
+                    Debug.LogWarning("FMOD music timeline callback registration failed; authored beat and marker diagnostics are unavailable.", this);
+                }
                 if (!_hasMusicBus)
                 {
                     _musicInstance.setVolume(MusicVolume);
@@ -757,6 +863,8 @@ namespace DuneVector
             }
             if (_musicInstance.isValid())
             {
+                _timelineBridge?.Dispose();
+                _timelineBridge = null;
                 _musicInstance.stop(FMOD.Studio.STOP_MODE.ALLOWFADEOUT);
                 _musicInstance.release();
                 _musicInstance.clearHandle();

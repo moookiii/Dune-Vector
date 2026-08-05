@@ -3972,6 +3972,19 @@ namespace DuneVector
     {
         public bool Enabled = true;
 
+        [Header("Orchestration")]
+        [Tooltip("Song-specific section, marker, and authored cue profile. Runtime playback never mutates this asset.")]
+        public MusicVisualTrackProfile TrackProfile;
+        [Tooltip("Fixed capacity of the FMOD callback transfer ring. Exhaustion drops cosmetic timeline events.")]
+        [Range(16, 1024)] public int TimelineCallbackQueueCapacity = 128;
+        [Tooltip("A polled FMOD timeline change larger than this is treated as a seek or restart.")]
+        [Range(250, 10000)] public int TimelineJumpThresholdMilliseconds = 2000;
+        [Tooltip("Allowed event duration error when validating the song profile.")]
+        [Range(0.01f, 5f)] public float DurationValidationToleranceSeconds = 0.5f;
+        [Tooltip("Show the development-only music visualizer diagnostics panel.")]
+        public bool ShowDevelopmentDebugPanel;
+        public Rect DevelopmentDebugPanelRect = new Rect(12f, 12f, 440f, 640f);
+
         [Header("Music Analysis")]
         [Tooltip("FFT sample count used to separate bass, midrange, and high-frequency energy.")]
         [Range(128, 2048)] public int FftWindowSize = 1024;

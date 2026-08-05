@@ -603,6 +603,7 @@ namespace DuneVector
                 AudioManager = DuneVectorAudioManager.Instance;
                 AudioManager.Initialize(
                     AudioSettings,
+                    RuntimeSettings.MusicReactiveSky,
                     DroneHealth,
                     Drone,
                     PlayerTuning.CameraAntiAliasingMode);
@@ -614,6 +615,7 @@ namespace DuneVector
             AudioManager = audioObject.AddComponent<DuneVectorAudioManager>();
             AudioManager.Initialize(
                 AudioSettings,
+                RuntimeSettings.MusicReactiveSky,
                 DroneHealth,
                 Drone,
                 PlayerTuning.CameraAntiAliasingMode);
@@ -635,6 +637,8 @@ namespace DuneVector
                 _environmentBloom,
                 DroneCamera.Camera,
                 RuntimeSettings.MusicReactiveSky);
+            DuneVectorMusicReactiveConductor conductor = reactiveSkyObject.AddComponent<DuneVectorMusicReactiveConductor>();
+            conductor.Initialize(AudioManager, MusicReactiveSky, RuntimeSettings.MusicReactiveSky);
         }
 
         private void BuildEnvironment()
