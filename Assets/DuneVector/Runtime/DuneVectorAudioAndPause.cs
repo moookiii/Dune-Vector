@@ -1486,7 +1486,17 @@ namespace DuneVector
         {
             float widthScale = Screen.width / Mathf.Max(1f, _visuals.ReferenceWidth);
             float heightScale = Screen.height / Mathf.Max(1f, _visuals.ReferenceHeight);
-            return Mathf.Clamp(Mathf.Min(widthScale, heightScale), _visuals.MinimumScale, _visuals.MaximumScale);
+            float minimumScale = Mathf.Min(_visuals.MinimumScale, _visuals.MaximumScale);
+            float maximumScale = Mathf.Max(_visuals.MinimumScale, _visuals.MaximumScale);
+            float preferredScale = Mathf.Clamp(Mathf.Min(widthScale, heightScale), minimumScale, maximumScale);
+
+            // MinimumScale is a readability preference. On a viewport smaller than that
+            // floor, it must yield so the panel and all of its scaled contents stay visible.
+            float fitWidthScale = Screen.width /
+                Mathf.Max(1f, _visuals.PanelWidth + (_visuals.ScreenMargin * 2f));
+            float fitHeightScale = Screen.height /
+                Mathf.Max(1f, _visuals.PanelHeight + (_visuals.ScreenMargin * 2f));
+            return Mathf.Min(preferredScale, fitWidthScale, fitHeightScale);
         }
 
         private void EnsureStyles(float scale)

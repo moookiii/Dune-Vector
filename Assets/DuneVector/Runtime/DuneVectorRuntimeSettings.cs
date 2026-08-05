@@ -4504,6 +4504,7 @@ namespace DuneVector
         [Header("Responsive Layout")]
         [Min(320f)] public float ReferenceWidth = 1920f;
         [Min(240f)] public float ReferenceHeight = 1080f;
+        [Tooltip("Preferred minimum UI scale. The menu can scale below this when required to fit the viewport.")]
         [Range(0.5f, 2f)] public float MinimumScale = 0.7f;
         [Range(0.5f, 2f)] public float MaximumScale = 1.2f;
         [Min(280f)] public float PanelWidth = 540f;
