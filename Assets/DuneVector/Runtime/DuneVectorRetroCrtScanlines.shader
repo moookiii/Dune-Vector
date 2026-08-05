@@ -38,8 +38,11 @@ Shader "DuneVector/Retro CRT Scanlines"
                     uv,
                     _BlitMipLevel);
 
-                float scanBand = frac(uv.y * max(1.0, _ScreenParams.y / _ScanlineHeight));
-                float scanMask = step(0.5, scanBand);
+                float bandHeightPixels = max(2.0, round(_ScanlineHeight));
+                float darkRows = max(1.0, floor(bandHeightPixels * 0.5));
+                float pixelRow = floor(input.positionCS.y);
+                float rowInBand = fmod(pixelRow, bandHeightPixels);
+                float scanMask = 1.0 - step(darkRows, rowInBand);
                 color.rgb *= 1.0h - ((half)scanMask * (half)saturate(_ScanlineStrength));
                 return color;
             }
