@@ -1156,6 +1156,8 @@ namespace DuneVector
         public Vector3 PremiumVisualLocalPosition = Vector3.zero;
         public Vector3 PremiumVisualLocalEulerAngles = Vector3.zero;
         public Vector3 PremiumVisualLocalScale = Vector3.one;
+        [Tooltip("Walkable radius of the authored premium hub before applying its local X/Z scale. Used by the floor collider and invisible containment boundary.")]
+        [Min(0f)] public float PremiumVisualSurfaceRadius = 25.35f;
         [Tooltip("When enabled, the authored visual shell replaces the primitive platform, braces, and pylons.")]
         public bool ReplaceProceduralStructureVisuals = true;
         [Min(8f)] public float PlatformRadius = 26f;

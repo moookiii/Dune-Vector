@@ -473,7 +473,23 @@ namespace DuneVector
         private Texture2D _archiveTileHoverTexture;
         private Vector2 _archiveScrollPosition;
 
-        private float HubPlatformSurfaceRadius => Mathf.Max(0f, _hubSettings.PlatformRadius * 0.5f);
+        private float HubPlatformSurfaceRadius
+        {
+            get
+            {
+                bool usesPremiumVisual = _hubSettings.PremiumVisualPrefab != null
+                    && _hubSettings.ReplaceProceduralStructureVisuals;
+                if (!usesPremiumVisual)
+                {
+                    return Mathf.Max(0f, _hubSettings.PlatformRadius * 0.5f);
+                }
+
+                float horizontalScale = Mathf.Max(
+                    Mathf.Abs(_hubSettings.PremiumVisualLocalScale.x),
+                    Mathf.Abs(_hubSettings.PremiumVisualLocalScale.z));
+                return Mathf.Max(0f, _hubSettings.PremiumVisualSurfaceRadius * horizontalScale);
+            }
+        }
 
         public void Initialize(
             DronePlayer playerInput,
