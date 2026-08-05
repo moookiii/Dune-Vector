@@ -697,10 +697,7 @@ namespace DuneVector
             };
             if (tuning != null)
             {
-                ConfigureSurfaceTexture(
-                    material,
-                    tuning.SpireConcreteTexture,
-                    tuning.SpireConcreteTextureTiling);
+                ConfigureSurfaceTexture(material, tuning.SpireConcreteTexture, 1f);
             }
             _ownedMaterials.Add(material);
             return material;

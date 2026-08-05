@@ -318,6 +318,9 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorLandmarkDirector : MonoBehaviour
     {
+        private static readonly int BaseMapTransformId = Shader.PropertyToID("_BaseMap_ST");
+        private static readonly int MainTextureTransformId = Shader.PropertyToID("_MainTex_ST");
+
         private readonly Dictionary<Vector2Int, DuneVectorLandmarkInstance> _streamed =
             new Dictionary<Vector2Int, DuneVectorLandmarkInstance>();
         private readonly Dictionary<Vector2Int, DuneLandmarkPlacementRecord> _placementRecords =
@@ -1187,6 +1190,41 @@ namespace DuneVector
                     (direction * (16f + (i * 3f)) + Vector3.up * 2f) * scale,
                     new Vector3(2f, 9f, 7f) * scale,
                     Quaternion.Euler(0f, angle, 18f), _materials.AncientSpireStone);
+            }
+            ApplySpireConcreteTiling(root);
+        }
+
+        private void ApplySpireConcreteTiling(Transform root)
+        {
+            float tileWorldSize = Mathf.Max(0.01f, _settings.SpireConcreteTileWorldSize);
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            MaterialPropertyBlock properties = new MaterialPropertyBlock();
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Renderer renderer = renderers[i];
+                Material material = renderer.sharedMaterial;
+                if (material != _materials.AncientSpireStone &&
+                    material != _materials.AncientSpireAccent &&
+                    material != _materials.AncientSpireDark)
+                {
+                    continue;
+                }
+
+                Vector3 localSize = renderer.localBounds.size;
+                Vector3 lossyScale = renderer.transform.lossyScale;
+                Vector3 renderedSize = new Vector3(
+                    localSize.x * Mathf.Abs(lossyScale.x),
+                    localSize.y * Mathf.Abs(lossyScale.y),
+                    localSize.z * Mathf.Abs(lossyScale.z));
+                float horizontalSpan = Mathf.Max(renderedSize.x, renderedSize.z);
+                float horizontalRepeats = Mathf.Max(1f, horizontalSpan / tileWorldSize);
+                float verticalRepeats = Mathf.Max(1f, renderedSize.y / tileWorldSize);
+                Vector4 textureTransform = new Vector4(horizontalRepeats, verticalRepeats, 0f, 0f);
+                renderer.GetPropertyBlock(properties);
+                properties.SetVector(BaseMapTransformId, textureTransform);
+                properties.SetVector(MainTextureTransformId, textureTransform);
+                renderer.SetPropertyBlock(properties);
+                properties.Clear();
             }
         }
 
