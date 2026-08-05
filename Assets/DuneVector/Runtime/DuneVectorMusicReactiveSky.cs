@@ -46,7 +46,7 @@ namespace DuneVector
             if (_sky != null)
             {
                 _sky.ReactiveShockRingIntensity.Override(
-                    _visualizerMode != MusicVisualizerMode.Off
+                    _visualizerMode == MusicVisualizerMode.All
                         ? _settings.ShockRingIntensity
                         : 0f);
             }
@@ -95,7 +95,7 @@ namespace DuneVector
             if (_sky != null)
             {
                 _sky.ReactiveShockRingIntensity.Override(
-                    mode != MusicVisualizerMode.Off
+                    mode == MusicVisualizerMode.All
                         ? _settings.ShockRingIntensity
                         : 0f);
                 _sky.ReactiveLightningIntensity.Override(
@@ -152,8 +152,8 @@ namespace DuneVector
             _sky.ReactiveShockRingBeatRateBpm.Override(_settings.ShockRingBeatRateBpm);
             _sky.ReactiveShockRingBeatDutyCycle.Override(_settings.ShockRingBeatDutyCycle);
             _sky.ReactiveShockRingBreakup.Override(_settings.ShockRingBreakup);
-            _sky.ReactiveShockRingSawtoothAmount.Override(_settings.ShockRingSawtoothAmount);
-            _sky.ReactiveShockRingSawtoothFrequency.Override(_settings.ShockRingSawtoothFrequency);
+            _sky.ReactiveShockRingZigzagAmount.Override(_settings.ShockRingZigzagAmount);
+            _sky.ReactiveShockRingZigzagFrequency.Override(_settings.ShockRingZigzagFrequency);
             _sky.ReactiveLightningColor.Override(_settings.LightningColor);
             _sky.ReactiveLightningIntensity.Override(_settings.LightningIntensity);
             _sky.ReactiveLightningSectorCount.Override(_settings.LightningSectorCount);

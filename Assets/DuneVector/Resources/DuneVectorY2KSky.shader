@@ -67,8 +67,8 @@ Shader "DuneVector/URP Y2K Sky"
         [HideInInspector] _ReactiveShockRingBeatRateBpm("Reactive Shock Ring Beat Rate BPM", Float) = 1
         [HideInInspector] _ReactiveShockRingBeatDutyCycle("Reactive Shock Ring Beat Duty Cycle", Float) = 0.24
         [HideInInspector] _ReactiveShockRingBreakup("Reactive Shock Ring Breakup", Float) = 0
-        [HideInInspector] _ReactiveShockRingSawtoothAmount("Reactive Shock Ring Sawtooth Amount", Float) = 0
-        [HideInInspector] _ReactiveShockRingSawtoothFrequency("Reactive Shock Ring Sawtooth Frequency", Float) = 1
+        [HideInInspector] _ReactiveShockRingZigzagAmount("Reactive Shock Ring Zigzag Amount", Float) = 0
+        [HideInInspector] _ReactiveShockRingZigzagFrequency("Reactive Shock Ring Zigzag Frequency", Float) = 1
         [HideInInspector] _ReactiveLightningColor("Reactive Lightning Color", Color) = (0, 0, 0, 1)
         [HideInInspector] _ReactiveLightningIntensity("Reactive Lightning Intensity", Float) = 0
         [HideInInspector] _ReactiveLightningSectorCount("Reactive Lightning Sector Count", Float) = 0
@@ -178,8 +178,8 @@ Shader "DuneVector/URP Y2K Sky"
     float _ReactiveShockRingBeatRateBpm;
     float _ReactiveShockRingBeatDutyCycle;
     float _ReactiveShockRingBreakup;
-    float _ReactiveShockRingSawtoothAmount;
-    float _ReactiveShockRingSawtoothFrequency;
+    float _ReactiveShockRingZigzagAmount;
+    float _ReactiveShockRingZigzagFrequency;
     float4 _ReactiveLightningColor;
     float _ReactiveLightningIntensity;
     float _ReactiveLightningSectorCount;
@@ -412,9 +412,10 @@ Shader "DuneVector/URP Y2K Sky"
                 skyUp));
         float shockCoordinate = skyUp * max(1.0, round(_ReactiveShockRingCount))
             - reactiveTime * _ReactiveShockRingTravelSpeed;
-        float sawtooth = frac(
-            normalizedAzimuth * max(1.0, round(_ReactiveShockRingSawtoothFrequency)));
-        shockCoordinate += (sawtooth - 0.5) * _ReactiveShockRingSawtoothAmount;
+        float zigzagPhase = frac(
+            normalizedAzimuth * max(1.0, round(_ReactiveShockRingZigzagFrequency)));
+        float zigzag = 1.0 - abs(zigzagPhase * 2.0 - 1.0);
+        shockCoordinate += (zigzag - 0.5) * _ReactiveShockRingZigzagAmount;
         float shockDistance = abs(frac(shockCoordinate + 0.5) - 0.5);
         float shockLine = SoftLine(shockDistance, _ReactiveShockRingThickness);
         float shockPattern = Noise3(float3(
