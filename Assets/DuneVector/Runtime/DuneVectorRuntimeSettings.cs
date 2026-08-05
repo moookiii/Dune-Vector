@@ -1418,6 +1418,18 @@ namespace DuneVector
         [Range(0, 20)] public int MegagateBaseRuinCount;
         [Range(0, 40)] public int MegagateDebrisCount;
         [Min(0f)] public float MegagateBurialDepth;
+        [Tooltip("Generated albedo texture used by the megagate pylons and collapsed stonework.")]
+        public Texture2D MegagateStoneTexture;
+        [Tooltip("Generated albedo texture used by the megagate armor, bands, and bridge fragments.")]
+        public Texture2D MegagateMetalTexture;
+        [Tooltip("Generated albedo and emission texture used by the megagate signal strips.")]
+        public Texture2D MegagateSignalTexture;
+        [ColorUsage(false)] public Color MegagateStoneTextureTint;
+        [ColorUsage(false)] public Color MegagateMetalTextureTint;
+        [ColorUsage(false)] public Color MegagateSignalTextureTint;
+        [Min(0.01f)] public float MegagateStoneTextureTiling;
+        [Min(0.01f)] public float MegagateMetalTextureTiling;
+        [Min(0.01f)] public float MegagateSignalTextureTiling;
         [Tooltip("Local-space center of the megagate silhouette used by the photography camera frame.")]
         public Vector3 MegagatePhotographyBoundsCenter;
         [Tooltip("Local-space size of the megagate silhouette used by the photography camera frame. Set any axis to zero to use renderer bounds.")]

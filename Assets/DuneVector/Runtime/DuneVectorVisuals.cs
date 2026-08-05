@@ -36,6 +36,9 @@ namespace DuneVector
         public Material LandmarkSecondary { get; }
         public Material LandmarkInterior { get; }
         public Material LandmarkAccent { get; }
+        public Material MegagateStone { get; }
+        public Material MegagateMetal { get; }
+        public Material MegagateSignal { get; }
         public Material BoostRing { get; }
         public Material FlightRing { get; }
         public Material UpperFlightRing { get; }
@@ -232,6 +235,35 @@ namespace DuneVector
                     landmarkTuning.LandmarkMetalSmoothness,
                     landmarkTuning.LandmarkMetallic,
                     landmarkTuning.LandmarkAccentEmission);
+                MegagateStone = CreateLit(
+                    "Megagate - Monumental Stone",
+                    landmarkTuning.MegagateStoneTextureTint,
+                    landmarkTuning.LandmarkStoneSmoothness,
+                    0f);
+                ConfigureSurfaceTexture(
+                    MegagateStone,
+                    landmarkTuning.MegagateStoneTexture,
+                    landmarkTuning.MegagateStoneTextureTiling);
+                MegagateMetal = CreateLit(
+                    "Megagate - Oxidized Armor",
+                    landmarkTuning.MegagateMetalTextureTint,
+                    landmarkTuning.LandmarkMetalSmoothness,
+                    landmarkTuning.LandmarkMetallic);
+                ConfigureSurfaceTexture(
+                    MegagateMetal,
+                    landmarkTuning.MegagateMetalTexture,
+                    landmarkTuning.MegagateMetalTextureTiling);
+                MegagateSignal = CreateLit(
+                    "Megagate - Cyan Signal Surface",
+                    landmarkTuning.MegagateSignalTextureTint,
+                    landmarkTuning.LandmarkMetalSmoothness,
+                    landmarkTuning.LandmarkMetallic,
+                    landmarkTuning.LandmarkAccentEmission);
+                ConfigureSurfaceTexture(
+                    MegagateSignal,
+                    landmarkTuning.MegagateSignalTexture,
+                    landmarkTuning.MegagateSignalTextureTiling,
+                    true);
             }
             else
             {
@@ -240,6 +272,9 @@ namespace DuneVector
                 LandmarkSecondary = DroneBody;
                 LandmarkInterior = DroneDark;
                 LandmarkAccent = DroneAccent;
+                MegagateStone = Sandstone;
+                MegagateMetal = DroneBody;
+                MegagateSignal = DroneAccent;
             }
             BoostRing = CreatePortal("Portal - Boost Amber", rings.BoostRingEmissionColor, rings);
             FlightRing = CreatePortal("Portal - Flight Cyan", rings.FlightRingEmissionColor, rings);
@@ -589,6 +624,36 @@ namespace DuneVector
                 batch.Material.SetColor(
                     "_DVGeoglyphBloomEmissionColor",
                     enabled ? bloomEmission : batch.OriginalBloomEmissionColor);
+            }
+        }
+
+        private static void ConfigureSurfaceTexture(
+            Material material,
+            Texture2D texture,
+            float tiling,
+            bool useAsEmissionMap = false)
+        {
+            if (material == null || texture == null)
+            {
+                return;
+            }
+
+            Vector2 textureScale = Vector2.one * Mathf.Max(0.01f, tiling);
+            if (material.HasProperty("_BaseMap"))
+            {
+                material.SetTexture("_BaseMap", texture);
+                material.SetTextureScale("_BaseMap", textureScale);
+            }
+            if (material.HasProperty("_MainTex"))
+            {
+                material.SetTexture("_MainTex", texture);
+                material.SetTextureScale("_MainTex", textureScale);
+            }
+            if (useAsEmissionMap && material.HasProperty("_EmissionMap"))
+            {
+                material.SetTexture("_EmissionMap", texture);
+                material.SetTextureScale("_EmissionMap", textureScale);
+                material.EnableKeyword("_EMISSION");
             }
         }
 

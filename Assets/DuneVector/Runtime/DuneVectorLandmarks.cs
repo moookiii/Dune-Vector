@@ -1453,24 +1453,24 @@ namespace DuneVector
                 MeshPart($"Megagate Pylon {i + 1}", root,
                     basePosition + (Vector3.up * (height * 0.5f)), Quaternion.identity, Vector3.one,
                     CreateTaperedPrismMesh(width, height, width * 0.62f, _settings.MegagateTaper),
-                    _materials.LandmarkStone, true);
+                    _materials.MegagateStone, true);
 
                 Part(PrimitiveType.Cube, $"Pylon {i + 1} Outer Buttress", root,
                     basePosition + new Vector3(side * width * 0.38f, height * 0.43f, width * 0.03f),
                     new Vector3(width * 0.16f, height * 0.7f, width * 0.72f),
-                    Quaternion.Euler(0f, 0f, -side * 3f), _materials.LandmarkSecondary, true);
+                    Quaternion.Euler(0f, 0f, -side * 3f), _materials.MegagateMetal, true);
                 Part(PrimitiveType.Cube, $"Pylon {i + 1} Inset Face", root,
                     basePosition + new Vector3(-side * width * 0.32f, height * 0.49f, -width * 0.08f),
                     new Vector3(width * 0.04f, height * 0.5f, width * 0.52f),
-                    Quaternion.identity, _materials.LandmarkInterior, false);
+                    Quaternion.identity, _materials.MegagateMetal, false);
                 Part(PrimitiveType.Cube, $"Pylon {i + 1} Crown Band", root,
                     basePosition + new Vector3(0f, height * 0.91f, 0f),
                     new Vector3(width * 1.08f, height * 0.055f, width * 0.72f),
-                    Quaternion.identity, _materials.LandmarkSecondary, true);
+                    Quaternion.identity, _materials.MegagateStone, true);
                 Part(PrimitiveType.Cube, $"Pylon {i + 1} Mid Band", root,
                     basePosition + new Vector3(0f, height * 0.55f, 0f),
                     new Vector3(width * 1.03f, height * 0.025f, width * 0.68f),
-                    Quaternion.identity, _materials.LandmarkMetal, false);
+                    Quaternion.identity, _materials.MegagateMetal, false);
 
                 int stripCount = 5;
                 for (int strip = 0; strip < stripCount; strip++)
@@ -1480,7 +1480,7 @@ namespace DuneVector
                         basePosition + new Vector3(-side * width * 0.315f, stripHeight, -width * 0.12f),
                         new Vector3(width * 0.025f, height * 0.012f, width * 0.34f),
                         Quaternion.identity,
-                        strip % 2 == 0 ? _materials.LandmarkAccent : _materials.LandmarkSecondary,
+                        strip % 2 == 0 ? _materials.MegagateSignal : _materials.MegagateMetal,
                         false);
                 }
             }
@@ -1496,7 +1496,7 @@ namespace DuneVector
                     new Vector3(x, y, (i - bridgeCount * 0.5f) * width * 0.08f),
                     new Vector3(fragmentLength, width * 0.11f, width * 0.3f),
                     Quaternion.Euler(SeedRange(seed, i, 7245, -8f, 8f), 0f,
-                        SeedRange(seed, i, 7247, -6f, 6f)), _materials.LandmarkMetal, true);
+                        SeedRange(seed, i, 7247, -6f, 6f)), _materials.MegagateMetal, true);
             }
 
             for (int i = 0; i < Mathf.Max(0, _settings.MegagateBaseRuinCount); i++)
@@ -1511,10 +1511,10 @@ namespace DuneVector
                         height * SeedRange(seed, i, 7259, 0.05f, 0.14f),
                         width * SeedRange(seed, i, 7261, 0.35f, 0.85f)),
                     Quaternion.Euler(SeedRange(seed, i, 7263, -18f, 18f), angle,
-                        SeedRange(seed, i, 7265, -28f, 28f)), _materials.LandmarkStone, true);
+                        SeedRange(seed, i, 7265, -28f, 28f)), _materials.MegagateStone, true);
             }
             BuildDebrisTrail(root, "Megagate Debris", seed + 31, _settings.MegagateDebrisCount,
-                opening * 1.5f, width * 0.16f, Vector3.right, _materials.LandmarkInterior, 7271);
+                opening * 1.5f, width * 0.16f, Vector3.right, _materials.MegagateMetal, 7271);
         }
 
         private void BuildWindHarvesterGraveyard(Transform root, int seed, DuneVectorLandmarkAnimator animator)
@@ -2158,28 +2158,44 @@ namespace DuneVector
             float topScale = Mathf.Clamp01(1f - taper);
             float topX = bottomX * topScale;
             float topZ = bottomZ * topScale;
+            Vector3 b0 = new Vector3(-bottomX, -height * 0.5f, -bottomZ);
+            Vector3 b1 = new Vector3(bottomX, -height * 0.5f, -bottomZ);
+            Vector3 b2 = new Vector3(bottomX, -height * 0.5f, bottomZ);
+            Vector3 b3 = new Vector3(-bottomX, -height * 0.5f, bottomZ);
+            Vector3 t0 = new Vector3(-topX, height * 0.5f, -topZ);
+            Vector3 t1 = new Vector3(topX, height * 0.5f, -topZ);
+            Vector3 t2 = new Vector3(topX, height * 0.5f, topZ);
+            Vector3 t3 = new Vector3(-topX, height * 0.5f, topZ);
             Vector3[] vertices =
             {
-                new Vector3(-bottomX, -height * 0.5f, -bottomZ),
-                new Vector3(bottomX, -height * 0.5f, -bottomZ),
-                new Vector3(bottomX, -height * 0.5f, bottomZ),
-                new Vector3(-bottomX, -height * 0.5f, bottomZ),
-                new Vector3(-topX, height * 0.5f, -topZ),
-                new Vector3(topX, height * 0.5f, -topZ),
-                new Vector3(topX, height * 0.5f, topZ),
-                new Vector3(-topX, height * 0.5f, topZ),
+                b0, b1, b2, b3,
+                t0, t3, t2, t1,
+                b0, t0, t1, b1,
+                b1, t1, t2, b2,
+                b2, t2, t3, b3,
+                b3, t3, t0, b0,
             };
             int[] triangles =
             {
                 0, 1, 2, 0, 2, 3,
-                4, 6, 5, 4, 7, 6,
-                0, 5, 1, 0, 4, 5,
-                1, 6, 2, 1, 5, 6,
-                2, 7, 3, 2, 6, 7,
-                3, 4, 0, 3, 7, 4,
+                4, 5, 6, 4, 6, 7,
+                8, 9, 10, 8, 10, 11,
+                12, 13, 14, 12, 14, 15,
+                16, 17, 18, 16, 18, 19,
+                20, 21, 22, 20, 22, 23,
             };
+            Vector2[] uv = new Vector2[vertices.Length];
+            for (int face = 0; face < 6; face++)
+            {
+                int index = face * 4;
+                uv[index] = new Vector2(0f, 0f);
+                uv[index + 1] = new Vector2(1f, 0f);
+                uv[index + 2] = new Vector2(1f, 1f);
+                uv[index + 3] = new Vector2(0f, 1f);
+            }
             Mesh mesh = new Mesh { name = "Procedural Tapered Landmark Prism" };
             mesh.vertices = vertices;
+            mesh.uv = uv;
             mesh.triangles = triangles;
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
