@@ -3568,7 +3568,7 @@ namespace DuneVector
         [Min(0f)] public float UpperFlightRingHudRightMargin = 28f;
         [Tooltip("Minimum vertical gap between the gold panel and the upper-flight-layer tracker.")]
         [Min(0f)] public float UpperFlightRingHudGoldGap = 14f;
-        [Min(160f)] public float UpperFlightRingHudWidth = 420f;
+        [Min(160f)] public float UpperFlightRingHudWidth = 340f;
         [Min(60f)] public float UpperFlightRingHudHeight = 92f;
         [Min(0f)] public float UpperFlightRingHudPadding = 14f;
         [Min(1f)] public float UpperFlightRingHudAccentWidth = 5f;
