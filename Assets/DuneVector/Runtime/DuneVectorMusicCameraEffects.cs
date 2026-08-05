@@ -53,15 +53,7 @@ namespace DuneVector
             float strength = Mathf.Clamp01(command.Strength);
             switch (command.Type)
             {
-                case MusicVisualCueType.MinorKick:
-                    _requestedPosition = Mathf.Max(
-                        _requestedPosition,
-                        strength * _settings.MinorKickPositionStrength * _settings.MaximumVisualizerPositionOffset);
-                    break;
                 case MusicVisualCueType.MajorKick:
-                    _requestedPosition = Mathf.Max(
-                        _requestedPosition,
-                        strength * _settings.MajorKickPositionStrength * _settings.MaximumVisualizerPositionOffset);
                     if (command.IsAuthored && _audio != null && _audio.VisualizerFovEnabled)
                     {
                         _requestedFov = Mathf.Max(
@@ -69,27 +61,11 @@ namespace DuneVector
                             strength * _settings.MajorKickFovStrength * _settings.MaximumVisualizerFovOffset);
                     }
                     break;
-                case MusicVisualCueType.MinorSnare:
-                case MusicVisualCueType.TrebleTick:
-                    float minorDirection = (command.DeterministicSeed & 1u) == 0u ? -1f : 1f;
-                    _requestedRoll = minorDirection
-                        * strength
-                        * _settings.MinorSnareRollStrength
-                        * _settings.MaximumVisualizerRollDegrees;
-                    break;
-                case MusicVisualCueType.AccentSnare:
-                case MusicVisualCueType.TrebleBurst:
-                    float direction = (command.DeterministicSeed & 1u) == 0u ? -1f : 1f;
-                    _requestedRoll = direction * strength * _settings.SnareRollStrength * _settings.MaximumVisualizerRollDegrees;
-                    break;
                 case MusicVisualCueType.ReactorDischarge:
                     if (!command.IsAuthored)
                     {
                         break;
                     }
-                    _requestedPosition = Mathf.Max(
-                        _requestedPosition,
-                        strength * _settings.ReactorPositionStrength * _settings.MaximumVisualizerPositionOffset);
                     if (_audio != null && _audio.VisualizerFovEnabled)
                     {
                         _requestedFov = Mathf.Max(
