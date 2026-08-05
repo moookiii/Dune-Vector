@@ -12,10 +12,19 @@ namespace DuneVector
         [Min(0f)] public float HeightMultiplier = 1f;
 
         [Header("Rolling elevation")]
+        [Tooltip("Adds broad, low-frequency elevation beneath the existing dune shapes.")]
+        public bool RollingElevationEnabled;
         [Tooltip("World-space size of broad elevation changes layered beneath the existing dune preset.")]
         [Min(1f)] public float RollingElevationScale = 800f;
         [Tooltip("Maximum influence of the broad rolling elevation layer. Zero preserves the preset's original terrain profile.")]
         [Min(0f)] public float RollingElevationAmplitude = 0f;
+        [Tooltip("World-space offset used to reposition the broad elevation pattern without changing the world seed.")]
+        public Vector2 RollingElevationOffset = new Vector2(830f, -470f);
+        [Tooltip("World-space size of the noise that bends the broad elevation pattern.")]
+        [Min(1f)] public float RollingElevationWarpScale = 1400f;
+        [Tooltip("Maximum domain-warp displacement as a fraction of the rolling elevation scale.")]
+        [Range(0f, 1f)] public float RollingElevationWarpStrength = 0.35f;
+        [Range(1, 4)] public int RollingElevationWarpOctaves = 2;
         [Range(1, 6)] public int RollingElevationOctaves = 3;
         [Range(0.1f, 0.9f)] public float RollingElevationPersistence = 0.48f;
         [Range(1.1f, 4f)] public float RollingElevationLacunarity = 2.03f;
@@ -56,6 +65,25 @@ namespace DuneVector
 
         [Header("Surface sampling")]
         [Range(0.1f, 3f)] public float NormalSampleDistance = 0.75f;
+
+        public void CopyRollingElevationFrom(DuneFieldSettings source)
+        {
+            if (source == null)
+            {
+                return;
+            }
+
+            RollingElevationEnabled = source.RollingElevationEnabled;
+            RollingElevationScale = source.RollingElevationScale;
+            RollingElevationAmplitude = source.RollingElevationAmplitude;
+            RollingElevationOffset = source.RollingElevationOffset;
+            RollingElevationWarpScale = source.RollingElevationWarpScale;
+            RollingElevationWarpStrength = source.RollingElevationWarpStrength;
+            RollingElevationWarpOctaves = source.RollingElevationWarpOctaves;
+            RollingElevationOctaves = source.RollingElevationOctaves;
+            RollingElevationPersistence = source.RollingElevationPersistence;
+            RollingElevationLacunarity = source.RollingElevationLacunarity;
+        }
     }
 
     public readonly struct LogicalPosition
@@ -214,15 +242,46 @@ namespace DuneVector
         {
             int seed = _settings.WorldSeed;
 
-            double rollingScale = Math.Max(1.0, _settings.RollingElevationScale);
-            double rollingElevation = DuneVectorMath.FractalNoise(
-                (worldX + 830.0) / rollingScale,
-                (worldZ - 470.0) / rollingScale,
-                seed,
-                59,
-                _settings.RollingElevationOctaves,
-                _settings.RollingElevationPersistence,
-                _settings.RollingElevationLacunarity);
+            double rollingElevation = 0.0;
+            if (_settings.RollingElevationEnabled && _settings.RollingElevationAmplitude > 0f)
+            {
+                double rollingScale = Math.Max(1.0, _settings.RollingElevationScale);
+                double warpScale = Math.Max(1.0, _settings.RollingElevationWarpScale);
+                double warpStrength = Math.Max(0.0, _settings.RollingElevationWarpStrength);
+                double warpX = 0.0;
+                double warpZ = 0.0;
+                if (warpStrength > 0.0)
+                {
+                    warpX = DuneVectorMath.FractalNoise(
+                        worldX / warpScale,
+                        worldZ / warpScale,
+                        seed,
+                        43,
+                        _settings.RollingElevationWarpOctaves,
+                        _settings.RollingElevationPersistence,
+                        _settings.RollingElevationLacunarity);
+                    warpZ = DuneVectorMath.FractalNoise(
+                        worldX / warpScale,
+                        worldZ / warpScale,
+                        seed,
+                        47,
+                        _settings.RollingElevationWarpOctaves,
+                        _settings.RollingElevationPersistence,
+                        _settings.RollingElevationLacunarity);
+                }
+
+                double maximumWarpDistance = rollingScale * warpStrength;
+                double rollingX = worldX + _settings.RollingElevationOffset.x + (warpX * maximumWarpDistance);
+                double rollingZ = worldZ + _settings.RollingElevationOffset.y + (warpZ * maximumWarpDistance);
+                rollingElevation = DuneVectorMath.FractalNoise(
+                    rollingX / rollingScale,
+                    rollingZ / rollingScale,
+                    seed,
+                    59,
+                    _settings.RollingElevationOctaves,
+                    _settings.RollingElevationPersistence,
+                    _settings.RollingElevationLacunarity);
+            }
 
             double majorX = worldX / Math.Max(1.0, _settings.MajorScale);
             double majorZ = worldZ / Math.Max(1.0, _settings.MajorScale);
