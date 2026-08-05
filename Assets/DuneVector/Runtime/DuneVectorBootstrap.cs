@@ -639,6 +639,8 @@ namespace DuneVector
                 RuntimeSettings.MusicReactiveSky);
             DuneVectorMusicReactiveConductor conductor = reactiveSkyObject.AddComponent<DuneVectorMusicReactiveConductor>();
             conductor.Initialize(AudioManager, MusicReactiveSky, RuntimeSettings.MusicReactiveSky);
+            conductor.RegisterSink(MusicReactiveSky);
+            MusicReactiveSky.EnableConductorControl();
         }
 
         private void BuildEnvironment()

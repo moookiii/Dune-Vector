@@ -8,7 +8,7 @@ using UnityEngine.Rendering.Universal;
 namespace DuneVector
 {
     [DisallowMultipleComponent]
-    public sealed class DuneVectorMusicReactiveSky : MonoBehaviour
+    public sealed class DuneVectorMusicReactiveSky : MonoBehaviour, IMusicReactiveSink
     {
         private static readonly ProfilerMarker AnalysisIngestMarker = new ProfilerMarker("MusicVisualizer.AnalysisIngest");
         private DuneVectorAudioManager _audio;
@@ -35,8 +35,14 @@ namespace DuneVector
         private float _currentBloomThreshold;
         private MusicVisualizerMode _visualizerMode = MusicVisualizerMode.All;
         private uint _analysisSequence;
+        private bool _conductorControlsResponse;
 
         public MusicAnalysisFrame LatestAnalysisFrame { get; private set; }
+
+        public void EnableConductorControl()
+        {
+            _conductorControlsResponse = true;
+        }
 
         public void Initialize(
             DuneVectorAudioManager audio,
@@ -180,7 +186,10 @@ namespace DuneVector
                 SmoothMusicResponse(deltaTime);
                 PublishAnalysisFrame();
             }
-            ApplyMusicResponse(deltaTime);
+            if (!_conductorControlsResponse)
+            {
+                ApplyMusicResponse(deltaTime);
+            }
         }
 
         private void ApplyCameraFrustum()
@@ -402,6 +411,72 @@ namespace DuneVector
                 deltaTime);
             _bloom.intensity.value = _currentBloomIntensity;
             _bloom.threshold.value = _currentBloomThreshold;
+        }
+
+        public void ApplyContinuous(in MusicReactiveRuntimeState state)
+        {
+            if (_sky == null || _visualizerMode == MusicVisualizerMode.Off)
+            {
+                return;
+            }
+
+            _sky.ReactiveMusicEnergy.value = state.Energy;
+            _sky.ReactiveMusicBass.value = state.Bass;
+            _sky.ReactiveMusicMids.value = state.Mid;
+            _sky.ReactiveMusicHighs.value = state.High;
+            _sky.ReactiveBassPulse.value = state.Analysis.BassTransient;
+            _sky.ReactiveHighPulse.value = state.Analysis.HighTransient;
+
+            if (_bloom == null)
+            {
+                return;
+            }
+
+            bool bloomAllowed = (state.Permissions & MusicVisualEffectGroups.Bloom) != 0;
+            float contribution = bloomAllowed ? state.Bloom : 0f;
+            float bloomTarget = _baseBloomIntensity
+                + contribution * _settings.BloomEnergyBoost
+                + state.Analysis.BassTransient * _settings.BloomBassPulseBoost;
+            bloomTarget = Mathf.Min(
+                bloomTarget,
+                Mathf.Max(_baseBloomIntensity, _settings.BloomMaximumIntensity));
+            float thresholdTarget = Mathf.Max(
+                0f,
+                _baseBloomThreshold - contribution * _settings.BloomThresholdReduction);
+            float deltaTime = Time.unscaledDeltaTime;
+            _currentBloomIntensity = SmoothBloom(_currentBloomIntensity, bloomTarget, deltaTime);
+            _currentBloomThreshold = SmoothBloom(_currentBloomThreshold, thresholdTarget, deltaTime);
+            _bloom.intensity.value = _currentBloomIntensity;
+            _bloom.threshold.value = _currentBloomThreshold;
+        }
+
+        public void Dispatch(in MusicVisualDispatchCommand command, in MusicReactiveRuntimeState state)
+        {
+            if (_sky == null || _visualizerMode == MusicVisualizerMode.Off)
+            {
+                return;
+            }
+
+            switch (command.Type)
+            {
+                case MusicVisualCueType.MinorKick:
+                case MusicVisualCueType.MajorKick:
+                case MusicVisualCueType.ReactorAnticipation:
+                case MusicVisualCueType.ReactorDischarge:
+                    _sky.ReactiveBassPulse.value = Mathf.Max(_sky.ReactiveBassPulse.value, command.Strength);
+                    break;
+                case MusicVisualCueType.MinorSnare:
+                case MusicVisualCueType.AccentSnare:
+                case MusicVisualCueType.TrebleTick:
+                case MusicVisualCueType.TrebleBurst:
+                    _sky.ReactiveHighPulse.value = Mathf.Max(_sky.ReactiveHighPulse.value, command.Strength);
+                    break;
+            }
+        }
+
+        public void ResetMusicResponse()
+        {
+            ClearVisualResponse();
         }
 
         private float SmoothBloom(float current, float target, float deltaTime)
