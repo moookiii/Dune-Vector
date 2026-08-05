@@ -1396,7 +1396,10 @@ namespace DuneVector
         [Range(2, 9)] public int RelayGroundingSamplesPerAxis = 5;
         [Tooltip("Fraction of the sampled ruins foundation that must be below the dunes. Lower values keep more of the landmark visible; higher values bury more of its underside.")]
         [Range(0.5f, 1f)] public float RelayGroundingBurialCoverage = 0.8f;
-        [Tooltip("Signed vertical grounding offset for the ruins. Positive values sink it into the dunes; negative values raise it.")]
+        [Tooltip("Maximum distance adaptive grounding may sink the ruins below the highest placement that keeps their bottom edge at or below the lowest sampled dune. Keep at zero for maximum visibility.")]
+        [Min(0f)] public float RelayMaximumAdditionalGroundSink;
+        [Tooltip("Additional distance the ruins are sunk below the lowest sampled dune.")]
+        [Min(0f)]
         public float RelayPrefabGroundOffsetDown = 1f;
         [Range(6, 24)] public int RelayDishRimSegments = 12;
         [Range(2, 9)] public int RelayWindowCount = 5;

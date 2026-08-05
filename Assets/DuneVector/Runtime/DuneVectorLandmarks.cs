@@ -1013,7 +1013,8 @@ namespace DuneVector
                 relay.transform,
                 _settings.RelayGroundingSamplesPerAxis,
                 _settings.RelayPrefabGroundOffsetDown,
-                _settings.RelayGroundingBurialCoverage);
+                _settings.RelayGroundingBurialCoverage,
+                _settings.RelayMaximumAdditionalGroundSink);
         }
 
         private void BuildProceduralRelay(Transform root, int seed, DuneVectorLandmarkAnimator animator)
@@ -1513,8 +1514,9 @@ namespace DuneVector
                 }
             }
 
+            float safeGroundOffsetDown = Mathf.Max(0f, groundOffsetDown);
             float legacyGroundingShift = float.IsFinite(lowestTerrainHeight) && float.IsFinite(lowestRenderedHeight)
-                ? lowestTerrainHeight - lowestRenderedHeight - groundOffsetDown
+                ? lowestTerrainHeight - lowestRenderedHeight - safeGroundOffsetDown
                 : 0f;
             if (lowerEnvelopeCoverage > 0f)
             {
