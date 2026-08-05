@@ -1317,14 +1317,7 @@ namespace DuneVector
             excavation.transform.localPosition = Vector3.zero;
             excavation.transform.localRotation = prefabRotation;
             excavation.transform.localScale = prefabScale;
-            // Match the foundation's local underside to the dune envelope. On level ground this
-            // preserves the existing placement; only uneven placements with an exposed underside
-            // receive the additional downward correction needed to keep the base in the sand.
-            GroundPrefabToDunes(
-                excavation.transform,
-                _settings.ExcavationGroundingSamplesPerAxis,
-                0f,
-                lowerEnvelopeCoverage: 1f);
+            GroundPrefabToDunes(excavation.transform, _settings.ExcavationGroundingSamplesPerAxis, 0f);
         }
 
         private void GroundPrefabToDunes(
