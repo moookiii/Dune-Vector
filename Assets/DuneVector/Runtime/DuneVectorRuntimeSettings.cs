@@ -1425,8 +1425,13 @@ namespace DuneVector
         [Tooltip("Generated albedo and emission texture used by the megagate signal strips.")]
         public Texture2D MegagateSignalTexture;
         [ColorUsage(false)] public Color MegagateStoneTextureTint;
-        [ColorUsage(false)] public Color MegagateMetalTextureTint;
+        [Tooltip("HDR multiplier used to match the generated armor albedo under scene lighting.")]
+        [ColorUsage(false, true)] public Color MegagateMetalTextureTint;
         [ColorUsage(false)] public Color MegagateSignalTextureTint;
+        [Range(0f, 1f)] public float MegagateMetalSmoothness;
+        [Range(0f, 1f)] public float MegagateMetallic;
+        [Tooltip("Subtle texture-masked fill light that keeps the gray armor readable in deep desert shadows.")]
+        [ColorUsage(false, true)] public Color MegagateMetalEmission;
         [Tooltip("Stone texture repetitions per meter on megagate geometry.")]
         [Min(0.001f)] public float MegagateStoneTextureTiling;
         [Tooltip("Metal texture repetitions per meter on megagate geometry.")]

@@ -251,12 +251,14 @@ namespace DuneVector
                 MegagateMetal = CreateLit(
                     "Megagate - Oxidized Armor",
                     landmarkTuning.MegagateMetalTextureTint,
-                    landmarkTuning.LandmarkMetalSmoothness,
-                    landmarkTuning.LandmarkMetallic);
+                    landmarkTuning.MegagateMetalSmoothness,
+                    landmarkTuning.MegagateMetallic,
+                    landmarkTuning.MegagateMetalEmission);
                 ConfigureSurfaceTexture(
                     MegagateMetal,
                     landmarkTuning.MegagateMetalTexture,
-                    landmarkTuning.MegagateMetalTextureTiling);
+                    landmarkTuning.MegagateMetalTextureTiling,
+                    true);
                 MegagateSignal = CreateLit(
                     "Megagate - Cyan Signal Surface",
                     landmarkTuning.MegagateSignalTextureTint,
