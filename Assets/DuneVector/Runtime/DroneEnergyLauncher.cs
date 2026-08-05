@@ -52,6 +52,7 @@ namespace DuneVector
         public Vector3 AimPoint => transform.position;
         public Vector3 Velocity { get; private set; }
         public float CollisionRadius { get; private set; }
+        public bool IsPriorityTarget { get; private set; }
         public bool IsValid => _targetable && isActiveAndEnabled && _health != null && !_health.IsDead;
         public static IReadOnlyList<EnemyCombatTarget> ActiveTargets => Targets;
 
@@ -76,6 +77,11 @@ namespace DuneVector
         public void SetTargetable(bool targetable)
         {
             _targetable = targetable;
+        }
+
+        public void SetPriorityTarget(bool priorityTarget)
+        {
+            IsPriorityTarget = priorityTarget;
         }
 
         public bool ApplyDamage(float damage)
@@ -262,6 +268,7 @@ namespace DuneVector
         {
             EnemyCombatTarget bestTarget = null;
             float bestScore = float.PositiveInfinity;
+            bool bestIsPriority = false;
             IReadOnlyList<EnemyCombatTarget> targets = EnemyCombatTarget.ActiveTargets;
             for (int i = 0; i < targets.Count; i++)
             {
@@ -272,15 +279,26 @@ namespace DuneVector
                 }
 
                 float score = GetViewCenterScore(candidate);
-                if (score < bestScore)
+                bool candidateIsPriority = candidate.IsPriorityTarget;
+                if ((candidateIsPriority && !bestIsPriority)
+                    || (candidateIsPriority == bestIsPriority && score < bestScore))
                 {
                     bestTarget = candidate;
                     bestScore = score;
+                    bestIsPriority = candidateIsPriority;
                 }
             }
 
             if (SelectedTarget != null)
             {
+                if (bestTarget != null
+                    && bestTarget.IsPriorityTarget
+                    && !SelectedTarget.IsPriorityTarget)
+                {
+                    SelectTarget(bestTarget);
+                    return;
+                }
+
                 if (!IsStrictlyEligible(SelectedTarget))
                 {
                     return;

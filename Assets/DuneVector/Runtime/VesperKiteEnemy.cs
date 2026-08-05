@@ -432,6 +432,7 @@ namespace DuneVector
             missileHealth.Initialize(settings.PilgrimMaximumHealth);
             EnemyCombatTarget combatTarget = gameObject.AddComponent<EnemyCombatTarget>();
             combatTarget.Initialize(missileHealth, settings.PilgrimCollisionRadius);
+            combatTarget.SetPriorityTarget(settings.PrioritizePilgrimsForTargeting);
 
             CreateTether();
             DuneVectorPortalEvents.PlayerCrossed += HandlePortalCrossing;
