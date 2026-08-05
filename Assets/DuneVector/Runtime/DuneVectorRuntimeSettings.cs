@@ -4040,6 +4040,19 @@ namespace DuneVector
         [Min(0f)] public float ForegroundStreakForwardOffset = 4f;
         [ColorUsage(false, true)] public Color ForegroundStreakColor = new Color(1.2f, 0.25f, 2.8f, 0.8f);
 
+        [Header("Camera Response")]
+        [Min(0f)] public float MaximumVisualizerFovOffset = 3.5f;
+        [Min(0f)] public float MaximumVisualizerRollDegrees = 0.65f;
+        [Min(0f)] public float MaximumVisualizerPositionOffset = 0.055f;
+        [Min(0.01f)] public float CameraKickAttackSeconds = 0.025f;
+        [Min(0.01f)] public float CameraKickReleaseSeconds = 0.28f;
+        [Min(0.01f)] public float VisualizerFovDisableReleaseSeconds = 0.08f;
+        [Range(0f, 1f)] public float MajorKickFovStrength = 0.55f;
+        [Range(0f, 1f)] public float ReactorFovStrength = 1f;
+        [Range(0f, 1f)] public float MajorKickPositionStrength = 0.5f;
+        [Range(0f, 1f)] public float SnareRollStrength = 0.55f;
+        [Range(0f, 1f)] public float ReactorPositionStrength = 1f;
+
         [Header("Music Analysis")]
         [Tooltip("FFT sample count used to separate bass, midrange, and high-frequency energy.")]
         [Range(128, 2048)] public int FftWindowSize = 1024;
@@ -4744,6 +4757,7 @@ namespace DuneVector
         public string VideoCrtLinesLabel = "CRT LINES";
         public string VideoFilmGrainLabel = "FILM GRAIN";
         public string VideoVignetteLabel = "VIGNETTE";
+        public string VideoVisualizerFovLabel = "VISUALIZER FOV";
         public string VideoEffectEnabledLabel = "ON";
         public string VideoEffectDisabledLabel = "OFF";
         public bool DefaultChromaticAberrationEnabled = true;

@@ -28,7 +28,7 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 7;
+            public int Version = 8;
             public float MusicVolume;
             public float SoundEffectsVolume;
             public bool MusicVisualizerEnabled = true;
@@ -39,6 +39,7 @@ namespace DuneVector
             public bool FilmGrainEnabled = true;
             public bool VignetteEnabled = true;
             public int AntiAliasingMode;
+            public bool VisualizerFovEnabled;
         }
 
         public float MusicVolume { get; private set; }
@@ -50,7 +51,9 @@ namespace DuneVector
         public bool FilmGrainEnabled { get; private set; } = true;
         public bool VignetteEnabled { get; private set; } = true;
         public DuneVectorCameraAntiAliasingMode AntiAliasingMode { get; private set; }
+        public bool VisualizerFovEnabled { get; private set; }
         public event Action<MusicVisualizerMode> MusicVisualizerModeChanged;
+        public event Action<bool> VisualizerFovEnabledChanged;
         public MusicTimelineState TimelineState => _timelineState;
 
         public bool TryGetMusicChannelGroup(out FMOD.ChannelGroup channelGroup)
@@ -534,6 +537,18 @@ namespace DuneVector
             FlushPreferences();
         }
 
+        public void SetVisualizerFovEnabled(bool enabled)
+        {
+            if (VisualizerFovEnabled == enabled)
+            {
+                return;
+            }
+            VisualizerFovEnabled = enabled;
+            _preferencesDirty = true;
+            VisualizerFovEnabledChanged?.Invoke(enabled);
+            FlushPreferences();
+        }
+
         public void PlayDroneFire(Vector3 position)
         {
             PlayConfiguredOneShot(_settings != null ? _settings.DroneFireEvent : null, position, "drone-fire");
@@ -751,6 +766,7 @@ namespace DuneVector
             MusicVolume = Mathf.Clamp01(_settings.DefaultMusicVolume);
             SoundEffectsVolume = Mathf.Clamp01(_settings.DefaultSoundEffectsVolume);
             VisualizerMode = MusicVisualizerMode.All;
+            VisualizerFovEnabled = false;
             ChromaticAberrationEnabled = _settings.PauseMenu == null
                 || _settings.PauseMenu.DefaultChromaticAberrationEnabled;
             LensDistortionEnabled = _settings.PauseMenu == null
@@ -772,7 +788,7 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version >= 1 && stored.Version <= 7)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 8)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
@@ -801,6 +817,10 @@ namespace DuneVector
                     if (stored.Version >= 7)
                     {
                         VignetteEnabled = stored.VignetteEnabled;
+                    }
+                    if (stored.Version >= 8)
+                    {
+                        VisualizerFovEnabled = stored.VisualizerFovEnabled;
                     }
                 }
             }
@@ -837,6 +857,7 @@ namespace DuneVector
                     FilmGrainEnabled = FilmGrainEnabled,
                     VignetteEnabled = VignetteEnabled,
                     AntiAliasingMode = (int)AntiAliasingMode,
+                    VisualizerFovEnabled = VisualizerFovEnabled,
                 };
                 File.WriteAllText(_preferencesPath, JsonUtility.ToJson(stored));
                 _preferencesDirty = false;
@@ -1437,6 +1458,13 @@ namespace DuneVector
                 _visuals.VideoVignetteLabel,
                 _audio == null || _audio.VignetteEnabled,
                 value => _audio?.SetVignetteEnabled(value));
+            y += buttonHeight + gap;
+
+            DrawVideoToggle(
+                new Rect(content.x, y, content.width, buttonHeight),
+                _visuals.VideoVisualizerFovLabel,
+                _audio != null && _audio.VisualizerFovEnabled,
+                value => _audio?.SetVisualizerFovEnabled(value));
             y += buttonHeight + (gap * 2f);
 
             if (GUI.Button(

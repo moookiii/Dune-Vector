@@ -306,6 +306,8 @@ namespace DuneVector
         public float TargetDistance { get; private set; }
         public Vector3 CurrentFollowPosition => _currentFollowPosition;
         public float FollowingError => FollowTransform != null ? Vector3.Distance(_currentFollowPosition, FollowTransform.position) : 0f;
+        public float GameplayFieldOfView => _gameplayFieldOfView;
+        public float AppliedMusicFovOffset => _musicFovOffset;
 
         private const int MaxObstructions = 32;
         private readonly RaycastHit[] _obstructions = new RaycastHit[MaxObstructions];
@@ -318,6 +320,17 @@ namespace DuneVector
         private bool _photographyModeActive;
         private float _photographyDistance;
         private float _photographyHeight;
+        private float _gameplayFieldOfView;
+        private float _musicFovOffset;
+        private float _musicRollDegrees;
+        private Vector3 _musicLocalPositionOffset;
+
+        public void SetMusicVisualizerPresentation(float fovOffset, float rollDegrees, Vector3 localPositionOffset)
+        {
+            _musicFovOffset = fovOffset;
+            _musicRollDegrees = rollDegrees;
+            _musicLocalPositionOffset = localPositionOffset;
+        }
 
         public void SetPhotographyMode(bool active, float cameraDistance, float cameraHeight)
         {
@@ -337,6 +350,7 @@ namespace DuneVector
                 Camera = GetComponent<Camera>();
             }
             Camera.fieldOfView = BaseFieldOfView;
+            _gameplayFieldOfView = BaseFieldOfView;
             TargetDistance = Mathf.Clamp(DefaultDistance, MinDistance, MaxDistance);
             _currentDistance = TargetDistance;
             _targetPitch = Mathf.Clamp(DefaultPitch, MinPitch, MaxPitch);
@@ -483,13 +497,19 @@ namespace DuneVector
                 targetPosition += transform.up * FollowPointFraming.y;
             }
             transform.position = targetPosition;
+            transform.position += transform.TransformVector(_musicLocalPositionOffset);
+            transform.rotation *= Quaternion.Euler(0f, 0f, _musicRollDegrees);
 
             float targetFov = BaseFieldOfView + (speed01 * SpeedFieldOfViewAmount);
             if (SpeedSource != null && SpeedSource.IsBoosting)
             {
                 targetFov += BoostFieldOfViewAmount;
             }
-            Camera.fieldOfView = Mathf.Lerp(Camera.fieldOfView, targetFov, DuneVectorMath.Sharpness(FieldOfViewSharpness, deltaTime));
+            _gameplayFieldOfView = Mathf.Lerp(
+                _gameplayFieldOfView,
+                targetFov,
+                DuneVectorMath.Sharpness(FieldOfViewSharpness, deltaTime));
+            Camera.fieldOfView = _gameplayFieldOfView + _musicFovOffset;
         }
 
         public void ApplyWorldShift(Vector3 shift)

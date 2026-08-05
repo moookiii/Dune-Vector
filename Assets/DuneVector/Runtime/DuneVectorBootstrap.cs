@@ -653,6 +653,9 @@ namespace DuneVector
                 _materials.Trail,
                 RuntimeSettings.MusicReactiveSky);
             conductor.RegisterSink(foreground);
+            DuneVectorMusicCameraEffects cameraEffects = reactiveSkyObject.AddComponent<DuneVectorMusicCameraEffects>();
+            cameraEffects.Initialize(DroneCamera, AudioManager, RuntimeSettings.MusicReactiveSky);
+            conductor.RegisterSink(cameraEffects);
         }
 
         private void BuildEnvironment()
