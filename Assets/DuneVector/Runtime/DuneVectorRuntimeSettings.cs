@@ -4057,6 +4057,8 @@ namespace DuneVector
         [Min(0f)] public float ForegroundStreakPeripheralWidth = 8f;
         [Min(0f)] public float ForegroundStreakPeripheralHeight = 4.5f;
         [Min(0f)] public float ForegroundStreakForwardOffset = 4f;
+        [Min(0f)] public float ForegroundStreakVelocityScale = 0.18f;
+        [Min(0f)] public float ForegroundStreakLengthScale = 1.6f;
         [ColorUsage(false, true)] public Color ForegroundStreakColor = new Color(1.2f, 0.25f, 2.8f, 0.8f);
 
         [Header("Camera Response")]

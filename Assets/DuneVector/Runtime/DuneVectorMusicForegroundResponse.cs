@@ -109,8 +109,8 @@ namespace DuneVector
 
             ParticleSystemRenderer renderer = streakObject.GetComponent<ParticleSystemRenderer>();
             renderer.renderMode = ParticleSystemRenderMode.Stretch;
-            renderer.velocityScale = 0.18f;
-            renderer.lengthScale = 1.6f;
+            renderer.velocityScale = _settings.ForegroundStreakVelocityScale;
+            renderer.lengthScale = _settings.ForegroundStreakLengthScale;
             renderer.sharedMaterial = sharedMaterial;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
