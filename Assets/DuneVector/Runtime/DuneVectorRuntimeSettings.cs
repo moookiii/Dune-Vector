@@ -1448,6 +1448,10 @@ namespace DuneVector
         public string ExcavationResourcePath = "desert_obelisk_Prefab";
         [Tooltip("Samples per axis used to fit the desert obelisk foundation to the lowest dune height beneath its rendered footprint.")]
         [Range(2, 9)] public int ExcavationGroundingSamplesPerAxis = 5;
+        [Tooltip("Fraction of sampled desert obelisk underside points that should be buried by adaptive grounding. Floating decorative pieces are ignored by keeping this below full coverage.")]
+        [Range(0.5f, 0.95f)] public float ExcavationGroundingBurialCoverage = 0.8f;
+        [Tooltip("Maximum distance adaptive grounding may sink a desert obelisk below its legacy footprint placement.")]
+        [Min(0f)] public float ExcavationMaximumAdditionalGroundSink = 2f;
         [Range(2, 8)] public int ExcavationScaffoldCount = 4;
         [Range(1, 5)] public int ExcavationPitTerraceCount = 3;
         [Min(4f)] public float ExcavationPitWidth = 32f;

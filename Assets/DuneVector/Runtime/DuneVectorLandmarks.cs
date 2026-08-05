@@ -1317,14 +1317,20 @@ namespace DuneVector
             excavation.transform.localPosition = Vector3.zero;
             excavation.transform.localRotation = prefabRotation;
             excavation.transform.localScale = prefabScale;
-            GroundPrefabToDunes(excavation.transform, _settings.ExcavationGroundingSamplesPerAxis, 0f);
+            GroundPrefabToDunes(
+                excavation.transform,
+                _settings.ExcavationGroundingSamplesPerAxis,
+                0f,
+                _settings.ExcavationGroundingBurialCoverage,
+                _settings.ExcavationMaximumAdditionalGroundSink);
         }
 
         private void GroundPrefabToDunes(
             Transform prefab,
             int configuredSamplesPerAxis,
             float groundOffsetDown,
-            float lowerEnvelopeCoverage = 0f)
+            float lowerEnvelopeCoverage = 0f,
+            float maximumAdditionalGroundSink = float.PositiveInfinity)
         {
             Renderer[] renderers = prefab.GetComponentsInChildren<Renderer>(true);
             bool hasBounds = false;
@@ -1372,6 +1378,26 @@ namespace DuneVector
             }
 
             int samplesPerAxis = Mathf.Max(2, configuredSamplesPerAxis);
+            float lowestTerrainHeight = float.PositiveInfinity;
+            for (int z = 0; z < samplesPerAxis; z++)
+            {
+                float z01 = z / (float)(samplesPerAxis - 1);
+                for (int x = 0; x < samplesPerAxis; x++)
+                {
+                    float x01 = x / (float)(samplesPerAxis - 1);
+                    Vector3 worldSample = prefab.TransformPoint(new Vector3(
+                        Mathf.Lerp(minimum.x, maximum.x, x01),
+                        0f,
+                        Mathf.Lerp(minimum.y, maximum.y, z01)));
+                    lowestTerrainHeight = Mathf.Min(
+                        lowestTerrainHeight,
+                        _world.SampleHeightAtLocal(worldSample.x, worldSample.z));
+                }
+            }
+
+            float legacyGroundingShift = float.IsFinite(lowestTerrainHeight) && float.IsFinite(lowestRenderedHeight)
+                ? lowestTerrainHeight - lowestRenderedHeight - groundOffsetDown
+                : 0f;
             if (lowerEnvelopeCoverage > 0f)
             {
                 float[] lowestMeshHeightBySample = new float[samplesPerAxis * samplesPerAxis];
@@ -1430,33 +1456,24 @@ namespace DuneVector
                         Mathf.RoundToInt((1f - coverage) * (matchedGroundingShifts.Count - 1)),
                         0,
                         matchedGroundingShifts.Count - 1);
-                    prefab.position += Vector3.up * (
-                        matchedGroundingShifts[selectedIndex] - groundOffsetDown);
-                    return;
-                }
-            }
+                    float adaptiveGroundingShift = matchedGroundingShifts[selectedIndex] - groundOffsetDown;
+                    if (float.IsFinite(maximumAdditionalGroundSink))
+                    {
+                        float permittedSink = Mathf.Max(0f, maximumAdditionalGroundSink);
+                        adaptiveGroundingShift = Mathf.Clamp(
+                            adaptiveGroundingShift,
+                            legacyGroundingShift - permittedSink,
+                            legacyGroundingShift);
+                    }
 
-            float lowestTerrainHeight = float.PositiveInfinity;
-            for (int z = 0; z < samplesPerAxis; z++)
-            {
-                float z01 = z / (float)(samplesPerAxis - 1);
-                for (int x = 0; x < samplesPerAxis; x++)
-                {
-                    float x01 = x / (float)(samplesPerAxis - 1);
-                    Vector3 worldSample = prefab.TransformPoint(new Vector3(
-                        Mathf.Lerp(minimum.x, maximum.x, x01),
-                        0f,
-                        Mathf.Lerp(minimum.y, maximum.y, z01)));
-                    lowestTerrainHeight = Mathf.Min(
-                        lowestTerrainHeight,
-                        _world.SampleHeightAtLocal(worldSample.x, worldSample.z));
+                    prefab.position += Vector3.up * adaptiveGroundingShift;
+                    return;
                 }
             }
 
             if (float.IsFinite(lowestTerrainHeight) && float.IsFinite(lowestRenderedHeight))
             {
-                prefab.position += Vector3.up * (
-                    lowestTerrainHeight - lowestRenderedHeight - groundOffsetDown);
+                prefab.position += Vector3.up * legacyGroundingShift;
             }
         }
 
