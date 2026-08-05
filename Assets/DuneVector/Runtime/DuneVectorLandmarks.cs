@@ -1554,7 +1554,7 @@ namespace DuneVector
                 _materials.LandmarkSecondary, true);
             HorizontalSegmentedRing(impactFrame, "Orbital Dish Rim", radius, radius * 0.055f,
                 _settings.OrbitalDishSegmentCount, _settings.OrbitalDishMissingSegmentCount,
-                seed, _materials.LandmarkMetal, true);
+                seed, _materials.OrbitalConcreteGray, true);
 
             Part(PrimitiveType.Cube, "Orbital Equipment Bus", impactFrame,
                 new Vector3(0f, -radius * 0.24f, -radius * 0.18f),
@@ -1618,7 +1618,7 @@ namespace DuneVector
 
             BuildDebrisTrail(root, "Orbital Impact Debris", seed, _settings.OrbitalDebrisCount,
                 _settings.OrbitalDebrisSpread, radius * 0.12f, Vector3.back,
-                _materials.LandmarkInterior, 7221);
+                _materials.OrbitalConcreteDark, 7221, true);
         }
 
         private void BuildDesertMegagate(Transform root, int seed, DuneVectorLandmarkAnimator animator)
@@ -2020,7 +2020,7 @@ namespace DuneVector
                 }
                 float angle = (360f / count) * i;
                 Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
-                Part(PrimitiveType.Cube, $"{partName} {i + 1:00}", parent, direction * radius,
+                TexturedBoxPart($"{partName} {i + 1:00}", parent, direction * radius,
                     new Vector3(thickness, thickness, segmentLength),
                     Quaternion.Euler(0f, angle + 90f, 0f), material, collider);
             }

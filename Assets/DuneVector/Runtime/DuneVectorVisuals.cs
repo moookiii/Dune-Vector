@@ -40,6 +40,8 @@ namespace DuneVector
         public Material LandmarkSecondary { get; }
         public Material LandmarkInterior { get; }
         public Material LandmarkAccent { get; }
+        public Material OrbitalConcreteGray { get; }
+        public Material OrbitalConcreteDark { get; }
         public Material MegagateStone { get; }
         public Material MegagateMetal { get; }
         public Material MegagateSignal { get; }
@@ -257,6 +259,16 @@ namespace DuneVector
                     landmarkTuning.LandmarkMetalSmoothness,
                     landmarkTuning.LandmarkMetallic,
                     landmarkTuning.LandmarkAccentEmission);
+                OrbitalConcreteGray = CreateTexturedSurfaceVariant(
+                    "Fallen Orbital Array - Concrete Gray",
+                    LandmarkMetal,
+                    landmarkTuning.OrbitalConcreteTexture,
+                    landmarkTuning.OrbitalConcreteTileWorldSize);
+                OrbitalConcreteDark = CreateTexturedSurfaceVariant(
+                    "Fallen Orbital Array - Concrete Dark",
+                    LandmarkInterior,
+                    landmarkTuning.OrbitalConcreteTexture,
+                    landmarkTuning.OrbitalConcreteTileWorldSize);
                 MegagateStone = CreateLit(
                     "Megagate - Monumental Stone",
                     landmarkTuning.MegagateStoneTextureTint,
@@ -296,6 +308,8 @@ namespace DuneVector
                 LandmarkSecondary = DroneBody;
                 LandmarkInterior = DroneDark;
                 LandmarkAccent = DroneAccent;
+                OrbitalConcreteGray = LandmarkMetal;
+                OrbitalConcreteDark = LandmarkInterior;
                 MegagateStone = Sandstone;
                 MegagateMetal = DroneBody;
                 MegagateSignal = DroneAccent;
@@ -750,6 +764,22 @@ namespace DuneVector
             {
                 ConfigureSurfaceTexture(material, tuning.SpireConcreteTexture, 1f);
             }
+            _ownedMaterials.Add(material);
+            return material;
+        }
+
+        private Material CreateTexturedSurfaceVariant(
+            string name,
+            Material source,
+            Texture2D texture,
+            float tileWorldSize)
+        {
+            Material material = new Material(source)
+            {
+                name = name,
+                enableInstancing = true,
+            };
+            ConfigureSurfaceTexture(material, texture, 1f / Mathf.Max(0.01f, tileWorldSize));
             _ownedMaterials.Add(material);
             return material;
         }

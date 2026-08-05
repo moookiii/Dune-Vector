@@ -1461,6 +1461,10 @@ namespace DuneVector
         [Range(1, 10)] public int ExcavationCargoStackCount = 5;
 
         [Header("Fallen Orbital Array Detail")]
+        [Tooltip("Concrete surface applied to the orbital dish rim and rectangular impact rubble while retaining their original gray and black colors.")]
+        public Texture2D OrbitalConcreteTexture;
+        [Tooltip("World-space width and height filled by one complete concrete image before the texture repeats across orbital rim and rubble pieces.")]
+        [Min(0.01f)] public float OrbitalConcreteTileWorldSize = 4f;
         [Min(4f)] public float OrbitalDishRadius;
         [Range(8, 48)] public int OrbitalDishSegmentCount;
         [Range(0, 12)] public int OrbitalDishMissingSegmentCount;
