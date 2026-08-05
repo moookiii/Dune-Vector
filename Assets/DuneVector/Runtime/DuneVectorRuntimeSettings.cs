@@ -1335,6 +1335,8 @@ namespace DuneVector
         public string RelayStationResourcePath = "ruinsPrefab";
         [Tooltip("Samples per axis used to fit the ruins to the lowest dune height beneath its rendered footprint.")]
         [Range(2, 9)] public int RelayGroundingSamplesPerAxis = 5;
+        [Tooltip("Fraction of the sampled ruins foundation that must be below the dunes. Lower values keep more of the landmark visible; higher values bury more of its underside.")]
+        [Range(0.5f, 1f)] public float RelayGroundingBurialCoverage = 0.8f;
         [Tooltip("Signed vertical grounding offset for the ruins. Positive values sink it into the dunes; negative values raise it.")]
         public float RelayPrefabGroundOffsetDown = 1f;
         [Range(6, 24)] public int RelayDishRimSegments = 12;

@@ -941,7 +941,8 @@ namespace DuneVector
             GroundPrefabToDunes(
                 relay.transform,
                 _settings.RelayGroundingSamplesPerAxis,
-                _settings.RelayPrefabGroundOffsetDown);
+                _settings.RelayPrefabGroundOffsetDown,
+                _settings.RelayGroundingBurialCoverage);
         }
 
         private void BuildProceduralRelay(Transform root, int seed, DuneVectorLandmarkAnimator animator)
@@ -1216,7 +1217,8 @@ namespace DuneVector
         private void GroundPrefabToDunes(
             Transform prefab,
             int configuredSamplesPerAxis,
-            float groundOffsetDown)
+            float groundOffsetDown,
+            float lowerEnvelopeCoverage = 0f)
         {
             Renderer[] renderers = prefab.GetComponentsInChildren<Renderer>(true);
             bool hasBounds = false;
@@ -1264,6 +1266,70 @@ namespace DuneVector
             }
 
             int samplesPerAxis = Mathf.Max(2, configuredSamplesPerAxis);
+            if (lowerEnvelopeCoverage > 0f)
+            {
+                float[] lowestMeshHeightBySample = new float[samplesPerAxis * samplesPerAxis];
+                Vector3[] lowestMeshPointBySample = new Vector3[lowestMeshHeightBySample.Length];
+                for (int i = 0; i < lowestMeshHeightBySample.Length; i++)
+                {
+                    lowestMeshHeightBySample[i] = float.PositiveInfinity;
+                }
+
+                MeshFilter[] meshFilters = prefab.GetComponentsInChildren<MeshFilter>(true);
+                for (int filterIndex = 0; filterIndex < meshFilters.Length; filterIndex++)
+                {
+                    MeshFilter meshFilter = meshFilters[filterIndex];
+                    Mesh mesh = meshFilter != null ? meshFilter.sharedMesh : null;
+                    if (mesh == null || !mesh.isReadable)
+                    {
+                        continue;
+                    }
+
+                    Vector3[] vertices = mesh.vertices;
+                    for (int vertexIndex = 0; vertexIndex < vertices.Length; vertexIndex++)
+                    {
+                        Vector3 worldVertex = meshFilter.transform.TransformPoint(vertices[vertexIndex]);
+                        Vector3 prefabVertex = prefab.InverseTransformPoint(worldVertex);
+                        float x01 = Mathf.InverseLerp(minimum.x, maximum.x, prefabVertex.x);
+                        float z01 = Mathf.InverseLerp(minimum.y, maximum.y, prefabVertex.z);
+                        int sampleX = Mathf.Clamp(Mathf.RoundToInt(x01 * (samplesPerAxis - 1)), 0, samplesPerAxis - 1);
+                        int sampleZ = Mathf.Clamp(Mathf.RoundToInt(z01 * (samplesPerAxis - 1)), 0, samplesPerAxis - 1);
+                        int sampleIndex = sampleZ * samplesPerAxis + sampleX;
+                        if (worldVertex.y < lowestMeshHeightBySample[sampleIndex])
+                        {
+                            lowestMeshHeightBySample[sampleIndex] = worldVertex.y;
+                            lowestMeshPointBySample[sampleIndex] = worldVertex;
+                        }
+                    }
+                }
+
+                List<float> matchedGroundingShifts = new List<float>(lowestMeshHeightBySample.Length);
+                for (int sampleIndex = 0; sampleIndex < lowestMeshHeightBySample.Length; sampleIndex++)
+                {
+                    if (!float.IsFinite(lowestMeshHeightBySample[sampleIndex]))
+                    {
+                        continue;
+                    }
+
+                    Vector3 meshPoint = lowestMeshPointBySample[sampleIndex];
+                    float terrainHeight = _world.SampleHeightAtLocal(meshPoint.x, meshPoint.z);
+                    matchedGroundingShifts.Add(terrainHeight - lowestMeshHeightBySample[sampleIndex]);
+                }
+
+                if (matchedGroundingShifts.Count > 0)
+                {
+                    matchedGroundingShifts.Sort();
+                    float coverage = Mathf.Clamp01(lowerEnvelopeCoverage);
+                    int selectedIndex = Mathf.Clamp(
+                        Mathf.RoundToInt((1f - coverage) * (matchedGroundingShifts.Count - 1)),
+                        0,
+                        matchedGroundingShifts.Count - 1);
+                    prefab.position += Vector3.up * (
+                        matchedGroundingShifts[selectedIndex] - groundOffsetDown);
+                    return;
+                }
+            }
+
             float lowestTerrainHeight = float.PositiveInfinity;
             for (int z = 0; z < samplesPerAxis; z++)
             {
