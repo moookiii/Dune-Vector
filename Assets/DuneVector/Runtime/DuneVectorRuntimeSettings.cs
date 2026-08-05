@@ -1448,6 +1448,12 @@ namespace DuneVector
         public Vector3 MegagatePhotographyBoundsSize;
 
         [Header("Wind Harvester Graveyard Detail")]
+        [Tooltip("Optional direct fallback prefab used when the turbine Resources path cannot be resolved. Its authored scale and rotation are preserved.")]
+        public GameObject HarvesterPrefab;
+        [Tooltip("Primary Resources path used to load the turbine prefab.")]
+        public string HarvesterResourcePath = "turbine/turbinePrefab";
+        [Tooltip("Name of the turbine child rotated independently for blade variation.")]
+        public string HarvesterWingsTransformName = "Wings";
         [Range(1, 30)] public int HarvesterCount;
         [Min(2f)] public float HarvesterRingRadius;
         [Min(0.1f)] public float HarvesterRingThickness;
@@ -1457,6 +1463,14 @@ namespace DuneVector
         [Range(0f, 1f)] public float HarvesterBrokenChance;
         [Range(0f, 1f)] public float HarvesterLeanChance;
         [Range(0f, 1f)] public float HarvesterFallenChance;
+        [Min(0f)] public float HarvesterPrefabGroundSink = 1.5f;
+        [Min(0f)] public float HarvesterPrefabFallenGroundSink = 3f;
+        [Range(0f, 89f)] public float HarvesterPrefabLeanMinimumAngle = 5f;
+        [Range(0f, 89f)] public float HarvesterPrefabLeanMaximumAngle = 13f;
+        [Range(0f, 90f)] public float HarvesterPrefabFallenMinimumAngle = 68f;
+        [Range(0f, 90f)] public float HarvesterPrefabFallenMaximumAngle = 86f;
+        [Range(0f, 359f)] public float HarvesterWingsMinimumZRotation;
+        [Range(0f, 359f)] public float HarvesterWingsMaximumZRotation = 359f;
         [Range(0, 60)] public int HarvesterDebrisCount;
         [Min(8f)] public float HarvesterFieldRadius;
 

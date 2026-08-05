@@ -1557,6 +1557,23 @@ namespace DuneVector
 
         private void BuildWindHarvesterGraveyard(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
+            GameObject harvesterPrefab = null;
+            if (!string.IsNullOrWhiteSpace(_settings.HarvesterResourcePath))
+            {
+                harvesterPrefab = Resources.Load<GameObject>(_settings.HarvesterResourcePath);
+            }
+            if (harvesterPrefab == null)
+            {
+                harvesterPrefab = _settings.HarvesterPrefab;
+            }
+            if (harvesterPrefab == null)
+            {
+                Debug.LogWarning("Wind harvester graveyard turbine prefab could not be resolved from Dune Vector Runtime Settings.", root);
+                return;
+            }
+
+            Vector3 prefabScale = harvesterPrefab.transform.localScale;
+            Quaternion prefabRotation = harvesterPrefab.transform.localRotation;
             int count = Mathf.Max(1, _settings.HarvesterCount);
             float fieldRadius = Mathf.Max(_settings.HarvesterSpacing, _settings.HarvesterFieldRadius);
             bool hasFallen = false;
@@ -1579,93 +1596,59 @@ namespace DuneVector
                 {
                     fallen = true;
                 }
-                bool broken = !fallen && state < _settings.HarvesterFallenChance + _settings.HarvesterBrokenChance;
                 bool leaning = !fallen && SeedRange(seed, i, 7307, 0f, 1f) < _settings.HarvesterLeanChance;
-                float towerHeight = _settings.HarvesterTowerHeight * SeedRange(seed, i, 7309, 0.82f, 1.12f);
 
+                float tilt = 0f;
                 if (fallen)
                 {
                     hasFallen = true;
-                    Part(PrimitiveType.Cube, "Snapped Harvester Stump", installation,
-                        Vector3.up * (towerHeight * 0.12f),
-                        new Vector3(_settings.HarvesterRingThickness * 2f, towerHeight * 0.24f,
-                            _settings.HarvesterRingThickness * 2f),
-                        Quaternion.Euler(0f, 0f, SeedRange(seed, i, 7311, -12f, 12f)),
-                        _materials.LandmarkInterior, true);
-                    Transform fallenRing = new GameObject("Fallen Turbine Ring").transform;
-                    fallenRing.SetParent(installation, false);
-                    fallenRing.localPosition = new Vector3(_settings.HarvesterRingRadius * 0.35f,
-                        -_settings.HarvesterRingRadius * 0.28f, _settings.HarvesterRingRadius * 0.4f);
-                    fallenRing.localRotation = Quaternion.Euler(90f,
-                        SeedRange(seed, i, 7313, -35f, 35f), SeedRange(seed, i, 7315, -12f, 12f));
-                    BuildHarvesterRing(fallenRing, seed + i, broken: true);
+                    float minimum = Mathf.Min(
+                        _settings.HarvesterPrefabFallenMinimumAngle,
+                        _settings.HarvesterPrefabFallenMaximumAngle);
+                    float maximum = Mathf.Max(
+                        _settings.HarvesterPrefabFallenMinimumAngle,
+                        _settings.HarvesterPrefabFallenMaximumAngle);
+                    tilt = SeedRange(seed, i, 7311, minimum, maximum);
                 }
-                else
+                else if (leaning)
                 {
-                    Transform tower = new GameObject("Curved Harvester Tower").transform;
-                    tower.SetParent(installation, false);
-                    if (leaning)
-                    {
-                        tower.localRotation = Quaternion.Euler(0f, 0f,
-                            SeedRange(seed, i, 7317, -13f, 13f));
-                    }
-                    BuildCurvedTower(tower, towerHeight, _settings.HarvesterRingRadius * 0.34f,
-                        _settings.HarvesterRingThickness * 1.4f, broken ? 0.58f : 1f);
-                    Part(PrimitiveType.Cube, "Broken Maintenance Platform", tower,
-                        new Vector3(_settings.HarvesterRingRadius * 0.07f, towerHeight * 0.58f, 0f),
-                        new Vector3(_settings.HarvesterRingRadius * 0.7f,
-                            _settings.HarvesterRingThickness * 0.45f,
-                            _settings.HarvesterRingRadius * 0.42f),
-                        Quaternion.Euler(0f, 0f, broken ? 11f : 0f),
-                        _materials.LandmarkSecondary, true);
-                    if (i % 2 == 0)
-                    {
-                        BeamBetween(tower, "Hanging Maintenance Cable",
-                            new Vector3(0f, towerHeight * 0.56f, _settings.HarvesterRingRadius * 0.16f),
-                            new Vector3(_settings.HarvesterRingRadius * 0.24f,
-                                towerHeight * 0.2f, _settings.HarvesterRingRadius * 0.22f),
-                            _settings.HarvesterRingThickness * 0.12f,
-                            _materials.LandmarkInterior, false);
-                    }
-                    Transform ring = new GameObject(broken ? "Broken Turbine Ring" : "Intact Turbine Ring").transform;
-                    ring.SetParent(tower, false);
-                    ring.localPosition = new Vector3(_settings.HarvesterRingRadius * 0.18f,
-                        towerHeight * (broken ? 0.61f : 1f), 0f);
-                    ring.localRotation = Quaternion.Euler(0f, SeedRange(seed, i, 7319, -9f, 9f), 0f);
-                    BuildHarvesterRing(ring, seed + i, broken);
+                    float minimum = Mathf.Min(
+                        _settings.HarvesterPrefabLeanMinimumAngle,
+                        _settings.HarvesterPrefabLeanMaximumAngle);
+                    float maximum = Mathf.Max(
+                        _settings.HarvesterPrefabLeanMinimumAngle,
+                        _settings.HarvesterPrefabLeanMaximumAngle);
+                    tilt = SeedRange(seed, i, 7317, minimum, maximum);
+                }
+                if (SeedRange(seed, i, 7321, 0f, 1f) < 0.5f)
+                {
+                    tilt = -tilt;
+                }
+
+                GameObject harvester = UnityEngine.Object.Instantiate(harvesterPrefab, installation, false);
+                harvester.name = harvesterPrefab.name;
+                harvester.transform.localPosition = Vector3.down * (fallen
+                    ? _settings.HarvesterPrefabFallenGroundSink
+                    : _settings.HarvesterPrefabGroundSink);
+                harvester.transform.localRotation = Quaternion.Euler(0f, 0f, tilt) * prefabRotation;
+                harvester.transform.localScale = prefabScale;
+
+                Transform wings = harvester.transform.Find(_settings.HarvesterWingsTransformName);
+                if (wings != null)
+                {
+                    float minimum = Mathf.Min(
+                        _settings.HarvesterWingsMinimumZRotation,
+                        _settings.HarvesterWingsMaximumZRotation);
+                    float maximum = Mathf.Max(
+                        _settings.HarvesterWingsMinimumZRotation,
+                        _settings.HarvesterWingsMaximumZRotation);
+                    float wingsRotation = SeedRange(seed, i, 7327, minimum, maximum);
+                    wings.localRotation *= Quaternion.Euler(0f, 0f, wingsRotation);
                 }
             }
             BuildDebrisTrail(root, "Harvester Field Debris", seed + 79, _settings.HarvesterDebrisCount,
                 fieldRadius, _settings.HarvesterRingThickness * 2.5f, Vector3.forward,
                 _materials.LandmarkInterior, 7331);
-        }
-
-        private void BuildHarvesterRing(Transform parent, int seed, bool broken)
-        {
-            int segmentCount = Mathf.Clamp(_settings.HarvesterRingSegmentCount, 8, 36);
-            int missing = broken ? Mathf.Max(2, segmentCount / 5) : 0;
-            VerticalSegmentedRing(parent, "Harvester Turbine", _settings.HarvesterRingRadius,
-                _settings.HarvesterRingThickness, segmentCount, missing, seed,
-                _materials.LandmarkSecondary, true, _materials.LandmarkMetal);
-            Part(PrimitiveType.Cylinder, "Harvester Nacelle", parent, Vector3.zero,
-                new Vector3(_settings.HarvesterRingThickness * 2.35f,
-                    _settings.HarvesterRingThickness * 1.4f,
-                    _settings.HarvesterRingThickness * 2.35f),
-                Quaternion.Euler(90f, 0f, 0f), _materials.LandmarkInterior, true);
-            Part(PrimitiveType.Cylinder, "Harvester Axle", parent, Vector3.zero,
-                new Vector3(_settings.HarvesterRingThickness * 1.5f,
-                    _settings.HarvesterRingThickness * 2.5f,
-                    _settings.HarvesterRingThickness * 1.5f),
-                Quaternion.Euler(90f, 0f, 0f), _materials.LandmarkAccent, false);
-            int spokeCount = broken ? 3 : 5;
-            for (int spoke = 0; spoke < spokeCount; spoke++)
-            {
-                float angle = (360f / spokeCount) * spoke;
-                Vector3 endpoint = Quaternion.Euler(0f, 0f, angle) * Vector3.up *
-                    (_settings.HarvesterRingRadius * 0.78f);
-                BeamBetween(parent, $"Harvester Spoke {spoke + 1}", Vector3.zero, endpoint,
-                    _settings.HarvesterRingThickness * 0.32f, _materials.LandmarkInterior, false);
-            }
         }
 
         private void BuildBuriedArcology(Transform root, int seed, DuneVectorLandmarkAnimator animator)
