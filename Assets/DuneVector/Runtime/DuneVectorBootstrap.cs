@@ -503,7 +503,6 @@ namespace DuneVector
             Camera camera = cameraObject.AddComponent<Camera>();
             camera.clearFlags = CameraClearFlags.Skybox;
             camera.allowHDR = true;
-            camera.allowMSAA = false;
             camera.nearClipPlane = PlayerTuning.CameraNearClipPlane;
             camera.farClipPlane = Mathf.Max(PlayerTuning.CameraNearClipPlane, PlayerTuning.CameraFarClipPlane);
             cameraObject.AddComponent<StudioListener>();
@@ -581,6 +580,20 @@ namespace DuneVector
                 DuneVectorSmaaQuality.Medium => AntialiasingQuality.Medium,
                 _ => AntialiasingQuality.High,
             };
+
+            int msaaSampleCount = (int)settings.CameraMsaaSampleCount;
+            if (UniversalRenderPipeline.asset != null)
+            {
+                UniversalRenderPipeline.asset.msaaSampleCount = msaaSampleCount;
+            }
+
+            Camera camera = cameraData.GetComponent<Camera>();
+            if (camera != null)
+            {
+                camera.allowMSAA = settings.CameraAntiAliasingMode ==
+                    DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing
+                    && msaaSampleCount > 1;
+            }
         }
 
         private void BuildAudio()
@@ -829,6 +842,7 @@ namespace DuneVector
                 AudioManager,
                 GoldWallet,
                 PermanentUpgrades,
+                PlayerTuning,
                 AudioSettings.PauseMenu,
                 RuntimeSettings.PermanentUpgrades.ShopVisuals,
                 RuntimeSettings.RetroCrtScanlines);

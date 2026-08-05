@@ -781,6 +781,7 @@ namespace DuneVector
         private DuneVectorAudioManager _audio;
         private DroneGoldWallet _wallet;
         private DronePermanentUpgradeSystem _upgrades;
+        private DroneTuning _playerTuning;
         private PauseMenuVisualTuning _visuals;
         private DuneVectorUpgradeShopView _shopView;
         private DuneVectorCourierGame _courierGame;
@@ -828,6 +829,7 @@ namespace DuneVector
             DuneVectorAudioManager audio,
             DroneGoldWallet wallet,
             DronePermanentUpgradeSystem upgrades,
+            DroneTuning playerTuning,
             PauseMenuVisualTuning visuals,
             UpgradeShopVisualTuning shopVisuals,
             RetroCrtScanlineTuning retroCrtScanlines)
@@ -837,6 +839,7 @@ namespace DuneVector
             _audio = audio;
             _wallet = wallet;
             _upgrades = upgrades;
+            _playerTuning = playerTuning;
             _visuals = visuals;
             _retroCrtScanlines = retroCrtScanlines;
             _shopView = new DuneVectorUpgradeShopView(_upgrades, _wallet, shopVisuals);
@@ -1423,6 +1426,28 @@ namespace DuneVector
                     AntialiasingMode.SubpixelMorphologicalAntiAliasing,
                 _ => AntialiasingMode.None,
             };
+            if (_playerTuning != null)
+            {
+                cameraData.antialiasingQuality = _playerTuning.SmaaQuality switch
+                {
+                    DuneVectorSmaaQuality.Low => AntialiasingQuality.Low,
+                    DuneVectorSmaaQuality.Medium => AntialiasingQuality.Medium,
+                    _ => AntialiasingQuality.High,
+                };
+
+                int msaaSampleCount = (int)_playerTuning.CameraMsaaSampleCount;
+                if (UniversalRenderPipeline.asset != null)
+                {
+                    UniversalRenderPipeline.asset.msaaSampleCount = msaaSampleCount;
+                }
+                gameplayCamera.allowMSAA = mode ==
+                    DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing
+                    && msaaSampleCount > 1;
+            }
+            else
+            {
+                gameplayCamera.allowMSAA = false;
+            }
         }
 
         private static void ApplyVolumePreference<T>(

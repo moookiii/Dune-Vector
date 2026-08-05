@@ -4926,6 +4926,14 @@ namespace DuneVector
         High,
     }
 
+    public enum DuneVectorMsaaSampleCount
+    {
+        Disabled = 1,
+        TwoSamples = 2,
+        FourSamples = 4,
+        EightSamples = 8,
+    }
+
     public enum DuneVectorTaaQuality
     {
         Low,
@@ -5029,6 +5037,8 @@ namespace DuneVector
         public DuneVectorCameraAntiAliasingMode CameraAntiAliasingMode =
             DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing;
         public DuneVectorSmaaQuality SmaaQuality = DuneVectorSmaaQuality.High;
+        [Tooltip("Multisample coverage used with SMAA so transparent geometry edges, including distant portal rings, receive hardware anti-aliasing.")]
+        public DuneVectorMsaaSampleCount CameraMsaaSampleCount = DuneVectorMsaaSampleCount.FourSamples;
 
         [Header("Camera Temporal Anti-Aliasing Tuning")]
         public DuneVectorTaaQuality TemporalAntiAliasingQuality = DuneVectorTaaQuality.High;
