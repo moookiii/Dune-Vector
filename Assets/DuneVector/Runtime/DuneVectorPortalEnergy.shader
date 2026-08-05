@@ -8,10 +8,6 @@ Shader "DuneVector/URP Portal Energy"
         _CoreMode("Core Mode", Float) = 0
         _DistanceFade("Distance Fade", Range(0, 1)) = 1
         _DistanceBloomBoost("Distance Bloom Boost", Float) = 1
-        _DistanceLodBlend("Distance LOD Blend", Range(0, 1)) = 0
-        _SmoothRimRadius("Smooth Rim Radius", Range(0, 1)) = 0.9
-        _SmoothRimHalfThickness("Smooth Rim Half Thickness", Float) = 0.02
-        _SmoothRimMinimumPixelWidth("Smooth Rim Minimum Pixel Width", Float) = 2
         _LineEdgeSoftness("Line Edge Softness", Range(0.01, 0.49)) = 0.14
         _ScreenSpaceAntiAliasing("Screen Space Anti-Aliasing", Float) = 0.25
         _TravelPulseCount("Travel Pulse Count", Float) = 3
@@ -62,10 +58,6 @@ Shader "DuneVector/URP Portal Energy"
                 float _CoreMode;
                 float _DistanceFade;
                 float _DistanceBloomBoost;
-                float _DistanceLodBlend;
-                float _SmoothRimRadius;
-                float _SmoothRimHalfThickness;
-                float _SmoothRimMinimumPixelWidth;
                 float _LineEdgeSoftness;
                 float _ScreenSpaceAntiAliasing;
                 float _TravelPulseCount;
@@ -121,24 +113,7 @@ Shader "DuneVector/URP Portal Energy"
                 float featureBrightness = _FeatureBrightness;
                 float3 particleTint = float3(1.0, 1.0, 1.0);
 
-                if (_CoreMode > 3.5)
-                {
-                    float2 centered = (input.uv * 2.0) - 1.0;
-                    float radialPosition = length(centered);
-                    float radialDistance = abs(radialPosition - _SmoothRimRadius);
-                    float pixelFootprint = max(fwidth(radialPosition), 0.0001);
-                    float halfWidth = max(
-                        _SmoothRimHalfThickness,
-                        pixelFootprint * max(0.5, _SmoothRimMinimumPixelWidth) * 0.5);
-                    float edgeAntiAliasing = pixelFootprint;
-                    float rimCoverage = 1.0 - smoothstep(
-                        halfWidth,
-                        halfWidth + edgeAntiAliasing,
-                        radialDistance);
-                    alpha *= rimCoverage * _DistanceLodBlend;
-                    featureBrightness = _OuterRimBrightness;
-                }
-                else if (_CoreMode > 2.5)
+                if (_CoreMode > 2.5)
                 {
                     float2 centered = (input.uv * 2.0) - 1.0;
                     float particleRadius = length(centered);
@@ -193,7 +168,6 @@ Shader "DuneVector/URP Portal Energy"
                             distanceFromStrokeCenter);
                         alpha *= saturate(edgeCoverage * coverageCompensation);
                     }
-                    alpha *= lerp(1.0, outerRim, _DistanceLodBlend);
                 }
 
                 return float4(

@@ -139,6 +139,14 @@ Shader "DuneVector/URP Sand Macro Variation"
                 return saturate(gradient * 0.5 + 0.5);
             }
 
+            half FractalGradientNoise(float2 coordinate)
+            {
+                half noise = GradientNoise(coordinate) * 0.625h;
+                noise += GradientNoise(coordinate * 2.03 + float2(19.1, -7.7)) * 0.25h;
+                noise += GradientNoise(coordinate * 4.11 + float2(-3.4, 13.8)) * 0.125h;
+                return saturate((noise - 0.5h) * 1.45h + 0.5h);
+            }
+
             half3 ApplySaturation(half3 color, half saturation)
             {
                 half luminance = dot(color, half3(0.2126h, 0.7152h, 0.0722h));
@@ -172,7 +180,7 @@ Shader "DuneVector/URP Sand Macro Variation"
                 float macroPatternSize = max(_DVSandMacroPatternSize, 0.01);
                 float secondaryPatternSize = max(_DVSandSecondaryPatternSize, 0.01);
 
-                half macroNoise = GradientNoise(
+                half macroNoise = FractalGradientNoise(
                     (logicalWorldXZ + _DVSandMacroNoiseOffset.xy) / macroPatternSize);
                 half transitionSoftness = max(_DVSandTransitionSoftness, 0.001h);
                 half darkThreshold = min(_DVSandDarkThreshold, _DVSandLightThreshold);

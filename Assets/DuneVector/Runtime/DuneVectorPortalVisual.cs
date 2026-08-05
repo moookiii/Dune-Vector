@@ -7,7 +7,6 @@ namespace DuneVector
     {
         private static readonly int DistanceFadeProperty = Shader.PropertyToID("_DistanceFade");
         private static readonly int DistanceBloomBoostProperty = Shader.PropertyToID("_DistanceBloomBoost");
-        private static readonly int DistanceLodBlendProperty = Shader.PropertyToID("_DistanceLodBlend");
         private static readonly int ActivationBloomBoostProperty = Shader.PropertyToID("_ActivationBloomBoost");
         private static readonly int OpacityProperty = Shader.PropertyToID("_Opacity");
 
@@ -60,7 +59,7 @@ namespace DuneVector
             _reactionRotationMultiplier = Mathf.Max(1f, settings.PortalActivationRotationMultiplier);
             _reactionPulseExpansion = Mathf.Max(1f, settings.PortalActivationPulseExpansion);
             _reactionPulseOpacity = Mathf.Clamp01(settings.PortalActivationPulseOpacity);
-            ApplyDistanceVisibility(1f, 1f, 0f);
+            ApplyDistanceVisibility(1f, 1f);
             ApplyActivationBloom(1f);
             if (_activationPulseRenderer != null)
             {
@@ -120,7 +119,7 @@ namespace DuneVector
                     distance));
             float distanceBloomBoost =
                 Mathf.Lerp(1f, _distanceVisibilityBloomMultiplier, distanceVisibility);
-            ApplyDistanceVisibility(fade, distanceBloomBoost, distanceVisibility);
+            ApplyDistanceVisibility(fade, distanceBloomBoost);
         }
 
         private void UpdateActivationReaction(float deltaTime)
@@ -181,7 +180,7 @@ namespace DuneVector
             ApplyPulseOpacity(_reactionPulseOpacity * reactionStrength);
         }
 
-        private void ApplyDistanceVisibility(float fade, float bloomBoost, float lodBlend)
+        private void ApplyDistanceVisibility(float fade, float bloomBoost)
         {
             for (int i = 0; i < _renderers.Length; i++)
             {
@@ -194,7 +193,6 @@ namespace DuneVector
                 renderer.GetPropertyBlock(_properties);
                 _properties.SetFloat(DistanceFadeProperty, fade);
                 _properties.SetFloat(DistanceBloomBoostProperty, bloomBoost);
-                _properties.SetFloat(DistanceLodBlendProperty, lodBlend);
                 renderer.SetPropertyBlock(_properties);
             }
         }
