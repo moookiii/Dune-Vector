@@ -1150,6 +1150,14 @@ namespace DuneVector
         [Min(0f)] public float PlatformHeightAboveTerrain = 24f;
         [Tooltip("Hub-local horizontal anchor for the rune ring. Y offsets its highest mesh point from the platform underside.")]
         public Vector3 RuneRingLocalPosition = Vector3.zero;
+        [Header("Premium Hub Visuals")]
+        [Tooltip("Optional authored visual shell placed above the rune-ring foundation. Gameplay colliders and terminals remain runtime-built.")]
+        public GameObject PremiumVisualPrefab;
+        public Vector3 PremiumVisualLocalPosition = Vector3.zero;
+        public Vector3 PremiumVisualLocalEulerAngles = Vector3.zero;
+        public Vector3 PremiumVisualLocalScale = Vector3.one;
+        [Tooltip("When enabled, the authored visual shell replaces the primitive platform, braces, and pylons.")]
+        public bool ReplaceProceduralStructureVisuals = true;
         [Min(8f)] public float PlatformRadius = 26f;
         [Min(0.5f)] public float PlatformThickness = 2.4f;
         [Min(0f)] public float TerminalForwardOffset = 11f;

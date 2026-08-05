@@ -852,10 +852,14 @@ namespace DuneVector
             _hubRoot.SetParent(transform, false);
             _hubRoot.position = _world.LogicalToLocal(hubLogical.X, platformY, hubLogical.Z);
             BuildHubRuneRing();
+            bool replaceProceduralStructureVisuals = BuildPremiumHubVisual();
 
-            HubPart(PrimitiveType.Cylinder, "Main Teleport Platform", _hubRoot, Vector3.zero,
-                new Vector3(_hubSettings.PlatformRadius, _hubSettings.PlatformThickness * 0.5f, _hubSettings.PlatformRadius),
-                Quaternion.identity, _hubMetalMaterial, false);
+            if (!replaceProceduralStructureVisuals)
+            {
+                HubPart(PrimitiveType.Cylinder, "Main Teleport Platform", _hubRoot, Vector3.zero,
+                    new Vector3(_hubSettings.PlatformRadius, _hubSettings.PlatformThickness * 0.5f, _hubSettings.PlatformRadius),
+                    Quaternion.identity, _hubMetalMaterial, false);
+            }
             BuildCircleModelCollider(
                 _hubRoot,
                 "Main Teleport Platform Collider (circle.glb)",
@@ -883,40 +887,43 @@ namespace DuneVector
                     "Platform Energy Lane");
             }
 
-            for (int i = 0; i < 6; i++)
+            if (!replaceProceduralStructureVisuals)
             {
-                float angle = i * 60f;
-                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
-                HubPart(PrimitiveType.Cube, $"Hub Radial Brace {i + 1}", _hubRoot,
-                    (direction * (_hubSettings.PlatformRadius * 0.8f)) + Vector3.up * 1.2f,
-                    new Vector3(2f, 2.4f, _hubSettings.PlatformRadius * 0.34f),
-                    Quaternion.Euler(0f, angle, 0f), _hubMetalMaterial, true);
-            }
+                for (int i = 0; i < 6; i++)
+                {
+                    float angle = i * 60f;
+                    Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                    HubPart(PrimitiveType.Cube, $"Hub Radial Brace {i + 1}", _hubRoot,
+                        (direction * (_hubSettings.PlatformRadius * 0.8f)) + Vector3.up * 1.2f,
+                        new Vector3(2f, 2.4f, _hubSettings.PlatformRadius * 0.34f),
+                        Quaternion.Euler(0f, angle, 0f), _hubMetalMaterial, true);
+                }
 
-            int pylonCount = Mathf.Max(3, _hubSettings.HubPylonCount);
-            for (int i = 0; i < pylonCount; i++)
-            {
-                float angle = (360f / pylonCount) * i;
-                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
-                HubPart(
-                    PrimitiveType.Cube,
-                    $"Courier Aerie Pylon {i + 1}",
-                    _hubRoot,
-                    (direction * _hubSettings.HubPylonRadius) + (Vector3.up * (_hubSettings.HubPylonHeight * 0.5f)),
-                    new Vector3(_hubSettings.HubPylonWidth, _hubSettings.HubPylonHeight, _hubSettings.HubPylonWidth),
-                    Quaternion.Euler(_hubSettings.HubPylonLean, angle, 0f),
-                    _hubMetalMaterial,
-                    true);
-                Transform beacon = HubPart(
-                    PrimitiveType.Sphere,
-                    "Navigation Beacon",
-                    _hubRoot,
-                    (direction * _hubSettings.HubPylonRadius) + (Vector3.up * _hubSettings.HubPylonHeight),
-                    Vector3.one * (_hubSettings.HubPylonWidth * 1.45f),
-                    Quaternion.identity,
-                    _hubEnergyMaterial,
-                    false);
-                _hubBeacons.Add(beacon);
+                int pylonCount = Mathf.Max(3, _hubSettings.HubPylonCount);
+                for (int i = 0; i < pylonCount; i++)
+                {
+                    float angle = (360f / pylonCount) * i;
+                    Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
+                    HubPart(
+                        PrimitiveType.Cube,
+                        $"Courier Aerie Pylon {i + 1}",
+                        _hubRoot,
+                        (direction * _hubSettings.HubPylonRadius) + (Vector3.up * (_hubSettings.HubPylonHeight * 0.5f)),
+                        new Vector3(_hubSettings.HubPylonWidth, _hubSettings.HubPylonHeight, _hubSettings.HubPylonWidth),
+                        Quaternion.Euler(_hubSettings.HubPylonLean, angle, 0f),
+                        _hubMetalMaterial,
+                        true);
+                    Transform beacon = HubPart(
+                        PrimitiveType.Sphere,
+                        "Navigation Beacon",
+                        _hubRoot,
+                        (direction * _hubSettings.HubPylonRadius) + (Vector3.up * _hubSettings.HubPylonHeight),
+                        Vector3.one * (_hubSettings.HubPylonWidth * 1.45f),
+                        Quaternion.identity,
+                        _hubEnergyMaterial,
+                        false);
+                    _hubBeacons.Add(beacon);
+                }
             }
 
             _terminal = BuildPhysicalTerminal(
@@ -998,6 +1005,22 @@ namespace DuneVector
                 float topAlignment = desiredTopY - maximumY;
                 _hubRuneRing.localPosition += Vector3.up * topAlignment;
             }
+        }
+
+        private bool BuildPremiumHubVisual()
+        {
+            if (_hubSettings.PremiumVisualPrefab == null)
+            {
+                return false;
+            }
+
+            GameObject visual = Instantiate(_hubSettings.PremiumVisualPrefab, _hubRoot, false);
+            visual.name = _hubSettings.PremiumVisualPrefab.name;
+            visual.transform.SetLocalPositionAndRotation(
+                _hubSettings.PremiumVisualLocalPosition,
+                Quaternion.Euler(_hubSettings.PremiumVisualLocalEulerAngles));
+            visual.transform.localScale = _hubSettings.PremiumVisualLocalScale;
+            return _hubSettings.ReplaceProceduralStructureVisuals;
         }
 
         private bool TryGetHubLocalMeshMaximumY(Transform root, out float maximumY)
