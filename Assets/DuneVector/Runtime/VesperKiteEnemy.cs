@@ -427,6 +427,12 @@ namespace DuneVector
                 }
             }
             _renderers = reflectedRenderers.ToArray();
+
+            EnemyHealth missileHealth = gameObject.AddComponent<EnemyHealth>();
+            missileHealth.Initialize(settings.PilgrimMaximumHealth);
+            EnemyCombatTarget combatTarget = gameObject.AddComponent<EnemyCombatTarget>();
+            combatTarget.Initialize(missileHealth, settings.PilgrimCollisionRadius);
+
             CreateTether();
             DuneVectorPortalEvents.PlayerCrossed += HandlePortalCrossing;
         }

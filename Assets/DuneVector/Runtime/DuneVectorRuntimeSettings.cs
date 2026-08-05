@@ -2799,6 +2799,7 @@ namespace DuneVector
             new Keyframe(1f, 1f, 2f, 2f));
         [Tooltip("Pilgrim acceleration and maximum-speed multiplier reached when the drone reaches its current maximum speed.")]
         [Min(1f)] public float PilgrimMovementMultiplierAtDroneMaximumSpeed = 5f;
+        [Min(1f)] public float PilgrimMaximumHealth = 30f;
         [Min(0.01f)] public float PilgrimCollisionRadius = 2.25f;
         [Min(0f)] public float PilgrimDamage = 32f;
         public string PilgrimDamageSource = "Vesper Kite Redshift Procession";
