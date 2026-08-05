@@ -1158,6 +1158,11 @@ namespace DuneVector
         public Vector3 PremiumVisualLocalScale = Vector3.one;
         [Tooltip("Walkable radius of the authored premium hub before applying its local X/Z scale. Used by the floor collider and invisible containment boundary.")]
         [Min(0f)] public float PremiumVisualSurfaceRadius = 25.35f;
+        [Tooltip("Adds solid box colliders to authored premium-hub meshes whose names start with one of the configured prefixes.")]
+        public bool PremiumVisualStructuralCollidersEnabled = true;
+        public string[] PremiumVisualStructuralColliderNamePrefixes = System.Array.Empty<string>();
+        [Tooltip("Extra local-space padding added to every side of premium structural colliders.")]
+        [Min(0f)] public float PremiumVisualStructuralColliderPadding = 0.04f;
         [Tooltip("When enabled, the authored visual shell replaces the primitive platform, braces, and pylons.")]
         public bool ReplaceProceduralStructureVisuals = true;
         [Min(8f)] public float PlatformRadius = 26f;

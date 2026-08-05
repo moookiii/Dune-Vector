@@ -1036,7 +1036,57 @@ namespace DuneVector
                 _hubSettings.PremiumVisualLocalPosition,
                 Quaternion.Euler(_hubSettings.PremiumVisualLocalEulerAngles));
             visual.transform.localScale = _hubSettings.PremiumVisualLocalScale;
+            BuildPremiumHubStructuralColliders(visual.transform);
             return _hubSettings.ReplaceProceduralStructureVisuals;
+        }
+
+        private void BuildPremiumHubStructuralColliders(Transform visualRoot)
+        {
+            string[] namePrefixes = _hubSettings.PremiumVisualStructuralColliderNamePrefixes;
+            if (!_hubSettings.PremiumVisualStructuralCollidersEnabled
+                || visualRoot == null
+                || namePrefixes == null
+                || namePrefixes.Length == 0)
+            {
+                return;
+            }
+
+            float padding = Mathf.Max(0f, _hubSettings.PremiumVisualStructuralColliderPadding);
+            Vector3 paddingSize = Vector3.one * (padding * 2f);
+            MeshFilter[] meshFilters = visualRoot.GetComponentsInChildren<MeshFilter>(true);
+            for (int meshIndex = 0; meshIndex < meshFilters.Length; meshIndex++)
+            {
+                MeshFilter meshFilter = meshFilters[meshIndex];
+                Mesh mesh = meshFilter.sharedMesh;
+                if (mesh == null || !HasPremiumColliderNamePrefix(meshFilter.name, namePrefixes))
+                {
+                    continue;
+                }
+
+                BoxCollider collider = meshFilter.gameObject.GetComponent<BoxCollider>();
+                if (collider == null)
+                {
+                    collider = meshFilter.gameObject.AddComponent<BoxCollider>();
+                }
+
+                collider.center = mesh.bounds.center;
+                collider.size = mesh.bounds.size + paddingSize;
+            }
+        }
+
+        private static bool HasPremiumColliderNamePrefix(string objectName, string[] namePrefixes)
+        {
+            for (int prefixIndex = 0; prefixIndex < namePrefixes.Length; prefixIndex++)
+            {
+                string prefix = namePrefixes[prefixIndex];
+                if (!string.IsNullOrWhiteSpace(prefix)
+                    && objectName.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool TryGetHubLocalMeshMaximumY(Transform root, out float maximumY)
