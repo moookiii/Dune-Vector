@@ -656,7 +656,7 @@ namespace DuneVector
             _state.VisualTier = section.VisualTier;
             _state.Multipliers = multipliers;
             _state.Permissions = section.Permissions;
-            if (_audio.VisualizerMode == MusicVisualizerMode.NoBassRings)
+            if (_audio.VisualizerMode == MusicVisualizerMode.NoFlash)
             {
                 _state.Permissions &= ~(
                     MusicVisualEffectGroups.Structures

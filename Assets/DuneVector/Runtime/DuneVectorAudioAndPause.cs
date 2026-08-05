@@ -14,7 +14,7 @@ namespace DuneVector
     public enum MusicVisualizerMode
     {
         All = 0,
-        NoBassRings = 1,
+        NoFlash = 1,
         Off = 2,
     }
 
@@ -1370,7 +1370,7 @@ namespace DuneVector
                 : MusicVisualizerMode.All;
             string visualizerStateLabel = visualizerMode switch
             {
-                MusicVisualizerMode.NoBassRings => _visuals.ControlsVisualizerNoBassRingsLabel,
+                MusicVisualizerMode.NoFlash => _visuals.ControlsVisualizerNoFlashLabel,
                 MusicVisualizerMode.Off => _visuals.ControlsVisualizerDisabledLabel,
                 _ => _visuals.ControlsVisualizerEnabledLabel,
             };
@@ -1383,8 +1383,8 @@ namespace DuneVector
             {
                 MusicVisualizerMode nextMode = visualizerMode switch
                 {
-                    MusicVisualizerMode.All => MusicVisualizerMode.NoBassRings,
-                    MusicVisualizerMode.NoBassRings => MusicVisualizerMode.Off,
+                    MusicVisualizerMode.All => MusicVisualizerMode.NoFlash,
+                    MusicVisualizerMode.NoFlash => MusicVisualizerMode.Off,
                     _ => MusicVisualizerMode.All,
                 };
                 _audio.SetMusicVisualizerMode(nextMode);

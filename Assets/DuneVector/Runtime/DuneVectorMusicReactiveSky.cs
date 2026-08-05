@@ -46,7 +46,7 @@ namespace DuneVector
             if (_sky != null)
             {
                 _sky.ReactiveShockRingIntensity.Override(
-                    _visualizerMode == MusicVisualizerMode.All
+                    _visualizerMode != MusicVisualizerMode.Off
                         ? _settings.ShockRingIntensity
                         : 0f);
             }
@@ -95,15 +95,19 @@ namespace DuneVector
             if (_sky != null)
             {
                 _sky.ReactiveShockRingIntensity.Override(
-                    mode == MusicVisualizerMode.All
+                    mode != MusicVisualizerMode.Off
                         ? _settings.ShockRingIntensity
+                        : 0f);
+                _sky.ReactiveLightningIntensity.Override(
+                    mode == MusicVisualizerMode.All
+                        ? _settings.LightningIntensity
                         : 0f);
             }
             if (_visualizerMode == MusicVisualizerMode.Off)
             {
                 ClearVisualResponse();
             }
-            else if (_visualizerMode == MusicVisualizerMode.NoBassRings && _bloom != null)
+            else if (_visualizerMode == MusicVisualizerMode.NoFlash && _bloom != null)
             {
                 _currentBloomIntensity = _baseBloomIntensity;
                 _currentBloomThreshold = _baseBloomThreshold;
