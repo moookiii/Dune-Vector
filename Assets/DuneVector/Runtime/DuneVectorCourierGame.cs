@@ -846,9 +846,7 @@ namespace DuneVector
                 DesertWorldStreamer.StartingLogicalPosition.x,
                 DesertWorldStreamer.StartingLogicalPosition.y);
             float groundHeight = (float)_world.HeightField.SampleHeight(hubLogical.X, hubLogical.Z);
-            float platformY = groundHeight
-                + (_hubSettings.PlatformThickness * 0.5f)
-                + _hubSettings.PlatformHeightAboveTerrain;
+            float platformY = groundHeight + _hubSettings.PlatformHeightAboveTerrain;
             GameObject hubObject = new GameObject("World Hub - Courier Aerie");
             _hubRoot = hubObject.transform;
             _hubRoot.SetParent(transform, false);
@@ -992,43 +990,6 @@ namespace DuneVector
             _hubRuneRing.localPosition = _hubSettings.RuneRingLocalPosition;
             _hubRuneRing.localRotation = prefabRotation;
             _hubRuneRing.localScale = prefabScale;
-
-            if (TryGetHubLocalMeshMinimumY(_hubRuneRing, out float minimumY))
-            {
-                float desiredBottomY = _hubSettings.RuneRingLocalPosition.y
-                    - (_hubSettings.PlatformThickness * 0.5f);
-                float bottomAlignment = desiredBottomY - minimumY;
-                _hubRuneRing.localPosition += Vector3.up * bottomAlignment;
-            }
-        }
-
-        private bool TryGetHubLocalMeshMinimumY(Transform root, out float minimumY)
-        {
-            minimumY = float.PositiveInfinity;
-            MeshFilter[] meshFilters = root.GetComponentsInChildren<MeshFilter>(true);
-            for (int meshIndex = 0; meshIndex < meshFilters.Length; meshIndex++)
-            {
-                MeshFilter meshFilter = meshFilters[meshIndex];
-                Mesh mesh = meshFilter.sharedMesh;
-                if (mesh == null)
-                {
-                    continue;
-                }
-
-                Bounds bounds = mesh.bounds;
-                for (int cornerIndex = 0; cornerIndex < 8; cornerIndex++)
-                {
-                    Vector3 meshCorner = new Vector3(
-                        (cornerIndex & 1) == 0 ? bounds.min.x : bounds.max.x,
-                        (cornerIndex & 2) == 0 ? bounds.min.y : bounds.max.y,
-                        (cornerIndex & 4) == 0 ? bounds.min.z : bounds.max.z);
-                    Vector3 hubLocalCorner = _hubRoot.InverseTransformPoint(
-                        meshFilter.transform.TransformPoint(meshCorner));
-                    minimumY = Mathf.Min(minimumY, hubLocalCorner.y);
-                }
-            }
-
-            return !float.IsPositiveInfinity(minimumY);
         }
 
         private Transform BuildPhysicalTerminal(string objectName, Vector3 localPosition, Quaternion localRotation)
