@@ -533,6 +533,13 @@ namespace DuneVector
         private int _previousTimelinePosition;
         private uint _observedSeekGeneration;
         private MusicReactiveRuntimeState _state;
+        private bool _bassTransientArmed = true;
+        private bool _highTransientArmed = true;
+        private int _lastKickTimeline = int.MinValue;
+        private int _lastHighTimeline = int.MinValue;
+        private int _rateLimitBar = -1;
+        private int _kicksThisBar;
+        private int _highEventsThisBar;
 
         public MusicReactiveRuntimeState RuntimeState => _state;
         public int NextCueIndex => _cueCursor;
@@ -588,6 +595,7 @@ namespace DuneVector
             }
             using (CueEvaluationMarker.Auto())
             {
+                EvaluateRuntimeTransients();
                 EvaluateAuthoredCues();
             }
             using (DispatchMarker.Auto())
@@ -659,6 +667,94 @@ namespace DuneVector
             }
         }
 
+        private void EvaluateRuntimeTransients()
+        {
+            if (_state.SuppressTransientEvents)
+            {
+                return;
+            }
+
+            int currentBar = _state.Timeline.TrackBar;
+            if (currentBar != _rateLimitBar)
+            {
+                _rateLimitBar = currentBar;
+                _kicksThisBar = 0;
+                _highEventsThisBar = 0;
+            }
+
+            float bassTransient = _state.Analysis.BassTransient;
+            if (!_bassTransientArmed && bassTransient <= _settings.KickHysteresisRelease)
+            {
+                _bassTransientArmed = true;
+            }
+            int timeline = _state.Timeline.TimelinePositionMilliseconds;
+            if (_bassTransientArmed
+                && bassTransient >= _settings.MinorKickThreshold
+                && (long)timeline - _lastKickTimeline >= _settings.KickCooldownMilliseconds
+                && _kicksThisBar < _settings.MaximumKicksPerBar)
+            {
+                MusicVisualCueType type = bassTransient >= _settings.MajorKickThreshold && _state.VisualTier >= 2
+                    ? MusicVisualCueType.MajorKick
+                    : MusicVisualCueType.MinorKick;
+                DispatchRuntime(type, bassTransient, MusicVisualEffectGroups.Sky
+                    | MusicVisualEffectGroups.PressureFront
+                    | MusicVisualEffectGroups.Road
+                    | MusicVisualEffectGroups.Structures
+                    | MusicVisualEffectGroups.Drone);
+                _bassTransientArmed = false;
+                _lastKickTimeline = timeline;
+                _kicksThisBar++;
+            }
+
+            float highTransient = _state.Analysis.HighTransient;
+            if (!_highTransientArmed && highTransient <= _settings.SnareHysteresisRelease)
+            {
+                _highTransientArmed = true;
+            }
+            if (_highTransientArmed
+                && highTransient >= _settings.MinorSnareThreshold
+                && (long)timeline - _lastHighTimeline >= _settings.SnareCooldownMilliseconds
+                && _highEventsThisBar < _settings.MaximumSnaresPerBar)
+            {
+                bool snareBeat = _state.Timeline.BeatCallbacksRecent
+                    && (_state.Timeline.Beat == 1 || _state.Timeline.Beat == 3);
+                MusicVisualCueType type = snareBeat
+                    ? (highTransient >= _settings.AccentSnareThreshold
+                        ? MusicVisualCueType.AccentSnare
+                        : MusicVisualCueType.MinorSnare)
+                    : (highTransient >= _settings.AccentSnareThreshold
+                        ? MusicVisualCueType.TrebleBurst
+                        : MusicVisualCueType.TrebleTick);
+                DispatchRuntime(type, highTransient, MusicVisualEffectGroups.Sky
+                    | MusicVisualEffectGroups.Streaks
+                    | MusicVisualEffectGroups.Camera
+                    | MusicVisualEffectGroups.Glitch
+                    | MusicVisualEffectGroups.HudBorder);
+                _highTransientArmed = false;
+                _lastHighTimeline = timeline;
+                _highEventsThisBar++;
+            }
+        }
+
+        private void DispatchRuntime(MusicVisualCueType type, float strength, MusicVisualEffectGroups effects)
+        {
+            MusicVisualDispatchCommand command = new MusicVisualDispatchCommand
+            {
+                Type = type,
+                Strength = Mathf.Clamp01(strength),
+                AllowedEffects = effects & _state.Permissions,
+                CueIndex = -1,
+                DeterministicSeed = (uint)_state.Timeline.TimelinePositionMilliseconds
+                    ^ _state.Timeline.PlaybackGeneration
+                    ^ (uint)_state.Timeline.TrackId,
+                IsAuthored = false,
+            };
+            for (int i = 0; i < _sinkCount; i++)
+            {
+                _sinks[i].Dispatch(in command, in _state);
+            }
+        }
+
         private void DispatchCue(int cueIndex)
         {
             MusicVisualAuthoredCue cue = _profile.AuthoredCues[cueIndex];
@@ -694,6 +790,11 @@ namespace DuneVector
 
         private void ResetSinks()
         {
+            _bassTransientArmed = true;
+            _highTransientArmed = true;
+            _lastKickTimeline = int.MinValue;
+            _lastHighTimeline = int.MinValue;
+            _rateLimitBar = -1;
             for (int i = 0; i < _sinkCount; i++)
             {
                 _sinks[i].ResetMusicResponse();

@@ -3985,6 +3985,36 @@ namespace DuneVector
         public bool ShowDevelopmentDebugPanel;
         public Rect DevelopmentDebugPanelRect = new Rect(12f, 12f, 440f, 640f);
 
+        [Header("Transient Classification")]
+        [Range(0f, 1f)] public float MinorKickThreshold = 0.28f;
+        [Range(0f, 1f)] public float MajorKickThreshold = 0.62f;
+        [Range(0f, 1f)] public float KickHysteresisRelease = 0.14f;
+        [Range(0, 2000)] public int KickCooldownMilliseconds = 130;
+        [Range(1, 16)] public int MaximumKicksPerBar = 4;
+        [Range(0f, 1f)] public float MinorSnareThreshold = 0.3f;
+        [Range(0f, 1f)] public float AccentSnareThreshold = 0.66f;
+        [Range(0f, 1f)] public float SnareHysteresisRelease = 0.15f;
+        [Range(0, 2000)] public int SnareCooldownMilliseconds = 110;
+        [Range(1, 32)] public int MaximumSnaresPerBar = 8;
+
+        [Header("Perspective Pressure Front")]
+        [Range(1, 4)] public int OrdinaryPressureFrontPoolSize = 2;
+        [Range(1, 4)] public int ReactorPressureFrontPoolSize = 4;
+        [Range(8, 96)] public int PressureFrontSegments = 40;
+        [Min(1f)] public float PressureFrontStartDistance = 180f;
+        [Min(0.1f)] public float PressureFrontEndDistance = 12f;
+        [Min(1f)] public float PressureFrontWidth = 240f;
+        [Min(0f)] public float PressureFrontCameraHeightOffset = 7f;
+        [Min(0f)] public float PressureFrontArcDepth = 28f;
+        [Min(0.01f)] public float PressureFrontDurationSeconds = 1.15f;
+        [Min(0.001f)] public float PressureFrontStartWidth = 0.22f;
+        [Min(0.001f)] public float PressureFrontEndWidth = 1.4f;
+        [Range(0f, 1f)] public float PressureFrontMaximumAlpha = 0.76f;
+        [Range(0f, 1f)] public float PressureFrontNearFadeStart = 0.72f;
+        [ColorUsage(false, true)] public Color PressureFrontColor = new Color(0.18f, 2.4f, 4.2f, 1f);
+        [Min(0f)] public float ReactorFrontStaggerSeconds = 0.09f;
+        [Min(0f)] public float ReactorFrontWidthMultiplier = 1.25f;
+
         [Header("Music Analysis")]
         [Tooltip("FFT sample count used to separate bass, midrange, and high-frequency energy.")]
         [Range(128, 2048)] public int FftWindowSize = 1024;

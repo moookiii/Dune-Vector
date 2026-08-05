@@ -42,6 +42,10 @@ namespace DuneVector
         public void EnableConductorControl()
         {
             _conductorControlsResponse = true;
+            if (_sky != null)
+            {
+                _sky.ReactiveShockRingIntensity.Override(0f);
+            }
         }
 
         public void Initialize(
@@ -87,7 +91,9 @@ namespace DuneVector
             if (_sky != null)
             {
                 _sky.ReactiveShockRingIntensity.Override(
-                    mode == MusicVisualizerMode.All ? _settings.ShockRingIntensity : 0f);
+                    mode == MusicVisualizerMode.All && !_conductorControlsResponse
+                        ? _settings.ShockRingIntensity
+                        : 0f);
             }
             if (_visualizerMode == MusicVisualizerMode.Off)
             {

@@ -641,6 +641,9 @@ namespace DuneVector
             conductor.Initialize(AudioManager, MusicReactiveSky, RuntimeSettings.MusicReactiveSky);
             conductor.RegisterSink(MusicReactiveSky);
             MusicReactiveSky.EnableConductorControl();
+            DuneVectorPerspectivePressureFronts pressureFronts = reactiveSkyObject.AddComponent<DuneVectorPerspectivePressureFronts>();
+            pressureFronts.Initialize(DroneCamera.Camera, _materials.BoostRing, RuntimeSettings.MusicReactiveSky);
+            conductor.RegisterSink(pressureFronts);
         }
 
         private void BuildEnvironment()
