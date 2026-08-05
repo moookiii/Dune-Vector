@@ -86,7 +86,7 @@ namespace DuneVector
         public ColorParameter ReactiveLightningColor = new ColorParameter(Color.white, true, false, true);
         public MinFloatParameter ReactiveLightningIntensity = new MinFloatParameter(2.8f, 0f);
         public ClampedFloatParameter ReactiveLightningSectorCount = new ClampedFloatParameter(14f, 1f, 32f);
-        public ClampedFloatParameter ReactiveLightningWidth = new ClampedFloatParameter(0.012f, 0.0005f, 0.08f);
+        public ClampedFloatParameter ReactiveLightningWidth = new ClampedFloatParameter(0.012f, 0.0001f, 0.08f);
         public ClampedFloatParameter ReactiveLightningJaggedness = new ClampedFloatParameter(0.32f, 0f, 1f);
         public MinFloatParameter ReactiveLightningRetargetRate = new MinFloatParameter(8f, 0.1f);
         public ClampedFloatParameter ReactiveLightningSustainResponse = new ClampedFloatParameter(0.24f, 0f, 1f);
