@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -495,6 +496,7 @@ namespace DuneVector
         private DuneVectorMusicForegroundResponse _foreground;
         private DuneVectorMusicCameraEffects _cameraEffects;
         private DuneVectorMusicWorldGlitchSink _glitch;
+        private bool _rendererValidationScheduled;
 
         public MusicReactiveRuntimeState RuntimeState => _state;
         public int NextCueIndex => _cueCursor;
@@ -569,7 +571,22 @@ namespace DuneVector
             {
                 Debug.LogWarning("Music visualizer camera-effects sink is unavailable.", this);
             }
-            if (_glitch == null || !DuneVectorMusicGlitchRuntime.FeatureAvailable)
+            if (_glitch == null)
+            {
+                Debug.LogWarning("Music visualizer world-glitch sink is unavailable.", this);
+            }
+            else if (!DuneVectorMusicGlitchRuntime.FeatureAvailable && !_rendererValidationScheduled)
+            {
+                _rendererValidationScheduled = true;
+                StartCoroutine(ValidateRendererFeatureAfterFirstFrame());
+            }
+        }
+
+        private IEnumerator ValidateRendererFeatureAfterFirstFrame()
+        {
+            yield return new WaitForEndOfFrame();
+            _rendererValidationScheduled = false;
+            if (!DuneVectorMusicGlitchRuntime.FeatureAvailable)
             {
                 Debug.LogWarning("Gameplay camera uses Renderer Data without the visualizer glitch feature.", this);
             }
@@ -815,14 +832,15 @@ namespace DuneVector
                 && (long)timeline - _lastKickTimeline >= _settings.KickCooldownMilliseconds
                 && _kicksThisBar < _settings.MaximumKicksPerBar)
             {
-                MusicVisualCueType type = bassTransient >= _settings.MajorKickThreshold && _state.VisualTier >= 2
+                MusicVisualCueType type = bassTransient >= _settings.MajorKickThreshold
                     ? MusicVisualCueType.MajorKick
                     : MusicVisualCueType.MinorKick;
                 DispatchRuntime(type, bassTransient, MusicVisualEffectGroups.Sky
                     | MusicVisualEffectGroups.PressureFront
                     | MusicVisualEffectGroups.Road
                     | MusicVisualEffectGroups.Structures
-                    | MusicVisualEffectGroups.Drone);
+                    | MusicVisualEffectGroups.Drone
+                    | MusicVisualEffectGroups.Camera);
                 _bassTransientArmed = false;
                 _lastKickTimeline = timeline;
                 _kicksThisBar++;

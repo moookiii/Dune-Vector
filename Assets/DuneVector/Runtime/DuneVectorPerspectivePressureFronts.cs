@@ -83,7 +83,8 @@ namespace DuneVector
 
             using (VfxDispatchMarker.Auto())
             {
-                if (command.Type == MusicVisualCueType.MajorKick)
+                if (command.Type == MusicVisualCueType.MinorKick
+                    || command.Type == MusicVisualCueType.MajorKick)
                 {
                     TryEmit(_ordinary, ref _ordinaryCursor, command.Strength, false, 0f);
                 }
@@ -139,7 +140,7 @@ namespace DuneVector
             slot.Origin = cameraTransform.position;
             slot.Forward = forward;
             slot.Right = Vector3.Cross(Vector3.up, forward).normalized;
-            slot.BaseHeight = cameraTransform.position.y - _settings.PressureFrontCameraHeightOffset;
+            slot.BaseHeight = ResolveBaseHeight(cameraTransform);
             slot.Age = 0f;
             slot.Delay = Mathf.Max(0f, delay);
             slot.Strength = Mathf.Clamp01(strength);
@@ -148,6 +149,23 @@ namespace DuneVector
             slot.Renderer.enabled = delay <= 0f;
             pool[selected] = slot;
             cursor = (selected + 1) % pool.Length;
+        }
+
+        private float ResolveBaseHeight(Transform cameraTransform)
+        {
+            float fallback = cameraTransform.position.y - _settings.PressureFrontCameraHeightOffset;
+            Vector3 probeOrigin = cameraTransform.position + Vector3.up * _settings.PressureFrontGroundProbeHeight;
+            if (Physics.Raycast(
+                    probeOrigin,
+                    Vector3.down,
+                    out RaycastHit hit,
+                    _settings.PressureFrontGroundProbeDistance,
+                    _settings.PressureFrontGroundProbeLayers,
+                    QueryTriggerInteraction.Ignore))
+            {
+                return Mathf.Max(fallback, hit.point.y + _settings.PressureFrontGroundClearance);
+            }
+            return fallback;
         }
 
         private void Update()
@@ -205,7 +223,8 @@ namespace DuneVector
                     _positions[segment] = slot.Origin
                         + slot.Forward * (distance + arc)
                         + slot.Right * lateral;
-                    _positions[segment].y = slot.BaseHeight;
+                    _positions[segment].y = slot.BaseHeight
+                        + (1f - progress) * _settings.PressureFrontHorizonHeight;
                 }
                 slot.Renderer.SetPositions(_positions);
                 slot.Renderer.startWidth = Mathf.Lerp(_settings.PressureFrontStartWidth, _settings.PressureFrontEndWidth, progress);

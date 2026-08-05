@@ -13,10 +13,15 @@ namespace DuneVector
         [SerializeField] private RenderPassEvent injectionPoint = RenderPassEvent.AfterRenderingPostProcessing;
 
         private WorldGlitchPass _pass;
+        private bool _registered;
 
         public override void Create()
         {
-            DuneVectorMusicGlitchRuntime.FeatureAvailable = true;
+            if (!_registered)
+            {
+                DuneVectorMusicGlitchRuntime.RegisterFeature();
+                _registered = true;
+            }
             _pass = new WorldGlitchPass
             {
                 renderPassEvent = injectionPoint,
@@ -25,7 +30,11 @@ namespace DuneVector
 
         protected override void Dispose(bool disposing)
         {
-            DuneVectorMusicGlitchRuntime.FeatureAvailable = false;
+            if (_registered)
+            {
+                DuneVectorMusicGlitchRuntime.UnregisterFeature();
+                _registered = false;
+            }
             base.Dispose(disposing);
         }
 

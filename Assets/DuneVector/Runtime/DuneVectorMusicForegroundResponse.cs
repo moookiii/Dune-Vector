@@ -131,13 +131,15 @@ namespace DuneVector
             using (VfxDispatchMarker.Auto())
             {
                 if ((command.AllowedEffects & MusicVisualEffectGroups.Road) != 0
-                    && (command.Type == MusicVisualCueType.MajorKick
+                    && (command.Type == MusicVisualCueType.MinorKick
+                        || command.Type == MusicVisualCueType.MajorKick
                         || command.Type == MusicVisualCueType.ReactorDischarge))
                 {
                     EmitRoadPulse(command.Strength);
                 }
                 if ((command.AllowedEffects & MusicVisualEffectGroups.Structures) != 0
-                    && (command.Type == MusicVisualCueType.MajorKick
+                    && (command.Type == MusicVisualCueType.MinorKick
+                        || command.Type == MusicVisualCueType.MajorKick
                         || command.Type == MusicVisualCueType.ReactorDischarge))
                 {
                     _reactionLightAge = 0f;
@@ -152,8 +154,10 @@ namespace DuneVector
                     _droneKickEnvelope = Mathf.Max(_droneKickEnvelope, command.Strength);
                 }
                 if ((command.AllowedEffects & MusicVisualEffectGroups.Streaks) != 0
-                    && (command.Type == MusicVisualCueType.TrebleBurst
+                    && (command.Type == MusicVisualCueType.MinorSnare
                         || command.Type == MusicVisualCueType.AccentSnare
+                        || command.Type == MusicVisualCueType.TrebleTick
+                        || command.Type == MusicVisualCueType.TrebleBurst
                         || command.Type == MusicVisualCueType.ReactorDischarge))
                 {
                     EmitStreaks(command.Strength, command.DeterministicSeed);

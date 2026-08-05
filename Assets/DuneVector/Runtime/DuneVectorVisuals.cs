@@ -55,6 +55,7 @@ namespace DuneVector
         public Material Coin { get; }
         public GameObject CoinModel { get; }
         public Material Trail { get; }
+        public Material MusicReactiveAdditive { get; }
         public Material Cloud { get; }
         public Material CloudUnderbelly { get; }
         public Material Package { get; }
@@ -354,6 +355,7 @@ namespace DuneVector
                 droneVisuals.TrailSmoothness,
                 droneVisuals.TrailMetallic,
                 droneVisuals.TrailEmission);
+            MusicReactiveAdditive = CreateMusicReactiveAdditive(runtimeSettings.MusicReactiveSky);
             Cloud = CreateLit(
                 "Cloud - Sunlit",
                 clouds.SunlitColor,
@@ -867,6 +869,25 @@ namespace DuneVector
             material.SetFloat("_ActivationBloomBoost", 1f);
             material.SetFloat("_PulseSpeed", settings.PortalPulseSpeed);
             material.SetFloat("_PulseAmount", settings.PortalPulseAmount);
+            _ownedMaterials.Add(material);
+            return material;
+        }
+
+        private Material CreateMusicReactiveAdditive(MusicReactiveSkyTuning settings)
+        {
+            Shader shader = Shader.Find("DuneVector/URP Music Reactive Additive");
+            if (shader == null)
+            {
+                throw new InvalidOperationException(
+                    "Music visualizer fronts require Assets/DuneVector/Runtime/DuneVectorMusicReactiveAdditive.shader.");
+            }
+
+            Material material = new Material(shader)
+            {
+                name = "Music Visualizer - Additive Fronts and Streaks",
+                enableInstancing = true,
+            };
+            material.SetFloat("_EdgeSoftness", settings.MusicReactiveAdditiveEdgeSoftness);
             _ownedMaterials.Add(material);
             return material;
         }

@@ -4010,6 +4010,11 @@ namespace DuneVector
         [Min(0.1f)] public float PressureFrontEndDistance = 12f;
         [Min(1f)] public float PressureFrontWidth = 240f;
         [Min(0f)] public float PressureFrontCameraHeightOffset = 7f;
+        [Min(0f)] public float PressureFrontGroundProbeHeight = 64f;
+        [Min(0.1f)] public float PressureFrontGroundProbeDistance = 256f;
+        public LayerMask PressureFrontGroundProbeLayers = -1;
+        [Min(0f)] public float PressureFrontGroundClearance = 0.25f;
+        [Min(0f)] public float PressureFrontHorizonHeight = 18f;
         [Min(0f)] public float PressureFrontArcDepth = 28f;
         [Min(0.01f)] public float PressureFrontDurationSeconds = 1.15f;
         [Min(0.001f)] public float PressureFrontStartWidth = 0.22f;
@@ -4017,6 +4022,7 @@ namespace DuneVector
         [Range(0f, 1f)] public float PressureFrontMaximumAlpha = 0.76f;
         [Range(0f, 1f)] public float PressureFrontNearFadeStart = 0.72f;
         [ColorUsage(false, true)] public Color PressureFrontColor = new Color(0.18f, 2.4f, 4.2f, 1f);
+        [Range(0.001f, 0.5f)] public float MusicReactiveAdditiveEdgeSoftness = 0.18f;
         [Min(0f)] public float ReactorFrontStaggerSeconds = 0.09f;
         [Min(0f)] public float ReactorFrontWidthMultiplier = 1.25f;
 
@@ -4054,7 +4060,9 @@ namespace DuneVector
         [Min(0.01f)] public float VisualizerFovDisableReleaseSeconds = 0.08f;
         [Range(0f, 1f)] public float MajorKickFovStrength = 0.55f;
         [Range(0f, 1f)] public float ReactorFovStrength = 1f;
+        [Range(0f, 1f)] public float MinorKickPositionStrength = 0.25f;
         [Range(0f, 1f)] public float MajorKickPositionStrength = 0.5f;
+        [Range(0f, 1f)] public float MinorSnareRollStrength = 0.25f;
         [Range(0f, 1f)] public float SnareRollStrength = 0.55f;
         [Range(0f, 1f)] public float ReactorPositionStrength = 1f;
 

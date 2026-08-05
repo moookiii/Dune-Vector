@@ -4,8 +4,20 @@ namespace DuneVector
 {
     public static class DuneVectorMusicGlitchRuntime
     {
+        private static int _availableFeatureCount;
+
         public static float Intensity { get; private set; }
-        public static bool FeatureAvailable { get; internal set; }
+        public static bool FeatureAvailable => _availableFeatureCount > 0;
+
+        internal static void RegisterFeature()
+        {
+            _availableFeatureCount++;
+        }
+
+        internal static void UnregisterFeature()
+        {
+            _availableFeatureCount = Mathf.Max(0, _availableFeatureCount - 1);
+        }
 
         public static void SetIntensity(float intensity)
         {
