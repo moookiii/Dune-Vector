@@ -656,6 +656,9 @@ namespace DuneVector
             DuneVectorMusicCameraEffects cameraEffects = reactiveSkyObject.AddComponent<DuneVectorMusicCameraEffects>();
             cameraEffects.Initialize(DroneCamera, AudioManager, RuntimeSettings.MusicReactiveSky);
             conductor.RegisterSink(cameraEffects);
+            DuneVectorMusicWorldGlitchSink glitch = reactiveSkyObject.AddComponent<DuneVectorMusicWorldGlitchSink>();
+            glitch.Initialize(RuntimeSettings.MusicReactiveSky);
+            conductor.RegisterSink(glitch);
         }
 
         private void BuildEnvironment()

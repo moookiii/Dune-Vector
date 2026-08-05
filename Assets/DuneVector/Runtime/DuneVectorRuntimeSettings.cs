@@ -1148,6 +1148,8 @@ namespace DuneVector
     {
         public bool Enabled = true;
         [Min(0f)] public float PlatformHeightAboveTerrain = 24f;
+        [Tooltip("Hub-local position of the rune-ring prefab. The ring follows the hub's terrain-grounded transform.")]
+        public Vector3 RuneRingLocalPosition = Vector3.zero;
         [Min(8f)] public float PlatformRadius = 26f;
         [Min(0.5f)] public float PlatformThickness = 2.4f;
         [Min(0f)] public float TerminalForwardOffset = 11f;
@@ -4052,6 +4054,19 @@ namespace DuneVector
         [Range(0f, 1f)] public float MajorKickPositionStrength = 0.5f;
         [Range(0f, 1f)] public float SnareRollStrength = 0.55f;
         [Range(0f, 1f)] public float ReactorPositionStrength = 1f;
+
+        [Header("World-Only Glitch")]
+        [Range(0f, 1f)] public float WorldGlitchMaximumIntensity = 0.16f;
+        [Min(0.01f)] public float WorldGlitchDurationSeconds = 0.085f;
+        [Range(2, 64)] public int WorldGlitchSliceCount = 18;
+        [Range(0f, 0.1f)] public float WorldGlitchHorizontalShift = 0.018f;
+        [Range(1, 16)] public int AccentSnaresPerGlitch = 4;
+        [Range(0, 5)] public int WorldGlitchMinimumVisualTier = 2;
+        [Range(0f, 0.5f)] public float WorldGlitchProtectedHalfWidth = 0.2f;
+        [Range(0f, 0.5f)] public float WorldGlitchProtectedHalfHeight = 0.15f;
+        [Range(0.001f, 0.25f)] public float WorldGlitchProtectedFeather = 0.08f;
+        [Range(0f, 1f)] public float WorldGlitchProtectedIntensityMultiplier = 0.18f;
+        [ColorUsage(false, true)] public Color WorldGlitchTint = new Color(2.8f, 0.55f, 2.2f, 0.24f);
 
         [Header("Music Analysis")]
         [Tooltip("FFT sample count used to separate bass, midrange, and high-frequency energy.")]
