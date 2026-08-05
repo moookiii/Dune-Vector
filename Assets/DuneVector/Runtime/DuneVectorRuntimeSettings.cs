@@ -1373,6 +1373,10 @@ namespace DuneVector
         [Range(3, 12)] public int BeaconTowerFinCount = 6;
 
         [Header("Ancient Spire Detail")]
+        [Tooltip("Concrete surface applied to every Ancient Spire material while retaining each part's original color and emission.")]
+        public Texture2D SpireConcreteTexture;
+        [Tooltip("Number of concrete texture repeats across each primitive face on the Ancient Spire.")]
+        [Min(0.001f)] public float SpireConcreteTextureTiling = 4f;
         [Range(5, 14)] public int SpireLayerCount = 9;
         [Min(0.02f)] public float SpireSeamHeight = 0.16f;
         [Range(3, 8)] public int SpireMonolithCount = 4;

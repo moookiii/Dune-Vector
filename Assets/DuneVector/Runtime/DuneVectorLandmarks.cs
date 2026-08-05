@@ -1133,7 +1133,7 @@ namespace DuneVector
                 _settings.SpireBaseRingSegments,
                 _settings.SpireBaseRingRadius * scale,
                 _settings.SpireBaseRingThickness * scale,
-                _materials.DroneAccent,
+                _materials.AncientSpireAccent,
                 "Ground Circuit");
             int layerCount = Mathf.Max(5, _settings.SpireLayerCount);
             float layerHeight = height / layerCount;
@@ -1144,17 +1144,17 @@ namespace DuneVector
                 Part(PrimitiveType.Cube, $"Spire Layer {i + 1}", root,
                     new Vector3(0f, (i + 0.5f) * layerHeight, 0f) * scale,
                     new Vector3(width, layerHeight * 0.92f, width) * scale,
-                    Quaternion.Euler(0f, i * 13f, 0f), _materials.Sandstone);
+                    Quaternion.Euler(0f, i * 13f, 0f), _materials.AncientSpireStone);
                 if (i < layerCount - 1)
                 {
                     float nextWidth = Mathf.Lerp(18f, 3f, (i + 1f) / layerCount);
                     Part(PrimitiveType.Cube, $"Spire Energy Seam {i + 1}", root,
                         new Vector3(0f, (i + 1f) * layerHeight, 0f) * scale,
                         new Vector3(nextWidth * 0.86f, _settings.SpireSeamHeight, nextWidth * 0.86f) * scale,
-                        Quaternion.Euler(0f, (i + 1f) * 13f, 0f), _materials.DroneAccent, false);
+                        Quaternion.Euler(0f, (i + 1f) * 13f, 0f), _materials.AncientSpireAccent, false);
                 }
             }
-            Transform relic = Part(PrimitiveType.Sphere, "Floating Spire Relic", root, new Vector3(0f, height + 12f, 0f) * scale, Vector3.one * 5f * scale, Quaternion.identity, _materials.DroneAccent, false);
+            Transform relic = Part(PrimitiveType.Sphere, "Floating Spire Relic", root, new Vector3(0f, height + 12f, 0f) * scale, Vector3.one * 5f * scale, Quaternion.identity, _materials.AncientSpireAccent, false);
             animator.RegisterSpin(relic, Vector3.up, _settings.SpireRelicRotationSpeed);
             animator.RegisterBob(relic, _settings.SpireRelicFloatAmplitude * scale, _settings.SpireRelicFloatSpeed);
             animator.RegisterPulse(relic, _settings.BeaconPulseAmount, _settings.BeaconPulseSpeed);
@@ -1168,7 +1168,7 @@ namespace DuneVector
                 Part(PrimitiveType.Cube, $"Relic Shard {i + 1}", shardOrbit,
                     (direction * (8f + ((i % 2) * 2f)) + Vector3.up * (height + 12f + ((i % 3) - 1f) * 2f)) * scale,
                     new Vector3(0.8f, 3.8f, 1.1f) * scale,
-                    Quaternion.Euler(i * 17f, angle, i * 31f), _materials.DroneDark, false);
+                    Quaternion.Euler(i * 17f, angle, i * 31f), _materials.AncientSpireDark, false);
             }
             animator.RegisterSpin(shardOrbit, Vector3.up, -_settings.SpireRelicRotationSpeed);
             int monolithCount = Mathf.Max(3, _settings.SpireMonolithCount);
@@ -1176,7 +1176,7 @@ namespace DuneVector
             {
                 float angle = (360f / monolithCount) * i;
                 Vector3 offset = Quaternion.Euler(0f, angle, 0f) * new Vector3(0f, height * 0.58f, 15f);
-                Part(PrimitiveType.Cylinder, $"Flight Monolith {i + 1}", root, offset * scale, new Vector3(1.2f, 8f, 1.2f) * scale, Quaternion.identity, _materials.DroneDark);
+                Part(PrimitiveType.Cylinder, $"Flight Monolith {i + 1}", root, offset * scale, new Vector3(1.2f, 8f, 1.2f) * scale, Quaternion.identity, _materials.AncientSpireDark);
             }
             int variant = PositiveVariant(seed);
             for (int i = 0; i < variant; i++)
@@ -1186,7 +1186,7 @@ namespace DuneVector
                 Part(PrimitiveType.Cube, $"Buried Spire Fin {i + 1}", root,
                     (direction * (16f + (i * 3f)) + Vector3.up * 2f) * scale,
                     new Vector3(2f, 9f, 7f) * scale,
-                    Quaternion.Euler(0f, angle, 18f), _materials.Sandstone);
+                    Quaternion.Euler(0f, angle, 18f), _materials.AncientSpireStone);
             }
         }
 

@@ -30,6 +30,9 @@ namespace DuneVector
         public Material CactusBlossom { get; }
         public IReadOnlyList<Material> Shrubs => _shrubMaterials;
         public Material Sandstone { get; }
+        public Material AncientSpireStone { get; }
+        public Material AncientSpireAccent { get; }
+        public Material AncientSpireDark { get; }
         public GameObject PyramidPrefab { get; }
         public GameObject ObeliskPrefab { get; }
         public Material LandmarkStone { get; }
@@ -204,6 +207,18 @@ namespace DuneVector
                 }
             }
             Sandstone = CreateLit("Pyramid - Sandstone", new Color(0.58f, 0.31f, 0.13f), 0.18f, 0f);
+            AncientSpireStone = CreateSpireSurfaceVariant(
+                "Ancient Spire - Concrete Sandstone",
+                Sandstone,
+                landmarkTuning);
+            AncientSpireAccent = CreateSpireSurfaceVariant(
+                "Ancient Spire - Concrete Energy",
+                DroneAccent,
+                landmarkTuning);
+            AncientSpireDark = CreateSpireSurfaceVariant(
+                "Ancient Spire - Concrete Graphite",
+                DroneDark,
+                landmarkTuning);
             PyramidPrefab = Resources.Load<GameObject>("PyramidPrefab");
             if (PyramidPrefab == null)
             {
@@ -668,6 +683,27 @@ namespace DuneVector
                 material.SetTextureScale("_EmissionMap", textureScale);
                 material.EnableKeyword("_EMISSION");
             }
+        }
+
+        private Material CreateSpireSurfaceVariant(
+            string name,
+            Material source,
+            LandmarkSystemTuning tuning)
+        {
+            Material material = new Material(source)
+            {
+                name = name,
+                enableInstancing = true,
+            };
+            if (tuning != null)
+            {
+                ConfigureSurfaceTexture(
+                    material,
+                    tuning.SpireConcreteTexture,
+                    tuning.SpireConcreteTextureTiling);
+            }
+            _ownedMaterials.Add(material);
+            return material;
         }
 
         private static bool TryGetMaterialTextureProperty(
