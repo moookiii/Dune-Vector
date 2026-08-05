@@ -242,50 +242,10 @@ namespace DuneVector
 
         private bool OverlapsGeoglyph(double logicalX, double logicalZ)
         {
-            if (_geoglyphs == null || !_geoglyphs.Enabled || _geoglyphs.Placements == null)
-            {
-                return false;
-            }
-
-            float clearance = Mathf.Max(0f, _settings.GeoglyphClearance);
-            for (int i = 0; i < _geoglyphs.Placements.Count; i++)
-            {
-                GeoglyphArtworkPlacement placement = _geoglyphs.Placements[i];
-                if (placement == null || placement.Mask == null ||
-                    placement.WorldSize.x <= 0f || placement.WorldSize.y <= 0f)
-                {
-                    continue;
-                }
-
-                Vector2 contentCenter = placement.MaskContentCenter;
-                Vector2 contentSize = placement.MaskContentSize;
-                if (contentSize.x <= 0f || contentSize.y <= 0f)
-                {
-                    contentCenter = new Vector2(0.5f, 0.5f);
-                    contentSize = Vector2.one;
-                }
-
-                Quaternion artworkRotation = Quaternion.Euler(
-                    0f, -placement.RotationDegrees, 0f);
-                Vector2 normalizedCenterOffset = contentCenter - new Vector2(0.5f, 0.5f);
-                Vector3 centerOffset = artworkRotation * new Vector3(
-                    normalizedCenterOffset.x * placement.WorldSize.x,
-                    0f,
-                    normalizedCenterOffset.y * placement.WorldSize.y);
-                Vector3 relative = new Vector3(
-                    (float)(logicalX - placement.WorldCenter.x) - centerOffset.x,
-                    0f,
-                    (float)(logicalZ - placement.WorldCenter.y) - centerOffset.z);
-                Vector3 artworkSpace = Quaternion.Inverse(artworkRotation) * relative;
-                Vector2 halfSize = Vector2.Scale(placement.WorldSize, contentSize) * 0.5f;
-                if (Mathf.Abs(artworkSpace.x) <= halfSize.x + clearance &&
-                    Mathf.Abs(artworkSpace.z) <= halfSize.y + clearance)
-                {
-                    return true;
-                }
-            }
-
-            return false;
+            return _geoglyphs != null && _geoglyphs.OverlapsArtworkFootprint(
+                logicalX,
+                logicalZ,
+                _settings.GeoglyphClearance);
         }
 
         private void GroundToDunes(Transform prefab)

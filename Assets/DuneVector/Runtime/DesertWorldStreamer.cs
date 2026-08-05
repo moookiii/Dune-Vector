@@ -65,6 +65,7 @@ namespace DuneVector
         public LandmarkSystemTuning Landmarks;
         public CactusTuning Cacti;
         public PyramidTuning Obelisks;
+        public GeoglyphSystemTuning Geoglyphs;
 
         [Header("Spawning - expected count per chunk")]
         [Min(0f)] public float PyramidDensity = 0.22f;
@@ -996,6 +997,7 @@ namespace DuneVector
                     GroundExploders,
                     Shrubs,
                     Landmarks,
+                    Geoglyphs,
                     HandleTraversalRingActivated);
                 if (IsUpperFlightRingUnlocked)
                 {
@@ -1349,6 +1351,7 @@ namespace DuneVector
             GroundExploderTuning groundExploderTuning,
             DesertShrubTuning shrubTuning,
             LandmarkSystemTuning landmarkTuning,
+            GeoglyphSystemTuning geoglyphTuning,
             Action<TraversalRing> ringActivated)
         {
             if (IsContentReady)
@@ -1385,6 +1388,7 @@ namespace DuneVector
                     groundExploderTuning,
                     shrubTuning,
                     landmarkTuning,
+                    geoglyphTuning,
                     ringActivated);
             }
         }
@@ -1800,6 +1804,7 @@ namespace DuneVector
             GroundExploderTuning groundExploderTuning,
             DesertShrubTuning shrubTuning,
             LandmarkSystemTuning landmarkTuning,
+            GeoglyphSystemTuning geoglyphTuning,
             Action<TraversalRing> ringActivated)
         {
             List<Vector2> ringExclusions = new List<Vector2>();
@@ -2055,6 +2060,13 @@ namespace DuneVector
                     929 + (i * 17),
                     minimumScale,
                     maximumScale);
+                if (geoglyphTuning != null && geoglyphTuning.OverlapsArtworkFootprint(
+                        logicalX,
+                        logicalZ,
+                        scale))
+                {
+                    continue;
+                }
                 float yaw = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 937 + (i * 17), 0f, 360f);
                 float minimumBurial = Mathf.Max(0f, pyramidMinimumBurialDepth);
                 float maximumBurial = Mathf.Max(minimumBurial, pyramidMaximumBurialDepth);
@@ -2112,6 +2124,13 @@ namespace DuneVector
                         971 + (i * 17),
                         minimumScale,
                         maximumScale);
+                    if (geoglyphTuning != null && geoglyphTuning.OverlapsArtworkFootprint(
+                            logicalX,
+                            logicalZ,
+                            scale))
+                    {
+                        continue;
+                    }
                     float yaw = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 977 + (i * 17), 0f, 360f);
                     float minimumBurial = Mathf.Max(0f, obeliskTuning.MinimumBurialDepth);
                     float maximumBurial = Mathf.Max(minimumBurial, obeliskTuning.MaximumBurialDepth);

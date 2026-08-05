@@ -445,6 +445,7 @@ namespace DuneVector
             World.PyramidMinimumBurialDepth = Pyramids.MinimumBurialDepth;
             World.PyramidMaximumBurialDepth = Pyramids.MaximumBurialDepth;
             World.Obelisks = Obelisks;
+            World.Geoglyphs = RuntimeSettings.Geoglyphs;
             World.Shrubs = DesertShrubs;
             World.Landmarks = Contracts.Enabled && WorldHubSettings.Enabled ? LandmarkSettings : null;
             World.GroundExploders = GroundExploders;
@@ -851,7 +852,11 @@ namespace DuneVector
                 GameObject landmarkObject = new GameObject("Procedural Landmark Director");
                 landmarkObject.transform.SetParent(transform, false);
                 LandmarkDirector = landmarkObject.AddComponent<DuneVectorLandmarkDirector>();
-                LandmarkDirector.Initialize(World, _materials, LandmarkSettings);
+                LandmarkDirector.Initialize(
+                    World,
+                    _materials,
+                    LandmarkSettings,
+                    RuntimeSettings.Geoglyphs);
 
                 GameObject courierObject = new GameObject("Courier Hub and Contract Game");
                 courierObject.transform.SetParent(transform, false);

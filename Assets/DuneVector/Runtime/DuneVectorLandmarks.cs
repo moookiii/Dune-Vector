@@ -331,6 +331,7 @@ namespace DuneVector
         private DesertWorldStreamer _world;
         private DuneVectorMaterials _materials;
         private LandmarkSystemTuning _settings;
+        private GeoglyphSystemTuning _geoglyphs;
         private Transform _root;
         private float _refreshTimer;
         private Vector2Int _lastCenter = new Vector2Int(int.MinValue, int.MinValue);
@@ -342,11 +343,13 @@ namespace DuneVector
         public void Initialize(
             DesertWorldStreamer world,
             DuneVectorMaterials materials,
-            LandmarkSystemTuning settings)
+            LandmarkSystemTuning settings,
+            GeoglyphSystemTuning geoglyphs)
         {
             _world = world;
             _materials = materials;
             _settings = settings;
+            _geoglyphs = geoglyphs;
             GameObject rootObject = new GameObject("Authored Procedural Landmarks");
             _root = rootObject.transform;
             _root.SetParent(transform, false);
@@ -691,11 +694,20 @@ namespace DuneVector
                 return null;
             }
 
+            float exclusionRadius = GetExclusionRadius(type);
+            if (_geoglyphs != null && _geoglyphs.OverlapsArtworkFootprint(
+                    logical.X,
+                    logical.Z,
+                    exclusionRadius))
+            {
+                return null;
+            }
+
             int variantSeed = HashCell(cell);
             float rotation = Mathf.Repeat(variantSeed * 0.137f, 360f);
             return new DuneLandmarkPlacementRecord(
                 $"DV-LM-{_world.WorldSeed:X8}-{cell.x}-{cell.y}", cell, type, rarity, logical,
-                variantSeed, rotation, GetExclusionRadius(type));
+                variantSeed, rotation, exclusionRadius);
         }
 
         private bool IsBlockedByPreferredNeighbor(DuneLandmarkPlacementRecord candidate)
