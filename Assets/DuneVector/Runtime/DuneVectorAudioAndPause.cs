@@ -55,6 +55,9 @@ namespace DuneVector
         public event Action<MusicVisualizerMode> MusicVisualizerModeChanged;
         public event Action<bool> VisualizerFovEnabledChanged;
         public MusicTimelineState TimelineState => _timelineState;
+        public string MusicEventPath => _settings != null ? _settings.BackgroundMusicEvent : string.Empty;
+        public int MusicEventLengthMilliseconds { get; private set; }
+        public bool MusicTimelineCallbackRegistered { get; private set; }
 
         public bool TryGetMusicChannelGroup(out FMOD.ChannelGroup channelGroup)
         {
@@ -625,6 +628,12 @@ namespace DuneVector
                     : 128;
                 _timelineBridge = new MusicTimelineCallbackBridge(queueCapacity);
                 bool callbackRegistered = _timelineBridge.Attach(_musicInstance, _musicPlaybackGeneration);
+                MusicTimelineCallbackRegistered = callbackRegistered;
+                if (_musicInstance.getDescription(out EventDescription musicDescription) == FMOD.RESULT.OK)
+                {
+                    musicDescription.getLength(out int eventLength);
+                    MusicEventLengthMilliseconds = Mathf.Max(0, eventLength);
+                }
                 _timelineState = new MusicTimelineState
                 {
                     IsValid = true,
@@ -886,6 +895,7 @@ namespace DuneVector
             {
                 _timelineBridge?.Dispose();
                 _timelineBridge = null;
+                MusicTimelineCallbackRegistered = false;
                 _musicInstance.stop(FMOD.Studio.STOP_MODE.ALLOWFADEOUT);
                 _musicInstance.release();
                 _musicInstance.clearHandle();

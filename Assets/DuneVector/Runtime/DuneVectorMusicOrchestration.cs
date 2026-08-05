@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using FMOD.Studio;
 using Unity.Profiling;
@@ -540,6 +541,9 @@ namespace DuneVector
         private int _rateLimitBar = -1;
         private int _kicksThisBar;
         private int _highEventsThisBar;
+        private bool[] _observedMarkers;
+        private int _lastObservedMarkerId;
+        private uint _validatedPlaybackGeneration;
 
         public MusicReactiveRuntimeState RuntimeState => _state;
         public int NextCueIndex => _cueCursor;
@@ -556,6 +560,11 @@ namespace DuneVector
             if (_profile == null)
             {
                 Debug.LogWarning("Music visualizer track profile is unavailable; authored cues remain disabled.", this);
+            }
+            else
+            {
+                _observedMarkers = new bool[_profile.Markers.Length];
+                ValidateProfileAuthoring();
             }
         }
 
@@ -588,6 +597,7 @@ namespace DuneVector
             {
                 timeline = _audio.TimelineState;
             }
+            ObserveTimelineValidation(in timeline);
             using (ConductorUpdateMarker.Auto())
             {
                 MusicAnalysisFrame analysis = _analysisSource.LatestAnalysisFrame;
@@ -643,6 +653,100 @@ namespace DuneVector
                 ReconstructCueCursor(timeline.TimelinePositionMilliseconds);
                 ResetSinks();
             }
+        }
+
+        private void ValidateProfileAuthoring()
+        {
+            if (!string.Equals(_audio.MusicEventPath, _profile.FmodEventPath, StringComparison.Ordinal))
+            {
+                Debug.LogWarning("Music visualizer event reference is invalid for the active track profile.", this);
+            }
+            if (!_audio.MusicTimelineCallbackRegistered)
+            {
+                Debug.LogWarning("FMOD beat callbacks are not registered.", this);
+            }
+            float durationDifference = Mathf.Abs(
+                _audio.MusicEventLengthMilliseconds * 0.001f - _profile.ExpectedDurationSeconds);
+            if (_audio.MusicEventLengthMilliseconds > 0
+                && durationDifference > _settings.DurationValidationToleranceSeconds)
+            {
+                Debug.LogWarning("Music visualizer FMOD event duration does not match the active track profile.", this);
+            }
+            if (!Mathf.Approximately(_profile.BeatsPerMinute, 168f)
+                || _profile.TimeSignatureNumerator != 4
+                || _profile.TimeSignatureDenominator != 4)
+            {
+                Debug.LogWarning("Exodia music visualizer profile must use 168 BPM and 4/4.", this);
+            }
+        }
+
+        private void ObserveTimelineValidation(in MusicTimelineState timeline)
+        {
+            if (_profile == null || _observedMarkers == null)
+            {
+                return;
+            }
+            if (_validatedPlaybackGeneration == 0)
+            {
+                _validatedPlaybackGeneration = timeline.PlaybackGeneration;
+            }
+            else if (timeline.PlaybackGeneration != 0
+                && timeline.PlaybackGeneration != _validatedPlaybackGeneration)
+            {
+                ReportMissingMarkers();
+                Array.Clear(_observedMarkers, 0, _observedMarkers.Length);
+                _lastObservedMarkerId = 0;
+                _validatedPlaybackGeneration = timeline.PlaybackGeneration;
+            }
+
+            int markerId = timeline.CurrentMarkerId;
+            if (markerId == 0 || markerId == _lastObservedMarkerId)
+            {
+                return;
+            }
+            _lastObservedMarkerId = markerId;
+            for (int i = 0; i < _profile.Markers.Length; i++)
+            {
+                if (_profile.Markers[i].StableId == markerId)
+                {
+                    _observedMarkers[i] = true;
+                    break;
+                }
+            }
+        }
+
+        private void ReportMissingMarkers()
+        {
+            int missingCount = 0;
+            for (int i = 0; i < _observedMarkers.Length; i++)
+            {
+                if (!_observedMarkers[i])
+                {
+                    missingCount++;
+                }
+            }
+            if (missingCount == 0)
+            {
+                return;
+            }
+
+            StringBuilder report = new StringBuilder(256);
+            report.Append("Music visualizer FMOD marker validation: ");
+            report.Append(missingCount);
+            report.Append(" required marker(s) were not observed: ");
+            for (int i = 0; i < _observedMarkers.Length; i++)
+            {
+                if (_observedMarkers[i])
+                {
+                    continue;
+                }
+                MusicVisualMarkerDefinition marker = _profile.Markers[i];
+                report.Append(marker.StableName);
+                report.Append('@');
+                report.Append(marker.TimelineMilliseconds);
+                report.Append("ms ");
+            }
+            Debug.LogWarning(report.ToString(), this);
         }
 
         private void EvaluateAuthoredCues()
