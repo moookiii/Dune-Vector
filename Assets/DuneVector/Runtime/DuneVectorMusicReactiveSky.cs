@@ -156,7 +156,8 @@ namespace DuneVector
             _sky.ReactiveAuroraAltitude.Override(_settings.AuroraAltitude);
             _sky.ReactiveAuroraThickness.Override(_settings.AuroraThickness);
             _sky.ReactiveAuroraWaviness.Override(_settings.AuroraWaviness);
-            _sky.ReactiveAuroraTravelSpeed.Override(_settings.AuroraTravelSpeed);
+            _sky.ReactiveAuroraTravelSpeed.Override(
+                _settings.AuroraTravelSpeed * _settings.AuroraTravelDirection);
             _sky.ReactiveAuroraFrequency.Override(_settings.AuroraFrequency);
             _sky.ReactiveAuroraSecondaryIntensity.Override(_settings.AuroraSecondaryIntensity);
             _sky.ReactiveAuroraShimmerAmount.Override(_settings.AuroraShimmerAmount);
@@ -511,6 +512,7 @@ namespace DuneVector
             _sky.ReactiveAuroraThickness.value = _settings.AuroraThickness
                 * state.Multipliers.CurrentThickness;
             _sky.ReactiveAuroraTravelSpeed.value = _settings.AuroraTravelSpeed
+                * _settings.AuroraTravelDirection
                 * state.Multipliers.CurrentTravel;
 
             if (_eventFilamentIntensity > 0f)
