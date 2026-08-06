@@ -2268,7 +2268,7 @@ namespace DuneVector
 
         private GUIStyle CreateLabelStyle(int fontSize, FontStyle fontStyle, TextAnchor alignment, Color color)
         {
-            return new GUIStyle(GUI.skin.label)
+            GUIStyle style = new GUIStyle(GUI.skin.label)
             {
                 alignment = alignment,
                 fontSize = fontSize,
@@ -2279,6 +2279,17 @@ namespace DuneVector
                 margin = new RectOffset(),
                 normal = { textColor = color },
             };
+
+            // Unity's skin can supply a different label color for hovered controls.
+            // Pause-menu labels are informational and should remain visually static.
+            style.hover.textColor = color;
+            style.active.textColor = color;
+            style.focused.textColor = color;
+            style.onNormal.textColor = color;
+            style.onHover.textColor = color;
+            style.onActive.textColor = color;
+            style.onFocused.textColor = color;
+            return style;
         }
 
         private GUIStyle CreateButtonStyle(
