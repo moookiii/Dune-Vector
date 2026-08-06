@@ -2310,6 +2310,8 @@ namespace DuneVector
 
         [Header("Lock-On Targeting")]
         [Min(1f)] public float LockRange = 180f;
+        [Tooltip("Targets closer than this distance from the drone cannot be acquired or retained.")]
+        [Min(0f)] public float MinimumLockDistance = 15f;
         [Tooltip("Full angle of the view-centered targeting cone. Targets behind the camera are always rejected.")]
         [Range(1f, 179f)] public float LockConeAngle = 34f;
         [Min(0f)] public float AcquisitionTime = 0.55f;

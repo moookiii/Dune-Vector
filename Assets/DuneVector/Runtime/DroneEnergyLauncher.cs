@@ -173,6 +173,7 @@ namespace DuneVector
     {
         public EnemyCombatTarget SelectedTarget { get; private set; }
 
+        private DroneCharacterController _drone;
         private Camera _camera;
         private EnergyLauncherTuning _settings;
         private DuneVectorCourierGame _courierGame;
@@ -180,10 +181,12 @@ namespace DuneVector
         private float _outsideTargetAreaTime;
 
         public void Initialize(
+            DroneCharacterController drone,
             Camera camera,
             EnergyLauncherTuning settings,
             DuneVectorCourierGame courierGame = null)
         {
+            _drone = drone;
             _camera = camera;
             _settings = settings;
             _courierGame = courierGame;
@@ -192,7 +195,7 @@ namespace DuneVector
 
         private void LateUpdate()
         {
-            if (_camera == null || _settings == null || !_settings.Enabled
+            if (_drone == null || _camera == null || _settings == null || !_settings.Enabled
                 || (_courierGame != null && _courierGame.State == CourierRunState.Hub))
             {
                 SelectTarget(null);
@@ -212,7 +215,12 @@ namespace DuneVector
 
         public bool IsStrictlyEligible(EnemyCombatTarget target)
         {
-            if (target == null || !target.IsValid || _camera == null || _settings == null)
+            if (target == null || !target.IsValid || _drone == null || _camera == null || _settings == null)
+            {
+                return false;
+            }
+
+            if (IsInsideMinimumLockDistance(target))
             {
                 return false;
             }
@@ -244,7 +252,8 @@ namespace DuneVector
             }
 
             Vector3 toTarget = SelectedTarget.AimPoint - _camera.transform.position;
-            if (toTarget.sqrMagnitude <= Mathf.Epsilon
+            if (IsInsideMinimumLockDistance(SelectedTarget)
+                || toTarget.sqrMagnitude <= Mathf.Epsilon
                 || Vector3.Dot(_camera.transform.forward, toTarget.normalized) <= 0f)
             {
                 SelectTarget(null);
@@ -262,6 +271,13 @@ namespace DuneVector
             {
                 SelectTarget(null);
             }
+        }
+
+        private bool IsInsideMinimumLockDistance(EnemyCombatTarget target)
+        {
+            float minimumDistance = Mathf.Max(0f, _settings.MinimumLockDistance);
+            return (target.AimPoint - _drone.WorldCenter).sqrMagnitude
+                < minimumDistance * minimumDistance;
         }
 
         private void ScanForBestTarget()
