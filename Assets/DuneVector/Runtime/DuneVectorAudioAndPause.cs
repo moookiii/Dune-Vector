@@ -696,6 +696,14 @@ namespace DuneVector
             PlayConfiguredOneShot(_settings != null ? _settings.DeliveryRingEvent : null, position, "delivery ring");
         }
 
+        public void PlayVesperMissileAlert(Vector3 position)
+        {
+            PlayConfiguredOneShot(
+                _settings != null ? _settings.VesperMissileAlertEvent : null,
+                position,
+                "vesper missile alert");
+        }
+
         public void BindLockOnController(DroneLockOnController lockOnController)
         {
             if (_lockOnController != null)

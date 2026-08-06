@@ -5097,6 +5097,8 @@ namespace DuneVector
         public string LockOnEvent = "event:/Lock_On";
         [Tooltip("One-shot event played when lock-on acquisition becomes fully locked.")]
         public string LockOnFullEvent = "event:/Lock_On_Full";
+        [Tooltip("One-shot event played when a Vesper missile starts targeting the drone.")]
+        public string VesperMissileAlertEvent = "event:/Alert";
 
         [Header("July Mixer Routing")]
         [Tooltip("FMOD master bus used for pause-menu volume ducking.")]
