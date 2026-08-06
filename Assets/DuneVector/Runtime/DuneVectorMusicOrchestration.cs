@@ -205,6 +205,10 @@ namespace DuneVector
         [Min(0f)] public float FrontStrengthMultiplier;
         [Range(0f, 1f)] public float FrontEdgeBreakup;
         [ColorUsage(false, true)] public Color FrontColor;
+        [Tooltip("Use the profile's horizontal enclosing-halo geometry for this pressure-front cue.")]
+        public bool FrontUseEnclosingHalo;
+        [Tooltip("Optional cue-specific pressure-front opacity. Zero uses the track profile value.")]
+        [Range(0f, 1f)] public float FrontMaximumAlpha;
         [FormerlySerializedAs("FragmentCount")]
         [Min(0)] public int ScreenFlareLineCount;
         [FormerlySerializedAs("FragmentLifetimeSeconds")]
@@ -301,6 +305,8 @@ namespace DuneVector
         public float FrontStrengthMultiplier;
         public float FrontEdgeBreakup;
         public Color FrontColor;
+        public bool FrontUseEnclosingHalo;
+        public float FrontMaximumAlpha;
         public int ScreenFlareLineCount;
         public Vector2 ScreenFlareLineLifetimeSeconds;
         public float ScreenFlareHorizontalBias;
@@ -1252,6 +1258,8 @@ namespace DuneVector
                 FrontStrengthMultiplier = cue.FrontStrengthMultiplier,
                 FrontEdgeBreakup = cue.FrontEdgeBreakup,
                 FrontColor = cue.FrontColor,
+                FrontUseEnclosingHalo = cue.FrontUseEnclosingHalo,
+                FrontMaximumAlpha = cue.FrontMaximumAlpha,
                 ScreenFlareLineCount = cue.ScreenFlareLineCount,
                 ScreenFlareLineLifetimeSeconds = cue.ScreenFlareLineLifetimeSeconds,
                 ScreenFlareHorizontalBias = cue.ScreenFlareHorizontalBias,

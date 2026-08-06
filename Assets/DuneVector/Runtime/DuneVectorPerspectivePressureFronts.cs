@@ -26,7 +26,9 @@ namespace DuneVector
             public float LateralOffset;
             public uint Seed;
             public Color Color;
+            public float MaximumAlpha;
             public bool Reactor;
+            public bool UseEnclosingHalo;
             public bool Active;
         }
 
@@ -68,7 +70,7 @@ namespace DuneVector
                 frontObject.transform.SetParent(transform, false);
                 LineRenderer line = frontObject.AddComponent<LineRenderer>();
                 line.useWorldSpace = true;
-                line.loop = _settings.PressureFrontUseEnclosingHalo;
+                line.loop = false;
                 line.alignment = LineAlignment.View;
                 line.textureMode = LineTextureMode.Stretch;
                 line.positionCount = _positions.Length;
@@ -82,7 +84,7 @@ namespace DuneVector
                 haloObject.transform.SetParent(frontObject.transform, false);
                 LineRenderer halo = haloObject.AddComponent<LineRenderer>();
                 halo.useWorldSpace = true;
-                halo.loop = _settings.PressureFrontUseEnclosingHalo;
+                halo.loop = false;
                 halo.alignment = LineAlignment.View;
                 halo.textureMode = LineTextureMode.Stretch;
                 halo.positionCount = _positions.Length;
@@ -158,6 +160,8 @@ namespace DuneVector
                         command.FrontEdgeBreakup,
                         lateralOffset,
                         command.FrontColor,
+                        command.FrontUseEnclosingHalo,
+                        command.FrontMaximumAlpha,
                         command.DeterministicSeed + (uint)i);
                 }
             }
@@ -174,6 +178,8 @@ namespace DuneVector
             float edgeBreakup,
             float lateralOffset,
             Color color,
+            bool useEnclosingHalo,
+            float maximumAlpha,
             uint seed)
         {
             if (_camera == null || pool == null || pool.Length == 0)
@@ -220,8 +226,14 @@ namespace DuneVector
             slot.LateralOffset = lateralOffset;
             slot.Seed = seed;
             slot.Color = color.maxColorComponent > 0f ? color : _settings.PressureFrontColor;
+            slot.MaximumAlpha = maximumAlpha > 0f
+                ? Mathf.Clamp01(maximumAlpha)
+                : _settings.PressureFrontMaximumAlpha;
             slot.Reactor = reactor;
+            slot.UseEnclosingHalo = _settings.PressureFrontUseEnclosingHalo || useEnclosingHalo;
             slot.Active = true;
+            slot.Renderer.loop = slot.UseEnclosingHalo;
+            slot.HaloRenderer.loop = slot.UseEnclosingHalo;
             slot.Renderer.enabled = delay <= 0f;
             slot.HaloRenderer.enabled = delay <= 0f;
             pool[selected] = slot;
@@ -291,7 +303,7 @@ namespace DuneVector
                 }
 
                 float distance = Mathf.Lerp(_settings.PressureFrontStartDistance, _settings.PressureFrontEndDistance, progress * progress);
-                if (_settings.PressureFrontUseEnclosingHalo)
+                if (slot.UseEnclosingHalo)
                 {
                     float radius = Mathf.Lerp(
                         _settings.PressureFrontEnclosingHaloStartRadius,
@@ -336,7 +348,7 @@ namespace DuneVector
                 slot.HaloRenderer.startWidth = slot.Renderer.startWidth * _settings.PressureFrontArrivalThicknessGrowth;
                 slot.HaloRenderer.endWidth = slot.HaloRenderer.startWidth;
                 float nearFade = 1f - Mathf.InverseLerp(_settings.PressureFrontNearFadeStart, 1f, progress);
-                float alpha = _settings.PressureFrontMaximumAlpha * slot.Strength * nearFade;
+                float alpha = slot.MaximumAlpha * slot.Strength * nearFade;
                 Color color = slot.Color;
                 float colorAlpha = color.a;
                 color *= slot.CoreMultiplier;
