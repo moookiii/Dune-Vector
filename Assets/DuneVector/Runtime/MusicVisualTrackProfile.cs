@@ -25,6 +25,7 @@ namespace DuneVector
         [Header("Composition")]
         public MusicVisualSectionDefinition[] Sections = Array.Empty<MusicVisualSectionDefinition>();
         public MusicVisualAuthoredCue[] AuthoredCues = Array.Empty<MusicVisualAuthoredCue>();
+        public MusicVisualAuthoredFlarePattern[] AuthoredFlarePatterns = Array.Empty<MusicVisualAuthoredFlarePattern>();
 
         [Header("Complete Song Visualizer Tuning")]
         [Tooltip("Music-reactive sky, analysis, transient, foreground, camera, bloom, and glitch settings activated with this song.")]

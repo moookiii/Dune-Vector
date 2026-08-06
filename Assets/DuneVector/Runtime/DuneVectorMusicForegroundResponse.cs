@@ -325,23 +325,14 @@ namespace DuneVector
                 if (centerOut)
                 {
                     fineLine = Next01(ref seed) < _settings.CenterOutFineLineFraction;
-                    float rightChance = Mathf.Clamp01(
-                        0.5f + command.ScreenFlareHorizontalBias * 0.5f);
-                    float side = Next01(ref seed) < rightChance ? 1f : -1f;
-                    float verticalSpread = fineLine
-                        ? _settings.CenterOutDirectionalVariation
-                        : Mathf.Min(1f, _settings.CenterOutDirectionalVariation * 1.75f);
-                    float vertical = Mathf.Lerp(
-                        -verticalSpread,
-                        verticalSpread,
-                        Next01(ref seed));
-                    direction = new Vector2(side, vertical).normalized;
+                    direction = ResolveCenterOutDirection(in command, fineLine, ref seed);
                     float radius = _settings.CenterOutInitialViewportRadius * viewportScale;
                     x = droneScreenX + direction.x * radius;
                     y = droneScreenY + direction.y * radius;
                     float speed = _settings.CenterOutRadialSpeed
                         * Mathf.Lerp(0.82f, 1.18f, Next01(ref seed))
-                        * (fineLine ? _settings.CenterOutFineLineSpeedMultiplier : 1f);
+                        * (fineLine ? _settings.CenterOutFineLineSpeedMultiplier : 1f)
+                        * (command.ScreenFlareSpeedScale > 0f ? command.ScreenFlareSpeedScale : 1f);
                     velocity = new Vector3(
                         direction.x * speed,
                         direction.y * speed,
@@ -381,9 +372,40 @@ namespace DuneVector
                         ? _settings.ForegroundStreakSize * (fineLine
                             ? _settings.CenterOutFineLineWidthMultiplier
                             : _settings.CenterOutBroadRayWidthMultiplier)
+                            * (command.ScreenFlareWidthScale > 0f ? command.ScreenFlareWidthScale : 1f)
                         : _settings.ForegroundStreakSize,
                 };
                 _streaks.Emit(emit, 1);
+            }
+        }
+
+        private Vector2 ResolveCenterOutDirection(
+            in MusicVisualDispatchCommand command,
+            bool fineLine,
+            ref uint seed)
+        {
+            float spread = fineLine
+                ? _settings.CenterOutDirectionalVariation
+                : Mathf.Min(1f, _settings.CenterOutDirectionalVariation * 1.75f);
+            float signedPrimary = Next01(ref seed) < 0.5f ? -1f : 1f;
+            float variation = Mathf.Lerp(-spread, spread, Next01(ref seed));
+            switch (command.ScreenFlareDirectionMode)
+            {
+                case MusicScreenFlareDirectionMode.Vertical:
+                    return new Vector2(variation, signedPrimary).normalized;
+                case MusicScreenFlareDirectionMode.Horizontal:
+                    return new Vector2(signedPrimary, variation).normalized;
+                case MusicScreenFlareDirectionMode.Diagonal:
+                    float signedSecondary = Next01(ref seed) < 0.5f ? -1f : 1f;
+                    float diagonalVariation = variation * 0.45f;
+                    return new Vector2(
+                        signedPrimary + diagonalVariation,
+                        signedSecondary - diagonalVariation).normalized;
+                default:
+                    float rightChance = Mathf.Clamp01(
+                        0.5f + command.ScreenFlareHorizontalBias * 0.5f);
+                    float side = Next01(ref seed) < rightChance ? 1f : -1f;
+                    return new Vector2(side, variation).normalized;
             }
         }
 

@@ -62,6 +62,14 @@ namespace DuneVector
         Split,
     }
 
+    public enum MusicScreenFlareDirectionMode : byte
+    {
+        Default,
+        Vertical,
+        Horizontal,
+        Diagonal,
+    }
+
     [Flags]
     public enum MusicVisualEffectGroups : ushort
     {
@@ -203,6 +211,9 @@ namespace DuneVector
         public Vector2 ScreenFlareLineLifetimeSeconds;
         [FormerlySerializedAs("FragmentHorizontalBias")]
         [Range(-1f, 1f)] public float ScreenFlareHorizontalBias;
+        public MusicScreenFlareDirectionMode ScreenFlareDirectionMode;
+        [Min(0f)] public float ScreenFlareWidthScale;
+        [Min(0f)] public float ScreenFlareSpeedScale;
         [Min(0f)] public float RoadResponse;
         [Min(0f)] public float SecondaryRoadResponse;
         [Min(0f)] public float SecondaryRoadDelayBeats;
@@ -218,6 +229,21 @@ namespace DuneVector
         [Range(0, 3)] public int FilamentStrikeCount;
         [Min(0)] public int TrebleParticleCount;
         [Min(0f)] public float TrebleBrightness;
+    }
+
+    [Serializable]
+    public struct MusicVisualAuthoredFlarePattern
+    {
+        [Min(0)] public int StartTimelineMilliseconds;
+        [Min(0)] public int EndTimelineMilliseconds;
+        [Min(0.125f)] public float IntervalBeats;
+        [Min(0)] public int MinimumLineCount;
+        [Min(0)] public int MaximumLineCount;
+        public Vector2 LineLifetimeSeconds;
+        public MusicScreenFlareDirectionMode DirectionMode;
+        [Min(0f)] public float WidthScale;
+        [Min(0f)] public float SpeedScale;
+        public uint Seed;
     }
 
     [Serializable]
@@ -268,6 +294,9 @@ namespace DuneVector
         public int ScreenFlareLineCount;
         public Vector2 ScreenFlareLineLifetimeSeconds;
         public float ScreenFlareHorizontalBias;
+        public MusicScreenFlareDirectionMode ScreenFlareDirectionMode;
+        public float ScreenFlareWidthScale;
+        public float ScreenFlareSpeedScale;
         public float RoadResponse;
         public float SecondaryRoadResponse;
         public float SecondaryRoadDelaySeconds;
@@ -737,6 +766,7 @@ namespace DuneVector
                 EvaluateRuntimeTransients();
                 EvaluateAuthoredPreRolls();
                 EvaluateAuthoredCues();
+                EvaluateAuthoredFlarePatterns();
             }
             using (DispatchMarker.Auto())
             {
@@ -998,6 +1028,63 @@ namespace DuneVector
             }
         }
 
+        private void EvaluateAuthoredFlarePatterns()
+        {
+            if (_profile == null
+                || _state.SuppressTransientEvents
+                || _state.Timeline.DiscontinuousJump
+                || _profile.AuthoredFlarePatterns == null)
+            {
+                return;
+            }
+
+            int current = _state.Timeline.TimelinePositionMilliseconds;
+            float beatMilliseconds = 60000f / Mathf.Max(1f, _profile.BeatsPerMinute);
+            for (int patternIndex = 0; patternIndex < _profile.AuthoredFlarePatterns.Length; patternIndex++)
+            {
+                MusicVisualAuthoredFlarePattern pattern = _profile.AuthoredFlarePatterns[patternIndex];
+                int interval = Mathf.Max(1, Mathf.RoundToInt(pattern.IntervalBeats * beatMilliseconds));
+                int firstStep = Mathf.Max(0, Mathf.FloorToInt(
+                    (_previousTimelinePosition - pattern.StartTimelineMilliseconds) / (float)interval) + 1);
+                for (int step = firstStep; ; step++)
+                {
+                    int cueTime = pattern.StartTimelineMilliseconds + step * interval;
+                    if (cueTime >= pattern.EndTimelineMilliseconds || cueTime > current)
+                    {
+                        break;
+                    }
+                    if (cueTime <= _previousTimelinePosition)
+                    {
+                        continue;
+                    }
+
+                    uint seed = pattern.Seed ^ ((uint)step * 2654435761u)
+                        ^ _state.Timeline.PlaybackGeneration ^ (uint)_profile.StableTrackHash;
+                    int minimum = Mathf.Max(0, pattern.MinimumLineCount);
+                    int maximum = Mathf.Max(minimum, pattern.MaximumLineCount);
+                    int lineCount = minimum + (int)(seed % (uint)(maximum - minimum + 1));
+                    MusicVisualDispatchCommand command = new MusicVisualDispatchCommand
+                    {
+                        Type = MusicVisualCueType.TrebleBurst,
+                        Strength = 1f,
+                        AllowedEffects = MusicVisualEffectGroups.Streaks & _state.Permissions,
+                        CueIndex = -1,
+                        DeterministicSeed = seed,
+                        IsAuthored = true,
+                        ScreenFlareLineCount = lineCount,
+                        ScreenFlareLineLifetimeSeconds = pattern.LineLifetimeSeconds,
+                        ScreenFlareDirectionMode = pattern.DirectionMode,
+                        ScreenFlareWidthScale = pattern.WidthScale,
+                        ScreenFlareSpeedScale = pattern.SpeedScale,
+                    };
+                    for (int sinkIndex = 0; sinkIndex < _sinkCount; sinkIndex++)
+                    {
+                        _sinks[sinkIndex].Dispatch(in command, in _state);
+                    }
+                }
+            }
+        }
+
         private void EvaluateRuntimeTransients()
         {
             if (_state.SuppressTransientEvents || _releaseLocked)
@@ -1118,6 +1205,9 @@ namespace DuneVector
                 ScreenFlareLineCount = cue.ScreenFlareLineCount,
                 ScreenFlareLineLifetimeSeconds = cue.ScreenFlareLineLifetimeSeconds,
                 ScreenFlareHorizontalBias = cue.ScreenFlareHorizontalBias,
+                ScreenFlareDirectionMode = cue.ScreenFlareDirectionMode,
+                ScreenFlareWidthScale = cue.ScreenFlareWidthScale,
+                ScreenFlareSpeedScale = cue.ScreenFlareSpeedScale,
                 RoadResponse = cue.RoadResponse,
                 SecondaryRoadResponse = cue.SecondaryRoadResponse,
                 SecondaryRoadDelaySeconds = cue.SecondaryRoadDelayBeats * beatSeconds,
