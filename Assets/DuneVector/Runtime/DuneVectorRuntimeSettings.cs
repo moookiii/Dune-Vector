@@ -5170,6 +5170,8 @@ namespace DuneVector
         public Vector2 MeterScreenOffset = new Vector2(62f, 4f);
         [Tooltip("Screen-space offset from the drone at full stamina boost. The meter follows the boost acceleration and deceleration blend between the two offsets.")]
         public Vector2 MeterMaximumSpeedScreenOffset = new Vector2(62f, 4f);
+        [Tooltip("While sprint is held without movement input, moves the meter outward by this multiple of its normal sprint inward travel. Values above 1 place it slightly farther out than its non-sprinting position.")]
+        [Min(0f)] public float StationarySprintOutwardCompensation = 1.1f;
         [Min(8f)] public float MeterRadius = 28f;
         [Min(1f)] public float MeterThickness = 5f;
         [Tooltip("Non-procedural texture drawn behind the live stamina fill.")]

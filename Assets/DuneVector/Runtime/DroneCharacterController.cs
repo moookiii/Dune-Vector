@@ -107,6 +107,7 @@ namespace DuneVector
         public DroneTraversalMode CurrentMode { get; private set; } = DroneTraversalMode.Normal;
         public bool IsBoosting => _stamina != null && _stamina.IsBoosting;
         public float StaminaBoostBlend => _boostSpeedModifier != null ? _boostSpeedModifier.BoostBlend : 0f;
+        public bool HasMovementInput => _rawMove.sqrMagnitude > 0.0001f;
         public bool IsRingBoosting => _ringBoostTimeRemaining > 0f;
         public float RingBoostRemainingNormalized => RingBoostDuration > 0f
             ? Mathf.Clamp01(_ringBoostTimeRemaining / RingBoostDuration)
