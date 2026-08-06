@@ -26,6 +26,10 @@ namespace DuneVector
         public MusicVisualSectionDefinition[] Sections = Array.Empty<MusicVisualSectionDefinition>();
         public MusicVisualAuthoredCue[] AuthoredCues = Array.Empty<MusicVisualAuthoredCue>();
 
+        [Header("Complete Song Visualizer Tuning")]
+        [Tooltip("Music-reactive sky, analysis, transient, foreground, camera, bloom, and glitch settings activated with this song.")]
+        public MusicReactiveSkyTuning ReactiveSkySettings = new MusicReactiveSkyTuning();
+
         public int StableTrackHash => MusicMarkerHash.Compute(StableTrackId);
 
         public int ResolveSectionIndex(int timelineMilliseconds, int trackBar)

@@ -60,9 +60,9 @@ namespace DuneVector
         public MusicVisualTrackProfile ActiveMusicTrackProfile => ActiveMusicTrack != null
             ? ActiveMusicTrack.VisualizerProfile
             : _musicReactiveSettings != null ? _musicReactiveSettings.TrackProfile : null;
-        public MusicReactiveSkyTuning ActiveMusicReactiveSkySettings => ActiveMusicTrack != null
-            && ActiveMusicTrack.ReactiveSkySettings != null
-                ? ActiveMusicTrack.ReactiveSkySettings
+        public MusicReactiveSkyTuning ActiveMusicReactiveSkySettings => ActiveMusicTrackProfile != null
+            && ActiveMusicTrackProfile.ReactiveSkySettings != null
+                ? ActiveMusicTrackProfile.ReactiveSkySettings
                 : _musicReactiveSettings;
         public string ActiveMusicDisplayName => ActiveMusicTrack != null
             ? ActiveMusicTrack.DisplayName
@@ -730,7 +730,6 @@ namespace DuneVector
                     DisplayName = _settings.BackgroundMusicEvent,
                     FmodEventPath = _settings.BackgroundMusicEvent,
                     VisualizerProfile = _musicReactiveSettings != null ? _musicReactiveSettings.TrackProfile : null,
-                    ReactiveSkySettings = _musicReactiveSettings,
                 });
             }
 

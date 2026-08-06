@@ -4891,8 +4891,6 @@ namespace DuneVector
         public string FmodEventPath;
         [Tooltip("Visualizer composition and cue profile selected while this song is active.")]
         public MusicVisualTrackProfile VisualizerProfile;
-        [Tooltip("Complete music-reactive sky, analysis, transient, foreground, camera, and glitch tuning used by this song.")]
-        public MusicReactiveSkyTuning ReactiveSkySettings = new MusicReactiveSkyTuning();
     }
 
     [System.Serializable]
