@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -236,9 +237,9 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
         }
 
         // Store the current enable state of volumetric clouds in a global shader keyword
-        bool isDebugger = DebugManager.instance.isAnyDebugUIActive;
-        var stack = VolumeManager.instance.stack;
-        VolumetricClouds cloudsVolume = stack.GetComponent<VolumetricClouds>();
+        bool isDebugger = DebugManager.instance != null && DebugManager.instance.isAnyDebugUIActive;
+        VolumeStack stack = VolumeManager.instance != null ? VolumeManager.instance.stack : null;
+        VolumetricClouds cloudsVolume = stack != null ? stack.GetComponent<VolumetricClouds>() : null;
         bool isVolumeActive = cloudsVolume != null && cloudsVolume.IsActive() && (!isDebugger || renderingDebugger);
 
         if (!isActive || !isVolumeActive)
@@ -410,6 +411,26 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
         private RTHandle accumulateHandle;
         private RTHandle historyHandle;
         private RTHandle cameraTempDepthHandle;
+
+#if UNITY_6000_0_OR_NEWER
+        private sealed class CameraHistoryBuffers
+        {
+            internal RTHandle Accumulation;
+            internal RTHandle History;
+            internal bool IsValid;
+
+            internal void Release()
+            {
+                Accumulation?.Release();
+                History?.Release();
+                Accumulation = null;
+                History = null;
+                IsValid = false;
+            }
+        }
+
+        private readonly Dictionary<EntityId, CameraHistoryBuffers> cameraHistoryBuffers = new();
+#endif
 
         private readonly Material cloudsMaterial;
 
@@ -980,6 +1001,8 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
             internal TextureHandle accumulateHandle;
             internal TextureHandle historyHandle;
 
+            internal CameraHistoryBuffers historyBuffers;
+
             internal TextureHandle cameraTempDepthHandle;
         }
 
@@ -1010,11 +1033,16 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
 
             if (data.denoiseClouds)
             {
-                // Prepare Temporal Reprojection (copy source buffer: colorHandle.rgb + cloudsHandle.a)
-                Blitter.BlitCameraTexture(cmd, data.cameraColorHandle, data.accumulateHandle, data.cloudsMaterial, pass: 2);
+                data.cloudsMaterial.SetTexture(volumetricCloudsHistoryTexture, data.historyHandle);
 
-                // Temporal Reprojection
-                Blitter.BlitCameraTexture(cmd, data.accumulateHandle, data.cameraColorHandle, data.cloudsMaterial, pass: 3);
+                if (data.historyBuffers.IsValid)
+                {
+                    // Prepare Temporal Reprojection (copy source buffer: colorHandle.rgb + cloudsHandle.a)
+                    Blitter.BlitCameraTexture(cmd, data.cameraColorHandle, data.accumulateHandle, data.cloudsMaterial, pass: 2);
+
+                    // Temporal Reprojection
+                    Blitter.BlitCameraTexture(cmd, data.accumulateHandle, data.cameraColorHandle, data.cloudsMaterial, pass: 3);
+                }
 
                 // Update history texture for temporal reprojection
                 if (data.canCopy)
@@ -1023,6 +1051,7 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
                     Blitter.BlitCameraTexture(cmd, data.cameraColorHandle, data.historyHandle, RenderBufferLoadAction.Load, RenderBufferStoreAction.Store, data.cloudsMaterial, pass: 2);
 
                 data.cloudsMaterial.SetTexture(volumetricCloudsHistoryTexture, data.historyHandle);
+                data.historyBuffers.IsValid = true;
             }
 
             context.cmd.SetRenderTarget(data.cameraColorHandle, data.activeDepthHandle);
@@ -1119,8 +1148,38 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
                 desc.depthBufferBits = 0;
                 desc.colorFormat = cloudsHandleFormat;
 
-                TextureHandle accumulateHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, name: _VolumetricCloudsAccumulationTexture, false, FilterMode.Point, TextureWrapMode.Clamp);
-                TextureHandle historyHandle = UniversalRenderer.CreateRenderGraphTexture(renderGraph, desc, name: _VolumetricCloudsHistoryTexture, false, FilterMode.Point, TextureWrapMode.Clamp);
+                TextureHandle accumulateTextureHandle = default;
+                TextureHandle historyTextureHandle = default;
+
+                if (denoiseClouds)
+                {
+                    EntityId cameraId = cameraData.camera.GetEntityId();
+                    if (!cameraHistoryBuffers.TryGetValue(cameraId, out CameraHistoryBuffers buffers))
+                    {
+                        buffers = new CameraHistoryBuffers();
+                        cameraHistoryBuffers.Add(cameraId, buffers);
+                    }
+
+                    bool historyReallocated = RenderingUtils.ReAllocateHandleIfNeeded(
+                        ref buffers.History,
+                        desc,
+                        FilterMode.Point,
+                        TextureWrapMode.Clamp,
+                        name: _VolumetricCloudsHistoryTexture);
+                    RenderingUtils.ReAllocateHandleIfNeeded(
+                        ref buffers.Accumulation,
+                        desc,
+                        FilterMode.Point,
+                        TextureWrapMode.Clamp,
+                        name: _VolumetricCloudsAccumulationTexture);
+
+                    if (historyReallocated)
+                        buffers.IsValid = false;
+
+                    accumulateTextureHandle = renderGraph.ImportTexture(buffers.Accumulation);
+                    historyTextureHandle = renderGraph.ImportTexture(buffers.History);
+                    passData.historyBuffers = buffers;
+                }
 
                 // Full resolution camera texture descriptor
                 RenderTextureDescriptor tempDepthDesc = desc;
@@ -1159,8 +1218,8 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
                 passData.hasAtmosphericScattering = hasAtmosphericScattering;
 
                 passData.cloudsColorHandle = cloudsTextureHandle;
-                passData.accumulateHandle = accumulateHandle;
-                passData.historyHandle = historyHandle;
+                passData.accumulateHandle = accumulateTextureHandle;
+                passData.historyHandle = historyTextureHandle;
 
                 ConfigureInput(ScriptableRenderPassInput.Depth);
 
@@ -1169,8 +1228,11 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
                 builder.UseTexture(passData.activeDepthHandle, AccessFlags.None);
                 builder.UseTexture(passData.cameraDepthHandle, AccessFlags.Read);
                 builder.UseTexture(passData.cloudsColorHandle, AccessFlags.Write);
-                builder.UseTexture(passData.accumulateHandle, AccessFlags.Write);
-                builder.UseTexture(passData.historyHandle, AccessFlags.ReadWrite);
+                if (passData.denoiseClouds)
+                {
+                    builder.UseTexture(passData.accumulateHandle, AccessFlags.Write);
+                    builder.UseTexture(passData.historyHandle, AccessFlags.ReadWrite);
+                }
 
                 // Assign the ExecutePass function to the render pass delegate, which will be called by the render graph when executing the pass
                 builder.SetRenderFunc((PassData data, UnsafeGraphContext context) => ExecutePass(data, context));
@@ -1187,6 +1249,11 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
             historyHandle?.Release();
             accumulateHandle?.Release();
             cameraTempDepthHandle?.Release();
+#if UNITY_6000_0_OR_NEWER
+            foreach (CameraHistoryBuffers buffers in cameraHistoryBuffers.Values)
+                buffers.Release();
+            cameraHistoryBuffers.Clear();
+#endif
         }
         #endregion
     }
