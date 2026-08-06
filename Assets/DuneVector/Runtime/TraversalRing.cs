@@ -403,7 +403,9 @@ namespace DuneVector
                 + (Vector3.up * (isFlying ? FlightModeHeightOffset : 0f));
             float heightSharpness = isFlying
                 ? FlightModeHeightSharpness
-                : FlightModeGroundResetHeightSharpness;
+                : _controller.FlightEndedByMeterExhaustion
+                    ? FlightModeGroundResetHeightSharpness
+                    : FlightModeHeightSharpness;
             _cachedTransform.localPosition = Vector3.Lerp(
                 _cachedTransform.localPosition,
                 targetPosition,

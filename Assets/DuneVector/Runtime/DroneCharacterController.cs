@@ -123,6 +123,7 @@ namespace DuneVector
         public float FlightElapsedTime => _flightElapsedTime;
         public float FlightTimeRemaining { get; private set; }
         public float FlightTimeNormalized => FlightDuration > 0f ? Mathf.Clamp01(FlightTimeRemaining / FlightDuration) : 0f;
+        public bool FlightEndedByMeterExhaustion { get; private set; }
         public bool DebugInfiniteFlight { get; private set; }
         public float FlightSpeedMultiplier => _flightSpeedMultiplier;
         public float CurrentMaximumFlightSpeed => MaximumFlightSpeed * _flightSpeedMultiplier * CargoSpeedMultiplier;
@@ -528,6 +529,7 @@ namespace DuneVector
             {
                 _flightRequested = false;
                 CurrentMode = DroneTraversalMode.Flight;
+                FlightEndedByMeterExhaustion = false;
                 _flightElapsedTime = 0f;
                 if (_flightBurstRequested)
                 {
@@ -1014,7 +1016,7 @@ namespace DuneVector
                 TickFlightMeterAutosave(deltaTime);
                 if (FlightTimeRemaining <= 0f)
                 {
-                    FinishFlight();
+                    FinishFlight(true);
                     return;
                 }
                 TryFinishFlight();
@@ -1124,11 +1126,11 @@ namespace DuneVector
                 && Motor.BaseVelocity.y <= MaximumLandingVerticalSpeed
                 && surfaceAngle <= MaximumLandingAngle)
             {
-                FinishFlight();
+                FinishFlight(false);
             }
         }
 
-        private void FinishFlight()
+        private void FinishFlight(bool meterExhausted)
         {
             BeginFlightLandingVisual();
             Vector3 landingForward = Vector3.ProjectOnPlane(Motor.CharacterForward, Vector3.up);
@@ -1145,6 +1147,7 @@ namespace DuneVector
             Motor.SetRotation(Quaternion.LookRotation(landingForward, Vector3.up));
             _lookInputWorld = landingForward;
             CurrentMode = DroneTraversalMode.Normal;
+            FlightEndedByMeterExhaustion = meterExhausted;
             Motor.SetGroundSolvingActivation(true);
             _flightElapsedTime = 0f;
             _flightSpeedMultiplier = 1f;
