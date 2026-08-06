@@ -19,6 +19,8 @@ namespace DuneVector
         [Header("Scene References")]
         [Tooltip("The gameplay camera authored in the scene so its framing is visible before Play mode.")]
         public Camera SceneCamera;
+        [Tooltip("The directional sun authored in the scene so its lighting direction is visible before Play mode.")]
+        public Light SceneSun;
 
         public DroneTuning PlayerTuning => RuntimeSettings.PlayerTuning;
         public DroneVisualTuning DroneVisuals => RuntimeSettings.DroneVisuals;
@@ -767,18 +769,25 @@ namespace DuneVector
         private void BuildEnvironment()
         {
             DesertWeatherAtmosphereTuning atmosphere = WeatherSettings.Atmosphere;
-            GameObject sunObject = new GameObject("Desert Sun");
-            sunObject.transform.SetParent(transform, false);
-            sunObject.transform.rotation = Quaternion.Euler(38f, -28f, 0f);
-            Light sun = sunObject.AddComponent<Light>();
+            GameObject sunObject = SceneSun != null
+                ? SceneSun.gameObject
+                : new GameObject("Desert Sun");
+            if (SceneSun == null)
+            {
+                sunObject.transform.SetParent(transform, false);
+            }
+            sunObject.transform.rotation = Quaternion.Euler(atmosphere.SunRotation);
+            Light sun = SceneSun != null ? SceneSun : sunObject.AddComponent<Light>();
+            SceneSun = sun;
             sun.type = LightType.Directional;
-            sun.color = new Color(1f, 0.78f, 0.58f);
+            sun.color = atmosphere.SunColor;
             sun.shadows = atmosphere.SunShadowType;
             sun.shadowResolution = atmosphere.SunShadowResolution;
             sun.GetUniversalAdditionalLightData().softShadowQuality = atmosphere.SunSoftShadowQuality;
             sun.lightUnit = LightUnit.Lux;
             sun.intensity = atmosphere.SunIntensity;
             sun.shadowStrength = Mathf.Clamp01(atmosphere.SunShadowDimmer);
+            RenderSettings.sun = sun;
 
             GameObject volumeObject = new GameObject("URP Desert Environment");
             volumeObject.transform.SetParent(transform, false);

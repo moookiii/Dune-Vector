@@ -11,11 +11,13 @@ namespace DuneVector.Editor
     {
         private SerializedProperty _runtimeSettings;
         private SerializedProperty _sceneCamera;
+        private SerializedProperty _sceneSun;
 
         private void OnEnable()
         {
             _runtimeSettings = serializedObject.FindProperty("RuntimeSettings");
             _sceneCamera = serializedObject.FindProperty("SceneCamera");
+            _sceneSun = serializedObject.FindProperty("SceneSun");
         }
 
         public override void OnInspectorGUI()
@@ -36,6 +38,9 @@ namespace DuneVector.Editor
             EditorGUILayout.PropertyField(_sceneCamera, new GUIContent(
                 "Gameplay Camera",
                 "The authored camera used in Edit mode and reused when gameplay starts."));
+            EditorGUILayout.PropertyField(_sceneSun, new GUIContent(
+                "Desert Sun",
+                "The authored directional light used in Edit mode and reused when gameplay starts."));
             serializedObject.ApplyModifiedProperties();
 
             DuneVectorRuntimeSettings settings = _runtimeSettings.objectReferenceValue as DuneVectorRuntimeSettings;

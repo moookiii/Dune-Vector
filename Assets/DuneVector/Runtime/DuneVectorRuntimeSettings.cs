@@ -3850,6 +3850,8 @@ namespace DuneVector
     public sealed class DesertWeatherAtmosphereTuning
     {
         [Header("Desert Sun")]
+        public Vector3 SunRotation = new Vector3(38f, -28f, 0f);
+        [ColorUsage(false)] public Color SunColor = new Color(1f, 0.78f, 0.58f);
         [Min(0f)] public float SunIntensity = 3f;
         [Range(0f, 1f)] public float SunShadowDimmer = 0.75f;
         public LightShadows SunShadowType = LightShadows.Soft;
