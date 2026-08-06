@@ -493,6 +493,7 @@ namespace DuneVector
 
         public void Initialize(
             DronePlayer playerInput,
+            DuneVectorAudioManager audio,
             DroneCharacterController player,
             DroneHealth health,
             DesertWorldStreamer world,
@@ -542,6 +543,7 @@ namespace DuneVector
             _messagePresenter = gameObject.AddComponent<DuneVectorDeliveryMessagePresenter>();
             _messagePresenter.Initialize(
                 _messageSettings,
+                audio,
                 Progress.DeliveryMessageInputHintAcknowledged,
                 Progress.AcknowledgeDeliveryMessageInputHint);
             _sandAmbusherSystem = gameObject.AddComponent<DuneVectorSandAmbusherSystem>();

@@ -984,6 +984,7 @@ namespace DuneVector
                 CourierGame = courierObject.AddComponent<DuneVectorCourierGame>();
                 CourierGame.Initialize(
                     Player,
+                    AudioManager,
                     Drone,
                     DroneHealth,
                     World,

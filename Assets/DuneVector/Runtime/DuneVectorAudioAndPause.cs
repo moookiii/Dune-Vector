@@ -109,6 +109,7 @@ namespace DuneVector
         private bool _hasMasterBus;
         private bool _hasMusicBus;
         private bool _hasSoundEffectsBus;
+        private float _musicDuckMultiplier = 1f;
         private DroneHealth _health;
         private DroneCharacterController _drone;
         private DroneLockOnController _lockOnController;
@@ -459,13 +460,26 @@ namespace DuneVector
             MusicVolume = Mathf.Clamp01(volume);
             if (_hasMusicBus && _musicBus.isValid())
             {
-                ApplyBusVolumeAndMute(_musicBus, MusicVolume);
+                ApplyBusVolumeAndMute(_musicBus, EffectiveMusicVolume);
             }
             else if (_musicInstance.isValid())
             {
                 ApplyMusicInstanceVolumeAndMute();
             }
             _preferencesDirty = true;
+        }
+
+        public void SetMusicDuckMultiplier(float multiplier)
+        {
+            _musicDuckMultiplier = Mathf.Clamp01(multiplier);
+            if (_hasMusicBus && _musicBus.isValid())
+            {
+                ApplyBusVolumeAndMute(_musicBus, EffectiveMusicVolume);
+            }
+            else if (_musicInstance.isValid())
+            {
+                ApplyMusicInstanceVolumeAndMute();
+            }
         }
 
         public void SetSoundEffectsVolume(float volume)
@@ -738,7 +752,7 @@ namespace DuneVector
             _userMusicPaused = paused;
             if (_musicInstance.isValid())
             {
-                bool shouldPauseInstance = paused || (!_hasMusicBus && IsMuted(MusicVolume));
+                bool shouldPauseInstance = paused || (!_hasMusicBus && IsMuted(EffectiveMusicVolume));
                 _musicInstance.setPaused(shouldPauseInstance);
                 _timelineState.IsPaused = shouldPauseInstance || _gameplayPaused;
             }
@@ -930,7 +944,7 @@ namespace DuneVector
         {
             if (_hasMusicBus && _musicBus.isValid())
             {
-                ApplyBusVolumeAndMute(_musicBus, MusicVolume);
+                ApplyBusVolumeAndMute(_musicBus, EffectiveMusicVolume);
             }
             if (_hasSoundEffectsBus && _soundEffectsBus.isValid())
             {
@@ -940,17 +954,20 @@ namespace DuneVector
 
         private void ApplyMusicInstanceVolumeAndMute()
         {
-            bool muted = IsMuted(MusicVolume);
+            float effectiveVolume = EffectiveMusicVolume;
+            bool muted = IsMuted(effectiveVolume);
             if (muted || _userMusicPaused)
             {
                 _musicInstance.setPaused(true);
-                _musicInstance.setVolume(muted ? 0f : MusicVolume);
+                _musicInstance.setVolume(muted ? 0f : effectiveVolume);
                 return;
             }
 
-            _musicInstance.setVolume(MusicVolume);
+            _musicInstance.setVolume(effectiveVolume);
             _musicInstance.setPaused(false);
         }
+
+        private float EffectiveMusicVolume => MusicVolume * _musicDuckMultiplier;
 
         private static void ApplyBusVolumeAndMute(Bus bus, float volume)
         {

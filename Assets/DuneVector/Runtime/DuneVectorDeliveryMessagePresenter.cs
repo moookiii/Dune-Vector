@@ -203,6 +203,7 @@ namespace DuneVector
         private readonly DeliveryMessageTypingAudio _typingAudio = new DeliveryMessageTypingAudio();
         private IReadOnlyList<string> _pages = Array.Empty<string>();
         private DeliveryMessageTuning _settings;
+        private DuneVectorAudioManager _audio;
         private float _timeScaleBeforeOpen = 1f;
         private bool _gameplayPauseActive;
         private Action _completed;
@@ -235,11 +236,13 @@ namespace DuneVector
 
         public void Initialize(
             DeliveryMessageTuning settings,
+            DuneVectorAudioManager audio,
             bool hasAcknowledgedInputHint,
             Action firstInteraction)
         {
             _settings = settings ?? new DeliveryMessageTuning();
             _settings.EnsureInitialized();
+            _audio = audio;
             _hasAcknowledgedInputHint = hasAcknowledgedInputHint;
             _firstInteraction = firstInteraction;
             CreateRuntimeFont();
@@ -297,6 +300,10 @@ namespace DuneVector
             _allowCancel = allowCancel;
             _showFirstUseHint = showFirstUseHint && !_hasAcknowledgedInputHint;
             IsOpen = true;
+            if (!allowCancel)
+            {
+                _audio?.SetMusicDuckMultiplier(_settings.PostContractMusicVolumeMultiplier);
+            }
             BeginGameplayPause();
             if (!delayFirstPage)
             {
@@ -314,6 +321,10 @@ namespace DuneVector
 
             _typingAudio.Stop();
             IsOpen = false;
+            if (!_allowCancel)
+            {
+                _audio?.SetMusicDuckMultiplier(1f);
+            }
             EndGameplayPause();
             Action callback = _completed;
             _completed = null;

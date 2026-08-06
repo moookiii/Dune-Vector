@@ -53,6 +53,10 @@ namespace DuneVector
         [Tooltip("Explicitly allows the authored sequence to replay from the beginning after its final entry.")]
         public bool LoopSequence;
 
+        [Header("Audio")]
+        [Tooltip("Music mixer volume multiplier applied while a post-contract message is open. The player's music volume is restored when the message closes.")]
+        [Range(0f, 1f)] public float PostContractMusicVolumeMultiplier = 0.25f;
+
         [Header("Typewriter")]
         [Tooltip("Seconds the message UI remains empty before the first page begins typing.")]
         [Min(0f)] public float FirstPageTypingDelay = 1f;
