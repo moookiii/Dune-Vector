@@ -4911,6 +4911,8 @@ namespace DuneVector
         [Min(0f)] public float SongTextShadowOffset = 2f;
         [Min(10)] public int SongTitleFontSize = 18;
         [Min(10)] public int SongControlFontSize = 20;
+        [Min(10)] public int SongPauseFontSize = 24;
+        public float SongPauseVerticalOffset = 4f;
         [ColorUsage(false)] public Color SongTextColor = Color.white;
         [ColorUsage(false)] public Color SongTextShadowColor = Color.black;
 

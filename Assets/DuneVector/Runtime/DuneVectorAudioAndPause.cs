@@ -1147,6 +1147,8 @@ namespace DuneVector
         private GUIStyle _songTitleShadowStyle;
         private GUIStyle _songControlStyle;
         private GUIStyle _songControlShadowStyle;
+        private GUIStyle _songPauseStyle;
+        private GUIStyle _songPauseShadowStyle;
 
         private Texture2D _transparentTexture;
         private Texture2D _primaryButtonTexture;
@@ -1726,9 +1728,11 @@ namespace DuneVector
                 _audio?.PlayPreviousMusicTrack();
             }
             bool playbackPaused = _audio != null && _audio.IsMusicPlaybackPaused;
+            Rect pauseRect = playPauseRect;
+            pauseRect.y += _visuals.SongPauseVerticalOffset * scale;
             bool playPausePressed = playbackPaused
                 ? DrawSongControlButton(playPauseRect, "▶", shadowOffset)
-                : DrawSongPauseButton(playPauseRect, shadowOffset, scale);
+                : DrawSongPauseButton(pauseRect, shadowOffset);
             if (playPausePressed)
             {
                 _audio?.ToggleMusicPlayback();
@@ -1745,23 +1749,10 @@ namespace DuneVector
             return GUI.Button(rect, label, _songControlStyle);
         }
 
-        private bool DrawSongPauseButton(Rect rect, float shadowOffset, float scale)
+        private bool DrawSongPauseButton(Rect rect, float shadowOffset)
         {
-            float scaledFontSize = _visuals.SongControlFontSize * scale;
-            float barWidth = scaledFontSize * 0.2f;
-            float barHeight = scaledFontSize * 0.85f;
-            float barGap = scaledFontSize * 0.25f;
-            float totalWidth = (barWidth * 2f) + barGap;
-            float left = rect.center.x - (totalWidth * 0.5f);
-            float top = rect.center.y - (barHeight * 0.5f);
-            Rect leftBar = new Rect(left, top, barWidth, barHeight);
-            Rect rightBar = new Rect(left + barWidth + barGap, top, barWidth, barHeight);
-
-            DrawSolidRect(OffsetRect(leftBar, shadowOffset), _visuals.SongTextShadowColor);
-            DrawSolidRect(OffsetRect(rightBar, shadowOffset), _visuals.SongTextShadowColor);
-            DrawSolidRect(leftBar, _visuals.SongTextColor);
-            DrawSolidRect(rightBar, _visuals.SongTextColor);
-            return GUI.Button(rect, GUIContent.none, _songControlStyle);
+            GUI.Label(OffsetRect(rect, shadowOffset), "Ⅱ", _songPauseShadowStyle);
+            return GUI.Button(rect, "Ⅱ", _songPauseStyle);
         }
 
         private static Rect OffsetRect(Rect rect, float offset)
@@ -2040,6 +2031,14 @@ namespace DuneVector
                 _visuals.SongTextColor);
             _songControlShadowStyle = CreateLabelStyle(
                 Mathf.RoundToInt(_visuals.SongControlFontSize * scale),
+                FontStyle.Bold,
+                TextAnchor.MiddleCenter,
+                _visuals.SongTextShadowColor);
+            _songPauseStyle = CreateTransparentButtonStyle(
+                Mathf.RoundToInt(_visuals.SongPauseFontSize * scale),
+                _visuals.SongTextColor);
+            _songPauseShadowStyle = CreateLabelStyle(
+                Mathf.RoundToInt(_visuals.SongPauseFontSize * scale),
                 FontStyle.Bold,
                 TextAnchor.MiddleCenter,
                 _visuals.SongTextShadowColor);
