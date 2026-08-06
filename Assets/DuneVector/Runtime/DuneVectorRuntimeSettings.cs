@@ -4127,6 +4127,8 @@ namespace DuneVector
         public Vector2 ReactorCenterOutLifetimeRange;
         [Min(0f)] public float CenterOutRadialSpeed;
         [Range(0f, 1f)] public float CenterOutTowardCameraSpeedFraction;
+        [Tooltip("Keep each authored center-out line's inner endpoint locked to the drone while its outer endpoint expands.")]
+        public bool CenterOutAnchorRayOrigins;
         [Range(0f, 1f)] public float CenterOutDirectionalVariation;
         [Range(0f, 1f)] public float CenterOutFineLineFraction = 0.55f;
         [Range(0.05f, 1f)] public float CenterOutFineLineWidthMultiplier = 0.32f;
