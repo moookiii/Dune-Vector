@@ -98,6 +98,7 @@ def restore_original_assignments():
 
 
 plastic006_image = load_texture("Drone_Plastic006_Color.jpg", "sRGB")
+plastic006_pattern_mask = load_texture("Drone_Plastic006_PatternMask.png", "Non-Color")
 
 restored_slots = restore_original_assignments()
 tech_cyan = bpy.data.materials.get("Tech_Cyan")
@@ -133,11 +134,17 @@ def make_textured_variant(original):
     if shader is None:
         raise RuntimeError(f"{original.name} has no Principled BSDF")
 
+    base_input = input_socket(shader, "Base Color")
+    original_link = base_input.links[0].from_socket if base_input.is_linked else None
+    original_color = tuple(base_input.default_value)
+    if base_input.is_linked:
+        links.remove(base_input.links[0])
+
     texcoord = nodes.new("ShaderNodeTexCoord")
     texcoord.location = (-1150, 0)
     mapping = nodes.new("ShaderNodeMapping")
     mapping.location = (-950, 0)
-    mapping.inputs["Scale"].default_value = (1.0, 1.0, 1.0)
+    mapping.inputs["Scale"].default_value = (1.5, 1.5, 1.5)
     links.new(texcoord.outputs["Generated"], mapping.inputs["Vector"])
 
     def image_node(image, location, label):
@@ -152,21 +159,40 @@ def make_textured_variant(original):
         links.new(mapping.outputs["Vector"], node.inputs["Vector"])
         return node
 
-    color_texture = image_node(plastic006_image, (-700, 220), "Plastic006 wear texture")
+    color_texture = image_node(plastic006_pattern_mask, (-700, 220), "Plastic006 contrast pattern")
 
     grayscale = nodes.new("ShaderNodeRGBToBW")
     grayscale.location = (-430, 280)
 
+    color_variation = nodes.new("ShaderNodeValToRGB")
+    color_variation.location = (-200, 260)
+    color_variation.color_ramp.interpolation = "EASE"
+    color_variation.color_ramp.elements[0].position = 0.10
+    color_variation.color_ramp.elements[0].color = (0.45, 0.45, 0.45, 1.0)
+    color_variation.color_ramp.elements[1].position = 0.90
+    color_variation.color_ramp.elements[1].color = (1.0, 1.0, 1.0, 1.0)
+
     roughness_variation = nodes.new("ShaderNodeValToRGB")
     roughness_variation.location = (-200, -80)
     roughness_variation.color_ramp.interpolation = "EASE"
-    roughness_variation.color_ramp.elements[0].position = 0.008
+    roughness_variation.color_ramp.elements[0].position = 0.10
     roughness_variation.color_ramp.elements[0].color = (0.38, 0.38, 0.38, 1.0)
-    roughness_variation.color_ramp.elements[1].position = 0.10
+    roughness_variation.color_ramp.elements[1].position = 0.90
     roughness_variation.color_ramp.elements[1].color = (0.62, 0.62, 0.62, 1.0)
 
+    color_mix = nodes.new("ShaderNodeMixRGB")
+    color_mix.location = (50, 220)
+    color_mix.blend_type = "MULTIPLY"
+    color_mix.inputs[0].default_value = 0.45
+    color_mix.inputs[1].default_value = original_color
+    if original_link is not None:
+        links.new(original_link, color_mix.inputs[1])
+
     links.new(color_texture.outputs["Color"], grayscale.inputs["Color"])
+    links.new(grayscale.outputs["Val"], color_variation.inputs["Fac"])
     links.new(grayscale.outputs["Val"], roughness_variation.inputs["Fac"])
+    links.new(color_variation.outputs["Color"], color_mix.inputs[2])
+    links.new(color_mix.outputs["Color"], base_input)
     links.new(roughness_variation.outputs["Color"], shader.inputs["Roughness"])
 
     return material
