@@ -15,6 +15,8 @@ namespace DuneVector
         private const string FlightRingProgressSaveFileName = "DuneVectorFlightRingProgress.dat";
         private static readonly int VolumetricCloudsWorldOriginOffsetId =
             Shader.PropertyToID("_VolumetricCloudsWorldOriginOffset");
+        private static readonly int MassiveCloudsWorldOriginOffsetId =
+            Shader.PropertyToID("_MassiveCloudsWorldOriginOffset");
 
         [Serializable]
         private sealed class FlightRingProgressSaveData
@@ -616,14 +618,19 @@ namespace DuneVector
 
         private void SetVolumetricCloudsLogicalOrigin()
         {
+            Vector4 logicalOriginOffset = new Vector4((float)OriginOffsetX, (float)OriginOffsetZ, 0f, 0f);
             Shader.SetGlobalVector(
                 VolumetricCloudsWorldOriginOffsetId,
-                new Vector4((float)OriginOffsetX, (float)OriginOffsetZ, 0f, 0f));
+                logicalOriginOffset);
+            Shader.SetGlobalVector(
+                MassiveCloudsWorldOriginOffsetId,
+                logicalOriginOffset);
         }
 
         private void OnDestroy()
         {
             Shader.SetGlobalVector(VolumetricCloudsWorldOriginOffsetId, Vector4.zero);
+            Shader.SetGlobalVector(MassiveCloudsWorldOriginOffsetId, Vector4.zero);
         }
 
         private void RepositionContractGroundRoot(Transform root, Vector2Int coordinate)

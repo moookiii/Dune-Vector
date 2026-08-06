@@ -47,7 +47,9 @@ inline float SampleDensity(float3 pos, float scale, float phase)
     float bias = 10000;
     float3 texScale  = _VolumeTex_ST.xyx / bias / scale;
     float3 texOffset = (_TexOffset + _ScrollOffset) * phase * texScale;
-    float3 texPos    =  pos * texScale + texOffset;
+    float3 logicalPos = pos;
+    logicalPos.xz += _MassiveCloudsWorldOriginOffset.xy;
+    float3 texPos    =  logicalPos * texScale + texOffset;
     
     return tex3Dlod(_VolumeTex, float4(texPos.xyz, 0)).a;
 }

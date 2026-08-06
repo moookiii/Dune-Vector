@@ -53,6 +53,7 @@ float  _Scale;
 
 float _TimeFactor;
 float3 _TexOffset;
+float4 _MassiveCloudsWorldOriginOffset;
 
 float _Optimize;
 
