@@ -147,7 +147,9 @@ def make_speckled_variant(original):
 
     normal_map = nodes.new("ShaderNodeNormalMap")
     normal_map.location = (100, -300)
-    normal_map.inputs["Strength"].default_value = 0.34
+    # The 12x texture scale makes tangent-space surface detail read as broad ridges.
+    # Keep the map connected for authoring, but disable its shading contribution.
+    normal_map.inputs["Strength"].default_value = 0.0
 
     links.new(color_texture.outputs["Color"], grayscale.inputs["Color"])
     links.new(grayscale.outputs["Val"], ramp.inputs["Fac"])
@@ -183,6 +185,14 @@ for obj in bpy.context.scene.objects:
             textured_slots += 1
         else:
             untouched_nonplastic_slots += 1
+
+bpy.ops.object.select_all(action="DESELECT")
+mesh_objects = [obj for obj in bpy.context.scene.objects if obj.type == "MESH"]
+for obj in mesh_objects:
+    obj.select_set(True)
+if mesh_objects:
+    bpy.context.view_layer.objects.active = mesh_objects[0]
+    bpy.ops.object.shade_smooth_by_angle()
 
 for screen in bpy.data.screens:
     for area in screen.areas:
