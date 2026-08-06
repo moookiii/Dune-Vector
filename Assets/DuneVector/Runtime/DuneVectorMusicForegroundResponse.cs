@@ -280,7 +280,10 @@ namespace DuneVector
                         || command.Type == MusicVisualCueType.TrebleBurst
                         || command.Type == MusicVisualCueType.ReactorDischarge))
                 {
-                    EmitStreaks(in command, state.Energy);
+                    EmitStreaks(
+                        in command,
+                        state.Energy,
+                        state.Timeline.TimelinePositionMilliseconds);
                 }
             }
         }
@@ -312,7 +315,10 @@ namespace DuneVector
             _roadPulseCursor = (selected + 1) % _roadPulses.Length;
         }
 
-        private void EmitStreaks(in MusicVisualDispatchCommand command, float musicEnergy)
+        private void EmitStreaks(
+            in MusicVisualDispatchCommand command,
+            float musicEnergy,
+            int timelinePositionMilliseconds)
         {
             if (_streaks == null || _centerOutStreaks == null)
             {
@@ -329,6 +335,18 @@ namespace DuneVector
                 ? _settings.CenterOutParticlePoolCapacity
                 : _settings.ForegroundStreakParticleBudget;
             int available = Mathf.Max(0, capacity - targetStreaks.particleCount);
+            if (_settings.OpeningStreakLimitDurationSeconds > 0f
+                && _settings.OpeningStreakMaximumVisibleLines > 0
+                && timelinePositionMilliseconds < Mathf.RoundToInt(
+                    _settings.OpeningStreakLimitDurationSeconds * 1000f))
+            {
+                int openingVisibleLines = _streaks.particleCount + _centerOutStreaks.particleCount;
+                available = Mathf.Min(
+                    available,
+                    Mathf.Max(
+                        0,
+                        _settings.OpeningStreakMaximumVisibleLines - openingVisibleLines));
+            }
             float punch = musicEnergy <= _settings.ForegroundStreakSlowEnergyThreshold
                 ? Mathf.Max(1f, _settings.ForegroundStreakSlowPunchMultiplier)
                 : 1f;
