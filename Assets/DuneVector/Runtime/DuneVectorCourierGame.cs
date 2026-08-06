@@ -858,6 +858,7 @@ namespace DuneVector
                 "World Hub Center Energy",
                 _hubSettings.HubCenterEnergyColor,
                 _hubSettings.HubCenterEnergyColor);
+            ClearHubMaterialMaps(_hubCenterEnergyMaterial);
             _hubPlatformEnergyMaterial = CreateHubMaterial(
                 _materials.DroneAccent,
                 "World Hub Platform Energy",
@@ -3781,6 +3782,17 @@ namespace DuneVector
                 material.SetColor("_EmissionColor", emission);
                 material.EnableKeyword("_EMISSION");
             }
+        }
+
+        private static void ClearHubMaterialMaps(Material material)
+        {
+            if (material == null)
+            {
+                return;
+            }
+
+            if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", Texture2D.whiteTexture);
+            if (material.HasProperty("_EmissionMap")) material.SetTexture("_EmissionMap", Texture2D.whiteTexture);
         }
 
         private void OnDestroy()
