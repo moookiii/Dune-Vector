@@ -7,12 +7,16 @@ namespace DuneVector
 {
     internal sealed class DesertShrubField : IDisposable
     {
-        private static readonly Dictionary<int, Mesh> SharedMeshes = new Dictionary<int, Mesh>();
+        private sealed class PatchVariant
+        {
+            public Mesh Mesh;
+            public Material[] Materials;
+        }
 
         private sealed class VariantBatch
         {
-            public Mesh HighMesh;
-            public Mesh LowMesh;
+            public Mesh Mesh;
+            public int SubmeshIndex;
             public Material Material;
             public Matrix4x4[] LocalMatrices;
             public Matrix4x4[] WorldMatrices;
@@ -34,20 +38,25 @@ namespace DuneVector
             int worldSeed,
             DesertShrubTuning settings,
             LandmarkSystemTuning landmarkSettings,
-            IReadOnlyList<Material> materials,
             IReadOnlyList<Vector2> gameplayExclusions,
             IReadOnlyList<Vector2> sceneryExclusions)
         {
             _root = root;
             _settings = settings;
             _chunkSize = chunkSize;
-            if (settings == null || !settings.Enabled || settings.DensityPerChunk <= 0f ||
-                settings.Variants == null || settings.Variants.Count == 0 || materials == null)
+            if (settings == null || !settings.Enabled || settings.DensityPerChunk <= 0f)
             {
                 return;
             }
 
-            List<Matrix4x4>[] matricesByVariant = new List<Matrix4x4>[settings.Variants.Count];
+            List<PatchVariant> variants = LoadPatchVariants(settings.PatchResourcePath);
+            if (variants.Count == 0)
+            {
+                Debug.LogWarning($"No desert shrub patch prefabs were found at Resources/{settings.PatchResourcePath}.");
+                return;
+            }
+
+            List<Matrix4x4>[] matricesByVariant = new List<Matrix4x4>[variants.Count];
             for (int i = 0; i < matricesByVariant.Length; i++)
             {
                 matricesByVariant[i] = new List<Matrix4x4>();
@@ -64,33 +73,40 @@ namespace DuneVector
                 sceneryExclusions,
                 matricesByVariant);
 
-            int variantCount = Mathf.Min(settings.Variants.Count, materials.Count);
-            for (int i = 0; i < variantCount; i++)
+            for (int i = 0; i < variants.Count; i++)
             {
-                DesertShrubVariantTuning variant = settings.Variants[i];
-                if (variant == null || materials[i] == null || matricesByVariant[i].Count == 0)
+                PatchVariant variant = variants[i];
+                if (matricesByVariant[i].Count == 0)
                 {
                     continue;
                 }
 
                 List<Matrix4x4> variantMatrices = matricesByVariant[i];
-                materials[i].enableInstancing = true;
                 int maximumInstancesPerDraw = DuneVectorSpatialInstancing.MaximumInstancesPerDraw;
-                for (int start = 0; start < variantMatrices.Count; start += maximumInstancesPerDraw)
+                for (int submesh = 0; submesh < variant.Mesh.subMeshCount; submesh++)
                 {
-                    int count = Mathf.Min(maximumInstancesPerDraw, variantMatrices.Count - start);
-                    Matrix4x4[] localMatrices = new Matrix4x4[count];
-                    variantMatrices.CopyTo(start, localMatrices, 0, count);
-                    _batches.Add(new VariantBatch
+                    Material material = variant.Materials[Mathf.Min(submesh, variant.Materials.Length - 1)];
+                    if (material == null)
                     {
-                        HighMesh = GetShrubMesh(variant, false),
-                        LowMesh = GetShrubMesh(variant, true),
-                        Material = materials[i],
-                        LocalMatrices = localMatrices,
-                        WorldMatrices = new Matrix4x4[count],
-                    });
-                    InstanceCount += count;
+                        continue;
+                    }
+                    material.enableInstancing = true;
+                    for (int start = 0; start < variantMatrices.Count; start += maximumInstancesPerDraw)
+                    {
+                        int count = Mathf.Min(maximumInstancesPerDraw, variantMatrices.Count - start);
+                        Matrix4x4[] localMatrices = new Matrix4x4[count];
+                        variantMatrices.CopyTo(start, localMatrices, 0, count);
+                        _batches.Add(new VariantBatch
+                        {
+                            Mesh = variant.Mesh,
+                            SubmeshIndex = submesh,
+                            Material = material,
+                            LocalMatrices = localMatrices,
+                            WorldMatrices = new Matrix4x4[count],
+                        });
+                    }
                 }
+                InstanceCount += variantMatrices.Count;
             }
             RebuildWorldMatrices();
         }
@@ -109,20 +125,16 @@ namespace DuneVector
                 for (int i = 0; i < batch.LocalMatrices.Length; i++)
                 {
                     batch.WorldMatrices[i] = rootMatrix * batch.LocalMatrices[i];
-                    Bounds highBounds = DuneVectorSpatialInstancing.TransformBounds(
+                    Bounds meshBounds = DuneVectorSpatialInstancing.TransformBounds(
                         batch.WorldMatrices[i],
-                        batch.HighMesh.bounds);
-                    Bounds lowBounds = DuneVectorSpatialInstancing.TransformBounds(
-                        batch.WorldMatrices[i],
-                        batch.LowMesh.bounds);
-                    highBounds.Encapsulate(lowBounds);
+                        batch.Mesh.bounds);
                     if (hasBounds)
                     {
-                        batch.WorldBounds.Encapsulate(highBounds);
+                        batch.WorldBounds.Encapsulate(meshBounds);
                     }
                     else
                     {
-                        batch.WorldBounds = highBounds;
+                        batch.WorldBounds = meshBounds;
                         hasBounds = true;
                     }
                 }
@@ -144,14 +156,13 @@ namespace DuneVector
                 return;
             }
 
-            bool useLowLod = distance > Mathf.Min(_settings.LodDistance, _settings.CullDistance);
             ShadowCastingMode shadows = _settings.CastShadows ? ShadowCastingMode.On : ShadowCastingMode.Off;
             for (int i = 0; i < _batches.Count; i++)
             {
                 VariantBatch batch = _batches[i];
                 Graphics.DrawMeshInstanced(
-                    useLowLod ? batch.LowMesh : batch.HighMesh,
-                    0,
+                    batch.Mesh,
+                    batch.SubmeshIndex,
                     batch.Material,
                     batch.WorldMatrices,
                     batch.WorldMatrices.Length,
@@ -261,11 +272,9 @@ namespace DuneVector
                             continue;
                         }
 
-                        int variantIndex = ChooseVariant(settings.Variants, cellX, cellZ, worldSeed, salt + 11);
-                        if (variantIndex < 0)
-                        {
-                            continue;
-                        }
+                        int variantIndex = Mathf.FloorToInt(
+                            DuneVectorMath.Hash01(cellX, cellZ, worldSeed, salt + 11) * matricesByVariant.Length);
+                        variantIndex = Mathf.Clamp(variantIndex, 0, matricesByVariant.Length - 1);
                         float minimumScale = Mathf.Max(0.05f, settings.MinimumScale);
                         float maximumScale = Mathf.Max(minimumScale, settings.MaximumScale);
                         float scale = DuneVectorMath.HashRange(cellX, cellZ, worldSeed, salt + 13, minimumScale, maximumScale);
@@ -378,215 +387,28 @@ namespace DuneVector
             return false;
         }
 
-        private static int ChooseVariant(List<DesertShrubVariantTuning> variants, int x, int z, int seed, int salt)
+        private static List<PatchVariant> LoadPatchVariants(string resourcePath)
         {
-            float total = 0f;
-            for (int i = 0; i < variants.Count; i++)
+            GameObject[] prefabs = Resources.LoadAll<GameObject>(resourcePath ?? string.Empty);
+            Array.Sort(prefabs, (left, right) => string.CompareOrdinal(left.name, right.name));
+            List<PatchVariant> variants = new List<PatchVariant>(prefabs.Length);
+            for (int i = 0; i < prefabs.Length; i++)
             {
-                if (variants[i] != null)
-                {
-                    total += Mathf.Max(0f, variants[i].SelectionWeight);
-                }
-            }
-            if (total <= 0f)
-            {
-                return -1;
-            }
-            float choice = DuneVectorMath.HashRange(x, z, seed, salt, 0f, total);
-            for (int i = 0; i < variants.Count; i++)
-            {
-                if (variants[i] == null)
+                MeshFilter meshFilter = prefabs[i].GetComponentInChildren<MeshFilter>();
+                MeshRenderer meshRenderer = meshFilter != null ? meshFilter.GetComponent<MeshRenderer>() : null;
+                if (meshFilter == null || meshFilter.sharedMesh == null || meshRenderer == null ||
+                    meshRenderer.sharedMaterials == null || meshRenderer.sharedMaterials.Length == 0)
                 {
                     continue;
                 }
-                choice -= Mathf.Max(0f, variants[i].SelectionWeight);
-                if (choice <= 0f)
+                variants.Add(new PatchVariant
                 {
-                    return i;
-                }
+                    Mesh = meshFilter.sharedMesh,
+                    Materials = meshRenderer.sharedMaterials,
+                });
             }
-            return variants.Count - 1;
+            return variants;
         }
 
-        private static Mesh GetShrubMesh(DesertShrubVariantTuning variant, bool lowDetail)
-        {
-            int key = GetMeshKey(variant, lowDetail);
-            if (!SharedMeshes.TryGetValue(key, out Mesh mesh) || mesh == null)
-            {
-                mesh = BuildShrubMesh(variant, lowDetail);
-                SharedMeshes[key] = mesh;
-            }
-            return mesh;
-        }
-
-        private static int GetMeshKey(DesertShrubVariantTuning variant, bool lowDetail)
-        {
-            unchecked
-            {
-                int hash = lowDetail ? 486187739 : 16777619;
-                hash = (hash * 31) + variant.Height.GetHashCode();
-                hash = (hash * 31) + variant.Width.GetHashCode();
-                hash = (hash * 31) + variant.BranchCount;
-                hash = (hash * 31) + variant.BranchStartHeight.GetHashCode();
-                hash = (hash * 31) + variant.BranchUpwardBias.GetHashCode();
-                return hash;
-            }
-        }
-
-        private static Mesh BuildShrubMesh(DesertShrubVariantTuning variant, bool lowDetail)
-        {
-            List<Vector3> vertices = new List<Vector3>();
-            List<int> triangles = new List<int>();
-            float height = Mathf.Max(0.1f, variant.Height);
-            float width = Mathf.Max(0.1f, variant.Width);
-            int branchCount = lowDetail ? Mathf.Min(3, variant.BranchCount) : variant.BranchCount;
-            int sides = lowDetail ? 4 : 6;
-            AddTaperedBranch(
-                vertices,
-                triangles,
-                Vector3.zero,
-                Vector3.up * (height * 0.82f),
-                width * 0.045f,
-                width * 0.022f,
-                sides);
-            AddFacetedClump(
-                vertices,
-                triangles,
-                Vector3.up * (height * 0.82f),
-                new Vector3(width * 0.18f, height * 0.16f, width * 0.16f),
-                sides);
-
-            for (int i = 0; i < branchCount; i++)
-            {
-                float normalized = (i + 0.5f) / Mathf.Max(1, branchCount);
-                float angle = (normalized * Mathf.PI * 2f) + (i * 0.37f);
-                float startHeight = height * Mathf.Lerp(variant.BranchStartHeight, 0.6f, normalized * 0.48f);
-                Vector3 radial = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
-                Vector3 start = Vector3.up * startHeight;
-                Vector3 end = start + (radial * width * Mathf.Lerp(0.34f, 0.5f, normalized)) +
-                    (Vector3.up * height * variant.BranchUpwardBias * Mathf.Lerp(0.38f, 0.7f, normalized));
-                AddTaperedBranch(vertices, triangles, start, end, width * 0.038f, width * 0.014f, sides);
-                AddFacetedClump(
-                    vertices,
-                    triangles,
-                    end,
-                    new Vector3(width * 0.145f, height * 0.13f, width * 0.12f),
-                    sides);
-                if (!lowDetail)
-                {
-                    Vector3 sideClump = Vector3.Lerp(start, end, 0.72f) +
-                        (Vector3.up * height * 0.035f) -
-                        (radial * width * 0.025f);
-                    AddFacetedClump(
-                        vertices,
-                        triangles,
-                        sideClump,
-                        new Vector3(width * 0.1f, height * 0.085f, width * 0.09f),
-                        sides);
-                }
-            }
-
-            Mesh mesh = new Mesh { name = $"Desert Shrub {variant.Name} {(lowDetail ? "LOD1" : "LOD0")}" };
-            mesh.SetVertices(vertices);
-            mesh.SetTriangles(triangles, 0);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            mesh.UploadMeshData(true);
-            return mesh;
-        }
-
-        private static void AddTaperedBranch(
-            List<Vector3> vertices,
-            List<int> triangles,
-            Vector3 start,
-            Vector3 end,
-            float startRadius,
-            float endRadius,
-            int sides)
-        {
-            Vector3 direction = (end - start).normalized;
-            Vector3 tangent = Vector3.Cross(direction, Mathf.Abs(Vector3.Dot(direction, Vector3.up)) > 0.92f ? Vector3.right : Vector3.up).normalized;
-            Vector3 bitangent = Vector3.Cross(direction, tangent).normalized;
-            int baseIndex = vertices.Count;
-            for (int i = 0; i < sides; i++)
-            {
-                float angle = i * Mathf.PI * 2f / sides;
-                Vector3 radial = (tangent * Mathf.Cos(angle)) + (bitangent * Mathf.Sin(angle));
-                vertices.Add(start + (radial * startRadius));
-                vertices.Add(end + (radial * endRadius));
-            }
-            for (int i = 0; i < sides; i++)
-            {
-                int next = (i + 1) % sides;
-                int a = baseIndex + (i * 2);
-                int b = baseIndex + (next * 2);
-                triangles.Add(a);
-                triangles.Add(a + 1);
-                triangles.Add(b);
-                triangles.Add(b);
-                triangles.Add(a + 1);
-                triangles.Add(b + 1);
-            }
-        }
-
-        private static void AddFacetedClump(
-            List<Vector3> vertices,
-            List<int> triangles,
-            Vector3 center,
-            Vector3 radius,
-            int sides)
-        {
-            int top = vertices.Count;
-            vertices.Add(center + (Vector3.up * radius.y));
-            int bottom = vertices.Count;
-            vertices.Add(center - (Vector3.up * radius.y));
-            int firstRing = vertices.Count;
-            float[] ringHeights = { -0.42f, 0f, 0.42f };
-            float[] ringWidths = { 0.7f, 1f, 0.76f };
-            for (int ring = 0; ring < ringHeights.Length; ring++)
-            {
-                for (int i = 0; i < sides; i++)
-                {
-                    float angle = i * Mathf.PI * 2f / sides;
-                    vertices.Add(center + new Vector3(
-                        Mathf.Cos(angle) * radius.x * ringWidths[ring],
-                        radius.y * ringHeights[ring],
-                        Mathf.Sin(angle) * radius.z * ringWidths[ring]));
-                }
-            }
-
-            for (int i = 0; i < sides; i++)
-            {
-                int next = (i + 1) % sides;
-                triangles.Add(bottom);
-                triangles.Add(firstRing + next);
-                triangles.Add(firstRing + i);
-            }
-
-            for (int ring = 0; ring < ringHeights.Length - 1; ring++)
-            {
-                int lower = firstRing + (ring * sides);
-                int upper = lower + sides;
-                for (int i = 0; i < sides; i++)
-                {
-                    int next = (i + 1) % sides;
-                    triangles.Add(lower + i);
-                    triangles.Add(upper + i);
-                    triangles.Add(lower + next);
-                    triangles.Add(lower + next);
-                    triangles.Add(upper + i);
-                    triangles.Add(upper + next);
-                }
-            }
-
-            int topRing = firstRing + ((ringHeights.Length - 1) * sides);
-            for (int i = 0; i < sides; i++)
-            {
-                int next = (i + 1) % sides;
-                triangles.Add(top);
-                triangles.Add(topRing + i);
-                triangles.Add(topRing + next);
-            }
-        }
     }
 }

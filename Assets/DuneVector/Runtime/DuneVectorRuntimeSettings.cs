@@ -1811,27 +1811,14 @@ namespace DuneVector
     }
 
     [System.Serializable]
-    public sealed class DesertShrubVariantTuning
-    {
-        [Tooltip("Designer label used to identify this procedural shrub silhouette.")]
-        public string Name = "Shrub";
-        [Min(0f)] public float SelectionWeight = 1f;
-        [Min(0.1f)] public float Height = 1.15f;
-        [Min(0.1f)] public float Width = 1.7f;
-        [Range(2, 9)] public int BranchCount = 5;
-        [Range(0.1f, 1f)] public float BranchStartHeight = 0.28f;
-        [Range(0f, 1f)] public float BranchUpwardBias = 0.38f;
-        [ColorUsage(false)] public Color Color = new Color(0.25f, 0.28f, 0.105f, 1f);
-        [Range(0f, 1f)] public float Smoothness = 0.12f;
-    }
-
-    [System.Serializable]
     public sealed class DesertShrubTuning
     {
         public bool Enabled = true;
 
         [Header("Distribution")]
-        [Tooltip("Target population before slope, spacing, biome, and exclusion rejection.")]
+        [Tooltip("Resources folder containing the authored shrub patch prefabs.")]
+        public string PatchResourcePath = "shrubs";
+        [Tooltip("Target patch population before slope, spacing, biome, and exclusion rejection.")]
         [Min(0f)] public float DensityPerChunk = 10f;
         [Min(8f)] public float ClusterCellSize = 62f;
         [Range(0f, 1f)] public float ClusterChance = 0.48f;
@@ -1862,20 +1849,13 @@ namespace DuneVector
         [Min(0f)] public float SceneryExclusionRadius = 4f;
 
         [Header("Rendering")]
-        [Min(1f)] public float LodDistance = 105f;
         [Min(1f)] public float CullDistance = 215f;
         public bool CastShadows = true;
         public bool ReceiveShadows = true;
 
-        [Header("Variants")]
-        public List<DesertShrubVariantTuning> Variants = new List<DesertShrubVariantTuning>
-        {
-            new DesertShrubVariantTuning(),
-        };
-
         public void EnsureInitialized()
         {
-            Variants ??= new List<DesertShrubVariantTuning>();
+            PatchResourcePath ??= string.Empty;
         }
     }
 

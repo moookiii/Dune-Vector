@@ -28,7 +28,6 @@ namespace DuneVector
         public Material DroneDark { get; }
         public Material Cactus { get; }
         public Material CactusBlossom { get; }
-        public IReadOnlyList<Material> Shrubs => _shrubMaterials;
         public Material Sandstone { get; }
         public Material AncientSpireStone { get; }
         public Material AncientSpireAccent { get; }
@@ -90,7 +89,6 @@ namespace DuneVector
         public GameObject FlyingEnemyModel { get; }
 
         private readonly List<Material> _ownedMaterials = new List<Material>();
-        private readonly List<Material> _shrubMaterials = new List<Material>();
         private readonly List<GeoglyphMaterialBatch> _geoglyphBatches = new List<GeoglyphMaterialBatch>();
         private readonly Dictionary<Material, Material> _portalHaloMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalRearLineMaterials = new Dictionary<Material, Material>();
@@ -194,24 +192,6 @@ namespace DuneVector
                 droneVisuals.FrameMetallic);
             Cactus = CreateLit("Cactus - Ribbed Saguaro", cacti.BodyColor, cacti.Smoothness, 0f);
             CactusBlossom = CreateLit("Cactus - Blossom", cacti.BlossomColor, cacti.BlossomSmoothness, 0f);
-            if (shrubTuning != null)
-            {
-                shrubTuning.EnsureInitialized();
-                for (int i = 0; i < shrubTuning.Variants.Count; i++)
-                {
-                    DesertShrubVariantTuning variant = shrubTuning.Variants[i];
-                    if (variant == null)
-                    {
-                        _shrubMaterials.Add(null);
-                        continue;
-                    }
-                    _shrubMaterials.Add(CreateLit(
-                        $"Desert Shrub - {variant.Name}",
-                        variant.Color,
-                        variant.Smoothness,
-                        0f));
-                }
-            }
             Sandstone = CreateLit("Pyramid - Sandstone", new Color(0.58f, 0.31f, 0.13f), 0.18f, 0f);
             AncientSpireStone = CreateSpireSurfaceVariant(
                 "Ancient Spire - Concrete Sandstone",

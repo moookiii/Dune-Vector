@@ -2181,7 +2181,6 @@ namespace DuneVector
                 worldSeed,
                 shrubTuning,
                 landmarkTuning,
-                materials.Shrubs,
                 ringExclusions,
                 sceneryExclusions);
         }
