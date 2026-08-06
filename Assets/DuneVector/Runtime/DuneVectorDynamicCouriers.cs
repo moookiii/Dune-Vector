@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 
 namespace DuneVector
@@ -8,15 +7,12 @@ namespace DuneVector
     public enum DynamicCourierEventType
     {
         None,
-        DistressedCourier,
-        CourierRace,
         MovingConvoy,
     }
 
     internal enum DynamicCourierEventPhase
     {
         Inactive,
-        Offered,
         Active,
         Result,
     }
@@ -86,11 +82,6 @@ namespace DuneVector
             _speed = Mathf.Max(0f, speed);
             _paused = paused;
             ReachedDestination = false;
-        }
-
-        public void SetPaused(bool paused)
-        {
-            _paused = paused;
         }
 
         public bool TakeDamage(float damage)
@@ -384,12 +375,6 @@ namespace DuneVector
 
             switch (ActiveEventType)
             {
-                case DynamicCourierEventType.DistressedCourier:
-                    UpdateDistressEvent();
-                    break;
-                case DynamicCourierEventType.CourierRace:
-                    UpdateRaceEvent();
-                    break;
                 case DynamicCourierEventType.MovingConvoy:
                     UpdateConvoyEvent();
                     break;
@@ -408,29 +393,14 @@ namespace DuneVector
 
         private void SpawnNextEvent()
         {
-            float distressWeight = Mathf.Max(0f, _settings.DistressEventWeight);
-            float raceWeight = Mathf.Max(0f, _settings.RaceEventWeight);
             float convoyWeight = Mathf.Max(0f, _settings.ConvoyEventWeight);
-            float totalWeight = distressWeight + raceWeight + convoyWeight;
-            if (totalWeight <= Mathf.Epsilon)
+            if (convoyWeight <= Mathf.Epsilon)
             {
                 ScheduleNextEvent();
                 return;
             }
 
-            float selection = Random.value * totalWeight;
-            if (selection < distressWeight)
-            {
-                SpawnDistressEvent();
-            }
-            else if (selection < distressWeight + raceWeight)
-            {
-                SpawnRaceEvent();
-            }
-            else
-            {
-                SpawnConvoyEvent();
-            }
+            SpawnConvoyEvent();
         }
 
         private void UpdateAmbientCouriers(float deltaTime)
@@ -548,122 +518,6 @@ namespace DuneVector
         private static float RandomRange(float a, float b)
         {
             return Random.Range(Mathf.Min(a, b), Mathf.Max(a, b));
-        }
-
-        private void SpawnDistressEvent()
-        {
-            ActiveEventType = DynamicCourierEventType.DistressedCourier;
-            _phase = DynamicCourierEventPhase.Active;
-            BuildRoute(out Vector3 start, out _eventDestination);
-            _primaryCourier = SpawnCourier(
-                "Distressed Neutral Courier",
-                CourierDroneFaction.Neutral,
-                start,
-                _eventDestination,
-                _settings.CruiseSpeed,
-                _settings.DistressedStartingHealthFraction,
-                false);
-            _objectiveTarget = _primaryCourier.transform;
-            SpawnAttackers(_primaryCourier, _settings.DistressAttackerCount);
-            _eventTitle = "DISTRESS SIGNAL";
-            _eventStatus = "Destroy the attackers, then escort the courier.";
-            _eventColor = _settings.DistressHudColor;
-        }
-
-        private void UpdateDistressEvent()
-        {
-            if (_primaryCourier == null || !_primaryCourier.IsAlive)
-            {
-                FinishEvent(false, "DISTRESS SIGNAL LOST", 0);
-                return;
-            }
-
-            if (_attackers.Count > 0)
-            {
-                _eventStatus = $"ATTACKERS  {_attackers.Count}  //  COURIER HULL  {Mathf.CeilToInt(_primaryCourier.NormalizedHealth * 100f)}%";
-                return;
-            }
-
-            _eventStatus = "THREATS CLEARED  //  ESCORT COURIER";
-            if (_primaryCourier.ReachedDestination)
-            {
-                FinishEvent(true, "COURIER RESCUED", _settings.DistressRescueReward);
-            }
-        }
-
-        private void SpawnRaceEvent()
-        {
-            ActiveEventType = DynamicCourierEventType.CourierRace;
-            _phase = DynamicCourierEventPhase.Offered;
-            BuildRoute(out Vector3 start, out _eventDestination);
-            _primaryCourier = SpawnCourier(
-                "Rival Courier",
-                CourierDroneFaction.Rival,
-                start,
-                _eventDestination,
-                _settings.RivalRaceSpeed,
-                1f,
-                true);
-            _objectiveTarget = _primaryCourier.transform;
-            _eventTitle = "COURIER CHALLENGE AVAILABLE";
-            _eventStatus = "Approach the rival to accept an open-route race.";
-            _eventColor = _settings.RaceHudColor;
-        }
-
-        private void UpdateRaceEvent()
-        {
-            if (_primaryCourier == null)
-            {
-                FinishEvent(false, "RIVAL COURIER LOST", 0);
-                return;
-            }
-
-            if (_phase == DynamicCourierEventPhase.Offered)
-            {
-                float distance = Vector3.Distance(_player.WorldCenter, _primaryCourier.transform.position);
-                if (distance > _settings.OfferedEventDespawnDistance)
-                {
-                    ClearEvent();
-                    ScheduleNextEvent();
-                    return;
-                }
-
-                if (distance <= _settings.ChallengeAcceptDistance)
-                {
-                    _eventStatus = $"PRESS {_settings.ChallengeAcceptKey.ToString().ToUpperInvariant()} TO RACE";
-                    if (Keyboard.current != null && _settings.ChallengeAcceptKey != Key.None)
-                    {
-                        var acceptControl = Keyboard.current[_settings.ChallengeAcceptKey];
-                        if (acceptControl != null && acceptControl.wasPressedThisFrame)
-                        {
-                            _phase = DynamicCourierEventPhase.Active;
-                            _primaryCourier.SetPaused(false);
-                            _objectiveTarget = null;
-                            _eventStatus = "FIRST COURIER TO THE RELAY WINS";
-                        }
-                    }
-                }
-                else
-                {
-                    _eventStatus = "Approach the rival to accept an open-route race.";
-                }
-                return;
-            }
-
-            _objectiveTarget = null;
-            float playerDistance = HorizontalDistance(_player.WorldCenter, _eventDestination);
-            if (playerDistance <= _settings.DestinationRadius)
-            {
-                FinishEvent(true, "COURIER CHALLENGE WON", _settings.RaceWinnerReward);
-            }
-            else if (_primaryCourier.ReachedDestination)
-            {
-                FinishEvent(false, "RIVAL REACHED THE RELAY FIRST", 0);
-            }
-            else
-            {
-                _eventStatus = $"RELAY  {Mathf.CeilToInt(playerDistance)}m  //  RIVAL  {Mathf.CeilToInt(HorizontalDistance(_primaryCourier.transform.position, _eventDestination))}m";
-            }
         }
 
         private void SpawnConvoyEvent()
@@ -982,10 +836,6 @@ namespace DuneVector
             if (_objectiveTarget != null)
             {
                 targetPosition = _objectiveTarget.position;
-            }
-            else if (ActiveEventType == DynamicCourierEventType.CourierRace && _phase == DynamicCourierEventPhase.Active)
-            {
-                targetPosition = _eventDestination;
             }
             else
             {

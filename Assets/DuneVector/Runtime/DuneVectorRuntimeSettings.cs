@@ -2180,10 +2180,7 @@ namespace DuneVector
         [Min(1f)] public float MaximumSpawnDistance;
         [Min(1f)] public float MinimumRouteDistance;
         [Min(1f)] public float MaximumRouteDistance;
-        [Min(1f)] public float OfferedEventDespawnDistance;
         [Min(0f)] public float ResultDisplayDuration;
-        [Min(0f)] public float DistressEventWeight;
-        [Min(0f)] public float RaceEventWeight;
         [Min(0f)] public float ConvoyEventWeight;
 
         [Header("Ambient Neutral Deliveries")]
@@ -2206,23 +2203,12 @@ namespace DuneVector
         [Header("Courier Flight")]
         [Min(0f)] public float FlightHeightAboveTerrain;
         [Min(0f)] public float CruiseSpeed;
-        [Min(0f)] public float RivalRaceSpeed;
         [Min(0f)] public float TurnSharpness;
         [Min(0.1f)] public float DestinationRadius;
         [Min(0f)] public float HoverAmplitude;
         [Min(0f)] public float HoverFrequency;
         [Min(0.1f)] public float VisualScale;
         [Min(1f)] public float MaximumCourierHealth;
-
-        [Header("Distressed Courier")]
-        [Range(0.01f, 1f)] public float DistressedStartingHealthFraction;
-        [Range(1, 8)] public int DistressAttackerCount;
-        [Min(0)] public int DistressRescueReward;
-
-        [Header("Courier Race")]
-        [Min(1f)] public float ChallengeAcceptDistance;
-        public UnityEngine.InputSystem.Key ChallengeAcceptKey;
-        [Min(0)] public int RaceWinnerReward;
 
         [Header("Moving Convoy")]
         [Range(0, 6)] public int ConvoyEscortCount;
@@ -2276,8 +2262,6 @@ namespace DuneVector
         [Min(8)] public int ObjectiveMarkerFontSize;
         [ColorUsage(false)] public Color HudPanelColor;
         [ColorUsage(false)] public Color HudTextColor;
-        [ColorUsage(false)] public Color DistressHudColor;
-        [ColorUsage(false)] public Color RaceHudColor;
         [ColorUsage(false)] public Color ConvoyHudColor;
         [ColorUsage(false)] public Color SuccessHudColor;
         [ColorUsage(false)] public Color FailureHudColor;
