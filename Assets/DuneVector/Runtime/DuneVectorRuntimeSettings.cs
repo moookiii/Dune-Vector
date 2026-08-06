@@ -3986,10 +3986,16 @@ namespace DuneVector
         public string DreamloaderCatTrackName = "Dreamloader";
         [Tooltip("Resources path containing the transparent DreamloaderCat_01..NN frame sequence.")]
         public string DreamloaderCatResourcesPath = "MusicVisuals/DreamloaderCat";
-        [Tooltip("FMOD song timeline millisecond where the cat overlay first appears. 84000ms is 1:24.")]
-        [Min(0)] public int DreamloaderCatStartTimelineMilliseconds = 84000;
-        [Tooltip("FMOD song timeline millisecond where the cat overlay disappears. 104500ms is 1:44.5.")]
-        [Min(0)] public int DreamloaderCatEndTimelineMilliseconds = 104500;
+        [Tooltip("FMOD song timeline millisecond where cat overlay section 1 first appears.")]
+        [FormerlySerializedAs("DreamloaderCatStartTimelineMilliseconds")]
+        [Min(0)] public int DreamloaderCatSection1StartTimelineMilliseconds = 84000;
+        [Tooltip("FMOD song timeline millisecond where cat overlay section 1 disappears.")]
+        [FormerlySerializedAs("DreamloaderCatEndTimelineMilliseconds")]
+        [Min(0)] public int DreamloaderCatSection1EndTimelineMilliseconds = 104500;
+        [Tooltip("FMOD song timeline millisecond where cat overlay section 2 first appears. Leave start and end equal to disable section 2.")]
+        [Min(0)] public int DreamloaderCatSection2StartTimelineMilliseconds;
+        [Tooltip("FMOD song timeline millisecond where cat overlay section 2 disappears. Leave start and end equal to disable section 2.")]
+        [Min(0)] public int DreamloaderCatSection2EndTimelineMilliseconds;
         [Tooltip("Authored frame rate of the cat animation before applying the speed multiplier.")]
         [Min(0.01f)] public float DreamloaderCatFramesPerSecond = 25f;
         [Tooltip("Multiplier for the cat loop playback speed.")]

@@ -31,9 +31,7 @@ namespace DuneVector
 
             MusicTimelineState timeline = _audio.TimelineState;
             int timelineMilliseconds = timeline.TimelinePositionMilliseconds;
-            int startMilliseconds = Mathf.Max(0, _settings.DreamloaderCatStartTimelineMilliseconds);
-            int endMilliseconds = Mathf.Max(startMilliseconds, _settings.DreamloaderCatEndTimelineMilliseconds);
-            if (timelineMilliseconds < startMilliseconds || timelineMilliseconds > endMilliseconds)
+            if (!TryResolveActiveSectionStart(timelineMilliseconds, out int startMilliseconds))
             {
                 return;
             }
@@ -88,6 +86,37 @@ namespace DuneVector
                 || Contains(profile != null ? profile.DisplayName : null, match)
                 || Contains(profile != null ? profile.StableTrackId : null, match)
                 || Contains(profile != null ? profile.FmodEventPath : null, match);
+        }
+
+        private bool TryResolveActiveSectionStart(int timelineMilliseconds, out int startMilliseconds)
+        {
+            if (IsInSection(
+                    timelineMilliseconds,
+                    _settings.DreamloaderCatSection1StartTimelineMilliseconds,
+                    _settings.DreamloaderCatSection1EndTimelineMilliseconds,
+                    out startMilliseconds))
+            {
+                return true;
+            }
+
+            return IsInSection(
+                timelineMilliseconds,
+                _settings.DreamloaderCatSection2StartTimelineMilliseconds,
+                _settings.DreamloaderCatSection2EndTimelineMilliseconds,
+                out startMilliseconds);
+        }
+
+        private static bool IsInSection(
+            int timelineMilliseconds,
+            int authoredStartMilliseconds,
+            int authoredEndMilliseconds,
+            out int startMilliseconds)
+        {
+            startMilliseconds = Mathf.Max(0, authoredStartMilliseconds);
+            int endMilliseconds = Mathf.Max(0, authoredEndMilliseconds);
+            return endMilliseconds > startMilliseconds
+                && timelineMilliseconds >= startMilliseconds
+                && timelineMilliseconds <= endMilliseconds;
         }
 
         private void EnsureFramesLoaded()
