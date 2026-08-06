@@ -4082,9 +4082,6 @@ namespace DuneVector
         [Min(0.01f)] public float StructureLightDurationSeconds = 0.32f;
         [Min(0f)] public float StructureLightForwardOffset = 8f;
         [ColorUsage(false, true)] public Color StructureLightColor = new Color(0.25f, 0.85f, 1f, 1f);
-        [Range(0f, 4f)] public float DroneTrailBassMultiplier = 1.4f;
-        [Range(0f, 4f)] public float DroneTrailKickMultiplier = 1.8f;
-        [Min(0.01f)] public float DroneKickResponseDurationSeconds = 0.24f;
         [Range(8, 1024)] public int ForegroundStreakParticleBudget = 160;
         [Range(1, 64)] public int ForegroundStreakBurstCount = 12;
         [Min(0.01f)] public float ForegroundStreakLifetime = 0.48f;
@@ -4152,13 +4149,6 @@ namespace DuneVector
         [Min(0f)] public float StrongRoadArrivalResponse;
         [Min(0f)] public float ReactorRoadArrivalResponse;
         [Min(0f)] public float MinorKickRoadRippleResponse;
-        [Min(0f)] public float OrdinaryDroneThrusterBoost;
-        [Min(0f)] public float StrongDroneThrusterBoost;
-        [Min(0f)] public float ReactorDroneThrusterBoost;
-        [Min(0f)] public float OrdinaryDroneTrailWidthBoost;
-        [Min(0f)] public float StrongDroneTrailWidthBoost;
-        [Min(0f)] public float ReactorDroneTrailWidthBoost;
-        [Min(0f)] public float SustainedBassDroneThrusterMaximum;
         [Min(0f)] public float OrdinaryStructureResponse;
         [Min(0f)] public float StrongStructureResponse;
         [Min(0f)] public float ReactorStructureResponse;

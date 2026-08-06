@@ -44,13 +44,6 @@ namespace DuneVector
         private Renderer _centerOutAnchorRenderer;
         private Vector3 _droneVisualLocalCenter;
         private bool _hasDroneVisualLocalCenter;
-        private TrailRenderer[] _droneTrails;
-        private float[] _baseTrailWidths;
-        private Color[] _baseTrailStartColors;
-        private Color[] _baseTrailEndColors;
-        private float _droneKickEnvelope;
-        private float _droneThrusterEnvelope;
-        private float _continuousBass;
 
         public int ActiveRoadPulseCount => CountActiveRoadPulses();
         public int DroppedRoadPulseCount => _droppedRoadPulses;
@@ -73,7 +66,6 @@ namespace DuneVector
                 : new Renderer[0];
             CacheCenterOutAnchorTransform();
             CacheDroneVisualLocalCenter();
-            CacheDroneTrails();
             BuildReactionLight();
             BuildStreakSystem(streakMaterial);
             Camera.onPreCull += HandleCameraPreCull;
@@ -135,22 +127,6 @@ namespace DuneVector
                     _centerOutAnchorRenderer = candidate.GetComponent<Renderer>();
                     return;
                 }
-            }
-        }
-
-        private void CacheDroneTrails()
-        {
-            _droneTrails = _drone != null
-                ? _drone.GetComponentsInChildren<TrailRenderer>(true)
-                : new TrailRenderer[0];
-            _baseTrailWidths = new float[_droneTrails.Length];
-            _baseTrailStartColors = new Color[_droneTrails.Length];
-            _baseTrailEndColors = new Color[_droneTrails.Length];
-            for (int i = 0; i < _droneTrails.Length; i++)
-            {
-                _baseTrailWidths[i] = _droneTrails[i].widthMultiplier;
-                _baseTrailStartColors[i] = _droneTrails[i].startColor;
-                _baseTrailEndColors[i] = _droneTrails[i].endColor;
             }
         }
 
@@ -243,7 +219,6 @@ namespace DuneVector
 
         public void ApplyContinuous(in MusicReactiveRuntimeState state)
         {
-            _continuousBass = state.Bass;
             if ((state.Permissions & MusicVisualEffectGroups.Structures) == 0
                 && _reactionLight != null)
             {
@@ -290,20 +265,6 @@ namespace DuneVector
                         : command.Strength;
                     _reactionLightStrength = Mathf.Max(_reactionLightStrength, structureStrength);
                     _reactionLight.enabled = true;
-                }
-                if ((command.AllowedEffects & MusicVisualEffectGroups.Drone) != 0
-                    && (command.Type == MusicVisualCueType.MinorKick
-                        || command.Type == MusicVisualCueType.MajorKick
-                        || command.Type == MusicVisualCueType.ReactorDischarge))
-                {
-                    float trailBoost = command.IsAuthored && command.DroneTrailWidthBoost > 0f
-                        ? command.DroneTrailWidthBoost
-                        : command.Strength * _settings.DroneTrailKickMultiplier;
-                    _droneKickEnvelope = Mathf.Max(_droneKickEnvelope, trailBoost);
-                    float thrusterBoost = command.IsAuthored
-                        ? command.DroneThrusterBoost
-                        : command.Strength * _settings.OrdinaryDroneThrusterBoost;
-                    _droneThrusterEnvelope = Mathf.Max(_droneThrusterEnvelope, thrusterBoost);
                 }
                 if ((command.AllowedEffects & MusicVisualEffectGroups.Streaks) != 0
                     && (command.Type == MusicVisualCueType.MinorKick
@@ -675,7 +636,6 @@ namespace DuneVector
             float deltaTime = Time.unscaledDeltaTime;
             UpdateRoadPulses(deltaTime);
             UpdateReactionLight(deltaTime);
-            UpdateDroneTrails(deltaTime);
         }
 
         private void UpdateRoadPulses(float deltaTime)
@@ -751,25 +711,6 @@ namespace DuneVector
             }
         }
 
-        private void UpdateDroneTrails(float deltaTime)
-        {
-            float duration = Mathf.Max(0.01f, _settings.DroneKickResponseDurationSeconds);
-            _droneKickEnvelope = Mathf.MoveTowards(_droneKickEnvelope, 0f, deltaTime / duration);
-            _droneThrusterEnvelope = Mathf.MoveTowards(_droneThrusterEnvelope, 0f, deltaTime / duration);
-            float multiplier = 1f
-                + _continuousBass * _settings.DroneTrailBassMultiplier
-                + _droneKickEnvelope;
-            for (int i = 0; i < _droneTrails.Length; i++)
-            {
-                if (_droneTrails[i] != null)
-                {
-                    _droneTrails[i].widthMultiplier = _baseTrailWidths[i] * multiplier;
-                    _droneTrails[i].startColor = _baseTrailStartColors[i] * (1f + _droneThrusterEnvelope);
-                    _droneTrails[i].endColor = _baseTrailEndColors[i] * (1f + _droneThrusterEnvelope);
-                }
-            }
-        }
-
         public void ResetMusicResponse()
         {
             if (_roadPulses != null)
@@ -779,9 +720,6 @@ namespace DuneVector
                     _roadPulses[i] = default;
                 }
             }
-            _droneKickEnvelope = 0f;
-            _droneThrusterEnvelope = 0f;
-            _continuousBass = 0f;
             if (_reactionLight != null)
             {
                 _reactionLight.enabled = false;
@@ -794,16 +732,6 @@ namespace DuneVector
             if (_centerOutStreaks != null)
             {
                 _centerOutStreaks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            }
-            int trailCount = _droneTrails != null ? _droneTrails.Length : 0;
-            for (int i = 0; i < trailCount; i++)
-            {
-                if (_droneTrails[i] != null)
-                {
-                    _droneTrails[i].widthMultiplier = _baseTrailWidths[i];
-                    _droneTrails[i].startColor = _baseTrailStartColors[i];
-                    _droneTrails[i].endColor = _baseTrailEndColors[i];
-                }
             }
             ResetShaderGlobals();
         }

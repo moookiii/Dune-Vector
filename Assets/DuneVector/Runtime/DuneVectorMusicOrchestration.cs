@@ -226,8 +226,6 @@ namespace DuneVector
         [Min(0f)] public float SecondaryRoadResponse;
         [Min(0f)] public float SecondaryRoadDelayBeats;
         [Min(0f)] public float StructureResponse;
-        [Min(0f)] public float DroneThrusterBoost;
-        [Min(0f)] public float DroneTrailWidthBoost;
         [Min(0f)] public float FovDegrees;
         [Min(0f)] public float PositionImpulseMeters;
         public float RollDegrees;
@@ -323,8 +321,6 @@ namespace DuneVector
         public float SecondaryRoadResponse;
         public float SecondaryRoadDelaySeconds;
         public float StructureResponse;
-        public float DroneThrusterBoost;
-        public float DroneTrailWidthBoost;
         public float FovDegrees;
         public float PositionImpulseMeters;
         public float RollDegrees;
@@ -1293,8 +1289,6 @@ namespace DuneVector
                 SecondaryRoadResponse = cue.SecondaryRoadResponse,
                 SecondaryRoadDelaySeconds = cue.SecondaryRoadDelayBeats * beatSeconds,
                 StructureResponse = cue.StructureResponse,
-                DroneThrusterBoost = cue.DroneThrusterBoost,
-                DroneTrailWidthBoost = cue.DroneTrailWidthBoost,
                 FovDegrees = cue.FovDegrees,
                 PositionImpulseMeters = cue.PositionImpulseMeters,
                 RollDegrees = cue.RollDegrees,
