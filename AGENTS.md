@@ -1,3 +1,5 @@
+THERES 4 MAIN TABS WHEN SAYING SETTINGS ALWAYS SAY IF ITS IN PLAYER, GAMEPLAY, ENEMIES, or WORLD
+
 Always commit after work. Say the commit in output always.
 
 Do not ever leave designer-facing tuning values hardcoded in scripts.
