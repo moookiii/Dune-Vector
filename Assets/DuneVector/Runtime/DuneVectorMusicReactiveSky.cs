@@ -124,6 +124,14 @@ namespace DuneVector
                     mode == MusicVisualizerMode.All
                         ? _settings.LightningIntensity
                         : 0f);
+                _sky.ReactiveSparkIntensity.Override(
+                    mode == MusicVisualizerMode.All
+                        ? _settings.SparkIntensity
+                        : 0f);
+                _sky.ReactiveSparkDensity.Override(
+                    mode == MusicVisualizerMode.All
+                        ? _settings.SparkDensity
+                        : 0f);
             }
             if (_visualizerMode == MusicVisualizerMode.Off)
             {
