@@ -103,7 +103,6 @@ namespace DuneVector
             CloudTuning cloudTuning = null,
             DynamicCourierTuning dynamicCourierTuning = null,
             CactusTuning cactusTuning = null,
-            DesertShrubTuning shrubTuning = null,
             DroneVisualTuning droneVisualTuning = null,
             GeoglyphSystemTuning geoglyphTuning = null,
             LandmarkSystemTuning landmarkTuning = null,

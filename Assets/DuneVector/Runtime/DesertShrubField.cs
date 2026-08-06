@@ -7,6 +7,9 @@ namespace DuneVector
 {
     internal sealed class DesertShrubField : IDisposable
     {
+        private static readonly Dictionary<string, List<PatchVariant>> SharedPatchVariants =
+            new Dictionary<string, List<PatchVariant>>(StringComparer.Ordinal);
+
         private sealed class PatchVariant
         {
             public Mesh Mesh;
@@ -389,7 +392,13 @@ namespace DuneVector
 
         private static List<PatchVariant> LoadPatchVariants(string resourcePath)
         {
-            GameObject[] prefabs = Resources.LoadAll<GameObject>(resourcePath ?? string.Empty);
+            resourcePath ??= string.Empty;
+            if (SharedPatchVariants.TryGetValue(resourcePath, out List<PatchVariant> cachedVariants))
+            {
+                return cachedVariants;
+            }
+
+            GameObject[] prefabs = Resources.LoadAll<GameObject>(resourcePath);
             Array.Sort(prefabs, (left, right) => string.CompareOrdinal(left.name, right.name));
             List<PatchVariant> variants = new List<PatchVariant>(prefabs.Length);
             for (int i = 0; i < prefabs.Length; i++)
@@ -407,6 +416,7 @@ namespace DuneVector
                     Materials = meshRenderer.sharedMaterials,
                 });
             }
+            SharedPatchVariants[resourcePath] = variants;
             return variants;
         }
 

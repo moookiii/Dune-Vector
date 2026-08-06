@@ -349,7 +349,6 @@ namespace DuneVector
                 Clouds,
                 DynamicCourierSettings,
                 Cacti,
-                DesertShrubs,
                 DroneVisuals,
                 RuntimeSettings.Geoglyphs,
                 RuntimeSettings.Landmarks,
