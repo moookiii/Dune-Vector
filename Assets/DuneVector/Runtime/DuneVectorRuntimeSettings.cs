@@ -5100,8 +5100,10 @@ namespace DuneVector
     public sealed class AudioTuning
     {
         [Header("FMOD Events")]
-        [Tooltip("Songs shuffled at startup. Each entry selects its matching visualizer profile.")]
+        [Tooltip("Songs played as a shuffled playlist. Each entry selects its matching visualizer profile.")]
         public MusicPlaylistTrack[] BackgroundMusicPlaylist = System.Array.Empty<MusicPlaylistTrack>();
+        [Tooltip("Playlist entry played first when the game starts. Remaining entries stay shuffled.")]
+        [Min(0)] public int StartingBackgroundMusicTrackIndex;
         [Tooltip("Legacy fallback used only when the background-music playlist is empty.")]
         public string BackgroundMusicEvent = "event:/Shadows on the Mesa";
         [Tooltip("One-shot event played whenever the drone successfully loses health.")]

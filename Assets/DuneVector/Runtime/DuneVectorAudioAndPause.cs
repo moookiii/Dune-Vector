@@ -795,6 +795,16 @@ namespace DuneVector
                 _musicPlayOrder[i] = i;
             }
             ShuffleMusicPlayOrder(-1);
+            if (_musicPlayOrder.Length > 1)
+            {
+                int startingTrackIndex = Mathf.Clamp(
+                    _settings.StartingBackgroundMusicTrackIndex,
+                    0,
+                    _musicPlayOrder.Length - 1);
+                int shuffledPosition = Array.IndexOf(_musicPlayOrder, startingTrackIndex);
+                (_musicPlayOrder[0], _musicPlayOrder[shuffledPosition]) =
+                    (_musicPlayOrder[shuffledPosition], _musicPlayOrder[0]);
+            }
             _musicPlayOrderPosition = 0;
         }
 
