@@ -633,6 +633,7 @@ namespace DuneVector
             if (_audio != null)
             {
                 _audio.ActiveMusicTrackChanged -= HandleActiveMusicTrackChanged;
+                _audio.MusicVisualizerModeChanged -= HandleMusicVisualizerModeChanged;
             }
             _audio = audio;
             _analysisSource = analysisSource;
@@ -640,6 +641,7 @@ namespace DuneVector
             if (_audio != null)
             {
                 _audio.ActiveMusicTrackChanged += HandleActiveMusicTrackChanged;
+                _audio.MusicVisualizerModeChanged += HandleMusicVisualizerModeChanged;
             }
             _profile = _audio != null
                 ? _audio.ActiveMusicTrackProfile
@@ -689,6 +691,16 @@ namespace DuneVector
                 ValidateProfileAuthoring();
             }
             ResetSinks();
+        }
+
+        private void HandleMusicVisualizerModeChanged(MusicVisualizerMode mode)
+        {
+            if (mode != MusicVisualizerMode.NoFlash)
+            {
+                return;
+            }
+            _pressureFronts?.ResetMusicResponse();
+            _foreground?.ClearFlashingResponse();
         }
 
         public bool RegisterSink(IMusicReactiveSink sink)
@@ -831,10 +843,13 @@ namespace DuneVector
             if (_audio.VisualizerMode == MusicVisualizerMode.NoFlash)
             {
                 _state.Permissions &= ~(
-                    MusicVisualEffectGroups.Structures
+                    MusicVisualEffectGroups.PressureFront
+                    | MusicVisualEffectGroups.Structures
+                    | MusicVisualEffectGroups.Streaks
                     | MusicVisualEffectGroups.Glitch
                     | MusicVisualEffectGroups.HudBorder
-                    | MusicVisualEffectGroups.Bloom);
+                    | MusicVisualEffectGroups.Bloom
+                    | MusicVisualEffectGroups.TrebleParticles);
             }
             _state.Bass = Mathf.Clamp01(analysis.SmoothedBass * multipliers.Bass);
             _state.Mid = Mathf.Clamp01(analysis.SmoothedMid * multipliers.Mid);
@@ -950,6 +965,7 @@ namespace DuneVector
             if (_audio != null)
             {
                 _audio.ActiveMusicTrackChanged -= HandleActiveMusicTrackChanged;
+                _audio.MusicVisualizerModeChanged -= HandleMusicVisualizerModeChanged;
             }
         }
 

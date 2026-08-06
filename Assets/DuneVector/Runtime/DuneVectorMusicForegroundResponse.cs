@@ -730,6 +730,18 @@ namespace DuneVector
             ResetShaderGlobals();
         }
 
+        public void ClearFlashingResponse()
+        {
+            if (_streaks != null)
+            {
+                _streaks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            }
+            if (_centerOutStreaks != null)
+            {
+                _centerOutStreaks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            }
+        }
+
         private void ResetShaderGlobals()
         {
             for (int i = 0; i < _pulseOrigins.Length; i++)
