@@ -957,12 +957,14 @@ namespace DuneVector
             for (int cueIndex = 0; cueIndex < _profile.AuthoredCues.Length; cueIndex++)
             {
                 MusicVisualAuthoredCue cue = _profile.AuthoredCues[cueIndex];
-                if (cue.FrontKind == MusicVisualFrontKind.None || cue.FrontLeadBeats <= 0f)
+                MusicVisualFrontKind frontKind = ResolveFrontKind(in cue);
+                float frontLeadBeats = ResolveFrontLeadBeats(in cue, frontKind);
+                if (frontKind == MusicVisualFrontKind.None || frontLeadBeats <= 0f)
                 {
                     continue;
                 }
                 int arrival = _profile.ResolveCuePositionMilliseconds(cueIndex);
-                int dispatchTime = arrival - Mathf.RoundToInt(cue.FrontLeadBeats * beatMilliseconds);
+                int dispatchTime = arrival - Mathf.RoundToInt(frontLeadBeats * beatMilliseconds);
                 if (dispatchTime <= current && dispatchTime > _previousTimelinePosition)
                 {
                     DispatchCue(cueIndex, true);
@@ -1258,12 +1260,15 @@ namespace DuneVector
                 _releaseLocked = true;
             }
             float beatSeconds = 60f / Mathf.Max(1f, _profile.BeatsPerMinute);
+            MusicVisualFrontKind frontKind = ResolveFrontKind(in cue);
+            float frontLeadBeats = ResolveFrontLeadBeats(in cue, frontKind);
+            float frontTravelBeats = ResolveFrontTravelBeats(in cue, frontKind);
             MusicVisualEffectGroups allowed = cue.AllowedEffects & _state.Permissions;
             if (isPreRoll)
             {
                 allowed &= MusicVisualEffectGroups.PressureFront;
             }
-            else if (cue.FrontLeadBeats > 0f)
+            else if (frontLeadBeats > 0f)
             {
                 allowed &= ~MusicVisualEffectGroups.PressureFront;
             }
@@ -1277,9 +1282,9 @@ namespace DuneVector
                 DeterministicSeed = cue.Seed ^ _state.Timeline.PlaybackGeneration ^ (uint)_profile.StableTrackHash,
                 IsAuthored = true,
                 IsPreRoll = isPreRoll,
-                FrontKind = cue.FrontKind,
+                FrontKind = frontKind,
                 FrontArcCount = cue.FrontArcCount,
-                FrontTravelSeconds = cue.FrontTravelBeats * beatSeconds,
+                FrontTravelSeconds = frontTravelBeats * beatSeconds,
                 FrontStrengthMultiplier = cue.FrontStrengthMultiplier,
                 FrontEdgeBreakup = cue.FrontEdgeBreakup,
                 FrontColor = cue.FrontColor,
@@ -1313,6 +1318,51 @@ namespace DuneVector
             {
                 _sinks[i].Dispatch(in command, in _state);
             }
+        }
+
+        private MusicVisualFrontKind ResolveFrontKind(in MusicVisualAuthoredCue cue)
+        {
+            if (cue.FrontKind != MusicVisualFrontKind.None)
+            {
+                return cue.FrontKind;
+            }
+            if ((cue.AllowedEffects & MusicVisualEffectGroups.PressureFront) == 0)
+            {
+                return MusicVisualFrontKind.None;
+            }
+            return cue.Cue switch
+            {
+                MusicVisualCueType.MinorKick => MusicVisualFrontKind.Ordinary,
+                MusicVisualCueType.MajorKick => MusicVisualFrontKind.Ordinary,
+                MusicVisualCueType.ReactorDischarge => MusicVisualFrontKind.Reactor,
+                _ => MusicVisualFrontKind.None,
+            };
+        }
+
+        private float ResolveFrontLeadBeats(
+            in MusicVisualAuthoredCue cue,
+            MusicVisualFrontKind frontKind)
+        {
+            if (frontKind == MusicVisualFrontKind.None)
+            {
+                return 0f;
+            }
+            return cue.FrontLeadBeats > 0f
+                ? cue.FrontLeadBeats
+                : Mathf.Max(0f, _settings.DefaultFrontLeadBeats);
+        }
+
+        private float ResolveFrontTravelBeats(
+            in MusicVisualAuthoredCue cue,
+            MusicVisualFrontKind frontKind)
+        {
+            if (frontKind == MusicVisualFrontKind.None)
+            {
+                return 0f;
+            }
+            return cue.FrontTravelBeats > 0f
+                ? cue.FrontTravelBeats
+                : Mathf.Max(0f, _settings.DefaultFrontTravelBeats);
         }
 
         private void ReconstructCueCursor(int timelineMilliseconds)
