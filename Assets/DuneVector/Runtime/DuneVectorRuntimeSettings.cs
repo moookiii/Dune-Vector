@@ -4127,6 +4127,8 @@ namespace DuneVector
         public Vector2 ReactorCenterOutLifetimeRange;
         [Min(0f)] public float CenterOutRadialSpeed;
         [Range(0f, 1f)] public float CenterOutTowardCameraSpeedFraction;
+        [Tooltip("Cancel drone anchor translation from already-emitted center-out particles while preserving their authored outward motion.")]
+        public bool CenterOutCompensateAnchorMotion;
         [Range(0f, 1f)] public float CenterOutDirectionalVariation;
         [Range(0f, 1f)] public float CenterOutFineLineFraction = 0.55f;
         [Range(0.05f, 1f)] public float CenterOutFineLineWidthMultiplier = 0.32f;

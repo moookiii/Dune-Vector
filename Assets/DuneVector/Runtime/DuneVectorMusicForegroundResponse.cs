@@ -36,6 +36,7 @@ namespace DuneVector
         private float _reactionLightStrength;
         private ParticleSystem _streaks;
         private ParticleSystem _centerOutStreaks;
+        private ParticleSystem.Particle[] _centerOutParticleBuffer;
         private Material _streakMaterial;
         private Color[] _streakPalette;
         private Renderer[] _droneVisualRenderers;
@@ -155,6 +156,13 @@ namespace DuneVector
             _streakMaterial.SetFloat("_StreakEndFade", _settings.ForegroundStreakEndFade);
             _streaks = BuildStreakParticleSystem("Music Screen-Space Flare Lines");
             _centerOutStreaks = BuildStreakParticleSystem("Music Drone-Anchored Flare Lines");
+            if (_settings.CenterOutCompensateAnchorMotion)
+            {
+                int capacity = _settings.CenterOutParticlePoolCapacity > 0
+                    ? _settings.CenterOutParticlePoolCapacity
+                    : _settings.ForegroundStreakParticleBudget;
+                _centerOutParticleBuffer = new ParticleSystem.Particle[Mathf.Max(1, capacity)];
+            }
 
             int paletteCount = Mathf.Clamp(_settings.ForegroundStreakPaletteColorCount, 2, 64);
             _streakPalette = new Color[paletteCount];
@@ -460,10 +468,33 @@ namespace DuneVector
             {
                 droneViewport = new Vector3(0.5f, 0.5f, 1f);
             }
-            _centerOutStreaks.transform.localPosition = new Vector3(
+            Vector3 anchorLocalPosition = new Vector3(
                 (droneViewport.x - 0.5f) * halfWidth * 2f,
                 (droneViewport.y - 0.5f) * halfHeight * 2f,
                 0f);
+            CompensateCenterOutParticles(anchorLocalPosition - _centerOutStreaks.transform.localPosition);
+            _centerOutStreaks.transform.localPosition = anchorLocalPosition;
+        }
+
+        private void CompensateCenterOutParticles(Vector3 anchorDelta)
+        {
+            if (!_settings.CenterOutCompensateAnchorMotion
+                || _centerOutParticleBuffer == null
+                || anchorDelta.sqrMagnitude <= Mathf.Epsilon)
+            {
+                return;
+            }
+            int particleCount = _centerOutStreaks.GetParticles(_centerOutParticleBuffer);
+            for (int i = 0; i < particleCount; i++)
+            {
+                ParticleSystem.Particle particle = _centerOutParticleBuffer[i];
+                particle.position -= anchorDelta;
+                _centerOutParticleBuffer[i] = particle;
+            }
+            if (particleCount > 0)
+            {
+                _centerOutStreaks.SetParticles(_centerOutParticleBuffer, particleCount);
+            }
         }
 
         private void LateUpdate()
