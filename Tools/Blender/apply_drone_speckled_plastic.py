@@ -1,4 +1,5 @@
 from pathlib import Path
+import math
 
 import bpy
 
@@ -99,6 +100,13 @@ def restore_original_assignments():
 
 plastic006_image = load_texture("Drone_Plastic006_Color.jpg", "sRGB")
 plastic006_pattern_mask = load_texture("Drone_Plastic006_PatternMask.png", "Non-Color")
+material_base_textures = {
+    material_name: load_texture(
+        f"Drone_Plastic006_{material_name}_BaseColor.jpg",
+        "sRGB",
+    )
+    for material_name in PLASTIC_MATERIALS
+}
 
 restored_slots = restore_original_assignments()
 tech_cyan = bpy.data.materials.get("Tech_Cyan")
@@ -135,65 +143,17 @@ def make_textured_variant(original):
         raise RuntimeError(f"{original.name} has no Principled BSDF")
 
     base_input = input_socket(shader, "Base Color")
-    original_link = base_input.links[0].from_socket if base_input.is_linked else None
-    original_color = tuple(base_input.default_value)
     if base_input.is_linked:
         links.remove(base_input.links[0])
 
-    texcoord = nodes.new("ShaderNodeTexCoord")
-    texcoord.location = (-1150, 0)
-    mapping = nodes.new("ShaderNodeMapping")
-    mapping.location = (-950, 0)
-    mapping.inputs["Scale"].default_value = (1.5, 1.5, 1.5)
-    links.new(texcoord.outputs["Generated"], mapping.inputs["Vector"])
-
-    def image_node(image, location, label):
-        node = nodes.new("ShaderNodeTexImage")
-        node.image = image
-        node.location = location
-        node.label = label
-        node.extension = "REPEAT"
-        node.interpolation = "Linear"
-        node.projection = "BOX"
-        node.projection_blend = 0.28
-        links.new(mapping.outputs["Vector"], node.inputs["Vector"])
-        return node
-
-    color_texture = image_node(plastic006_pattern_mask, (-700, 220), "Plastic006 contrast pattern")
-
-    grayscale = nodes.new("ShaderNodeRGBToBW")
-    grayscale.location = (-430, 280)
-
-    color_variation = nodes.new("ShaderNodeValToRGB")
-    color_variation.location = (-200, 260)
-    color_variation.color_ramp.interpolation = "EASE"
-    color_variation.color_ramp.elements[0].position = 0.10
-    color_variation.color_ramp.elements[0].color = (0.45, 0.45, 0.45, 1.0)
-    color_variation.color_ramp.elements[1].position = 0.90
-    color_variation.color_ramp.elements[1].color = (1.0, 1.0, 1.0, 1.0)
-
-    roughness_variation = nodes.new("ShaderNodeValToRGB")
-    roughness_variation.location = (-200, -80)
-    roughness_variation.color_ramp.interpolation = "EASE"
-    roughness_variation.color_ramp.elements[0].position = 0.10
-    roughness_variation.color_ramp.elements[0].color = (0.38, 0.38, 0.38, 1.0)
-    roughness_variation.color_ramp.elements[1].position = 0.90
-    roughness_variation.color_ramp.elements[1].color = (0.62, 0.62, 0.62, 1.0)
-
-    color_mix = nodes.new("ShaderNodeMixRGB")
-    color_mix.location = (50, 220)
-    color_mix.blend_type = "MULTIPLY"
-    color_mix.inputs[0].default_value = 0.45
-    color_mix.inputs[1].default_value = original_color
-    if original_link is not None:
-        links.new(original_link, color_mix.inputs[1])
-
-    links.new(color_texture.outputs["Color"], grayscale.inputs["Color"])
-    links.new(grayscale.outputs["Val"], color_variation.inputs["Fac"])
-    links.new(grayscale.outputs["Val"], roughness_variation.inputs["Fac"])
-    links.new(color_variation.outputs["Color"], color_mix.inputs[2])
-    links.new(color_mix.outputs["Color"], base_input)
-    links.new(roughness_variation.outputs["Color"], shader.inputs["Roughness"])
+    color_texture = nodes.new("ShaderNodeTexImage")
+    color_texture.image = material_base_textures[original.name]
+    color_texture.location = (-400, 180)
+    color_texture.label = "GLB-compatible Plastic006 base color"
+    color_texture.extension = "REPEAT"
+    color_texture.interpolation = "Linear"
+    color_texture.projection = "FLAT"
+    links.new(color_texture.outputs["Color"], base_input)
 
     return material
 
@@ -222,6 +182,35 @@ for obj in bpy.context.scene.objects:
         else:
             untouched_nonplastic_slots += 1
 
+generated_uv_maps = 0
+bpy.ops.object.select_all(action="DESELECT")
+for obj in bpy.context.scene.objects:
+    if obj.type != "MESH" or not any(
+        slot.material and slot.material.name.endswith("_Plastic006")
+        for slot in obj.material_slots
+    ):
+        continue
+
+    if len(obj.data.uv_layers) == 0:
+        obj.select_set(True)
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.mode_set(mode="EDIT")
+        bpy.ops.mesh.select_all(action="SELECT")
+        bpy.ops.uv.smart_project(
+            angle_limit=math.radians(66.0),
+            margin_method="SCALED",
+            island_margin=0.02,
+            area_weight=0.0,
+            correct_aspect=True,
+            scale_to_bounds=True,
+        )
+        bpy.ops.object.mode_set(mode="OBJECT")
+        obj.select_set(False)
+        generated_uv_maps += 1
+
+    obj.data.uv_layers.active_index = 0
+    obj.data.uv_layers[0].active_render = True
+
 for screen in bpy.data.screens:
     for area in screen.areas:
         if area.type == "VIEW_3D":
@@ -235,5 +224,6 @@ print(
     f"Restored {restored_slots} original slots; applied the color-preserving Plastic006 texture to "
     f"{textured_slots} plastic slots; preserved {preserved_cyan_slots} tech_cyan slots; "
     f"left {untouched_nonplastic_slots} glass/rubber/lens/ground slots unchanged; "
+    f"generated {generated_uv_maps} missing UV maps for GLB export; "
     "restored original mesh geometry without smoothing or vertex-count changes."
 )
