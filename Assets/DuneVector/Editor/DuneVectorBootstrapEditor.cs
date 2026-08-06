@@ -10,10 +10,12 @@ namespace DuneVector.Editor
     public sealed class DuneVectorBootstrapEditor : UnityEditor.Editor
     {
         private SerializedProperty _runtimeSettings;
+        private SerializedProperty _sceneCamera;
 
         private void OnEnable()
         {
             _runtimeSettings = serializedObject.FindProperty("RuntimeSettings");
+            _sceneCamera = serializedObject.FindProperty("SceneCamera");
         }
 
         public override void OnInspectorGUI()
@@ -29,6 +31,11 @@ namespace DuneVector.Editor
             EditorGUILayout.PropertyField(_runtimeSettings, new GUIContent(
                 "Runtime Settings",
                 "The reusable asset that contains all player, gameplay, enemy, and world tuning."));
+            EditorGUILayout.Space(6f);
+            EditorGUILayout.LabelField("Scene References", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(_sceneCamera, new GUIContent(
+                "Gameplay Camera",
+                "The authored camera used in Edit mode and reused when gameplay starts."));
             serializedObject.ApplyModifiedProperties();
 
             DuneVectorRuntimeSettings settings = _runtimeSettings.objectReferenceValue as DuneVectorRuntimeSettings;

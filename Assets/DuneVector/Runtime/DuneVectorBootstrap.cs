@@ -16,6 +16,10 @@ namespace DuneVector
         [Tooltip("Reusable asset containing every gameplay and world-generation tuning value.")]
         public DuneVectorRuntimeSettings RuntimeSettings;
 
+        [Header("Scene References")]
+        [Tooltip("The gameplay camera authored in the scene so its framing is visible before Play mode.")]
+        public Camera SceneCamera;
+
         public DroneTuning PlayerTuning => RuntimeSettings.PlayerTuning;
         public DroneVisualTuning DroneVisuals => RuntimeSettings.DroneVisuals;
         public FlightSwooshTuning FlightSwooshes => RuntimeSettings.FlightSwooshes;
@@ -503,14 +507,20 @@ namespace DuneVector
             boostSpeedModifier.Initialize(PlayerTuning.StaminaBoost);
             Drone.BindStaminaBoost(stamina, boostSpeedModifier);
 
-            GameObject cameraObject = new GameObject("Dune Vector Camera");
+            GameObject cameraObject = SceneCamera != null
+                ? SceneCamera.gameObject
+                : new GameObject("Dune Vector Camera");
             cameraObject.tag = "MainCamera";
-            Camera camera = cameraObject.AddComponent<Camera>();
+            Camera camera = SceneCamera != null ? SceneCamera : cameraObject.AddComponent<Camera>();
+            SceneCamera = camera;
             camera.clearFlags = CameraClearFlags.Skybox;
             camera.allowHDR = true;
             camera.nearClipPlane = PlayerTuning.CameraNearClipPlane;
             camera.farClipPlane = Mathf.Max(PlayerTuning.CameraNearClipPlane, PlayerTuning.CameraFarClipPlane);
-            cameraObject.AddComponent<StudioListener>();
+            if (cameraObject.GetComponent<StudioListener>() == null)
+            {
+                cameraObject.AddComponent<StudioListener>();
+            }
             UniversalAdditionalCameraData cameraData = cameraObject.GetComponent<UniversalAdditionalCameraData>();
             if (cameraData == null)
             {
@@ -521,10 +531,18 @@ namespace DuneVector
             cameraData.requiresDepthTexture = true;
             ConfigureCameraAntiAliasing(cameraData, PlayerTuning);
 
-            LensFlareComponentSRP lensFlare = cameraObject.AddComponent<LensFlareComponentSRP>();
+            LensFlareComponentSRP lensFlare = cameraObject.GetComponent<LensFlareComponentSRP>();
+            if (lensFlare == null)
+            {
+                lensFlare = cameraObject.AddComponent<LensFlareComponentSRP>();
+            }
             lensFlare.lensFlareData = RuntimeSettings.RuntimeCameraLensFlare;
 
-            DroneCamera = cameraObject.AddComponent<DroneCameraController>();
+            DroneCamera = cameraObject.GetComponent<DroneCameraController>();
+            if (DroneCamera == null)
+            {
+                DroneCamera = cameraObject.AddComponent<DroneCameraController>();
+            }
             DroneCamera.Camera = camera;
             DroneCamera.SpeedSource = Drone;
             PlayerTuning.ApplyTo(DroneCamera);
@@ -539,7 +557,11 @@ namespace DuneVector
                 Rings,
                 BoostRingTrail);
 
-            DroneFlightSwooshRenderer flightSwooshes = cameraObject.AddComponent<DroneFlightSwooshRenderer>();
+            DroneFlightSwooshRenderer flightSwooshes = cameraObject.GetComponent<DroneFlightSwooshRenderer>();
+            if (flightSwooshes == null)
+            {
+                flightSwooshes = cameraObject.AddComponent<DroneFlightSwooshRenderer>();
+            }
             flightSwooshes.Initialize(Drone, camera, FlightSwooshes);
 
             GameObject playerObject = new GameObject("Player Input and Camera Driver");
