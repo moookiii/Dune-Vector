@@ -35,6 +35,7 @@ namespace DuneVector
         private float _reactionLightAge;
         private float _reactionLightStrength;
         private ParticleSystem _streaks;
+        private ParticleSystem _centerOutStreaks;
         private Material _streakMaterial;
         private Color[] _streakPalette;
         private Renderer[] _droneVisualRenderers;
@@ -49,7 +50,8 @@ namespace DuneVector
         public int ActiveRoadPulseCount => CountActiveRoadPulses();
         public int DroppedRoadPulseCount => _droppedRoadPulses;
         public bool ReactionLightActive => _reactionLight != null && _reactionLight.enabled;
-        public int LiveStreakCount => _streaks != null ? _streaks.particleCount : 0;
+        public int LiveStreakCount => (_streaks != null ? _streaks.particleCount : 0)
+            + (_centerOutStreaks != null ? _centerOutStreaks.particleCount : 0);
 
         public void Initialize(
             Camera camera,
@@ -101,32 +103,6 @@ namespace DuneVector
 
         private void BuildStreakSystem(Material sharedMaterial)
         {
-            GameObject streakObject = new GameObject("Music Screen-Space Flare Lines");
-            streakObject.transform.SetParent(_camera.transform, false);
-            _streaks = streakObject.AddComponent<ParticleSystem>();
-            _streaks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-
-            ParticleSystem.MainModule main = _streaks.main;
-            main.playOnAwake = false;
-            main.loop = false;
-            main.simulationSpace = ParticleSystemSimulationSpace.Local;
-            main.maxParticles = _settings.CenterOutParticlePoolCapacity > 0
-                ? _settings.CenterOutParticlePoolCapacity
-                : _settings.ForegroundStreakParticleBudget;
-            main.startLifetime = _settings.ForegroundStreakLifetime;
-            main.startSpeed = 0f;
-            main.startSize = _settings.ForegroundStreakSize;
-            main.startColor = _settings.ForegroundStreakColor;
-
-            ParticleSystem.EmissionModule emission = _streaks.emission;
-            emission.enabled = false;
-            ParticleSystem.ShapeModule shape = _streaks.shape;
-            shape.enabled = false;
-
-            ParticleSystemRenderer renderer = streakObject.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = ParticleSystemRenderMode.Stretch;
-            renderer.velocityScale = _settings.ForegroundStreakVelocityScale;
-            renderer.lengthScale = _settings.ForegroundStreakLengthScale;
             _streakMaterial = new Material(sharedMaterial)
             {
                 name = "Music Visualizer - Screen-Space Flare Lines",
@@ -140,9 +116,8 @@ namespace DuneVector
             _streakMaterial.SetFloat("_StreakCoreBrightness", _settings.ForegroundStreakCoreBrightness);
             _streakMaterial.SetFloat("_StreakHaloBrightness", _settings.ForegroundStreakHaloBrightness);
             _streakMaterial.SetFloat("_StreakEndFade", _settings.ForegroundStreakEndFade);
-            renderer.sharedMaterial = _streakMaterial;
-            renderer.shadowCastingMode = ShadowCastingMode.Off;
-            renderer.receiveShadows = false;
+            _streaks = BuildStreakParticleSystem("Music Screen-Space Flare Lines");
+            _centerOutStreaks = BuildStreakParticleSystem("Music Drone-Anchored Flare Lines");
 
             int paletteCount = Mathf.Clamp(_settings.ForegroundStreakPaletteColorCount, 2, 64);
             _streakPalette = new Color[paletteCount];
@@ -156,6 +131,41 @@ namespace DuneVector
                 color.a = _settings.ForegroundStreakColor.a;
                 _streakPalette[i] = color;
             }
+            UpdateCenterOutAnchor();
+        }
+
+        private ParticleSystem BuildStreakParticleSystem(string objectName)
+        {
+            GameObject streakObject = new GameObject(objectName);
+            streakObject.transform.SetParent(_camera.transform, false);
+            ParticleSystem streaks = streakObject.AddComponent<ParticleSystem>();
+            streaks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+
+            ParticleSystem.MainModule main = streaks.main;
+            main.playOnAwake = false;
+            main.loop = false;
+            main.simulationSpace = ParticleSystemSimulationSpace.Local;
+            main.maxParticles = _settings.CenterOutParticlePoolCapacity > 0
+                ? _settings.CenterOutParticlePoolCapacity
+                : _settings.ForegroundStreakParticleBudget;
+            main.startLifetime = _settings.ForegroundStreakLifetime;
+            main.startSpeed = 0f;
+            main.startSize = _settings.ForegroundStreakSize;
+            main.startColor = _settings.ForegroundStreakColor;
+
+            ParticleSystem.EmissionModule emission = streaks.emission;
+            emission.enabled = false;
+            ParticleSystem.ShapeModule shape = streaks.shape;
+            shape.enabled = false;
+
+            ParticleSystemRenderer renderer = streakObject.GetComponent<ParticleSystemRenderer>();
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.velocityScale = _settings.ForegroundStreakVelocityScale;
+            renderer.lengthScale = _settings.ForegroundStreakLengthScale;
+            renderer.sharedMaterial = _streakMaterial;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return streaks;
         }
 
         public void ApplyContinuous(in MusicReactiveRuntimeState state)
@@ -265,19 +275,24 @@ namespace DuneVector
 
         private void EmitStreaks(in MusicVisualDispatchCommand command, float musicEnergy)
         {
-            if (_streaks == null)
+            if (_streaks == null || _centerOutStreaks == null)
             {
                 return;
             }
             uint seed = command.DeterministicSeed;
+            bool centerOut = command.IsAuthored && command.ScreenFlareLineCount > 0;
+            ParticleSystem targetStreaks = centerOut ? _centerOutStreaks : _streaks;
+            if (centerOut)
+            {
+                UpdateCenterOutAnchor();
+            }
             int capacity = _settings.CenterOutParticlePoolCapacity > 0
                 ? _settings.CenterOutParticlePoolCapacity
                 : _settings.ForegroundStreakParticleBudget;
-            int available = Mathf.Max(0, capacity - _streaks.particleCount);
+            int available = Mathf.Max(0, capacity - targetStreaks.particleCount);
             float punch = musicEnergy <= _settings.ForegroundStreakSlowEnergyThreshold
                 ? Mathf.Max(1f, _settings.ForegroundStreakSlowPunchMultiplier)
                 : 1f;
-            bool centerOut = command.IsAuthored && command.ScreenFlareLineCount > 0;
             int requested;
             if (centerOut)
             {
@@ -310,15 +325,6 @@ namespace DuneVector
             float halfHeight = Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad) * forward;
             float halfWidth = halfHeight * _camera.aspect;
             float viewportScale = Mathf.Min(halfWidth, halfHeight) * 2f;
-            Vector3 droneViewport = _drone != null
-                ? _camera.WorldToViewportPoint(GetDroneVisualCenter())
-                : new Vector3(0.5f, 0.5f, 1f);
-            if (droneViewport.z <= 0f)
-            {
-                droneViewport = new Vector3(0.5f, 0.5f, 1f);
-            }
-            float droneScreenX = (droneViewport.x - 0.5f) * halfWidth * 2f;
-            float droneScreenY = (droneViewport.y - 0.5f) * halfHeight * 2f;
             for (int i = 0; i < count; i++)
             {
                 Vector2 direction = Vector2.zero;
@@ -335,8 +341,8 @@ namespace DuneVector
                     float radius = (authoredRadius > 0f
                         ? authoredRadius
                         : _settings.CenterOutInitialViewportRadius) * viewportScale;
-                    x = droneScreenX + direction.x * radius;
-                    y = droneScreenY + direction.y * radius;
+                    x = direction.x * radius;
+                    y = direction.y * radius;
                     float speed = _settings.CenterOutRadialSpeed
                         * Mathf.Lerp(0.82f, 1.18f, Next01(ref seed))
                         * (fineLine ? _settings.CenterOutFineLineSpeedMultiplier : 1f)
@@ -399,8 +405,33 @@ namespace DuneVector
                                     : 1f))
                         : _settings.ForegroundStreakSize,
                 };
-                _streaks.Emit(emit, 1);
+                targetStreaks.Emit(emit, 1);
             }
+        }
+
+        private void UpdateCenterOutAnchor()
+        {
+            if (_centerOutStreaks == null || _camera == null || _drone == null)
+            {
+                return;
+            }
+            float forward = Mathf.Max(0.01f, _settings.ForegroundStreakForwardOffset);
+            float halfHeight = Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad) * forward;
+            float halfWidth = halfHeight * _camera.aspect;
+            Vector3 droneViewport = _camera.WorldToViewportPoint(GetDroneVisualCenter());
+            if (droneViewport.z <= 0f)
+            {
+                droneViewport = new Vector3(0.5f, 0.5f, 1f);
+            }
+            _centerOutStreaks.transform.localPosition = new Vector3(
+                (droneViewport.x - 0.5f) * halfWidth * 2f,
+                (droneViewport.y - 0.5f) * halfHeight * 2f,
+                0f);
+        }
+
+        private void LateUpdate()
+        {
+            UpdateCenterOutAnchor();
         }
 
         private Vector2 ResolveCenterOutDirection(
@@ -627,6 +658,10 @@ namespace DuneVector
             if (_streaks != null)
             {
                 _streaks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+            }
+            if (_centerOutStreaks != null)
+            {
+                _centerOutStreaks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             }
             int trailCount = _droneTrails != null ? _droneTrails.Length : 0;
             for (int i = 0; i < trailCount; i++)
