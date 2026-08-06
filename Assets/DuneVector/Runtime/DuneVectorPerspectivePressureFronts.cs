@@ -62,7 +62,7 @@ namespace DuneVector
                 frontObject.transform.SetParent(transform, false);
                 LineRenderer line = frontObject.AddComponent<LineRenderer>();
                 line.useWorldSpace = true;
-                line.loop = false;
+                line.loop = _settings.PressureFrontUseEnclosingHalo;
                 line.alignment = LineAlignment.View;
                 line.textureMode = LineTextureMode.Stretch;
                 line.positionCount = _positions.Length;
@@ -76,7 +76,7 @@ namespace DuneVector
                 haloObject.transform.SetParent(frontObject.transform, false);
                 LineRenderer halo = haloObject.AddComponent<LineRenderer>();
                 halo.useWorldSpace = true;
-                halo.loop = false;
+                halo.loop = _settings.PressureFrontUseEnclosingHalo;
                 halo.alignment = LineAlignment.View;
                 halo.textureMode = LineTextureMode.Stretch;
                 halo.positionCount = _positions.Length;
@@ -285,22 +285,41 @@ namespace DuneVector
                 }
 
                 float distance = Mathf.Lerp(_settings.PressureFrontStartDistance, _settings.PressureFrontEndDistance, progress * progress);
-                float widthMultiplier = slot.Reactor ? _settings.ReactorFrontWidthMultiplier : 1f;
-                float halfWidth = _settings.PressureFrontWidth * widthMultiplier * 0.5f;
-                for (int segment = 0; segment < _positions.Length; segment++)
+                if (_settings.PressureFrontUseEnclosingHalo)
                 {
-                    float normalized = _positions.Length > 1 ? segment / (float)(_positions.Length - 1) : 0f;
-                    float lateral = Mathf.Lerp(-halfWidth, halfWidth, normalized);
-                    float arc = (1f - Mathf.Pow(normalized * 2f - 1f, 2f)) * _settings.PressureFrontArcDepth;
-                    float breakup = (Hash01(slot.Seed + (uint)segment) * 2f - 1f)
-                        * slot.EdgeBreakup
-                        * _settings.PressureFrontArcDepth;
-                    _positions[segment] = slot.Origin
-                        + slot.Forward * (distance + arc)
-                        + slot.Right * (lateral + slot.LateralOffset * halfWidth);
-                    _positions[segment].y = slot.BaseHeight
-                        + (1f - progress) * _settings.PressureFrontHorizonHeight
-                        + breakup;
+                    float radius = Mathf.Lerp(
+                        _settings.PressureFrontEnclosingHaloStartRadius,
+                        _settings.PressureFrontEnclosingHaloEndRadius,
+                        progress * progress);
+                    float verticalRadius = radius * _settings.PressureFrontEnclosingHaloVerticalScale;
+                    Vector3 center = slot.Origin + slot.Forward * distance;
+                    for (int segment = 0; segment < _positions.Length; segment++)
+                    {
+                        float angle = segment / (float)_positions.Length * Mathf.PI * 2f;
+                        _positions[segment] = center
+                            + slot.Right * (Mathf.Cos(angle) * radius)
+                            + Vector3.up * (Mathf.Sin(angle) * verticalRadius);
+                    }
+                }
+                else
+                {
+                    float widthMultiplier = slot.Reactor ? _settings.ReactorFrontWidthMultiplier : 1f;
+                    float halfWidth = _settings.PressureFrontWidth * widthMultiplier * 0.5f;
+                    for (int segment = 0; segment < _positions.Length; segment++)
+                    {
+                        float normalized = _positions.Length > 1 ? segment / (float)(_positions.Length - 1) : 0f;
+                        float lateral = Mathf.Lerp(-halfWidth, halfWidth, normalized);
+                        float arc = (1f - Mathf.Pow(normalized * 2f - 1f, 2f)) * _settings.PressureFrontArcDepth;
+                        float breakup = (Hash01(slot.Seed + (uint)segment) * 2f - 1f)
+                            * slot.EdgeBreakup
+                            * _settings.PressureFrontArcDepth;
+                        _positions[segment] = slot.Origin
+                            + slot.Forward * (distance + arc)
+                            + slot.Right * (lateral + slot.LateralOffset * halfWidth);
+                        _positions[segment].y = slot.BaseHeight
+                            + (1f - progress) * _settings.PressureFrontHorizonHeight
+                            + breakup;
+                    }
                 }
                 slot.Renderer.SetPositions(_positions);
                 slot.HaloRenderer.SetPositions(_positions);

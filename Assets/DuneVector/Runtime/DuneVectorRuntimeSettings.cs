@@ -4044,6 +4044,11 @@ namespace DuneVector
         [Range(0.001f, 0.5f)] public float MusicReactiveAdditiveEdgeSoftness = 0.18f;
         [Min(0f)] public float ReactorFrontStaggerSeconds = 0.09f;
         [Min(0f)] public float ReactorFrontWidthMultiplier = 1.25f;
+        [Tooltip("Render authored pressure fronts as smooth closed rings centered on the viewer instead of open horizon arcs.")]
+        public bool PressureFrontUseEnclosingHalo;
+        [Min(0.1f)] public float PressureFrontEnclosingHaloStartRadius;
+        [Min(0.1f)] public float PressureFrontEnclosingHaloEndRadius;
+        [Min(0.1f)] public float PressureFrontEnclosingHaloVerticalScale;
 
         [Header("Authored Front Arrival")]
         [Min(0f)] public float DefaultFrontLeadBeats;
