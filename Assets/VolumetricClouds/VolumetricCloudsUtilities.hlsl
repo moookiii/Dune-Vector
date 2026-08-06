@@ -46,6 +46,9 @@ half3 EvaluateVolumetricCloudsAmbientProbe(half3 normalWS)
 // Maximal size of a light step
 #define LIGHT_STEP_MAXIMAL_SIZE 1000.0
 
+// Logical-world offset supplied by floating-origin game worlds. It defaults to zero.
+float4 _VolumetricCloudsWorldOriginOffset;
+
 // The planet center position
 #define _PlanetCenterPosition _PlanetCenterRadius.xyz
 #define ConvertToPS(x) (x - _PlanetCenterPosition)
@@ -417,6 +420,7 @@ void EvaluateCloudProperties(float3 positionPS, float noiseMipOffset, float eros
 #ifndef _LOCAL_VOLUMETRIC_CLOUDS
     positionPS.xz += _WorldSpaceCameraPos.xz;
 #endif
+    positionPS.xz += _VolumetricCloudsWorldOriginOffset.xy;
 
     // Evaluate the generic sampling coordinates
     float3 baseNoiseSamplingCoordinates = float3(AnimateShapeNoisePosition(positionPS).xzy / NOISE_TEXTURE_NORMALIZATION_FACTOR) * _ShapeScale - float3(_ShapeNoiseOffset.x, _ShapeNoiseOffset.y, _VerticalShapeNoiseOffset);

@@ -13,6 +13,8 @@ namespace DuneVector
     public sealed class DesertWorldStreamer : MonoBehaviour
     {
         private const string FlightRingProgressSaveFileName = "DuneVectorFlightRingProgress.dat";
+        private static readonly int VolumetricCloudsWorldOriginOffsetId =
+            Shader.PropertyToID("_VolumetricCloudsWorldOriginOffset");
 
         [Serializable]
         private sealed class FlightRingProgressSaveData
@@ -235,6 +237,7 @@ namespace DuneVector
             _initialized = true;
             _materials = materials ?? throw new ArgumentNullException(nameof(materials));
             _materials.SetTerrainLogicalOrigin(OriginOffsetX, OriginOffsetZ);
+            SetVolumetricCloudsLogicalOrigin();
             _coinRingSeed = Guid.NewGuid().GetHashCode();
             EnemySpawnSeed = Guid.NewGuid().GetHashCode();
             Rings ??= new RingTuning();
@@ -583,6 +586,7 @@ namespace DuneVector
             OriginOffsetX += localShift.x;
             OriginOffsetZ += localShift.z;
             _materials.SetTerrainLogicalOrigin(OriginOffsetX, OriginOffsetZ);
+            SetVolumetricCloudsLogicalOrigin();
 
             foreach (DesertChunk chunk in _chunks.Values)
             {
@@ -608,6 +612,18 @@ namespace DuneVector
             DuneVectorSpatialInstancing.NotifyAllTransformsChanged();
             WorldShifted?.Invoke(worldShift);
             RebaseCount++;
+        }
+
+        private void SetVolumetricCloudsLogicalOrigin()
+        {
+            Shader.SetGlobalVector(
+                VolumetricCloudsWorldOriginOffsetId,
+                new Vector4((float)OriginOffsetX, (float)OriginOffsetZ, 0f, 0f));
+        }
+
+        private void OnDestroy()
+        {
+            Shader.SetGlobalVector(VolumetricCloudsWorldOriginOffsetId, Vector4.zero);
         }
 
         private void RepositionContractGroundRoot(Transform root, Vector2Int coordinate)

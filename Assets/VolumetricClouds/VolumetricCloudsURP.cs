@@ -418,6 +418,7 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
             internal RTHandle Accumulation;
             internal RTHandle History;
             internal bool IsValid;
+            internal Vector2 WorldOriginOffset;
 
             internal void Release()
             {
@@ -480,6 +481,7 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
         private static readonly int volumetricCloudsHistoryTexture = Shader.PropertyToID(_VolumetricCloudsHistoryTexture);
         private static readonly int volumetricCloudsDepthTexture = Shader.PropertyToID(_VolumetricCloudsDepthTexture);
         private static readonly int volumetricCloudsLightingTexture = Shader.PropertyToID(_VolumetricCloudsLightingTexture); // Same as "_VolumetricCloudsColorTexture"
+        private static readonly int volumetricCloudsWorldOriginOffset = Shader.PropertyToID("_VolumetricCloudsWorldOriginOffset");
 
         // unity_SH is not available when performing full screen blit pass
         private static readonly int shAr = Shader.PropertyToID("clouds_SHAr");
@@ -1158,6 +1160,14 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
                     {
                         buffers = new CameraHistoryBuffers();
                         cameraHistoryBuffers.Add(cameraId, buffers);
+                    }
+
+                    Vector4 globalWorldOrigin = Shader.GetGlobalVector(volumetricCloudsWorldOriginOffset);
+                    Vector2 currentWorldOrigin = new(globalWorldOrigin.x, globalWorldOrigin.y);
+                    if (buffers.WorldOriginOffset != currentWorldOrigin)
+                    {
+                        buffers.WorldOriginOffset = currentWorldOrigin;
+                        buffers.IsValid = false;
                     }
 
                     bool historyReallocated = RenderingUtils.ReAllocateHandleIfNeeded(
