@@ -218,7 +218,7 @@ namespace DuneVector
                     continue;
                 }
                 Vector3 sitePosition = GetSiteLocalPosition(site);
-                float distance = Vector3.Distance(playerPosition, sitePosition);
+                float distance = HorizontalDistance(playerPosition, sitePosition);
                 bool discovered = IsDiscovered(site);
                 bool available = IsSiteAvailable(site);
                 if (available && distance < _nearestDistance)
@@ -1504,6 +1504,13 @@ namespace DuneVector
             float height = (float)_world.HeightField.SampleHeight(site.WorldPosition.x, site.WorldPosition.y) +
                 _settings.HeightAboveTerrain;
             return _world.LogicalToLocal(site.WorldPosition.x, height, site.WorldPosition.y);
+        }
+
+        private static float HorizontalDistance(Vector3 from, Vector3 to)
+        {
+            return Vector2.Distance(
+                new Vector2(from.x, from.z),
+                new Vector2(to.x, to.z));
         }
 
         private Vector3 GetVectorPassTargetPosition(DesertAtlasSiteDefinition site)
