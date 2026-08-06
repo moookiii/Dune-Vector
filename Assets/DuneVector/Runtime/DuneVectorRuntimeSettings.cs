@@ -1298,7 +1298,6 @@ namespace DuneVector
         public float TerminalPromptVerticalOffset = -58f;
         [ColorUsage(false)] public Color HubMetalColor = new Color(0.055f, 0.09f, 0.12f, 1f);
         [ColorUsage(false, true)] public Color HubEnergyColor = new Color(0.02f, 2.2f, 3.8f, 1f);
-        [ColorUsage(false, true)] public Color HubCenterEnergyColor = Color.white;
         [ColorUsage(false)] public Color TerminalBackdropColor = new Color(0.006f, 0.012f, 0.022f, 0.9f);
         [ColorUsage(false)] public Color TerminalShadowColor = new Color(0f, 0f, 0f, 0.58f);
         [ColorUsage(false)] public Color TerminalBorderColor = new Color(0.18f, 0.3f, 0.38f, 0.9f);
