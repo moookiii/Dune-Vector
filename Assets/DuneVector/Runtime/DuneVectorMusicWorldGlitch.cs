@@ -78,7 +78,9 @@ namespace DuneVector
             }
 
             bool accepted = command.IsAuthored && ResolveAuthoredDisplacement(command) > 0f;
-            if (!command.IsAuthored && command.Type == MusicVisualCueType.AccentSnare)
+            if (!command.IsAuthored
+                && (command.Type == MusicVisualCueType.AccentSnare
+                    || command.Type == MusicVisualCueType.TrebleBurst))
             {
                 _accentSnareCount++;
                 accepted = _accentSnareCount % Mathf.Max(1, _settings.AccentSnaresPerGlitch) == 0;

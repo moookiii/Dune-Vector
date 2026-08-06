@@ -829,6 +829,7 @@ namespace DuneVector
                 ? _profile.Sections[sectionIndex]
                 : new MusicVisualSectionDefinition
                 {
+                    VisualTier = _settings.WorldGlitchMinimumVisualTier,
                     Multipliers = MusicVisualContinuousMultipliers.Identity,
                     Permissions = MusicVisualEffectGroups.All,
                 };
