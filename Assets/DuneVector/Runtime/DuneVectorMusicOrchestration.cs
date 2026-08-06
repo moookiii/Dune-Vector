@@ -1096,11 +1096,15 @@ namespace DuneVector
                     int maximum = Mathf.Max(minimum, pattern.MaximumLineCount);
                     int lineCount = minimum + (int)(seed % (uint)(maximum - minimum + 1));
                     float speedScale = pattern.SpeedScale;
+                    float widthScale = pattern.WidthScale;
                     if (pattern.DirectionMode != MusicScreenFlareDirectionMode.Default)
                     {
                         lineCount *= Mathf.Max(1, _profile.AuthoredDirectionalFlareLineCountMultiplier);
                         speedScale *= _profile.AuthoredDirectionalFlareTravelScale > 0f
                             ? _profile.AuthoredDirectionalFlareTravelScale
+                            : 1f;
+                        widthScale *= _profile.AuthoredDirectionalFlareWidthScale > 0f
+                            ? _profile.AuthoredDirectionalFlareWidthScale
                             : 1f;
                     }
                     MusicVisualDispatchCommand command = new MusicVisualDispatchCommand
@@ -1114,7 +1118,7 @@ namespace DuneVector
                         ScreenFlareLineCount = lineCount,
                         ScreenFlareLineLifetimeSeconds = pattern.LineLifetimeSeconds,
                         ScreenFlareDirectionMode = pattern.DirectionMode,
-                        ScreenFlareWidthScale = pattern.WidthScale,
+                        ScreenFlareWidthScale = widthScale,
                         ScreenFlareSpeedScale = speedScale,
                         ScreenFlareInitialViewportRadius = pattern.InitialViewportRadius,
                         ScreenFlareEmitMirroredPair = pattern.EmitMirroredPair,

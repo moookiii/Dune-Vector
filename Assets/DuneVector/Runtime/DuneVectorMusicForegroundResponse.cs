@@ -380,12 +380,30 @@ namespace DuneVector
                 if (centerOut)
                 {
                     bool heldLine = i >= movingLineCount;
-                    fineLine = Next01(ref seed) < _settings.CenterOutFineLineFraction;
+                    if (command.ScreenFlareEmitMirroredPair
+                        && command.ScreenFlareDirectionMode != MusicScreenFlareDirectionMode.Default)
+                    {
+                        uint pairStyleSeed = command.DeterministicSeed
+                            ^ ((uint)(i / 2 + 1) * 0x27D4EB2Du);
+                        fineLine = Next01(ref pairStyleSeed) < _settings.CenterOutFineLineFraction;
+                    }
+                    else
+                    {
+                        fineLine = Next01(ref seed) < _settings.CenterOutFineLineFraction;
+                    }
                     direction = ResolveCenterOutDirection(in command, fineLine, i, ref seed);
                     float authoredRadius = command.ScreenFlareInitialViewportRadius;
-                    float radius = (authoredRadius > 0f
+                    float viewportRadius = authoredRadius > 0f
                         ? authoredRadius
-                        : _settings.CenterOutInitialViewportRadius) * viewportScale;
+                        : _settings.CenterOutInitialViewportRadius;
+                    if (command.ScreenFlareEmitMirroredPair
+                        && command.ScreenFlareDirectionMode != MusicScreenFlareDirectionMode.Default)
+                    {
+                        viewportRadius = Mathf.Max(
+                            viewportRadius,
+                            _settings.CenterOutProtectedViewportRadius);
+                    }
+                    float radius = viewportRadius * viewportScale;
                     x = direction.x * radius;
                     y = direction.y * radius;
                     float speed = _settings.CenterOutRadialSpeed
@@ -468,6 +486,8 @@ namespace DuneVector
             {
                 droneViewport = new Vector3(0.5f, 0.5f, 1f);
             }
+            droneViewport.x += _settings.CenterOutAnchorViewportOffset.x;
+            droneViewport.y += _settings.CenterOutAnchorViewportOffset.y;
             Vector3 anchorLocalPosition = new Vector3(
                 (droneViewport.x - 0.5f) * halfWidth * 2f,
                 (droneViewport.y - 0.5f) * halfHeight * 2f,
@@ -519,6 +539,28 @@ namespace DuneVector
             float spread = fineLine
                 ? _settings.CenterOutDirectionalVariation
                 : Mathf.Min(1f, _settings.CenterOutDirectionalVariation * 1.75f);
+            if (command.ScreenFlareEmitMirroredPair
+                && command.ScreenFlareDirectionMode != MusicScreenFlareDirectionMode.Default)
+            {
+                uint pairSeed = command.DeterministicSeed
+                    ^ ((uint)(emissionIndex / 2 + 1) * 0x9E3779B9u)
+                    ^ (fineLine ? 0x85EBCA6Bu : 0xC2B2AE35u);
+                float pairVariation = Mathf.Lerp(-spread, spread, Next01(ref pairSeed));
+                float pairSign = emissionIndex % 2 == 0 ? -1f : 1f;
+                switch (command.ScreenFlareDirectionMode)
+                {
+                    case MusicScreenFlareDirectionMode.Vertical:
+                        return new Vector2(pairVariation, 1f).normalized * pairSign;
+                    case MusicScreenFlareDirectionMode.Horizontal:
+                        return new Vector2(1f, pairVariation).normalized * pairSign;
+                    case MusicScreenFlareDirectionMode.Diagonal:
+                        float diagonalSign = (pairSeed & 1u) == 0u ? -1f : 1f;
+                        Vector2 diagonal = new Vector2(1f, diagonalSign);
+                        Vector2 perpendicular = new Vector2(-diagonalSign, 1f)
+                            * (pairVariation * 0.45f);
+                        return (diagonal + perpendicular).normalized * pairSign;
+                }
+            }
             float signedPrimary = command.ScreenFlareEmitMirroredPair
                 ? (emissionIndex % 2 == 0 ? -1f : 1f)
                 : (Next01(ref seed) < 0.5f ? -1f : 1f);
