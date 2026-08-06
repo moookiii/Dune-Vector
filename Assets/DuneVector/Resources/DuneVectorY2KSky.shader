@@ -468,7 +468,7 @@ Shader "DuneVector/URP Y2K Sky"
             float lightningNoise = Noise3(float3(
                 skyUp * 27.0,
                 lightningTick * 0.173 + strikeIndex * 3.7,
-                floor(skyUp * 18.0)));
+                skyUp * 18.0));
             float lightningOffset = (lightningNoise - 0.5)
                 * _ReactiveLightningJaggedness
                 * 0.18;
