@@ -219,7 +219,9 @@ namespace DuneVector
                     _droneThrusterEnvelope = Mathf.Max(_droneThrusterEnvelope, thrusterBoost);
                 }
                 if ((command.AllowedEffects & MusicVisualEffectGroups.Streaks) != 0
-                    && (command.Type == MusicVisualCueType.MinorSnare
+                    && (command.Type == MusicVisualCueType.MinorKick
+                        || command.Type == MusicVisualCueType.MajorKick
+                        || command.Type == MusicVisualCueType.MinorSnare
                         || command.Type == MusicVisualCueType.AccentSnare
                         || command.Type == MusicVisualCueType.TrebleTick
                         || command.Type == MusicVisualCueType.TrebleBurst
@@ -300,6 +302,15 @@ namespace DuneVector
             float halfHeight = Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad) * forward;
             float halfWidth = halfHeight * _camera.aspect;
             float viewportScale = Mathf.Min(halfWidth, halfHeight) * 2f;
+            Vector3 droneViewport = _drone != null
+                ? _camera.WorldToViewportPoint(_drone.position)
+                : new Vector3(0.5f, 0.5f, 1f);
+            if (droneViewport.z <= 0f)
+            {
+                droneViewport = new Vector3(0.5f, 0.5f, 1f);
+            }
+            float droneScreenX = (droneViewport.x - 0.5f) * halfWidth * 2f;
+            float droneScreenY = (droneViewport.y - 0.5f) * halfHeight * 2f;
             for (int i = 0; i < count; i++)
             {
                 Vector2 direction = Vector2.zero;
@@ -322,8 +333,8 @@ namespace DuneVector
                         Next01(ref seed));
                     direction = new Vector2(side, vertical).normalized;
                     float radius = _settings.CenterOutInitialViewportRadius * viewportScale;
-                    x = direction.x * radius;
-                    y = direction.y * radius;
+                    x = droneScreenX + direction.x * radius;
+                    y = droneScreenY + direction.y * radius;
                     float speed = _settings.CenterOutRadialSpeed
                         * Mathf.Lerp(0.82f, 1.18f, Next01(ref seed))
                         * (fineLine ? _settings.CenterOutFineLineSpeedMultiplier : 1f);
