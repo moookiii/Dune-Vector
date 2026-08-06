@@ -37,6 +37,7 @@ namespace DuneVector
         private ParticleSystem _streaks;
         private Material _streakMaterial;
         private Color[] _streakPalette;
+        private Renderer[] _droneVisualRenderers;
         private TrailRenderer[] _droneTrails;
         private float[] _baseTrailWidths;
         private Color[] _baseTrailStartColors;
@@ -60,6 +61,9 @@ namespace DuneVector
             _drone = drone;
             _settings = settings;
             _roadPulses = new RoadPulse[Mathf.Clamp(settings.MaximumRoadPulseCount, 1, _pulseOrigins.Length)];
+            _droneVisualRenderers = _drone != null
+                ? _drone.GetComponentsInChildren<Renderer>(true)
+                : new Renderer[0];
             CacheDroneTrails();
             BuildReactionLight();
             BuildStreakSystem(streakMaterial);
@@ -303,7 +307,7 @@ namespace DuneVector
             float halfWidth = halfHeight * _camera.aspect;
             float viewportScale = Mathf.Min(halfWidth, halfHeight) * 2f;
             Vector3 droneViewport = _drone != null
-                ? _camera.WorldToViewportPoint(_drone.position)
+                ? _camera.WorldToViewportPoint(GetDroneVisualCenter())
                 : new Vector3(0.5f, 0.5f, 1f);
             if (droneViewport.z <= 0f)
             {
@@ -381,6 +385,35 @@ namespace DuneVector
                 };
                 _streaks.Emit(emit, 1);
             }
+        }
+
+        private Vector3 GetDroneVisualCenter()
+        {
+            Bounds visualBounds = default;
+            bool hasVisualBounds = false;
+            for (int i = 0; i < _droneVisualRenderers.Length; i++)
+            {
+                Renderer renderer = _droneVisualRenderers[i];
+                if (renderer == null
+                    || !renderer.enabled
+                    || !renderer.gameObject.activeInHierarchy
+                    || (!(renderer is MeshRenderer) && !(renderer is SkinnedMeshRenderer)))
+                {
+                    continue;
+                }
+
+                if (hasVisualBounds)
+                {
+                    visualBounds.Encapsulate(renderer.bounds);
+                }
+                else
+                {
+                    visualBounds = renderer.bounds;
+                    hasVisualBounds = true;
+                }
+            }
+
+            return hasVisualBounds ? visualBounds.center : _drone.position;
         }
 
         private Color ResolveSongColor(ref uint seed)
