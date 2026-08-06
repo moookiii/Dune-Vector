@@ -1145,16 +1145,6 @@ namespace DuneVector
                         VisualizerEffectMask = (MusicVisualEffectGroups)stored.MusicVisualizerEffectMask
                             & MusicVisualEffectGroups.All;
                     }
-                    if (stored.Version < 10
-                        && (VisualizerEffectMask & MusicVisualEffectGroups.Sky) != 0)
-                    {
-                        VisualizerEffectMask |= MusicVisualEffectGroups.BassLines;
-                    }
-                    if (stored.Version < 12
-                        && (VisualizerEffectMask & MusicVisualEffectGroups.Sky) != 0)
-                    {
-                        VisualizerEffectMask |= MusicVisualEffectGroups.BlueAura;
-                    }
                     if (VisualizerMode == MusicVisualizerMode.NoFlash)
                     {
                         VisualizerEffectMask &= ~PauseMenuVisualTuning.FlashMusicVisualizerEffects;
@@ -1870,12 +1860,6 @@ namespace DuneVector
             y += buttonHeight + gap;
             DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerSkyLabel,
                 MusicVisualEffectGroups.Sky | MusicVisualEffectGroups.Filaments | MusicVisualEffectGroups.TrebleParticles);
-            y += buttonHeight + gap;
-            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerBlueAuraLabel,
-                MusicVisualEffectGroups.BlueAura);
-            y += buttonHeight + gap;
-            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerBassLinesLabel,
-                MusicVisualEffectGroups.BassLines);
             y += buttonHeight + gap;
             DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerBloomLabel,
                 MusicVisualEffectGroups.Bloom);

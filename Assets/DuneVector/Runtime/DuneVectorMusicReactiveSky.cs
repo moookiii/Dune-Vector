@@ -52,10 +52,7 @@ namespace DuneVector
             _conductorControlsResponse = true;
             if (_sky != null)
             {
-                _sky.ReactiveShockRingIntensity.Override(
-                    _visualizerMode == MusicVisualizerMode.All
-                        ? _settings.ShockRingIntensity
-                        : 0f);
+                _sky.ReactiveShockRingIntensity.Override(0f);
             }
         }
 
@@ -116,10 +113,7 @@ namespace DuneVector
             _visualizerMode = mode;
             if (_sky != null)
             {
-                _sky.ReactiveShockRingIntensity.Override(
-                    mode == MusicVisualizerMode.All
-                        ? _settings.ShockRingIntensity
-                        : 0f);
+                _sky.ReactiveShockRingIntensity.Override(0f);
                 _sky.ReactiveLightningIntensity.Override(
                     mode == MusicVisualizerMode.All
                         ? _settings.LightningIntensity
@@ -149,7 +143,7 @@ namespace DuneVector
         private void ApplyAuthoredSkySettings()
         {
             _sky.ReactiveFrontColor.Override(_settings.FrontColor);
-            _sky.ReactiveFrontIntensity.Override(_settings.FrontIntensity);
+            _sky.ReactiveFrontIntensity.Override(0f);
             _sky.ReactiveFrontCount.Override(_settings.FrontCount);
             _sky.ReactiveFrontTravelSpeed.Override(_settings.FrontTravelSpeed);
             _sky.ReactiveFrontThickness.Override(_settings.FrontThickness);
@@ -174,7 +168,7 @@ namespace DuneVector
             _sky.ReactiveAuroraSecondaryIntensity.Override(_settings.AuroraSecondaryIntensity);
             _sky.ReactiveAuroraShimmerAmount.Override(_settings.AuroraShimmerAmount);
             _sky.ReactiveShockRingColor.Override(_settings.ShockRingColor);
-            _sky.ReactiveShockRingIntensity.Override(_settings.ShockRingIntensity);
+            _sky.ReactiveShockRingIntensity.Override(0f);
             _sky.ReactiveShockRingCount.Override(_settings.ShockRingCount);
             _sky.ReactiveShockRingThickness.Override(_settings.ShockRingThickness);
             _sky.ReactiveShockRingTravelSpeed.Override(_settings.ShockRingTravelSpeed);
@@ -514,11 +508,9 @@ namespace DuneVector
             }
 
             bool skyAllowed = (state.Permissions & MusicVisualEffectGroups.Sky) != 0;
-            bool blueAuraAllowed = (state.Permissions & MusicVisualEffectGroups.BlueAura) != 0;
-            bool bassLinesAllowed = (state.Permissions & MusicVisualEffectGroups.BassLines) != 0;
-            bool musicInputsAllowed = skyAllowed || blueAuraAllowed || bassLinesAllowed;
-            _sky.ReactiveFrontIntensity.Override(blueAuraAllowed ? _settings.FrontIntensity : 0f);
-            _sky.ReactiveShockRingIntensity.Override(bassLinesAllowed ? _settings.ShockRingIntensity : 0f);
+            bool musicInputsAllowed = skyAllowed;
+            _sky.ReactiveFrontIntensity.Override(0f);
+            _sky.ReactiveShockRingIntensity.Override(0f);
             _sky.ReactiveLightningIntensity.Override(skyAllowed ? _settings.LightningIntensity : 0f);
             _sky.ReactiveSparkIntensity.Override(skyAllowed ? _settings.SparkIntensity : 0f);
             _sky.ReactiveSparkDensity.Override(skyAllowed ? _settings.SparkDensity : 0f);

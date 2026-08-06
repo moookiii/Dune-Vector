@@ -4946,8 +4946,7 @@ namespace DuneVector
             | MusicVisualEffectGroups.Glitch
             | MusicVisualEffectGroups.HudBorder
             | MusicVisualEffectGroups.Bloom
-            | MusicVisualEffectGroups.TrebleParticles
-            | MusicVisualEffectGroups.BassLines;
+            | MusicVisualEffectGroups.TrebleParticles;
         public string MusicVisualizerSettingsButtonLabel = "MUSIC VISUALIZER";
         public string MusicVisualizerSettingsTitle = "MUSIC VISUALIZER";
         public string MusicVisualizerSettingsSubtitle = "DUNE VECTOR  /  MUSIC-REACTIVE EFFECTS";
@@ -4957,8 +4956,6 @@ namespace DuneVector
         public string MusicVisualizerSettingsHintLabel = "ESC  /  BACK TO PAUSE";
         public string MusicVisualizerMasterLabel = "MASTER VISUALIZER";
         public string MusicVisualizerSkyLabel = "SKY & AURORA";
-        public string MusicVisualizerBlueAuraLabel = "BLUE AURA";
-        public string MusicVisualizerBassLinesLabel = "BASS LINES";
         public string MusicVisualizerBloomLabel = "BLOOM & FLASHES";
         public string MusicVisualizerPressureFrontsLabel = "PRESSURE FRONTS";
         public string MusicVisualizerWorldResponseLabel = "WORLD PULSES";
@@ -4970,8 +4967,6 @@ namespace DuneVector
         public string MusicVisualizerEffectDisabledLabel = "OFF";
         public bool DefaultMusicVisualizerEnabled = true;
         public bool DefaultMusicVisualizerSkyEnabled = true;
-        public bool DefaultMusicVisualizerBlueAuraEnabled;
-        public bool DefaultMusicVisualizerBassLinesEnabled;
         public bool DefaultMusicVisualizerBloomEnabled = true;
         public bool DefaultMusicVisualizerPressureFrontsEnabled = true;
         public bool DefaultMusicVisualizerWorldResponseEnabled = true;
@@ -4988,14 +4983,6 @@ namespace DuneVector
                 mask |= MusicVisualEffectGroups.Sky
                     | MusicVisualEffectGroups.Filaments
                     | MusicVisualEffectGroups.TrebleParticles;
-            }
-            if (DefaultMusicVisualizerBlueAuraEnabled)
-            {
-                mask |= MusicVisualEffectGroups.BlueAura;
-            }
-            if (DefaultMusicVisualizerBassLinesEnabled)
-            {
-                mask |= MusicVisualEffectGroups.BassLines;
             }
             if (DefaultMusicVisualizerBloomEnabled)
             {
