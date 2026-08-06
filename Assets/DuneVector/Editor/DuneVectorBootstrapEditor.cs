@@ -489,7 +489,7 @@ namespace DuneVector.Editor
                 _contracts);
             DuneVectorSettingsInspector.DrawSection(
                 "Delivery Messages",
-                "Authored narrative order, typewriter timing, replay policy, and FMOD typing loop.",
+                "Authored narrative order, typewriter timing, replay policy, and per-page FMOD voice events.",
                 _deliveryMessages);
             DuneVectorSettingsInspector.DrawSection(
                 "Photography & Glyph Documentation",

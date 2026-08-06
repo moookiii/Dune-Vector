@@ -44,6 +44,34 @@ namespace DuneVector
     }
 
     [Serializable]
+    public sealed class DeliveryMessageVoiceSequence
+    {
+        [Tooltip("Delivery message whose spoken pages use these FMOD events.")]
+        public DeliveryMessageAsset Message;
+
+        [Tooltip("One FMOD event per spoken page. Element 0 plays for the page after the transmission identifier; the identifier page remains silent.")]
+        public List<EventReference> SpokenPageEvents = new List<EventReference>();
+
+        public bool TryResolve(int pageIndex, out EventReference eventReference)
+        {
+            int spokenPageIndex = pageIndex - 1;
+            if (spokenPageIndex < 0 || SpokenPageEvents == null || spokenPageIndex >= SpokenPageEvents.Count)
+            {
+                eventReference = default;
+                return false;
+            }
+
+            eventReference = SpokenPageEvents[spokenPageIndex];
+            return !eventReference.IsNull;
+        }
+
+        public void EnsureInitialized()
+        {
+            SpokenPageEvents ??= new List<EventReference>();
+        }
+    }
+
+    [Serializable]
     public sealed class DeliveryMessageTuning
     {
         [Header("Progression")]
@@ -192,6 +220,30 @@ namespace DuneVector
         [Tooltip("Looping FMOD event used only while characters are actively appearing.")]
         public EventReference TypingLoopEvent;
 
+        [Tooltip("Per-transmission voice events. Each list starts at the second authored page so the transmission identifier page has no voice event.")]
+        public List<DeliveryMessageVoiceSequence> VoiceSequences = new List<DeliveryMessageVoiceSequence>();
+
+        public bool TryResolveVoiceEvent(
+            DeliveryMessageAsset message,
+            int pageIndex,
+            out EventReference eventReference)
+        {
+            if (message != null && VoiceSequences != null)
+            {
+                for (int index = 0; index < VoiceSequences.Count; index++)
+                {
+                    DeliveryMessageVoiceSequence sequence = VoiceSequences[index];
+                    if (sequence != null && sequence.Message == message)
+                    {
+                        return sequence.TryResolve(pageIndex, out eventReference);
+                    }
+                }
+            }
+
+            eventReference = default;
+            return false;
+        }
+
         public bool TryResolve(int absoluteSequenceIndex, out DeliveryMessageAsset message)
         {
             message = null;
@@ -215,6 +267,11 @@ namespace DuneVector
         public void EnsureInitialized()
         {
             Sequence ??= new List<DeliveryMessageAsset>();
+            VoiceSequences ??= new List<DeliveryMessageVoiceSequence>();
+            for (int index = 0; index < VoiceSequences.Count; index++)
+            {
+                VoiceSequences[index]?.EnsureInitialized();
+            }
         }
     }
 }

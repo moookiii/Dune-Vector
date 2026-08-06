@@ -164,6 +164,65 @@ namespace DuneVector
         }
     }
 
+    internal sealed class DeliveryMessageVoiceAudio : IDisposable
+    {
+        private EventInstance _instance;
+
+        public void Play(EventReference eventReference, UnityEngine.Object context)
+        {
+            Stop();
+            if (eventReference.IsNull)
+            {
+                return;
+            }
+
+            try
+            {
+                _instance = RuntimeManager.CreateInstance(eventReference);
+                FMOD.RESULT startResult = _instance.start();
+                if (startResult != FMOD.RESULT.OK)
+                {
+                    Debug.LogWarning(
+                        $"FMOD delivery voice event '{eventReference}' could not start. {startResult}",
+                        context);
+                    Release();
+                }
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning(
+                    $"FMOD delivery voice event '{eventReference}' could not start. {exception.Message}",
+                    context);
+                Release();
+            }
+        }
+
+        public void Stop()
+        {
+            if (!_instance.isValid())
+            {
+                return;
+            }
+
+            _instance.stop(FMOD.Studio.STOP_MODE.IMMEDIATE);
+            Release();
+        }
+
+        private void Release()
+        {
+            if (_instance.isValid())
+            {
+                _instance.release();
+                _instance.clearHandle();
+            }
+        }
+
+        public void Dispose()
+        {
+            Stop();
+        }
+    }
+
     [DisallowMultipleComponent]
     public sealed class DuneVectorDeliveryMessagePresenter : MonoBehaviour
     {
@@ -201,7 +260,9 @@ namespace DuneVector
 
         private readonly DeliveryMessageInputReader _input = new DeliveryMessageInputReader();
         private readonly DeliveryMessageTypingAudio _typingAudio = new DeliveryMessageTypingAudio();
+        private readonly DeliveryMessageVoiceAudio _voiceAudio = new DeliveryMessageVoiceAudio();
         private IReadOnlyList<string> _pages = Array.Empty<string>();
+        private DeliveryMessageAsset _message;
         private DeliveryMessageTuning _settings;
         private DuneVectorAudioManager _audio;
         private float _timeScaleBeforeOpen = 1f;
@@ -281,6 +342,7 @@ namespace DuneVector
             }
 
             _pages = message.BuildPages();
+            _message = message;
             _completed = completed;
             _pageIndex = 0;
             _visibleCharacterCount = 0;
@@ -320,6 +382,7 @@ namespace DuneVector
             }
 
             _typingAudio.Stop();
+            _voiceAudio.Stop();
             IsOpen = false;
             if (!_allowCancel)
             {
@@ -329,6 +392,7 @@ namespace DuneVector
             Action callback = _completed;
             _completed = null;
             _pages = Array.Empty<string>();
+            _message = null;
             _allowCancel = false;
             _phase = PagePresentationPhase.Presenting;
             if (invokeCompletion && !_completionSent)
@@ -426,6 +490,7 @@ namespace DuneVector
 
             if (_pageIndex + 1 < _pages.Count)
             {
+                _voiceAudio.Stop();
                 _phase = PagePresentationPhase.FadingOut;
                 _phaseStartedAt = Time.unscaledTime;
                 return;
@@ -447,6 +512,10 @@ namespace DuneVector
                 return;
             }
             _typingAudio.Start(_settings.TypingLoopEvent, this);
+            if (_settings.TryResolveVoiceEvent(_message, _pageIndex, out EventReference voiceEvent))
+            {
+                _voiceAudio.Play(voiceEvent, this);
+            }
         }
 
         private void RevealCurrentPage()
@@ -1111,6 +1180,7 @@ namespace DuneVector
         private void OnDestroy()
         {
             _typingAudio.Dispose();
+            _voiceAudio.Dispose();
             Close(invokeCompletion: false);
             if (_runtimeFont != null)
             {
