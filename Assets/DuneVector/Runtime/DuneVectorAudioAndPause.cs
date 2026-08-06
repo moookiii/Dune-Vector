@@ -1610,7 +1610,7 @@ namespace DuneVector
                 _audio != null ? _audio.DialogueVolume : 0f,
                 value => _audio?.SetDialogueVolume(value),
                 scale);
-            y += sliderRowHeight + gap;
+            y += sliderRowHeight + (_visuals.DialogueButtonGap * scale);
 
             float buttonHeight = _visuals.ButtonHeight * scale;
             if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), "RESUME FLIGHT", _primaryButtonStyle))
