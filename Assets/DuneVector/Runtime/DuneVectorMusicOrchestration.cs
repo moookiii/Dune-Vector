@@ -214,6 +214,10 @@ namespace DuneVector
         public MusicScreenFlareDirectionMode ScreenFlareDirectionMode;
         [Min(0f)] public float ScreenFlareWidthScale;
         [Min(0f)] public float ScreenFlareSpeedScale;
+        [Min(0)] public int ScreenFlareHeldLineCount;
+        public Vector2 ScreenFlareHeldLineLifetimeSeconds;
+        [Min(0f)] public float ScreenFlareHeldWidthScale;
+        [Min(0f)] public float ScreenFlareHeldSpeedScale;
         [Min(0f)] public float RoadResponse;
         [Min(0f)] public float SecondaryRoadResponse;
         [Min(0f)] public float SecondaryRoadDelayBeats;
@@ -245,6 +249,10 @@ namespace DuneVector
         [Min(0f)] public float SpeedScale;
         [Range(0f, 0.5f)] public float InitialViewportRadius;
         public bool EmitMirroredPair;
+        [Min(0)] public int HeldLineCount;
+        public Vector2 HeldLineLifetimeSeconds;
+        [Min(0f)] public float HeldWidthScale;
+        [Min(0f)] public float HeldSpeedScale;
         public uint Seed;
     }
 
@@ -301,6 +309,10 @@ namespace DuneVector
         public float ScreenFlareSpeedScale;
         public float ScreenFlareInitialViewportRadius;
         public bool ScreenFlareEmitMirroredPair;
+        public int ScreenFlareHeldLineCount;
+        public Vector2 ScreenFlareHeldLineLifetimeSeconds;
+        public float ScreenFlareHeldWidthScale;
+        public float ScreenFlareHeldSpeedScale;
         public float RoadResponse;
         public float SecondaryRoadResponse;
         public float SecondaryRoadDelaySeconds;
@@ -1067,6 +1079,14 @@ namespace DuneVector
                     int minimum = Mathf.Max(0, pattern.MinimumLineCount);
                     int maximum = Mathf.Max(minimum, pattern.MaximumLineCount);
                     int lineCount = minimum + (int)(seed % (uint)(maximum - minimum + 1));
+                    float speedScale = pattern.SpeedScale;
+                    if (pattern.DirectionMode != MusicScreenFlareDirectionMode.Default)
+                    {
+                        lineCount *= Mathf.Max(1, _profile.AuthoredDirectionalFlareLineCountMultiplier);
+                        speedScale *= _profile.AuthoredDirectionalFlareTravelScale > 0f
+                            ? _profile.AuthoredDirectionalFlareTravelScale
+                            : 1f;
+                    }
                     MusicVisualDispatchCommand command = new MusicVisualDispatchCommand
                     {
                         Type = MusicVisualCueType.TrebleBurst,
@@ -1079,9 +1099,13 @@ namespace DuneVector
                         ScreenFlareLineLifetimeSeconds = pattern.LineLifetimeSeconds,
                         ScreenFlareDirectionMode = pattern.DirectionMode,
                         ScreenFlareWidthScale = pattern.WidthScale,
-                        ScreenFlareSpeedScale = pattern.SpeedScale,
+                        ScreenFlareSpeedScale = speedScale,
                         ScreenFlareInitialViewportRadius = pattern.InitialViewportRadius,
                         ScreenFlareEmitMirroredPair = pattern.EmitMirroredPair,
+                        ScreenFlareHeldLineCount = pattern.HeldLineCount,
+                        ScreenFlareHeldLineLifetimeSeconds = pattern.HeldLineLifetimeSeconds,
+                        ScreenFlareHeldWidthScale = pattern.HeldWidthScale,
+                        ScreenFlareHeldSpeedScale = pattern.HeldSpeedScale,
                     };
                     for (int sinkIndex = 0; sinkIndex < _sinkCount; sinkIndex++)
                     {
@@ -1214,6 +1238,10 @@ namespace DuneVector
                 ScreenFlareDirectionMode = cue.ScreenFlareDirectionMode,
                 ScreenFlareWidthScale = cue.ScreenFlareWidthScale,
                 ScreenFlareSpeedScale = cue.ScreenFlareSpeedScale,
+                ScreenFlareHeldLineCount = cue.ScreenFlareHeldLineCount,
+                ScreenFlareHeldLineLifetimeSeconds = cue.ScreenFlareHeldLineLifetimeSeconds,
+                ScreenFlareHeldWidthScale = cue.ScreenFlareHeldWidthScale,
+                ScreenFlareHeldSpeedScale = cue.ScreenFlareHeldSpeedScale,
                 RoadResponse = cue.RoadResponse,
                 SecondaryRoadResponse = cue.SecondaryRoadResponse,
                 SecondaryRoadDelaySeconds = cue.SecondaryRoadDelayBeats * beatSeconds,

@@ -25,6 +25,8 @@ namespace DuneVector
         [Header("Composition")]
         public MusicVisualSectionDefinition[] Sections = Array.Empty<MusicVisualSectionDefinition>();
         public MusicVisualAuthoredCue[] AuthoredCues = Array.Empty<MusicVisualAuthoredCue>();
+        [Min(0)] public int AuthoredDirectionalFlareLineCountMultiplier;
+        [Min(0f)] public float AuthoredDirectionalFlareTravelScale;
         public MusicVisualAuthoredFlarePattern[] AuthoredFlarePatterns = Array.Empty<MusicVisualAuthoredFlarePattern>();
 
         [Header("Complete Song Visualizer Tuning")]

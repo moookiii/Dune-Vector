@@ -282,7 +282,7 @@ namespace DuneVector
             if (centerOut)
             {
                 requested = Mathf.CeilToInt(
-                    command.ScreenFlareLineCount
+                    (command.ScreenFlareLineCount + command.ScreenFlareHeldLineCount)
                     * Mathf.Max(1f, _settings.CenterOutBurstCountMultiplier));
             }
             else if (command.IsAuthored && command.TrebleParticleCount > 0)
@@ -302,6 +302,10 @@ namespace DuneVector
                     _settings.ForegroundStreakBurstCount * Mathf.Clamp01(command.Strength) * punch);
             }
             int count = Mathf.Min(available, requested);
+            int movingLineCount = centerOut
+                ? Mathf.CeilToInt(command.ScreenFlareLineCount
+                    * Mathf.Max(1f, _settings.CenterOutBurstCountMultiplier))
+                : 0;
             float forward = Mathf.Max(0.01f, _settings.ForegroundStreakForwardOffset);
             float halfHeight = Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad) * forward;
             float halfWidth = halfHeight * _camera.aspect;
@@ -324,6 +328,7 @@ namespace DuneVector
                 bool fineLine = false;
                 if (centerOut)
                 {
+                    bool heldLine = i >= movingLineCount;
                     fineLine = Next01(ref seed) < _settings.CenterOutFineLineFraction;
                     direction = ResolveCenterOutDirection(in command, fineLine, i, ref seed);
                     float authoredRadius = command.ScreenFlareInitialViewportRadius;
@@ -335,7 +340,13 @@ namespace DuneVector
                     float speed = _settings.CenterOutRadialSpeed
                         * Mathf.Lerp(0.82f, 1.18f, Next01(ref seed))
                         * (fineLine ? _settings.CenterOutFineLineSpeedMultiplier : 1f)
-                        * (command.ScreenFlareSpeedScale > 0f ? command.ScreenFlareSpeedScale : 1f);
+                        * (heldLine
+                            ? (command.ScreenFlareHeldSpeedScale > 0f
+                                ? command.ScreenFlareHeldSpeedScale
+                                : 1f)
+                            : (command.ScreenFlareSpeedScale > 0f
+                                ? command.ScreenFlareSpeedScale
+                                : 1f));
                     velocity = new Vector3(
                         direction.x * speed,
                         direction.y * speed,
@@ -362,6 +373,12 @@ namespace DuneVector
                     color.a = alpha;
                 }
                 Vector2 lifetimeRange = command.ScreenFlareLineLifetimeSeconds;
+                if (centerOut
+                    && i >= movingLineCount
+                    && command.ScreenFlareHeldLineLifetimeSeconds.y > 0f)
+                {
+                    lifetimeRange = command.ScreenFlareHeldLineLifetimeSeconds;
+                }
                 float lifetime = centerOut && lifetimeRange.y > 0f
                     ? Mathf.Lerp(lifetimeRange.x, lifetimeRange.y, Next01(ref seed))
                     : _settings.ForegroundStreakLifetime;
@@ -375,7 +392,11 @@ namespace DuneVector
                         ? _settings.ForegroundStreakSize * (fineLine
                             ? _settings.CenterOutFineLineWidthMultiplier
                             : _settings.CenterOutBroadRayWidthMultiplier)
-                            * (command.ScreenFlareWidthScale > 0f ? command.ScreenFlareWidthScale : 1f)
+                            * (i >= movingLineCount && command.ScreenFlareHeldWidthScale > 0f
+                                ? command.ScreenFlareHeldWidthScale
+                                : (command.ScreenFlareWidthScale > 0f
+                                    ? command.ScreenFlareWidthScale
+                                    : 1f))
                         : _settings.ForegroundStreakSize,
                 };
                 _streaks.Emit(emit, 1);
