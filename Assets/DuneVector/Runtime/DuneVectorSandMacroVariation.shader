@@ -8,6 +8,7 @@ Shader "DuneVector/URP Sand Macro Variation"
         _Metallic("Metallic", Range(0, 1)) = 0
 
         [HideInInspector] _DVSandVariationEnabled("Variation Enabled", Float) = 1
+        [HideInInspector] _DVSandTextureRotationDegrees("Texture Rotation Degrees", Float) = 0
         [HideInInspector] _DVSandLightColor("Light Sand", Color) = (1, 0.72, 0.32, 1)
         [HideInInspector] _DVSandMidColor("Mid Sand", Color) = (0.93, 0.48, 0.16, 1)
         [HideInInspector] _DVSandDarkColor("Dark Sand", Color) = (0.48, 0.2, 0.09, 1)
@@ -82,6 +83,7 @@ Shader "DuneVector/URP Sand Macro Variation"
                 half _Smoothness;
                 half _Metallic;
                 half _DVSandVariationEnabled;
+                float _DVSandTextureRotationDegrees;
                 float _DVSandMacroPatternSize;
                 float _DVSandSecondaryPatternSize;
                 float _DVSandDetailPatternSize;
@@ -177,7 +179,14 @@ Shader "DuneVector/URP Sand Macro Variation"
                 output.positionCS = positionInputs.positionCS;
                 output.positionWS = positionInputs.positionWS;
                 output.normalWS = NormalizeNormalPerVertex(normalInputs.normalWS);
-                output.uv = TRANSFORM_TEX(input.uv, _BaseMap);
+                float textureRotationRadians = radians(_DVSandTextureRotationDegrees);
+                float textureRotationSine;
+                float textureRotationCosine;
+                sincos(textureRotationRadians, textureRotationSine, textureRotationCosine);
+                float2 rotatedTextureUv = float2(
+                    (input.uv.x * textureRotationCosine) - (input.uv.y * textureRotationSine),
+                    (input.uv.x * textureRotationSine) + (input.uv.y * textureRotationCosine));
+                output.uv = TRANSFORM_TEX(rotatedTextureUv, _BaseMap);
                 output.logicalWorldXZ = input.uv;
                 output.fogFactor = ComputeFogFactor(positionInputs.positionCS.z);
                 return output;

@@ -5971,6 +5971,9 @@ namespace DuneVector
         [Tooltip("World-space width and length, in meters, covered by one repeat of the dune texture.")]
         [Min(0.01f)] public float DuneTextureTileSize = 18f;
 
+        [Tooltip("Clockwise world-space rotation of the dune texture. Use this to run the texture's ripple bands parallel with the generated dune crests.")]
+        [Range(-180f, 180f)] public float DuneTextureRotationDegrees;
+
         [Header("Dune Sand Surface Recoloring")]
         [Tooltip("Enables world-space macro sand colors and independent secondary surface variation.")]
         public bool DuneColorVariationEnabled = true;

@@ -157,6 +157,7 @@ namespace DuneVector.Editor
         private SerializedProperty _dunes;
         private SerializedProperty _duneTexture;
         private SerializedProperty _duneTextureTileSize;
+        private SerializedProperty _duneTextureRotationDegrees;
         private SerializedProperty _duneColorVariationEnabled;
         private SerializedProperty _duneSandLightColor;
         private SerializedProperty _duneSandMidColor;
@@ -228,6 +229,7 @@ namespace DuneVector.Editor
             _dunes = serializedObject.FindProperty("DuneGeneration");
             _duneTexture = serializedObject.FindProperty("DuneTexture");
             _duneTextureTileSize = serializedObject.FindProperty("DuneTextureTileSize");
+            _duneTextureRotationDegrees = serializedObject.FindProperty("DuneTextureRotationDegrees");
             _duneColorVariationEnabled = serializedObject.FindProperty("DuneColorVariationEnabled");
             _duneSandLightColor = serializedObject.FindProperty("DuneSandLightColor");
             _duneSandMidColor = serializedObject.FindProperty("DuneSandMidColor");
@@ -564,6 +566,7 @@ namespace DuneVector.Editor
                 EditorGUILayout.Space(3f);
                 EditorGUILayout.PropertyField(_duneTexture);
                 EditorGUILayout.PropertyField(_duneTextureTileSize);
+                EditorGUILayout.PropertyField(_duneTextureRotationDegrees);
                 EditorGUILayout.Space(4f);
                 EditorGUILayout.PropertyField(_duneColorVariationEnabled);
                 EditorGUILayout.PropertyField(_duneSandLightColor);

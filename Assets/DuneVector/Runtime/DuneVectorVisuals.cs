@@ -424,6 +424,8 @@ namespace DuneVector
                 material.SetTextureScale("_BaseMap", tiling);
             }
 
+            material.SetFloat("_DVSandTextureRotationDegrees", settings.DuneTextureRotationDegrees);
+
             material.SetFloat("_DVSandVariationEnabled", settings.DuneColorVariationEnabled ? 1f : 0f);
             material.SetColor("_DVSandLightColor", settings.DuneSandLightColor);
             material.SetColor("_DVSandMidColor", settings.DuneSandMidColor);
