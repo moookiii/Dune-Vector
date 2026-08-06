@@ -31,6 +31,7 @@ namespace DuneVector
         }
 
         private Camera _camera;
+        private Transform _drone;
         private MusicReactiveSkyTuning _settings;
         private FrontSlot[] _ordinary;
         private FrontSlot[] _reactor;
@@ -43,9 +44,14 @@ namespace DuneVector
         public int ActiveReactorCount => CountActive(_reactor);
         public int DroppedFrontCount => _droppedFronts;
 
-        public void Initialize(Camera camera, Material sharedMaterial, MusicReactiveSkyTuning settings)
+        public void Initialize(
+            Camera camera,
+            Transform drone,
+            Material sharedMaterial,
+            MusicReactiveSkyTuning settings)
         {
             _camera = camera;
+            _drone = drone;
             _settings = settings;
             int segmentCount = Mathf.Max(2, settings.PressureFrontSegments);
             _positions = new Vector3[segmentCount];
@@ -291,10 +297,10 @@ namespace DuneVector
                         _settings.PressureFrontEnclosingHaloStartRadius,
                         _settings.PressureFrontEnclosingHaloEndRadius,
                         progress * progress);
-                    Vector3 center = _camera != null
-                        ? _camera.transform.position
-                        : slot.Origin;
-                    center.y = slot.BaseHeight + _settings.PressureFrontEnclosingHaloHeightOffset;
+                    Vector3 center = _drone != null
+                        ? _drone.position
+                        : (_camera != null ? _camera.transform.position : slot.Origin);
+                    center.y += _settings.PressureFrontEnclosingHaloHeightOffset;
                     for (int segment = 0; segment < _positions.Length; segment++)
                     {
                         float angle = segment / (float)_positions.Length * Mathf.PI * 2f;

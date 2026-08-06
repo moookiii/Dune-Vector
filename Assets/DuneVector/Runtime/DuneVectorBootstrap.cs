@@ -719,7 +719,11 @@ namespace DuneVector
             conductor.RegisterSink(MusicReactiveSky);
             MusicReactiveSky.EnableConductorControl();
             DuneVectorPerspectivePressureFronts pressureFronts = reactiveSkyObject.AddComponent<DuneVectorPerspectivePressureFronts>();
-            pressureFronts.Initialize(DroneCamera.Camera, _materials.MusicReactiveAdditive, reactiveSettings);
+            pressureFronts.Initialize(
+                DroneCamera.Camera,
+                Drone.transform,
+                _materials.MusicReactiveAdditive,
+                reactiveSettings);
             conductor.RegisterSink(pressureFronts);
             DuneVectorMusicForegroundResponse foreground = reactiveSkyObject.AddComponent<DuneVectorMusicForegroundResponse>();
             foreground.Initialize(
