@@ -49,4 +49,6 @@ Shader "DuneVector/Retro CRT Scanlines"
             ENDHLSL
         }
     }
+
+    CustomEditor "DuneVector.Editor.DuneVectorRetroCrtScanlineShaderGUI"
 }

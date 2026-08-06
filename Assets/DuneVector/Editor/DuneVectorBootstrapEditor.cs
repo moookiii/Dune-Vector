@@ -118,6 +118,7 @@ namespace DuneVector.Editor
         private bool _searchIndexIsValid;
         private int _searchMatchCount;
         private SerializedProperty _player;
+        private SerializedProperty _retroCrtScanlines;
         private SerializedProperty _bottomHud;
         private SerializedProperty _mapHud;
         private SerializedProperty _droneVisuals;
@@ -188,6 +189,7 @@ namespace DuneVector.Editor
         {
             _searchField = new SearchField();
             _player = serializedObject.FindProperty("PlayerTuning");
+            _retroCrtScanlines = serializedObject.FindProperty("RetroCrtScanlines");
             _bottomHud = serializedObject.FindProperty("BottomHud");
             _mapHud = serializedObject.FindProperty("MapHud");
             _droneVisuals = serializedObject.FindProperty("DroneVisuals");
@@ -543,6 +545,10 @@ namespace DuneVector.Editor
 
         private void DrawWorldTab()
         {
+            DuneVectorSettingsInspector.DrawSection(
+                "Retro CRT Scanlines",
+                "Fullscreen scanline enablement, height, strength, and renderer material.",
+                _retroCrtScanlines);
             DrawDunePresetControls();
             DuneVectorSettingsInspector.DrawSection(
                 "Dune Generation",
