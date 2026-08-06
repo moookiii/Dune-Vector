@@ -9,6 +9,16 @@
 
 .compendium-separator {
     flex-shrink: 0;
+    flex-direction: row;
+    overflow: hidden;
+}
+
+.compendium-progress-fill {
+    height: 100%;
+    width: 0;
+    transition-property: width;
+    transition-duration: 0.25s;
+    transition-timing-function: ease-out;
 }
 
 .compendium-header {
@@ -142,6 +152,13 @@
     letter-spacing: 1px;
 }
 
+.compendium-card-accent {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+}
+
 .compendium-card-selection-marker {
     position: absolute;
     right: 0;
@@ -184,9 +201,18 @@
     white-space: normal;
 }
 
-.compendium-detail-metadata {
-    margin-top: 6px;
+.compendium-chip-row {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.compendium-chip {
+    margin: 0;
+    margin-right: 8px;
     letter-spacing: 1px;
+    -unity-text-align: middle-center;
 }
 
 .compendium-detail-rule {

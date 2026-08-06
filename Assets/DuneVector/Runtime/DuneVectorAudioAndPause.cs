@@ -28,7 +28,7 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 12;
+            public int Version = 13;
             public float MusicVolume;
             public float SoundEffectsVolume;
             public float DialogueVolume;
@@ -39,6 +39,7 @@ namespace DuneVector
             public bool CrtLinesEnabled = true;
             public bool FilmGrainEnabled = true;
             public bool VignetteEnabled = true;
+            public bool BloomEnabled = true;
             public int AntiAliasingMode;
             public bool VisualizerFovEnabled;
             public int MusicVisualizerEffectMask;
@@ -53,6 +54,7 @@ namespace DuneVector
         public bool CrtLinesEnabled { get; private set; } = true;
         public bool FilmGrainEnabled { get; private set; } = true;
         public bool VignetteEnabled { get; private set; } = true;
+        public bool BloomEnabled { get; private set; } = true;
         public DuneVectorCameraAntiAliasingMode AntiAliasingMode { get; private set; }
         public bool VisualizerFovEnabled { get; private set; }
         public MusicVisualEffectGroups VisualizerEffectMask { get; private set; }
@@ -606,6 +608,18 @@ namespace DuneVector
             FlushPreferences();
         }
 
+        public void SetBloomEnabled(bool enabled)
+        {
+            if (BloomEnabled == enabled)
+            {
+                return;
+            }
+
+            BloomEnabled = enabled;
+            _preferencesDirty = true;
+            FlushPreferences();
+        }
+
         public void SetAntiAliasingMode(DuneVectorCameraAntiAliasingMode mode)
         {
             if (!Enum.IsDefined(typeof(DuneVectorCameraAntiAliasingMode), mode))
@@ -642,6 +656,7 @@ namespace DuneVector
             CrtLinesEnabled = defaults == null || defaults.DefaultCrtLinesEnabled;
             FilmGrainEnabled = defaults == null || defaults.DefaultFilmGrainEnabled;
             VignetteEnabled = defaults == null || defaults.DefaultVignetteEnabled;
+            BloomEnabled = defaults == null || defaults.DefaultBloomEnabled;
             AntiAliasingMode = _defaultAntiAliasingMode == DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing
                 ? DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing
                 : _defaultAntiAliasingMode;
@@ -1099,6 +1114,8 @@ namespace DuneVector
                 || _settings.PauseMenu.DefaultFilmGrainEnabled;
             VignetteEnabled = _settings.PauseMenu == null
                 || _settings.PauseMenu.DefaultVignetteEnabled;
+            BloomEnabled = _settings.PauseMenu == null
+                || _settings.PauseMenu.DefaultBloomEnabled;
             AntiAliasingMode = _defaultAntiAliasingMode == DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing
                 ? DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing
                 : _defaultAntiAliasingMode;
@@ -1110,7 +1127,7 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version >= 1 && stored.Version <= 12)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 13)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
@@ -1153,6 +1170,10 @@ namespace DuneVector
                         VisualizerEffectMask = (MusicVisualEffectGroups)stored.MusicVisualizerEffectMask
                             & MusicVisualEffectGroups.All;
                     }
+                    if (stored.Version >= 13)
+                    {
+                        BloomEnabled = stored.BloomEnabled;
+                    }
                     if (VisualizerMode == MusicVisualizerMode.NoFlash)
                     {
                         VisualizerEffectMask &= ~PauseMenuVisualTuning.FlashMusicVisualizerEffects;
@@ -1193,6 +1214,7 @@ namespace DuneVector
                     CrtLinesEnabled = CrtLinesEnabled,
                     FilmGrainEnabled = FilmGrainEnabled,
                     VignetteEnabled = VignetteEnabled,
+                    BloomEnabled = BloomEnabled,
                     AntiAliasingMode = (int)AntiAliasingMode,
                     VisualizerFovEnabled = VisualizerFovEnabled,
                     MusicVisualizerEffectMask = (int)VisualizerEffectMask,
@@ -1259,6 +1281,7 @@ namespace DuneVector
         private readonly Dictionary<LensDistortion, bool> _lensDistortionOriginalStates = new();
         private readonly Dictionary<FilmGrain, bool> _filmGrainOriginalStates = new();
         private readonly Dictionary<Vignette, bool> _vignetteOriginalStates = new();
+        private readonly Dictionary<Bloom, bool> _bloomOriginalStates = new();
         private RetroCrtScanlineTuning _retroCrtScanlines;
 
         private GUIStyle _titleStyle;
@@ -1555,7 +1578,7 @@ namespace DuneVector
 
         private void DrawPauseScreens(float scale)
         {
-            DrawOverlayBackdrop();
+            DrawOverlayBackdrop(scale);
 
             if (_showControls || _controlsFade > 0f)
             {
@@ -1804,6 +1827,13 @@ namespace DuneVector
                 value => _audio?.SetVignetteEnabled(value));
             y += buttonHeight + gap;
 
+            DrawVideoToggle(
+                new Rect(content.x, y, content.width, buttonHeight),
+                _visuals.VideoBloomLabel,
+                _audio == null || _audio.BloomEnabled,
+                value => _audio?.SetBloomEnabled(value));
+            y += buttonHeight + gap;
+
             y += gap;
 
             float navigationWidth = (content.width - gap) * 0.5f;
@@ -2026,6 +2056,9 @@ namespace DuneVector
                 _audio == null || _audio.VignetteEnabled,
                 _vignetteOriginalStates,
                 true);
+            ApplyVolumePreference(
+                _audio == null || _audio.BloomEnabled,
+                _bloomOriginalStates);
 
             if (_retroCrtScanlines?.Material != null)
             {
@@ -2547,24 +2580,51 @@ namespace DuneVector
                 panel.height - (padding * 2f));
         }
 
-        private void DrawOverlayBackdrop()
+        private void DrawOverlayBackdrop(float scale)
         {
             DrawSolidRect(new Rect(0f, 0f, Screen.width, Screen.height), _visuals.OverlayColor);
 
             float strength = Mathf.Clamp01(_visuals.OverlayVignetteStrength);
-            if (strength <= 0.001f)
+            float tileSize = 48f * scale;
+            if (strength <= 0.001f || tileSize < 1f)
             {
                 return;
             }
 
-            Color edge = new Color(0f, 0f, 0f, strength);
-            Color clear = new Color(0f, 0f, 0f, 0f);
-            float horizontal = Screen.width * 0.34f;
-            float vertical = Screen.height * 0.34f;
-            DrawHorizontalGradient(new Rect(0f, 0f, horizontal, Screen.height), edge, clear);
-            DrawHorizontalGradient(new Rect(Screen.width - horizontal, 0f, horizontal, Screen.height), clear, edge);
-            DrawVerticalGradient(new Rect(0f, 0f, Screen.width, vertical), edge, clear);
-            DrawVerticalGradient(new Rect(0f, Screen.height - vertical, Screen.width, vertical), clear, edge);
+            // The dimming is laid out as a grid of square tiles that darken with
+            // distance from the center, so the falloff steps in blocks that match the
+            // game's vector look rather than sweeping smoothly across the screen.
+            float halfWidth = Screen.width * 0.5f;
+            float halfHeight = Screen.height * 0.5f;
+            float startX = halfWidth - (Mathf.Ceil(halfWidth / tileSize) * tileSize);
+            float startY = halfHeight - (Mathf.Ceil(halfHeight / tileSize) * tileSize);
+            int columns = Mathf.CeilToInt((Screen.width - startX) / tileSize);
+            int rows = Mathf.CeilToInt((Screen.height - startY) / tileSize);
+
+            for (int row = 0; row < rows; row++)
+            {
+                float top = Mathf.Round(startY + (row * tileSize));
+                for (int column = 0; column < columns; column++)
+                {
+                    float left = Mathf.Round(startX + (column * tileSize));
+                    float squareSize = Mathf.Max(1f, Mathf.Round(tileSize));
+                    float centerX = left + (squareSize * 0.5f);
+                    float centerY = top + (squareSize * 0.5f);
+
+                    float offsetX = (centerX - halfWidth) / halfWidth;
+                    float offsetY = (centerY - halfHeight) / halfHeight;
+                    float distance = Mathf.Sqrt((offsetX * offsetX) + (offsetY * offsetY));
+                    float falloff = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.45f, 1.2f, distance));
+                    if (falloff <= 0.001f)
+                    {
+                        continue;
+                    }
+
+                    DrawSolidRect(
+                        new Rect(left, top, squareSize, squareSize),
+                        new Color(0f, 0f, 0f, strength * falloff));
+                }
+            }
         }
 
         private void DrawPanelChrome(Rect panel, float scale)

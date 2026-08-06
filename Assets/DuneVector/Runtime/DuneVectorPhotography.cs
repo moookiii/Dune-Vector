@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -755,16 +756,33 @@ namespace DuneVector
         }
     }
 
+    /// <summary>
+    /// Immediate-mode photographic archive. Shares the HUD chrome vocabulary with the pause
+    /// screen and shop: smoked-glass panel, accent rail, corner brackets and hand-drawn buttons.
+    /// </summary>
     internal sealed class DuneVectorGalleryView
     {
+        private const float CaptionTitleFraction = 0.55f;
+
         private readonly DuneVectorPhotographStorage _storage;
         private readonly PhotographyTuning _settings;
         private Vector2 _scroll;
         private string _selectedPhotographId;
         private bool _confirmDelete;
         private GUIStyle _titleStyle;
+        private GUIStyle _subtitleStyle;
         private GUIStyle _bodyStyle;
+        private GUIStyle _cardTitleStyle;
+        private GUIStyle _cardMetaStyle;
+        private GUIStyle _emptyHintStyle;
+        private GUIStyle _tagStyle;
+        private GUIStyle _hintStyle;
+        private GUIStyle _hintRightStyle;
+        private GUIStyle _modalTitleStyle;
         private GUIStyle _buttonStyle;
+
+        /// <summary>Resolves a documented subject id to its compendium display name.</summary>
+        public Func<string, string> SubjectNameResolver;
 
         public DuneVectorGalleryView(DuneVectorPhotographStorage storage, PhotographyTuning settings)
         {
@@ -772,10 +790,15 @@ namespace DuneVector
             _settings = settings;
         }
 
+        private Color CardColor => Color.Lerp(_settings.GalleryPanelColor, Color.black, 0.45f);
+        private Color HeaderColor => Color.Lerp(_settings.GalleryPanelColor, Color.black, 0.25f);
+        private Color MattColor => new Color(0.01f, 0.015f, 0.02f, 1f);
+        private Color DimTextColor => WithAlpha(_settings.GalleryTextColor, 0.55f);
+
         public bool Draw()
         {
             EnsureStyles();
-            DrawRect(new Rect(0f, 0f, Screen.width, Screen.height), _settings.GalleryBackdropColor);
+            DuneVectorHudChrome.DrawRect(new Rect(0f, 0f, Screen.width, Screen.height), _settings.GalleryBackdropColor);
             float scale = Mathf.Clamp(
                 Mathf.Min(Screen.width / _settings.GalleryReferenceWidth, Screen.height / _settings.GalleryReferenceHeight),
                 Mathf.Min(_settings.GalleryMinimumScale, _settings.GalleryMaximumScale),
@@ -789,8 +812,21 @@ namespace DuneVector
                 (virtualHeight - _settings.GalleryPanelHeight) * 0.5f,
                 _settings.GalleryPanelWidth,
                 _settings.GalleryPanelHeight);
-            DrawRect(panel, _settings.GalleryPanelColor);
-            DrawBorder(panel, _settings.GalleryAccentColor, _settings.FrameThickness);
+
+            float thickness = Mathf.Max(1f, _settings.FrameThickness);
+            DuneVectorHudChrome.DrawSoftShadow(panel, new Color(0f, 0f, 0f, 0.55f), new Vector2(0f, 10f), 18f);
+            DuneVectorHudChrome.DrawGlassPanel(
+                panel,
+                _settings.GalleryPanelColor,
+                WithAlpha(_settings.GalleryAccentColor, 0.7f),
+                thickness,
+                1f);
+            DuneVectorHudChrome.DrawCornerBrackets(
+                panel,
+                WithAlpha(_settings.GallerySelectionColor, 0.9f),
+                26f,
+                thickness);
+
             if (!string.IsNullOrEmpty(_selectedPhotographId))
             {
                 DrawViewer(panel);
@@ -805,69 +841,156 @@ namespace DuneVector
 
         public bool CloseViewer()
         {
+            if (_confirmDelete)
+            {
+                _confirmDelete = false;
+                return true;
+            }
+
             if (string.IsNullOrEmpty(_selectedPhotographId))
             {
                 return false;
             }
 
             _selectedPhotographId = null;
-            _confirmDelete = false;
             return true;
         }
 
         private void DrawGrid(Rect panel)
         {
             float padding = _settings.GalleryPadding;
-            GUI.Label(new Rect(panel.x + padding, panel.y + padding, panel.width - (padding * 2f), _settings.GalleryHeaderHeight),
-                string.Format(_settings.GalleryCountFormat, _settings.GalleryTitle, _storage.Photographs.Count), _titleStyle);
-            if (GUI.Button(new Rect(panel.xMax - padding - _settings.GalleryThumbnailWidth, panel.y + padding,
-                    _settings.GalleryThumbnailWidth, _settings.GalleryButtonHeight), _settings.GalleryDoneButton, _buttonStyle))
-            {
-                DuneVectorPhotographySystem.RequestCloseGallery();
-            }
-            Rect viewport = new Rect(panel.x + padding, panel.y + padding + _settings.GalleryHeaderHeight,
-                panel.width - (padding * 2f), panel.height - (padding * 2f) - _settings.GalleryHeaderHeight);
+            Rect header = DrawHeader(
+                panel,
+                string.Format(_settings.GalleryCountFormat, _settings.GalleryTitle, _storage.Photographs.Count),
+                string.Format(
+                    _settings.GallerySubtitleFormat,
+                    _storage.Photographs.Count,
+                    _storage.DocumentedGlyphCount,
+                    Mathf.Max(1, _settings.MaximumGalleryPhotographs)));
+
+            Rect footer = DrawFooter(panel, _settings.GalleryGridHint, string.Empty);
+            Rect viewport = new Rect(
+                panel.x + padding,
+                header.yMax + padding,
+                panel.width - (padding * 2f),
+                Mathf.Max(1f, footer.yMin - header.yMax - (padding * 2f)));
+
             if (_storage.Photographs.Count == 0)
             {
-                GUI.Label(viewport, _settings.GalleryEmptyText, _bodyStyle);
+                DrawEmptyState(viewport);
                 return;
             }
+
             int columns = Mathf.Max(2, _settings.GalleryColumns);
-            float cellWidth = (viewport.width - ((columns - 1) * _settings.GalleryGap)) / columns;
+            float gap = _settings.GalleryGap;
+            float contentWidth = viewport.width - _settings.GalleryScrollbarWidth - gap;
+            float cellWidth = (contentWidth - ((columns - 1) * gap)) / columns;
             float imageHeight = cellWidth * (_settings.GalleryThumbnailHeight / Mathf.Max(1f, _settings.GalleryThumbnailWidth));
-            float cellHeight = imageHeight + _settings.SubjectLabelHeight + _settings.GalleryGap;
+            float captionHeight = _settings.SubjectLabelHeight * 1.6f;
+            float cardHeight = imageHeight + captionHeight;
+            float rowPitch = cardHeight + gap;
             int rows = Mathf.CeilToInt(_storage.Photographs.Count / (float)columns);
-            Rect content = new Rect(0f, 0f, viewport.width - _settings.GalleryGap, rows * cellHeight);
-            _scroll = GUI.BeginScrollView(viewport, _scroll, content);
-            int firstVisibleRow = Mathf.Max(0, Mathf.FloorToInt(_scroll.y / Mathf.Max(1f, cellHeight)) - 1);
-            int lastVisibleRow = Mathf.Min(rows - 1, Mathf.CeilToInt((_scroll.y + viewport.height) / Mathf.Max(1f, cellHeight)) + 1);
+            Rect content = new Rect(0f, 0f, contentWidth, Mathf.Max(1f, (rows * rowPitch) - gap));
+
+            // Inside the scroll view the mouse is reported in content space, so a pointer parked
+            // over the header can land on a card rect; gate hover on the untransformed position.
+            bool pointerInViewport = viewport.Contains(Event.current.mousePosition);
+            _scroll = GUI.BeginScrollView(viewport, _scroll, content, false, true);
+            int firstVisibleRow = Mathf.Max(0, Mathf.FloorToInt(_scroll.y / Mathf.Max(1f, rowPitch)) - 1);
+            int lastVisibleRow = Mathf.Min(rows - 1, Mathf.CeilToInt((_scroll.y + viewport.height) / Mathf.Max(1f, rowPitch)) + 1);
             for (int row = firstVisibleRow; row <= lastVisibleRow; row++)
             {
                 for (int column = 0; column < columns; column++)
                 {
                     int displayIndex = (row * columns) + column;
                     if (displayIndex >= _storage.Photographs.Count) break;
-                    int photographIndex = _storage.Photographs.Count - 1 - displayIndex;
-                    PhotographRecord record = _storage.Photographs[photographIndex];
-                    Rect cell = new Rect(column * (cellWidth + _settings.GalleryGap), row * cellHeight, cellWidth, imageHeight);
-                    Texture2D texture = _storage.GetTexture(record.PhotographId);
-                    if (GUI.Button(cell, GUIContent.none, GUIStyle.none))
+                    PhotographRecord record = _storage.Photographs[_storage.Photographs.Count - 1 - displayIndex];
+                    Rect card = new Rect(column * (cellWidth + gap), row * rowPitch, cellWidth, cardHeight);
+                    if (DrawCard(card, record, imageHeight, captionHeight, pointerInViewport))
                     {
                         _selectedPhotographId = record.PhotographId;
                         _confirmDelete = false;
                     }
-                    Color cellBorder = cell.Contains(Event.current.mousePosition)
-                        ? _settings.GallerySelectionColor
-                        : _settings.GalleryAccentColor;
-                    DrawBorder(cell, cellBorder, _settings.FrameThickness);
-                    if (texture != null) GUI.DrawTexture(cell, texture, ScaleMode.ScaleToFit, false);
-                    string label = record.IsValidSubjectPhotograph
-                        ? _settings.GalleryDocumentedLabel
-                        : string.Format(_settings.GalleryPhotoLabelFormat, record.CaptureSequence);
-                    GUI.Label(new Rect(cell.x, cell.yMax, cell.width, _settings.SubjectLabelHeight), label, _bodyStyle);
                 }
             }
             GUI.EndScrollView();
+            DrawScrollEdgeFades(viewport, content.height);
+        }
+
+        /// <summary>Framed thumbnail with a caption plate; returns true when the card is clicked.</summary>
+        private bool DrawCard(Rect card, PhotographRecord record, float imageHeight, float captionHeight, bool allowHover)
+        {
+            float thickness = Mathf.Max(1f, _settings.FrameThickness);
+            bool hovered = allowHover && card.Contains(Event.current.mousePosition);
+            Color accent = record.IsValidSubjectPhotograph
+                ? _settings.GallerySelectionColor
+                : _settings.GalleryAccentColor;
+
+            if (hovered)
+            {
+                Color halo = accent;
+                halo.a = 0.16f;
+                DuneVectorHudChrome.DrawRect(new Rect(card.x - 4f, card.y - 4f, card.width + 8f, card.height + 8f), halo);
+            }
+
+            DuneVectorHudChrome.DrawRect(card, Color.Lerp(CardColor, accent, hovered ? 0.14f : 0f));
+            Rect image = new Rect(card.x, card.y, card.width, imageHeight);
+            DuneVectorHudChrome.DrawRect(image, MattColor);
+            Texture2D texture = _storage.GetTexture(record.PhotographId);
+            if (texture != null)
+            {
+                GUI.DrawTexture(image, texture, ScaleMode.ScaleToFit, false);
+            }
+
+            Rect caption = new Rect(card.x, image.yMax, card.width, captionHeight);
+            DuneVectorHudChrome.DrawVerticalFade(caption, new Color(0f, 0f, 0f, 0.35f), true);
+            if (record.IsValidSubjectPhotograph)
+            {
+                DuneVectorHudChrome.DrawRect(new Rect(caption.x, caption.y, thickness, caption.height), accent);
+            }
+
+            float inset = _settings.GalleryGap * 0.5f;
+            float titleHeight = captionHeight * CaptionTitleFraction;
+            Rect titleRect = new Rect(caption.x + inset + thickness, caption.y, caption.width - (inset * 2f), titleHeight);
+            GUI.Label(titleRect, DescribePhotograph(record), _cardTitleStyle);
+            Rect metaRect = new Rect(titleRect.x, caption.y + titleHeight, titleRect.width, captionHeight - titleHeight);
+            GUI.Label(metaRect, DescribeCaptureTime(record), _cardMetaStyle);
+            if (record.IsValidSubjectPhotograph)
+            {
+                Color previous = GUI.color;
+                GUI.color = accent;
+                GUI.Label(metaRect, _settings.GalleryDocumentedTag, _tagStyle);
+                GUI.color = previous;
+            }
+
+            DuneVectorHudChrome.DrawBorder(card, WithAlpha(accent, hovered ? 1f : 0.45f), thickness);
+            if (hovered)
+            {
+                DuneVectorHudChrome.DrawCornerBrackets(card, WithAlpha(_settings.GalleryTextColor, 0.85f), 16f, thickness);
+            }
+            return GUI.Button(card, GUIContent.none, GUIStyle.none);
+        }
+
+        private void DrawEmptyState(Rect viewport)
+        {
+            float thickness = Mathf.Max(1f, _settings.FrameThickness);
+            Rect plate = new Rect(
+                viewport.center.x - (_settings.IdentificationPanelWidth * 0.5f),
+                viewport.center.y - (_settings.IdentificationPanelHeight * 0.5f),
+                _settings.IdentificationPanelWidth,
+                _settings.IdentificationPanelHeight);
+            DuneVectorHudChrome.DrawRect(plate, CardColor);
+            DuneVectorHudChrome.DrawBorder(plate, WithAlpha(_settings.GalleryAccentColor, 0.35f), thickness);
+            DuneVectorHudChrome.DrawCornerBrackets(plate, WithAlpha(_settings.GalleryAccentColor, 0.6f), 18f, thickness);
+            float line = _settings.SubjectLabelHeight;
+            GUI.Label(
+                new Rect(plate.x, plate.center.y - line, plate.width, line),
+                _settings.GalleryEmptyText,
+                _bodyStyle);
+            GUI.Label(
+                new Rect(plate.x, plate.center.y, plate.width, line),
+                _settings.GalleryEmptyHint,
+                _emptyHintStyle);
         }
 
         private void DrawViewer(Rect panel)
@@ -876,54 +999,346 @@ namespace DuneVector
             if (record == null)
             {
                 _selectedPhotographId = null;
+                _confirmDelete = false;
                 return;
             }
-            float padding = _settings.GalleryPadding;
-            Texture2D texture = _storage.GetTexture(record.PhotographId);
-            Rect imageRect = new Rect(panel.x + padding, panel.y + padding,
-                panel.width - (padding * 2f), panel.height - (padding * 3f) - _settings.GalleryButtonHeight);
-            if (texture != null) GUI.DrawTexture(imageRect, texture, ScaleMode.ScaleToFit, false);
-            float buttonWidth = (imageRect.width - _settings.GalleryGap) * 0.5f;
-            Rect done = new Rect(imageRect.x, imageRect.yMax + padding, buttonWidth, _settings.GalleryButtonHeight);
-            Rect delete = new Rect(done.xMax + _settings.GalleryGap, done.y, buttonWidth, _settings.GalleryButtonHeight);
+
+            int displayIndex = GetDisplayIndex(record.PhotographId);
             if (!_confirmDelete)
             {
-                if (GUI.Button(done, _settings.GalleryDoneButton, _buttonStyle)) CloseViewer();
-                Color previous = GUI.color;
-                GUI.color = _settings.GalleryDangerColor;
-                if (GUI.Button(delete, _settings.GalleryDeleteButton, _buttonStyle)) _confirmDelete = true;
-                GUI.color = previous;
-                return;
+                HandleViewerNavigationKeys(displayIndex);
             }
-            Rect confirmation = new Rect(panel.center.x - (_settings.IdentificationPanelWidth * 0.5f),
-                panel.center.y - (_settings.IdentificationPanelHeight * 0.5f),
-                _settings.IdentificationPanelWidth, _settings.IdentificationPanelHeight);
-            DrawRect(confirmation, _settings.IdentificationPanelColor);
-            DrawBorder(confirmation, _settings.GalleryDangerColor, _settings.FrameThickness);
-            GUI.Label(new Rect(confirmation.x + padding, confirmation.y + padding,
-                confirmation.width - (padding * 2f), _settings.SubjectLabelHeight * 2f), _settings.DeleteConfirmation, _bodyStyle);
-            Rect confirmDelete = new Rect(confirmation.x + padding, confirmation.yMax - padding - _settings.GalleryButtonHeight,
-                (confirmation.width - (padding * 3f)) * 0.5f, _settings.GalleryButtonHeight);
-            Rect cancel = new Rect(confirmDelete.xMax + padding, confirmDelete.y, confirmDelete.width, confirmDelete.height);
-            if (GUI.Button(confirmDelete, _settings.GalleryDeleteButton, _buttonStyle))
+
+            float padding = _settings.GalleryPadding;
+            float thickness = Mathf.Max(1f, _settings.FrameThickness);
+            Rect header = DrawHeader(
+                panel,
+                DescribePhotograph(record),
+                string.Format(_settings.GalleryCountFormat, _settings.GalleryTitle, _storage.Photographs.Count));
+            Rect footer = DrawFooter(
+                panel,
+                _settings.GalleryViewerHint,
+                string.Format(_settings.GalleryViewerCountFormat, displayIndex + 1, _storage.Photographs.Count));
+
+            float actionHeight = _settings.GalleryButtonHeight;
+            Rect frame = new Rect(
+                panel.x + padding,
+                header.yMax + padding,
+                panel.width - (padding * 2f),
+                Mathf.Max(1f, footer.yMin - header.yMax - (padding * 3f) - actionHeight));
+            DuneVectorHudChrome.DrawRect(frame, MattColor);
+            Texture2D texture = _storage.GetTexture(record.PhotographId);
+            if (texture != null)
             {
+                GUI.DrawTexture(frame, texture, ScaleMode.ScaleToFit, false);
+            }
+            DuneVectorHudChrome.DrawBorder(frame, WithAlpha(_settings.GalleryAccentColor, 0.5f), thickness);
+            DuneVectorHudChrome.DrawCornerBrackets(frame, WithAlpha(_settings.GallerySelectionColor, 0.75f), 22f, thickness);
+
+            Rect actions = new Rect(frame.x, frame.yMax + padding, frame.width, actionHeight);
+            float buttonWidth = _settings.GalleryActionButtonWidth;
+            float gap = _settings.GalleryGap;
+            Rect done = new Rect(actions.xMax - buttonWidth, actions.y, buttonWidth, actionHeight);
+            Rect delete = new Rect(done.x - gap - buttonWidth, actions.y, buttonWidth, actionHeight);
+            Rect next = new Rect(delete.x - (gap * 2f) - buttonWidth, actions.y, buttonWidth, actionHeight);
+            Rect earlier = new Rect(next.x - gap - buttonWidth, actions.y, buttonWidth, actionHeight);
+            GUI.Label(
+                new Rect(actions.x, actions.y, Mathf.Max(0f, earlier.x - actions.x - gap), actions.height),
+                DescribeCaptureTime(record),
+                _cardMetaStyle);
+
+            bool interactive = !_confirmDelete;
+            bool hasSiblings = _storage.Photographs.Count > 1;
+            if (DrawChromeButton(earlier, _settings.GalleryPreviousButton, _settings.GalleryAccentColor, interactive && hasSiblings))
+            {
+                SelectByDisplayIndex(displayIndex - 1);
+            }
+            if (DrawChromeButton(next, _settings.GalleryNextButton, _settings.GalleryAccentColor, interactive && hasSiblings))
+            {
+                SelectByDisplayIndex(displayIndex + 1);
+            }
+            if (DrawChromeButton(delete, _settings.GalleryDeleteButton, _settings.GalleryDangerColor, interactive))
+            {
+                _confirmDelete = true;
+            }
+            if (DrawChromeButton(done, _settings.GalleryBackButton, _settings.GallerySelectionColor, interactive))
+            {
+                CloseViewer();
+            }
+
+            if (_confirmDelete)
+            {
+                DrawDeleteConfirmation(panel, record);
+            }
+        }
+
+        private void DrawDeleteConfirmation(Rect panel, PhotographRecord record)
+        {
+            float padding = _settings.GalleryPadding;
+            float thickness = Mathf.Max(1f, _settings.FrameThickness);
+            DuneVectorHudChrome.DrawRect(panel, new Color(0f, 0f, 0f, 0.7f));
+
+            Rect confirmation = new Rect(
+                panel.center.x - (_settings.IdentificationPanelWidth * 0.5f),
+                panel.center.y - (_settings.IdentificationPanelHeight * 0.5f),
+                _settings.IdentificationPanelWidth,
+                _settings.IdentificationPanelHeight);
+            DuneVectorHudChrome.DrawSoftShadow(confirmation, new Color(0f, 0f, 0f, 0.6f), new Vector2(0f, 8f), 14f);
+            DuneVectorHudChrome.DrawGlassPanel(
+                confirmation,
+                _settings.IdentificationPanelColor,
+                WithAlpha(_settings.GalleryDangerColor, 0.85f),
+                thickness,
+                1f);
+            DuneVectorHudChrome.DrawCornerBrackets(confirmation, _settings.GalleryDangerColor, 18f, thickness);
+            DuneVectorHudChrome.DrawRect(
+                new Rect(confirmation.x, confirmation.y, confirmation.width, thickness * 1.5f),
+                _settings.GalleryDangerColor);
+
+            Color previousColor = GUI.color;
+            GUI.color = _settings.GalleryDangerColor;
+            GUI.Label(
+                new Rect(confirmation.x + padding, confirmation.y + (padding * 0.6f), confirmation.width - (padding * 2f), _settings.SubjectLabelHeight),
+                _settings.GalleryDeleteTitle,
+                _modalTitleStyle);
+            GUI.color = previousColor;
+            GUI.Label(
+                new Rect(confirmation.x + padding, confirmation.y + (padding * 0.6f) + _settings.SubjectLabelHeight,
+                    confirmation.width - (padding * 2f), _settings.SubjectLabelHeight * 1.6f),
+                _settings.DeleteConfirmation,
+                _bodyStyle);
+
+            float buttonWidth = (confirmation.width - (padding * 3f)) * 0.5f;
+            Rect confirmDelete = new Rect(
+                confirmation.x + padding,
+                confirmation.yMax - padding - _settings.GalleryButtonHeight,
+                buttonWidth,
+                _settings.GalleryButtonHeight);
+            Rect cancel = new Rect(confirmDelete.xMax + padding, confirmDelete.y, buttonWidth, confirmDelete.height);
+            if (DrawChromeButton(confirmDelete, _settings.GalleryDeleteButton, _settings.GalleryDangerColor, true))
+            {
+                int displayIndex = GetDisplayIndex(record.PhotographId);
                 _storage.Delete(record.PhotographId);
+                _confirmDelete = false;
                 _selectedPhotographId = null;
+                SelectByDisplayIndex(displayIndex);
+            }
+            if (DrawChromeButton(cancel, _settings.DeleteCancelButton, _settings.GalleryAccentColor, true))
+            {
                 _confirmDelete = false;
             }
-            if (GUI.Button(cancel, _settings.DeleteCancelButton, _buttonStyle)) _confirmDelete = false;
+        }
+
+        private Rect DrawHeader(Rect panel, string title, string subtitle)
+        {
+            float padding = _settings.GalleryPadding;
+            float thickness = Mathf.Max(1f, _settings.FrameThickness);
+            Rect header = new Rect(panel.x, panel.y, panel.width, _settings.GalleryHeaderHeight);
+            DuneVectorHudChrome.DrawRect(header, HeaderColor);
+            DuneVectorHudChrome.DrawVerticalFade(header, new Color(1f, 1f, 1f, 0.05f), true);
+            DuneVectorHudChrome.DrawRect(new Rect(header.x, header.y, header.width, thickness * 1.5f), _settings.GalleryAccentColor);
+            DuneVectorHudChrome.DrawVerticalFade(
+                new Rect(header.x, header.yMax - (thickness + 12f), header.width, 12f),
+                WithAlpha(_settings.GalleryAccentColor, 0.25f),
+                false);
+            DuneVectorHudChrome.DrawRect(
+                new Rect(header.x, header.yMax - thickness, header.width, thickness),
+                WithAlpha(_settings.GalleryAccentColor, 0.6f));
+
+            float titleHeight = _titleStyle.lineHeight;
+            float subtitleHeight = _subtitleStyle.lineHeight;
+            float block = titleHeight + subtitleHeight;
+            float buttonWidth = _settings.GalleryActionButtonWidth;
+            Rect titleRect = new Rect(
+                header.x + padding,
+                header.y + ((header.height - block) * 0.5f),
+                header.width - (padding * 3f) - buttonWidth,
+                titleHeight);
+            DuneVectorHudChrome.DrawGlowLabel(
+                titleRect,
+                title,
+                _titleStyle,
+                _settings.GalleryTextColor,
+                WithAlpha(_settings.GalleryAccentColor, 0.16f),
+                2f,
+                new Color(0f, 0f, 0f, 0.65f),
+                new Vector2(2f, 2f));
+            Color previous = GUI.color;
+            GUI.color = DimTextColor;
+            GUI.Label(new Rect(titleRect.x, titleRect.yMax, titleRect.width, subtitleHeight), subtitle, _subtitleStyle);
+            GUI.color = previous;
+
+            Rect done = new Rect(
+                header.xMax - padding - buttonWidth,
+                header.y + ((header.height - _settings.GalleryButtonHeight) * 0.5f),
+                buttonWidth,
+                _settings.GalleryButtonHeight);
+            if (DrawChromeButton(done, _settings.GalleryDoneButton, _settings.GallerySelectionColor, !_confirmDelete))
+            {
+                DuneVectorPhotographySystem.RequestCloseGallery();
+            }
+            return header;
+        }
+
+        private Rect DrawFooter(Rect panel, string hint, string status)
+        {
+            float padding = _settings.GalleryPadding;
+            float thickness = Mathf.Max(1f, _settings.FrameThickness);
+            Rect footer = new Rect(
+                panel.x,
+                panel.yMax - _settings.GalleryFooterHeight,
+                panel.width,
+                _settings.GalleryFooterHeight);
+            DuneVectorHudChrome.DrawRect(footer, HeaderColor);
+            DuneVectorHudChrome.DrawRect(
+                new Rect(footer.x, footer.y, footer.width, thickness),
+                WithAlpha(_settings.GalleryAccentColor, 0.35f));
+
+            Color previous = GUI.color;
+            GUI.color = DimTextColor;
+            GUI.Label(new Rect(footer.x + padding, footer.y, footer.width - (padding * 2f), footer.height), hint, _hintStyle);
+            if (!string.IsNullOrEmpty(status))
+            {
+                GUI.color = WithAlpha(_settings.GalleryAccentColor, 0.85f);
+                GUI.Label(new Rect(footer.x + padding, footer.y, footer.width - (padding * 2f), footer.height), status, _hintRightStyle);
+            }
+            GUI.color = previous;
+            return footer;
+        }
+
+        /// <summary>Flat chrome button; painted by hand so it matches the panel instead of the default skin.</summary>
+        private bool DrawChromeButton(Rect rect, string label, Color accent, bool enabled)
+        {
+            float thickness = Mathf.Max(1f, _settings.FrameThickness);
+            bool hovered = enabled && rect.Contains(Event.current.mousePosition);
+            Color body = enabled
+                ? Color.Lerp(CardColor, accent, hovered ? 0.3f : 0.1f)
+                : Color.Lerp(CardColor, Color.black, 0.3f);
+            DuneVectorHudChrome.DrawRect(rect, body);
+            DuneVectorHudChrome.DrawVerticalFade(rect, new Color(1f, 1f, 1f, hovered ? 0.12f : 0.05f), true);
+            DuneVectorHudChrome.DrawBorder(rect, WithAlpha(accent, enabled ? (hovered ? 1f : 0.6f) : 0.2f), thickness);
+            if (hovered)
+            {
+                DuneVectorHudChrome.DrawCornerBrackets(rect, WithAlpha(_settings.GalleryTextColor, 0.9f), 12f, thickness);
+            }
+
+            Color previous = GUI.color;
+            GUI.color = enabled ? (hovered ? _settings.GalleryTextColor : WithAlpha(_settings.GalleryTextColor, 0.85f)) : DimTextColor;
+            GUI.Label(rect, label, _buttonStyle);
+            GUI.color = previous;
+            return enabled && GUI.Button(rect, GUIContent.none, GUIStyle.none);
+        }
+
+        private void DrawScrollEdgeFades(Rect viewport, float contentHeight)
+        {
+            float fade = 26f;
+            if (_scroll.y > 1f)
+            {
+                DuneVectorHudChrome.DrawVerticalFade(
+                    new Rect(viewport.x, viewport.y, viewport.width, fade),
+                    WithAlpha(_settings.GalleryPanelColor, 0.95f),
+                    true);
+            }
+            if (_scroll.y + viewport.height < contentHeight - 1f)
+            {
+                DuneVectorHudChrome.DrawVerticalFade(
+                    new Rect(viewport.x, viewport.yMax - fade, viewport.width, fade),
+                    WithAlpha(_settings.GalleryPanelColor, 0.95f),
+                    false);
+            }
+        }
+
+        private void HandleViewerNavigationKeys(int displayIndex)
+        {
+            Event current = Event.current;
+            if (current == null || current.type != EventType.KeyDown)
+            {
+                return;
+            }
+
+            if (current.keyCode == KeyCode.LeftArrow)
+            {
+                SelectByDisplayIndex(displayIndex - 1);
+                current.Use();
+            }
+            else if (current.keyCode == KeyCode.RightArrow)
+            {
+                SelectByDisplayIndex(displayIndex + 1);
+                current.Use();
+            }
+        }
+
+        /// <summary>Display order runs newest first, the reverse of the stored order.</summary>
+        private int GetDisplayIndex(string photographId)
+        {
+            for (int i = 0; i < _storage.Photographs.Count; i++)
+            {
+                if (string.Equals(_storage.Photographs[i].PhotographId, photographId, StringComparison.Ordinal))
+                {
+                    return _storage.Photographs.Count - 1 - i;
+                }
+            }
+            return 0;
+        }
+
+        private void SelectByDisplayIndex(int displayIndex)
+        {
+            int count = _storage.Photographs.Count;
+            if (count == 0)
+            {
+                _selectedPhotographId = null;
+                return;
+            }
+
+            displayIndex = Mathf.Clamp(displayIndex, 0, count - 1);
+            _selectedPhotographId = _storage.Photographs[count - 1 - displayIndex].PhotographId;
+        }
+
+        private string DescribePhotograph(PhotographRecord record)
+        {
+            if (record.IsValidSubjectPhotograph && !string.IsNullOrEmpty(record.SubjectId))
+            {
+                string resolved = SubjectNameResolver?.Invoke(record.SubjectId);
+                if (!string.IsNullOrEmpty(resolved))
+                {
+                    return resolved.ToUpperInvariant();
+                }
+            }
+            return record.IsValidSubjectPhotograph
+                ? _settings.GalleryDocumentedLabel
+                : string.Format(_settings.GalleryPhotoLabelFormat, record.CaptureSequence);
+        }
+
+        private string DescribeCaptureTime(PhotographRecord record)
+        {
+            if (record.CaptureUtcTicks <= 0L || record.CaptureUtcTicks > DateTime.MaxValue.Ticks)
+            {
+                return _settings.GalleryUnknownCaptureTime;
+            }
+            return new DateTime(record.CaptureUtcTicks, DateTimeKind.Utc)
+                .ToLocalTime()
+                .ToString(_settings.GalleryCaptureTimeFormat, CultureInfo.InvariantCulture);
         }
 
         private void EnsureStyles()
         {
-            _titleStyle ??= CreateStyle(_settings.GalleryTitleFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.GalleryTextColor);
-            _bodyStyle ??= CreateStyle(_settings.GalleryBodyFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.GalleryTextColor);
-            _buttonStyle ??= new GUIStyle(GUI.skin.button)
+            if (_titleStyle != null)
             {
-                fontSize = _settings.GalleryBodyFontSize,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-            };
+                return;
+            }
+
+            int body = Mathf.Max(8, _settings.GalleryBodyFontSize);
+            _titleStyle = CreateStyle(_settings.GalleryTitleFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.GalleryTextColor);
+            _subtitleStyle = CreateStyle(Mathf.Max(8, body - 2), FontStyle.Bold, TextAnchor.MiddleLeft, _settings.GalleryTextColor);
+            _bodyStyle = CreateStyle(body, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.GalleryTextColor);
+            _cardTitleStyle = CreateStyle(body, FontStyle.Bold, TextAnchor.LowerLeft, _settings.GalleryTextColor);
+            _cardMetaStyle = CreateStyle(Mathf.Max(8, body - 3), FontStyle.Normal, TextAnchor.MiddleLeft, DimTextColor);
+            _emptyHintStyle = CreateStyle(Mathf.Max(8, body - 2), FontStyle.Normal, TextAnchor.MiddleCenter, DimTextColor);
+            _tagStyle = CreateStyle(Mathf.Max(8, body - 4), FontStyle.Bold, TextAnchor.MiddleRight, _settings.GalleryTextColor);
+            _hintStyle = CreateStyle(Mathf.Max(8, body - 3), FontStyle.Normal, TextAnchor.MiddleLeft, _settings.GalleryTextColor);
+            _hintRightStyle = CreateStyle(Mathf.Max(8, body - 3), FontStyle.Bold, TextAnchor.MiddleRight, _settings.GalleryTextColor);
+            _modalTitleStyle = CreateStyle(Mathf.Max(8, body + 6), FontStyle.Bold, TextAnchor.MiddleLeft, _settings.GalleryTextColor);
+            _buttonStyle = CreateStyle(body, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.GalleryTextColor);
         }
 
         private static GUIStyle CreateStyle(int size, FontStyle fontStyle, TextAnchor anchor, Color color)
@@ -933,24 +1348,16 @@ namespace DuneVector
                 fontSize = size,
                 fontStyle = fontStyle,
                 alignment = anchor,
+                wordWrap = false,
+                clipping = TextClipping.Clip,
                 normal = { textColor = color },
             };
         }
 
-        private static void DrawRect(Rect rect, Color color)
+        private static Color WithAlpha(Color color, float alpha)
         {
-            Color previous = GUI.color;
-            GUI.color = color;
-            GUI.DrawTexture(rect, Texture2D.whiteTexture);
-            GUI.color = previous;
-        }
-
-        private static void DrawBorder(Rect rect, Color color, float thickness)
-        {
-            DrawRect(new Rect(rect.x, rect.y, rect.width, thickness), color);
-            DrawRect(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), color);
-            DrawRect(new Rect(rect.x, rect.y, thickness, rect.height), color);
-            DrawRect(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), color);
+            color.a = Mathf.Clamp01(alpha);
+            return color;
         }
     }
 
@@ -1067,6 +1474,8 @@ namespace DuneVector
                 _settings);
             _gallery = new DuneVectorGalleryView(_storage, _settings);
             _compendium = new DuneVectorToolkitCompendiumView(_storage, _settings, atlas);
+            _gallery.SubjectNameResolver = subjectId =>
+                _compendium.TryResolve(subjectId, out string displayName) ? displayName : string.Empty;
             Active = this;
         }
 

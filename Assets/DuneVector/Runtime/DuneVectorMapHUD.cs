@@ -136,6 +136,7 @@ namespace DuneVector
         private GUIStyle _northStyle;
         private GUIStyle _worldMapDetailStyle;
         private GUIStyle _worldMapHintStyle;
+        private GUIStyle _worldMapScaleStyle;
         private GUIStyle _markerStyle;
         private GUIStyle _landmarkIconStyle;
         private GUIStyle _landmarkIconShadowStyle;
@@ -182,6 +183,9 @@ namespace DuneVector
         private double _scanBuildDroneZ;
         private float _scanBuildWorldWidth;
         private float _scanBuildWorldHeight;
+
+        /// <summary>Safety valve so an extreme zoom cannot flood the graticule with gridlines.</summary>
+        private const int MaximumGraticuleLines = 256;
 
         private const int ExplorationFileMagic = 0x44564D50;
         private const int ExplorationFileVersion = 3;
@@ -401,7 +405,13 @@ namespace DuneVector
             float borderThickness = Mathf.Max(1f, _settings.BorderThickness * scale);
             float headerHeight = _settings.WorldMapHeaderHeight * scale;
             float footerHeight = _settings.WorldMapFooterHeight * scale;
+            Color accent = _settings.WorldMapAccentColor;
 
+            DuneVectorHudChrome.DrawSoftShadow(
+                panelRect,
+                new Color(0f, 0f, 0f, 0.55f),
+                new Vector2(0f, 6f * scale),
+                _settings.WorldMapPanelShadowSpread * scale);
             DrawSolidRect(panelRect, _settings.PanelColor);
             DrawBorder(panelRect, _settings.BorderColor, borderThickness);
 
@@ -415,22 +425,8 @@ namespace DuneVector
                 panelRect.yMax - borderThickness - footerHeight,
                 panelRect.width - (borderThickness * 2f),
                 footerHeight);
-            DrawSolidRect(headerRect, _settings.WorldMapChromeColor);
-            DrawSolidRect(footerRect, _settings.WorldMapChromeColor);
-            DrawSolidRect(
-                new Rect(
-                    headerRect.x,
-                    headerRect.yMax - borderThickness,
-                    headerRect.width,
-                    borderThickness),
-                _settings.BorderColor);
-            DrawSolidRect(
-                new Rect(
-                    footerRect.x,
-                    footerRect.y,
-                    footerRect.width,
-                    borderThickness),
-                _settings.BorderColor);
+            DrawWorldMapChromeBar(headerRect, accent, borderThickness, scale, true);
+            DrawWorldMapChromeBar(footerRect, accent, borderThickness, scale, false);
 
             Rect mapRect = new Rect(
                 panelRect.x + borderThickness,
@@ -458,15 +454,42 @@ namespace DuneVector
                 currentCenter,
                 scale);
 
+            DuneVectorHudChrome.DrawCornerBrackets(
+                panelRect,
+                accent,
+                _settings.WorldMapCornerBracketLength * scale,
+                Mathf.Max(1f, 2f * scale));
+
             float labelPadding = _settings.ContentPadding * scale;
-            GUI.Label(
+            float tickWidth = Mathf.Max(2f, 3f * scale);
+            float tickHeight = headerRect.height * 0.42f;
+            Rect titleTick = new Rect(
+                headerRect.x + labelPadding,
+                headerRect.center.y - (tickHeight * 0.5f),
+                tickWidth,
+                tickHeight);
+            DrawSolidRect(titleTick, accent);
+            Color tickGlow = accent;
+            tickGlow.a *= 0.35f;
+            DuneVectorHudChrome.DrawHorizontalFade(
+                new Rect(titleTick.xMax, titleTick.y, 14f * scale, titleTick.height),
+                tickGlow,
+                true);
+
+            float titleX = titleTick.xMax + (labelPadding * 0.7f);
+            DuneVectorHudChrome.DrawGlowLabel(
                 new Rect(
-                    headerRect.x + labelPadding,
+                    titleX,
                     headerRect.y,
-                    headerRect.width - (labelPadding * 2f),
+                    Mathf.Max(1f, headerRect.xMax - titleX - labelPadding),
                     headerRect.height),
                 _settings.WorldMapTitle,
-                _worldMapTitleStyle);
+                _worldMapTitleStyle,
+                Color.white,
+                new Color(accent.r, accent.g, accent.b, 0.22f),
+                Mathf.Max(1f, 1.5f * scale),
+                new Color(0f, 0f, 0f, 0.75f),
+                new Vector2(0f, 2f * scale));
             GUI.Label(
                 new Rect(
                     headerRect.center.x - (headerHeight * 0.5f),
@@ -486,42 +509,111 @@ namespace DuneVector
                 _settings.DroneRevealRadius);
             float footerContentWidth = footerRect.width - (labelPadding * 2f);
             float splitX = footerContentWidth * _settings.DetailSplitFraction;
-            GUI.Label(
+            Vector2 textShadow = new Vector2(0f, Mathf.Max(1f, 1.5f * scale));
+            Color textShadowColor = new Color(0f, 0f, 0f, 0.7f);
+            DuneVectorHudChrome.DrawLabel(
                 new Rect(
                     footerRect.x + labelPadding,
                     footerRect.y,
                     splitX,
                     footerRect.height),
                 coordinates,
-                _worldMapDetailStyle);
-            GUI.Label(
+                _worldMapDetailStyle,
+                Color.white,
+                textShadowColor,
+                textShadow);
+            DuneVectorHudChrome.DrawLabel(
                 new Rect(
                     footerRect.x + labelPadding + splitX,
                     footerRect.y,
                     footerContentWidth - splitX,
                     footerRect.height),
                 _settings.WorldMapHint,
-                _worldMapHintStyle);
+                _worldMapHintStyle,
+                new Color(1f, 1f, 1f, 0.62f),
+                textShadowColor,
+                textShadow);
+        }
+
+        /// <summary>
+        /// Header and footer bar: smoked chrome with a top sheen, a bottom shade and a bright
+        /// accent rule facing the map viewport.
+        /// </summary>
+        private void DrawWorldMapChromeBar(
+            Rect rect,
+            Color accent,
+            float borderThickness,
+            float scale,
+            bool isHeader)
+        {
+            DrawSolidRect(rect, _settings.WorldMapChromeColor);
+            DuneVectorHudChrome.DrawVerticalFade(
+                new Rect(rect.x, rect.y, rect.width, rect.height * 0.6f),
+                new Color(0.55f, 0.85f, 1f, 0.07f),
+                true);
+            DuneVectorHudChrome.DrawVerticalFade(
+                new Rect(rect.x, rect.center.y, rect.width, rect.height * 0.5f),
+                new Color(0f, 0.02f, 0.04f, 0.45f),
+                false);
+
+            float ruleThickness = Mathf.Max(1f, borderThickness * 2f);
+            float ruleY = isHeader ? rect.yMax - ruleThickness : rect.y;
+            DrawSolidRect(new Rect(rect.x, ruleY, rect.width, ruleThickness), accent);
+
+            Color glow = accent;
+            glow.a *= 0.28f;
+            float glowHeight = 18f * scale;
+            DuneVectorHudChrome.DrawVerticalFade(
+                isHeader
+                    ? new Rect(rect.x, ruleY - glowHeight, rect.width, glowHeight)
+                    : new Rect(rect.x, ruleY + ruleThickness, rect.width, glowHeight),
+                glow,
+                !isHeader);
         }
 
         private void DrawWorldMapBackdrop(Rect screenRect)
         {
             Texture2D backdrop = _settings.WorldMapBackdropImage;
-            if (backdrop == null || _settings.WorldMapBackdropOpacity <= 0f)
+            if (backdrop != null && _settings.WorldMapBackdropOpacity > 0f)
+            {
+                Color previousColor = GUI.color;
+                Color backdropColor = _settings.WorldMapBackdropTint;
+                backdropColor.a *= _settings.WorldMapBackdropOpacity;
+                GUI.color = backdropColor;
+                GUI.DrawTexture(
+                    screenRect,
+                    backdrop,
+                    ScaleMode.ScaleAndCrop,
+                    true);
+                GUI.color = previousColor;
+            }
+
+            // Darken the outer frame so the eye settles on the panel rather than the wallpaper.
+            float vignette = Mathf.Clamp01(_settings.WorldMapBackdropVignette);
+            if (vignette <= 0f)
             {
                 return;
             }
 
-            Color previousColor = GUI.color;
-            Color backdropColor = _settings.WorldMapBackdropTint;
-            backdropColor.a *= _settings.WorldMapBackdropOpacity;
-            GUI.color = backdropColor;
-            GUI.DrawTexture(
-                screenRect,
-                backdrop,
-                ScaleMode.ScaleAndCrop,
+            Color shade = new Color(0f, 0f, 0f, vignette);
+            float horizontal = screenRect.width * 0.28f;
+            float vertical = screenRect.height * 0.28f;
+            DuneVectorHudChrome.DrawHorizontalFade(
+                new Rect(screenRect.x, screenRect.y, horizontal, screenRect.height),
+                shade,
                 true);
-            GUI.color = previousColor;
+            DuneVectorHudChrome.DrawHorizontalFade(
+                new Rect(screenRect.xMax - horizontal, screenRect.y, horizontal, screenRect.height),
+                shade,
+                false);
+            DuneVectorHudChrome.DrawVerticalFade(
+                new Rect(screenRect.x, screenRect.y, screenRect.width, vertical),
+                shade,
+                true);
+            DuneVectorHudChrome.DrawVerticalFade(
+                new Rect(screenRect.x, screenRect.yMax - vertical, screenRect.width, vertical),
+                shade,
+                false);
         }
 
         private void HandleWorldMapInput(
@@ -694,6 +786,12 @@ namespace DuneVector
                     displayedWorldWidth,
                     displayedWorldHeight);
             }
+            DrawWorldMapGraticule(
+                mapRect,
+                displayedWorldWidth,
+                displayedWorldHeight,
+                currentCenter,
+                scale);
             DrawMapIcons(
                 mapRect,
                 displayedWorldWidth,
@@ -712,10 +810,164 @@ namespace DuneVector
                 scale);
 
             GUI.EndGroup();
+            DrawWorldMapViewportVignette(mapRect, scale);
+            DrawWorldMapScaleBar(mapRect, displayedWorldWidth, scale);
             DrawBorder(
                 mapRect,
                 _settings.BorderColor,
                 Mathf.Max(1f, _settings.BorderThickness * scale));
+        }
+
+        /// <summary>
+        /// World-aligned coordinate grid. Spacing snaps to a 1/2/5 sequence so the graticule keeps
+        /// a readable density at every zoom level, with every fifth line drawn as a major gridline.
+        /// </summary>
+        private void DrawWorldMapGraticule(
+            Rect mapRect,
+            float displayedWorldWidth,
+            float displayedWorldHeight,
+            LogicalPosition currentCenter,
+            float scale)
+        {
+            if (!_settings.ShowWorldMapGraticule || _settings.WorldMapGraticuleColor.a <= 0f)
+            {
+                return;
+            }
+
+            int divisions = Mathf.Clamp(_settings.WorldMapGraticuleDivisions, 2, 16);
+            float spacing = ChooseGraticuleSpacing(displayedWorldHeight / divisions);
+            if (spacing <= 0f)
+            {
+                return;
+            }
+
+            Color minor = _settings.WorldMapGraticuleColor;
+            Color major = minor;
+            major.a = Mathf.Min(1f, minor.a * 2.6f);
+            float thickness = Mathf.Max(1f, scale);
+
+            double left = currentCenter.X - (displayedWorldWidth * 0.5);
+            double right = currentCenter.X + (displayedWorldWidth * 0.5);
+            long firstColumn = (long)System.Math.Floor(left / spacing);
+            long lastColumn = (long)System.Math.Ceiling(right / spacing);
+            if (lastColumn - firstColumn <= MaximumGraticuleLines)
+            {
+                for (long index = firstColumn; index <= lastColumn; index++)
+                {
+                    float x = (float)((((index * spacing) - left) / displayedWorldWidth) * mapRect.width);
+                    DrawSolidRect(
+                        new Rect(x - (thickness * 0.5f), 0f, thickness, mapRect.height),
+                        index % 5 == 0 ? major : minor);
+                }
+            }
+
+            double bottom = currentCenter.Z - (displayedWorldHeight * 0.5);
+            double top = currentCenter.Z + (displayedWorldHeight * 0.5);
+            long firstRow = (long)System.Math.Floor(bottom / spacing);
+            long lastRow = (long)System.Math.Ceiling(top / spacing);
+            if (lastRow - firstRow <= MaximumGraticuleLines)
+            {
+                for (long index = firstRow; index <= lastRow; index++)
+                {
+                    float y = (float)(((top - (index * spacing)) / displayedWorldHeight) * mapRect.height);
+                    DrawSolidRect(
+                        new Rect(0f, y - (thickness * 0.5f), mapRect.width, thickness),
+                        index % 5 == 0 ? major : minor);
+                }
+            }
+        }
+
+        /// <summary>Rounds a raw world-space interval up to the nearest 1, 2 or 5 times a power of ten.</summary>
+        private static float ChooseGraticuleSpacing(float rawSpacing)
+        {
+            if (rawSpacing <= 0f || float.IsNaN(rawSpacing) || float.IsInfinity(rawSpacing))
+            {
+                return 0f;
+            }
+
+            float magnitude = Mathf.Pow(10f, Mathf.Floor(Mathf.Log10(rawSpacing)));
+            float normalized = rawSpacing / magnitude;
+            float step = normalized <= 1f ? 1f : normalized <= 2f ? 2f : normalized <= 5f ? 5f : 10f;
+            return step * magnitude;
+        }
+
+        /// <summary>Inner shadow along the viewport edges so the terrain sits inside the frame.</summary>
+        private void DrawWorldMapViewportVignette(Rect mapRect, float scale)
+        {
+            float depth = _settings.WorldMapViewportVignette * scale;
+            if (depth <= 0f)
+            {
+                return;
+            }
+
+            depth = Mathf.Min(depth, Mathf.Min(mapRect.width, mapRect.height) * 0.35f);
+            Color shade = new Color(0f, 0f, 0f, 0.55f);
+            DuneVectorHudChrome.DrawVerticalFade(
+                new Rect(mapRect.x, mapRect.y, mapRect.width, depth),
+                shade,
+                true);
+            DuneVectorHudChrome.DrawVerticalFade(
+                new Rect(mapRect.x, mapRect.yMax - depth, mapRect.width, depth),
+                shade,
+                false);
+            DuneVectorHudChrome.DrawHorizontalFade(
+                new Rect(mapRect.x, mapRect.y, depth, mapRect.height),
+                shade,
+                true);
+            DuneVectorHudChrome.DrawHorizontalFade(
+                new Rect(mapRect.xMax - depth, mapRect.y, depth, mapRect.height),
+                shade,
+                false);
+        }
+
+        /// <summary>Zoom-aware distance bar tucked into the bottom-left corner of the viewport.</summary>
+        private void DrawWorldMapScaleBar(Rect mapRect, float displayedWorldWidth, float scale)
+        {
+            if (!_settings.ShowWorldMapScaleBar || displayedWorldWidth <= 0f)
+            {
+                return;
+            }
+
+            float worldLength = ChooseGraticuleSpacing(displayedWorldWidth * 0.18f);
+            float pixelsPerWorldUnit = mapRect.width / displayedWorldWidth;
+            float barWidth = worldLength * pixelsPerWorldUnit;
+            if (barWidth < 8f || barWidth > mapRect.width * 0.6f)
+            {
+                return;
+            }
+
+            float margin = _settings.ContentPadding * scale * 1.5f;
+            float thickness = Mathf.Max(1f, 2f * scale);
+            float capHeight = Mathf.Max(3f, 6f * scale);
+            float barY = mapRect.yMax - margin;
+            float barX = mapRect.x + margin;
+            Color accent = _settings.WorldMapAccentColor;
+            Color shadow = new Color(0f, 0f, 0f, 0.8f);
+
+            DrawSolidRect(
+                new Rect(barX, barY + thickness, barWidth, thickness),
+                shadow);
+            DrawSolidRect(new Rect(barX, barY, barWidth, thickness), accent);
+            DrawSolidRect(new Rect(barX, barY - capHeight, thickness, capHeight + thickness), accent);
+            DrawSolidRect(
+                new Rect(barX + barWidth - thickness, barY - capHeight, thickness, capHeight + thickness),
+                accent);
+
+            string label = worldLength >= 1000f
+                ? $"{worldLength / 1000f:0.#} km"
+                : $"{worldLength:0} m";
+            Rect labelRect = new Rect(
+                barX,
+                barY - capHeight - (_worldMapScaleStyle.fontSize * 1.6f),
+                Mathf.Max(barWidth, 80f * scale),
+                _worldMapScaleStyle.fontSize * 1.6f);
+            DuneVectorHudChrome.DrawLabel(
+                labelRect,
+                label,
+                _worldMapScaleStyle,
+                Color.white,
+                shadow,
+                new Vector2(0f, Mathf.Max(1f, scale)));
         }
 
         private static void DrawCachedMapTexture(
@@ -2456,6 +2708,7 @@ namespace DuneVector
             _northStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
             _worldMapDetailStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleLeft);
             _worldMapHintStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleRight);
+            _worldMapScaleStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.LowerLeft);
             _markerStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
             _landmarkIconStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
             _landmarkIconShadowStyle ??= CreateStyle(FontStyle.Bold, TextAnchor.MiddleCenter);
@@ -2475,6 +2728,10 @@ namespace DuneVector
             _worldMapDetailStyle.normal.textColor = _settings.DetailColor;
             _worldMapHintStyle.fontSize = _worldMapDetailStyle.fontSize;
             _worldMapHintStyle.normal.textColor = _settings.DetailColor;
+            _worldMapScaleStyle.fontSize = Mathf.Max(
+                8,
+                Mathf.RoundToInt(_settings.DetailFontSize * scale));
+            _worldMapScaleStyle.normal.textColor = Color.white;
             _markerStyle.fontSize = Mathf.Max(
                 8,
                 Mathf.RoundToInt(_settings.DroneMarkerFontSize * scale));

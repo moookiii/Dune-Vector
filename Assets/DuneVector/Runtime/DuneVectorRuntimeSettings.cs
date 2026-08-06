@@ -382,8 +382,11 @@ namespace DuneVector
         [Min(80f)] public float GalleryThumbnailWidth = 300f;
         [Min(45f)] public float GalleryThumbnailHeight = 169f;
         [Min(0f)] public float GalleryGap = 18f;
-        [Min(20f)] public float GalleryHeaderHeight = 72f;
+        [Min(20f)] public float GalleryHeaderHeight = 84f;
         [Min(32f)] public float GalleryButtonHeight = 44f;
+        [Min(60f)] public float GalleryActionButtonWidth = 168f;
+        [Min(0f)] public float GalleryFooterHeight = 34f;
+        [Min(4f)] public float GalleryScrollbarWidth = 14f;
         [Min(8)] public int GalleryTitleFontSize = 32;
         [Min(8)] public int GalleryBodyFontSize = 15;
         [ColorUsage(false)] public Color GalleryBackdropColor = new Color(0.01f, 0.02f, 0.035f, 0.98f);
@@ -394,11 +397,23 @@ namespace DuneVector
         [ColorUsage(false)] public Color GalleryTextColor = Color.white;
         public string GalleryTitle = "PHOTOGRAPHIC ARCHIVE";
         public string GalleryCountFormat = "{0}  /  {1:000}";
+        public string GallerySubtitleFormat = "{0} ARCHIVED   ·   {1} DOCUMENTED   ·   CAPACITY {2}";
         public string GalleryEmptyText = "NO PHOTOGRAPHS ARCHIVED";
+        public string GalleryEmptyHint = "CAPTURED FRAMES ARE FILED HERE AUTOMATICALLY";
+        public string GalleryGridHint = "CLICK A FRAME TO INSPECT   ·   ESC TO CLOSE";
+        public string GalleryViewerHint = "◄ ►  BROWSE   ·   ESC TO RETURN";
+        public string GalleryViewerCountFormat = "{0} / {1}";
         public string GalleryDocumentedLabel = "DOCUMENTED GLYPH";
+        public string GalleryDocumentedTag = "DOCUMENTED";
         public string GalleryPhotoLabelFormat = "PHOTO {0:000}";
+        public string GalleryCaptureTimeFormat = "yyyy.MM.dd   HH:mm";
+        public string GalleryUnknownCaptureTime = "CAPTURE TIME UNKNOWN";
+        public string GalleryPreviousButton = "‹  PREV";
+        public string GalleryNextButton = "NEXT  ›";
+        public string GalleryBackButton = "‹  ARCHIVE";
         public string GalleryDoneButton = "DONE";
         public string GalleryDeleteButton = "DELETE";
+        public string GalleryDeleteTitle = "DELETE PHOTOGRAPH";
         public string DeleteConfirmation = "ARE YOU SURE YOU WANT TO DELETE THIS PHOTOGRAPH?";
         public string DeleteCancelButton = "CANCEL";
 
@@ -508,6 +523,18 @@ namespace DuneVector
         [ColorUsage(false)] public Color CompendiumSeparatorColor = new Color(0.42f, 0.62f, 0.7f, 0.16f);
         [ColorUsage(false)] public Color CompendiumDetailBorderColor = new Color(0.42f, 0.62f, 0.7f, 0.2f);
         [ColorUsage(false)] public Color CompendiumCardScrimColor = new Color(0.02f, 0.03f, 0.04f, 0.42f);
+        [Min(0f)] public float CompendiumProgressRailHeight = 3f;
+        [Range(0f, 1f)] public float CompendiumSelectedTabOpacity = 0.22f;
+        [Min(0f)] public float CompendiumCardAccentWidth = 3f;
+        [Range(0f, 1f)] public float CompendiumLockedAccentOpacity = 0.32f;
+        [Min(0f)] public float CompendiumChipCornerRadius = 10f;
+        [Min(0f)] public float CompendiumChipPaddingHorizontal = 9f;
+        [Min(0f)] public float CompendiumChipPaddingVertical = 3f;
+        [ColorUsage(false)] public Color CompendiumGlyphAccentColor = new Color(0.42f, 0.78f, 0.92f, 1f);
+        [ColorUsage(false)] public Color CompendiumLandmarkAccentColor = new Color(0.85f, 0.7f, 0.35f, 1f);
+        [ColorUsage(false)] public Color CompendiumEnemyAccentColor = new Color(0.85f, 0.36f, 0.34f, 1f);
+        [ColorUsage(false)] public Color CompendiumMiscAccentColor = new Color(0.55f, 0.74f, 0.68f, 1f);
+        [ColorUsage(false)] public Color CompendiumScrollbarThumbColor = new Color(0.42f, 0.58f, 0.64f, 0.9f);
 
         public void EnsureInitialized()
         {
@@ -5051,6 +5078,7 @@ namespace DuneVector
         public string VideoCrtLinesLabel = "CRT LINES";
         public string VideoFilmGrainLabel = "FILM GRAIN";
         public string VideoVignetteLabel = "VIGNETTE";
+        public string VideoBloomLabel = "BLOOM";
         public string VideoVisualizerFovLabel = "VISUALIZER FOV";
         public string VideoEffectEnabledLabel = "ON";
         public string VideoEffectDisabledLabel = "OFF";
@@ -5059,6 +5087,7 @@ namespace DuneVector
         public bool DefaultCrtLinesEnabled = true;
         public bool DefaultFilmGrainEnabled = true;
         public bool DefaultVignetteEnabled = true;
+        public bool DefaultBloomEnabled = true;
         [Range(0f, 1f)] public float VideoFilmGrainIntensity = 0.18f;
         [Range(0f, 1f)] public float VideoFilmGrainResponse = 0.8f;
 
@@ -5836,6 +5865,22 @@ namespace DuneVector
         [Range(1, 4)] public int GeoglyphTextureBuildsPerFrame = 1;
         [ColorUsage(false)] public Color IconShadowColor = new Color(0f, 0f, 0f, 0.85f);
 
+        [Header("World Map Chrome")]
+        [Tooltip("Darkened frame drawn around the fullscreen backdrop so the map panel reads as a lit surface.")]
+        [Range(0f, 1f)] public float WorldMapBackdropVignette = 0.75f;
+        [Tooltip("Shadow softness under the world-map panel.")]
+        [Min(0f)] public float WorldMapPanelShadowSpread = 26f;
+        [Tooltip("Length of the L-shaped tick marks at each corner of the world-map panel.")]
+        [Min(0f)] public float WorldMapCornerBracketLength = 26f;
+        [Tooltip("Inner shadow drawn along the map viewport edges so the terrain sits inside the frame.")]
+        [Min(0f)] public float WorldMapViewportVignette = 54f;
+        [Tooltip("Draw a world-aligned coordinate graticule beneath the map icons.")]
+        public bool ShowWorldMapGraticule = true;
+        [Tooltip("Approximate number of minor graticule divisions across the map viewport height.")]
+        [Range(2, 16)] public int WorldMapGraticuleDivisions = 6;
+        [Tooltip("Draw a zoom-aware distance scale bar in the map viewport.")]
+        public bool ShowWorldMapScaleBar = true;
+
         [Header("Palette")]
         [ColorUsage(false)] public Color UnexploredColor = Color.black;
         [ColorUsage(false)] public Color OverlayColor = new Color(0f, 0f, 0f, 1f);
@@ -5849,6 +5894,10 @@ namespace DuneVector
         [ColorUsage(false)] public Color DroneMarkerColor = new Color(0.92f, 1f, 1f, 1f);
         [ColorUsage(false)] public Color TitleColor = Color.white;
         [ColorUsage(false)] public Color DetailColor = Color.white;
+        [Tooltip("Signal color shared by the world-map chrome: corner brackets, header rule and title tick.")]
+        [ColorUsage(false)] public Color WorldMapAccentColor = new Color(0.35f, 0.86f, 1f, 1f);
+        [Tooltip("Coordinate graticule drawn over unexplored space.")]
+        [ColorUsage(false)] public Color WorldMapGraticuleColor = new Color(0.34f, 0.68f, 0.82f, 0.13f);
     }
 
     [System.Serializable]

@@ -16,6 +16,7 @@ namespace DuneVector
             public VisualElement LockedVisual;
             public Label Title;
             public Label Metadata;
+            public VisualElement Accent;
             public VisualElement SelectionMarker;
         }
 
@@ -44,6 +45,8 @@ namespace DuneVector
         private readonly VisualElement _root;
         private readonly VisualElement _window;
         private readonly Label _progress;
+        private readonly VisualElement _progressRail;
+        private readonly VisualElement _progressFill;
         private readonly ListView _grid;
         private readonly Scroller _verticalScroller;
         private readonly VisualElement _detail;
@@ -51,6 +54,7 @@ namespace DuneVector
         private readonly VisualElement _detailLocked;
         private readonly Label _detailTitle;
         private readonly Label _detailMetadata;
+        private readonly Label _detailStatus;
         private readonly Label _detailDescription;
         private int _selectedTab;
         private int _columnCount;
@@ -101,9 +105,12 @@ namespace DuneVector
 
             VisualElement header = BuildHeader(out _progress);
             _window.Add(header);
-            VisualElement headerRule = new VisualElement { name = "compendium-header-rule" };
-            headerRule.AddToClassList("compendium-separator");
-            _window.Add(headerRule);
+            _progressRail = new VisualElement { name = "compendium-header-rule" };
+            _progressRail.AddToClassList("compendium-separator");
+            _progressFill = new VisualElement { pickingMode = PickingMode.Ignore };
+            _progressFill.AddToClassList("compendium-progress-fill");
+            _progressRail.Add(_progressFill);
+            _window.Add(_progressRail);
             _window.Add(BuildTabs());
 
             VisualElement content = new VisualElement { name = "compendium-content" };
@@ -131,6 +138,7 @@ namespace DuneVector
                 out _detailLocked,
                 out _detailTitle,
                 out _detailMetadata,
+                out _detailStatus,
                 out _detailDescription);
             content.Add(_detail);
             ApplyTheme();
@@ -298,6 +306,7 @@ namespace DuneVector
             out VisualElement locked,
             out Label title,
             out Label metadata,
+            out Label status,
             out Label description)
         {
             VisualElement detail = new VisualElement { name = "compendium-detail" };
@@ -315,9 +324,17 @@ namespace DuneVector
             title = new Label();
             title.AddToClassList("compendium-detail-title");
             detail.Add(title);
+            VisualElement chips = new VisualElement();
+            chips.AddToClassList("compendium-chip-row");
             metadata = new Label();
+            metadata.AddToClassList("compendium-chip");
             metadata.AddToClassList("compendium-detail-metadata");
-            detail.Add(metadata);
+            chips.Add(metadata);
+            status = new Label();
+            status.AddToClassList("compendium-chip");
+            status.AddToClassList("compendium-detail-status");
+            chips.Add(status);
+            detail.Add(chips);
             VisualElement rule = new VisualElement();
             rule.AddToClassList("compendium-detail-rule");
             detail.Add(rule);
@@ -367,6 +384,12 @@ namespace DuneVector
             metadata.AddToClassList("compendium-card-metadata");
             overlay.Add(metadata);
             card.Add(overlay);
+            VisualElement accent = new VisualElement
+            {
+                pickingMode = PickingMode.Ignore,
+            };
+            accent.AddToClassList("compendium-card-accent");
+            card.Add(accent);
             VisualElement marker = new VisualElement
             {
                 pickingMode = PickingMode.Ignore,
@@ -387,6 +410,7 @@ namespace DuneVector
             references.LockedVisual = locked;
             references.Title = title;
             references.Metadata = metadata;
+            references.Accent = accent;
             references.SelectionMarker = marker;
             card.RegisterCallback<PointerEnterEvent>(_ =>
             {
@@ -473,7 +497,7 @@ namespace DuneVector
                 card.Root.EnableInClassList("is-locked", !documented);
                 card.Root.EnableInClassList("is-selected", selected);
                 card.SelectionMarker.style.display = selected ? DisplayStyle.Flex : DisplayStyle.None;
-                ApplyCardState(card, selected, documented);
+                ApplyCardState(card, selected, documented, entry.Category);
             }
         }
 
@@ -535,6 +559,10 @@ namespace DuneVector
                 _settings.CompendiumDiscoveryCountFormat,
                 documented,
                 _entries.Count);
+            float ratio = _entries.Count > 0
+                ? Mathf.Clamp01(documented / (float)_entries.Count)
+                : 0f;
+            _progressFill.style.width = Length.Percent(ratio * 100f);
         }
 
         private void RefreshTabs()
@@ -564,14 +592,24 @@ namespace DuneVector
                 bool selected = tabIndex == _selectedTab;
                 _tabs[tabIndex].EnableInClassList("is-selected", selected);
                 _tabs[tabIndex].style.backgroundColor = selected
-                    ? _settings.CompendiumSelectedTabColor
+                    ? GetSelectedTabColor()
                     : _settings.CompendiumTabColor;
                 _tabImages[tabIndex].tintColor = selected
                     ? _settings.CompendiumIconColor
                     : _settings.CompendiumSecondaryTextColor;
+                _tabLabels[tabIndex].style.color = selected
+                    ? _settings.CompendiumPrimaryTextColor
+                    : _settings.CompendiumSecondaryTextColor;
                 _tabUnderlines[tabIndex].style.display =
                     selected ? DisplayStyle.Flex : DisplayStyle.None;
             }
+        }
+
+        private Color GetSelectedTabColor()
+        {
+            return WithAlpha(
+                _settings.CompendiumSelectedTabColor,
+                _settings.CompendiumSelectedTabOpacity);
         }
 
         private void RebuildRows()
@@ -612,10 +650,28 @@ namespace DuneVector
             _detailTitle.text = documented
                 ? ToTitleCase(entry.DisplayName)
                 : _settings.CompendiumUnknownLabel;
-            _detailMetadata.text = $"{GetCategoryLabel(entry.Category)}  ·  " +
-                (documented
-                    ? _settings.CompendiumDiscoveredLabel
-                    : _settings.CompendiumUnknownLabel);
+            Color categoryColor = GetCategoryColor(entry.Category);
+            _detailMetadata.text = GetCategoryLabel(entry.Category);
+            _detailMetadata.style.color = categoryColor;
+            SetBorder(
+                _detailMetadata,
+                WithAlpha(categoryColor, 0.45f),
+                _settings.CompendiumPanelBorderThickness,
+                _settings.CompendiumChipCornerRadius);
+            _detailMetadata.style.backgroundColor = WithAlpha(categoryColor, 0.12f);
+            Color statusColor = documented
+                ? _settings.CompendiumActiveAccentColor
+                : _settings.CompendiumSecondaryTextColor;
+            _detailStatus.text = documented
+                ? _settings.CompendiumDiscoveredLabel
+                : _settings.CompendiumUnknownLabel;
+            _detailStatus.style.color = statusColor;
+            SetBorder(
+                _detailStatus,
+                WithAlpha(statusColor, 0.45f),
+                _settings.CompendiumPanelBorderThickness,
+                _settings.CompendiumChipCornerRadius);
+            _detailStatus.style.backgroundColor = WithAlpha(statusColor, 0.12f);
             _detailDescription.text = documented
                 ? FirstNonEmpty(entry.Description, _settings.CompendiumDefaultDescription)
                 : _settings.CompendiumUnknownDescription;
@@ -663,10 +719,12 @@ namespace DuneVector
 
             VisualElement header = _window.Q("compendium-header");
             header.style.height = _settings.CompendiumHeaderHeight;
-            VisualElement headerRule = _window.Q("compendium-header-rule");
-            headerRule.style.height = _settings.CompendiumSeparatorThickness;
-            headerRule.style.backgroundColor = _settings.CompendiumSeparatorColor;
-            headerRule.style.marginBottom = _settings.CompendiumGap;
+            _progressRail.style.height = Mathf.Max(
+                _settings.CompendiumSeparatorThickness,
+                _settings.CompendiumProgressRailHeight);
+            _progressRail.style.backgroundColor = _settings.CompendiumSeparatorColor;
+            _progressRail.style.marginBottom = _settings.CompendiumGap;
+            _progressFill.style.backgroundColor = _settings.CompendiumActiveAccentColor;
             SetTextStyle(_window.Q<Label>(className: "compendium-title"),
                 _settings.CompendiumTitleFontSize, _settings.CompendiumPrimaryTextColor, true);
             SetTextStyle(_window.Q<Label>(className: "compendium-subtitle"),
@@ -739,6 +797,18 @@ namespace DuneVector
                         tracker.style.backgroundColor =
                             _settings.CompendiumScrollbarTrackColor;
                     }
+                    VisualElement dragger =
+                        slider.Q(className: "unity-base-slider__dragger");
+                    if (dragger != null)
+                    {
+                        SetBorder(
+                            dragger,
+                            Color.clear,
+                            0f,
+                            _settings.CompendiumScrollbarWidth * 0.5f);
+                        dragger.style.backgroundColor =
+                            _settings.CompendiumScrollbarThumbColor;
+                    }
                 }
             }
             _detail.style.width = _settings.CompendiumDetailPanelWidth;
@@ -774,15 +844,36 @@ namespace DuneVector
                 _settings.CompendiumDetailTitleFontSize, _settings.CompendiumPrimaryTextColor, true);
             SetTextStyle(_detailMetadata,
                 _settings.CompendiumMetadataFontSize, _settings.CompendiumSecondaryTextColor, true);
+            SetTextStyle(_detailStatus,
+                _settings.CompendiumMetadataFontSize, _settings.CompendiumSecondaryTextColor, true);
+            StyleChip(_detailMetadata);
+            StyleChip(_detailStatus);
             SetTextStyle(_detailDescription,
                 _settings.GalleryBodyFontSize, _settings.CompendiumPrimaryTextColor, false);
             _detail.Q(className: "compendium-detail-rule").style.backgroundColor =
                 _settings.CompendiumActiveAccentColor;
         }
 
-        private void ApplyCardState(CardReferences card, bool selected, bool documented)
+        private void StyleChip(Label chip)
         {
-            card.Root.style.backgroundColor = _settings.CompendiumCardColor;
+            chip.style.paddingLeft = _settings.CompendiumChipPaddingHorizontal;
+            chip.style.paddingRight = _settings.CompendiumChipPaddingHorizontal;
+            chip.style.paddingTop = _settings.CompendiumChipPaddingVertical;
+            chip.style.paddingBottom = _settings.CompendiumChipPaddingVertical;
+        }
+
+        private void ApplyCardState(
+            CardReferences card,
+            bool selected,
+            bool documented,
+            PhotographableSubjectCategory category)
+        {
+            card.Root.style.backgroundColor = selected
+                ? Color.Lerp(
+                    _settings.CompendiumCardColor,
+                    _settings.CompendiumActiveAccentColor,
+                    0.12f)
+                : _settings.CompendiumCardColor;
             card.Root.style.width = _settings.CompendiumSlotWidth;
             card.Root.style.height = _settings.CompendiumSlotHeight;
             card.Root.style.flexGrow = 0f;
@@ -827,6 +918,13 @@ namespace DuneVector
                 true);
             SetTextStyle(card.Metadata,
                 _settings.CompendiumMetadataFontSize, _settings.CompendiumSecondaryTextColor, true);
+            Color accent = GetCategoryColor(category);
+            if (!documented)
+            {
+                accent.a *= _settings.CompendiumLockedAccentOpacity;
+            }
+            card.Accent.style.backgroundColor = accent;
+            card.Accent.style.width = _settings.CompendiumCardAccentWidth;
             card.SelectionMarker.style.backgroundColor = _settings.CompendiumActiveAccentColor;
             card.SelectionMarker.style.width = _settings.CompendiumSelectionMarkerSize;
             card.SelectionMarker.style.height = _settings.CompendiumSelectionMarkerSize;
@@ -892,6 +990,17 @@ namespace DuneVector
             };
         }
 
+        private Color GetCategoryColor(PhotographableSubjectCategory category)
+        {
+            return category switch
+            {
+                PhotographableSubjectCategory.Glyph => _settings.CompendiumGlyphAccentColor,
+                PhotographableSubjectCategory.Landmark => _settings.CompendiumLandmarkAccentColor,
+                PhotographableSubjectCategory.Enemy => _settings.CompendiumEnemyAccentColor,
+                _ => _settings.CompendiumMiscAccentColor,
+            };
+        }
+
         private static string GetCategoryLabel(PhotographableSubjectCategory category)
         {
             return category switch
@@ -905,6 +1014,12 @@ namespace DuneVector
                 PhotographableSubjectCategory.RarePhenomenon => "RARE PHENOMENON",
                 _ => "MISC",
             };
+        }
+
+        private static Color WithAlpha(Color color, float alpha)
+        {
+            color.a = alpha;
+            return color;
         }
 
         private static string ToTitleCase(string value)
