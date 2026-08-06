@@ -1167,9 +1167,6 @@ namespace DuneVector
         public string[] PremiumVisualStructuralColliderNamePrefixes = System.Array.Empty<string>();
         [Tooltip("Extra local-space padding added to every side of premium structural colliders.")]
         [Min(0f)] public float PremiumVisualStructuralColliderPadding = 0.04f;
-        [Tooltip("Premium hub child mesh name prefixes that receive the dedicated center floor color.")]
-        public string[] PremiumVisualFloorNamePrefixes = System.Array.Empty<string>();
-        [ColorUsage(false, true)] public Color PremiumVisualFloorColor = Color.white;
         [Tooltip("When enabled, the authored visual shell replaces the primitive platform, braces, and pylons.")]
         public bool ReplaceProceduralStructureVisuals = true;
         [Min(8f)] public float PlatformRadius = 26f;
