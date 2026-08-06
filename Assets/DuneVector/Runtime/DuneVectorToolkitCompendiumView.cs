@@ -52,10 +52,6 @@ namespace DuneVector
         private readonly Label _detailTitle;
         private readonly Label _detailMetadata;
         private readonly Label _detailDescription;
-        private readonly Label _detailLocationLabel;
-        private readonly Label _detailLocation;
-        private readonly Label _detailNotesLabel;
-        private readonly Label _detailNotes;
         private int _selectedTab;
         private int _columnCount;
         private string _selectedSubjectId;
@@ -105,6 +101,9 @@ namespace DuneVector
 
             VisualElement header = BuildHeader(out _progress);
             _window.Add(header);
+            VisualElement headerRule = new VisualElement { name = "compendium-header-rule" };
+            headerRule.AddToClassList("compendium-separator");
+            _window.Add(headerRule);
             _window.Add(BuildTabs());
 
             VisualElement content = new VisualElement { name = "compendium-content" };
@@ -132,11 +131,7 @@ namespace DuneVector
                 out _detailLocked,
                 out _detailTitle,
                 out _detailMetadata,
-                out _detailDescription,
-                out _detailLocationLabel,
-                out _detailLocation,
-                out _detailNotesLabel,
-                out _detailNotes);
+                out _detailDescription);
             content.Add(_detail);
             ApplyTheme();
             _root.RegisterCallback<GeometryChangedEvent>(_ => UpdateResponsiveLayout());
@@ -303,11 +298,7 @@ namespace DuneVector
             out VisualElement locked,
             out Label title,
             out Label metadata,
-            out Label description,
-            out Label locationLabel,
-            out Label location,
-            out Label notesLabel,
-            out Label notes)
+            out Label description)
         {
             VisualElement detail = new VisualElement { name = "compendium-detail" };
             detail.AddToClassList("compendium-detail");
@@ -333,18 +324,6 @@ namespace DuneVector
             description = new Label();
             description.AddToClassList("compendium-detail-description");
             detail.Add(description);
-            locationLabel = new Label(_settings.CompendiumDiscoveryLocationLabel);
-            locationLabel.AddToClassList("compendium-section-label");
-            detail.Add(locationLabel);
-            location = new Label();
-            location.AddToClassList("compendium-detail-copy");
-            detail.Add(location);
-            notesLabel = new Label(_settings.CompendiumFieldNotesLabel);
-            notesLabel.AddToClassList("compendium-section-label");
-            detail.Add(notesLabel);
-            notes = new Label();
-            notes.AddToClassList("compendium-detail-copy");
-            detail.Add(notes);
             return detail;
         }
 
@@ -494,7 +473,7 @@ namespace DuneVector
                 card.Root.EnableInClassList("is-locked", !documented);
                 card.Root.EnableInClassList("is-selected", selected);
                 card.SelectionMarker.style.display = selected ? DisplayStyle.Flex : DisplayStyle.None;
-                ApplyCardState(card, selected);
+                ApplyCardState(card, selected, documented);
             }
         }
 
@@ -640,16 +619,6 @@ namespace DuneVector
             _detailDescription.text = documented
                 ? FirstNonEmpty(entry.Description, _settings.CompendiumDefaultDescription)
                 : _settings.CompendiumUnknownDescription;
-            _detailLocationLabel.style.display = documented ? DisplayStyle.Flex : DisplayStyle.None;
-            _detailLocation.style.display = documented ? DisplayStyle.Flex : DisplayStyle.None;
-            _detailNotesLabel.style.display = documented ? DisplayStyle.Flex : DisplayStyle.None;
-            _detailNotes.style.display = documented ? DisplayStyle.Flex : DisplayStyle.None;
-            _detailLocation.text = FirstNonEmpty(
-                entry.DiscoveryLocation,
-                _settings.CompendiumDefaultDiscoveryLocation);
-            _detailNotes.text = FirstNonEmpty(
-                entry.FieldNotes,
-                _settings.CompendiumDefaultFieldNotes);
         }
 
         private void UpdateResponsiveLayout()
@@ -690,11 +659,14 @@ namespace DuneVector
                 _window,
                 faintBorder,
                 _settings.CompendiumPanelBorderThickness,
-                0f);
+                _settings.CompendiumPanelCornerRadius);
 
             VisualElement header = _window.Q("compendium-header");
             header.style.height = _settings.CompendiumHeaderHeight;
-            header.style.marginBottom = _settings.CompendiumGap;
+            VisualElement headerRule = _window.Q("compendium-header-rule");
+            headerRule.style.height = _settings.CompendiumSeparatorThickness;
+            headerRule.style.backgroundColor = _settings.CompendiumSeparatorColor;
+            headerRule.style.marginBottom = _settings.CompendiumGap;
             SetTextStyle(_window.Q<Label>(className: "compendium-title"),
                 _settings.CompendiumTitleFontSize, _settings.CompendiumPrimaryTextColor, true);
             SetTextStyle(_window.Q<Label>(className: "compendium-subtitle"),
@@ -720,7 +692,7 @@ namespace DuneVector
                     : 0f;
                 _tabs[i].style.paddingLeft = _settings.CompendiumGap;
                 _tabs[i].style.paddingRight = _settings.CompendiumGap;
-                SetBorder(_tabs[i], Color.clear, 0f, 0f);
+                SetBorder(_tabs[i], Color.clear, 0f, _settings.CompendiumTabCornerRadius);
                 Image icon = _tabs[i].Q<Image>();
                 icon.style.width = _settings.CompendiumTabIconSize;
                 icon.style.height = _settings.CompendiumTabIconSize;
@@ -775,7 +747,19 @@ namespace DuneVector
             _detail.style.paddingRight = _settings.CompendiumGap;
             _detail.style.paddingTop = _settings.CompendiumGap;
             _detail.style.paddingBottom = _settings.CompendiumGap;
-            _detailImage.parent.style.height = _settings.CompendiumDetailImageHeight;
+            SetBorder(
+                _detail,
+                _settings.CompendiumDetailBorderColor,
+                _settings.CompendiumPanelBorderThickness,
+                _settings.CompendiumDetailCornerRadius);
+            VisualElement hero = _detailImage.parent;
+            hero.style.height = _settings.CompendiumDetailImageHeight;
+            hero.style.backgroundColor = _settings.CompendiumCardColor;
+            SetBorder(
+                hero,
+                _settings.CompendiumCardBorderColor,
+                _settings.CompendiumPanelBorderThickness,
+                _settings.CompendiumDetailImageCornerRadius);
             _detailImage.style.position = Position.Absolute;
             _detailImage.style.left = 0f;
             _detailImage.style.top = 0f;
@@ -792,19 +776,11 @@ namespace DuneVector
                 _settings.CompendiumMetadataFontSize, _settings.CompendiumSecondaryTextColor, true);
             SetTextStyle(_detailDescription,
                 _settings.GalleryBodyFontSize, _settings.CompendiumPrimaryTextColor, false);
-            SetTextStyle(_detailLocationLabel,
-                _settings.CompendiumMetadataFontSize, _settings.CompendiumActiveAccentColor, true);
-            SetTextStyle(_detailNotesLabel,
-                _settings.CompendiumMetadataFontSize, _settings.CompendiumActiveAccentColor, true);
-            SetTextStyle(_detailLocation,
-                _settings.GalleryBodyFontSize, _settings.CompendiumSecondaryTextColor, false);
-            SetTextStyle(_detailNotes,
-                _settings.GalleryBodyFontSize, _settings.CompendiumSecondaryTextColor, false);
             _detail.Q(className: "compendium-detail-rule").style.backgroundColor =
                 _settings.CompendiumActiveAccentColor;
         }
 
-        private void ApplyCardState(CardReferences card, bool selected)
+        private void ApplyCardState(CardReferences card, bool selected, bool documented)
         {
             card.Root.style.backgroundColor = _settings.CompendiumCardColor;
             card.Root.style.width = _settings.CompendiumSlotWidth;
@@ -840,14 +816,24 @@ namespace DuneVector
             overlay.style.paddingRight = _settings.CompendiumCardContentPadding;
             overlay.style.paddingTop = _settings.CompendiumCardTitleTopInset;
             overlay.style.paddingBottom = _settings.CompendiumCardMetadataBottomInset;
-            overlay.style.backgroundColor = _settings.CompendiumLockedOverlayColor;
+            overlay.style.backgroundColor = documented
+                ? _settings.CompendiumCardScrimColor
+                : _settings.CompendiumLockedOverlayColor;
             SetTextStyle(card.Title,
-                _settings.CompendiumCardTitleFontSize, _settings.CompendiumPrimaryTextColor, true);
+                _settings.CompendiumCardTitleFontSize,
+                documented
+                    ? _settings.CompendiumPrimaryTextColor
+                    : _settings.CompendiumSecondaryTextColor,
+                true);
             SetTextStyle(card.Metadata,
                 _settings.CompendiumMetadataFontSize, _settings.CompendiumSecondaryTextColor, true);
             card.SelectionMarker.style.backgroundColor = _settings.CompendiumActiveAccentColor;
             card.SelectionMarker.style.width = _settings.CompendiumSelectionMarkerSize;
             card.SelectionMarker.style.height = _settings.CompendiumSelectionMarkerSize;
+            card.SelectionMarker.style.borderTopRightRadius =
+                _settings.CompendiumCardCornerRadius;
+            card.SelectionMarker.style.borderBottomLeftRadius =
+                _settings.CompendiumCardCornerRadius;
             Image selectionIcon =
                 card.SelectionMarker.Q<Image>(className: "compendium-card-selection-icon");
             if (selectionIcon != null)

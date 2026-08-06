@@ -499,6 +499,16 @@ namespace DuneVector
         [ColorUsage(false)] public Color CompendiumActiveAccentColor = new Color(0.78f, 0.57f, 0.27f, 1f);
         [ColorUsage(false)] public Color CompendiumHoverBorderColor = new Color(0.62f, 0.86f, 0.91f, 1f);
 
+        [Header("Compendium Style")]
+        [Min(0f)] public float CompendiumPanelCornerRadius = 14f;
+        [Min(0f)] public float CompendiumTabCornerRadius = 8f;
+        [Min(0f)] public float CompendiumDetailCornerRadius = 12f;
+        [Min(0f)] public float CompendiumDetailImageCornerRadius = 8f;
+        [Min(0f)] public float CompendiumSeparatorThickness = 1f;
+        [ColorUsage(false)] public Color CompendiumSeparatorColor = new Color(0.42f, 0.62f, 0.7f, 0.16f);
+        [ColorUsage(false)] public Color CompendiumDetailBorderColor = new Color(0.42f, 0.62f, 0.7f, 0.2f);
+        [ColorUsage(false)] public Color CompendiumCardScrimColor = new Color(0.02f, 0.03f, 0.04f, 0.42f);
+
         public void EnsureInitialized()
         {
             CompendiumEntries ??= new List<CompendiumEntryDefinition>();
@@ -5056,6 +5066,29 @@ namespace DuneVector
         [Tooltip("Typing this phrase while the pause screen is open permanently unlocks every upgrade.")]
         public string UpgradeUnlockCheatCode = "giveallupgradespls";
 
+        [Header("Panel Styling")]
+        [Tooltip("Vertical gradient applied across the panel body. 0 keeps the panel flat.")]
+        [Range(0f, 1f)] public float PanelGradientStrength = 0.45f;
+        [Tooltip("Length of the accent brackets drawn at each panel corner. 0 hides them.")]
+        [Min(0f)] public float CornerBracketLength = 22f;
+        [Min(1f)] public float CornerBracketThickness = 3f;
+        [Tooltip("Accent-colored glow drawn behind panel titles. 0 disables the glow.")]
+        [Range(0f, 1f)] public float TitleGlowStrength = 0.4f;
+        [Tooltip("Darkening drawn around the screen edges behind the panel. 0 disables it.")]
+        [Range(0f, 1f)] public float OverlayVignetteStrength = 0.5f;
+        [Tooltip("Seconds the panel takes to fade and settle into place when the game pauses.")]
+        [Min(0f)] public float OpenAnimationDuration = 0.16f;
+        [Tooltip("Pixels the panel rises through while it fades in.")]
+        [Min(0f)] public float OpenAnimationRise = 14f;
+        [Tooltip("Width of the accent stripe drawn down the left edge of an enabled toggle row.")]
+        [Min(0f)] public float ButtonHoverStripeWidth = 4f;
+
+        [Header("Letter Spacing")]
+        [Min(0f)] public float TitleTracking = 6f;
+        [Min(0f)] public float SubtitleTracking = 1.5f;
+        [Min(0f)] public float SectionTracking = 2.5f;
+        [Min(0f)] public float HintTracking = 1.5f;
+
         [Header("Typography")]
         [Min(12)] public int TitleFontSize = 36;
         [Min(10)] public int SubtitleFontSize = 13;
@@ -5068,7 +5101,7 @@ namespace DuneVector
         [Header("Desert Palette")]
         [ColorUsage(false)] public Color OverlayColor = new Color(0.015f, 0.025f, 0.045f, 0.86f);
         [ColorUsage(false)] public Color ShadowColor = new Color(0f, 0f, 0f, 0.48f);
-        [ColorUsage(false)] public Color PanelColor = new Color(0.055f, 0.075f, 0.105f, 0.98f);
+        [ColorUsage(false)] public Color PanelColor = new Color(0.026f, 0.034f, 0.048f, 0.98f);
         [ColorUsage(false)] public Color PanelBorderColor = new Color(0.92f, 0.5f, 0.16f, 0.82f);
         [ColorUsage(false)] public Color AccentColor = new Color(1f, 0.61f, 0.18f, 1f);
         [ColorUsage(false)] public Color TitleColor = new Color(1f, 0.76f, 0.3f, 1f);
@@ -5083,6 +5116,12 @@ namespace DuneVector
         [ColorUsage(false)] public Color ButtonActiveColor = new Color(0.93f, 0.47f, 0.12f, 1f);
         [ColorUsage(false)] public Color DangerButtonColor = new Color(0.31f, 0.12f, 0.1f, 1f);
         [ColorUsage(false)] public Color DangerButtonHoverColor = new Color(0.5f, 0.17f, 0.12f, 1f);
+        [Tooltip("Label color used on accent-filled buttons, where light text has too little contrast.")]
+        [ColorUsage(false)] public Color PrimaryButtonTextColor = new Color(0.05f, 0.07f, 0.1f, 1f);
+        [Tooltip("Label color used while a dark button is hovered.")]
+        [ColorUsage(false)] public Color ButtonHoverTextColor = new Color(1f, 0.87f, 0.63f, 1f);
+        [Tooltip("Hairline highlight drawn directly beneath the panel accent bar.")]
+        public Color PanelHighlightColor = new Color(1f, 0.78f, 0.42f, 0.16f);
     }
 
     [System.Serializable]
@@ -5729,7 +5768,7 @@ namespace DuneVector
 
         [Header("Panel")]
         [Min(0f)] public float ContentPadding = 12f;
-        [Min(1f)] public float BorderThickness = 2f;
+        [Min(1f)] public float BorderThickness = 1f;
         [Min(8)] public int WorldMapTitleFontSize = 20;
         [Min(8)] public int WorldMapFooterFontSize = 18;
         [Min(8)] public int DetailFontSize = 12;
@@ -5802,14 +5841,14 @@ namespace DuneVector
         [ColorUsage(false)] public Color OverlayColor = new Color(0f, 0f, 0f, 1f);
         [ColorUsage(false)] public Color PanelColor = new Color(0.005f, 0.012f, 0.016f, 1f);
         [ColorUsage(false)] public Color WorldMapChromeColor = new Color(0.01f, 0.035f, 0.05f, 1f);
-        [ColorUsage(false)] public Color BorderColor = new Color(0.08f, 0.7f, 0.82f, 0.9f);
+        [ColorUsage(false)] public Color BorderColor = new Color(1f, 1f, 1f, 0.9f);
         [ColorUsage(false)] public Color TerrainLowColor = new Color(0.18f, 0.11f, 0.045f, 1f);
         [ColorUsage(false)] public Color TerrainHighColor = new Color(0.92f, 0.62f, 0.2f, 1f);
         [ColorUsage(false)] public Color ContourColor = new Color(1f, 0.82f, 0.42f, 1f);
         [ColorUsage(false)] public Color RadiusLineColor = new Color(0f, 0.9f, 1f, 1f);
         [ColorUsage(false)] public Color DroneMarkerColor = new Color(0.92f, 1f, 1f, 1f);
-        [ColorUsage(false)] public Color TitleColor = new Color(0.72f, 0.94f, 1f, 1f);
-        [ColorUsage(false)] public Color DetailColor = new Color(0.45f, 0.72f, 0.78f, 1f);
+        [ColorUsage(false)] public Color TitleColor = Color.white;
+        [ColorUsage(false)] public Color DetailColor = Color.white;
     }
 
     [System.Serializable]

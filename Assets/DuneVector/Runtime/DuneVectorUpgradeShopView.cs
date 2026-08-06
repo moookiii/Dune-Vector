@@ -6,6 +6,8 @@ namespace DuneVector
 {
     public sealed class DuneVectorUpgradeShopView : IDisposable
     {
+        private const int ButtonBorderPixels = 2;
+
         private readonly DronePermanentUpgradeSystem _upgrades;
         private readonly DroneGoldWallet _wallet;
         private readonly UpgradeShopVisualTuning _visuals;
@@ -35,6 +37,9 @@ namespace DuneVector
         private Texture2D _backButtonTexture;
         private Texture2D _backButtonHoverTexture;
         private Texture2D _hubRgbTerminalIcon;
+        private Texture2D _fadeDownTexture;
+        private Texture2D _fadeUpTexture;
+        private Texture2D _fadeRightTexture;
         private Vector2 _scrollPosition;
         private float _styledScale = -1f;
         private float _displayedGold;
@@ -86,18 +91,35 @@ namespace DuneVector
                 panelWidth,
                 panelHeight);
 
-            float shadowOffset = _visuals.ShadowOffset * scale;
-            DrawSolidRect(new Rect(panel.x + shadowOffset, panel.y + shadowOffset, panel.width, panel.height), _visuals.ShadowColor);
+            DrawPanelShadow(panel, scale);
             DrawSolidRect(panel, _visuals.PanelColor);
-            DrawBorder(panel, _visuals.PanelBorderColor, Mathf.Max(1f, _visuals.BorderThickness * scale));
-            DrawSolidRect(new Rect(panel.x, panel.y, panel.width, _visuals.AccentBarHeight * scale), _visuals.CoreColor);
+            DrawGradientRect(panel, WithAlpha(_visuals.PanelBorderColor, _visuals.PlateSheenOpacity), _fadeDownTexture);
 
             float padding = _visuals.PanelPadding * scale;
             float headerHeight = _visuals.HeaderHeight * scale;
             Rect header = new Rect(panel.x, panel.y, panel.width, headerHeight);
             DrawSolidRect(header, _visuals.HeaderColor);
+            DrawGradientRect(header, WithAlpha(_visuals.PanelBorderColor, _visuals.PlateSheenOpacity), _fadeDownTexture);
             float borderThickness = Mathf.Max(1f, _visuals.BorderThickness * scale);
-            DrawSolidRect(new Rect(panel.x + padding, header.yMax - borderThickness, panel.width - (padding * 2f), borderThickness), _visuals.DividerColor);
+            float dividerInset = panel.x + padding;
+            float dividerWidth = panel.width - (padding * 2f);
+            DrawGradientRect(
+                new Rect(dividerInset, header.yMax - borderThickness - (_visuals.HeaderGlowHeight * scale), dividerWidth, _visuals.HeaderGlowHeight * scale),
+                WithAlpha(_visuals.CoreColor, _visuals.HeaderGlowOpacity),
+                _fadeUpTexture);
+            DrawSolidRect(new Rect(dividerInset, header.yMax - borderThickness, dividerWidth, borderThickness), _visuals.DividerColor);
+
+            DrawSolidRect(new Rect(panel.x, panel.y, panel.width, _visuals.AccentBarHeight * scale), _visuals.CoreColor);
+            DrawGradientRect(
+                new Rect(panel.x, panel.y + (_visuals.AccentBarHeight * scale), panel.width, _visuals.HeaderGlowHeight * scale),
+                WithAlpha(_visuals.CoreColor, _visuals.HeaderGlowOpacity),
+                _fadeDownTexture);
+            DrawBorder(panel, _visuals.PanelBorderColor, borderThickness);
+            DrawCornerBrackets(
+                panel,
+                WithAlpha(_visuals.CoreColor, _visuals.CornerBracketOpacity),
+                Mathf.Max(1f, _visuals.CornerBracketThickness * scale),
+                _visuals.CornerBracketLength * scale);
 
             Rect backButton = new Rect(
                 panel.x + padding,
@@ -122,7 +144,13 @@ namespace DuneVector
                 goldWidth,
                 _visuals.GoldPanelHeight * scale);
             DrawSolidRect(goldPanel, Color.Lerp(_visuals.PanelColor, _visuals.GoldColor, _visuals.GoldPanelTintAmount));
+            DrawGradientRect(goldPanel, WithAlpha(_visuals.GoldColor, _visuals.GoldPanelGlowOpacity), _fadeUpTexture);
             DrawBorder(goldPanel, WithAlpha(_visuals.GoldColor, _visuals.GoldPanelBorderOpacity), borderThickness);
+            DrawCornerBrackets(
+                goldPanel,
+                WithAlpha(_visuals.GoldColor, _visuals.CornerBracketOpacity),
+                Mathf.Max(1f, _visuals.CornerBracketThickness * scale),
+                _visuals.IconCornerBracketLength * scale);
             GUI.Label(goldPanel, $"GOLD  {Mathf.RoundToInt(_displayedGold):N0}", _goldStyle);
             DrawGoldDeduction(goldPanel, scale);
 
@@ -141,14 +169,8 @@ namespace DuneVector
             _scrollPosition = GUI.BeginScrollView(scrollViewport, _scrollPosition, scrollContent, false, true);
             DrawGroups(scrollContent.width, scale);
             GUI.EndScrollView();
-
-            if (!string.IsNullOrEmpty(_statusMessage) && Time.unscaledTime < _statusUntil)
-            {
-                GUI.Label(
-                    new Rect(panel.x + padding, panel.yMax - padding, panel.width - (padding * 2f), _subtitleStyle.lineHeight),
-                    _statusMessage,
-                    _subtitleStyle);
-            }
+            DrawScrollEdgeFades(scrollViewport, contentHeight, scrollbarClearance, scale);
+            DrawStatusMessage(panel, padding, scale);
 
             return backRequested;
         }
@@ -176,13 +198,18 @@ namespace DuneVector
                 float groupHeaderHeight = _visuals.GroupHeaderHeight * scale;
                 Rect groupHeader = new Rect(0f, y, width, groupHeaderHeight);
                 DrawSolidRect(groupHeader, _visuals.RowColor);
-                DrawSolidRect(
+                DrawGradientRect(
+                    new Rect(groupHeader.x, groupHeader.y, Mathf.Min(groupHeader.width, _visuals.RowWashWidth * scale), groupHeader.height),
+                    WithAlpha(groupColor, _visuals.RowWashOpacity),
+                    _fadeRightTexture);
+                DrawGradientRect(
                     new Rect(
                         groupHeader.x,
                         groupHeader.yMax - Mathf.Max(1f, _visuals.BorderThickness * scale),
                         groupHeader.width,
                         Mathf.Max(1f, _visuals.BorderThickness * scale)),
-                    WithAlpha(groupColor, _visuals.GroupLineOpacity));
+                    WithAlpha(groupColor, _visuals.GroupLineOpacity),
+                    _fadeRightTexture);
                 DrawSolidRect(new Rect(groupHeader.x, groupHeader.y, _visuals.GroupAccentWidth * scale, groupHeader.height), groupColor);
                 _groupStyle.normal.textColor = groupColor;
                 GUI.Label(new Rect(groupHeader.x + (_visuals.GroupLabelIndent * scale), groupHeader.y, groupHeader.width, groupHeader.height), group.ToString().ToUpperInvariant(), _groupStyle);
@@ -230,19 +257,13 @@ namespace DuneVector
             bool enabled = _upgrades.AreHubRgbTerminalsEnabled;
             bool recent = Time.unscaledTime < _hubRgbTerminalRecentUntil;
             bool hovered = row.Contains(Event.current.mousePosition);
-            Color rowColor = recent ? _visuals.RecentPurchaseColor : hovered ? _visuals.RowHoverColor : _visuals.RowColor;
-            DrawSolidRect(row, rowColor);
-            DrawBorder(
-                row,
-                WithAlpha(groupColor, recent ? _visuals.RecentBorderOpacity : _visuals.RowBorderOpacity),
-                Mathf.Max(1f, _visuals.BorderThickness * scale));
-            DrawSolidRect(new Rect(row.x, row.y, _visuals.RowAccentWidth * scale, row.height), groupColor);
+            DrawRowPlate(row, groupColor, hovered, recent, scale);
 
             float columnGap = _visuals.ColumnGap * scale;
             float iconSize = _visuals.IconSize * scale;
             Rect iconPanel = new Rect(row.x + columnGap, row.y + ((row.height - iconSize) * 0.5f), iconSize, iconSize);
             DrawSolidRect(iconPanel, _visuals.RowColor);
-            DrawBorder(iconPanel, WithAlpha(groupColor, _visuals.IconBorderOpacity), Mathf.Max(1f, _visuals.BorderThickness * scale));
+            DrawIconFrame(iconPanel, groupColor, scale);
             GUI.DrawTexture(iconPanel, GetHubRgbTerminalIcon(tuning), ScaleMode.ScaleToFit, true);
 
             float detailsX = iconPanel.xMax + columnGap;
@@ -360,18 +381,14 @@ namespace DuneVector
 
             bool enabled = _upgrades.IsAtlasGlyphBrushedMetalEnabled;
             bool hovered = row.Contains(Event.current.mousePosition);
-            DrawSolidRect(row, hovered ? _visuals.RowHoverColor : _visuals.RowColor);
-            DrawBorder(
-                row,
-                WithAlpha(groupColor, _visuals.RowBorderOpacity),
-                Mathf.Max(1f, _visuals.BorderThickness * scale));
-            DrawSolidRect(new Rect(row.x, row.y, _visuals.RowAccentWidth * scale, row.height), groupColor);
+            DrawRowPlate(row, groupColor, hovered, false, scale);
 
             float columnGap = _visuals.ColumnGap * scale;
             float iconSize = _visuals.IconSize * scale;
             Rect iconPanel = new Rect(row.x + columnGap, row.y + ((row.height - iconSize) * 0.5f), iconSize, iconSize);
             DrawSolidRect(iconPanel, GetMaterialDisplayColor(tuning.GlyphMaterial));
-            DrawBorder(iconPanel, WithAlpha(groupColor, _visuals.IconBorderOpacity), Mathf.Max(1f, _visuals.BorderThickness * scale));
+            DrawGradientRect(iconPanel, WithAlpha(Color.black, 0.35f), _fadeUpTexture);
+            DrawIconFrame(iconPanel, groupColor, scale);
 
             float detailsX = iconPanel.xMax + columnGap;
             float detailsWidth = _visuals.DetailsColumnWidth * scale;
@@ -426,19 +443,14 @@ namespace DuneVector
         {
             bool recent = definition.Id == _recentUpgrade && Time.unscaledTime < _recentPurchaseUntil;
             bool hovered = row.Contains(Event.current.mousePosition);
-            Color rowColor = recent ? _visuals.RecentPurchaseColor : hovered ? _visuals.RowHoverColor : _visuals.RowColor;
-            DrawSolidRect(row, rowColor);
-            DrawBorder(
-                row,
-                WithAlpha(groupColor, recent ? _visuals.RecentBorderOpacity : _visuals.RowBorderOpacity),
-                Mathf.Max(1f, _visuals.BorderThickness * scale));
-            DrawSolidRect(new Rect(row.x, row.y, _visuals.RowAccentWidth * scale, row.height), groupColor);
+            DrawRowPlate(row, groupColor, hovered, recent, scale);
 
             float columnGap = _visuals.ColumnGap * scale;
             float iconSize = _visuals.IconSize * scale;
             Rect iconPanel = new Rect(row.x + columnGap, row.y + ((row.height - iconSize) * 0.5f), iconSize, iconSize);
             DrawSolidRect(iconPanel, Color.Lerp(_visuals.RowColor, groupColor, _visuals.IconPanelTintAmount));
-            DrawBorder(iconPanel, WithAlpha(groupColor, _visuals.IconBorderOpacity), Mathf.Max(1f, _visuals.BorderThickness * scale));
+            DrawGradientRect(iconPanel, WithAlpha(groupColor, _visuals.IconPanelTintAmount), _fadeDownTexture);
+            DrawIconFrame(iconPanel, groupColor, scale);
             GUI.DrawTexture(iconPanel, GetIcon(definition.Id, groupColor), ScaleMode.ScaleToFit, true);
 
             float detailsX = iconPanel.xMax + columnGap;
@@ -538,14 +550,41 @@ namespace DuneVector
             float gap = _visuals.TierSegmentGap * scale;
             int segmentCount = Mathf.Max(1, maximumTier);
             float segmentWidth = Mathf.Max(1f, (area.width - (gap * (segmentCount - 1))) / segmentCount);
+            float highlightThickness = Mathf.Max(1f, _visuals.BorderThickness * scale);
+            float glowHeight = _visuals.TierGlowHeight * scale;
+            int nextSegment = Mathf.Clamp(currentTier, 0, segmentCount - 1);
+            bool previewNext = currentTier < maximumTier;
+            float pulse = (Mathf.Sin(Time.unscaledTime * _visuals.ValuePulseSpeed * 0.5f) + 1f) * 0.5f;
             for (int segmentIndex = 0; segmentIndex < segmentCount; segmentIndex++)
             {
                 Rect segment = new Rect(area.x + (segmentIndex * (segmentWidth + gap)), area.y, segmentWidth, area.height);
                 DrawSolidRect(segment, _visuals.TierEmptyColor);
+                DrawGradientRect(segment, WithAlpha(Color.black, _visuals.TierEmptyTopShadeOpacity), _fadeDownTexture);
+
                 float fill = Mathf.Clamp01(displayedTier - segmentIndex);
                 if (fill > 0f)
                 {
-                    DrawSolidRect(new Rect(segment.x, segment.y, segment.width * fill, segment.height), groupColor);
+                    Rect filled = new Rect(segment.x, segment.y, segment.width * fill, segment.height);
+                    DrawSolidRect(filled, groupColor);
+                    DrawSolidRect(
+                        new Rect(filled.x, filled.y, filled.width, highlightThickness),
+                        Color.Lerp(groupColor, Color.white, _visuals.TierFillHighlightOpacity));
+                    if (glowHeight > 0f)
+                    {
+                        DrawGradientRect(
+                            new Rect(filled.x, filled.yMax, filled.width, glowHeight),
+                            WithAlpha(groupColor, _visuals.TierGlowOpacity),
+                            _fadeDownTexture);
+                    }
+                    continue;
+                }
+
+                if (previewNext && segmentIndex == nextSegment)
+                {
+                    DrawBorder(
+                        segment,
+                        WithAlpha(groupColor, _visuals.TierNextSegmentOpacity * Mathf.Lerp(0.45f, 1f, pulse)),
+                        highlightThickness);
                 }
             }
         }
@@ -712,7 +751,7 @@ namespace DuneVector
                 fontSize = Mathf.Max(8, Mathf.RoundToInt(_visuals.ButtonFontSize * scale)),
                 fontStyle = FontStyle.Bold,
                 clipping = TextClipping.Clip,
-                border = new RectOffset(),
+                border = new RectOffset(ButtonBorderPixels, ButtonBorderPixels, ButtonBorderPixels, ButtonBorderPixels),
                 padding = new RectOffset(),
                 margin = new RectOffset(),
             };
@@ -735,14 +774,92 @@ namespace DuneVector
                 return;
             }
 
-            _buttonTexture = CreateSolidTexture("Upgrade Shop Purchase", _visuals.AffordableButtonColor);
-            _buttonHoverTexture = CreateSolidTexture("Upgrade Shop Purchase Hover", _visuals.AffordableButtonHoverColor);
-            _disabledButtonTexture = CreateSolidTexture("Upgrade Shop Unavailable", _visuals.UnaffordableButtonColor);
-            _maximumButtonTexture = CreateSolidTexture(
+            _buttonTexture = CreateButtonTexture("Upgrade Shop Purchase", _visuals.AffordableButtonColor, _visuals.AffordableButtonHoverColor);
+            _buttonHoverTexture = CreateButtonTexture("Upgrade Shop Purchase Hover", _visuals.AffordableButtonHoverColor, _visuals.PrimaryTextColor);
+            _disabledButtonTexture = CreateButtonTexture("Upgrade Shop Unavailable", _visuals.UnaffordableButtonColor, _visuals.MutedTextColor);
+            _maximumButtonTexture = CreateButtonTexture(
                 "Upgrade Shop Maximum",
-                Color.Lerp(_visuals.UnaffordableButtonColor, _visuals.MaximumColor, _visuals.MaximumButtonTintAmount));
-            _backButtonTexture = CreateSolidTexture("Upgrade Shop Back", _visuals.RowColor);
-            _backButtonHoverTexture = CreateSolidTexture("Upgrade Shop Back Hover", _visuals.RowHoverColor);
+                Color.Lerp(_visuals.UnaffordableButtonColor, _visuals.MaximumColor, _visuals.MaximumButtonTintAmount),
+                _visuals.MaximumColor);
+            _backButtonTexture = CreateButtonTexture("Upgrade Shop Back", _visuals.RowColor, _visuals.DividerColor);
+            _backButtonHoverTexture = CreateButtonTexture("Upgrade Shop Back Hover", _visuals.RowHoverColor, _visuals.CoreColor);
+
+            _fadeDownTexture = CreateVerticalFadeTexture("Upgrade Shop Fade Down", true);
+            _fadeUpTexture = CreateVerticalFadeTexture("Upgrade Shop Fade Up", false);
+            _fadeRightTexture = CreateHorizontalFadeTexture("Upgrade Shop Fade Right");
+        }
+
+        private Texture2D CreateButtonTexture(string textureName, Color baseColor, Color borderColor)
+        {
+            const int width = (ButtonBorderPixels * 2) + 2;
+            const int height = 64;
+            Texture2D texture = new Texture2D(width, height, TextureFormat.RGBA32, false)
+            {
+                name = textureName,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+
+            float strength = Mathf.Clamp01(_visuals.ButtonGradientStrength) * 0.5f;
+            Color topColor = Color.Lerp(baseColor, Color.white, strength * 0.55f);
+            Color bottomColor = Color.Lerp(baseColor, Color.black, strength);
+            Color edgeColor = Color.Lerp(baseColor, borderColor, Mathf.Clamp01(_visuals.ButtonBorderStrength));
+            edgeColor.a = baseColor.a;
+            for (int y = 0; y < height; y++)
+            {
+                // Texture row 0 is the bottom of the drawn rect, so invert for a top-lit gradient.
+                Color rowColor = Color.Lerp(bottomColor, topColor, y / (float)(height - 1));
+                bool verticalEdge = y < ButtonBorderPixels || y >= height - ButtonBorderPixels;
+                for (int x = 0; x < width; x++)
+                {
+                    bool edge = verticalEdge || x < ButtonBorderPixels || x >= width - ButtonBorderPixels;
+                    texture.SetPixel(x, y, edge ? edgeColor : rowColor);
+                }
+            }
+
+            texture.Apply(false, true);
+            return texture;
+        }
+
+        private static Texture2D CreateVerticalFadeTexture(string textureName, bool opaqueAtTop)
+        {
+            const int height = 64;
+            Texture2D texture = new Texture2D(1, height, TextureFormat.RGBA32, false)
+            {
+                name = textureName,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            for (int y = 0; y < height; y++)
+            {
+                // Row 0 is the bottom of the drawn rect.
+                float normalized = y / (float)(height - 1);
+                float alpha = opaqueAtTop ? normalized : 1f - normalized;
+                texture.SetPixel(0, y, new Color(1f, 1f, 1f, alpha * alpha));
+            }
+            texture.Apply(false, true);
+            return texture;
+        }
+
+        private static Texture2D CreateHorizontalFadeTexture(string textureName)
+        {
+            const int width = 64;
+            Texture2D texture = new Texture2D(width, 1, TextureFormat.RGBA32, false)
+            {
+                name = textureName,
+                filterMode = FilterMode.Bilinear,
+                wrapMode = TextureWrapMode.Clamp,
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            for (int x = 0; x < width; x++)
+            {
+                float alpha = 1f - (x / (float)(width - 1));
+                texture.SetPixel(x, 0, new Color(1f, 1f, 1f, alpha * alpha));
+            }
+            texture.Apply(false, true);
+            return texture;
         }
 
         private Texture2D GetIcon(DroneUpgradeId id, Color color)
@@ -827,16 +944,144 @@ namespace DuneVector
             return $"{formattedValue} / {projectileSpeed:0} M/S";
         }
 
-        private static Texture2D CreateSolidTexture(string textureName, Color color)
+        private void DrawPanelShadow(Rect panel, float scale)
         {
-            Texture2D texture = new Texture2D(1, 1, TextureFormat.RGBA32, false)
+            float offset = _visuals.ShadowOffset * scale;
+            float spread = _visuals.ShadowSpread * scale;
+            const int layers = 3;
+            for (int layer = layers; layer >= 1; layer--)
             {
-                name = textureName,
-                hideFlags = HideFlags.HideAndDontSave,
-            };
-            texture.SetPixel(0, 0, color);
-            texture.Apply(false, true);
-            return texture;
+                float expansion = spread * layer / layers;
+                Color color = _visuals.ShadowColor;
+                color.a *= 1f / layers;
+                DrawSolidRect(
+                    new Rect(
+                        panel.x + offset - expansion,
+                        panel.y + offset - expansion,
+                        panel.width + (expansion * 2f),
+                        panel.height + (expansion * 2f)),
+                    color);
+            }
+        }
+
+        private void DrawRowPlate(Rect row, Color groupColor, bool hovered, bool recent, float scale)
+        {
+            Color rowColor = recent ? _visuals.RecentPurchaseColor : hovered ? _visuals.RowHoverColor : _visuals.RowColor;
+            DrawSolidRect(row, rowColor);
+            DrawGradientRect(
+                new Rect(row.x, row.y, Mathf.Min(row.width, _visuals.RowWashWidth * scale), row.height),
+                WithAlpha(groupColor, hovered || recent ? _visuals.RowHoverWashOpacity : _visuals.RowWashOpacity),
+                _fadeRightTexture);
+
+            float borderThickness = Mathf.Max(1f, _visuals.BorderThickness * scale);
+            DrawSolidRect(
+                new Rect(row.x, row.y, row.width, borderThickness),
+                WithAlpha(_visuals.PrimaryTextColor, _visuals.RowTopHighlightOpacity));
+            DrawBorder(
+                row,
+                WithAlpha(groupColor, recent ? _visuals.RecentBorderOpacity : hovered ? _visuals.IconBorderOpacity : _visuals.RowBorderOpacity),
+                borderThickness);
+
+            Rect accent = new Rect(row.x, row.y, _visuals.RowAccentWidth * scale, row.height);
+            DrawSolidRect(accent, groupColor);
+            DrawGradientRect(accent, WithAlpha(Color.black, 0.35f), _fadeUpTexture);
+            if (hovered || recent)
+            {
+                DrawCornerBrackets(
+                    row,
+                    WithAlpha(groupColor, _visuals.CornerBracketOpacity),
+                    Mathf.Max(1f, _visuals.CornerBracketThickness * scale),
+                    _visuals.IconCornerBracketLength * scale);
+            }
+        }
+
+        private void DrawIconFrame(Rect iconPanel, Color groupColor, float scale)
+        {
+            float borderThickness = Mathf.Max(1f, _visuals.BorderThickness * scale);
+            DrawBorder(iconPanel, WithAlpha(groupColor, _visuals.IconBorderOpacity), borderThickness);
+            DrawCornerBrackets(
+                iconPanel,
+                WithAlpha(groupColor, _visuals.CornerBracketOpacity),
+                Mathf.Max(1f, _visuals.CornerBracketThickness * scale),
+                _visuals.IconCornerBracketLength * scale);
+        }
+
+        private void DrawScrollEdgeFades(Rect viewport, float contentHeight, float scrollbarClearance, float scale)
+        {
+            float fadeHeight = _visuals.ScrollFadeHeight * scale;
+            if (fadeHeight <= 0f)
+            {
+                return;
+            }
+
+            float width = Mathf.Max(1f, viewport.width - scrollbarClearance);
+            Color fadeColor = WithAlpha(_visuals.PanelColor, _visuals.ScrollFadeOpacity);
+            if (_scrollPosition.y > 1f)
+            {
+                DrawGradientRect(new Rect(viewport.x, viewport.y, width, fadeHeight), fadeColor, _fadeDownTexture);
+            }
+
+            if (_scrollPosition.y < contentHeight - viewport.height - 1f)
+            {
+                DrawGradientRect(new Rect(viewport.x, viewport.yMax - fadeHeight, width, fadeHeight), fadeColor, _fadeUpTexture);
+            }
+        }
+
+        private void DrawStatusMessage(Rect panel, float padding, float scale)
+        {
+            if (string.IsNullOrEmpty(_statusMessage) || Time.unscaledTime >= _statusUntil)
+            {
+                return;
+            }
+
+            float remaining = _statusUntil - Time.unscaledTime;
+            float fade = Mathf.Clamp01(remaining / Mathf.Max(0.01f, _visuals.RecentPurchaseDuration * 0.5f));
+            float chipPaddingX = _visuals.StatusChipPaddingX * scale;
+            float chipPaddingY = _visuals.StatusChipPaddingY * scale;
+            Vector2 textSize = _subtitleStyle.CalcSize(new GUIContent(_statusMessage));
+            Rect chip = new Rect(
+                panel.center.x - ((textSize.x + (chipPaddingX * 2f)) * 0.5f),
+                panel.yMax - padding - textSize.y - (chipPaddingY * 2f),
+                textSize.x + (chipPaddingX * 2f),
+                textSize.y + (chipPaddingY * 2f));
+
+            DrawSolidRect(chip, WithAlpha(_visuals.HeaderColor, 0.96f * fade));
+            DrawBorder(chip, WithAlpha(_visuals.CoreColor, 0.7f * fade), Mathf.Max(1f, _visuals.BorderThickness * scale));
+            Color previousColor = _subtitleStyle.normal.textColor;
+            _subtitleStyle.normal.textColor = WithAlpha(_visuals.PrimaryTextColor, fade);
+            GUI.Label(new Rect(chip.x + chipPaddingX, chip.y + chipPaddingY, textSize.x, textSize.y), _statusMessage, _subtitleStyle);
+            _subtitleStyle.normal.textColor = previousColor;
+        }
+
+        private static void DrawGradientRect(Rect rect, Color color, Texture2D fadeTexture)
+        {
+            if (fadeTexture == null || color.a <= 0f)
+            {
+                return;
+            }
+
+            Color previousColor = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(rect, fadeTexture);
+            GUI.color = previousColor;
+        }
+
+        private static void DrawCornerBrackets(Rect rect, Color color, float thickness, float length)
+        {
+            float clampedLength = Mathf.Min(length, Mathf.Min(rect.width, rect.height) * 0.5f);
+            if (clampedLength <= 0f)
+            {
+                return;
+            }
+
+            DrawSolidRect(new Rect(rect.x, rect.y, clampedLength, thickness), color);
+            DrawSolidRect(new Rect(rect.x, rect.y, thickness, clampedLength), color);
+            DrawSolidRect(new Rect(rect.xMax - clampedLength, rect.y, clampedLength, thickness), color);
+            DrawSolidRect(new Rect(rect.xMax - thickness, rect.y, thickness, clampedLength), color);
+            DrawSolidRect(new Rect(rect.x, rect.yMax - thickness, clampedLength, thickness), color);
+            DrawSolidRect(new Rect(rect.x, rect.yMax - clampedLength, thickness, clampedLength), color);
+            DrawSolidRect(new Rect(rect.xMax - clampedLength, rect.yMax - thickness, clampedLength, thickness), color);
+            DrawSolidRect(new Rect(rect.xMax - thickness, rect.yMax - clampedLength, thickness, clampedLength), color);
         }
 
         private static void DrawSolidRect(Rect rect, Color color)
@@ -875,6 +1120,9 @@ namespace DuneVector
             DestroyTexture(_backButtonTexture);
             DestroyTexture(_backButtonHoverTexture);
             DestroyTexture(_hubRgbTerminalIcon);
+            DestroyTexture(_fadeDownTexture);
+            DestroyTexture(_fadeUpTexture);
+            DestroyTexture(_fadeRightTexture);
         }
 
         private static void DestroyTexture(Texture2D texture)

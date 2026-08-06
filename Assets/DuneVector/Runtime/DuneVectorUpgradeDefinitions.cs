@@ -220,6 +220,35 @@ namespace DuneVector
         [Range(0f, 1f)] public float GoldPanelBorderOpacity = 0.6f;
         [Range(0f, 1f)] public float MaximumButtonTintAmount = 0.12f;
 
+        [Header("Depth and Polish")]
+        [Tooltip("Strength of the light-to-dark sheen laid over the panel and header plates.")]
+        [Range(0f, 1f)] public float PlateSheenOpacity = 0.1f;
+        [Min(0f)] public float ShadowSpread = 6f;
+        [Min(0f)] public float HeaderGlowHeight = 14f;
+        [Range(0f, 1f)] public float HeaderGlowOpacity = 0.28f;
+        [Min(0f)] public float CornerBracketLength = 26f;
+        [Min(1f)] public float CornerBracketThickness = 2f;
+        [Range(0f, 1f)] public float CornerBracketOpacity = 0.85f;
+        [Tooltip("Width of the group-colored wash that bleeds out of each row's accent bar.")]
+        [Min(0f)] public float RowWashWidth = 240f;
+        [Range(0f, 1f)] public float RowWashOpacity = 0.07f;
+        [Range(0f, 1f)] public float RowHoverWashOpacity = 0.16f;
+        [Range(0f, 1f)] public float RowTopHighlightOpacity = 0.06f;
+        [Min(0f)] public float IconCornerBracketLength = 9f;
+        [Range(0f, 1f)] public float TierFillHighlightOpacity = 0.65f;
+        [Range(0f, 1f)] public float TierEmptyTopShadeOpacity = 0.35f;
+        [Min(0f)] public float TierGlowHeight = 4f;
+        [Range(0f, 1f)] public float TierGlowOpacity = 0.3f;
+        [Tooltip("Opacity of the outlined preview drawn on the segment the next purchase would fill.")]
+        [Range(0f, 1f)] public float TierNextSegmentOpacity = 0.34f;
+        [Range(0f, 1f)] public float ButtonGradientStrength = 0.4f;
+        [Range(0f, 1f)] public float ButtonBorderStrength = 0.55f;
+        [Range(0f, 1f)] public float GoldPanelGlowOpacity = 0.22f;
+        [Min(0f)] public float ScrollFadeHeight = 22f;
+        [Range(0f, 1f)] public float ScrollFadeOpacity = 0.92f;
+        [Min(0f)] public float StatusChipPaddingX = 14f;
+        [Min(0f)] public float StatusChipPaddingY = 7f;
+
         [Header("Sci-Fi Desert Palette")]
         [ColorUsage(false)] public Color ShadowColor = new Color(0f, 0f, 0f, 0.52f);
         [ColorUsage(false)] public Color PanelColor = new Color(0.025f, 0.045f, 0.065f, 0.97f);
