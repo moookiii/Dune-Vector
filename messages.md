@@ -12,13 +12,17 @@ The remaining failures, officials said, would be local, technical, and brief.
 
 Privately, the language was different.
 
-Buried inside classified assessments was a system whose age, scale, and architecture made the date rollover impossible to model with confidence.
+Classified assessments focused on a system whose age, scale, and architecture made the rollover impossible to predict.
 
-It had been built in pieces, under different names, by people who had never expected those pieces to survive long enough to become one machine.
+It had been expanded for decades, folded into newer programs, renamed, reorganized, and inherited by people who no longer understood every part of what they maintained.
 
-Its final name was Quantum Magnetics.
+No one could say with confidence how it would behave once the calendar crossed midnight.
 
-Very few people knew what the name referred to. Fewer still understood that by midnight, much of the world would potentially be inside its reach.
+Its final label was Quantum Magnetics.
+
+Almost no one knew the name.
+
+Fewer understood how the system could behaved unexpectedly on Januaray 00.
 
 
 
