@@ -1267,9 +1267,11 @@ namespace DuneVector
         private GUIStyle _mixerLabelStyle;
         private GUIStyle _valueStyle;
         private GUIStyle _hintStyle;
-        private GUIStyle _primaryButtonStyle;
-        private GUIStyle _secondaryButtonStyle;
-        private GUIStyle _dangerButtonStyle;
+        private GUIStyle _buttonLabelStyle;
+        private GUIStyle _buttonLabelLeftStyle;
+        private GUIStyle _pillLabelStyle;
+        private GUIStyle _chevronStyle;
+        private GUIStyle _invisibleButtonStyle;
         private GUIStyle _sliderStyle;
         private GUIStyle _sliderThumbStyle;
         private GUIStyle _songTitleStyle;
@@ -1280,15 +1282,18 @@ namespace DuneVector
         private GUIStyle _songPauseShadowStyle;
 
         private Texture2D _transparentTexture;
-        private Texture2D _primaryButtonTexture;
-        private Texture2D _primaryButtonHoverTexture;
-        private Texture2D _buttonTexture;
-        private Texture2D _buttonHoverTexture;
-        private Texture2D _buttonActiveTexture;
-        private Texture2D _dangerButtonTexture;
-        private Texture2D _dangerButtonHoverTexture;
-        private Texture2D _sliderThumbTexture;
         private float _styledScale = -1f;
+        private float _scale = 1f;
+        private float _openFade;
+        private float _uiAlpha = 1f;
+        private readonly GUIContent _glyphContent = new GUIContent();
+
+        private enum PauseButtonKind
+        {
+            Primary,
+            Secondary,
+            Danger,
+        }
 
         public void Initialize(
             DronePlayer player,
@@ -1331,6 +1336,7 @@ namespace DuneVector
         {
             BindTextInputKeyboard();
             UpdateControlsFade();
+            UpdateOpenFade();
             if (!IsPaused || !_showCompendium)
             {
                 _photography?.HideCompendium();
@@ -1447,6 +1453,10 @@ namespace DuneVector
             }
 
             IsPaused = paused;
+            if (paused)
+            {
+                _openFade = 0f;
+            }
             Time.timeScale = paused || DuneVectorMapHUD.IsWorldMapPausingGameplay
                 ? 0f
                 : 1f;
@@ -1480,6 +1490,15 @@ namespace DuneVector
                 : Mathf.MoveTowards(_controlsFade, target, Time.unscaledDeltaTime / duration);
         }
 
+        private void UpdateOpenFade()
+        {
+            float target = IsPaused ? 1f : 0f;
+            float duration = _visuals != null ? Mathf.Max(0f, _visuals.OpenAnimationDuration) : 0f;
+            _openFade = duration <= 0f
+                ? target
+                : Mathf.MoveTowards(_openFade, target, Time.unscaledDeltaTime / duration);
+        }
+
         private void HandleDeath()
         {
             IsPaused = false;
@@ -1490,6 +1509,7 @@ namespace DuneVector
             _showVideoSettings = false;
             _showMusicVisualizerSettings = false;
             _controlsFade = 0f;
+            _openFade = 0f;
             _audio?.SetPausedDucking(false);
             _player?.SetInputEnabled(false);
         }
@@ -1515,8 +1535,27 @@ namespace DuneVector
             GUI.depth = -1000;
             float scale = CalculateScale();
             EnsureStyles(scale);
+            _scale = scale;
+            _uiAlpha = Mathf.Clamp01(_openFade);
 
-            DrawSolidRect(new Rect(0f, 0f, Screen.width, Screen.height), _visuals.OverlayColor);
+            // The open animation fades every element together. Solid rects apply
+            // _uiAlpha themselves because they overwrite GUI.color while drawing.
+            Color previousGuiColor = GUI.color;
+            GUI.color = new Color(1f, 1f, 1f, _uiAlpha);
+            try
+            {
+                DrawPauseScreens(scale);
+            }
+            finally
+            {
+                GUI.color = previousGuiColor;
+                _uiAlpha = 1f;
+            }
+        }
+
+        private void DrawPauseScreens(float scale)
+        {
+            DrawOverlayBackdrop();
 
             if (_showControls || _controlsFade > 0f)
             {
@@ -1552,43 +1591,21 @@ namespace DuneVector
                 }
                 return;
             }
+
             DrawSongControls(scale);
-            float screenMargin = _visuals.ScreenMargin * scale;
-            float panelWidth = Mathf.Min(_visuals.PanelWidth * scale, Screen.width - (screenMargin * 2f));
-            float panelHeight = Mathf.Min(_visuals.PanelHeight * scale, Screen.height - (screenMargin * 2f));
-            Rect panel = new Rect(
-                (Screen.width - panelWidth) * 0.5f,
-                (Screen.height - panelHeight) * 0.5f,
-                panelWidth,
-                panelHeight);
+            DrawMainPauseScreen(scale);
+        }
 
-            float shadowOffset = _visuals.ShadowOffset * scale;
-            DrawSolidRect(new Rect(panel.x + shadowOffset, panel.y + shadowOffset, panel.width, panel.height), _visuals.ShadowColor);
-            DrawSolidRect(panel, _visuals.PanelColor);
-            DrawBorder(panel, _visuals.PanelBorderColor, Mathf.Max(1f, scale * 2f));
-            DrawSolidRect(
-                new Rect(panel.x, panel.y, panel.width, Mathf.Max(1f, _visuals.AccentBarHeight * scale)),
-                _visuals.AccentColor);
+        private void DrawMainPauseScreen(float scale)
+        {
+            Rect panel = CalculatePanelRect(scale);
+            DrawPanelChrome(panel, scale);
 
-            float padding = _visuals.PanelPadding * scale;
-            Rect content = new Rect(panel.x + padding, panel.y + padding, panel.width - (padding * 2f), panel.height - (padding * 2f));
+            Rect content = CalculateContentRect(panel, scale);
             float gap = _visuals.ButtonGap * scale;
-            float y = content.y;
+            float y = DrawPanelHeader(content, content.y, "PAUSED", "DUNE VECTOR  /  SYSTEMS ON HOLD", scale, gap);
 
-            float titleHeight = _titleStyle.lineHeight;
-            GUI.Label(new Rect(content.x, y, content.width, titleHeight), "PAUSED", _titleStyle);
-            y += titleHeight;
-
-            float subtitleHeight = _subtitleStyle.lineHeight;
-            GUI.Label(new Rect(content.x, y, content.width, subtitleHeight), "DUNE VECTOR  /  SYSTEMS ON HOLD", _subtitleStyle);
-            y += subtitleHeight + gap;
-
-            DrawSolidRect(new Rect(content.x, y, content.width, Mathf.Max(1f, scale)), _visuals.DividerColor);
-            y += gap * 1.5f;
-
-            float sectionHeight = _sectionStyle.lineHeight;
-            GUI.Label(new Rect(content.x, y, content.width, sectionHeight), "AUDIO MIXER", _sectionStyle);
-            y += sectionHeight + gap;
+            y = DrawSectionHeader(content, y, "AUDIO MIXER", scale);
 
             float sliderRowHeight = _visuals.SliderRowHeight * scale;
             DrawVolumeRow(
@@ -1616,7 +1633,7 @@ namespace DuneVector
             y += sliderRowHeight + (_visuals.DialogueButtonGap * scale);
 
             float buttonHeight = _visuals.ButtonHeight * scale;
-            if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), "RESUME FLIGHT", _primaryButtonStyle))
+            if (DrawMenuButton(new Rect(content.x, y, content.width, buttonHeight), "RESUME FLIGHT", PauseButtonKind.Primary))
             {
                 SetPaused(false);
             }
@@ -1625,7 +1642,11 @@ namespace DuneVector
             string galleryButtonLabel = _photography != null && _photography.Tuning != null
                 ? _photography.Tuning.PauseMenuButtonLabel
                 : string.Empty;
-            if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), galleryButtonLabel, _secondaryButtonStyle))
+            if (DrawMenuButton(
+                    new Rect(content.x, y, content.width, buttonHeight),
+                    galleryButtonLabel,
+                    PauseButtonKind.Secondary,
+                    true))
             {
                 _showGallery = true;
             }
@@ -1634,17 +1655,22 @@ namespace DuneVector
             string compendiumButtonLabel = _photography != null && _photography.Tuning != null
                 ? _photography.Tuning.CompendiumPauseMenuButtonLabel
                 : string.Empty;
-            if (GUI.Button(
+            if (DrawMenuButton(
                     new Rect(content.x, y, content.width, buttonHeight),
                     compendiumButtonLabel,
-                    _secondaryButtonStyle))
+                    PauseButtonKind.Secondary,
+                    true))
             {
                 _showCompendium = true;
                 _photography?.ShowCompendium();
             }
             y += buttonHeight + gap;
 
-            if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), "UPGRADE SHOP", _secondaryButtonStyle))
+            if (DrawMenuButton(
+                    new Rect(content.x, y, content.width, buttonHeight),
+                    "UPGRADE SHOP",
+                    PauseButtonKind.Secondary,
+                    true))
             {
                 _showShop = true;
                 _shopView?.Open();
@@ -1653,7 +1679,7 @@ namespace DuneVector
 
             bool previousEnabled = GUI.enabled;
             GUI.enabled = previousEnabled && _courierGame != null && _courierGame.State != CourierRunState.Hub;
-            if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), "RETURN TO HUB", _secondaryButtonStyle))
+            if (DrawMenuButton(new Rect(content.x, y, content.width, buttonHeight), "RETURN TO HUB", PauseButtonKind.Secondary))
             {
                 SetPaused(false);
                 _courierGame?.RequestReturnToHub();
@@ -1662,94 +1688,72 @@ namespace DuneVector
             y += buttonHeight + gap;
 
             float splitButtonWidth = (content.width - gap) * 0.5f;
-            if (GUI.Button(new Rect(content.x, y, splitButtonWidth, buttonHeight), "RESTART RUN", _secondaryButtonStyle))
+            if (DrawMenuButton(new Rect(content.x, y, splitButtonWidth, buttonHeight), "RESTART RUN", PauseButtonKind.Secondary))
             {
                 RestartRun();
             }
-            if (GUI.Button(
+            if (DrawMenuButton(
                     new Rect(content.x + splitButtonWidth + gap, y, splitButtonWidth, buttonHeight),
                     "QUIT",
-                    _dangerButtonStyle))
+                    PauseButtonKind.Danger))
             {
                 QuitGame();
             }
             y += buttonHeight + gap;
 
-            if (GUI.Button(
+            // The trailing entries open settings screens rather than acting on the run,
+            // so a hairline keeps them visually separate from the run controls above.
+            y = DrawGroupSeparator(content, y, scale);
+
+            if (DrawMenuButton(
                     new Rect(content.x, y, content.width, buttonHeight),
                     _visuals.ControlsButtonLabel,
-                    _secondaryButtonStyle))
+                    PauseButtonKind.Secondary,
+                    true))
             {
                 _showControls = true;
             }
             y += buttonHeight + gap;
 
-            if (GUI.Button(
+            if (DrawMenuButton(
                     new Rect(content.x, y, content.width, buttonHeight),
                     _visuals.MusicVisualizerSettingsButtonLabel,
-                    _secondaryButtonStyle))
+                    PauseButtonKind.Secondary,
+                    true))
             {
                 _showMusicVisualizerSettings = true;
             }
             y += buttonHeight + gap;
 
-            if (GUI.Button(
+            if (DrawMenuButton(
                     new Rect(content.x, y, content.width, buttonHeight),
                     _visuals.VideoSettingsButtonLabel,
-                    _secondaryButtonStyle))
+                    PauseButtonKind.Secondary,
+                    true))
             {
                 _showVideoSettings = true;
             }
 
-            float hintHeight = _hintStyle.lineHeight;
-            GUI.Label(
-                new Rect(content.x, content.yMax - hintHeight, content.width, hintHeight),
-                "ESC  /  RETURN TO THE DESERT",
-                _hintStyle);
+            DrawFooterHint(content, "ESC  /  RETURN TO THE DESERT", scale);
         }
 
         private void DrawVideoSettingsScreen(float scale)
         {
-            float screenMargin = _visuals.ScreenMargin * scale;
-            float panelWidth = Mathf.Min(_visuals.PanelWidth * scale, Screen.width - (screenMargin * 2f));
-            float panelHeight = Mathf.Min(_visuals.PanelHeight * scale, Screen.height - (screenMargin * 2f));
-            Rect panel = new Rect(
-                (Screen.width - panelWidth) * 0.5f,
-                (Screen.height - panelHeight) * 0.5f,
-                panelWidth,
-                panelHeight);
+            Rect panel = CalculatePanelRect(scale);
+            DrawPanelChrome(panel, scale);
 
-            float shadowOffset = _visuals.ShadowOffset * scale;
-            DrawSolidRect(new Rect(panel.x + shadowOffset, panel.y + shadowOffset, panel.width, panel.height), _visuals.ShadowColor);
-            DrawSolidRect(panel, _visuals.PanelColor);
-            DrawBorder(panel, _visuals.PanelBorderColor, Mathf.Max(1f, scale * 2f));
-            DrawSolidRect(
-                new Rect(panel.x, panel.y, panel.width, Mathf.Max(1f, _visuals.AccentBarHeight * scale)),
-                _visuals.AccentColor);
-
-            float padding = _visuals.PanelPadding * scale;
-            Rect content = new Rect(panel.x + padding, panel.y + padding, panel.width - (padding * 2f), panel.height - (padding * 2f));
+            Rect content = CalculateContentRect(panel, scale);
             float gap = _visuals.ButtonGap * scale;
-            float y = content.y;
+            float y = DrawPanelHeader(
+                content,
+                content.y,
+                _visuals.VideoSettingsTitle,
+                _visuals.VideoSettingsSubtitle,
+                scale,
+                gap);
 
-            float titleHeight = _titleStyle.lineHeight;
-            GUI.Label(new Rect(content.x, y, content.width, titleHeight), _visuals.VideoSettingsTitle, _titleStyle);
-            y += titleHeight;
-
-            float subtitleHeight = _subtitleStyle.lineHeight;
-            GUI.Label(new Rect(content.x, y, content.width, subtitleHeight), _visuals.VideoSettingsSubtitle, _subtitleStyle);
-            y += subtitleHeight + gap;
-
-            DrawSolidRect(new Rect(content.x, y, content.width, Mathf.Max(1f, scale)), _visuals.DividerColor);
-            y += gap * 1.5f;
-
-            float sectionHeight = _sectionStyle.lineHeight;
             float buttonHeight = _visuals.ButtonHeight * scale;
-            GUI.Label(
-                new Rect(content.x, y, content.width, sectionHeight),
-                _visuals.VideoAntiAliasingLabel,
-                _sectionStyle);
-            y += sectionHeight + gap;
+            y = DrawSectionHeader(content, y, _visuals.VideoAntiAliasingLabel, scale);
 
             float segmentedGap = gap;
             float segmentedWidth = (content.width - segmentedGap) / 2f;
@@ -1763,8 +1767,7 @@ namespace DuneVector
                 DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing);
             y += buttonHeight + (gap * 2f);
 
-            GUI.Label(new Rect(content.x, y, content.width, sectionHeight), _visuals.VideoSettingsSectionLabel, _sectionStyle);
-            y += sectionHeight + gap;
+            y = DrawSectionHeader(content, y, _visuals.VideoSettingsSectionLabel, scale);
 
             DrawVideoToggle(
                 new Rect(content.x, y, content.width, buttonHeight),
@@ -1804,65 +1807,42 @@ namespace DuneVector
             y += gap;
 
             float navigationWidth = (content.width - gap) * 0.5f;
-            if (GUI.Button(
+            if (DrawMenuButton(
                     new Rect(content.x, y, navigationWidth, buttonHeight),
                     _visuals.VideoSettingsResetButtonLabel,
-                    _secondaryButtonStyle))
+                    PauseButtonKind.Secondary))
             {
                 _audio?.ResetVideoSettingsToDefaults();
                 ApplyVideoPreferences();
             }
-            if (GUI.Button(
+            if (DrawMenuButton(
                     new Rect(content.x + navigationWidth + gap, y, navigationWidth, buttonHeight),
                     _visuals.VideoSettingsBackButtonLabel,
-                    _secondaryButtonStyle))
+                    PauseButtonKind.Primary))
             {
                 _showVideoSettings = false;
             }
 
-            float hintHeight = _hintStyle.lineHeight;
-            GUI.Label(
-                new Rect(content.x, content.yMax - hintHeight, content.width, hintHeight),
-                _visuals.VideoSettingsHintLabel,
-                _hintStyle);
+            DrawFooterHint(content, _visuals.VideoSettingsHintLabel, scale);
         }
 
         private void DrawMusicVisualizerSettingsScreen(float scale)
         {
-            float screenMargin = _visuals.ScreenMargin * scale;
-            float panelWidth = Mathf.Min(_visuals.PanelWidth * scale, Screen.width - (screenMargin * 2f));
-            float panelHeight = Mathf.Min(_visuals.PanelHeight * scale, Screen.height - (screenMargin * 2f));
-            Rect panel = new Rect(
-                (Screen.width - panelWidth) * 0.5f,
-                (Screen.height - panelHeight) * 0.5f,
-                panelWidth,
-                panelHeight);
+            Rect panel = CalculatePanelRect(scale);
+            DrawPanelChrome(panel, scale);
 
-            float shadowOffset = _visuals.ShadowOffset * scale;
-            DrawSolidRect(new Rect(panel.x + shadowOffset, panel.y + shadowOffset, panel.width, panel.height), _visuals.ShadowColor);
-            DrawSolidRect(panel, _visuals.PanelColor);
-            DrawBorder(panel, _visuals.PanelBorderColor, Mathf.Max(1f, scale * 2f));
-            DrawSolidRect(
-                new Rect(panel.x, panel.y, panel.width, Mathf.Max(1f, _visuals.AccentBarHeight * scale)),
-                _visuals.AccentColor);
-
-            float padding = _visuals.PanelPadding * scale;
-            Rect content = new Rect(panel.x + padding, panel.y + padding, panel.width - (padding * 2f), panel.height - (padding * 2f));
+            Rect content = CalculateContentRect(panel, scale);
             float gap = _visuals.ButtonGap * scale;
-            float y = content.y;
-            float titleHeight = _titleStyle.lineHeight;
-            GUI.Label(new Rect(content.x, y, content.width, titleHeight), _visuals.MusicVisualizerSettingsTitle, _titleStyle);
-            y += titleHeight;
-            float subtitleHeight = _subtitleStyle.lineHeight;
-            GUI.Label(new Rect(content.x, y, content.width, subtitleHeight), _visuals.MusicVisualizerSettingsSubtitle, _subtitleStyle);
-            y += subtitleHeight + gap;
-            DrawSolidRect(new Rect(content.x, y, content.width, Mathf.Max(1f, scale)), _visuals.DividerColor);
-            y += gap * 1.5f;
+            float y = DrawPanelHeader(
+                content,
+                content.y,
+                _visuals.MusicVisualizerSettingsTitle,
+                _visuals.MusicVisualizerSettingsSubtitle,
+                scale,
+                gap);
 
-            float sectionHeight = _sectionStyle.lineHeight;
             float buttonHeight = _visuals.ButtonHeight * scale;
-            GUI.Label(new Rect(content.x, y, content.width, sectionHeight), _visuals.MusicVisualizerSettingsSectionLabel, _sectionStyle);
-            y += sectionHeight + gap;
+            y = DrawSectionHeader(content, y, _visuals.MusicVisualizerSettingsSectionLabel, scale);
 
             DrawMusicVisualizerMasterToggle(new Rect(content.x, y, content.width, buttonHeight));
             y += buttonHeight + gap;
@@ -1891,18 +1871,23 @@ namespace DuneVector
                 MusicVisualEffectGroups.Glitch | MusicVisualEffectGroups.HudBorder);
             y += buttonHeight + (gap * 2f);
 
-            if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerSettingsResetButtonLabel, _secondaryButtonStyle))
+            if (DrawMenuButton(
+                    new Rect(content.x, y, content.width, buttonHeight),
+                    _visuals.MusicVisualizerSettingsResetButtonLabel,
+                    PauseButtonKind.Secondary))
             {
                 _audio?.ResetMusicVisualizerSettingsToDefaults();
             }
             y += buttonHeight + gap;
-            if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerSettingsBackButtonLabel, _secondaryButtonStyle))
+            if (DrawMenuButton(
+                    new Rect(content.x, y, content.width, buttonHeight),
+                    _visuals.MusicVisualizerSettingsBackButtonLabel,
+                    PauseButtonKind.Primary))
             {
                 _showMusicVisualizerSettings = false;
             }
 
-            float hintHeight = _hintStyle.lineHeight;
-            GUI.Label(new Rect(content.x, content.yMax - hintHeight, content.width, hintHeight), _visuals.MusicVisualizerSettingsHintLabel, _hintStyle);
+            DrawFooterHint(content, _visuals.MusicVisualizerSettingsHintLabel, scale);
         }
 
         private void DrawSongControls(float scale)
@@ -1973,10 +1958,7 @@ namespace DuneVector
             string stateLabel = enabled
                 ? _visuals.VideoEffectEnabledLabel
                 : _visuals.VideoEffectDisabledLabel;
-            if (GUI.Button(
-                    rect,
-                    $"{label}  /  {stateLabel}",
-                    enabled ? _primaryButtonStyle : _secondaryButtonStyle))
+            if (DrawToggleRow(rect, label, stateLabel, enabled))
             {
                 apply?.Invoke(!enabled);
                 ApplyVideoPreferences();
@@ -2005,7 +1987,7 @@ namespace DuneVector
             string stateLabel = enabled
                 ? _visuals.MusicVisualizerEffectEnabledLabel
                 : _visuals.MusicVisualizerEffectDisabledLabel;
-            if (GUI.Button(rect, $"{label}  /  {stateLabel}", enabled ? _primaryButtonStyle : _secondaryButtonStyle))
+            if (DrawToggleRow(rect, label, stateLabel, enabled))
             {
                 apply?.Invoke(!enabled);
             }
@@ -2020,7 +2002,7 @@ namespace DuneVector
             bool selected = _audio != null && _audio.AntiAliasingMode == mode;
             bool previousEnabled = GUI.enabled;
             GUI.enabled = previousEnabled && _audio != null;
-            if (GUI.Button(rect, label, selected ? _primaryButtonStyle : _secondaryButtonStyle))
+            if (DrawMenuButton(rect, label, selected ? PauseButtonKind.Primary : PauseButtonKind.Secondary))
             {
                 _audio.SetAntiAliasingMode(mode);
                 ApplyAntiAliasingPreference();
@@ -2161,11 +2143,16 @@ namespace DuneVector
             float scale)
         {
             float labelHeight = Mathf.Max(_mixerLabelStyle.lineHeight, _valueStyle.lineHeight);
-            GUI.Label(new Rect(area.x, area.y, area.width * 0.7f, labelHeight), label, _mixerLabelStyle);
-            GUI.Label(
+            DrawTintedLabel(
+                new Rect(area.x, area.y, area.width * 0.7f, labelHeight),
+                label,
+                _mixerLabelStyle,
+                _visuals.PrimaryTextColor);
+            DrawTintedLabel(
                 new Rect(area.x + (area.width * 0.7f), area.y, area.width * 0.3f, labelHeight),
                 $"{Mathf.RoundToInt(value * 100f):00}%",
-                _valueStyle);
+                _valueStyle,
+                _visuals.TitleColor);
 
             float thumbWidth = _visuals.SliderThumbWidth * scale;
             float thumbHeight = _visuals.SliderThumbHeight * scale;
@@ -2179,8 +2166,65 @@ namespace DuneVector
                 Mathf.Max(1f, sliderRect.width - thumbWidth),
                 trackHeight);
 
-            DrawSolidRect(trackRect, _visuals.SliderTrackColor);
-            DrawSolidRect(new Rect(trackRect.x, trackRect.y, trackRect.width * Mathf.Clamp01(value), trackRect.height), _visuals.SliderFillColor);
+            bool hovered = GUI.enabled && sliderRect.Contains(Event.current.mousePosition);
+            float clampedValue = Mathf.Clamp01(value);
+
+            // Recessed track: a darker lip above the base reads as an inset groove.
+            DrawSolidRect(trackRect, DarkenColor(_visuals.SliderTrackColor, 0.45f));
+            float lip = Mathf.Max(1f, scale);
+            DrawSolidRect(
+                new Rect(trackRect.x, trackRect.y + lip, trackRect.width, trackRect.height - lip),
+                _visuals.SliderTrackColor);
+
+            Color tickColor = _visuals.DividerColor;
+            tickColor.a *= 0.55f;
+            float tickWidth = Mathf.Max(1f, scale);
+            float tickHeight = trackHeight + (6f * scale);
+            for (int i = 0; i <= 4; i++)
+            {
+                float tickX = trackRect.x + (trackRect.width * (i / 4f)) - (tickWidth * 0.5f);
+                DrawSolidRect(
+                    new Rect(tickX, trackRect.center.y - (tickHeight * 0.5f), tickWidth, tickHeight),
+                    tickColor);
+            }
+
+            if (clampedValue > 0f)
+            {
+                Rect fillRect = new Rect(trackRect.x, trackRect.y, trackRect.width * clampedValue, trackRect.height);
+                DrawVerticalGradient(
+                    fillRect,
+                    LightenColor(_visuals.SliderFillColor, 0.32f),
+                    _visuals.SliderFillColor);
+                Color fillGlow = _visuals.SliderFillColor;
+                fillGlow.a *= hovered ? 0.32f : 0.16f;
+                DrawSolidRect(
+                    new Rect(fillRect.x, fillRect.y - (2f * scale), fillRect.width, fillRect.height + (4f * scale)),
+                    fillGlow);
+            }
+
+            Rect thumbRect = new Rect(
+                trackRect.x + (trackRect.width * clampedValue) - (thumbWidth * 0.5f),
+                sliderRect.y,
+                thumbWidth,
+                thumbHeight);
+            Color thumbGlow = _visuals.SliderThumbColor;
+            thumbGlow.a *= hovered ? 0.4f : 0.2f;
+            float glowInset = 3f * scale;
+            DrawSolidRect(
+                new Rect(
+                    thumbRect.x - glowInset,
+                    thumbRect.y - glowInset,
+                    thumbRect.width + (glowInset * 2f),
+                    thumbRect.height + (glowInset * 2f)),
+                thumbGlow);
+            DrawVerticalGradient(
+                thumbRect,
+                LightenColor(_visuals.SliderThumbColor, 0.25f),
+                DarkenColor(_visuals.SliderThumbColor, 0.2f));
+            Color notchColor = DarkenColor(_visuals.SliderThumbColor, 0.55f);
+            DrawSolidRect(
+                new Rect(thumbRect.center.x - (tickWidth * 0.5f), thumbRect.y + (5f * scale), tickWidth, thumbRect.height - (10f * scale)),
+                notchColor);
 
             bool wasEnabled = GUI.enabled;
             GUI.enabled = wasEnabled && _audio != null;
@@ -2278,21 +2322,27 @@ namespace DuneVector
                 _visuals.SongTextShadowColor);
 
             int buttonFontSize = Mathf.RoundToInt(_visuals.ButtonFontSize * scale);
-            _primaryButtonStyle = CreateButtonStyle(
+            _buttonLabelStyle = CreateLabelStyle(
                 buttonFontSize,
-                _primaryButtonTexture,
-                _primaryButtonHoverTexture,
-                _buttonActiveTexture);
-            _secondaryButtonStyle = CreateButtonStyle(
+                FontStyle.Bold,
+                TextAnchor.MiddleCenter,
+                _visuals.PrimaryTextColor);
+            _buttonLabelLeftStyle = CreateLabelStyle(
                 buttonFontSize,
-                _buttonTexture,
-                _buttonHoverTexture,
-                _buttonActiveTexture);
-            _dangerButtonStyle = CreateButtonStyle(
-                buttonFontSize,
-                _dangerButtonTexture,
-                _dangerButtonHoverTexture,
-                _buttonActiveTexture);
+                FontStyle.Bold,
+                TextAnchor.MiddleLeft,
+                _visuals.PrimaryTextColor);
+            _pillLabelStyle = CreateLabelStyle(
+                Mathf.Max(9, Mathf.RoundToInt(buttonFontSize * 0.82f)),
+                FontStyle.Bold,
+                TextAnchor.MiddleCenter,
+                _visuals.PrimaryTextColor);
+            _chevronStyle = CreateLabelStyle(
+                Mathf.RoundToInt(buttonFontSize * 1.3f),
+                FontStyle.Bold,
+                TextAnchor.MiddleRight,
+                _visuals.SecondaryTextColor);
+            _invisibleButtonStyle = CreateTransparentButtonStyle(buttonFontSize, Color.clear);
 
             _sliderStyle = new GUIStyle(GUI.skin.horizontalSlider)
             {
@@ -2304,6 +2354,8 @@ namespace DuneVector
             _sliderStyle.hover.background = _transparentTexture;
             _sliderStyle.active.background = _transparentTexture;
 
+            // The thumb is drawn by DrawVolumeRow so it can carry a glow and a notch;
+            // this style only supplies the drag hit area.
             _sliderThumbStyle = new GUIStyle(GUI.skin.horizontalSliderThumb)
             {
                 fixedWidth = _visuals.SliderThumbWidth * scale,
@@ -2311,9 +2363,9 @@ namespace DuneVector
                 margin = new RectOffset(),
                 padding = new RectOffset(),
             };
-            _sliderThumbStyle.normal.background = _sliderThumbTexture;
-            _sliderThumbStyle.hover.background = _primaryButtonHoverTexture;
-            _sliderThumbStyle.active.background = _buttonActiveTexture;
+            _sliderThumbStyle.normal.background = _transparentTexture;
+            _sliderThumbStyle.hover.background = _transparentTexture;
+            _sliderThumbStyle.active.background = _transparentTexture;
         }
 
         private GUIStyle CreateLabelStyle(int fontSize, FontStyle fontStyle, TextAnchor alignment, Color color)
@@ -2331,10 +2383,18 @@ namespace DuneVector
             };
         }
 
+        // Unity's skin supplies its own text color for hovered and active controls,
+        // which would otherwise recolor headings and mixer labels whenever the mouse
+        // happens to pass over them. Every state is pinned to the requested color so
+        // the caller's choice is the only thing that decides how a label reads.
+        private static void ApplyTextColor(GUIStyle style, Color color)
+        {
+            style.normal.textColor = color;
+            SetStaticTextColor(style, color);
+        }
+
         private static void SetStaticTextColor(GUIStyle style, Color color)
         {
-            // Unity's skin can supply a different label color for hovered controls.
-            // The song title is informational and should remain visually static.
             style.hover.textColor = color;
             style.active.textColor = color;
             style.focused.textColor = color;
@@ -2342,33 +2402,6 @@ namespace DuneVector
             style.onHover.textColor = color;
             style.onActive.textColor = color;
             style.onFocused.textColor = color;
-        }
-
-        private GUIStyle CreateButtonStyle(
-            int fontSize,
-            Texture2D normalBackground,
-            Texture2D hoverBackground,
-            Texture2D activeBackground)
-        {
-            GUIStyle style = new GUIStyle(GUI.skin.button)
-            {
-                alignment = TextAnchor.MiddleCenter,
-                fontSize = fontSize,
-                fontStyle = FontStyle.Bold,
-                clipping = TextClipping.Clip,
-                wordWrap = false,
-                border = new RectOffset(),
-                margin = new RectOffset(),
-            };
-            style.normal.background = normalBackground;
-            style.normal.textColor = _visuals.PrimaryTextColor;
-            style.hover.background = hoverBackground;
-            style.hover.textColor = _visuals.PrimaryTextColor;
-            style.active.background = activeBackground;
-            style.active.textColor = _visuals.PrimaryTextColor;
-            style.focused.background = hoverBackground;
-            style.focused.textColor = _visuals.PrimaryTextColor;
-            return style;
         }
 
         private GUIStyle CreateTransparentButtonStyle(int fontSize, Color color)
@@ -2402,15 +2435,9 @@ namespace DuneVector
                 return;
             }
 
+            // Every panel surface is painted with tinted white quads, so the only
+            // texture the styles still need is a fully transparent background.
             _transparentTexture = CreateSolidTexture("Pause Transparent", Color.clear);
-            _primaryButtonTexture = CreateSolidTexture("Pause Primary", _visuals.AccentColor);
-            _primaryButtonHoverTexture = CreateSolidTexture("Pause Primary Hover", _visuals.SliderThumbColor);
-            _buttonTexture = CreateSolidTexture("Pause Button", _visuals.ButtonColor);
-            _buttonHoverTexture = CreateSolidTexture("Pause Button Hover", _visuals.ButtonHoverColor);
-            _buttonActiveTexture = CreateSolidTexture("Pause Button Active", _visuals.ButtonActiveColor);
-            _dangerButtonTexture = CreateSolidTexture("Pause Danger", _visuals.DangerButtonColor);
-            _dangerButtonHoverTexture = CreateSolidTexture("Pause Danger Hover", _visuals.DangerButtonHoverColor);
-            _sliderThumbTexture = CreateSolidTexture("Pause Slider Thumb", _visuals.SliderThumbColor);
         }
 
         private static Texture2D CreateSolidTexture(string textureName, Color color)
@@ -2425,20 +2452,476 @@ namespace DuneVector
             return texture;
         }
 
-        private static void DrawSolidRect(Rect rect, Color color)
+        private void DrawSolidRect(Rect rect, Color color)
         {
+            color.a *= _uiAlpha;
+            if (color.a <= 0.001f)
+            {
+                return;
+            }
+
             Color previousColor = GUI.color;
             GUI.color = color;
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = previousColor;
         }
 
-        private static void DrawBorder(Rect rect, Color color, float thickness)
+        private void DrawBorder(Rect rect, Color color, float thickness)
         {
             DrawSolidRect(new Rect(rect.x, rect.y, rect.width, thickness), color);
             DrawSolidRect(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), color);
             DrawSolidRect(new Rect(rect.x, rect.y, thickness, rect.height), color);
             DrawSolidRect(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), color);
+        }
+
+        private const int GradientBandCount = 16;
+
+        private void DrawVerticalGradient(Rect rect, Color top, Color bottom)
+        {
+            float bandHeight = rect.height / GradientBandCount;
+            for (int i = 0; i < GradientBandCount; i++)
+            {
+                float t = (i + 0.5f) / GradientBandCount;
+                DrawSolidRect(
+                    new Rect(rect.x, rect.y + (bandHeight * i), rect.width, bandHeight + 1f),
+                    Color.Lerp(top, bottom, t));
+            }
+        }
+
+        private void DrawHorizontalGradient(Rect rect, Color left, Color right)
+        {
+            float bandWidth = rect.width / GradientBandCount;
+            for (int i = 0; i < GradientBandCount; i++)
+            {
+                float t = (i + 0.5f) / GradientBandCount;
+                DrawSolidRect(
+                    new Rect(rect.x + (bandWidth * i), rect.y, bandWidth + 1f, rect.height),
+                    Color.Lerp(left, right, t));
+            }
+        }
+
+        private static Color LightenColor(Color color, float amount)
+        {
+            return new Color(
+                Mathf.Lerp(color.r, 1f, amount),
+                Mathf.Lerp(color.g, 1f, amount),
+                Mathf.Lerp(color.b, 1f, amount),
+                color.a);
+        }
+
+        private static Color DarkenColor(Color color, float amount)
+        {
+            float keep = 1f - Mathf.Clamp01(amount);
+            return new Color(color.r * keep, color.g * keep, color.b * keep, color.a);
+        }
+
+        private static Color WithAlpha(Color color, float alphaScale)
+        {
+            color.a *= alphaScale;
+            return color;
+        }
+
+        private Rect CalculatePanelRect(float scale)
+        {
+            float screenMargin = _visuals.ScreenMargin * scale;
+            float panelWidth = Mathf.Min(_visuals.PanelWidth * scale, Screen.width - (screenMargin * 2f));
+            float panelHeight = Mathf.Min(_visuals.PanelHeight * scale, Screen.height - (screenMargin * 2f));
+
+            // The panel settles downward as it fades in, so the open reads as a
+            // deliberate motion instead of a hard cut.
+            float rise = (1f - Mathf.Clamp01(_openFade)) * _visuals.OpenAnimationRise * scale;
+            return new Rect(
+                Mathf.Round((Screen.width - panelWidth) * 0.5f),
+                Mathf.Round(((Screen.height - panelHeight) * 0.5f) - rise),
+                panelWidth,
+                panelHeight);
+        }
+
+        private Rect CalculateContentRect(Rect panel, float scale)
+        {
+            float padding = _visuals.PanelPadding * scale;
+            return new Rect(
+                panel.x + padding,
+                panel.y + padding,
+                panel.width - (padding * 2f),
+                panel.height - (padding * 2f));
+        }
+
+        private void DrawOverlayBackdrop()
+        {
+            DrawSolidRect(new Rect(0f, 0f, Screen.width, Screen.height), _visuals.OverlayColor);
+
+            float strength = Mathf.Clamp01(_visuals.OverlayVignetteStrength);
+            if (strength <= 0.001f)
+            {
+                return;
+            }
+
+            Color edge = new Color(0f, 0f, 0f, strength);
+            Color clear = new Color(0f, 0f, 0f, 0f);
+            float horizontal = Screen.width * 0.34f;
+            float vertical = Screen.height * 0.34f;
+            DrawHorizontalGradient(new Rect(0f, 0f, horizontal, Screen.height), edge, clear);
+            DrawHorizontalGradient(new Rect(Screen.width - horizontal, 0f, horizontal, Screen.height), clear, edge);
+            DrawVerticalGradient(new Rect(0f, 0f, Screen.width, vertical), edge, clear);
+            DrawVerticalGradient(new Rect(0f, Screen.height - vertical, Screen.width, vertical), clear, edge);
+        }
+
+        private void DrawPanelChrome(Rect panel, float scale)
+        {
+            // Three decreasing offsets approximate a soft drop shadow.
+            float shadowOffset = _visuals.ShadowOffset * scale;
+            for (int i = 3; i >= 1; i--)
+            {
+                float offset = shadowOffset * (i / 3f);
+                DrawSolidRect(
+                    new Rect(panel.x + offset, panel.y + offset, panel.width, panel.height),
+                    WithAlpha(_visuals.ShadowColor, 0.5f));
+            }
+
+            float gradient = Mathf.Clamp01(_visuals.PanelGradientStrength);
+            DrawVerticalGradient(
+                panel,
+                Color.Lerp(_visuals.PanelColor, LightenColor(_visuals.PanelColor, 0.35f), gradient),
+                Color.Lerp(_visuals.PanelColor, DarkenColor(_visuals.PanelColor, 0.4f), gradient));
+
+            float borderThickness = Mathf.Max(1f, scale * 2f);
+            Color borderTop = _visuals.PanelBorderColor;
+            Color borderBottom = WithAlpha(borderTop, 0.3f);
+            DrawSolidRect(new Rect(panel.x, panel.y, panel.width, borderThickness), borderTop);
+            DrawSolidRect(
+                new Rect(panel.x, panel.yMax - borderThickness, panel.width, borderThickness),
+                borderBottom);
+            DrawVerticalGradient(
+                new Rect(panel.x, panel.y, borderThickness, panel.height),
+                borderTop,
+                borderBottom);
+            DrawVerticalGradient(
+                new Rect(panel.xMax - borderThickness, panel.y, borderThickness, panel.height),
+                borderTop,
+                borderBottom);
+
+            float accentHeight = Mathf.Max(1f, _visuals.AccentBarHeight * scale);
+            Rect accentBar = new Rect(panel.x, panel.y, panel.width, accentHeight);
+            Color accent = _visuals.AccentColor;
+            Color accentEdge = WithAlpha(accent, 0.18f);
+            DrawHorizontalGradient(
+                new Rect(accentBar.x, accentBar.y, accentBar.width * 0.5f, accentBar.height),
+                accentEdge,
+                accent);
+            DrawHorizontalGradient(
+                new Rect(accentBar.center.x, accentBar.y, accentBar.width * 0.5f, accentBar.height),
+                accent,
+                accentEdge);
+            DrawSolidRect(
+                new Rect(panel.x, accentBar.yMax, panel.width, Mathf.Max(1f, scale)),
+                _visuals.PanelHighlightColor);
+
+            DrawCornerBrackets(panel, scale);
+        }
+
+        private void DrawCornerBrackets(Rect panel, float scale)
+        {
+            float length = _visuals.CornerBracketLength * scale;
+            float thickness = Mathf.Max(1f, _visuals.CornerBracketThickness * scale);
+            if (length <= 0.5f)
+            {
+                return;
+            }
+
+            Color color = _visuals.AccentColor;
+            DrawSolidRect(new Rect(panel.x, panel.y, length, thickness), color);
+            DrawSolidRect(new Rect(panel.x, panel.y, thickness, length), color);
+            DrawSolidRect(new Rect(panel.xMax - length, panel.y, length, thickness), color);
+            DrawSolidRect(new Rect(panel.xMax - thickness, panel.y, thickness, length), color);
+            DrawSolidRect(new Rect(panel.x, panel.yMax - thickness, length, thickness), color);
+            DrawSolidRect(new Rect(panel.x, panel.yMax - length, thickness, length), color);
+            DrawSolidRect(new Rect(panel.xMax - length, panel.yMax - thickness, length, thickness), color);
+            DrawSolidRect(new Rect(panel.xMax - thickness, panel.yMax - length, thickness, length), color);
+        }
+
+        private float DrawPanelHeader(
+            Rect content,
+            float y,
+            string title,
+            string subtitle,
+            float scale,
+            float gap)
+        {
+            float titleHeight = _titleStyle.lineHeight;
+            Rect titleRect = new Rect(content.x, y, content.width, titleHeight);
+            float titleTracking = _visuals.TitleTracking * scale;
+
+            float glow = Mathf.Clamp01(_visuals.TitleGlowStrength);
+            if (glow > 0.001f)
+            {
+                Color glowColor = WithAlpha(_visuals.AccentColor, glow * 0.45f);
+                float offset = Mathf.Max(1f, 2f * scale);
+                DrawTrackedLabel(new Rect(titleRect.x, titleRect.y - offset, titleRect.width, titleRect.height), title, _titleStyle, titleTracking, glowColor);
+                DrawTrackedLabel(new Rect(titleRect.x, titleRect.y + offset, titleRect.width, titleRect.height), title, _titleStyle, titleTracking, glowColor);
+                DrawTrackedLabel(new Rect(titleRect.x - offset, titleRect.y, titleRect.width, titleRect.height), title, _titleStyle, titleTracking, glowColor);
+                DrawTrackedLabel(new Rect(titleRect.x + offset, titleRect.y, titleRect.width, titleRect.height), title, _titleStyle, titleTracking, glowColor);
+            }
+            DrawTrackedLabel(titleRect, title, _titleStyle, titleTracking, _visuals.TitleColor);
+            y += titleHeight;
+
+            float subtitleHeight = _subtitleStyle.lineHeight;
+            DrawTrackedLabel(
+                new Rect(content.x, y, content.width, subtitleHeight),
+                subtitle,
+                _subtitleStyle,
+                _visuals.SubtitleTracking * scale,
+                _visuals.SecondaryTextColor);
+            y += subtitleHeight + gap;
+
+            DrawFadedDivider(new Rect(content.x, y, content.width, Mathf.Max(1f, scale)));
+            return y + (gap * 1.5f);
+        }
+
+        private void DrawFadedDivider(Rect rect)
+        {
+            Color color = _visuals.DividerColor;
+            Color clear = WithAlpha(color, 0f);
+            DrawHorizontalGradient(new Rect(rect.x, rect.y, rect.width * 0.5f, rect.height), clear, color);
+            DrawHorizontalGradient(new Rect(rect.center.x, rect.y, rect.width * 0.5f, rect.height), color, clear);
+        }
+
+        private float DrawSectionHeader(Rect content, float y, string label, float scale)
+        {
+            float height = _sectionStyle.lineHeight;
+            float tickWidth = Mathf.Max(2f, 3f * scale);
+            float tickHeight = height * 0.72f;
+            DrawSolidRect(
+                new Rect(content.x, y + ((height - tickHeight) * 0.5f), tickWidth, tickHeight),
+                _visuals.AccentColor);
+
+            float indent = tickWidth + (8f * scale);
+            DrawTrackedLabel(
+                new Rect(content.x + indent, y, content.width - indent, height),
+                label,
+                _sectionStyle,
+                _visuals.SectionTracking * scale,
+                _visuals.AccentColor);
+            return y + height + (_visuals.ButtonGap * scale);
+        }
+
+        private float DrawGroupSeparator(Rect content, float y, float scale)
+        {
+            float gap = _visuals.ButtonGap * scale;
+            DrawFadedDivider(new Rect(content.x, y + (gap * 0.5f), content.width, Mathf.Max(1f, scale)));
+            return y + (gap * 1.5f);
+        }
+
+        private void DrawFooterHint(Rect content, string text, float scale)
+        {
+            float hintHeight = _hintStyle.lineHeight;
+            Rect hintRect = new Rect(content.x, content.yMax - hintHeight, content.width, hintHeight);
+            DrawFadedDivider(
+                new Rect(content.x, hintRect.y - (10f * scale), content.width, Mathf.Max(1f, scale)));
+            DrawTrackedLabel(hintRect, text, _hintStyle, _visuals.HintTracking * scale, _visuals.SecondaryTextColor);
+        }
+
+        private bool DrawMenuButton(Rect rect, string label, PauseButtonKind kind, bool opensScreen = false)
+        {
+            bool interactive = GUI.enabled;
+            bool hovered = interactive && rect.Contains(Event.current.mousePosition);
+            bool held = hovered && Mouse.current != null && Mouse.current.leftButton.isPressed;
+
+            Color fill;
+            Color textColor;
+            switch (kind)
+            {
+                case PauseButtonKind.Primary:
+                    fill = held
+                        ? _visuals.ButtonActiveColor
+                        : hovered ? _visuals.SliderThumbColor : _visuals.AccentColor;
+                    textColor = _visuals.PrimaryButtonTextColor;
+                    break;
+                case PauseButtonKind.Danger:
+                    fill = held
+                        ? _visuals.ButtonActiveColor
+                        : hovered ? _visuals.DangerButtonHoverColor : _visuals.DangerButtonColor;
+                    textColor = hovered ? Color.white : _visuals.PrimaryTextColor;
+                    break;
+                default:
+                    fill = held
+                        ? _visuals.ButtonActiveColor
+                        : hovered ? _visuals.ButtonHoverColor : _visuals.ButtonColor;
+                    textColor = hovered ? _visuals.ButtonHoverTextColor : _visuals.PrimaryTextColor;
+                    break;
+            }
+
+            if (!interactive)
+            {
+                fill = DarkenColor(_visuals.ButtonColor, 0.35f);
+                textColor = WithAlpha(_visuals.SecondaryTextColor, 0.45f);
+            }
+
+            DrawVerticalGradient(rect, LightenColor(fill, 0.1f), DarkenColor(fill, 0.18f));
+
+            float outlineThickness = Mathf.Max(1f, _scale);
+            Color outline = interactive && hovered
+                ? WithAlpha(_visuals.AccentColor, 0.6f)
+                : WithAlpha(Color.black, 0.35f);
+            DrawBorder(rect, outline, outlineThickness);
+
+            bool clicked = GUI.Button(rect, GUIContent.none, _invisibleButtonStyle);
+            DrawTintedLabel(rect, label, _buttonLabelStyle, textColor);
+
+            if (opensScreen)
+            {
+                Color chevronColor = interactive
+                    ? WithAlpha(hovered ? _visuals.AccentColor : _visuals.SecondaryTextColor, 0.85f)
+                    : WithAlpha(_visuals.SecondaryTextColor, 0.3f);
+                float chevronPadding = 12f * _scale;
+                DrawTintedLabel(
+                    new Rect(rect.x, rect.y, rect.width - chevronPadding, rect.height),
+                    "›",
+                    _chevronStyle,
+                    chevronColor);
+            }
+
+            return clicked;
+        }
+
+        private bool DrawToggleRow(Rect rect, string label, string stateLabel, bool on)
+        {
+            bool interactive = GUI.enabled;
+            bool hovered = interactive && rect.Contains(Event.current.mousePosition);
+            bool held = hovered && Mouse.current != null && Mouse.current.leftButton.isPressed;
+
+            Color fill = held
+                ? _visuals.ButtonActiveColor
+                : hovered ? _visuals.ButtonHoverColor : _visuals.ButtonColor;
+            if (on && !held)
+            {
+                fill = Color.Lerp(fill, _visuals.AccentColor, 0.16f);
+            }
+            if (!interactive)
+            {
+                fill = DarkenColor(_visuals.ButtonColor, 0.35f);
+            }
+
+            DrawVerticalGradient(rect, LightenColor(fill, 0.1f), DarkenColor(fill, 0.18f));
+            DrawBorder(
+                rect,
+                hovered && interactive ? WithAlpha(_visuals.AccentColor, 0.6f) : WithAlpha(Color.black, 0.35f),
+                Mathf.Max(1f, _scale));
+
+            if (on)
+            {
+                DrawSolidRect(
+                    new Rect(rect.x, rect.y, Mathf.Max(1f, _visuals.ButtonHoverStripeWidth * _scale), rect.height),
+                    _visuals.AccentColor);
+            }
+
+            float padding = 14f * _scale;
+            float pillHeight = Mathf.Max(12f, rect.height - (14f * _scale));
+            _glyphContent.text = stateLabel;
+            float pillWidth = Mathf.Max(
+                _pillLabelStyle.CalcSize(_glyphContent).x + (16f * _scale),
+                48f * _scale);
+            Rect pillRect = new Rect(
+                rect.xMax - padding - pillWidth,
+                rect.center.y - (pillHeight * 0.5f),
+                pillWidth,
+                pillHeight);
+
+            Color labelColor = interactive
+                ? hovered ? _visuals.ButtonHoverTextColor : _visuals.PrimaryTextColor
+                : WithAlpha(_visuals.SecondaryTextColor, 0.45f);
+            DrawTintedLabel(
+                new Rect(rect.x + padding, rect.y, pillRect.x - rect.x - padding - (6f * _scale), rect.height),
+                label,
+                _buttonLabelLeftStyle,
+                labelColor);
+
+            Color pillFill = on ? _visuals.AccentColor : DarkenColor(_visuals.SliderTrackColor, 0.2f);
+            if (!interactive)
+            {
+                pillFill = DarkenColor(pillFill, 0.55f);
+            }
+            DrawVerticalGradient(pillRect, LightenColor(pillFill, 0.18f), DarkenColor(pillFill, 0.12f));
+            DrawBorder(
+                pillRect,
+                on ? WithAlpha(Color.white, 0.2f) : WithAlpha(Color.black, 0.4f),
+                Mathf.Max(1f, _scale));
+            DrawTintedLabel(
+                pillRect,
+                stateLabel,
+                _pillLabelStyle,
+                on ? _visuals.PrimaryButtonTextColor : WithAlpha(_visuals.SecondaryTextColor, 0.9f));
+
+            return GUI.Button(rect, GUIContent.none, _invisibleButtonStyle);
+        }
+
+        private void DrawTintedLabel(Rect rect, string text, GUIStyle style, Color color)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+
+            Color previousColor = style.normal.textColor;
+            ApplyTextColor(style, color);
+            _glyphContent.text = text;
+            GUI.Label(rect, _glyphContent, style);
+            ApplyTextColor(style, previousColor);
+        }
+
+        // IMGUI has no letter-spacing, so tracked headings are laid out one glyph at
+        // a time. Only short headings use this, so the per-glyph measuring is cheap.
+        private void DrawTrackedLabel(Rect rect, string text, GUIStyle style, float tracking, Color color)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+            if (tracking <= 0.01f || text.Length < 2)
+            {
+                DrawTintedLabel(rect, text, style, color);
+                return;
+            }
+
+            float totalWidth = tracking * (text.Length - 1);
+            for (int i = 0; i < text.Length; i++)
+            {
+                _glyphContent.text = text[i].ToString();
+                totalWidth += style.CalcSize(_glyphContent).x;
+            }
+
+            TextAnchor previousAlignment = style.alignment;
+            TextClipping previousClipping = style.clipping;
+            Color previousColor = style.normal.textColor;
+
+            float x = rect.x;
+            if (previousAlignment == TextAnchor.MiddleCenter
+                || previousAlignment == TextAnchor.UpperCenter
+                || previousAlignment == TextAnchor.LowerCenter)
+            {
+                x = rect.x + ((rect.width - totalWidth) * 0.5f);
+            }
+            else if (previousAlignment == TextAnchor.MiddleRight
+                || previousAlignment == TextAnchor.UpperRight
+                || previousAlignment == TextAnchor.LowerRight)
+            {
+                x = rect.xMax - totalWidth;
+            }
+
+            style.alignment = TextAnchor.MiddleLeft;
+            style.clipping = TextClipping.Overflow;
+            ApplyTextColor(style, color);
+            for (int i = 0; i < text.Length; i++)
+            {
+                _glyphContent.text = text[i].ToString();
+                float glyphWidth = style.CalcSize(_glyphContent).x;
+                GUI.Label(new Rect(x, rect.y, glyphWidth + 1f, rect.height), _glyphContent, style);
+                x += glyphWidth + tracking;
+            }
+
+            style.alignment = previousAlignment;
+            style.clipping = previousClipping;
+            ApplyTextColor(style, previousColor);
         }
 
         private void RestartRun()
@@ -2485,14 +2968,6 @@ namespace DuneVector
             }
 
             DestroyTexture(ref _transparentTexture);
-            DestroyTexture(ref _primaryButtonTexture);
-            DestroyTexture(ref _primaryButtonHoverTexture);
-            DestroyTexture(ref _buttonTexture);
-            DestroyTexture(ref _buttonHoverTexture);
-            DestroyTexture(ref _buttonActiveTexture);
-            DestroyTexture(ref _dangerButtonTexture);
-            DestroyTexture(ref _dangerButtonHoverTexture);
-            DestroyTexture(ref _sliderThumbTexture);
             _shopView?.Dispose();
             _shopView = null;
         }

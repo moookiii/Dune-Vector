@@ -23,6 +23,8 @@ namespace DuneVector
             if (_audio == null
                 || _settings == null
                 || !_settings.DreamloaderCatOverlayEnabled
+                || _audio.VisualizerMode == MusicVisualizerMode.Off
+                || _audio.MusicVolume <= 0f
                 || Event.current.type != EventType.Repaint
                 || DuneVectorCourierGame.IsGameplayHudSuppressed)
             {
