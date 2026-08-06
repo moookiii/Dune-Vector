@@ -4977,7 +4977,7 @@ namespace DuneVector
         public bool DefaultMusicVisualizerWorldResponseEnabled = true;
         public bool DefaultMusicVisualizerStreaksEnabled = true;
         public bool DefaultMusicVisualizerCameraEnabled = true;
-        public bool DefaultVisualizerFovEnabled;
+        public bool DefaultVisualizerFovEnabled = true;
         public bool DefaultMusicVisualizerGlitchEnabled = true;
 
         public MusicVisualEffectGroups BuildDefaultMusicVisualizerEffectMask()
