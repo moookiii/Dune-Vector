@@ -87,7 +87,7 @@ namespace DuneVector
             switch (command.Type)
             {
                 case MusicVisualCueType.MajorKick:
-                    if (command.IsAuthored && _audio != null && _audio.VisualizerFovEnabled)
+                    if (_audio != null && _audio.VisualizerFovEnabled)
                     {
                         _requestedFov = Mathf.Max(
                             _requestedFov,

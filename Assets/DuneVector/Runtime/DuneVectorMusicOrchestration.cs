@@ -1216,7 +1216,8 @@ namespace DuneVector
                     : MusicVisualCueType.MinorKick;
                 DispatchRuntime(type, bassTransient, MusicVisualEffectGroups.Sky
                     | MusicVisualEffectGroups.Road
-                    | MusicVisualEffectGroups.Drone);
+                    | MusicVisualEffectGroups.Drone
+                    | MusicVisualEffectGroups.Camera);
                 _bassTransientArmed = false;
                 _lastKickTimeline = timeline;
                 _kicksThisBar++;
