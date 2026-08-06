@@ -442,6 +442,7 @@ namespace DuneVector
         private Material _hubPlatformEnergyMaterial;
         private readonly List<Material> _hubTerminalPanelMaterials = new List<Material>();
         private readonly List<Material> _hubTerminalAntennaMaterials = new List<Material>();
+        private readonly List<Material> _hubPremiumFloorMaterials = new List<Material>();
         private bool _hubRgbTerminalsApplied;
 
         private GUIStyle _terminalTitleStyle;
@@ -1038,8 +1039,43 @@ namespace DuneVector
                 _hubSettings.PremiumVisualLocalPosition,
                 Quaternion.Euler(_hubSettings.PremiumVisualLocalEulerAngles));
             visual.transform.localScale = _hubSettings.PremiumVisualLocalScale;
+            ApplyPremiumHubFloorColor(visual.transform);
             BuildPremiumHubStructuralColliders(visual.transform);
             return _hubSettings.ReplaceProceduralStructureVisuals;
+        }
+
+        private void ApplyPremiumHubFloorColor(Transform visualRoot)
+        {
+            string[] namePrefixes = _hubSettings.PremiumVisualFloorNamePrefixes;
+            if (visualRoot == null || namePrefixes == null || namePrefixes.Length == 0)
+            {
+                return;
+            }
+
+            MeshRenderer[] renderers = visualRoot.GetComponentsInChildren<MeshRenderer>(true);
+            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            {
+                MeshRenderer renderer = renderers[rendererIndex];
+                if (renderer == null || !HasPremiumNamePrefix(renderer.name, namePrefixes))
+                {
+                    continue;
+                }
+
+                Material source = renderer.sharedMaterial;
+                if (source == null)
+                {
+                    continue;
+                }
+
+                Material material = new Material(source)
+                {
+                    name = $"{renderer.name} Floor White",
+                };
+                if (material.HasProperty("_BaseMap")) material.SetTexture("_BaseMap", Texture2D.whiteTexture);
+                SetHubMaterialColors(material, _hubSettings.PremiumVisualFloorColor, Color.black);
+                renderer.sharedMaterial = material;
+                _hubPremiumFloorMaterials.Add(material);
+            }
         }
 
         private void BuildPremiumHubStructuralColliders(Transform visualRoot)
@@ -1060,7 +1096,7 @@ namespace DuneVector
             {
                 MeshFilter meshFilter = meshFilters[meshIndex];
                 Mesh mesh = meshFilter.sharedMesh;
-                if (mesh == null || !HasPremiumColliderNamePrefix(meshFilter.name, namePrefixes))
+                if (mesh == null || !HasPremiumNamePrefix(meshFilter.name, namePrefixes))
                 {
                     continue;
                 }
@@ -1076,7 +1112,7 @@ namespace DuneVector
             }
         }
 
-        private static bool HasPremiumColliderNamePrefix(string objectName, string[] namePrefixes)
+        private static bool HasPremiumNamePrefix(string objectName, string[] namePrefixes)
         {
             for (int prefixIndex = 0; prefixIndex < namePrefixes.Length; prefixIndex++)
             {
@@ -3787,6 +3823,7 @@ namespace DuneVector
             if (_hubMetalMaterial != null) Destroy(_hubMetalMaterial);
             DestroyHubTerminalMaterials(_hubTerminalPanelMaterials);
             DestroyHubTerminalMaterials(_hubTerminalAntennaMaterials);
+            DestroyHubTerminalMaterials(_hubPremiumFloorMaterials);
             if (_hubEnergyMaterial != null) Destroy(_hubEnergyMaterial);
             if (_hubPlatformEnergyMaterial != null) Destroy(_hubPlatformEnergyMaterial);
             if (_terminalPanelTexture != null) Destroy(_terminalPanelTexture);
