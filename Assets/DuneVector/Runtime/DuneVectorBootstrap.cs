@@ -763,6 +763,8 @@ namespace DuneVector
             // track-authored response data. Keep their authoritative values on RuntimeSettings.
             glitch.Initialize(RuntimeSettings.MusicReactiveSky);
             conductor.RegisterSink(glitch);
+            DuneVectorDreamloaderCatOverlay catOverlay = reactiveSkyObject.AddComponent<DuneVectorDreamloaderCatOverlay>();
+            catOverlay.Initialize(AudioManager, RuntimeSettings.MusicReactiveSky);
             conductor.ValidateRuntimeIntegration();
         }
 

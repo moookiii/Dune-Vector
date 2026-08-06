@@ -3980,6 +3980,27 @@ namespace DuneVector
         public bool ShowDevelopmentDebugPanel;
         public Rect DevelopmentDebugPanelRect = new Rect(12f, 12f, 440f, 640f);
 
+        [Header("Dreamloader Cat Overlay")]
+        [Tooltip("Enables the semi-transparent dancing cat overlay during the authored Dreamloader timeline window.")]
+        public bool DreamloaderCatOverlayEnabled = true;
+        [Tooltip("Active song/profile name fragment required before the dancing cat overlay can render.")]
+        public string DreamloaderCatTrackName = "Dreamloader";
+        [Tooltip("Resources path containing the transparent DreamloaderCat_01..NN frame sequence.")]
+        public string DreamloaderCatResourcesPath = "MusicVisuals/DreamloaderCat";
+        [Tooltip("FMOD song timeline millisecond where the cat overlay first appears. 84000ms is 1:24.")]
+        [Min(0)] public int DreamloaderCatStartTimelineMilliseconds = 84000;
+        [Tooltip("FMOD song timeline millisecond where the cat overlay disappears. 104500ms is 1:44.5.")]
+        [Min(0)] public int DreamloaderCatEndTimelineMilliseconds = 104500;
+        [Tooltip("Authored frame rate of the cat animation before applying the speed multiplier.")]
+        [Min(0.01f)] public float DreamloaderCatFramesPerSecond = 25f;
+        [Tooltip("Multiplier for the cat loop playback speed.")]
+        [Min(0.01f)] public float DreamloaderCatLoopSpeedMultiplier = 1f;
+        [Tooltip("Final screen alpha applied to both cats. The frame alpha remains fully transparent where the source background is transparent.")]
+        [FormerlySerializedAs("DreamloaderCatOpacity")]
+        [Range(0f, 1f)] public float DreamloaderCatAlpha = 0.45f;
+        [Tooltip("Horizontal screen padding in pixels from the left and right edges.")]
+        [Min(0f)] public float DreamloaderCatHorizontalPadding = 48f;
+
         [Header("Transient Classification")]
         [Range(0f, 1f)] public float MinorKickThreshold = 0.28f;
         [Range(0f, 1f)] public float MajorKickThreshold = 0.62f;
