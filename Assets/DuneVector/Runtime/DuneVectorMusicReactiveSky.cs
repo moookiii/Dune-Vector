@@ -514,9 +514,10 @@ namespace DuneVector
             }
 
             bool skyAllowed = (state.Permissions & MusicVisualEffectGroups.Sky) != 0;
+            bool blueAuraAllowed = (state.Permissions & MusicVisualEffectGroups.BlueAura) != 0;
             bool bassLinesAllowed = (state.Permissions & MusicVisualEffectGroups.BassLines) != 0;
-            bool musicInputsAllowed = skyAllowed || bassLinesAllowed;
-            _sky.ReactiveFrontIntensity.Override(bassLinesAllowed ? _settings.FrontIntensity : 0f);
+            bool musicInputsAllowed = skyAllowed || blueAuraAllowed || bassLinesAllowed;
+            _sky.ReactiveFrontIntensity.Override(blueAuraAllowed ? _settings.FrontIntensity : 0f);
             _sky.ReactiveShockRingIntensity.Override(bassLinesAllowed ? _settings.ShockRingIntensity : 0f);
             _sky.ReactiveLightningIntensity.Override(skyAllowed ? _settings.LightningIntensity : 0f);
             _sky.ReactiveSparkIntensity.Override(skyAllowed ? _settings.SparkIntensity : 0f);

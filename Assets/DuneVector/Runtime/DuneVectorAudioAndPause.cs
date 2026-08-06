@@ -28,7 +28,7 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 11;
+            public int Version = 12;
             public float MusicVolume;
             public float SoundEffectsVolume;
             public float DialogueVolume;
@@ -1102,7 +1102,7 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version >= 1 && stored.Version <= 11)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 12)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
@@ -1149,6 +1149,11 @@ namespace DuneVector
                         && (VisualizerEffectMask & MusicVisualEffectGroups.Sky) != 0)
                     {
                         VisualizerEffectMask |= MusicVisualEffectGroups.BassLines;
+                    }
+                    if (stored.Version < 12
+                        && (VisualizerEffectMask & MusicVisualEffectGroups.Sky) != 0)
+                    {
+                        VisualizerEffectMask |= MusicVisualEffectGroups.BlueAura;
                     }
                     if (VisualizerMode == MusicVisualizerMode.NoFlash)
                     {
@@ -1863,12 +1868,13 @@ namespace DuneVector
 
             DrawMusicVisualizerMasterToggle(new Rect(content.x, y, content.width, buttonHeight));
             y += buttonHeight + gap;
-            float splitToggleWidth = (content.width - gap) * 0.5f;
-            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, splitToggleWidth, buttonHeight), _visuals.MusicVisualizerSkyLabel,
+            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerSkyLabel,
                 MusicVisualEffectGroups.Sky | MusicVisualEffectGroups.Filaments | MusicVisualEffectGroups.TrebleParticles);
-            DrawMusicVisualizerEffectToggle(
-                new Rect(content.x + splitToggleWidth + gap, y, splitToggleWidth, buttonHeight),
-                _visuals.MusicVisualizerBassLinesLabel,
+            y += buttonHeight + gap;
+            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerBlueAuraLabel,
+                MusicVisualEffectGroups.BlueAura);
+            y += buttonHeight + gap;
+            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerBassLinesLabel,
                 MusicVisualEffectGroups.BassLines);
             y += buttonHeight + gap;
             DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerBloomLabel,
@@ -1893,12 +1899,12 @@ namespace DuneVector
                 MusicVisualEffectGroups.Glitch | MusicVisualEffectGroups.HudBorder);
             y += buttonHeight + (gap * 2f);
 
-            float navigationWidth = (content.width - gap) * 0.5f;
-            if (GUI.Button(new Rect(content.x, y, navigationWidth, buttonHeight), _visuals.MusicVisualizerSettingsResetButtonLabel, _secondaryButtonStyle))
+            if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerSettingsResetButtonLabel, _secondaryButtonStyle))
             {
                 _audio?.ResetMusicVisualizerSettingsToDefaults();
             }
-            if (GUI.Button(new Rect(content.x + navigationWidth + gap, y, navigationWidth, buttonHeight), _visuals.MusicVisualizerSettingsBackButtonLabel, _secondaryButtonStyle))
+            y += buttonHeight + gap;
+            if (GUI.Button(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerSettingsBackButtonLabel, _secondaryButtonStyle))
             {
                 _showMusicVisualizerSettings = false;
             }
