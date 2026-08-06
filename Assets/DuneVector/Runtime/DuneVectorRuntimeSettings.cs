@@ -4178,7 +4178,7 @@ namespace DuneVector
         [Range(0.02f, 0.8f)] public float ShockRingBeatDutyCycle = 0.24f;
         [Range(0f, 1f)] public float ShockRingBreakup = 0.42f;
         [Tooltip("Vertical deformation applied to each bass ring's repeating zigzag profile.")]
-        [Range(0f, 1.5f)] public float ShockRingZigzagAmount = 0.16f;
+        [Range(0f, 1.5f)] public float ShockRingZigzagAmount = 0f;
         [Tooltip("Whole number of zigzag peaks wrapped around each bass ring.")]
         [Range(1, 32)] public int ShockRingZigzagFrequency = 5;
 
