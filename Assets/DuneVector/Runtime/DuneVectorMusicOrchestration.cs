@@ -1226,7 +1226,9 @@ namespace DuneVector
                         : MusicVisualCueType.TrebleTick);
                 DispatchRuntime(type, highTransient, MusicVisualEffectGroups.Sky
                     | MusicVisualEffectGroups.Streaks
-                    | MusicVisualEffectGroups.TrebleParticles);
+                    | MusicVisualEffectGroups.TrebleParticles
+                    | MusicVisualEffectGroups.Glitch
+                    | MusicVisualEffectGroups.HudBorder);
                 _highTransientArmed = false;
                 _lastHighTimeline = timeline;
                 _highEventsThisBar++;

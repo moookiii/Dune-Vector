@@ -4188,6 +4188,13 @@ namespace DuneVector
         [Min(0f)] public float AccentGlitchDurationBeats;
         [Min(0f)] public float ReactorGlitchDurationBeats;
 
+        [Header("Music HUD Border")]
+        [Min(0f)] public float HudBorderInset;
+        [Min(0f)] public float HudBorderThickness;
+        [Min(0f)] public float HudBorderCornerLength;
+        [ColorUsage(false)] public Color HudBorderColor;
+        [Min(0.01f)] public float HudBorderFallbackDurationSeconds = 0.12f;
+
         [Header("Music Analysis")]
         [Tooltip("FFT sample count used to separate bass, midrange, and high-frequency energy.")]
         [Range(128, 2048)] public int FftWindowSize = 1024;

@@ -735,7 +735,9 @@ namespace DuneVector
             cameraEffects.Initialize(DroneCamera, AudioManager, reactiveSettings);
             conductor.RegisterSink(cameraEffects);
             DuneVectorMusicWorldGlitchSink glitch = reactiveSkyObject.AddComponent<DuneVectorMusicWorldGlitchSink>();
-            glitch.Initialize(reactiveSettings);
+            // Glitch and HUD presentation are global accessibility/presentation tuning rather than
+            // track-authored response data. Keep their authoritative values on RuntimeSettings.
+            glitch.Initialize(RuntimeSettings.MusicReactiveSky);
             conductor.RegisterSink(glitch);
             conductor.ValidateRuntimeIntegration();
         }

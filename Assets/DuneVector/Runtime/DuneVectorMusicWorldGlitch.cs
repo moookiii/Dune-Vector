@@ -45,6 +45,9 @@ namespace DuneVector
         private float _duration;
         private float _displacement;
         private int _sliceCount;
+        private float _hudAge;
+        private float _hudDuration;
+        private float _hudStrength;
 
         public float Intensity => DuneVectorMusicGlitchRuntime.Intensity;
 
@@ -59,29 +62,43 @@ namespace DuneVector
             if ((state.Permissions & MusicVisualEffectGroups.Glitch) == 0
                 && (_strength > 0f || DuneVectorMusicGlitchRuntime.Intensity > 0f))
             {
-                ResetMusicResponse();
+                ResetWorldGlitch();
+            }
+            if ((state.Permissions & MusicVisualEffectGroups.HudBorder) == 0)
+            {
+                ResetHudBorder();
             }
         }
 
         public void Dispatch(in MusicVisualDispatchCommand command, in MusicReactiveRuntimeState state)
         {
-            if ((command.AllowedEffects & MusicVisualEffectGroups.Glitch) == 0
-                || state.VisualTier < _settings.WorldGlitchMinimumVisualTier)
+            if (state.VisualTier < _settings.WorldGlitchMinimumVisualTier)
             {
                 return;
             }
 
-            bool legacyAuthoredReactor = command.IsAuthored
-                && _settings.MaximumGlitchUvDisplacement <= 0f
-                && command.Type == MusicVisualCueType.ReactorDischarge;
-            bool accepted = command.IsAuthored
-                && (command.GlitchUvDisplacement > 0f || legacyAuthoredReactor);
+            bool accepted = command.IsAuthored && ResolveAuthoredDisplacement(command) > 0f;
             if (!command.IsAuthored && command.Type == MusicVisualCueType.AccentSnare)
             {
                 _accentSnareCount++;
                 accepted = _accentSnareCount % Mathf.Max(1, _settings.AccentSnaresPerGlitch) == 0;
             }
-            if (!accepted)
+
+            float duration = ResolveDuration(command, state);
+            if ((command.AllowedEffects & MusicVisualEffectGroups.HudBorder) != 0)
+            {
+                float hudResponse = ResolveHudResponse(command);
+                if (hudResponse > 0f)
+                {
+                    _hudAge = 0f;
+                    _hudDuration = duration > 0f
+                        ? duration
+                        : _settings.HudBorderFallbackDurationSeconds;
+                    _hudStrength = Mathf.Clamp01(command.Strength) * hudResponse;
+                }
+            }
+
+            if ((command.AllowedEffects & MusicVisualEffectGroups.Glitch) == 0 || !accepted)
             {
                 return;
             }
@@ -89,12 +106,12 @@ namespace DuneVector
             _age = 0f;
             _strength = Mathf.Clamp01(command.Strength);
             _seed = command.DeterministicSeed;
-            _duration = command.DurationBeats > 0f
-                ? command.DurationBeats * 60f / Mathf.Max(1f, state.Timeline.Tempo)
-                : _settings.WorldGlitchDurationSeconds;
-            float requestedDisplacement = command.GlitchUvDisplacement > 0f
-                ? command.GlitchUvDisplacement
-                : _settings.WorldGlitchHorizontalShift;
+            _duration = duration > 0f ? duration : _settings.WorldGlitchDurationSeconds;
+            float requestedDisplacement = ResolveAuthoredDisplacement(command);
+            if (requestedDisplacement <= 0f)
+            {
+                requestedDisplacement = _settings.WorldGlitchHorizontalShift;
+            }
             _displacement = Mathf.Min(
                 requestedDisplacement,
                 _settings.MaximumGlitchUvDisplacement > 0f
@@ -106,10 +123,64 @@ namespace DuneVector
             ApplyGlobals(_settings.WorldGlitchMaximumIntensity * _strength);
         }
 
+        private float ResolveAuthoredDisplacement(in MusicVisualDispatchCommand command)
+        {
+            if (command.GlitchUvDisplacement > 0f)
+            {
+                return command.GlitchUvDisplacement;
+            }
+            return command.Type switch
+            {
+                MusicVisualCueType.ReactorDischarge => _settings.ClimaxGlitchUvDisplacement,
+                MusicVisualCueType.FinalRelease => _settings.ClimaxGlitchUvDisplacement,
+                MusicVisualCueType.AccentSnare => _settings.AccentGlitchUvDisplacement,
+                MusicVisualCueType.TrebleBurst => _settings.AccentGlitchUvDisplacement,
+                MusicVisualCueType.MajorKick => _settings.OrdinaryGlitchUvDisplacement,
+                MusicVisualCueType.MinorSnare => _settings.OrdinaryGlitchUvDisplacement,
+                _ => 0f,
+            };
+        }
+
+        private float ResolveDuration(in MusicVisualDispatchCommand command, in MusicReactiveRuntimeState state)
+        {
+            float beats = command.DurationBeats;
+            if (beats <= 0f)
+            {
+                beats = command.Type switch
+                {
+                    MusicVisualCueType.ReactorDischarge => _settings.ReactorGlitchDurationBeats,
+                    MusicVisualCueType.FinalRelease => _settings.ReactorGlitchDurationBeats,
+                    MusicVisualCueType.AccentSnare => _settings.AccentGlitchDurationBeats,
+                    MusicVisualCueType.TrebleBurst => _settings.AccentGlitchDurationBeats,
+                    _ => _settings.OrdinaryGlitchDurationBeats,
+                };
+            }
+            return beats > 0f
+                ? beats * 60f / Mathf.Max(1f, state.Timeline.Tempo)
+                : 0f;
+        }
+
+        private float ResolveHudResponse(in MusicVisualDispatchCommand command)
+        {
+            if (command.Type == MusicVisualCueType.ReactorDischarge
+                || command.Type == MusicVisualCueType.FinalRelease)
+            {
+                return _settings.ReactorHudBorderResponse;
+            }
+            if (command.Type == MusicVisualCueType.AccentSnare
+                || command.Type == MusicVisualCueType.TrebleBurst
+                || command.Type == MusicVisualCueType.MajorKick)
+            {
+                return _settings.StrongHudBorderResponse;
+            }
+            return _settings.OrdinaryHudBorderResponse;
+        }
+
         private void Update()
         {
             if (_settings == null || _strength <= 0f)
             {
+                UpdateHudBorder();
                 return;
             }
             _age += Time.unscaledDeltaTime;
@@ -122,6 +193,62 @@ namespace DuneVector
                 _strength = 0f;
                 DuneVectorMusicGlitchRuntime.Reset();
             }
+            UpdateHudBorder();
+        }
+
+        private void UpdateHudBorder()
+        {
+            if (_hudStrength <= 0f)
+            {
+                return;
+            }
+            _hudAge += Time.unscaledDeltaTime;
+            if (_hudAge >= Mathf.Max(0.01f, _hudDuration))
+            {
+                ResetHudBorder();
+            }
+        }
+
+        private void OnGUI()
+        {
+            if (_settings == null
+                || _hudStrength <= 0f
+                || Event.current.type != EventType.Repaint
+                || DuneVectorCourierGame.IsGameplayHudSuppressed)
+            {
+                return;
+            }
+
+            float normalizedAge = Mathf.Clamp01(_hudAge / Mathf.Max(0.01f, _hudDuration));
+            float alpha = _hudStrength * (1f - normalizedAge) * (1f - normalizedAge);
+            Color color = _settings.HudBorderColor;
+            color.a *= Mathf.Clamp01(alpha);
+            float inset = Mathf.Max(0f, _settings.HudBorderInset);
+            float thickness = Mathf.Max(0f, _settings.HudBorderThickness);
+            float corner = Mathf.Min(
+                Mathf.Max(0f, _settings.HudBorderCornerLength),
+                Mathf.Min(Screen.width, Screen.height) * 0.5f);
+            if (thickness <= 0f || corner <= 0f || color.a <= 0f)
+            {
+                return;
+            }
+
+            DrawCorner(new Rect(inset, inset, corner, thickness), color);
+            DrawCorner(new Rect(inset, inset, thickness, corner), color);
+            DrawCorner(new Rect(Screen.width - inset - corner, inset, corner, thickness), color);
+            DrawCorner(new Rect(Screen.width - inset - thickness, inset, thickness, corner), color);
+            DrawCorner(new Rect(inset, Screen.height - inset - thickness, corner, thickness), color);
+            DrawCorner(new Rect(inset, Screen.height - inset - corner, thickness, corner), color);
+            DrawCorner(new Rect(Screen.width - inset - corner, Screen.height - inset - thickness, corner, thickness), color);
+            DrawCorner(new Rect(Screen.width - inset - thickness, Screen.height - inset - corner, thickness, corner), color);
+        }
+
+        private static void DrawCorner(Rect rect, Color color)
+        {
+            Color previous = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = previous;
         }
 
         private void ApplyGlobals(float intensity)
@@ -146,6 +273,12 @@ namespace DuneVector
 
         public void ResetMusicResponse()
         {
+            ResetWorldGlitch();
+            ResetHudBorder();
+        }
+
+        private void ResetWorldGlitch()
+        {
             _age = 0f;
             _strength = 0f;
             _seed = 0u;
@@ -157,6 +290,13 @@ namespace DuneVector
             Shader.SetGlobalVector(ParametersId, Vector4.zero);
             Shader.SetGlobalVector(SafetyId, Vector4.zero);
             Shader.SetGlobalColor(TintId, Color.clear);
+        }
+
+        private void ResetHudBorder()
+        {
+            _hudAge = 0f;
+            _hudDuration = 0f;
+            _hudStrength = 0f;
         }
 
         private void OnDisable()
