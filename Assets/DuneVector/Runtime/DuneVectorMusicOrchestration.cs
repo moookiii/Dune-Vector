@@ -701,12 +701,16 @@ namespace DuneVector
 
         private void HandleMusicVisualizerModeChanged(MusicVisualizerMode mode)
         {
-            if (mode != MusicVisualizerMode.NoFlash)
+            if (mode == MusicVisualizerMode.Off)
             {
+                ResetSinks();
                 return;
             }
-            _pressureFronts?.ResetMusicResponse();
-            _foreground?.ClearFlashingResponse();
+            if (mode == MusicVisualizerMode.NoFlash)
+            {
+                _pressureFronts?.ResetMusicResponse();
+                _foreground?.ClearFlashingResponse();
+            }
         }
 
         public bool RegisterSink(IMusicReactiveSink sink)
@@ -846,7 +850,11 @@ namespace DuneVector
             _state.VisualTier = section.VisualTier;
             _state.Multipliers = multipliers;
             _state.Permissions = section.Permissions;
-            if (_audio.VisualizerMode == MusicVisualizerMode.NoFlash)
+            if (_audio.VisualizerMode == MusicVisualizerMode.Off)
+            {
+                _state.Permissions = MusicVisualEffectGroups.None;
+            }
+            else if (_audio.VisualizerMode == MusicVisualizerMode.NoFlash)
             {
                 _state.Permissions &= ~(
                     MusicVisualEffectGroups.PressureFront
@@ -865,6 +873,17 @@ namespace DuneVector
             _state.Foreground = Mathf.Clamp01(_state.Energy * multipliers.Foreground);
             _state.Bloom = Mathf.Clamp01(_state.Energy * multipliers.Bloom);
             _state.SuppressTransientEvents = !timeline.IsValid || !timeline.IsPlaying || timeline.IsPaused;
+            if (_audio.VisualizerMode == MusicVisualizerMode.Off)
+            {
+                _state.Bass = 0f;
+                _state.Mid = 0f;
+                _state.High = 0f;
+                _state.Energy = 0f;
+                _state.Pressure = 0f;
+                _state.Foreground = 0f;
+                _state.Bloom = 0f;
+                _state.SuppressTransientEvents = true;
+            }
 
             if (timeline.SeekGeneration != _observedSeekGeneration || timeline.DiscontinuousJump)
             {
