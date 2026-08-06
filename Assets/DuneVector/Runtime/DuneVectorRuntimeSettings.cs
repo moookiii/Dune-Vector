@@ -4109,6 +4109,8 @@ namespace DuneVector
         [Range(0f, 0.5f)] public float CenterOutInitialViewportRadius;
         [Range(0f, 0.5f)] public float CenterOutProtectedViewportRadius;
         [Range(1, 256)] public int CenterOutParticlePoolCapacity;
+        public bool CenterOutUseColorWheelPalette;
+        [Min(0f)] public float CenterOutBurstCountMultiplier;
         public Vector2Int OrdinaryCenterOutCountRange;
         public Vector2Int StrongCenterOutCountRange;
         public Vector2Int ReactorCenterOutCountRange;

@@ -275,7 +275,9 @@ namespace DuneVector
             int requested;
             if (centerOut)
             {
-                requested = command.FragmentCount;
+                requested = Mathf.CeilToInt(
+                    command.FragmentCount
+                    * Mathf.Max(1f, _settings.CenterOutBurstCountMultiplier));
             }
             else if (command.IsAuthored && command.TrebleParticleCount > 0)
             {
@@ -359,7 +361,8 @@ namespace DuneVector
 
         private Color ResolveSongColor(ref uint seed)
         {
-            if (_settings.CenterOutCyanColor.maxColorComponent <= 0f)
+            if (_settings.CenterOutUseColorWheelPalette
+                || _settings.CenterOutCyanColor.maxColorComponent <= 0f)
             {
                 int paletteIndex = Mathf.Min(
                     _streakPalette.Length - 1,
