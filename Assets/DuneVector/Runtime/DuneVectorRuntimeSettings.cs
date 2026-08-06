@@ -4899,7 +4899,7 @@ namespace DuneVector
         [Min(2f)] public float SliderTrackHeight = 9f;
         [Min(4f)] public float SliderThumbWidth = 12f;
         [Min(8f)] public float SliderThumbHeight = 22f;
-        [Min(0f)] public float DialogueButtonGap = 12f;
+        [Min(0f)] public float DialogueButtonGap = 24f;
         [Min(24f)] public float ButtonHeight = 44f;
         [Min(0f)] public float ButtonGap = 10f;
 
