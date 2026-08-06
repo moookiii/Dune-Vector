@@ -564,7 +564,7 @@ namespace DuneVector
     {
         public bool Enabled;
         [Tooltip("Approximate total cluster count across the preloaded chunk area.")]
-        [Range(4, 30)] public int ClusterCount;
+        [Range(4, 60)] public int ClusterCount;
         [Min(20f)] public float Altitude;
         [Min(0f)] public float DriftSpeed;
         [Tooltip("Cloud drift direction on the world X/Z plane. Set both components to zero to stop cloud drift.")]
