@@ -4045,6 +4045,23 @@ namespace DuneVector
         [Min(0f)] public float ReactorFrontStaggerSeconds = 0.09f;
         [Min(0f)] public float ReactorFrontWidthMultiplier = 1.25f;
 
+        [Header("Authored Front Arrival")]
+        [Min(0f)] public float DefaultFrontLeadBeats;
+        [Min(0f)] public float DefaultFrontTravelBeats;
+        [Min(0f)] public float PressureFrontNearFadeBeats;
+        [Min(0f)] public float OrdinaryArrivalCoreMultiplier;
+        [Min(0f)] public float StrongArrivalCoreMultiplier;
+        [Min(0f)] public float ReactorArrivalCoreMultiplier;
+        [Min(0f)] public float PressureFrontHaloIntensityMultiplier;
+        [ColorUsage(false, true)] public Color PressureFrontHaloColor;
+        [Range(0f, 1f)] public float OrdinaryFrontEdgeBreakup;
+        [Range(0f, 1f)] public float StrongFrontEdgeBreakup;
+        [Range(0f, 1f)] public float ReactorFrontEdgeBreakup;
+        [Min(0f)] public float PressureFrontArrivalThicknessGrowth;
+        public bool PressureFrontFadeBeforeNearPlane;
+        public bool PressureFrontDepthTest;
+        [Range(0f, 1f)] public float SplitFrontLateralOffset;
+
         [Header("Foreground Response")]
         [Range(1, 4)] public int MaximumRoadPulseCount = 4;
         [Min(0.01f)] public float RoadPulseDurationSeconds = 2.4f;
@@ -4088,6 +4105,45 @@ namespace DuneVector
         [Range(0.001f, 0.25f)] public float ForegroundStreakEndFade = 0.08f;
         [ColorUsage(false, true)] public Color ForegroundStreakColor = new Color(1.2f, 0.25f, 2.8f, 0.8f);
 
+        [Header("Authored Center-Out Fragments")]
+        [Range(0f, 0.5f)] public float CenterOutInitialViewportRadius;
+        [Range(0f, 0.5f)] public float CenterOutProtectedViewportRadius;
+        [Range(1, 256)] public int CenterOutParticlePoolCapacity;
+        public Vector2Int OrdinaryCenterOutCountRange;
+        public Vector2Int StrongCenterOutCountRange;
+        public Vector2Int ReactorCenterOutCountRange;
+        public Vector2 OrdinaryCenterOutLifetimeRange;
+        public Vector2 StrongCenterOutLifetimeRange;
+        public Vector2 ReactorCenterOutLifetimeRange;
+        [Min(0f)] public float CenterOutRadialSpeed;
+        [Range(0f, 1f)] public float CenterOutTowardCameraSpeedFraction;
+        [Range(0f, 1f)] public float CenterOutDirectionalVariation;
+        [ColorUsage(false, true)] public Color CenterOutCyanColor;
+        [ColorUsage(false, true)] public Color CenterOutMagentaColor;
+        [ColorUsage(false, true)] public Color CenterOutWarmWhiteColor;
+        [ColorUsage(false, true)] public Color CenterOutAccentColor;
+        [Min(0f)] public float CenterOutCyanWeight;
+        [Min(0f)] public float CenterOutMagentaWeight;
+        [Min(0f)] public float CenterOutWarmWhiteWeight;
+        [Min(0f)] public float CenterOutAccentWeight;
+
+        [Header("Authored Response Strengths")]
+        [Min(0f)] public float OrdinaryRoadArrivalResponse;
+        [Min(0f)] public float StrongRoadArrivalResponse;
+        [Min(0f)] public float ReactorRoadArrivalResponse;
+        [Min(0f)] public float MinorKickRoadRippleResponse;
+        [Min(0f)] public float OrdinaryDroneThrusterBoost;
+        [Min(0f)] public float StrongDroneThrusterBoost;
+        [Min(0f)] public float ReactorDroneThrusterBoost;
+        [Min(0f)] public float OrdinaryDroneTrailWidthBoost;
+        [Min(0f)] public float StrongDroneTrailWidthBoost;
+        [Min(0f)] public float ReactorDroneTrailWidthBoost;
+        [Min(0f)] public float SustainedBassDroneThrusterMaximum;
+        [Min(0f)] public float OrdinaryStructureResponse;
+        [Min(0f)] public float StrongStructureResponse;
+        [Min(0f)] public float ReactorStructureResponse;
+        [Range(0, 4)] public int MaximumTemporaryReactionLights;
+
         [Header("Camera Response")]
         [Min(0f)] public float MaximumVisualizerFovOffset = 3.5f;
         [Min(0f)] public float MaximumVisualizerRollDegrees = 0.65f;
@@ -4103,6 +4159,17 @@ namespace DuneVector
         [Range(0f, 1f)] public float SnareRollStrength = 0.55f;
         [Range(0f, 1f)] public float ReactorPositionStrength = 1f;
 
+        [Header("Authored Camera Limits")]
+        [Min(0f)] public float OrdinaryFrontFovDegrees;
+        [Min(0f)] public float StrongFrontFovDegrees;
+        [Min(0f)] public float FirstDropFovDegrees;
+        [Min(0f)] public float ReactorFovDegrees;
+        [Min(0f)] public float OrdinaryPositionImpulseMeters;
+        [Min(0f)] public float StrongPositionImpulseMeters;
+        [Min(0f)] public float ReactorPositionImpulseMeters;
+        [Min(0f)] public float OrdinarySnareRollDegrees;
+        [Min(0f)] public float AccentSnareRollDegrees;
+
         [Header("World-Only Glitch")]
         [Range(0f, 1f)] public float WorldGlitchMaximumIntensity = 0.16f;
         [Min(0.01f)] public float WorldGlitchDurationSeconds = 0.085f;
@@ -4115,6 +4182,15 @@ namespace DuneVector
         [Range(0.001f, 0.25f)] public float WorldGlitchProtectedFeather = 0.08f;
         [Range(0f, 1f)] public float WorldGlitchProtectedIntensityMultiplier = 0.18f;
         [ColorUsage(false, true)] public Color WorldGlitchTint = new Color(2.8f, 0.55f, 2.2f, 0.24f);
+
+        [Header("Authored Glitch Events")]
+        [Min(0f)] public float OrdinaryGlitchUvDisplacement;
+        [Min(0f)] public float AccentGlitchUvDisplacement;
+        [Min(0f)] public float ClimaxGlitchUvDisplacement;
+        [Min(0f)] public float MaximumGlitchUvDisplacement;
+        [Min(0f)] public float OrdinaryGlitchDurationBeats;
+        [Min(0f)] public float AccentGlitchDurationBeats;
+        [Min(0f)] public float ReactorGlitchDurationBeats;
 
         [Header("Music Analysis")]
         [Tooltip("FFT sample count used to separate bass, midrange, and high-frequency energy.")]
@@ -4200,6 +4276,14 @@ namespace DuneVector
         [Range(0f, 2f)] public float LightningNodeIntensity = 0.7f;
         [Range(2f, 24f)] public float LightningNodeSpacing = 9f;
 
+        [Header("Authored Filament Events")]
+        [Min(0f)] public float MinorFilamentEventIntensity;
+        [Min(0f)] public float AccentFilamentEventIntensity;
+        [Min(0f)] public float DropFilamentEventIntensity;
+        [Min(0f)] public float TrebleClimaxFilamentEventIntensity;
+        [Min(0f)] public float ReactorFilamentEventIntensity;
+        [Range(1, 4)] public int MaximumVisiblePrimaryFilaments;
+
         [Header("Treble Star Bursts")]
         [ColorUsage(false, true)] public Color SparkColor = new Color(1.2f, 4.2f, 2.8f, 1f);
         [Min(0f)] public float SparkIntensity = 0f;
@@ -4208,6 +4292,27 @@ namespace DuneVector
         [Range(0.002f, 0.2f)] public float SparkSize = 0.035f;
         [Min(0f)] public float SparkTwinkleSpeed = 9f;
         [Range(0f, 1f)] public float SparkSustainResponse = 0.08f;
+
+        [Header("Authored Treble Events")]
+        public Vector2Int MinorTrebleEventCountRange;
+        public Vector2Int NormalTrebleEventCountRange;
+        public Vector2Int StrongTrebleEventCountRange;
+        public Vector2Int ClimaxTrebleEventCountRange;
+        public Vector2Int ReactorTrebleEventCountRange;
+        [Min(0f)] public float MinorTrebleEventBrightness;
+        [Min(0f)] public float NormalTrebleEventBrightness;
+        [Min(0f)] public float StrongTrebleEventBrightness;
+        [Min(0f)] public float ClimaxTrebleEventBrightness;
+        [Min(0f)] public float ReactorTrebleEventBrightness;
+
+        [Header("Continuous Song Response")]
+        [Min(0f)] public float SubPressureAttackBeats;
+        [Min(0f)] public float SubPressureReleaseBeats;
+        [Min(0f)] public float MaximumBassCurrentThicknessContribution;
+        [Min(0f)] public float MaximumBassCurrentProximityContribution;
+        [Min(0f)] public float OrdinaryHudBorderResponse;
+        [Min(0f)] public float StrongHudBorderResponse;
+        [Min(0f)] public float ReactorHudBorderResponse;
 
         [Header("Global Bloom Response")]
         [Tooltip("Maximum global bloom intensity allowed during the strongest musical peak. Never lowers the authored environment baseline.")]

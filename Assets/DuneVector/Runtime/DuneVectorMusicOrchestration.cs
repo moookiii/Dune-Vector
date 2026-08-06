@@ -52,6 +52,15 @@ namespace DuneVector
         FinalRelease,
     }
 
+    public enum MusicVisualFrontKind : byte
+    {
+        None,
+        Ordinary,
+        Strong,
+        Reactor,
+        Split,
+    }
+
     [Flags]
     public enum MusicVisualEffectGroups : ushort
     {
@@ -66,6 +75,8 @@ namespace DuneVector
         Glitch = 1 << 7,
         HudBorder = 1 << 8,
         Bloom = 1 << 9,
+        Filaments = 1 << 10,
+        TrebleParticles = 1 << 11,
         All = ushort.MaxValue,
     }
 
@@ -123,6 +134,14 @@ namespace DuneVector
         [Min(0f)] public float Pressure;
         [Min(0f)] public float Foreground;
         [Min(0f)] public float Bloom;
+        [Min(0f)] public float CurrentIntensity;
+        [Min(0f)] public float CurrentThickness;
+        [Min(0f)] public float CurrentProximity;
+        [Min(0f)] public float CurrentTravel;
+        [Min(0f)] public float FilamentAvailability;
+        [Min(0f)] public float TrebleAvailability;
+        [Min(0f)] public float RoadResponse;
+        [Min(0f)] public float StructureResponse;
 
         public static MusicVisualContinuousMultipliers Identity => new MusicVisualContinuousMultipliers
         {
@@ -133,6 +152,14 @@ namespace DuneVector
             Pressure = 1f,
             Foreground = 1f,
             Bloom = 1f,
+            CurrentIntensity = 1f,
+            CurrentThickness = 1f,
+            CurrentProximity = 1f,
+            CurrentTravel = 1f,
+            FilamentAvailability = 1f,
+            TrebleAvailability = 1f,
+            RoadResponse = 1f,
+            StructureResponse = 1f,
         };
     }
 
@@ -162,6 +189,31 @@ namespace DuneVector
         [Min(0)] public int VariationIndex;
         public MusicVisualEffectGroups AllowedEffects;
         public uint Seed;
+        public MusicVisualFrontKind FrontKind;
+        [Range(0, 4)] public int FrontArcCount;
+        [Min(0f)] public float FrontLeadBeats;
+        [Min(0f)] public float FrontTravelBeats;
+        [Min(0f)] public float FrontStrengthMultiplier;
+        [Range(0f, 1f)] public float FrontEdgeBreakup;
+        [ColorUsage(false, true)] public Color FrontColor;
+        [Min(0)] public int FragmentCount;
+        public Vector2 FragmentLifetimeSeconds;
+        [Range(-1f, 1f)] public float FragmentHorizontalBias;
+        [Min(0f)] public float RoadResponse;
+        [Min(0f)] public float SecondaryRoadResponse;
+        [Min(0f)] public float SecondaryRoadDelayBeats;
+        [Min(0f)] public float StructureResponse;
+        [Min(0f)] public float DroneThrusterBoost;
+        [Min(0f)] public float DroneTrailWidthBoost;
+        [Min(0f)] public float FovDegrees;
+        [Min(0f)] public float PositionImpulseMeters;
+        public float RollDegrees;
+        [Min(0f)] public float GlitchUvDisplacement;
+        [Range(0, 2)] public int GlitchSliceCount;
+        [Min(0f)] public float FilamentIntensity;
+        [Range(0, 3)] public int FilamentStrikeCount;
+        [Min(0)] public int TrebleParticleCount;
+        [Min(0f)] public float TrebleBrightness;
     }
 
     [Serializable]
@@ -202,6 +254,31 @@ namespace DuneVector
         public int CueIndex;
         public uint DeterministicSeed;
         public bool IsAuthored;
+        public bool IsPreRoll;
+        public MusicVisualFrontKind FrontKind;
+        public int FrontArcCount;
+        public float FrontTravelSeconds;
+        public float FrontStrengthMultiplier;
+        public float FrontEdgeBreakup;
+        public Color FrontColor;
+        public int FragmentCount;
+        public Vector2 FragmentLifetimeSeconds;
+        public float FragmentHorizontalBias;
+        public float RoadResponse;
+        public float SecondaryRoadResponse;
+        public float SecondaryRoadDelaySeconds;
+        public float StructureResponse;
+        public float DroneThrusterBoost;
+        public float DroneTrailWidthBoost;
+        public float FovDegrees;
+        public float PositionImpulseMeters;
+        public float RollDegrees;
+        public float GlitchUvDisplacement;
+        public int GlitchSliceCount;
+        public float FilamentIntensity;
+        public int FilamentStrikeCount;
+        public int TrebleParticleCount;
+        public float TrebleBrightness;
     }
 
     public interface IMusicReactiveSink
@@ -497,6 +574,7 @@ namespace DuneVector
         private DuneVectorMusicCameraEffects _cameraEffects;
         private DuneVectorMusicWorldGlitchSink _glitch;
         private bool _rendererValidationScheduled;
+        private bool _releaseLocked;
 
         public MusicReactiveRuntimeState RuntimeState => _state;
         public int NextCueIndex => _cueCursor;
@@ -518,6 +596,7 @@ namespace DuneVector
                 ? _audio.ActiveMusicTrackProfile
                 : settings != null ? settings.TrackProfile : null;
             _cueCursor = 0;
+            _releaseLocked = false;
             _previousTimelinePosition = 0;
             _observedSeekGeneration = 0;
             int initialTimeline = _audio != null ? _audio.TimelineState.TimelinePositionMilliseconds : 0;
@@ -538,6 +617,7 @@ namespace DuneVector
         {
             _profile = track != null ? track.VisualizerProfile : null;
             _cueCursor = 0;
+            _releaseLocked = false;
             _lastObservedMarkerId = 0;
             _validatedPlaybackGeneration = 0;
             _bassTransientArmed = true;
@@ -651,6 +731,7 @@ namespace DuneVector
             using (CueEvaluationMarker.Auto())
             {
                 EvaluateRuntimeTransients();
+                EvaluateAuthoredPreRolls();
                 EvaluateAuthoredCues();
             }
             using (DispatchMarker.Auto())
@@ -676,15 +757,18 @@ namespace DuneVector
                     Permissions = MusicVisualEffectGroups.All,
                 };
             MusicVisualContinuousMultipliers multipliers = section.Multipliers;
+            NormalizeExtendedMultipliers(ref multipliers);
             if (_profile != null && sectionIndex > 0 && section.TransitionBeats > 0f)
             {
                 MusicVisualSectionDefinition previousSection = _profile.Sections[sectionIndex - 1];
+                MusicVisualContinuousMultipliers previousMultipliers = previousSection.Multipliers;
+                NormalizeExtendedMultipliers(ref previousMultipliers);
                 float beatMilliseconds = 60000f / Mathf.Max(1f, _profile.BeatsPerMinute);
                 float transitionMilliseconds = section.TransitionBeats * beatMilliseconds;
                 float transition = Mathf.Clamp01(
                     (timeline.TimelinePositionMilliseconds - section.StartTimelineMilliseconds)
                     / Mathf.Max(1f, transitionMilliseconds));
-                multipliers = LerpMultipliers(previousSection.Multipliers, section.Multipliers, transition);
+                multipliers = LerpMultipliers(previousMultipliers, multipliers, transition);
             }
 
             _state.Analysis = analysis;
@@ -733,7 +817,62 @@ namespace DuneVector
                 Pressure = Mathf.Lerp(from.Pressure, to.Pressure, t),
                 Foreground = Mathf.Lerp(from.Foreground, to.Foreground, t),
                 Bloom = Mathf.Lerp(from.Bloom, to.Bloom, t),
+                CurrentIntensity = Mathf.Lerp(from.CurrentIntensity, to.CurrentIntensity, t),
+                CurrentThickness = Mathf.Lerp(from.CurrentThickness, to.CurrentThickness, t),
+                CurrentProximity = Mathf.Lerp(from.CurrentProximity, to.CurrentProximity, t),
+                CurrentTravel = Mathf.Lerp(from.CurrentTravel, to.CurrentTravel, t),
+                FilamentAvailability = Mathf.Lerp(from.FilamentAvailability, to.FilamentAvailability, t),
+                TrebleAvailability = Mathf.Lerp(from.TrebleAvailability, to.TrebleAvailability, t),
+                RoadResponse = Mathf.Lerp(from.RoadResponse, to.RoadResponse, t),
+                StructureResponse = Mathf.Lerp(from.StructureResponse, to.StructureResponse, t),
             };
+        }
+
+        private static void NormalizeExtendedMultipliers(ref MusicVisualContinuousMultipliers multipliers)
+        {
+            if (multipliers.CurrentIntensity != 0f
+                || multipliers.CurrentThickness != 0f
+                || multipliers.CurrentProximity != 0f
+                || multipliers.CurrentTravel != 0f
+                || multipliers.FilamentAvailability != 0f
+                || multipliers.TrebleAvailability != 0f
+                || multipliers.RoadResponse != 0f
+                || multipliers.StructureResponse != 0f)
+            {
+                return;
+            }
+            multipliers.CurrentIntensity = 1f;
+            multipliers.CurrentThickness = 1f;
+            multipliers.CurrentProximity = 1f;
+            multipliers.CurrentTravel = 1f;
+            multipliers.FilamentAvailability = 1f;
+            multipliers.TrebleAvailability = 1f;
+            multipliers.RoadResponse = 1f;
+            multipliers.StructureResponse = 1f;
+        }
+
+        private void EvaluateAuthoredPreRolls()
+        {
+            if (_profile == null || _state.SuppressTransientEvents)
+            {
+                return;
+            }
+            int current = _state.Timeline.TimelinePositionMilliseconds;
+            float beatMilliseconds = 60000f / Mathf.Max(1f, _profile.BeatsPerMinute);
+            for (int cueIndex = 0; cueIndex < _profile.AuthoredCues.Length; cueIndex++)
+            {
+                MusicVisualAuthoredCue cue = _profile.AuthoredCues[cueIndex];
+                if (cue.FrontKind == MusicVisualFrontKind.None || cue.FrontLeadBeats <= 0f)
+                {
+                    continue;
+                }
+                int arrival = _profile.ResolveCuePositionMilliseconds(cueIndex);
+                int dispatchTime = arrival - Mathf.RoundToInt(cue.FrontLeadBeats * beatMilliseconds);
+                if (dispatchTime <= current && dispatchTime > _previousTimelinePosition)
+                {
+                    DispatchCue(cueIndex, true);
+                }
+            }
         }
 
         private void ValidateProfileAuthoring()
@@ -857,7 +996,7 @@ namespace DuneVector
 
         private void EvaluateRuntimeTransients()
         {
-            if (_state.SuppressTransientEvents)
+            if (_state.SuppressTransientEvents || _releaseLocked)
             {
                 return;
             }
@@ -885,11 +1024,8 @@ namespace DuneVector
                     ? MusicVisualCueType.MajorKick
                     : MusicVisualCueType.MinorKick;
                 DispatchRuntime(type, bassTransient, MusicVisualEffectGroups.Sky
-                    | MusicVisualEffectGroups.PressureFront
                     | MusicVisualEffectGroups.Road
-                    | MusicVisualEffectGroups.Structures
-                    | MusicVisualEffectGroups.Drone
-                    | MusicVisualEffectGroups.Camera);
+                    | MusicVisualEffectGroups.Drone);
                 _bassTransientArmed = false;
                 _lastKickTimeline = timeline;
                 _kicksThisBar++;
@@ -916,9 +1052,7 @@ namespace DuneVector
                         : MusicVisualCueType.TrebleTick);
                 DispatchRuntime(type, highTransient, MusicVisualEffectGroups.Sky
                     | MusicVisualEffectGroups.Streaks
-                    | MusicVisualEffectGroups.Camera
-                    | MusicVisualEffectGroups.Glitch
-                    | MusicVisualEffectGroups.HudBorder);
+                    | MusicVisualEffectGroups.TrebleParticles);
                 _highTransientArmed = false;
                 _lastHighTimeline = timeline;
                 _highEventsThisBar++;
@@ -944,18 +1078,57 @@ namespace DuneVector
             }
         }
 
-        private void DispatchCue(int cueIndex)
+        private void DispatchCue(int cueIndex, bool isPreRoll = false)
         {
             MusicVisualAuthoredCue cue = _profile.AuthoredCues[cueIndex];
+            if (!isPreRoll && cue.Cue == MusicVisualCueType.FinalRelease)
+            {
+                _releaseLocked = true;
+            }
+            float beatSeconds = 60f / Mathf.Max(1f, _profile.BeatsPerMinute);
+            MusicVisualEffectGroups allowed = cue.AllowedEffects & _state.Permissions;
+            if (isPreRoll)
+            {
+                allowed &= MusicVisualEffectGroups.PressureFront;
+            }
+            else if (cue.FrontLeadBeats > 0f)
+            {
+                allowed &= ~MusicVisualEffectGroups.PressureFront;
+            }
             MusicVisualDispatchCommand command = new MusicVisualDispatchCommand
             {
                 Type = cue.Cue,
                 Strength = cue.Strength,
                 DurationBeats = cue.DurationBeats,
-                AllowedEffects = cue.AllowedEffects & _state.Permissions,
+                AllowedEffects = allowed,
                 CueIndex = cueIndex,
                 DeterministicSeed = cue.Seed ^ _state.Timeline.PlaybackGeneration ^ (uint)_profile.StableTrackHash,
                 IsAuthored = true,
+                IsPreRoll = isPreRoll,
+                FrontKind = cue.FrontKind,
+                FrontArcCount = cue.FrontArcCount,
+                FrontTravelSeconds = cue.FrontTravelBeats * beatSeconds,
+                FrontStrengthMultiplier = cue.FrontStrengthMultiplier,
+                FrontEdgeBreakup = cue.FrontEdgeBreakup,
+                FrontColor = cue.FrontColor,
+                FragmentCount = cue.FragmentCount,
+                FragmentLifetimeSeconds = cue.FragmentLifetimeSeconds,
+                FragmentHorizontalBias = cue.FragmentHorizontalBias,
+                RoadResponse = cue.RoadResponse,
+                SecondaryRoadResponse = cue.SecondaryRoadResponse,
+                SecondaryRoadDelaySeconds = cue.SecondaryRoadDelayBeats * beatSeconds,
+                StructureResponse = cue.StructureResponse,
+                DroneThrusterBoost = cue.DroneThrusterBoost,
+                DroneTrailWidthBoost = cue.DroneTrailWidthBoost,
+                FovDegrees = cue.FovDegrees,
+                PositionImpulseMeters = cue.PositionImpulseMeters,
+                RollDegrees = cue.RollDegrees,
+                GlitchUvDisplacement = cue.GlitchUvDisplacement,
+                GlitchSliceCount = cue.GlitchSliceCount,
+                FilamentIntensity = cue.FilamentIntensity,
+                FilamentStrikeCount = cue.FilamentStrikeCount,
+                TrebleParticleCount = cue.TrebleParticleCount,
+                TrebleBrightness = cue.TrebleBrightness,
             };
             for (int i = 0; i < _sinkCount; i++)
             {
@@ -966,6 +1139,7 @@ namespace DuneVector
         private void ReconstructCueCursor(int timelineMilliseconds)
         {
             _cueCursor = 0;
+            _releaseLocked = false;
             if (_profile == null)
             {
                 return;
@@ -973,6 +1147,10 @@ namespace DuneVector
             while (_cueCursor < _profile.AuthoredCues.Length
                 && _profile.ResolveCuePositionMilliseconds(_cueCursor) <= timelineMilliseconds)
             {
+                if (_profile.AuthoredCues[_cueCursor].Cue == MusicVisualCueType.FinalRelease)
+                {
+                    _releaseLocked = true;
+                }
                 _cueCursor++;
             }
         }

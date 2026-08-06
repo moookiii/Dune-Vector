@@ -37,6 +37,10 @@ namespace DuneVector
         private uint _analysisSequence;
         private int _lightningWorldAnchorTick = int.MinValue;
         private bool _conductorControlsResponse;
+        private float _eventFilamentIntensity;
+        private float _eventFilamentAge;
+        private float _eventFilamentDuration;
+        private int _eventFilamentStrikeCount;
 
         public MusicAnalysisFrame LatestAnalysisFrame { get; private set; }
 
@@ -502,6 +506,29 @@ namespace DuneVector
             _sky.ReactiveMusicHighs.value = state.High;
             _sky.ReactiveBassPulse.value = state.Analysis.BassTransient;
             _sky.ReactiveHighPulse.value = state.Analysis.HighTransient;
+            _sky.ReactiveAuroraIntensity.value = _settings.AuroraIntensity
+                * state.Multipliers.CurrentIntensity;
+            _sky.ReactiveAuroraThickness.value = _settings.AuroraThickness
+                * state.Multipliers.CurrentThickness;
+            _sky.ReactiveAuroraTravelSpeed.value = _settings.AuroraTravelSpeed
+                * state.Multipliers.CurrentTravel;
+
+            if (_eventFilamentIntensity > 0f)
+            {
+                _eventFilamentAge += Time.unscaledDeltaTime;
+                float duration = Mathf.Max(0.01f, _eventFilamentDuration);
+                float envelope = 1f - Mathf.Clamp01(_eventFilamentAge / duration);
+                bool allowed = (state.Permissions & MusicVisualEffectGroups.Filaments) != 0;
+                _sky.ReactiveLightningIntensity.value = allowed
+                    ? _eventFilamentIntensity * envelope * state.Multipliers.FilamentAvailability
+                    : 0f;
+                _sky.ReactiveLightningStrikeCount.value = _eventFilamentStrikeCount;
+                if (envelope <= 0f)
+                {
+                    _eventFilamentIntensity = 0f;
+                    _sky.ReactiveLightningIntensity.value = _settings.LightningIntensity;
+                }
+            }
 
             if (_bloom == null)
             {
@@ -533,6 +560,25 @@ namespace DuneVector
             if (_sky == null || _visualizerMode == MusicVisualizerMode.Off)
             {
                 return;
+            }
+
+            if (command.Type == MusicVisualCueType.FinalRelease)
+            {
+                _eventFilamentIntensity = 0f;
+                _sky.ReactiveLightningIntensity.value = _settings.LightningIntensity;
+                return;
+            }
+            if (command.IsAuthored
+                && (command.AllowedEffects & MusicVisualEffectGroups.Filaments) != 0
+                && command.FilamentIntensity > 0f)
+            {
+                _eventFilamentIntensity = command.FilamentIntensity;
+                _eventFilamentStrikeCount = Mathf.Clamp(command.FilamentStrikeCount, 1, 3);
+                _eventFilamentAge = 0f;
+                _eventFilamentDuration = command.DurationBeats * 60f
+                    / Mathf.Max(1f, state.Timeline.Tempo);
+                _sky.ReactiveLightningIntensity.value = _eventFilamentIntensity;
+                _sky.ReactiveLightningStrikeCount.value = _eventFilamentStrikeCount;
             }
 
             switch (command.Type)
@@ -579,6 +625,10 @@ namespace DuneVector
             _highs = 0f;
             _bassPulse = 0f;
             _highPulse = 0f;
+            _eventFilamentIntensity = 0f;
+            _eventFilamentAge = 0f;
+            _eventFilamentDuration = 0f;
+            _eventFilamentStrikeCount = 0;
             _analysisTimer = 0f;
             LatestAnalysisFrame = default;
 

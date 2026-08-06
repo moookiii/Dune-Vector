@@ -42,6 +42,9 @@ namespace DuneVector
         private float _strength;
         private uint _seed;
         private int _accentSnareCount;
+        private float _duration;
+        private float _displacement;
+        private int _sliceCount;
 
         public float Intensity => DuneVectorMusicGlitchRuntime.Intensity;
 
@@ -68,15 +71,15 @@ namespace DuneVector
                 return;
             }
 
-            bool accepted = false;
-            if (command.Type == MusicVisualCueType.AccentSnare)
+            bool legacyAuthoredReactor = command.IsAuthored
+                && _settings.MaximumGlitchUvDisplacement <= 0f
+                && command.Type == MusicVisualCueType.ReactorDischarge;
+            bool accepted = command.IsAuthored
+                && (command.GlitchUvDisplacement > 0f || legacyAuthoredReactor);
+            if (!command.IsAuthored && command.Type == MusicVisualCueType.AccentSnare)
             {
                 _accentSnareCount++;
                 accepted = _accentSnareCount % Mathf.Max(1, _settings.AccentSnaresPerGlitch) == 0;
-            }
-            else if (command.Type == MusicVisualCueType.ReactorDischarge && command.IsAuthored)
-            {
-                accepted = true;
             }
             if (!accepted)
             {
@@ -86,6 +89,20 @@ namespace DuneVector
             _age = 0f;
             _strength = Mathf.Clamp01(command.Strength);
             _seed = command.DeterministicSeed;
+            _duration = command.DurationBeats > 0f
+                ? command.DurationBeats * 60f / Mathf.Max(1f, state.Timeline.Tempo)
+                : _settings.WorldGlitchDurationSeconds;
+            float requestedDisplacement = command.GlitchUvDisplacement > 0f
+                ? command.GlitchUvDisplacement
+                : _settings.WorldGlitchHorizontalShift;
+            _displacement = Mathf.Min(
+                requestedDisplacement,
+                _settings.MaximumGlitchUvDisplacement > 0f
+                    ? _settings.MaximumGlitchUvDisplacement
+                    : requestedDisplacement);
+            _sliceCount = command.GlitchSliceCount > 0
+                ? command.GlitchSliceCount
+                : _settings.WorldGlitchSliceCount;
             ApplyGlobals(_settings.WorldGlitchMaximumIntensity * _strength);
         }
 
@@ -96,7 +113,7 @@ namespace DuneVector
                 return;
             }
             _age += Time.unscaledDeltaTime;
-            float duration = Mathf.Max(0.01f, _settings.WorldGlitchDurationSeconds);
+            float duration = Mathf.Max(0.01f, _duration);
             float normalizedAge = Mathf.Clamp01(_age / duration);
             float envelope = (1f - normalizedAge) * (1f - normalizedAge);
             ApplyGlobals(_settings.WorldGlitchMaximumIntensity * _strength * envelope);
@@ -115,8 +132,8 @@ namespace DuneVector
                 new Vector4(
                     intensity,
                     (_seed & 0x00FFFFFFu) / 16777216f,
-                    _settings.WorldGlitchSliceCount,
-                    _settings.WorldGlitchHorizontalShift));
+                    _sliceCount,
+                    _displacement));
             Shader.SetGlobalVector(
                 SafetyId,
                 new Vector4(
@@ -133,6 +150,9 @@ namespace DuneVector
             _strength = 0f;
             _seed = 0u;
             _accentSnareCount = 0;
+            _duration = 0f;
+            _displacement = 0f;
+            _sliceCount = 0;
             DuneVectorMusicGlitchRuntime.Reset();
             Shader.SetGlobalVector(ParametersId, Vector4.zero);
             Shader.SetGlobalVector(SafetyId, Vector4.zero);

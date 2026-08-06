@@ -47,10 +47,43 @@ namespace DuneVector
         {
             if ((command.AllowedEffects & MusicVisualEffectGroups.Camera) == 0)
             {
+                if (command.Type == MusicVisualCueType.FinalRelease)
+                {
+                    ResetMusicResponse();
+                }
+                return;
+            }
+
+            if (command.Type == MusicVisualCueType.FinalRelease)
+            {
+                ResetMusicResponse();
                 return;
             }
 
             float strength = Mathf.Clamp01(command.Strength);
+            bool usesPerCueCameraAuthoring = _settings.OrdinaryFrontFovDegrees > 0f
+                || _settings.StrongFrontFovDegrees > 0f
+                || _settings.ReactorFovDegrees > 0f;
+            if (command.IsAuthored && usesPerCueCameraAuthoring)
+            {
+                if (_audio != null && _audio.VisualizerFovEnabled)
+                {
+                    _requestedFov = Mathf.Max(
+                        _requestedFov,
+                        Mathf.Min(command.FovDegrees, _settings.MaximumVisualizerFovOffset));
+                }
+                _requestedPosition = Mathf.Max(
+                    _requestedPosition,
+                    Mathf.Min(command.PositionImpulseMeters, _settings.MaximumVisualizerPositionOffset));
+                if (Mathf.Abs(command.RollDegrees) > Mathf.Abs(_requestedRoll))
+                {
+                    _requestedRoll = Mathf.Clamp(
+                        command.RollDegrees,
+                        -_settings.MaximumVisualizerRollDegrees,
+                        _settings.MaximumVisualizerRollDegrees);
+                }
+                return;
+            }
             switch (command.Type)
             {
                 case MusicVisualCueType.MajorKick:
@@ -101,12 +134,8 @@ namespace DuneVector
 
             if (_audio == null || !_audio.VisualizerFovEnabled)
             {
-                float disableRelease = Mathf.Max(0.01f, _settings.VisualizerFovDisableReleaseSeconds);
                 _requestedFov = 0f;
-                _appliedFov = Mathf.MoveTowards(
-                    _appliedFov,
-                    0f,
-                    _settings.MaximumVisualizerFovOffset * deltaTime / disableRelease);
+                _appliedFov = 0f;
             }
 
             _appliedFov = Mathf.Clamp(_appliedFov, 0f, _settings.MaximumVisualizerFovOffset);

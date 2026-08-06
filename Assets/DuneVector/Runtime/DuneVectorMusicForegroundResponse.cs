@@ -19,6 +19,7 @@ namespace DuneVector
             public Vector3 Origin;
             public float Age;
             public float Strength;
+            public float Delay;
             public bool Active;
         }
 
@@ -38,7 +39,10 @@ namespace DuneVector
         private Color[] _streakPalette;
         private TrailRenderer[] _droneTrails;
         private float[] _baseTrailWidths;
+        private Color[] _baseTrailStartColors;
+        private Color[] _baseTrailEndColors;
         private float _droneKickEnvelope;
+        private float _droneThrusterEnvelope;
         private float _continuousBass;
 
         public int ActiveRoadPulseCount => CountActiveRoadPulses();
@@ -68,9 +72,13 @@ namespace DuneVector
                 ? _drone.GetComponentsInChildren<TrailRenderer>(true)
                 : new TrailRenderer[0];
             _baseTrailWidths = new float[_droneTrails.Length];
+            _baseTrailStartColors = new Color[_droneTrails.Length];
+            _baseTrailEndColors = new Color[_droneTrails.Length];
             for (int i = 0; i < _droneTrails.Length; i++)
             {
                 _baseTrailWidths[i] = _droneTrails[i].widthMultiplier;
+                _baseTrailStartColors[i] = _droneTrails[i].startColor;
+                _baseTrailEndColors[i] = _droneTrails[i].endColor;
             }
         }
 
@@ -98,7 +106,9 @@ namespace DuneVector
             main.playOnAwake = false;
             main.loop = false;
             main.simulationSpace = ParticleSystemSimulationSpace.Local;
-            main.maxParticles = _settings.ForegroundStreakParticleBudget;
+            main.maxParticles = _settings.CenterOutParticlePoolCapacity > 0
+                ? _settings.CenterOutParticlePoolCapacity
+                : _settings.ForegroundStreakParticleBudget;
             main.startLifetime = _settings.ForegroundStreakLifetime;
             main.startSpeed = 0f;
             main.startSize = _settings.ForegroundStreakSize;
@@ -171,7 +181,16 @@ namespace DuneVector
                         || command.Type == MusicVisualCueType.MajorKick
                         || command.Type == MusicVisualCueType.ReactorDischarge))
                 {
-                    EmitRoadPulse(command.Strength);
+                    float roadStrength = command.IsAuthored && command.RoadResponse > 0f
+                        ? command.RoadResponse
+                        : _settings.MinorKickRoadRippleResponse > 0f
+                            ? _settings.MinorKickRoadRippleResponse * state.Multipliers.RoadResponse
+                            : command.Strength;
+                    EmitRoadPulse(roadStrength, 0f);
+                    if (command.IsAuthored && command.SecondaryRoadResponse > 0f)
+                    {
+                        EmitRoadPulse(command.SecondaryRoadResponse, command.SecondaryRoadDelaySeconds);
+                    }
                 }
                 if ((command.AllowedEffects & MusicVisualEffectGroups.Structures) != 0
                     && (command.Type == MusicVisualCueType.MinorKick
@@ -179,7 +198,10 @@ namespace DuneVector
                         || command.Type == MusicVisualCueType.ReactorDischarge))
                 {
                     _reactionLightAge = 0f;
-                    _reactionLightStrength = Mathf.Max(_reactionLightStrength, command.Strength);
+                    float structureStrength = command.IsAuthored && command.StructureResponse > 0f
+                        ? command.StructureResponse
+                        : command.Strength;
+                    _reactionLightStrength = Mathf.Max(_reactionLightStrength, structureStrength);
                     _reactionLight.enabled = true;
                 }
                 if ((command.AllowedEffects & MusicVisualEffectGroups.Drone) != 0
@@ -187,7 +209,14 @@ namespace DuneVector
                         || command.Type == MusicVisualCueType.MajorKick
                         || command.Type == MusicVisualCueType.ReactorDischarge))
                 {
-                    _droneKickEnvelope = Mathf.Max(_droneKickEnvelope, command.Strength);
+                    float trailBoost = command.IsAuthored && command.DroneTrailWidthBoost > 0f
+                        ? command.DroneTrailWidthBoost
+                        : command.Strength * _settings.DroneTrailKickMultiplier;
+                    _droneKickEnvelope = Mathf.Max(_droneKickEnvelope, trailBoost);
+                    float thrusterBoost = command.IsAuthored
+                        ? command.DroneThrusterBoost
+                        : command.Strength * _settings.OrdinaryDroneThrusterBoost;
+                    _droneThrusterEnvelope = Mathf.Max(_droneThrusterEnvelope, thrusterBoost);
                 }
                 if ((command.AllowedEffects & MusicVisualEffectGroups.Streaks) != 0
                     && (command.Type == MusicVisualCueType.MinorSnare
@@ -196,12 +225,12 @@ namespace DuneVector
                         || command.Type == MusicVisualCueType.TrebleBurst
                         || command.Type == MusicVisualCueType.ReactorDischarge))
                 {
-                    EmitStreaks(command.Strength, command.DeterministicSeed, state.Energy);
+                    EmitStreaks(in command, state.Energy);
                 }
             }
         }
 
-        private void EmitRoadPulse(float strength)
+        private void EmitRoadPulse(float strength, float delay)
         {
             int selected = -1;
             for (int offset = 0; offset < _roadPulses.Length; offset++)
@@ -222,54 +251,135 @@ namespace DuneVector
             {
                 Origin = _drone != null ? _drone.position : _camera.transform.position,
                 Strength = Mathf.Clamp01(strength),
+                Delay = Mathf.Max(0f, delay),
                 Active = true,
             };
             _roadPulseCursor = (selected + 1) % _roadPulses.Length;
         }
 
-        private void EmitStreaks(float strength, uint seed, float musicEnergy)
+        private void EmitStreaks(in MusicVisualDispatchCommand command, float musicEnergy)
         {
             if (_streaks == null)
             {
                 return;
             }
-            int available = Mathf.Max(0, _settings.ForegroundStreakParticleBudget - _streaks.particleCount);
+            uint seed = command.DeterministicSeed;
+            int capacity = _settings.CenterOutParticlePoolCapacity > 0
+                ? _settings.CenterOutParticlePoolCapacity
+                : _settings.ForegroundStreakParticleBudget;
+            int available = Mathf.Max(0, capacity - _streaks.particleCount);
             float punch = musicEnergy <= _settings.ForegroundStreakSlowEnergyThreshold
                 ? Mathf.Max(1f, _settings.ForegroundStreakSlowPunchMultiplier)
                 : 1f;
-            int count = Mathf.Min(
-                available,
-                Mathf.CeilToInt(
-                    _settings.ForegroundStreakBurstCount
-                    * Mathf.Clamp01(strength)
-                    * punch));
+            bool centerOut = command.IsAuthored && command.FragmentCount > 0;
+            int requested;
+            if (centerOut)
+            {
+                requested = command.FragmentCount;
+            }
+            else if (command.IsAuthored && command.TrebleParticleCount > 0)
+            {
+                requested = command.TrebleParticleCount;
+            }
+            else if (_settings.MinorTrebleEventCountRange.y > 0)
+            {
+                requested = Mathf.RoundToInt(Mathf.Lerp(
+                    _settings.MinorTrebleEventCountRange.x,
+                    _settings.MinorTrebleEventCountRange.y,
+                    Next01(ref seed)));
+            }
+            else
+            {
+                requested = Mathf.CeilToInt(
+                    _settings.ForegroundStreakBurstCount * Mathf.Clamp01(command.Strength) * punch);
+            }
+            int count = Mathf.Min(available, requested);
+            float forward = Mathf.Max(0.01f, _settings.ForegroundStreakForwardOffset);
+            float halfHeight = Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad) * forward;
+            float halfWidth = halfHeight * _camera.aspect;
+            float viewportScale = Mathf.Min(halfWidth, halfHeight) * 2f;
             for (int i = 0; i < count; i++)
             {
-                float sideSelector = Next01(ref seed) < 0.5f ? -1f : 1f;
-                float x = sideSelector * Mathf.Lerp(
-                    _settings.ForegroundStreakPeripheralWidth * 0.55f,
-                    _settings.ForegroundStreakPeripheralWidth,
-                    Next01(ref seed));
-                float y = Mathf.Lerp(
-                    -_settings.ForegroundStreakPeripheralHeight,
-                    _settings.ForegroundStreakPeripheralHeight,
-                    Next01(ref seed));
-                int paletteIndex = Mathf.Min(
-                    _streakPalette.Length - 1,
-                    Mathf.FloorToInt(Next01(ref seed) * _streakPalette.Length));
+                float angle = Next01(ref seed) * Mathf.PI * 2f;
+                if (centerOut)
+                {
+                    angle += command.FragmentHorizontalBias * Mathf.Cos(angle) * _settings.CenterOutDirectionalVariation;
+                }
+                Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)).normalized;
+                float x;
+                float y;
+                Vector3 velocity;
+                if (centerOut)
+                {
+                    float radius = _settings.CenterOutInitialViewportRadius * viewportScale;
+                    x = direction.x * radius;
+                    y = direction.y * radius;
+                    float speed = _settings.CenterOutRadialSpeed
+                        * Mathf.Lerp(1f - _settings.CenterOutDirectionalVariation, 1f, Next01(ref seed));
+                    velocity = new Vector3(
+                        direction.x * speed,
+                        direction.y * speed,
+                        -speed * _settings.CenterOutTowardCameraSpeedFraction);
+                }
+                else
+                {
+                    float sideSelector = Next01(ref seed) < 0.5f ? -1f : 1f;
+                    x = sideSelector * Mathf.Lerp(
+                        _settings.ForegroundStreakPeripheralWidth * 0.55f,
+                        _settings.ForegroundStreakPeripheralWidth,
+                        Next01(ref seed));
+                    y = Mathf.Lerp(
+                        -_settings.ForegroundStreakPeripheralHeight,
+                        _settings.ForegroundStreakPeripheralHeight,
+                        Next01(ref seed));
+                    velocity = new Vector3(-x * 0.08f, -y * 0.05f, -_settings.ForegroundStreakSpeed * punch);
+                }
+                Color color = ResolveSongColor(ref seed);
+                if (!centerOut && command.TrebleBrightness > 0f)
+                {
+                    float alpha = color.a;
+                    color *= command.TrebleBrightness;
+                    color.a = alpha;
+                }
+                Vector2 lifetimeRange = command.FragmentLifetimeSeconds;
+                float lifetime = centerOut && lifetimeRange.y > 0f
+                    ? Mathf.Lerp(lifetimeRange.x, lifetimeRange.y, Next01(ref seed))
+                    : _settings.ForegroundStreakLifetime;
                 ParticleSystem.EmitParams emit = new ParticleSystem.EmitParams
                 {
                     position = new Vector3(x, y, _settings.ForegroundStreakForwardOffset),
-                    velocity = new Vector3(
-                        -x * 0.08f,
-                        -y * 0.05f,
-                        -_settings.ForegroundStreakSpeed * punch),
-                    startColor = _streakPalette[paletteIndex],
-                    startLifetime = _settings.ForegroundStreakLifetime,
+                    velocity = velocity,
+                    startColor = color,
+                    startLifetime = lifetime,
                     startSize = _settings.ForegroundStreakSize,
                 };
                 _streaks.Emit(emit, 1);
             }
+        }
+
+        private Color ResolveSongColor(ref uint seed)
+        {
+            if (_settings.CenterOutCyanColor.maxColorComponent <= 0f)
+            {
+                int paletteIndex = Mathf.Min(
+                    _streakPalette.Length - 1,
+                    Mathf.FloorToInt(Next01(ref seed) * _streakPalette.Length));
+                return _streakPalette[paletteIndex];
+            }
+            float selector = Next01(ref seed);
+            float total = Mathf.Max(
+                Mathf.Epsilon,
+                _settings.CenterOutCyanWeight
+                    + _settings.CenterOutMagentaWeight
+                    + _settings.CenterOutWarmWhiteWeight
+                    + _settings.CenterOutAccentWeight);
+            float cyanEnd = _settings.CenterOutCyanWeight / total;
+            float magentaEnd = cyanEnd + _settings.CenterOutMagentaWeight / total;
+            float warmWhiteEnd = magentaEnd + _settings.CenterOutWarmWhiteWeight / total;
+            if (selector < cyanEnd) return _settings.CenterOutCyanColor;
+            if (selector < magentaEnd) return _settings.CenterOutMagentaColor;
+            if (selector < warmWhiteEnd) return _settings.CenterOutWarmWhiteColor;
+            return _settings.CenterOutAccentColor;
         }
 
         private static float Next01(ref uint state)
@@ -301,6 +411,12 @@ namespace DuneVector
                 {
                     continue;
                 }
+                if (pulse.Delay > 0f)
+                {
+                    pulse.Delay -= deltaTime;
+                    _roadPulses[i] = pulse;
+                    continue;
+                }
                 pulse.Age += deltaTime;
                 if (pulse.Age >= _settings.RoadPulseDurationSeconds)
                 {
@@ -311,7 +427,9 @@ namespace DuneVector
 
             for (int shaderIndex = 0; shaderIndex < _pulseOrigins.Length; shaderIndex++)
             {
-                if (shaderIndex < _roadPulses.Length && _roadPulses[shaderIndex].Active)
+                if (shaderIndex < _roadPulses.Length
+                    && _roadPulses[shaderIndex].Active
+                    && _roadPulses[shaderIndex].Delay <= 0f)
                 {
                     RoadPulse pulse = _roadPulses[shaderIndex];
                     float normalizedAge = Mathf.Clamp01(pulse.Age / _settings.RoadPulseDurationSeconds);
@@ -361,14 +479,17 @@ namespace DuneVector
         {
             float duration = Mathf.Max(0.01f, _settings.DroneKickResponseDurationSeconds);
             _droneKickEnvelope = Mathf.MoveTowards(_droneKickEnvelope, 0f, deltaTime / duration);
+            _droneThrusterEnvelope = Mathf.MoveTowards(_droneThrusterEnvelope, 0f, deltaTime / duration);
             float multiplier = 1f
                 + _continuousBass * _settings.DroneTrailBassMultiplier
-                + _droneKickEnvelope * _settings.DroneTrailKickMultiplier;
+                + _droneKickEnvelope;
             for (int i = 0; i < _droneTrails.Length; i++)
             {
                 if (_droneTrails[i] != null)
                 {
                     _droneTrails[i].widthMultiplier = _baseTrailWidths[i] * multiplier;
+                    _droneTrails[i].startColor = _baseTrailStartColors[i] * (1f + _droneThrusterEnvelope);
+                    _droneTrails[i].endColor = _baseTrailEndColors[i] * (1f + _droneThrusterEnvelope);
                 }
             }
         }
@@ -383,6 +504,7 @@ namespace DuneVector
                 }
             }
             _droneKickEnvelope = 0f;
+            _droneThrusterEnvelope = 0f;
             _continuousBass = 0f;
             if (_reactionLight != null)
             {
@@ -399,6 +521,8 @@ namespace DuneVector
                 if (_droneTrails[i] != null)
                 {
                     _droneTrails[i].widthMultiplier = _baseTrailWidths[i];
+                    _droneTrails[i].startColor = _baseTrailStartColors[i];
+                    _droneTrails[i].endColor = _baseTrailEndColors[i];
                 }
             }
             ResetShaderGlobals();
