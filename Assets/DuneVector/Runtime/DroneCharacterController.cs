@@ -763,24 +763,8 @@ namespace DuneVector
                 : Motor.GroundingStatus.IsStableOnGround
                     ? _windFieldSettings.GroundedForceMultiplier
                     : _windFieldSettings.FlightForceMultiplier;
-            float forceResponse = sample.DominantType == WindFieldType.Updraft
-                ? _windFieldSettings.UpdraftPlayerForceResponse
-                : _windFieldSettings.PlayerForceResponse;
-            CurrentWindForce = sample.Force * forceResponse * traversalMultiplier;
-            if (sample.DominantType == WindFieldType.Updraft
-                && sample.Influence >= _windFieldSettings.UpdraftLaunchInfluenceThreshold
-                && Motor.GroundingStatus.IsStableOnGround)
-            {
-                Motor.ForceUnground();
-                currentVelocity.y = Mathf.Max(currentVelocity.y, _windFieldSettings.UpdraftMinimumLaunchSpeed);
-            }
+            CurrentWindForce = sample.Force * _windFieldSettings.PlayerForceResponse * traversalMultiplier;
             currentVelocity += CurrentWindForce * Mathf.Max(0f, deltaTime);
-            if (sample.DominantType == WindFieldType.Updraft)
-            {
-                currentVelocity.y = Mathf.Min(
-                    currentVelocity.y,
-                    Mathf.Max(0f, _windFieldSettings.UpdraftMaximumUpwardSpeed));
-            }
         }
 
         private void UpdateNormalVelocity(ref Vector3 currentVelocity, float deltaTime)

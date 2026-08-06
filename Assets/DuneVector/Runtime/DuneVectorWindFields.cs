@@ -8,11 +8,10 @@ namespace DuneVector
 {
     public enum WindFieldType
     {
-        Crosswind,
-        Headwind,
-        Tailwind,
-        Updraft,
-        Downdraft,
+        Crosswind = 0,
+        Headwind = 1,
+        Tailwind = 2,
+        Downdraft = 4,
     }
 
     [Serializable]
@@ -58,18 +57,12 @@ namespace DuneVector
         [Range(0f, 1f)] public float ForceVariation = 0.22f;
         [Range(0f, 1f)] public float TurbulenceVariation = 0.16f;
         [Range(0.05f, 0.95f)] public float CoreRadius = 0.42f;
-        [Tooltip("Player acceleration response applied to crosswind, headwind, tailwind, and downdraft fields.")]
+        [Tooltip("Player acceleration response applied to wind fields.")]
         [Min(0f)] public float PlayerForceResponse = 1f;
-        [Tooltip("Player acceleration response applied specifically to updraft fields.")]
-        [Min(0f)] public float UpdraftPlayerForceResponse = 1f;
         [Min(0f)] public float GroundedForceMultiplier = 0.32f;
         [Min(0f)] public float FlightForceMultiplier = 1f;
         [Min(0f)] public float TurbulenceForce = 4.5f;
         [Min(0f)] public float TurbulenceFrequency = 0.17f;
-        [Range(0f, 1f)] public float UpdraftLaunchInfluenceThreshold = 0.12f;
-        [Min(0f)] public float UpdraftMinimumLaunchSpeed = 8f;
-        [Tooltip("Maximum upward player speed while affected by an updraft field.")]
-        [Min(0f)] public float UpdraftMaximumUpwardSpeed = 30f;
 
         [Header("World-space Streamlines")]
         [Range(0, 512)] public int StreamlineParticleBudget = 180;
@@ -604,7 +597,7 @@ namespace DuneVector
 
         private void ConfigureVerticalSurfaceFlow(ParticleSystem system, WindFieldDefinition definition)
         {
-            if (definition.Type != WindFieldType.Updraft && definition.Type != WindFieldType.Downdraft)
+            if (definition.Type != WindFieldType.Downdraft)
             {
                 return;
             }
@@ -616,7 +609,7 @@ namespace DuneVector
             shape.rotation = new Vector3(90f, 0f, 0f);
             ParticleSystem.MainModule main = system.main;
             float radialSpeed = definition.Force * _settings.SurfaceWindSpeedMultiplier;
-            main.startSpeed = definition.Type == WindFieldType.Updraft ? -radialSpeed : radialSpeed;
+            main.startSpeed = radialSpeed;
             SetVelocity(system, Vector3.zero);
         }
 
