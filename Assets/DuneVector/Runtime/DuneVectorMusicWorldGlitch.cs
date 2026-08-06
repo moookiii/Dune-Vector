@@ -34,6 +34,7 @@ namespace DuneVector
     public sealed class DuneVectorMusicWorldGlitchSink : MonoBehaviour, IMusicReactiveSink
     {
         private static readonly int ParametersId = Shader.PropertyToID("_DVMusicGlitchParameters");
+        private static readonly int ShapeId = Shader.PropertyToID("_DVMusicGlitchShape");
         private static readonly int SafetyId = Shader.PropertyToID("_DVMusicGlitchSafety");
         private static readonly int TintId = Shader.PropertyToID("_DVMusicGlitchTint");
 
@@ -127,11 +128,7 @@ namespace DuneVector
 
         private float ResolveAuthoredDisplacement(in MusicVisualDispatchCommand command)
         {
-            if (command.GlitchUvDisplacement > 0f)
-            {
-                return command.GlitchUvDisplacement;
-            }
-            return command.Type switch
+            float configuredDisplacement = command.Type switch
             {
                 MusicVisualCueType.ReactorDischarge => _settings.ClimaxGlitchUvDisplacement,
                 MusicVisualCueType.FinalRelease => _settings.ClimaxGlitchUvDisplacement,
@@ -141,22 +138,20 @@ namespace DuneVector
                 MusicVisualCueType.MinorSnare => _settings.OrdinaryGlitchUvDisplacement,
                 _ => 0f,
             };
+            return Mathf.Max(command.GlitchUvDisplacement, configuredDisplacement);
         }
 
         private float ResolveDuration(in MusicVisualDispatchCommand command, in MusicReactiveRuntimeState state)
         {
-            float beats = command.DurationBeats;
-            if (beats <= 0f)
+            float configuredBeats = command.Type switch
             {
-                beats = command.Type switch
-                {
-                    MusicVisualCueType.ReactorDischarge => _settings.ReactorGlitchDurationBeats,
-                    MusicVisualCueType.FinalRelease => _settings.ReactorGlitchDurationBeats,
-                    MusicVisualCueType.AccentSnare => _settings.AccentGlitchDurationBeats,
-                    MusicVisualCueType.TrebleBurst => _settings.AccentGlitchDurationBeats,
-                    _ => _settings.OrdinaryGlitchDurationBeats,
-                };
-            }
+                MusicVisualCueType.ReactorDischarge => _settings.ReactorGlitchDurationBeats,
+                MusicVisualCueType.FinalRelease => _settings.ReactorGlitchDurationBeats,
+                MusicVisualCueType.AccentSnare => _settings.AccentGlitchDurationBeats,
+                MusicVisualCueType.TrebleBurst => _settings.AccentGlitchDurationBeats,
+                _ => _settings.OrdinaryGlitchDurationBeats,
+            };
+            float beats = Mathf.Max(command.DurationBeats, configuredBeats);
             return beats > 0f
                 ? beats * 60f / Mathf.Max(1f, state.Timeline.Tempo)
                 : 0f;
@@ -256,13 +251,21 @@ namespace DuneVector
         private void ApplyGlobals(float intensity)
         {
             DuneVectorMusicGlitchRuntime.SetIntensity(intensity);
+            float maximumIntensity = Mathf.Max(0.0001f, _settings.WorldGlitchMaximumIntensity);
+            float envelope = Mathf.Clamp01(intensity / maximumIntensity);
+            float normalizedAge = Mathf.Clamp01(_age / Mathf.Max(0.01f, _duration));
+            float seedPhase = (_seed & 0x00FFFFFFu) / 16777216f;
             Shader.SetGlobalVector(
                 ParametersId,
                 new Vector4(
-                    intensity,
-                    (_seed & 0x00FFFFFFu) / 16777216f,
-                    _sliceCount,
+                    envelope,
+                    seedPhase * Mathf.Max(1, _settings.WorldGlitchSliceCount)
+                        + normalizedAge * Mathf.Max(1, _settings.WorldGlitchSliceCount),
+                    Mathf.Max(1, _settings.WorldGlitchSliceCount),
                     _displacement));
+            Shader.SetGlobalVector(
+                ShapeId,
+                new Vector4(Mathf.Max(1, _sliceCount), _strength, 0f, 0f));
             Shader.SetGlobalVector(
                 SafetyId,
                 new Vector4(
@@ -290,6 +293,7 @@ namespace DuneVector
             _sliceCount = 0;
             DuneVectorMusicGlitchRuntime.Reset();
             Shader.SetGlobalVector(ParametersId, Vector4.zero);
+            Shader.SetGlobalVector(ShapeId, Vector4.zero);
             Shader.SetGlobalVector(SafetyId, Vector4.zero);
             Shader.SetGlobalColor(TintId, Color.clear);
         }

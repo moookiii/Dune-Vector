@@ -20,6 +20,7 @@ Shader "DuneVector/URP Music World Glitch"
             #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
 
             float4 _DVMusicGlitchParameters;
+            float4 _DVMusicGlitchShape;
             float4 _DVMusicGlitchSafety;
             half4 _DVMusicGlitchTint;
 
@@ -32,24 +33,26 @@ Shader "DuneVector/URP Music World Glitch"
             {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
                 float2 uv = input.texcoord;
-                half intensity = saturate(_DVMusicGlitchParameters.x);
-                float sliceCount = max(1.0, _DVMusicGlitchParameters.z);
-                float sliceCoordinate = uv.y * sliceCount;
-                float slice = floor(sliceCoordinate);
-                float noisePhase = _DVMusicGlitchParameters.y * 19.19;
-                half sliceNoise = Hash11(slice + noisePhase);
-                half bandSelector = Hash11(slice + noisePhase + 41.73);
-                float primarySlice = floor(_DVMusicGlitchParameters.y * sliceCount);
-                half primaryBand = 1.0h - step(0.5h, abs(slice - primarySlice));
-                half selectedBand = max(
-                    primaryBand,
-                    step(1.0h - intensity, bandSelector));
-                float sliceEdgeDistance = min(frac(sliceCoordinate), 1.0 - frac(sliceCoordinate));
-                half bandEdge = saturate(
-                    sliceEdgeDistance / max(fwidth(sliceCoordinate), 0.0001));
-                half glitchMask = selectedBand * bandEdge;
-                float shift = (sliceNoise * 2.0 - 1.0)
-                    * intensity
+                half envelope = saturate(_DVMusicGlitchParameters.x);
+                float rowCount = max(4.0, _DVMusicGlitchParameters.z);
+                float requestedBands = clamp(_DVMusicGlitchShape.x, 1.0, rowCount);
+                float phase = floor(_DVMusicGlitchParameters.y);
+                float rowCoordinate = uv.y * rowCount;
+                float row = floor(rowCoordinate);
+                half rowNoise = Hash11(row + phase * 31.17);
+                half bandNoise = Hash11(row + phase * 73.91 + 11.7);
+                float primaryRow = floor(Hash11(phase * 17.13 + 5.7) * rowCount);
+                half primaryBand = 1.0h - step(0.5h, abs(row - primaryRow));
+                half extraBandChance = saturate((requestedBands - 1.0) / max(1.0, rowCount - 1.0));
+                half selectedBand = max(primaryBand, step(1.0h - extraBandChance, bandNoise));
+                float rowEdgeDistance = min(frac(rowCoordinate), 1.0 - frac(rowCoordinate));
+                half rowEdge = smoothstep(
+                    0.0h,
+                    max(fwidth(rowCoordinate) * 1.5h, 0.0001h),
+                    rowEdgeDistance);
+                half glitchMask = selectedBand * rowEdge * envelope;
+                float shiftDirection = rowNoise < 0.5h ? -1.0 : 1.0;
+                float shift = shiftDirection
                     * _DVMusicGlitchParameters.w
                     * glitchMask;
 
@@ -64,14 +67,14 @@ Shader "DuneVector/URP Music World Glitch"
                         centerDistance.y));
                 half safety = lerp(1.0h, _DVMusicGlitchSafety.w, protectedCenter);
                 shift *= safety;
-                intensity *= safety;
+                glitchMask *= safety;
 
                 half red = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv + float2(shift, 0.0)).r;
-                half green = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv).g;
+                half green = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv + float2(shift * 0.25, 0.0)).g;
                 half blue = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv - float2(shift, 0.0)).b;
                 half3 source = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv).rgb;
                 half3 split = half3(red, green, blue);
-                half flash = intensity * sliceNoise * glitchMask;
+                half flash = rowNoise * glitchMask;
                 half3 color = lerp(source, split, glitchMask);
                 color = lerp(color, _DVMusicGlitchTint.rgb, flash * _DVMusicGlitchTint.a);
                 return half4(color, 1.0h);

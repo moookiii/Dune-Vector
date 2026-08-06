@@ -10,7 +10,7 @@ namespace DuneVector
     public sealed class DuneVectorMusicWorldGlitchFeature : ScriptableRendererFeature
     {
         [SerializeField] private Material material;
-        [SerializeField] private RenderPassEvent injectionPoint = RenderPassEvent.AfterRenderingPostProcessing;
+        [SerializeField] private RenderPassEvent injectionPoint = RenderPassEvent.BeforeRenderingPostProcessing;
 
         private WorldGlitchPass _pass;
         private bool _registered;
@@ -56,10 +56,14 @@ namespace DuneVector
             private static readonly ProfilerMarker RecordMarker = new ProfilerMarker("MusicVisualizer.URPGlitchRecord");
             private Material _material;
 
+            public WorldGlitchPass()
+            {
+                requiresIntermediateTexture = true;
+            }
+
             public void Setup(Material passMaterial)
             {
                 _material = passMaterial;
-                requiresIntermediateTexture = true;
             }
 
             public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
