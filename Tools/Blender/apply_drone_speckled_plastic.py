@@ -12,7 +12,6 @@ PLASTIC_MATERIALS = {
     "Rotor_Graphite",
     "Soft_White",
 }
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 REFERENCE_BLEND = PROJECT_ROOT / "Assets" / "DuneVector" / "Art" / "Drone" / "DuneVectorScoutDrone.blend"
 TEXTURE_DIRECTORY = PROJECT_ROOT / "Assets" / "DuneVector" / "Art" / "Drone" / "Textures"
@@ -52,6 +51,23 @@ def restore_original_assignments():
         if target_object is None or target_object.type != "MESH":
             continue
 
+        previous_mesh = target_object.data
+        target_object.data = reference_object.data.copy()
+        target_object.data.name = reference_object.data.name
+        if previous_mesh.users == 0:
+            bpy.data.meshes.remove(previous_mesh)
+
+        for modifier in list(target_object.modifiers):
+            if modifier.name in {
+                "Drone_Smooth_Subdivision",
+                "Drone_Weighted_Smoothing",
+                "Drone_Surface_Remesh",
+                "Drone_Export_Polygon_Budget",
+            }:
+                target_object.modifiers.remove(modifier)
+        if "dune_vector_export_smoothed" in target_object:
+            del target_object["dune_vector_export_smoothed"]
+
         reference_materials = [slot.material for slot in reference_object.material_slots]
         target_object.data.materials.clear()
         for reference_material in reference_materials:
@@ -59,6 +75,13 @@ def restore_original_assignments():
                 target_object.data.materials.append(None)
                 continue
             material_name = reference_material.name
+            base_name, separator, numeric_suffix = material_name.rpartition(".")
+            if separator and numeric_suffix.isdigit() and (
+                base_name in local_materials
+                or base_name in PLASTIC_MATERIALS
+                or base_name == "Tech_Cyan"
+            ):
+                material_name = base_name
             original_material = local_materials.get(material_name)
             if original_material is None:
                 original_material = reference_material.copy()
@@ -74,15 +97,28 @@ def restore_original_assignments():
     return restored_slots
 
 
-base_color_image = load_texture("Drone_PlasticSpeckled_BaseColor.png", "sRGB")
-roughness_image = load_texture("Drone_PlasticSpeckled_Roughness.png", "Non-Color")
-normal_image = load_texture("Drone_PlasticSpeckled_Normal.png", "Non-Color")
+plastic006_image = load_texture("Drone_Plastic006_Color.jpg", "sRGB")
 
 restored_slots = restore_original_assignments()
+tech_cyan = bpy.data.materials.get("Tech_Cyan")
+if tech_cyan is None:
+    raise KeyError("The original Tech_Cyan material was not found")
+for obj in bpy.context.scene.objects:
+    if obj.type != "MESH":
+        continue
+    for slot in obj.material_slots:
+        if slot.material and slot.material.name.casefold().startswith(PRESERVED_MATERIAL_PREFIX):
+            slot.material = tech_cyan
+for duplicate in list(bpy.data.materials):
+    if duplicate is not tech_cyan and duplicate.name.casefold().startswith(PRESERVED_MATERIAL_PREFIX) and duplicate.users == 0:
+        bpy.data.materials.remove(duplicate)
+for legacy_material in list(bpy.data.materials):
+    if legacy_material.name.endswith("_SpeckledPlastic") and legacy_material.users == 0:
+        bpy.data.materials.remove(legacy_material)
 
 
-def make_speckled_variant(original):
-    variant_name = f"{original.name}_SpeckledPlastic"
+def make_textured_variant(original):
+    variant_name = f"{original.name}_Plastic006"
     existing = bpy.data.materials.get(variant_name)
     if existing is not None:
         bpy.data.materials.remove(existing)
@@ -97,18 +133,11 @@ def make_speckled_variant(original):
     if shader is None:
         raise RuntimeError(f"{original.name} has no Principled BSDF")
 
-    base_input = input_socket(shader, "Base Color")
-    original_link = base_input.links[0].from_socket if base_input.is_linked else None
-    original_color = tuple(base_input.default_value)
-    if base_input.is_linked:
-        links.remove(base_input.links[0])
-
     texcoord = nodes.new("ShaderNodeTexCoord")
     texcoord.location = (-1150, 0)
     mapping = nodes.new("ShaderNodeMapping")
     mapping.location = (-950, 0)
-    # Twelve times larger than the prior color-preserving speckle pass.
-    mapping.inputs["Scale"].default_value = (0.1125, 0.1125, 0.1125)
+    mapping.inputs["Scale"].default_value = (1.0, 1.0, 1.0)
     links.new(texcoord.outputs["Generated"], mapping.inputs["Vector"])
 
     def image_node(image, location, label):
@@ -123,47 +152,28 @@ def make_speckled_variant(original):
         links.new(mapping.outputs["Vector"], node.inputs["Vector"])
         return node
 
-    color_texture = image_node(base_color_image, (-700, 260), "Large speckle mask source")
-    roughness_texture = image_node(roughness_image, (-700, -70), "Speckled roughness")
-    normal_texture = image_node(normal_image, (-700, -370), "Speckled normal")
+    color_texture = image_node(plastic006_image, (-700, 220), "Plastic006 wear texture")
 
     grayscale = nodes.new("ShaderNodeRGBToBW")
     grayscale.location = (-430, 280)
-    ramp = nodes.new("ShaderNodeValToRGB")
-    ramp.location = (-230, 280)
-    ramp.color_ramp.interpolation = "EASE"
-    ramp.color_ramp.elements[0].position = 0.27
-    ramp.color_ramp.elements[1].position = 0.44
 
-    mix = nodes.new("ShaderNodeMixRGB")
-    mix.location = (40, 240)
-    mix.blend_type = "MIX"
-    mix.inputs[1].default_value = original_color
-    speckle_color = tuple(min(1.0, channel * 1.22 + 0.11) for channel in original_color[:3]) + (1.0,)
-    mix.inputs[2].default_value = speckle_color
-
-    if original_link is not None:
-        links.new(original_link, mix.inputs[1])
-
-    normal_map = nodes.new("ShaderNodeNormalMap")
-    normal_map.location = (100, -300)
-    # The 12x texture scale makes tangent-space surface detail read as broad ridges.
-    # Keep the map connected for authoring, but disable its shading contribution.
-    normal_map.inputs["Strength"].default_value = 0.0
+    roughness_variation = nodes.new("ShaderNodeValToRGB")
+    roughness_variation.location = (-200, -80)
+    roughness_variation.color_ramp.interpolation = "EASE"
+    roughness_variation.color_ramp.elements[0].position = 0.008
+    roughness_variation.color_ramp.elements[0].color = (0.38, 0.38, 0.38, 1.0)
+    roughness_variation.color_ramp.elements[1].position = 0.10
+    roughness_variation.color_ramp.elements[1].color = (0.62, 0.62, 0.62, 1.0)
 
     links.new(color_texture.outputs["Color"], grayscale.inputs["Color"])
-    links.new(grayscale.outputs["Val"], ramp.inputs["Fac"])
-    links.new(ramp.outputs["Color"], mix.inputs[0])
-    links.new(mix.outputs["Color"], base_input)
-    links.new(roughness_texture.outputs["Color"], shader.inputs["Roughness"])
-    links.new(normal_texture.outputs["Color"], normal_map.inputs["Color"])
-    links.new(normal_map.outputs["Normal"], shader.inputs["Normal"])
+    links.new(grayscale.outputs["Val"], roughness_variation.inputs["Fac"])
+    links.new(roughness_variation.outputs["Color"], shader.inputs["Roughness"])
 
     return material
 
 
 variants = {
-    name: make_speckled_variant(bpy.data.materials[name])
+    name: make_textured_variant(bpy.data.materials[name])
     for name in PLASTIC_MATERIALS
 }
 
@@ -186,14 +196,6 @@ for obj in bpy.context.scene.objects:
         else:
             untouched_nonplastic_slots += 1
 
-bpy.ops.object.select_all(action="DESELECT")
-mesh_objects = [obj for obj in bpy.context.scene.objects if obj.type == "MESH"]
-for obj in mesh_objects:
-    obj.select_set(True)
-if mesh_objects:
-    bpy.context.view_layer.objects.active = mesh_objects[0]
-    bpy.ops.object.shade_smooth_by_angle()
-
 for screen in bpy.data.screens:
     for area in screen.areas:
         if area.type == "VIEW_3D":
@@ -204,7 +206,8 @@ for screen in bpy.data.screens:
 bpy.ops.file.pack_all()
 bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
 print(
-    f"Restored {restored_slots} original slots; added larger color-preserving speckles to "
+    f"Restored {restored_slots} original slots; applied the color-preserving Plastic006 texture to "
     f"{textured_slots} plastic slots; preserved {preserved_cyan_slots} tech_cyan slots; "
-    f"left {untouched_nonplastic_slots} glass/rubber/lens/ground slots unchanged."
+    f"left {untouched_nonplastic_slots} glass/rubber/lens/ground slots unchanged; "
+    "restored original mesh geometry without smoothing or vertex-count changes."
 )
