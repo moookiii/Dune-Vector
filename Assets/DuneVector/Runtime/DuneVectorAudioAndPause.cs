@@ -55,6 +55,7 @@ namespace DuneVector
         public event Action<MusicVisualizerMode> MusicVisualizerModeChanged;
         public event Action<bool> VisualizerFovEnabledChanged;
         public event Action<MusicPlaylistTrack> ActiveMusicTrackChanged;
+        public event Action<bool> MusicPlaybackPausedChanged;
         public MusicTimelineState TimelineState => _timelineState;
         public MusicPlaylistTrack ActiveMusicTrack { get; private set; }
         public MusicVisualTrackProfile ActiveMusicTrackProfile => ActiveMusicTrack != null
@@ -679,15 +680,18 @@ namespace DuneVector
 
         public void SetMusicPlaybackPaused(bool paused)
         {
-            _userMusicPaused = paused;
-            if (!_musicInstance.isValid())
+            if (_userMusicPaused == paused)
             {
                 return;
             }
-
-            bool shouldPauseInstance = paused || (!_hasMusicBus && IsMuted(MusicVolume));
-            _musicInstance.setPaused(shouldPauseInstance);
-            _timelineState.IsPaused = shouldPauseInstance || _gameplayPaused;
+            _userMusicPaused = paused;
+            if (_musicInstance.isValid())
+            {
+                bool shouldPauseInstance = paused || (!_hasMusicBus && IsMuted(MusicVolume));
+                _musicInstance.setPaused(shouldPauseInstance);
+                _timelineState.IsPaused = shouldPauseInstance || _gameplayPaused;
+            }
+            MusicPlaybackPausedChanged?.Invoke(paused);
         }
 
         public void PlayNextMusicTrack()

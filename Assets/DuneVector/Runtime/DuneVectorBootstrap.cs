@@ -636,6 +636,7 @@ namespace DuneVector
                 return;
             }
             AudioManager.ActiveMusicTrackChanged += HandleActiveMusicTrackChanged;
+            AudioManager.MusicPlaybackPausedChanged += HandleMusicPlaybackPausedChanged;
             _musicTrackEventsBound = true;
         }
 
@@ -648,11 +649,36 @@ namespace DuneVector
             }
             if (_musicReactiveRoot != null)
             {
+                MusicReactiveSky?.SetVisualizerMode(MusicVisualizerMode.Off);
                 Destroy(_musicReactiveRoot);
                 _musicReactiveRoot = null;
                 MusicReactiveSky = null;
             }
+            if (AudioManager != null && AudioManager.IsMusicPlaybackPaused)
+            {
+                return;
+            }
             _musicReactiveRebuildCoroutine = StartCoroutine(RebuildMusicReactiveSkyNextFrame());
+        }
+
+        private void HandleMusicPlaybackPausedChanged(bool paused)
+        {
+            if (_musicReactiveRebuildCoroutine != null)
+            {
+                StopCoroutine(_musicReactiveRebuildCoroutine);
+                _musicReactiveRebuildCoroutine = null;
+            }
+            if (_musicReactiveRoot != null)
+            {
+                MusicReactiveSky?.SetVisualizerMode(MusicVisualizerMode.Off);
+                Destroy(_musicReactiveRoot);
+                _musicReactiveRoot = null;
+                MusicReactiveSky = null;
+            }
+            if (!paused)
+            {
+                _musicReactiveRebuildCoroutine = StartCoroutine(RebuildMusicReactiveSkyNextFrame());
+            }
         }
 
         private IEnumerator RebuildMusicReactiveSkyNextFrame()
@@ -1118,6 +1144,7 @@ namespace DuneVector
             if (_musicTrackEventsBound && AudioManager != null)
             {
                 AudioManager.ActiveMusicTrackChanged -= HandleActiveMusicTrackChanged;
+                AudioManager.MusicPlaybackPausedChanged -= HandleMusicPlaybackPausedChanged;
                 _musicTrackEventsBound = false;
             }
             if (Instance == this)
