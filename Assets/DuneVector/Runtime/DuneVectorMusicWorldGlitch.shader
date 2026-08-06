@@ -33,8 +33,14 @@ Shader "DuneVector/URP Music World Glitch"
                 float2 uv = input.texcoord;
                 half intensity = saturate(_DVMusicGlitchParameters.x);
                 float sliceCount = max(1.0, _DVMusicGlitchParameters.z);
-                float slice = floor(uv.y * sliceCount);
-                half noise = Hash11(slice + _DVMusicGlitchParameters.y * 19.19);
+                float sliceCoordinate = uv.y * sliceCount;
+                float slice = floor(sliceCoordinate);
+                half sliceBlend = smoothstep(0.0h, 1.0h, frac(sliceCoordinate));
+                float noisePhase = _DVMusicGlitchParameters.y * 19.19;
+                half noise = lerp(
+                    Hash11(slice + noisePhase),
+                    Hash11(slice + 1.0 + noisePhase),
+                    sliceBlend);
                 float shift = (noise * 2.0 - 1.0) * intensity * _DVMusicGlitchParameters.w;
 
                 float2 centerDistance = abs(uv - 0.5);
