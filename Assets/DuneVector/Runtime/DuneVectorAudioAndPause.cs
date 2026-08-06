@@ -2205,11 +2205,13 @@ namespace DuneVector
                 FontStyle.Bold,
                 TextAnchor.MiddleLeft,
                 _visuals.SongTextColor);
+            SetStaticTextColor(_songTitleStyle, _visuals.SongTextColor);
             _songTitleShadowStyle = CreateLabelStyle(
                 Mathf.RoundToInt(_visuals.SongTitleFontSize * scale),
                 FontStyle.Bold,
                 TextAnchor.MiddleLeft,
                 _visuals.SongTextShadowColor);
+            SetStaticTextColor(_songTitleShadowStyle, _visuals.SongTextShadowColor);
             _songControlStyle = CreateTransparentButtonStyle(
                 Mathf.RoundToInt(_visuals.SongControlFontSize * scale),
                 _visuals.SongTextColor);
@@ -2268,7 +2270,7 @@ namespace DuneVector
 
         private GUIStyle CreateLabelStyle(int fontSize, FontStyle fontStyle, TextAnchor alignment, Color color)
         {
-            GUIStyle style = new GUIStyle(GUI.skin.label)
+            return new GUIStyle(GUI.skin.label)
             {
                 alignment = alignment,
                 fontSize = fontSize,
@@ -2279,9 +2281,12 @@ namespace DuneVector
                 margin = new RectOffset(),
                 normal = { textColor = color },
             };
+        }
 
+        private static void SetStaticTextColor(GUIStyle style, Color color)
+        {
             // Unity's skin can supply a different label color for hovered controls.
-            // Pause-menu labels are informational and should remain visually static.
+            // The song title is informational and should remain visually static.
             style.hover.textColor = color;
             style.active.textColor = color;
             style.focused.textColor = color;
@@ -2289,7 +2294,6 @@ namespace DuneVector
             style.onHover.textColor = color;
             style.onActive.textColor = color;
             style.onFocused.textColor = color;
-            return style;
         }
 
         private GUIStyle CreateButtonStyle(
