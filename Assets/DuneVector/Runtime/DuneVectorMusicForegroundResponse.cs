@@ -39,6 +39,8 @@ namespace DuneVector
         private Material _streakMaterial;
         private Color[] _streakPalette;
         private Renderer[] _droneVisualRenderers;
+        private Vector3 _droneVisualLocalCenter;
+        private bool _hasDroneVisualLocalCenter;
         private TrailRenderer[] _droneTrails;
         private float[] _baseTrailWidths;
         private Color[] _baseTrailStartColors;
@@ -66,10 +68,45 @@ namespace DuneVector
             _droneVisualRenderers = _drone != null
                 ? _drone.GetComponentsInChildren<Renderer>(true)
                 : new Renderer[0];
+            CacheDroneVisualLocalCenter();
             CacheDroneTrails();
             BuildReactionLight();
             BuildStreakSystem(streakMaterial);
+            Camera.onPreCull += HandleCameraPreCull;
             ResetShaderGlobals();
+        }
+
+        private void CacheDroneVisualLocalCenter()
+        {
+            if (_drone == null)
+            {
+                return;
+            }
+            Bounds visualBounds = default;
+            bool hasVisualBounds = false;
+            for (int i = 0; i < _droneVisualRenderers.Length; i++)
+            {
+                Renderer renderer = _droneVisualRenderers[i];
+                if (renderer == null
+                    || !renderer.gameObject.activeInHierarchy
+                    || (!(renderer is MeshRenderer) && !(renderer is SkinnedMeshRenderer)))
+                {
+                    continue;
+                }
+                if (hasVisualBounds)
+                {
+                    visualBounds.Encapsulate(renderer.bounds);
+                }
+                else
+                {
+                    visualBounds = renderer.bounds;
+                    hasVisualBounds = true;
+                }
+            }
+            _hasDroneVisualLocalCenter = hasVisualBounds;
+            _droneVisualLocalCenter = hasVisualBounds
+                ? _drone.InverseTransformPoint(visualBounds.center)
+                : Vector3.zero;
         }
 
         private void CacheDroneTrails()
@@ -434,6 +471,14 @@ namespace DuneVector
             UpdateCenterOutAnchor();
         }
 
+        private void HandleCameraPreCull(Camera renderingCamera)
+        {
+            if (renderingCamera == _camera)
+            {
+                UpdateCenterOutAnchor();
+            }
+        }
+
         private Vector2 ResolveCenterOutDirection(
             in MusicVisualDispatchCommand command,
             bool fineLine,
@@ -473,31 +518,9 @@ namespace DuneVector
 
         private Vector3 GetDroneVisualCenter()
         {
-            Bounds visualBounds = default;
-            bool hasVisualBounds = false;
-            for (int i = 0; i < _droneVisualRenderers.Length; i++)
-            {
-                Renderer renderer = _droneVisualRenderers[i];
-                if (renderer == null
-                    || !renderer.enabled
-                    || !renderer.gameObject.activeInHierarchy
-                    || (!(renderer is MeshRenderer) && !(renderer is SkinnedMeshRenderer)))
-                {
-                    continue;
-                }
-
-                if (hasVisualBounds)
-                {
-                    visualBounds.Encapsulate(renderer.bounds);
-                }
-                else
-                {
-                    visualBounds = renderer.bounds;
-                    hasVisualBounds = true;
-                }
-            }
-
-            return hasVisualBounds ? visualBounds.center : _drone.position;
+            return _drone != null && _hasDroneVisualLocalCenter
+                ? _drone.TransformPoint(_droneVisualLocalCenter)
+                : (_drone != null ? _drone.position : Vector3.zero);
         }
 
         private Color ResolveSongColor(ref uint seed)
@@ -713,6 +736,7 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            Camera.onPreCull -= HandleCameraPreCull;
             if (_streakMaterial != null)
             {
                 Destroy(_streakMaterial);
