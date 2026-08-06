@@ -5169,6 +5169,7 @@ namespace DuneVector
         [Header("Stamina")]
         [Min(0.01f)] public float MaxStamina = 100f;
         [Min(0f)] public float DrainRate = 25f;
+        [Tooltip("Delay before stamina begins regenerating after it has been fully exhausted. Partial stamina use regenerates immediately.")]
         [Min(0f)] public float RegenDelay = 0.8f;
         [Min(0f)] public float RegenRate = 30f;
         [Tooltip("Stamina restored per second after stamina has bottomed out.")]

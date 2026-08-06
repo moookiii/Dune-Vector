@@ -91,7 +91,6 @@ namespace DuneVector
             if (boostHeld && CurrentStamina > 0f)
             {
                 State = DroneStaminaState.Boosting;
-                _regenDelayRemaining = Mathf.Max(0f, _settings.RegenDelay);
                 CurrentStamina = Mathf.Max(
                     0f,
                     CurrentStamina - (Mathf.Max(0f, _settings.DrainRate) * _environmentalDrainMultiplier * elapsed));
@@ -99,6 +98,7 @@ namespace DuneVector
                 {
                     CurrentStamina = 0f;
                     State = DroneStaminaState.Exhausted;
+                    _regenDelayRemaining = Mathf.Max(0f, _settings.RegenDelay);
                 }
                 return;
             }
