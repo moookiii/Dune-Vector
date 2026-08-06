@@ -4084,8 +4084,10 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color StructureLightColor = new Color(0.25f, 0.85f, 1f, 1f);
         [Range(8, 1024)] public int ForegroundStreakParticleBudget = 160;
         [Range(1, 64)] public int ForegroundStreakBurstCount = 12;
-        [Min(0f)] public float OpeningStreakLimitDurationSeconds;
-        [Range(0, 256)] public int OpeningStreakMaximumVisibleLines;
+        [FormerlySerializedAs("OpeningStreakLimitDurationSeconds")]
+        [Min(0f)] public float OpeningPeripheralStreakLimitDurationSeconds;
+        [FormerlySerializedAs("OpeningStreakMaximumVisibleLines")]
+        [Range(0, 256)] public int OpeningPeripheralStreakMaximumVisibleLines;
         [Min(0.01f)] public float ForegroundStreakLifetime = 0.48f;
         [Min(0f)] public float ForegroundStreakSpeed = 34f;
         [Min(0.001f)] public float ForegroundStreakSize = 0.045f;

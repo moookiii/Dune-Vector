@@ -335,17 +335,17 @@ namespace DuneVector
                 ? _settings.CenterOutParticlePoolCapacity
                 : _settings.ForegroundStreakParticleBudget;
             int available = Mathf.Max(0, capacity - targetStreaks.particleCount);
-            if (_settings.OpeningStreakLimitDurationSeconds > 0f
-                && _settings.OpeningStreakMaximumVisibleLines > 0
+            if (targetStreaks == _streaks
+                && _settings.OpeningPeripheralStreakLimitDurationSeconds > 0f
+                && _settings.OpeningPeripheralStreakMaximumVisibleLines > 0
                 && timelinePositionMilliseconds < Mathf.RoundToInt(
-                    _settings.OpeningStreakLimitDurationSeconds * 1000f))
+                    _settings.OpeningPeripheralStreakLimitDurationSeconds * 1000f))
             {
-                int openingVisibleLines = _streaks.particleCount + _centerOutStreaks.particleCount;
                 available = Mathf.Min(
                     available,
                     Mathf.Max(
                         0,
-                        _settings.OpeningStreakMaximumVisibleLines - openingVisibleLines));
+                        _settings.OpeningPeripheralStreakMaximumVisibleLines - _streaks.particleCount));
             }
             float punch = musicEnergy <= _settings.ForegroundStreakSlowEnergyThreshold
                 ? Mathf.Max(1f, _settings.ForegroundStreakSlowPunchMultiplier)
