@@ -439,6 +439,7 @@ namespace DuneVector
         private Vector3 _droneVisualOriginalScale;
         private Material _hubMetalMaterial;
         private Material _hubEnergyMaterial;
+        private Material _hubCenterEnergyMaterial;
         private Material _hubPlatformEnergyMaterial;
         private readonly List<Material> _hubTerminalPanelMaterials = new List<Material>();
         private readonly List<Material> _hubTerminalAntennaMaterials = new List<Material>();
@@ -852,6 +853,11 @@ namespace DuneVector
                 "World Hub Energy",
                 new Color(_hubSettings.HubEnergyColor.r * 0.12f, _hubSettings.HubEnergyColor.g * 0.12f, _hubSettings.HubEnergyColor.b * 0.12f),
                 _hubSettings.HubEnergyColor);
+            _hubCenterEnergyMaterial = CreateHubMaterial(
+                _materials.DroneAccent,
+                "World Hub Center Energy",
+                _hubSettings.HubCenterEnergyColor,
+                _hubSettings.HubCenterEnergyColor);
             _hubPlatformEnergyMaterial = CreateHubMaterial(
                 _materials.DroneAccent,
                 "World Hub Platform Energy",
@@ -887,7 +893,7 @@ namespace DuneVector
             HubPart(PrimitiveType.Cylinder, "Energy Inlay", _hubRoot,
                 new Vector3(0f, (_hubSettings.PlatformThickness * 0.5f) + 0.08f, 0f),
                 new Vector3(_hubSettings.PlatformRadius * 0.72f, 0.08f, _hubSettings.PlatformRadius * 0.72f),
-                Quaternion.identity, _hubEnergyMaterial, false);
+                Quaternion.identity, _hubCenterEnergyMaterial, false);
 
             if (_hubSettings.PlatformEnergyLanesEnabled)
             {
@@ -3788,6 +3794,7 @@ namespace DuneVector
             DestroyHubTerminalMaterials(_hubTerminalPanelMaterials);
             DestroyHubTerminalMaterials(_hubTerminalAntennaMaterials);
             if (_hubEnergyMaterial != null) Destroy(_hubEnergyMaterial);
+            if (_hubCenterEnergyMaterial != null) Destroy(_hubCenterEnergyMaterial);
             if (_hubPlatformEnergyMaterial != null) Destroy(_hubPlatformEnergyMaterial);
             if (_terminalPanelTexture != null) Destroy(_terminalPanelTexture);
             if (_terminalCardTexture != null) Destroy(_terminalCardTexture);
