@@ -53,6 +53,7 @@ Shader "DuneVector/URP Y2K Sky"
         [HideInInspector] _ReactiveAuroraThickness("Reactive Aurora Thickness", Float) = 0
         [HideInInspector] _ReactiveAuroraWaviness("Reactive Aurora Waviness", Float) = 0
         [HideInInspector] _ReactiveAuroraTravelSpeed("Reactive Aurora Travel Speed", Float) = 0
+        [HideInInspector] _ReactiveAuroraPhaseOffset("Reactive Aurora Phase Offset", Float) = 0
         [HideInInspector] _ReactiveAuroraFrequency("Reactive Aurora Frequency", Float) = 0
         [HideInInspector] _ReactiveAuroraSecondaryIntensity("Reactive Aurora Secondary Intensity", Float) = 0
         [HideInInspector] _ReactiveAuroraShimmerAmount("Reactive Aurora Shimmer Amount", Float) = 0
@@ -164,6 +165,7 @@ Shader "DuneVector/URP Y2K Sky"
     float _ReactiveAuroraThickness;
     float _ReactiveAuroraWaviness;
     float _ReactiveAuroraTravelSpeed;
+    float _ReactiveAuroraPhaseOffset;
     float _ReactiveAuroraFrequency;
     float _ReactiveAuroraSecondaryIntensity;
     float _ReactiveAuroraShimmerAmount;
@@ -380,7 +382,8 @@ Shader "DuneVector/URP Y2K Sky"
         // Midrange energy grows two interwoven melodic currents high over the pressure front.
         float seamlessAuroraFrequency = max(1.0, round(_ReactiveAuroraFrequency));
         float auroraPhase = azimuth * seamlessAuroraFrequency
-            + reactiveTime * _ReactiveAuroraTravelSpeed;
+            + reactiveTime * _ReactiveAuroraTravelSpeed
+            + _ReactiveAuroraPhaseOffset;
         float auroraNoise = Noise3(float3(
             skyDirection.x * 3.5,
             skyUp * 4.0 + reactiveTime * 0.045,

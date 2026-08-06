@@ -66,7 +66,8 @@ namespace DuneVector
         public ClampedFloatParameter ReactiveAuroraAltitude = new ClampedFloatParameter(0.42f, -0.1f, 0.9f);
         public ClampedFloatParameter ReactiveAuroraThickness = new ClampedFloatParameter(0.055f, 0.001f, 0.2f);
         public ClampedFloatParameter ReactiveAuroraWaviness = new ClampedFloatParameter(0.24f, 0f, 1f);
-        public MinFloatParameter ReactiveAuroraTravelSpeed = new MinFloatParameter(0.075f, 0f);
+        public ClampedFloatParameter ReactiveAuroraTravelSpeed = new ClampedFloatParameter(0.075f, -1f, 1f);
+        public ClampedFloatParameter ReactiveAuroraPhaseOffset = new ClampedFloatParameter(0f, -12.566371f, 12.566371f);
         public ClampedFloatParameter ReactiveAuroraFrequency = new ClampedFloatParameter(3.5f, 1f, 12f);
         public ClampedFloatParameter ReactiveAuroraSecondaryIntensity = new ClampedFloatParameter(0.58f, 0f, 1f);
         public ClampedFloatParameter ReactiveAuroraShimmerAmount = new ClampedFloatParameter(0.38f, 0f, 1f);

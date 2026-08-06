@@ -4243,6 +4243,9 @@ namespace DuneVector
         [Range(0f, 1f)] public float AuroraWaviness = 0.3f;
         [Min(0f)] public float AuroraTravelSpeed = 0.09f;
         [Range(-1f, 1f)] public float AuroraTravelDirection = 1f;
+        [Tooltip("Horizontal screen-space shove applied to the melodic current on authored heavy drops. Positive values move right.")]
+        [Range(-0.25f, 0.25f)] public float AuroraDropHorizontalShift;
+        [Min(0.01f)] public float AuroraDropShiftReleaseBeats = 1.5f;
         [Tooltip("Whole number of melodic current waves around the sky. Integer counts keep the spherical wrap seamless.")]
         [Range(1, 12)] public int AuroraFrequency = 4;
         [Range(0f, 1f)] public float AuroraSecondaryIntensity = 0.5f;

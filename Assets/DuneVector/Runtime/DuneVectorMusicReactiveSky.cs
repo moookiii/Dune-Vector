@@ -41,6 +41,9 @@ namespace DuneVector
         private float _eventFilamentAge;
         private float _eventFilamentDuration;
         private int _eventFilamentStrikeCount;
+        private float _auroraDropShiftAge;
+        private float _auroraDropShiftDuration;
+        private float _auroraDropHorizontalShift;
 
         public MusicAnalysisFrame LatestAnalysisFrame { get; private set; }
 
@@ -158,6 +161,7 @@ namespace DuneVector
             _sky.ReactiveAuroraWaviness.Override(_settings.AuroraWaviness);
             _sky.ReactiveAuroraTravelSpeed.Override(
                 _settings.AuroraTravelSpeed * _settings.AuroraTravelDirection);
+            _sky.ReactiveAuroraPhaseOffset.Override(0f);
             _sky.ReactiveAuroraFrequency.Override(_settings.AuroraFrequency);
             _sky.ReactiveAuroraSecondaryIntensity.Override(_settings.AuroraSecondaryIntensity);
             _sky.ReactiveAuroraShimmerAmount.Override(_settings.AuroraShimmerAmount);
@@ -514,6 +518,7 @@ namespace DuneVector
             _sky.ReactiveAuroraTravelSpeed.value = _settings.AuroraTravelSpeed
                 * _settings.AuroraTravelDirection
                 * state.Multipliers.CurrentTravel;
+            UpdateAuroraDropShift();
 
             if (_eventFilamentIntensity > 0f)
             {
@@ -567,8 +572,22 @@ namespace DuneVector
             if (command.Type == MusicVisualCueType.FinalRelease)
             {
                 _eventFilamentIntensity = 0f;
+                ResetAuroraDropShift();
                 _sky.ReactiveLightningIntensity.value = _settings.LightningIntensity;
                 return;
+            }
+            if (command.IsAuthored
+                && !command.IsPreRoll
+                && (command.AllowedEffects & MusicVisualEffectGroups.Sky) != 0
+                && (command.Type == MusicVisualCueType.MajorKick
+                    || command.Type == MusicVisualCueType.ReactorDischarge)
+                && Mathf.Abs(_settings.AuroraDropHorizontalShift) > Mathf.Epsilon)
+            {
+                _auroraDropHorizontalShift = _settings.AuroraDropHorizontalShift;
+                _auroraDropShiftAge = 0f;
+                _auroraDropShiftDuration = _settings.AuroraDropShiftReleaseBeats
+                    * 60f / Mathf.Max(1f, state.Timeline.Tempo);
+                ApplyAuroraDropShift(1f);
             }
             if (command.IsAuthored
                 && (command.AllowedEffects & MusicVisualEffectGroups.Filaments) != 0
@@ -605,6 +624,43 @@ namespace DuneVector
             ClearVisualResponse();
         }
 
+        private void UpdateAuroraDropShift()
+        {
+            if (_auroraDropShiftDuration <= 0f)
+            {
+                return;
+            }
+
+            _auroraDropShiftAge += Time.unscaledDeltaTime;
+            float progress = Mathf.Clamp01(_auroraDropShiftAge / _auroraDropShiftDuration);
+            float envelope = 1f - Mathf.SmoothStep(0f, 1f, progress);
+            ApplyAuroraDropShift(envelope);
+            if (progress >= 1f)
+            {
+                ResetAuroraDropShift();
+            }
+        }
+
+        private void ApplyAuroraDropShift(float envelope)
+        {
+            float phaseOffset = -_auroraDropHorizontalShift
+                * Mathf.PI * 2f
+                * Mathf.Max(1f, _settings.AuroraFrequency)
+                * envelope;
+            _sky.ReactiveAuroraPhaseOffset.value = phaseOffset;
+        }
+
+        private void ResetAuroraDropShift()
+        {
+            _auroraDropShiftAge = 0f;
+            _auroraDropShiftDuration = 0f;
+            _auroraDropHorizontalShift = 0f;
+            if (_sky != null)
+            {
+                _sky.ReactiveAuroraPhaseOffset.value = 0f;
+            }
+        }
+
         private float SmoothBloom(float current, float target, float deltaTime)
         {
             float speed = target > current ? _settings.BloomAttackSpeed : _settings.BloomReleaseSpeed;
@@ -631,6 +687,7 @@ namespace DuneVector
             _eventFilamentAge = 0f;
             _eventFilamentDuration = 0f;
             _eventFilamentStrikeCount = 0;
+            ResetAuroraDropShift();
             _analysisTimer = 0f;
             LatestAnalysisFrame = default;
 
