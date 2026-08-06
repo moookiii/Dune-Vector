@@ -40,6 +40,8 @@ namespace DuneVector
         private Material _streakMaterial;
         private Color[] _streakPalette;
         private Renderer[] _droneVisualRenderers;
+        private Transform _centerOutAnchorTransform;
+        private Renderer _centerOutAnchorRenderer;
         private Vector3 _droneVisualLocalCenter;
         private bool _hasDroneVisualLocalCenter;
         private TrailRenderer[] _droneTrails;
@@ -69,6 +71,7 @@ namespace DuneVector
             _droneVisualRenderers = _drone != null
                 ? _drone.GetComponentsInChildren<Renderer>(true)
                 : new Renderer[0];
+            CacheCenterOutAnchorTransform();
             CacheDroneVisualLocalCenter();
             CacheDroneTrails();
             BuildReactionLight();
@@ -108,6 +111,31 @@ namespace DuneVector
             _droneVisualLocalCenter = hasVisualBounds
                 ? _drone.InverseTransformPoint(visualBounds.center)
                 : Vector3.zero;
+        }
+
+        private void CacheCenterOutAnchorTransform()
+        {
+            _centerOutAnchorTransform = null;
+            _centerOutAnchorRenderer = null;
+            if (_drone == null || string.IsNullOrWhiteSpace(_settings.CenterOutAnchorTransformName))
+            {
+                return;
+            }
+            Transform[] candidates = _drone.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < candidates.Length; i++)
+            {
+                Transform candidate = candidates[i];
+                if (candidate != null
+                    && string.Equals(
+                        candidate.name,
+                        _settings.CenterOutAnchorTransformName,
+                        System.StringComparison.OrdinalIgnoreCase))
+                {
+                    _centerOutAnchorTransform = candidate;
+                    _centerOutAnchorRenderer = candidate.GetComponent<Renderer>();
+                    return;
+                }
+            }
         }
 
         private void CacheDroneTrails()
@@ -591,6 +619,14 @@ namespace DuneVector
 
         private Vector3 GetDroneVisualCenter()
         {
+            if (_centerOutAnchorRenderer != null && _centerOutAnchorRenderer.enabled)
+            {
+                return _centerOutAnchorRenderer.bounds.center;
+            }
+            if (_centerOutAnchorTransform != null)
+            {
+                return _centerOutAnchorTransform.position;
+            }
             return _drone != null && _hasDroneVisualLocalCenter
                 ? _drone.TransformPoint(_droneVisualLocalCenter)
                 : (_drone != null ? _drone.position : Vector3.zero);

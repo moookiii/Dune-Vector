@@ -4116,6 +4116,8 @@ namespace DuneVector
         [Header("Authored Center-Out Screen Flare Lines")]
         [Range(0f, 0.5f)] public float CenterOutInitialViewportRadius;
         [Range(0f, 0.5f)] public float CenterOutProtectedViewportRadius;
+        [Tooltip("Optional drone child transform whose live renderer center anchors center-out flares.")]
+        public string CenterOutAnchorTransformName;
         [Tooltip("Viewport-space offset from the drone visual center used as the center-out flare origin.")]
         public Vector2 CenterOutAnchorViewportOffset;
         [Range(1, 256)] public int CenterOutParticlePoolCapacity;
