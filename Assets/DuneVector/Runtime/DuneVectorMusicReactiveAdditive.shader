@@ -82,10 +82,11 @@ Shader "DuneVector/URP Music Reactive Additive"
                 {
                     half longitudinal = saturate(input.uv.x);
                     half triangularProfile = 1.0h - abs(longitudinal * 2.0h - 1.0h);
-                    half silhouetteWidth = lerp(
-                        _StreakMinimumWidth,
-                        1.0h,
-                        pow(saturate(triangularProfile), _StreakTipSharpness));
+                    half silhouetteWidth = _StreakMinimumWidth
+                        * lerp(
+                            0.35h,
+                            1.0h,
+                            pow(saturate(triangularProfile), _StreakTipSharpness));
                     half transverse = abs(input.uv.y * 2.0h - 1.0h);
                     half antialias = max(fwidth(transverse), 0.001h);
                     half body = 1.0h - smoothstep(

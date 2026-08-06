@@ -30,18 +30,28 @@ Shader "DuneVector/URP Music World Glitch"
 
             half4 Frag(Varyings input) : SV_Target
             {
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
                 float2 uv = input.texcoord;
                 half intensity = saturate(_DVMusicGlitchParameters.x);
                 float sliceCount = max(1.0, _DVMusicGlitchParameters.z);
                 float sliceCoordinate = uv.y * sliceCount;
                 float slice = floor(sliceCoordinate);
-                half sliceBlend = smoothstep(0.0h, 1.0h, frac(sliceCoordinate));
                 float noisePhase = _DVMusicGlitchParameters.y * 19.19;
-                half noise = lerp(
-                    Hash11(slice + noisePhase),
-                    Hash11(slice + 1.0 + noisePhase),
-                    sliceBlend);
-                float shift = (noise * 2.0 - 1.0) * intensity * _DVMusicGlitchParameters.w;
+                half sliceNoise = Hash11(slice + noisePhase);
+                half bandSelector = Hash11(slice + noisePhase + 41.73);
+                float primarySlice = floor(_DVMusicGlitchParameters.y * sliceCount);
+                half primaryBand = 1.0h - step(0.5h, abs(slice - primarySlice));
+                half selectedBand = max(
+                    primaryBand,
+                    step(1.0h - intensity, bandSelector));
+                float sliceEdgeDistance = min(frac(sliceCoordinate), 1.0 - frac(sliceCoordinate));
+                half bandEdge = saturate(
+                    sliceEdgeDistance / max(fwidth(sliceCoordinate), 0.0001));
+                half glitchMask = selectedBand * bandEdge;
+                float shift = (sliceNoise * 2.0 - 1.0)
+                    * intensity
+                    * _DVMusicGlitchParameters.w
+                    * glitchMask;
 
                 float2 centerDistance = abs(uv - 0.5);
                 half protectedCenter = (1.0 - smoothstep(
@@ -61,8 +71,8 @@ Shader "DuneVector/URP Music World Glitch"
                 half blue = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv - float2(shift, 0.0)).b;
                 half3 source = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv).rgb;
                 half3 split = half3(red, green, blue);
-                half flash = intensity * noise;
-                half3 color = lerp(source, split, intensity);
+                half flash = intensity * sliceNoise * glitchMask;
+                half3 color = lerp(source, split, glitchMask);
                 color = lerp(color, _DVMusicGlitchTint.rgb, flash * _DVMusicGlitchTint.a);
                 return half4(color, 1.0h);
             }
