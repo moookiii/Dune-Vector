@@ -2415,6 +2415,10 @@ namespace DuneVector
                 _player.ResetTraversalAfterTeleport(rotation * Vector3.forward);
                 _cameraController?.SnapToTarget(rotation * Vector3.forward);
                 RecenterTeleportParticles(position);
+                if (!toHub)
+                {
+                    _player.PlayTeleportNovaEffect(_player.WorldCenter);
+                }
             }
 
             float visualScale;

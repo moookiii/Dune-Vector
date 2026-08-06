@@ -298,6 +298,11 @@ namespace DuneVector
 
         public void PlayHubReturnEffect(Vector3 hubFloorPosition)
         {
+            PlayTeleportNovaEffect(hubFloorPosition);
+        }
+
+        public void PlayTeleportNovaEffect(Vector3 effectPosition)
+        {
             if (_hubReturnEffectPrefab == null)
             {
                 return;
@@ -307,7 +312,7 @@ namespace DuneVector
                 _hubReturnEffectPrefab.transform.localRotation * _hubReturnEffectRotationOffset;
             GameObject effect = Instantiate(
                 _hubReturnEffectPrefab,
-                hubFloorPosition + _hubReturnEffectFloorOffset,
+                effectPosition + _hubReturnEffectFloorOffset,
                 effectRotation);
             effect.transform.localScale = Vector3.Scale(
                 _hubReturnEffectPrefab.transform.localScale,
