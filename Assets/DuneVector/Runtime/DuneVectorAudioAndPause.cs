@@ -1721,8 +1721,11 @@ namespace DuneVector
             {
                 _audio?.PlayPreviousMusicTrack();
             }
-            string playPauseLabel = _audio != null && _audio.IsMusicPlaybackPaused ? "▶" : "Ⅱ";
-            if (DrawSongControlButton(playPauseRect, playPauseLabel, shadowOffset))
+            bool playbackPaused = _audio != null && _audio.IsMusicPlaybackPaused;
+            bool playPausePressed = playbackPaused
+                ? DrawSongControlButton(playPauseRect, "▶", shadowOffset)
+                : DrawSongPauseButton(playPauseRect, shadowOffset, scale);
+            if (playPausePressed)
             {
                 _audio?.ToggleMusicPlayback();
             }
@@ -1736,6 +1739,25 @@ namespace DuneVector
         {
             GUI.Label(OffsetRect(rect, shadowOffset), label, _songControlShadowStyle);
             return GUI.Button(rect, label, _songControlStyle);
+        }
+
+        private bool DrawSongPauseButton(Rect rect, float shadowOffset, float scale)
+        {
+            float scaledFontSize = _visuals.SongControlFontSize * scale;
+            float barWidth = scaledFontSize * 0.2f;
+            float barHeight = scaledFontSize * 0.85f;
+            float barGap = scaledFontSize * 0.25f;
+            float totalWidth = (barWidth * 2f) + barGap;
+            float left = rect.center.x - (totalWidth * 0.5f);
+            float top = rect.center.y - (barHeight * 0.5f);
+            Rect leftBar = new Rect(left, top, barWidth, barHeight);
+            Rect rightBar = new Rect(left + barWidth + barGap, top, barWidth, barHeight);
+
+            DrawSolidRect(OffsetRect(leftBar, shadowOffset), _visuals.SongTextShadowColor);
+            DrawSolidRect(OffsetRect(rightBar, shadowOffset), _visuals.SongTextShadowColor);
+            DrawSolidRect(leftBar, _visuals.SongTextColor);
+            DrawSolidRect(rightBar, _visuals.SongTextColor);
+            return GUI.Button(rect, GUIContent.none, _songControlStyle);
         }
 
         private static Rect OffsetRect(Rect rect, float offset)
