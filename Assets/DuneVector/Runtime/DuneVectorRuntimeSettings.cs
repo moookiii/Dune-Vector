@@ -4942,6 +4942,81 @@ namespace DuneVector
         [Tooltip("State label shown while the music visualizer is inactive.")]
         public string ControlsVisualizerDisabledLabel = "OFF";
 
+        [Header("Music Visualizer Settings")]
+        public const MusicVisualEffectGroups FlashMusicVisualizerEffects =
+            MusicVisualEffectGroups.PressureFront
+            | MusicVisualEffectGroups.Structures
+            | MusicVisualEffectGroups.Streaks
+            | MusicVisualEffectGroups.Glitch
+            | MusicVisualEffectGroups.HudBorder
+            | MusicVisualEffectGroups.Bloom
+            | MusicVisualEffectGroups.TrebleParticles;
+        public string MusicVisualizerSettingsButtonLabel = "MUSIC VISUALIZER";
+        public string MusicVisualizerSettingsTitle = "MUSIC VISUALIZER";
+        public string MusicVisualizerSettingsSubtitle = "DUNE VECTOR  /  MUSIC-REACTIVE EFFECTS";
+        public string MusicVisualizerSettingsSectionLabel = "VISUAL EFFECTS";
+        public string MusicVisualizerSettingsBackButtonLabel = "BACK TO PAUSE";
+        public string MusicVisualizerSettingsResetButtonLabel = "RESET DEFAULTS";
+        public string MusicVisualizerSettingsHintLabel = "ESC  /  BACK TO PAUSE";
+        public string MusicVisualizerMasterLabel = "MASTER VISUALIZER";
+        public string MusicVisualizerSkyLabel = "SKY & AURORA";
+        public string MusicVisualizerBloomLabel = "BLOOM & FLASHES";
+        public string MusicVisualizerPressureFrontsLabel = "PRESSURE FRONTS";
+        public string MusicVisualizerWorldResponseLabel = "WORLD PULSES";
+        public string MusicVisualizerStreaksLabel = "FOREGROUND STREAKS";
+        public string MusicVisualizerCameraLabel = "CAMERA MOTION";
+        public string MusicVisualizerFovLabel = "CAMERA FOV";
+        public string MusicVisualizerGlitchLabel = "GLITCH & HUD";
+        public string MusicVisualizerEffectEnabledLabel = "ON";
+        public string MusicVisualizerEffectDisabledLabel = "OFF";
+        public bool DefaultMusicVisualizerEnabled = true;
+        public bool DefaultMusicVisualizerSkyEnabled = true;
+        public bool DefaultMusicVisualizerBloomEnabled = true;
+        public bool DefaultMusicVisualizerPressureFrontsEnabled = true;
+        public bool DefaultMusicVisualizerWorldResponseEnabled = true;
+        public bool DefaultMusicVisualizerStreaksEnabled = true;
+        public bool DefaultMusicVisualizerCameraEnabled = true;
+        public bool DefaultVisualizerFovEnabled;
+        public bool DefaultMusicVisualizerGlitchEnabled = true;
+
+        public MusicVisualEffectGroups BuildDefaultMusicVisualizerEffectMask()
+        {
+            MusicVisualEffectGroups mask = MusicVisualEffectGroups.None;
+            if (DefaultMusicVisualizerSkyEnabled)
+            {
+                mask |= MusicVisualEffectGroups.Sky
+                    | MusicVisualEffectGroups.Filaments
+                    | MusicVisualEffectGroups.TrebleParticles;
+            }
+            if (DefaultMusicVisualizerBloomEnabled)
+            {
+                mask |= MusicVisualEffectGroups.Bloom;
+            }
+            if (DefaultMusicVisualizerPressureFrontsEnabled)
+            {
+                mask |= MusicVisualEffectGroups.PressureFront;
+            }
+            if (DefaultMusicVisualizerWorldResponseEnabled)
+            {
+                mask |= MusicVisualEffectGroups.Road
+                    | MusicVisualEffectGroups.Structures
+                    | MusicVisualEffectGroups.Drone;
+            }
+            if (DefaultMusicVisualizerStreaksEnabled)
+            {
+                mask |= MusicVisualEffectGroups.Streaks;
+            }
+            if (DefaultMusicVisualizerCameraEnabled)
+            {
+                mask |= MusicVisualEffectGroups.Camera;
+            }
+            if (DefaultMusicVisualizerGlitchEnabled)
+            {
+                mask |= MusicVisualEffectGroups.Glitch | MusicVisualEffectGroups.HudBorder;
+            }
+            return mask;
+        }
+
         [Header("Video Settings")]
         public string VideoSettingsButtonLabel = "VIDEO SETTINGS";
         public string VideoSettingsTitle = "VIDEO SETTINGS";

@@ -636,6 +636,7 @@ namespace DuneVector
             {
                 _audio.ActiveMusicTrackChanged -= HandleActiveMusicTrackChanged;
                 _audio.MusicVisualizerModeChanged -= HandleMusicVisualizerModeChanged;
+                _audio.MusicVisualizerEffectsChanged -= HandleMusicVisualizerEffectsChanged;
             }
             _audio = audio;
             _analysisSource = analysisSource;
@@ -644,6 +645,7 @@ namespace DuneVector
             {
                 _audio.ActiveMusicTrackChanged += HandleActiveMusicTrackChanged;
                 _audio.MusicVisualizerModeChanged += HandleMusicVisualizerModeChanged;
+                _audio.MusicVisualizerEffectsChanged += HandleMusicVisualizerEffectsChanged;
             }
             _profile = _audio != null
                 ? _audio.ActiveMusicTrackProfile
@@ -707,6 +709,11 @@ namespace DuneVector
                 _pressureFronts?.ResetMusicResponse();
                 _foreground?.ClearFlashingResponse();
             }
+        }
+
+        private void HandleMusicVisualizerEffectsChanged(MusicVisualEffectGroups effects)
+        {
+            ResetSinks();
         }
 
         public bool RegisterSink(IMusicReactiveSink sink)
@@ -846,6 +853,7 @@ namespace DuneVector
             _state.VisualTier = section.VisualTier;
             _state.Multipliers = multipliers;
             _state.Permissions = section.Permissions;
+            _state.Permissions &= _audio.VisualizerEffectMask;
             if (_audio.VisualizerMode == MusicVisualizerMode.Off)
             {
                 _state.Permissions = MusicVisualEffectGroups.None;
@@ -987,6 +995,7 @@ namespace DuneVector
             {
                 _audio.ActiveMusicTrackChanged -= HandleActiveMusicTrackChanged;
                 _audio.MusicVisualizerModeChanged -= HandleMusicVisualizerModeChanged;
+                _audio.MusicVisualizerEffectsChanged -= HandleMusicVisualizerEffectsChanged;
             }
         }
 

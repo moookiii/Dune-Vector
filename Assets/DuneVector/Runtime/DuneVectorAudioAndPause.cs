@@ -28,7 +28,7 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 8;
+            public int Version = 9;
             public float MusicVolume;
             public float SoundEffectsVolume;
             public bool MusicVisualizerEnabled = true;
@@ -40,6 +40,7 @@ namespace DuneVector
             public bool VignetteEnabled = true;
             public int AntiAliasingMode;
             public bool VisualizerFovEnabled;
+            public int MusicVisualizerEffectMask;
         }
 
         public float MusicVolume { get; private set; }
@@ -52,7 +53,9 @@ namespace DuneVector
         public bool VignetteEnabled { get; private set; } = true;
         public DuneVectorCameraAntiAliasingMode AntiAliasingMode { get; private set; }
         public bool VisualizerFovEnabled { get; private set; }
+        public MusicVisualEffectGroups VisualizerEffectMask { get; private set; }
         public event Action<MusicVisualizerMode> MusicVisualizerModeChanged;
+        public event Action<MusicVisualEffectGroups> MusicVisualizerEffectsChanged;
         public event Action<bool> VisualizerFovEnabledChanged;
         public event Action<MusicPlaylistTrack> ActiveMusicTrackChanged;
         public event Action<bool> MusicPlaybackPausedChanged;
@@ -492,6 +495,28 @@ namespace DuneVector
             FlushPreferences();
         }
 
+        public bool IsMusicVisualizerEffectEnabled(MusicVisualEffectGroups effects)
+        {
+            return (VisualizerEffectMask & effects) == effects;
+        }
+
+        public void SetMusicVisualizerEffectEnabled(MusicVisualEffectGroups effects, bool enabled)
+        {
+            MusicVisualEffectGroups next = enabled
+                ? VisualizerEffectMask | effects
+                : VisualizerEffectMask & ~effects;
+            next &= MusicVisualEffectGroups.All;
+            if (VisualizerEffectMask == next)
+            {
+                return;
+            }
+
+            VisualizerEffectMask = next;
+            _preferencesDirty = true;
+            MusicVisualizerEffectsChanged?.Invoke(next);
+            FlushPreferences();
+        }
+
         public void SetChromaticAberrationEnabled(bool enabled)
         {
             if (ChromaticAberrationEnabled == enabled)
@@ -591,12 +616,38 @@ namespace DuneVector
             AntiAliasingMode = _defaultAntiAliasingMode == DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing
                 ? DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing
                 : _defaultAntiAliasingMode;
-            bool fovChanged = VisualizerFovEnabled;
-            VisualizerFovEnabled = false;
             _preferencesDirty = true;
+            FlushPreferences();
+        }
+
+        public void ResetMusicVisualizerSettingsToDefaults()
+        {
+            PauseMenuVisualTuning defaults = _settings != null ? _settings.PauseMenu : null;
+            MusicVisualizerMode nextMode = defaults == null || defaults.DefaultMusicVisualizerEnabled
+                ? MusicVisualizerMode.All
+                : MusicVisualizerMode.Off;
+            MusicVisualEffectGroups nextMask = defaults != null
+                ? defaults.BuildDefaultMusicVisualizerEffectMask()
+                : MusicVisualEffectGroups.All;
+            bool nextFov = defaults != null && defaults.DefaultVisualizerFovEnabled;
+            bool modeChanged = VisualizerMode != nextMode;
+            bool maskChanged = VisualizerEffectMask != nextMask;
+            bool fovChanged = VisualizerFovEnabled != nextFov;
+            VisualizerMode = nextMode;
+            VisualizerEffectMask = nextMask;
+            VisualizerFovEnabled = nextFov;
+            _preferencesDirty = true;
+            if (modeChanged)
+            {
+                MusicVisualizerModeChanged?.Invoke(nextMode);
+            }
+            if (maskChanged)
+            {
+                MusicVisualizerEffectsChanged?.Invoke(nextMask);
+            }
             if (fovChanged)
             {
-                VisualizerFovEnabledChanged?.Invoke(false);
+                VisualizerFovEnabledChanged?.Invoke(nextFov);
             }
             FlushPreferences();
         }
@@ -975,8 +1026,14 @@ namespace DuneVector
         {
             MusicVolume = Mathf.Clamp01(_settings.DefaultMusicVolume);
             SoundEffectsVolume = Mathf.Clamp01(_settings.DefaultSoundEffectsVolume);
-            VisualizerMode = MusicVisualizerMode.All;
-            VisualizerFovEnabled = false;
+            PauseMenuVisualTuning defaults = _settings.PauseMenu;
+            VisualizerMode = defaults == null || defaults.DefaultMusicVisualizerEnabled
+                ? MusicVisualizerMode.All
+                : MusicVisualizerMode.Off;
+            VisualizerEffectMask = defaults != null
+                ? defaults.BuildDefaultMusicVisualizerEffectMask()
+                : MusicVisualEffectGroups.All;
+            VisualizerFovEnabled = defaults != null && defaults.DefaultVisualizerFovEnabled;
             ChromaticAberrationEnabled = _settings.PauseMenu == null
                 || _settings.PauseMenu.DefaultChromaticAberrationEnabled;
             LensDistortionEnabled = _settings.PauseMenu == null
@@ -998,7 +1055,7 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version >= 1 && stored.Version <= 8)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 9)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
@@ -1031,6 +1088,16 @@ namespace DuneVector
                     if (stored.Version >= 8)
                     {
                         VisualizerFovEnabled = stored.VisualizerFovEnabled;
+                    }
+                    if (stored.Version >= 9)
+                    {
+                        VisualizerEffectMask = (MusicVisualEffectGroups)stored.MusicVisualizerEffectMask
+                            & MusicVisualEffectGroups.All;
+                    }
+                    if (VisualizerMode == MusicVisualizerMode.NoFlash)
+                    {
+                        VisualizerEffectMask &= ~PauseMenuVisualTuning.FlashMusicVisualizerEffects;
+                        VisualizerMode = MusicVisualizerMode.All;
                     }
                 }
             }
@@ -1068,6 +1135,7 @@ namespace DuneVector
                     VignetteEnabled = VignetteEnabled,
                     AntiAliasingMode = (int)AntiAliasingMode,
                     VisualizerFovEnabled = VisualizerFovEnabled,
+                    MusicVisualizerEffectMask = (int)VisualizerEffectMask,
                 };
                 File.WriteAllText(_preferencesPath, JsonUtility.ToJson(stored));
                 _preferencesDirty = false;
@@ -1123,6 +1191,7 @@ namespace DuneVector
         private bool _showCompendium;
         private bool _showControls;
         private bool _showVideoSettings;
+        private bool _showMusicVisualizerSettings;
         private float _controlsFade;
         private Keyboard _textInputKeyboard;
         private int _upgradeCheatProgress;
@@ -1232,6 +1301,10 @@ namespace DuneVector
                 {
                     _showVideoSettings = false;
                 }
+                else if (IsPaused && _showMusicVisualizerSettings)
+                {
+                    _showMusicVisualizerSettings = false;
+                }
                 else if (IsPaused && _showShop)
                 {
                     _showShop = false;
@@ -1332,6 +1405,7 @@ namespace DuneVector
                 _showCompendium = false;
                 _showControls = false;
                 _showVideoSettings = false;
+                _showMusicVisualizerSettings = false;
                 _controlsFade = 0f;
                 _audio?.FlushPreferences();
             }
@@ -1354,6 +1428,7 @@ namespace DuneVector
             _showCompendium = false;
             _showControls = false;
             _showVideoSettings = false;
+            _showMusicVisualizerSettings = false;
             _controlsFade = 0f;
             _audio?.SetPausedDucking(false);
             _player?.SetInputEnabled(false);
@@ -1392,6 +1467,12 @@ namespace DuneVector
             if (_showVideoSettings)
             {
                 DrawVideoSettingsScreen(scale);
+                return;
+            }
+
+            if (_showMusicVisualizerSettings)
+            {
+                DrawMusicVisualizerSettingsScreen(scale);
                 return;
             }
 
@@ -1535,31 +1616,13 @@ namespace DuneVector
             }
             y += buttonHeight + gap;
 
-            MusicVisualizerMode visualizerMode = _audio != null
-                ? _audio.VisualizerMode
-                : MusicVisualizerMode.All;
-            string visualizerStateLabel = visualizerMode switch
-            {
-                MusicVisualizerMode.NoFlash => _visuals.ControlsVisualizerNoFlashLabel,
-                MusicVisualizerMode.Off => _visuals.ControlsVisualizerDisabledLabel,
-                _ => _visuals.ControlsVisualizerEnabledLabel,
-            };
-            bool visualizerPreviousEnabled = GUI.enabled;
-            GUI.enabled = visualizerPreviousEnabled && _audio != null;
             if (GUI.Button(
                     new Rect(content.x, y, content.width, buttonHeight),
-                    $"{_visuals.ControlsVisualizerLabel}  /  {visualizerStateLabel}",
-                    visualizerMode == MusicVisualizerMode.All ? _primaryButtonStyle : _secondaryButtonStyle))
+                    _visuals.MusicVisualizerSettingsButtonLabel,
+                    _secondaryButtonStyle))
             {
-                MusicVisualizerMode nextMode = visualizerMode switch
-                {
-                    MusicVisualizerMode.All => MusicVisualizerMode.NoFlash,
-                    MusicVisualizerMode.NoFlash => MusicVisualizerMode.Off,
-                    _ => MusicVisualizerMode.All,
-                };
-                _audio.SetMusicVisualizerMode(nextMode);
+                _showMusicVisualizerSettings = true;
             }
-            GUI.enabled = visualizerPreviousEnabled;
             y += buttonHeight + gap;
 
             if (GUI.Button(
@@ -1670,12 +1733,7 @@ namespace DuneVector
                 value => _audio?.SetVignetteEnabled(value));
             y += buttonHeight + gap;
 
-            DrawVideoToggle(
-                new Rect(content.x, y, content.width, buttonHeight),
-                _visuals.VideoVisualizerFovLabel,
-                _audio != null && _audio.VisualizerFovEnabled,
-                value => _audio?.SetVisualizerFovEnabled(value));
-            y += buttonHeight + (gap * 2f);
+            y += gap;
 
             float navigationWidth = (content.width - gap) * 0.5f;
             if (GUI.Button(
@@ -1699,6 +1757,84 @@ namespace DuneVector
                 new Rect(content.x, content.yMax - hintHeight, content.width, hintHeight),
                 _visuals.VideoSettingsHintLabel,
                 _hintStyle);
+        }
+
+        private void DrawMusicVisualizerSettingsScreen(float scale)
+        {
+            float screenMargin = _visuals.ScreenMargin * scale;
+            float panelWidth = Mathf.Min(_visuals.PanelWidth * scale, Screen.width - (screenMargin * 2f));
+            float panelHeight = Mathf.Min(_visuals.PanelHeight * scale, Screen.height - (screenMargin * 2f));
+            Rect panel = new Rect(
+                (Screen.width - panelWidth) * 0.5f,
+                (Screen.height - panelHeight) * 0.5f,
+                panelWidth,
+                panelHeight);
+
+            float shadowOffset = _visuals.ShadowOffset * scale;
+            DrawSolidRect(new Rect(panel.x + shadowOffset, panel.y + shadowOffset, panel.width, panel.height), _visuals.ShadowColor);
+            DrawSolidRect(panel, _visuals.PanelColor);
+            DrawBorder(panel, _visuals.PanelBorderColor, Mathf.Max(1f, scale * 2f));
+            DrawSolidRect(
+                new Rect(panel.x, panel.y, panel.width, Mathf.Max(1f, _visuals.AccentBarHeight * scale)),
+                _visuals.AccentColor);
+
+            float padding = _visuals.PanelPadding * scale;
+            Rect content = new Rect(panel.x + padding, panel.y + padding, panel.width - (padding * 2f), panel.height - (padding * 2f));
+            float gap = _visuals.ButtonGap * scale;
+            float y = content.y;
+            float titleHeight = _titleStyle.lineHeight;
+            GUI.Label(new Rect(content.x, y, content.width, titleHeight), _visuals.MusicVisualizerSettingsTitle, _titleStyle);
+            y += titleHeight;
+            float subtitleHeight = _subtitleStyle.lineHeight;
+            GUI.Label(new Rect(content.x, y, content.width, subtitleHeight), _visuals.MusicVisualizerSettingsSubtitle, _subtitleStyle);
+            y += subtitleHeight + gap;
+            DrawSolidRect(new Rect(content.x, y, content.width, Mathf.Max(1f, scale)), _visuals.DividerColor);
+            y += gap * 1.5f;
+
+            float sectionHeight = _sectionStyle.lineHeight;
+            float buttonHeight = _visuals.ButtonHeight * scale;
+            GUI.Label(new Rect(content.x, y, content.width, sectionHeight), _visuals.MusicVisualizerSettingsSectionLabel, _sectionStyle);
+            y += sectionHeight + gap;
+
+            DrawMusicVisualizerMasterToggle(new Rect(content.x, y, content.width, buttonHeight));
+            y += buttonHeight + gap;
+            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerSkyLabel,
+                MusicVisualEffectGroups.Sky | MusicVisualEffectGroups.Filaments | MusicVisualEffectGroups.TrebleParticles);
+            y += buttonHeight + gap;
+            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerBloomLabel,
+                MusicVisualEffectGroups.Bloom);
+            y += buttonHeight + gap;
+            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerPressureFrontsLabel,
+                MusicVisualEffectGroups.PressureFront);
+            y += buttonHeight + gap;
+            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerWorldResponseLabel,
+                MusicVisualEffectGroups.Road | MusicVisualEffectGroups.Structures | MusicVisualEffectGroups.Drone);
+            y += buttonHeight + gap;
+            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerStreaksLabel,
+                MusicVisualEffectGroups.Streaks);
+            y += buttonHeight + gap;
+            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerCameraLabel,
+                MusicVisualEffectGroups.Camera);
+            y += buttonHeight + gap;
+            DrawMusicVisualizerToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerFovLabel,
+                _audio != null && _audio.VisualizerFovEnabled, value => _audio?.SetVisualizerFovEnabled(value));
+            y += buttonHeight + gap;
+            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerGlitchLabel,
+                MusicVisualEffectGroups.Glitch | MusicVisualEffectGroups.HudBorder);
+            y += buttonHeight + (gap * 2f);
+
+            float navigationWidth = (content.width - gap) * 0.5f;
+            if (GUI.Button(new Rect(content.x, y, navigationWidth, buttonHeight), _visuals.MusicVisualizerSettingsResetButtonLabel, _secondaryButtonStyle))
+            {
+                _audio?.ResetMusicVisualizerSettingsToDefaults();
+            }
+            if (GUI.Button(new Rect(content.x + navigationWidth + gap, y, navigationWidth, buttonHeight), _visuals.MusicVisualizerSettingsBackButtonLabel, _secondaryButtonStyle))
+            {
+                _showMusicVisualizerSettings = false;
+            }
+
+            float hintHeight = _hintStyle.lineHeight;
+            GUI.Label(new Rect(content.x, content.yMax - hintHeight, content.width, hintHeight), _visuals.MusicVisualizerSettingsHintLabel, _hintStyle);
         }
 
         private void DrawSongControls(float scale)
@@ -1776,6 +1912,34 @@ namespace DuneVector
             {
                 apply?.Invoke(!enabled);
                 ApplyVideoPreferences();
+            }
+            GUI.enabled = previousEnabled;
+        }
+
+        private void DrawMusicVisualizerMasterToggle(Rect rect)
+        {
+            bool enabled = _audio != null && _audio.VisualizerMode != MusicVisualizerMode.Off;
+            DrawMusicVisualizerToggle(rect, _visuals.MusicVisualizerMasterLabel, enabled,
+                value => _audio?.SetMusicVisualizerMode(value ? MusicVisualizerMode.All : MusicVisualizerMode.Off));
+        }
+
+        private void DrawMusicVisualizerEffectToggle(Rect rect, string label, MusicVisualEffectGroups effects)
+        {
+            bool enabled = _audio != null && _audio.IsMusicVisualizerEffectEnabled(effects);
+            DrawMusicVisualizerToggle(rect, label, enabled,
+                value => _audio?.SetMusicVisualizerEffectEnabled(effects, value));
+        }
+
+        private void DrawMusicVisualizerToggle(Rect rect, string label, bool enabled, Action<bool> apply)
+        {
+            bool previousEnabled = GUI.enabled;
+            GUI.enabled = previousEnabled && _audio != null;
+            string stateLabel = enabled
+                ? _visuals.MusicVisualizerEffectEnabledLabel
+                : _visuals.MusicVisualizerEffectDisabledLabel;
+            if (GUI.Button(rect, $"{label}  /  {stateLabel}", enabled ? _primaryButtonStyle : _secondaryButtonStyle))
+            {
+                apply?.Invoke(!enabled);
             }
             GUI.enabled = previousEnabled;
         }

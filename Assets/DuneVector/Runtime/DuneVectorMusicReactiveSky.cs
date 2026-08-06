@@ -513,20 +513,34 @@ namespace DuneVector
                 return;
             }
 
-            _sky.ReactiveMusicEnergy.value = state.Energy;
-            _sky.ReactiveMusicBass.value = state.Bass;
-            _sky.ReactiveMusicMids.value = state.Mid;
-            _sky.ReactiveMusicHighs.value = state.High;
-            _sky.ReactiveBassPulse.value = state.Analysis.BassTransient;
-            _sky.ReactiveHighPulse.value = state.Analysis.HighTransient;
-            _sky.ReactiveAuroraIntensity.value = _settings.AuroraIntensity
-                * state.Multipliers.CurrentIntensity;
-            _sky.ReactiveAuroraThickness.value = _settings.AuroraThickness
-                * state.Multipliers.CurrentThickness;
-            _sky.ReactiveAuroraTravelSpeed.value = _settings.AuroraTravelSpeed
-                * _settings.AuroraTravelDirection
-                * state.Multipliers.CurrentTravel;
-            UpdateAuroraDropShift();
+            bool skyAllowed = (state.Permissions & MusicVisualEffectGroups.Sky) != 0;
+            _sky.ReactiveShockRingIntensity.Override(skyAllowed ? _settings.ShockRingIntensity : 0f);
+            _sky.ReactiveLightningIntensity.Override(skyAllowed ? _settings.LightningIntensity : 0f);
+            _sky.ReactiveSparkIntensity.Override(skyAllowed ? _settings.SparkIntensity : 0f);
+            _sky.ReactiveSparkDensity.Override(skyAllowed ? _settings.SparkDensity : 0f);
+            _sky.ReactiveMusicEnergy.value = skyAllowed ? state.Energy : 0f;
+            _sky.ReactiveMusicBass.value = skyAllowed ? state.Bass : 0f;
+            _sky.ReactiveMusicMids.value = skyAllowed ? state.Mid : 0f;
+            _sky.ReactiveMusicHighs.value = skyAllowed ? state.High : 0f;
+            _sky.ReactiveBassPulse.value = skyAllowed ? state.Analysis.BassTransient : 0f;
+            _sky.ReactiveHighPulse.value = skyAllowed ? state.Analysis.HighTransient : 0f;
+            _sky.ReactiveAuroraIntensity.value = skyAllowed
+                ? _settings.AuroraIntensity * state.Multipliers.CurrentIntensity
+                : 0f;
+            _sky.ReactiveAuroraThickness.value = skyAllowed
+                ? _settings.AuroraThickness * state.Multipliers.CurrentThickness
+                : 0f;
+            _sky.ReactiveAuroraTravelSpeed.value = skyAllowed
+                ? _settings.AuroraTravelSpeed * _settings.AuroraTravelDirection * state.Multipliers.CurrentTravel
+                : 0f;
+            if (skyAllowed)
+            {
+                UpdateAuroraDropShift();
+            }
+            else
+            {
+                ResetAuroraDropShift();
+            }
 
             if (_eventFilamentIntensity > 0f)
             {

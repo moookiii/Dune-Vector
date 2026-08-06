@@ -229,7 +229,12 @@ namespace DuneVector
             }
             using (ShaderGlobalsMarker.Auto())
             {
-                Shader.SetGlobalVector(ContinuousId, new Vector4(state.Bass, state.Mid, state.High, state.Energy));
+                bool roadAllowed = (state.Permissions & MusicVisualEffectGroups.Road) != 0;
+                Shader.SetGlobalVector(
+                    ContinuousId,
+                    roadAllowed
+                        ? new Vector4(state.Bass, state.Mid, state.High, state.Energy)
+                        : Vector4.zero);
                 Shader.SetGlobalColor(PulseColorId, _settings.RoadPulseColor * _settings.RoadPulseEmissionIntensity);
             }
         }
