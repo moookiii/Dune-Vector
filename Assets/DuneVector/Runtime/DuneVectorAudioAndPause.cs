@@ -28,9 +28,10 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 10;
+            public int Version = 11;
             public float MusicVolume;
             public float SoundEffectsVolume;
+            public float DialogueVolume;
             public bool MusicVisualizerEnabled = true;
             public int MusicVisualizerMode;
             public bool ChromaticAberrationEnabled = true;
@@ -45,6 +46,7 @@ namespace DuneVector
 
         public float MusicVolume { get; private set; }
         public float SoundEffectsVolume { get; private set; }
+        public float DialogueVolume { get; private set; }
         public MusicVisualizerMode VisualizerMode { get; private set; } = MusicVisualizerMode.All;
         public bool ChromaticAberrationEnabled { get; private set; } = true;
         public bool LensDistortionEnabled { get; private set; } = true;
@@ -106,9 +108,11 @@ namespace DuneVector
         private Bus _masterBus;
         private Bus _musicBus;
         private Bus _soundEffectsBus;
+        private Bus _dialogueBus;
         private bool _hasMasterBus;
         private bool _hasMusicBus;
         private bool _hasSoundEffectsBus;
+        private bool _hasDialogueBus;
         private float _musicDuckMultiplier = 1f;
         private DroneHealth _health;
         private DroneCharacterController _drone;
@@ -171,6 +175,7 @@ namespace DuneVector
             }
             _hasMusicBus = TryGetBus(_settings.MusicBusPath, out _musicBus);
             _hasSoundEffectsBus = TryGetBus(_settings.SoundEffectsBusPath, out _soundEffectsBus);
+            _hasDialogueBus = TryGetBus(_settings.DialogueBusPath, out _dialogueBus);
             ApplyMixerVolumes();
             InitializeMusicPlaylist();
             StartBackgroundMusic();
@@ -488,6 +493,16 @@ namespace DuneVector
             if (_hasSoundEffectsBus && _soundEffectsBus.isValid())
             {
                 ApplyBusVolumeAndMute(_soundEffectsBus, SoundEffectsVolume);
+            }
+            _preferencesDirty = true;
+        }
+
+        public void SetDialogueVolume(float volume)
+        {
+            DialogueVolume = Mathf.Clamp01(volume);
+            if (_hasDialogueBus && _dialogueBus.isValid())
+            {
+                ApplyBusVolumeAndMute(_dialogueBus, DialogueVolume);
             }
             _preferencesDirty = true;
         }
@@ -950,6 +965,10 @@ namespace DuneVector
             {
                 ApplyBusVolumeAndMute(_soundEffectsBus, SoundEffectsVolume);
             }
+            if (_hasDialogueBus && _dialogueBus.isValid())
+            {
+                ApplyBusVolumeAndMute(_dialogueBus, DialogueVolume);
+            }
         }
 
         private void ApplyMusicInstanceVolumeAndMute()
@@ -1053,6 +1072,7 @@ namespace DuneVector
         {
             MusicVolume = Mathf.Clamp01(_settings.DefaultMusicVolume);
             SoundEffectsVolume = Mathf.Clamp01(_settings.DefaultSoundEffectsVolume);
+            DialogueVolume = Mathf.Clamp01(_settings.DefaultDialogueVolume);
             PauseMenuVisualTuning defaults = _settings.PauseMenu;
             VisualizerMode = defaults == null || defaults.DefaultMusicVisualizerEnabled
                 ? MusicVisualizerMode.All
@@ -1082,10 +1102,14 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version >= 1 && stored.Version <= 10)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 11)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
+                    if (stored.Version >= 11)
+                    {
+                        DialogueVolume = Mathf.Clamp01(stored.DialogueVolume);
+                    }
                     VisualizerMode = stored.Version >= 3
                         && Enum.IsDefined(typeof(MusicVisualizerMode), stored.MusicVisualizerMode)
                             ? (MusicVisualizerMode)stored.MusicVisualizerMode
@@ -1158,6 +1182,7 @@ namespace DuneVector
                 {
                     MusicVolume = MusicVolume,
                     SoundEffectsVolume = SoundEffectsVolume,
+                    DialogueVolume = DialogueVolume,
                     MusicVisualizerEnabled = VisualizerMode != MusicVisualizerMode.Off,
                     MusicVisualizerMode = (int)VisualizerMode,
                     ChromaticAberrationEnabled = ChromaticAberrationEnabled,
@@ -1576,6 +1601,14 @@ namespace DuneVector
                 "SOUND EFFECTS",
                 _audio != null ? _audio.SoundEffectsVolume : 0f,
                 value => _audio?.SetSoundEffectsVolume(value),
+                scale);
+            y += sliderRowHeight;
+
+            DrawVolumeRow(
+                new Rect(content.x, y, content.width, sliderRowHeight),
+                "DIALOGUE",
+                _audio != null ? _audio.DialogueVolume : 0f,
+                value => _audio?.SetDialogueVolume(value),
                 scale);
             y += sliderRowHeight + gap;
 

@@ -5136,10 +5136,13 @@ namespace DuneVector
         public string MusicBusPath = "bus:/Music";
         [Tooltip("FMOD group bus reserved for gameplay and interface sound effects.")]
         public string SoundEffectsBusPath = "bus:/SFX";
+        [Tooltip("FMOD group bus used by dialogue and voice-over events.")]
+        public string DialogueBusPath;
 
         [Header("Default Volumes")]
         [Range(0f, 1f)] public float DefaultMusicVolume = 1f;
         [Range(0f, 1f)] public float DefaultSoundEffectsVolume = 1f;
+        [Range(0f, 1f)] public float DefaultDialogueVolume;
         [Tooltip("Remember pause-menu volume choices between runs.")]
         public bool PersistVolumeSettings = true;
 
