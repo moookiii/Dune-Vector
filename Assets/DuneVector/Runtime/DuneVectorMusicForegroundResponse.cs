@@ -158,8 +158,8 @@ namespace DuneVector
             _streakMaterial.SetFloat("_StreakCoreBrightness", _settings.ForegroundStreakCoreBrightness);
             _streakMaterial.SetFloat("_StreakHaloBrightness", _settings.ForegroundStreakHaloBrightness);
             _streakMaterial.SetFloat("_StreakEndFade", _settings.ForegroundStreakEndFade);
-            _streaks = BuildStreakParticleSystem("Music Screen-Space Flare Lines", false);
-            _centerOutStreaks = BuildStreakParticleSystem("Music Drone-Anchored Flare Lines", true);
+            _streaks = BuildStreakParticleSystem("Music Screen-Space Flare Lines");
+            _centerOutStreaks = BuildStreakParticleSystem("Music Drone-Anchored Flare Lines");
             if (_settings.CenterOutCompensateAnchorMotion)
             {
                 int capacity = _settings.CenterOutParticlePoolCapacity > 0
@@ -183,7 +183,7 @@ namespace DuneVector
             UpdateCenterOutAnchor();
         }
 
-        private ParticleSystem BuildStreakParticleSystem(string objectName, bool stableScreenLine)
+        private ParticleSystem BuildStreakParticleSystem(string objectName)
         {
             GameObject streakObject = new GameObject(objectName);
             streakObject.transform.SetParent(_camera.transform, false);
@@ -200,8 +200,6 @@ namespace DuneVector
             main.startLifetime = _settings.ForegroundStreakLifetime;
             main.startSpeed = 0f;
             main.startSize = _settings.ForegroundStreakSize;
-            main.startSize3D = stableScreenLine;
-            main.startRotation3D = stableScreenLine;
             main.startColor = _settings.ForegroundStreakColor;
 
             ParticleSystem.EmissionModule emission = streaks.emission;
@@ -210,15 +208,9 @@ namespace DuneVector
             shape.enabled = false;
 
             ParticleSystemRenderer renderer = streakObject.GetComponent<ParticleSystemRenderer>();
-            renderer.renderMode = stableScreenLine
-                ? ParticleSystemRenderMode.Billboard
-                : ParticleSystemRenderMode.Stretch;
-            renderer.velocityScale = stableScreenLine
-                ? 0f
-                : _settings.ForegroundStreakVelocityScale;
-            renderer.lengthScale = stableScreenLine
-                ? 1f
-                : _settings.ForegroundStreakLengthScale;
+            renderer.renderMode = ParticleSystemRenderMode.Stretch;
+            renderer.velocityScale = _settings.ForegroundStreakVelocityScale;
+            renderer.lengthScale = _settings.ForegroundStreakLengthScale;
             renderer.sharedMaterial = _streakMaterial;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
@@ -471,36 +463,23 @@ namespace DuneVector
                 float lifetime = centerOut && lifetimeRange.y > 0f
                     ? Mathf.Lerp(lifetimeRange.x, lifetimeRange.y, Next01(ref seed))
                     : _settings.ForegroundStreakLifetime;
-                float streakWidth = centerOut
-                    ? _settings.ForegroundStreakSize * (fineLine
-                        ? _settings.CenterOutFineLineWidthMultiplier
-                        : _settings.CenterOutBroadRayWidthMultiplier)
-                        * (i >= movingLineCount && command.ScreenFlareHeldWidthScale > 0f
-                            ? command.ScreenFlareHeldWidthScale
-                            : (command.ScreenFlareWidthScale > 0f
-                                ? command.ScreenFlareWidthScale
-                                : 1f))
-                    : _settings.ForegroundStreakSize;
-                float streakLength = centerOut
-                    ? streakWidth * _settings.ForegroundStreakLengthScale
-                        + velocity.magnitude * _settings.ForegroundStreakVelocityScale
-                    : streakWidth;
                 ParticleSystem.EmitParams emit = new ParticleSystem.EmitParams
                 {
                     position = new Vector3(x, y, _settings.ForegroundStreakForwardOffset),
                     velocity = velocity,
                     startColor = color,
                     startLifetime = lifetime,
-                    startSize = streakWidth,
+                    startSize = centerOut
+                        ? _settings.ForegroundStreakSize * (fineLine
+                            ? _settings.CenterOutFineLineWidthMultiplier
+                            : _settings.CenterOutBroadRayWidthMultiplier)
+                            * (i >= movingLineCount && command.ScreenFlareHeldWidthScale > 0f
+                                ? command.ScreenFlareHeldWidthScale
+                                : (command.ScreenFlareWidthScale > 0f
+                                    ? command.ScreenFlareWidthScale
+                                    : 1f))
+                        : _settings.ForegroundStreakSize,
                 };
-                if (centerOut)
-                {
-                    emit.startSize3D = new Vector3(streakLength, streakWidth, 1f);
-                    emit.rotation3D = new Vector3(
-                        0f,
-                        0f,
-                        Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg);
-                }
                 targetStreaks.Emit(emit, 1);
             }
         }
