@@ -54,8 +54,19 @@ namespace DuneVector
         public bool VisualizerFovEnabled { get; private set; }
         public event Action<MusicVisualizerMode> MusicVisualizerModeChanged;
         public event Action<bool> VisualizerFovEnabledChanged;
+        public event Action<MusicPlaylistTrack> ActiveMusicTrackChanged;
         public MusicTimelineState TimelineState => _timelineState;
-        public string MusicEventPath => _settings != null ? _settings.BackgroundMusicEvent : string.Empty;
+        public MusicPlaylistTrack ActiveMusicTrack { get; private set; }
+        public MusicVisualTrackProfile ActiveMusicTrackProfile => ActiveMusicTrack != null
+            ? ActiveMusicTrack.VisualizerProfile
+            : _musicReactiveSettings != null ? _musicReactiveSettings.TrackProfile : null;
+        public string ActiveMusicDisplayName => ActiveMusicTrack != null
+            ? ActiveMusicTrack.DisplayName
+            : string.Empty;
+        public string MusicEventPath => ActiveMusicTrack != null
+            ? ActiveMusicTrack.FmodEventPath
+            : string.Empty;
+        public bool IsMusicPlaybackPaused => _userMusicPaused;
         public int MusicEventLengthMilliseconds { get; private set; }
         public bool MusicTimelineCallbackRegistered { get; private set; }
 
@@ -73,6 +84,10 @@ namespace DuneVector
         private MusicTimelineCallbackBridge _timelineBridge;
         private MusicTimelineState _timelineState;
         private uint _musicPlaybackGeneration;
+        private MusicPlaylistTrack[] _musicPlaylist = Array.Empty<MusicPlaylistTrack>();
+        private int[] _musicPlayOrder = Array.Empty<int>();
+        private int _musicPlayOrderPosition;
+        private bool _userMusicPaused;
         private bool _gameplayPaused;
         private int _lastPolledTimelinePosition;
         private bool _restartIssuedForStoppedState;
@@ -148,6 +163,7 @@ namespace DuneVector
             _hasMusicBus = TryGetBus(_settings.MusicBusPath, out _musicBus);
             _hasSoundEffectsBus = TryGetBus(_settings.SoundEffectsBusPath, out _soundEffectsBus);
             ApplyMixerVolumes();
+            InitializeMusicPlaylist();
             StartBackgroundMusic();
         }
 
@@ -185,10 +201,7 @@ namespace DuneVector
                 if (playbackState == PLAYBACK_STATE.STOPPED && !_restartIssuedForStoppedState)
                 {
                     _restartIssuedForStoppedState = true;
-                    _musicPlaybackGeneration++;
-                    _timelineBridge?.SetGeneration(_musicPlaybackGeneration);
-                    _timelineState.PlaybackGeneration = _musicPlaybackGeneration;
-                    _musicInstance.start();
+                    PlayNextMusicTrack();
                 }
                 else if (playbackState != PLAYBACK_STATE.STOPPED)
                 {
@@ -642,16 +655,144 @@ namespace DuneVector
             }
         }
 
-        private void StartBackgroundMusic()
+        public void PlayPreviousMusicTrack()
         {
-            if (string.IsNullOrWhiteSpace(_settings.BackgroundMusicEvent))
+            if (_musicPlayOrder.Length == 0)
             {
                 return;
             }
 
+            _musicPlayOrderPosition = (_musicPlayOrderPosition - 1 + _musicPlayOrder.Length)
+                % _musicPlayOrder.Length;
+            StartMusicTrackAtCurrentPosition();
+        }
+
+        public void ToggleMusicPlayback()
+        {
+            SetMusicPlaybackPaused(!_userMusicPaused);
+        }
+
+        public void SetMusicPlaybackPaused(bool paused)
+        {
+            _userMusicPaused = paused;
+            if (!_musicInstance.isValid())
+            {
+                return;
+            }
+
+            bool shouldPauseInstance = paused || (!_hasMusicBus && IsMuted(MusicVolume));
+            _musicInstance.setPaused(shouldPauseInstance);
+            _timelineState.IsPaused = shouldPauseInstance || _gameplayPaused;
+        }
+
+        public void PlayNextMusicTrack()
+        {
+            if (_musicPlayOrder.Length == 0)
+            {
+                return;
+            }
+
+            _musicPlayOrderPosition++;
+            if (_musicPlayOrderPosition >= _musicPlayOrder.Length)
+            {
+                int previousTrackIndex = _musicPlayOrder[_musicPlayOrder.Length - 1];
+                ShuffleMusicPlayOrder(previousTrackIndex);
+                _musicPlayOrderPosition = 0;
+            }
+            StartMusicTrackAtCurrentPosition();
+        }
+
+        private void InitializeMusicPlaylist()
+        {
+            List<MusicPlaylistTrack> validTracks = new List<MusicPlaylistTrack>();
+            MusicPlaylistTrack[] authoredPlaylist = _settings.BackgroundMusicPlaylist;
+            if (authoredPlaylist != null)
+            {
+                for (int i = 0; i < authoredPlaylist.Length; i++)
+                {
+                    MusicPlaylistTrack track = authoredPlaylist[i];
+                    if (track != null && !string.IsNullOrWhiteSpace(track.FmodEventPath))
+                    {
+                        validTracks.Add(track);
+                    }
+                }
+            }
+
+            if (validTracks.Count == 0 && !string.IsNullOrWhiteSpace(_settings.BackgroundMusicEvent))
+            {
+                validTracks.Add(new MusicPlaylistTrack
+                {
+                    DisplayName = _settings.BackgroundMusicEvent,
+                    FmodEventPath = _settings.BackgroundMusicEvent,
+                    VisualizerProfile = _musicReactiveSettings != null ? _musicReactiveSettings.TrackProfile : null,
+                });
+            }
+
+            _musicPlaylist = validTracks.ToArray();
+            _musicPlayOrder = new int[_musicPlaylist.Length];
+            for (int i = 0; i < _musicPlayOrder.Length; i++)
+            {
+                _musicPlayOrder[i] = i;
+            }
+            ShuffleMusicPlayOrder(-1);
+            _musicPlayOrderPosition = 0;
+        }
+
+        private void ShuffleMusicPlayOrder(int trackIndexToAvoidFirst)
+        {
+            for (int i = _musicPlayOrder.Length - 1; i > 0; i--)
+            {
+                int swapIndex = UnityEngine.Random.Range(0, i + 1);
+                (_musicPlayOrder[i], _musicPlayOrder[swapIndex]) =
+                    (_musicPlayOrder[swapIndex], _musicPlayOrder[i]);
+            }
+
+            if (_musicPlayOrder.Length > 1 && _musicPlayOrder[0] == trackIndexToAvoidFirst)
+            {
+                int swapIndex = UnityEngine.Random.Range(1, _musicPlayOrder.Length);
+                (_musicPlayOrder[0], _musicPlayOrder[swapIndex]) =
+                    (_musicPlayOrder[swapIndex], _musicPlayOrder[0]);
+            }
+        }
+
+        private void StartBackgroundMusic()
+        {
+            if (_musicPlayOrder.Length == 0)
+            {
+                return;
+            }
+
+            StartMusicTrackAtCurrentPosition();
+        }
+
+        private void StartMusicTrackAtCurrentPosition()
+        {
+            if (_musicPlayOrderPosition < 0 || _musicPlayOrderPosition >= _musicPlayOrder.Length)
+            {
+                return;
+            }
+
+            for (int attempt = 0; attempt < _musicPlayOrder.Length; attempt++)
+            {
+                MusicPlaylistTrack track = _musicPlaylist[_musicPlayOrder[_musicPlayOrderPosition]];
+                if (TryStartMusicTrack(track))
+                {
+                    return;
+                }
+                _musicPlayOrderPosition = (_musicPlayOrderPosition + 1) % _musicPlayOrder.Length;
+            }
+            ActiveMusicTrack = null;
+            Debug.LogError("No authored FMOD background-music event could be started.", this);
+        }
+
+        private bool TryStartMusicTrack(MusicPlaylistTrack track)
+        {
+            ReleaseCurrentMusic(FMOD.Studio.STOP_MODE.IMMEDIATE);
+
             try
             {
-                _musicInstance = RuntimeManager.CreateInstance(_settings.BackgroundMusicEvent);
+                _musicInstance = RuntimeManager.CreateInstance(track.FmodEventPath);
+                ActiveMusicTrack = track;
                 _musicPlaybackGeneration++;
                 int queueCapacity = _musicReactiveSettings != null
                     ? _musicReactiveSettings.TimelineCallbackQueueCapacity
@@ -667,8 +808,8 @@ namespace DuneVector
                 _timelineState = new MusicTimelineState
                 {
                     IsValid = true,
-                    TrackId = _musicReactiveSettings != null && _musicReactiveSettings.TrackProfile != null
-                        ? _musicReactiveSettings.TrackProfile.StableTrackHash
+                    TrackId = track.VisualizerProfile != null
+                        ? track.VisualizerProfile.StableTrackHash
                         : 0,
                     PlaybackGeneration = _musicPlaybackGeneration,
                 };
@@ -678,20 +819,40 @@ namespace DuneVector
                 }
                 if (!_hasMusicBus)
                 {
-                    _musicInstance.setVolume(MusicVolume);
+                    ApplyMusicInstanceVolumeAndMute();
                 }
                 _musicInstance.start();
-                if (!_hasMusicBus && IsMuted(MusicVolume))
+                if (_userMusicPaused)
                 {
                     _musicInstance.setPaused(true);
                 }
+                _lastPolledTimelinePosition = 0;
+                _restartIssuedForStoppedState = false;
+                ActiveMusicTrackChanged?.Invoke(track);
+                return true;
             }
             catch (EventNotFoundException exception)
             {
-                Debug.LogError(
-                    $"FMOD background event '{_settings.BackgroundMusicEvent}' was not found. {exception.Message}",
+                Debug.LogWarning(
+                    $"FMOD background event '{track.FmodEventPath}' was not found. {exception.Message}",
                     this);
+                return false;
             }
+        }
+
+        private void ReleaseCurrentMusic(FMOD.Studio.STOP_MODE stopMode)
+        {
+            _timelineBridge?.Dispose();
+            _timelineBridge = null;
+            MusicTimelineCallbackRegistered = false;
+            if (!_musicInstance.isValid())
+            {
+                return;
+            }
+
+            _musicInstance.stop(stopMode);
+            _musicInstance.release();
+            _musicInstance.clearHandle();
         }
 
         private void ApplyMixerVolumes()
@@ -709,10 +870,10 @@ namespace DuneVector
         private void ApplyMusicInstanceVolumeAndMute()
         {
             bool muted = IsMuted(MusicVolume);
-            if (muted)
+            if (muted || _userMusicPaused)
             {
                 _musicInstance.setPaused(true);
-                _musicInstance.setVolume(0f);
+                _musicInstance.setVolume(muted ? 0f : MusicVolume);
                 return;
             }
 
@@ -921,15 +1082,7 @@ namespace DuneVector
             {
                 _health.Damaged -= HandleDroneDamaged;
             }
-            if (_musicInstance.isValid())
-            {
-                _timelineBridge?.Dispose();
-                _timelineBridge = null;
-                MusicTimelineCallbackRegistered = false;
-                _musicInstance.stop(FMOD.Studio.STOP_MODE.ALLOWFADEOUT);
-                _musicInstance.release();
-                _musicInstance.clearHandle();
-            }
+            ReleaseCurrentMusic(FMOD.Studio.STOP_MODE.ALLOWFADEOUT);
             ReleaseFlightBoostAudio();
             if (_hasMasterBus && _masterBus.isValid())
             {
@@ -980,6 +1133,10 @@ namespace DuneVector
         private GUIStyle _dangerButtonStyle;
         private GUIStyle _sliderStyle;
         private GUIStyle _sliderThumbStyle;
+        private GUIStyle _songTitleStyle;
+        private GUIStyle _songTitleShadowStyle;
+        private GUIStyle _songControlStyle;
+        private GUIStyle _songControlShadowStyle;
 
         private Texture2D _transparentTexture;
         private Texture2D _primaryButtonTexture;
@@ -1242,6 +1399,7 @@ namespace DuneVector
                 }
                 return;
             }
+            DrawSongControls(scale);
             float screenMargin = _visuals.ScreenMargin * scale;
             float panelWidth = Mathf.Min(_visuals.PanelWidth * scale, Screen.width - (screenMargin * 2f));
             float panelHeight = Mathf.Min(_visuals.PanelHeight * scale, Screen.height - (screenMargin * 2f));
@@ -1531,6 +1689,56 @@ namespace DuneVector
                 _hintStyle);
         }
 
+        private void DrawSongControls(float scale)
+        {
+            float left = _visuals.SongControlsLeft * scale;
+            float top = _visuals.SongControlsTop * scale;
+            float width = _visuals.SongControlsWidth * scale;
+            float titleHeight = _visuals.SongTitleHeight * scale;
+            float shadowOffset = _visuals.SongTextShadowOffset * scale;
+            string title = _audio != null && !string.IsNullOrWhiteSpace(_audio.ActiveMusicDisplayName)
+                ? _audio.ActiveMusicDisplayName
+                : "NO SONG";
+
+            Rect titleRect = new Rect(left, top, width, titleHeight);
+            GUI.Label(OffsetRect(titleRect, shadowOffset), title, _songTitleShadowStyle);
+            GUI.Label(titleRect, title, _songTitleStyle);
+
+            float controlSize = _visuals.SongControlSize * scale;
+            float gap = _visuals.SongControlGap * scale;
+            float controlY = titleRect.yMax + gap;
+            Rect previousRect = new Rect(left, controlY, controlSize, controlSize);
+            Rect playPauseRect = new Rect(previousRect.xMax + gap, controlY, controlSize, controlSize);
+            Rect nextRect = new Rect(playPauseRect.xMax + gap, controlY, controlSize, controlSize);
+
+            if (DrawSongControlButton(previousRect, "|◀", shadowOffset))
+            {
+                _audio?.PlayPreviousMusicTrack();
+            }
+            string playPauseLabel = _audio != null && _audio.IsMusicPlaybackPaused ? "▶" : "Ⅱ";
+            if (DrawSongControlButton(playPauseRect, playPauseLabel, shadowOffset))
+            {
+                _audio?.ToggleMusicPlayback();
+            }
+            if (DrawSongControlButton(nextRect, "▶|", shadowOffset))
+            {
+                _audio?.PlayNextMusicTrack();
+            }
+        }
+
+        private bool DrawSongControlButton(Rect rect, string label, float shadowOffset)
+        {
+            GUI.Label(OffsetRect(rect, shadowOffset), label, _songControlShadowStyle);
+            return GUI.Button(rect, label, _songControlStyle);
+        }
+
+        private static Rect OffsetRect(Rect rect, float offset)
+        {
+            rect.x += offset;
+            rect.y += offset;
+            return rect;
+        }
+
         private void DrawVideoToggle(Rect rect, string label, bool enabled, Action<bool> apply)
         {
             bool previousEnabled = GUI.enabled;
@@ -1785,6 +1993,24 @@ namespace DuneVector
                 FontStyle.Normal,
                 TextAnchor.MiddleCenter,
                 _visuals.SecondaryTextColor);
+            _songTitleStyle = CreateLabelStyle(
+                Mathf.RoundToInt(_visuals.SongTitleFontSize * scale),
+                FontStyle.Bold,
+                TextAnchor.MiddleLeft,
+                _visuals.SongTextColor);
+            _songTitleShadowStyle = CreateLabelStyle(
+                Mathf.RoundToInt(_visuals.SongTitleFontSize * scale),
+                FontStyle.Bold,
+                TextAnchor.MiddleLeft,
+                _visuals.SongTextShadowColor);
+            _songControlStyle = CreateTransparentButtonStyle(
+                Mathf.RoundToInt(_visuals.SongControlFontSize * scale),
+                _visuals.SongTextColor);
+            _songControlShadowStyle = CreateLabelStyle(
+                Mathf.RoundToInt(_visuals.SongControlFontSize * scale),
+                FontStyle.Bold,
+                TextAnchor.MiddleCenter,
+                _visuals.SongTextShadowColor);
 
             int buttonFontSize = Mathf.RoundToInt(_visuals.ButtonFontSize * scale);
             _primaryButtonStyle = CreateButtonStyle(
@@ -1864,6 +2090,30 @@ namespace DuneVector
             style.active.textColor = _visuals.PrimaryTextColor;
             style.focused.background = hoverBackground;
             style.focused.textColor = _visuals.PrimaryTextColor;
+            return style;
+        }
+
+        private GUIStyle CreateTransparentButtonStyle(int fontSize, Color color)
+        {
+            GUIStyle style = new GUIStyle(GUI.skin.button)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontSize = fontSize,
+                fontStyle = FontStyle.Bold,
+                clipping = TextClipping.Clip,
+                wordWrap = false,
+                border = new RectOffset(),
+                margin = new RectOffset(),
+                padding = new RectOffset(),
+            };
+            style.normal.background = _transparentTexture;
+            style.hover.background = _transparentTexture;
+            style.active.background = _transparentTexture;
+            style.focused.background = _transparentTexture;
+            style.normal.textColor = color;
+            style.hover.textColor = color;
+            style.active.textColor = color;
+            style.focused.textColor = color;
             return style;
         }
 

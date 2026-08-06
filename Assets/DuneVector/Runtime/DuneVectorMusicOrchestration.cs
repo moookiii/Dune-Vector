@@ -503,10 +503,20 @@ namespace DuneVector
 
         public void Initialize(DuneVectorAudioManager audio, DuneVectorMusicReactiveSky analysisSource, MusicReactiveSkyTuning settings)
         {
+            if (_audio != null)
+            {
+                _audio.ActiveMusicTrackChanged -= HandleActiveMusicTrackChanged;
+            }
             _audio = audio;
             _analysisSource = analysisSource;
             _settings = settings;
-            _profile = settings != null ? settings.TrackProfile : null;
+            if (_audio != null)
+            {
+                _audio.ActiveMusicTrackChanged += HandleActiveMusicTrackChanged;
+            }
+            _profile = _audio != null
+                ? _audio.ActiveMusicTrackProfile
+                : settings != null ? settings.TrackProfile : null;
             _cueCursor = 0;
             _previousTimelinePosition = 0;
             _observedSeekGeneration = 0;
@@ -522,6 +532,34 @@ namespace DuneVector
                 ReconstructCueCursor(initialTimeline);
                 ValidateProfileAuthoring();
             }
+        }
+
+        private void HandleActiveMusicTrackChanged(MusicPlaylistTrack track)
+        {
+            _profile = track != null ? track.VisualizerProfile : null;
+            _cueCursor = 0;
+            _lastObservedMarkerId = 0;
+            _validatedPlaybackGeneration = 0;
+            _bassTransientArmed = true;
+            _highTransientArmed = true;
+            _lastKickTimeline = int.MinValue;
+            _lastHighTimeline = int.MinValue;
+            _rateLimitBar = -1;
+            _kicksThisBar = 0;
+            _highEventsThisBar = 0;
+
+            MusicTimelineState timeline = _audio != null ? _audio.TimelineState : default;
+            _previousTimelinePosition = timeline.TimelinePositionMilliseconds;
+            _observedSeekGeneration = timeline.SeekGeneration;
+            _observedMarkers = _profile != null
+                ? new bool[_profile.Markers.Length]
+                : null;
+            if (_profile != null)
+            {
+                ReconstructCueCursor(timeline.TimelinePositionMilliseconds);
+                ValidateProfileAuthoring();
+            }
+            ResetSinks();
         }
 
         public bool RegisterSink(IMusicReactiveSink sink)
@@ -711,15 +749,18 @@ namespace DuneVector
             float durationDifference = Mathf.Abs(
                 _audio.MusicEventLengthMilliseconds * 0.001f - _profile.ExpectedDurationSeconds);
             if (_audio.MusicEventLengthMilliseconds > 0
+                && _profile.ExpectedDurationSeconds > 0f
                 && durationDifference > _settings.DurationValidationToleranceSeconds)
             {
                 Debug.LogWarning("Music visualizer FMOD event duration does not match the active track profile.", this);
             }
-            if (!Mathf.Approximately(_profile.BeatsPerMinute, 168f)
-                || _profile.TimeSignatureNumerator != 4
-                || _profile.TimeSignatureDenominator != 4)
+        }
+
+        private void OnDestroy()
+        {
+            if (_audio != null)
             {
-                Debug.LogWarning("Exodia music visualizer profile must use 168 BPM and 4/4.", this);
+                _audio.ActiveMusicTrackChanged -= HandleActiveMusicTrackChanged;
             }
         }
 

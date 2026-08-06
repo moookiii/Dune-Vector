@@ -3997,7 +3997,7 @@ namespace DuneVector
         public bool Enabled = true;
 
         [Header("Orchestration")]
-        [Tooltip("Song-specific section, marker, and authored cue profile. Runtime playback never mutates this asset.")]
+        [Tooltip("Legacy visualizer profile fallback used when the audio playlist has no authored entries.")]
         public MusicVisualTrackProfile TrackProfile;
         [Tooltip("Fixed capacity of the FMOD callback transfer ring. Exhaustion drops cosmetic timeline events.")]
         [Range(16, 1024)] public int TimelineCallbackQueueCapacity = 128;
@@ -4790,6 +4790,19 @@ namespace DuneVector
         [Min(24f)] public float ButtonHeight = 44f;
         [Min(0f)] public float ButtonGap = 10f;
 
+        [Header("Song Controls")]
+        [Min(0f)] public float SongControlsLeft = 28f;
+        [Min(0f)] public float SongControlsTop = 24f;
+        [Min(120f)] public float SongControlsWidth = 360f;
+        [Min(16f)] public float SongTitleHeight = 30f;
+        [Min(18f)] public float SongControlSize = 38f;
+        [Min(0f)] public float SongControlGap = 10f;
+        [Min(0f)] public float SongTextShadowOffset = 2f;
+        [Min(10)] public int SongTitleFontSize = 18;
+        [Min(10)] public int SongControlFontSize = 20;
+        [ColorUsage(false)] public Color SongTextColor = Color.white;
+        [ColorUsage(false)] public Color SongTextShadowColor = Color.black;
+
         [Header("Controls Screen")]
         [Tooltip("Full-screen controls reference shown from the pause menu.")]
         public Texture2D ControlsImage;
@@ -4870,10 +4883,23 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class MusicPlaylistTrack
+    {
+        [Tooltip("Song name shown by the pause-menu music controls.")]
+        public string DisplayName;
+        [Tooltip("FMOD event played for this playlist entry.")]
+        public string FmodEventPath;
+        [Tooltip("Visualizer composition and cue profile selected while this song is active.")]
+        public MusicVisualTrackProfile VisualizerProfile;
+    }
+
+    [System.Serializable]
     public sealed class AudioTuning
     {
         [Header("FMOD Events")]
-        [Tooltip("Looped background-music event played for the full run.")]
+        [Tooltip("Songs shuffled at startup. Each entry selects its matching visualizer profile.")]
+        public MusicPlaylistTrack[] BackgroundMusicPlaylist = System.Array.Empty<MusicPlaylistTrack>();
+        [Tooltip("Legacy fallback used only when the background-music playlist is empty.")]
         public string BackgroundMusicEvent = "event:/Shadows on the Mesa";
         [Tooltip("One-shot event played whenever the drone successfully loses health.")]
         public string DroneDamageEvent = "event:/Drone_Damage";

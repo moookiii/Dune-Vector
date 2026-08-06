@@ -62,6 +62,7 @@ namespace DuneVector
             if (_audio != null)
             {
                 _audio.MusicVisualizerModeChanged -= SetVisualizerMode;
+                _audio.ActiveMusicTrackChanged -= HandleActiveMusicTrackChanged;
             }
 
             _audio = audio;
@@ -86,7 +87,21 @@ namespace DuneVector
             }
 
             _audio.MusicVisualizerModeChanged += SetVisualizerMode;
+            _audio.ActiveMusicTrackChanged += HandleActiveMusicTrackChanged;
             SetVisualizerMode(_audio.VisualizerMode);
+        }
+
+        private void HandleActiveMusicTrackChanged(MusicPlaylistTrack track)
+        {
+            ReleaseSpectrumDsp();
+            ClearRawSpectrum();
+            _bass = 0f;
+            _mids = 0f;
+            _highs = 0f;
+            _bassPulse = 0f;
+            _highPulse = 0f;
+            LatestAnalysisFrame = default;
+            _analysisTimer = 0f;
         }
 
         public void SetVisualizerMode(MusicVisualizerMode mode)
@@ -591,6 +606,7 @@ namespace DuneVector
             if (_audio != null)
             {
                 _audio.MusicVisualizerModeChanged -= SetVisualizerMode;
+                _audio.ActiveMusicTrackChanged -= HandleActiveMusicTrackChanged;
             }
 
             if (_bloom != null)
@@ -599,8 +615,14 @@ namespace DuneVector
                 _bloom.threshold.value = _baseBloomThreshold;
             }
 
+            ReleaseSpectrumDsp();
+        }
+
+        private void ReleaseSpectrumDsp()
+        {
             if (!_spectrumDsp.hasHandle())
             {
+                _musicChannelGroup.clearHandle();
                 return;
             }
 
@@ -610,6 +632,7 @@ namespace DuneVector
             }
             _spectrumDsp.release();
             _spectrumDsp.clearHandle();
+            _musicChannelGroup.clearHandle();
         }
     }
 }
