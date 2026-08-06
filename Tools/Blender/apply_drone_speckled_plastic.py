@@ -1,8 +1,12 @@
+from pathlib import Path
+
 import bpy
 
 
-MATERIAL_NAME = "Plastic_Speckled"
+MATERIAL_NAME = "Plastic_Speckled_Textured"
 PRESERVED_MATERIAL_PREFIX = "tech_cyan"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+TEXTURE_DIRECTORY = PROJECT_ROOT / "Assets" / "DuneVector" / "Art" / "Drone" / "Textures"
 
 
 def input_socket(node, *names):
@@ -13,65 +17,78 @@ def input_socket(node, *names):
     return None
 
 
+def load_texture(filename: str, color_space: str):
+    path = TEXTURE_DIRECTORY / filename
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    image = bpy.data.images.load(str(path), check_existing=True)
+    image.colorspace_settings.name = color_space
+    return image
+
+
+base_color_image = load_texture("Drone_PlasticSpeckled_BaseColor.png", "sRGB")
+roughness_image = load_texture("Drone_PlasticSpeckled_Roughness.png", "Non-Color")
+normal_image = load_texture("Drone_PlasticSpeckled_Normal.png", "Non-Color")
+
 material = bpy.data.materials.get(MATERIAL_NAME)
 if material is None:
     material = bpy.data.materials.new(MATERIAL_NAME)
 
 material.use_nodes = True
-material.diffuse_color = (0.055, 0.065, 0.075, 1.0)
+material.diffuse_color = (0.055, 0.06, 0.065, 1.0)
 nodes = material.node_tree.nodes
 links = material.node_tree.links
 nodes.clear()
 
 output = nodes.new("ShaderNodeOutputMaterial")
-output.location = (720, 0)
+output.location = (880, 0)
 
 shader = nodes.new("ShaderNodeBsdfPrincipled")
-shader.location = (430, 0)
-shader.label = "Molded speckled plastic"
+shader.location = (580, 0)
+shader.label = "Image-textured speckled plastic"
 input_socket(shader, "Metallic").default_value = 0.0
-input_socket(shader, "Roughness").default_value = 0.38
 input_socket(shader, "IOR").default_value = 1.46
 coat_weight = input_socket(shader, "Coat Weight", "Coat")
 if coat_weight is not None:
-    coat_weight.default_value = 0.18
+    coat_weight.default_value = 0.16
 coat_roughness = input_socket(shader, "Coat Roughness")
 if coat_roughness is not None:
-    coat_roughness.default_value = 0.24
+    coat_roughness.default_value = 0.25
 
 texcoord = nodes.new("ShaderNodeTexCoord")
-texcoord.location = (-900, 0)
+texcoord.location = (-1050, 0)
 
-noise = nodes.new("ShaderNodeTexNoise")
-noise.location = (-650, 80)
-noise.noise_dimensions = "3D"
-noise.inputs["Scale"].default_value = 135.0
-noise.inputs["Detail"].default_value = 3.0
-noise.inputs["Roughness"].default_value = 0.72
-noise.inputs["Distortion"].default_value = 0.08
+mapping = nodes.new("ShaderNodeMapping")
+mapping.location = (-830, 0)
+mapping.inputs["Scale"].default_value = (4.5, 4.5, 4.5)
 
-ramp = nodes.new("ShaderNodeValToRGB")
-ramp.location = (-350, 120)
-ramp.color_ramp.interpolation = "CONSTANT"
-ramp.color_ramp.elements.remove(ramp.color_ramp.elements[1])
-base = ramp.color_ramp.elements[0]
-base.position = 0.0
-base.color = (0.035, 0.045, 0.055, 1.0)
-mid = ramp.color_ramp.elements.new(0.56)
-mid.color = (0.075, 0.09, 0.105, 1.0)
-fleck = ramp.color_ramp.elements.new(0.77)
-fleck.color = (0.32, 0.36, 0.39, 1.0)
 
-bump = nodes.new("ShaderNodeBump")
-bump.location = (160, -180)
-bump.inputs["Strength"].default_value = 0.11
-bump.inputs["Distance"].default_value = 0.025
+def image_node(image, location, label):
+    node = nodes.new("ShaderNodeTexImage")
+    node.image = image
+    node.location = location
+    node.label = label
+    node.extension = "REPEAT"
+    node.interpolation = "Linear"
+    node.projection = "BOX"
+    node.projection_blend = 0.22
+    links.new(mapping.outputs["Vector"], node.inputs["Vector"])
+    return node
 
-links.new(texcoord.outputs["Generated"], noise.inputs["Vector"])
-links.new(noise.outputs["Fac"], ramp.inputs["Fac"])
-links.new(ramp.outputs["Color"], shader.inputs["Base Color"])
-links.new(noise.outputs["Fac"], bump.inputs["Height"])
-links.new(bump.outputs["Normal"], shader.inputs["Normal"])
+
+base_color = image_node(base_color_image, (-520, 240), "Speckled plastic base color")
+roughness = image_node(roughness_image, (-520, -40), "Speckled plastic roughness")
+normal_texture = image_node(normal_image, (-520, -320), "Speckled plastic normal")
+
+normal_map = nodes.new("ShaderNodeNormalMap")
+normal_map.location = (260, -260)
+normal_map.inputs["Strength"].default_value = 0.42
+
+links.new(texcoord.outputs["Generated"], mapping.inputs["Vector"])
+links.new(base_color.outputs["Color"], shader.inputs["Base Color"])
+links.new(roughness.outputs["Color"], shader.inputs["Roughness"])
+links.new(normal_texture.outputs["Color"], normal_map.inputs["Color"])
+links.new(normal_map.outputs["Normal"], shader.inputs["Normal"])
 links.new(shader.outputs["BSDF"], output.inputs["Surface"])
 
 changed_slots = 0
@@ -98,8 +115,18 @@ for obj in bpy.context.scene.objects:
             changed_slots += 1
             changed_objects.add(obj.name)
 
+for screen in bpy.data.screens:
+    for area in screen.areas:
+        if area.type != "VIEW_3D":
+            continue
+        for space in area.spaces:
+            if space.type == "VIEW_3D":
+                space.shading.type = "MATERIAL"
+
+bpy.ops.file.pack_all()
 bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
 print(
     f"Applied {MATERIAL_NAME} to {changed_slots} material slots across "
-    f"{len(changed_objects)} mesh objects; preserved {preserved_slots} tech_cyan slots."
+    f"{len(changed_objects)} mesh objects; preserved {preserved_slots} tech_cyan slots; "
+    "packed base color, roughness, and normal textures."
 )
