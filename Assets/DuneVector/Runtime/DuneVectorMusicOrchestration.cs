@@ -855,6 +855,13 @@ namespace DuneVector
             _state.Multipliers = multipliers;
             _state.Permissions = section.Permissions;
             _state.Permissions &= _audio.VisualizerEffectMask;
+            // The HUD border is a player-facing presentation option. Older track profiles predate
+            // the renderer and omit this bit from every section, so let the player's explicit
+            // Glitch & HUD toggle opt it in globally. Visual tier and No Flash still gate it below.
+            if ((_audio.VisualizerEffectMask & MusicVisualEffectGroups.HudBorder) != 0)
+            {
+                _state.Permissions |= MusicVisualEffectGroups.HudBorder;
+            }
             if (_audio.VisualizerMode == MusicVisualizerMode.Off)
             {
                 _state.Permissions = MusicVisualEffectGroups.None;
