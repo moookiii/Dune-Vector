@@ -31,6 +31,7 @@ namespace DuneVector
         [Min(0f)] public float ClockwiseRotationSpeed = 32f;
         [Min(0f)] public float FlightModeHeightOffset;
         [Min(0f)] public float FlightModeHeightSharpness;
+        internal float FlightModeGroundResetHeightSharpness { get; set; }
         public string ProceduralIdentity;
 
         public bool HasActivated { get; private set; }
@@ -191,6 +192,7 @@ namespace DuneVector
             upperRing.ClockwiseRotationSpeed = _ringTuning.UpperFlightRingRotationSpeed;
             upperRing.FlightModeHeightOffset = flightModeHeightOffset;
             upperRing.FlightModeHeightSharpness = _ringTuning.UpperFlightModeHeightSharpness;
+            upperRing.FlightModeGroundResetHeightSharpness = _ringTuning.FlightModeGroundResetHeightSharpness;
             if (_controller != null && _controller.CurrentMode == DroneTraversalMode.Flight)
             {
                 upperRing.transform.localPosition = restingLocalPosition + (Vector3.up * flightModeHeightOffset);
@@ -399,10 +401,13 @@ namespace DuneVector
             bool isFlying = _controller.CurrentMode == DroneTraversalMode.Flight;
             Vector3 targetPosition = _restingLocalPosition
                 + (Vector3.up * (isFlying ? FlightModeHeightOffset : 0f));
+            float heightSharpness = isFlying
+                ? FlightModeHeightSharpness
+                : FlightModeGroundResetHeightSharpness;
             _cachedTransform.localPosition = Vector3.Lerp(
                 _cachedTransform.localPosition,
                 targetPosition,
-                DuneVectorMath.Sharpness(FlightModeHeightSharpness, deltaTime));
+                DuneVectorMath.Sharpness(heightSharpness, deltaTime));
         }
 
         private void TryActivate()

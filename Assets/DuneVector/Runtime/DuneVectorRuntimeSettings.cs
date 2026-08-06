@@ -3819,6 +3819,8 @@ namespace DuneVector
         [Min(0f)] public float FlightModeMinimumHeightOffset;
         [Min(0f)] public float FlightModeMaximumHeightOffset;
         [Min(0f)] public float FlightModeHeightSharpness;
+        [Tooltip("Smoothing sharpness used when flight ends and flight-height rings return to their resting ground height. Lower values produce a smoother return.")]
+        [Min(0f)] public float FlightModeGroundResetHeightSharpness = 0.433333f;
     }
 
     [System.Serializable]

@@ -2411,6 +2411,7 @@ namespace DuneVector
                     minimumLift,
                     maximumLift);
                 ring.FlightModeHeightSharpness = ringTuning.FlightModeHeightSharpness;
+                ring.FlightModeGroundResetHeightSharpness = ringTuning.FlightModeGroundResetHeightSharpness;
                 ring.ApplyInitialFlightModePresentation(ringTuning.FlightRingSpawnScale);
             }
             _rings.Add(ring);
