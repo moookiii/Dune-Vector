@@ -856,6 +856,15 @@ namespace DuneVector
             _state.Multipliers = multipliers;
             _state.Permissions = section.Permissions;
             _state.Permissions &= _audio.VisualizerEffectMask;
+            // Bass lines were originally part of the Sky group, so existing track profiles
+            // use the Sky bit to author their section availability. Preserve that authored
+            // gating while allowing the player's newer Bass Lines toggle to control them
+            // independently from Sky & Aurora.
+            if ((section.Permissions & MusicVisualEffectGroups.Sky) != 0
+                && (_audio.VisualizerEffectMask & MusicVisualEffectGroups.BassLines) != 0)
+            {
+                _state.Permissions |= MusicVisualEffectGroups.BassLines;
+            }
             // The HUD border is a player-facing presentation option. Older track profiles predate
             // the renderer and omit this bit from every section, so let the player's explicit
             // Glitch & HUD toggle opt it in globally. Visual tier and No Flash still gate it below.
