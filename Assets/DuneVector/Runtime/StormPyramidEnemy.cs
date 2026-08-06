@@ -1401,6 +1401,10 @@ namespace DuneVector
 
             _flyThroughTriggered = true;
             _lightning?.CancelAttack();
+            DuneVectorPortalEvents.NotifyPlayerCrossed(
+                currentOrbPosition,
+                currentRingNormal,
+                _player);
             DuneVectorVisuals.CreatePlayerStrikeOrbFlyThroughExplosion(
                 currentOrbPosition,
                 _flyThroughRing != null ? _flyThroughRing.rotation : transform.rotation,
