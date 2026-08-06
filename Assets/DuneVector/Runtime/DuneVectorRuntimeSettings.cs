@@ -61,7 +61,7 @@ namespace DuneVector
 
         [ColorUsage(false)]
         [Tooltip("Ground pigment shown wherever the mask contains linework.")]
-        public Color LineColor = new Color(1f, 1f, 1f, 0.222f);
+        public Color LineColor = new Color(1f, 1f, 1f, 222f / 255f);
 
         [Header("Mask Definition")]
         [Range(0f, 1f)] public float MaskThreshold = 0.48f;
