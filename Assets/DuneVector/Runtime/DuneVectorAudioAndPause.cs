@@ -60,6 +60,10 @@ namespace DuneVector
         public MusicVisualTrackProfile ActiveMusicTrackProfile => ActiveMusicTrack != null
             ? ActiveMusicTrack.VisualizerProfile
             : _musicReactiveSettings != null ? _musicReactiveSettings.TrackProfile : null;
+        public MusicReactiveSkyTuning ActiveMusicReactiveSkySettings => ActiveMusicTrack != null
+            && ActiveMusicTrack.ReactiveSkySettings != null
+                ? ActiveMusicTrack.ReactiveSkySettings
+                : _musicReactiveSettings;
         public string ActiveMusicDisplayName => ActiveMusicTrack != null
             ? ActiveMusicTrack.DisplayName
             : string.Empty;
@@ -227,8 +231,9 @@ namespace DuneVector
 
             if (_musicInstance.getTimelinePosition(out int position) == FMOD.RESULT.OK)
             {
-                int jumpThreshold = _musicReactiveSettings != null
-                    ? Mathf.Max(250, _musicReactiveSettings.TimelineJumpThresholdMilliseconds)
+                MusicReactiveSkyTuning activeReactiveSettings = ActiveMusicReactiveSkySettings;
+                int jumpThreshold = activeReactiveSettings != null
+                    ? Mathf.Max(250, activeReactiveSettings.TimelineJumpThresholdMilliseconds)
                     : 2000;
                 int delta = position - _lastPolledTimelinePosition;
                 if (delta < 0 || delta > jumpThreshold)
@@ -725,6 +730,7 @@ namespace DuneVector
                     DisplayName = _settings.BackgroundMusicEvent,
                     FmodEventPath = _settings.BackgroundMusicEvent,
                     VisualizerProfile = _musicReactiveSettings != null ? _musicReactiveSettings.TrackProfile : null,
+                    ReactiveSkySettings = _musicReactiveSettings,
                 });
             }
 
@@ -794,8 +800,9 @@ namespace DuneVector
                 _musicInstance = RuntimeManager.CreateInstance(track.FmodEventPath);
                 ActiveMusicTrack = track;
                 _musicPlaybackGeneration++;
-                int queueCapacity = _musicReactiveSettings != null
-                    ? _musicReactiveSettings.TimelineCallbackQueueCapacity
+                MusicReactiveSkyTuning activeReactiveSettings = ActiveMusicReactiveSkySettings;
+                int queueCapacity = activeReactiveSettings != null
+                    ? activeReactiveSettings.TimelineCallbackQueueCapacity
                     : 128;
                 _timelineBridge = new MusicTimelineCallbackBridge(queueCapacity);
                 bool callbackRegistered = _timelineBridge.Attach(_musicInstance, _musicPlaybackGeneration);

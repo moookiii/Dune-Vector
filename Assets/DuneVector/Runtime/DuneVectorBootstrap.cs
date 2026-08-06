@@ -1,3 +1,4 @@
+using System.Collections;
 using KinematicCharacterController;
 using FMODUnity;
 using UnityEngine;
@@ -110,6 +111,9 @@ namespace DuneVector
         private DuneVectorY2KSky _environmentSky;
         private Bloom _environmentBloom;
         private bool _ownsRuntimeSettings;
+        private GameObject _musicReactiveRoot;
+        private Coroutine _musicReactiveRebuildCoroutine;
+        private bool _musicTrackEventsBound;
 
         public void ApplyDunePreset(DuneGenerationPreset preset)
         {
@@ -609,6 +613,7 @@ namespace DuneVector
                     DroneHealth,
                     Drone,
                     PlayerTuning.CameraAntiAliasingMode);
+                BindMusicTrackChanges();
                 return;
             }
 
@@ -621,43 +626,87 @@ namespace DuneVector
                 DroneHealth,
                 Drone,
                 PlayerTuning.CameraAntiAliasingMode);
+            BindMusicTrackChanges();
+        }
+
+        private void BindMusicTrackChanges()
+        {
+            if (_musicTrackEventsBound || AudioManager == null)
+            {
+                return;
+            }
+            AudioManager.ActiveMusicTrackChanged += HandleActiveMusicTrackChanged;
+            _musicTrackEventsBound = true;
+        }
+
+        private void HandleActiveMusicTrackChanged(MusicPlaylistTrack track)
+        {
+            if (_musicReactiveRebuildCoroutine != null)
+            {
+                StopCoroutine(_musicReactiveRebuildCoroutine);
+                _musicReactiveRebuildCoroutine = null;
+            }
+            if (_musicReactiveRoot != null)
+            {
+                Destroy(_musicReactiveRoot);
+                _musicReactiveRoot = null;
+                MusicReactiveSky = null;
+            }
+            _musicReactiveRebuildCoroutine = StartCoroutine(RebuildMusicReactiveSkyNextFrame());
+        }
+
+        private IEnumerator RebuildMusicReactiveSkyNextFrame()
+        {
+            yield return null;
+            _musicReactiveRebuildCoroutine = null;
+            BuildMusicReactiveSky();
         }
 
         private void BuildMusicReactiveSky()
         {
-            if (!RuntimeSettings.MusicReactiveSky.Enabled)
+            MusicReactiveSkyTuning reactiveSettings = AudioManager != null
+                ? AudioManager.ActiveMusicReactiveSkySettings
+                : RuntimeSettings.MusicReactiveSky;
+            if (reactiveSettings == null || !reactiveSettings.Enabled)
             {
                 return;
             }
 
             GameObject reactiveSkyObject = new GameObject("Music Reactive Resonance Front");
             reactiveSkyObject.transform.SetParent(transform, false);
+            _musicReactiveRoot = reactiveSkyObject;
+            if (_materials.MusicReactiveAdditive != null)
+            {
+                _materials.MusicReactiveAdditive.SetFloat(
+                    "_EdgeSoftness",
+                    reactiveSettings.MusicReactiveAdditiveEdgeSoftness);
+            }
             MusicReactiveSky = reactiveSkyObject.AddComponent<DuneVectorMusicReactiveSky>();
             MusicReactiveSky.Initialize(
                 AudioManager,
                 _environmentSky,
                 _environmentBloom,
                 DroneCamera.Camera,
-                RuntimeSettings.MusicReactiveSky);
+                reactiveSettings);
             DuneVectorMusicReactiveConductor conductor = reactiveSkyObject.AddComponent<DuneVectorMusicReactiveConductor>();
-            conductor.Initialize(AudioManager, MusicReactiveSky, RuntimeSettings.MusicReactiveSky);
+            conductor.Initialize(AudioManager, MusicReactiveSky, reactiveSettings);
             conductor.RegisterSink(MusicReactiveSky);
             MusicReactiveSky.EnableConductorControl();
             DuneVectorPerspectivePressureFronts pressureFronts = reactiveSkyObject.AddComponent<DuneVectorPerspectivePressureFronts>();
-            pressureFronts.Initialize(DroneCamera.Camera, _materials.MusicReactiveAdditive, RuntimeSettings.MusicReactiveSky);
+            pressureFronts.Initialize(DroneCamera.Camera, _materials.MusicReactiveAdditive, reactiveSettings);
             conductor.RegisterSink(pressureFronts);
             DuneVectorMusicForegroundResponse foreground = reactiveSkyObject.AddComponent<DuneVectorMusicForegroundResponse>();
             foreground.Initialize(
                 DroneCamera.Camera,
                 Drone.transform,
                 _materials.MusicReactiveAdditive,
-                RuntimeSettings.MusicReactiveSky);
+                reactiveSettings);
             conductor.RegisterSink(foreground);
             DuneVectorMusicCameraEffects cameraEffects = reactiveSkyObject.AddComponent<DuneVectorMusicCameraEffects>();
-            cameraEffects.Initialize(DroneCamera, AudioManager, RuntimeSettings.MusicReactiveSky);
+            cameraEffects.Initialize(DroneCamera, AudioManager, reactiveSettings);
             conductor.RegisterSink(cameraEffects);
             DuneVectorMusicWorldGlitchSink glitch = reactiveSkyObject.AddComponent<DuneVectorMusicWorldGlitchSink>();
-            glitch.Initialize(RuntimeSettings.MusicReactiveSky);
+            glitch.Initialize(reactiveSettings);
             conductor.RegisterSink(glitch);
             conductor.ValidateRuntimeIntegration();
         }
@@ -1066,6 +1115,11 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            if (_musicTrackEventsBound && AudioManager != null)
+            {
+                AudioManager.ActiveMusicTrackChanged -= HandleActiveMusicTrackChanged;
+                _musicTrackEventsBound = false;
+            }
             if (Instance == this)
             {
                 Instance = null;
