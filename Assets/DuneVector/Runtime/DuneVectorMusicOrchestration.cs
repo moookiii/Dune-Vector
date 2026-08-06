@@ -6,6 +6,7 @@ using System.Threading;
 using FMOD.Studio;
 using Unity.Profiling;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace DuneVector
 {
@@ -196,9 +197,12 @@ namespace DuneVector
         [Min(0f)] public float FrontStrengthMultiplier;
         [Range(0f, 1f)] public float FrontEdgeBreakup;
         [ColorUsage(false, true)] public Color FrontColor;
-        [Min(0)] public int FragmentCount;
-        public Vector2 FragmentLifetimeSeconds;
-        [Range(-1f, 1f)] public float FragmentHorizontalBias;
+        [FormerlySerializedAs("FragmentCount")]
+        [Min(0)] public int ScreenFlareLineCount;
+        [FormerlySerializedAs("FragmentLifetimeSeconds")]
+        public Vector2 ScreenFlareLineLifetimeSeconds;
+        [FormerlySerializedAs("FragmentHorizontalBias")]
+        [Range(-1f, 1f)] public float ScreenFlareHorizontalBias;
         [Min(0f)] public float RoadResponse;
         [Min(0f)] public float SecondaryRoadResponse;
         [Min(0f)] public float SecondaryRoadDelayBeats;
@@ -261,9 +265,9 @@ namespace DuneVector
         public float FrontStrengthMultiplier;
         public float FrontEdgeBreakup;
         public Color FrontColor;
-        public int FragmentCount;
-        public Vector2 FragmentLifetimeSeconds;
-        public float FragmentHorizontalBias;
+        public int ScreenFlareLineCount;
+        public Vector2 ScreenFlareLineLifetimeSeconds;
+        public float ScreenFlareHorizontalBias;
         public float RoadResponse;
         public float SecondaryRoadResponse;
         public float SecondaryRoadDelaySeconds;
@@ -1111,9 +1115,9 @@ namespace DuneVector
                 FrontStrengthMultiplier = cue.FrontStrengthMultiplier,
                 FrontEdgeBreakup = cue.FrontEdgeBreakup,
                 FrontColor = cue.FrontColor,
-                FragmentCount = cue.FragmentCount,
-                FragmentLifetimeSeconds = cue.FragmentLifetimeSeconds,
-                FragmentHorizontalBias = cue.FragmentHorizontalBias,
+                ScreenFlareLineCount = cue.ScreenFlareLineCount,
+                ScreenFlareLineLifetimeSeconds = cue.ScreenFlareLineLifetimeSeconds,
+                ScreenFlareHorizontalBias = cue.ScreenFlareHorizontalBias,
                 RoadResponse = cue.RoadResponse,
                 SecondaryRoadResponse = cue.SecondaryRoadResponse,
                 SecondaryRoadDelaySeconds = cue.SecondaryRoadDelayBeats * beatSeconds,

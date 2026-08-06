@@ -4105,7 +4105,7 @@ namespace DuneVector
         [Range(0.001f, 0.25f)] public float ForegroundStreakEndFade = 0.08f;
         [ColorUsage(false, true)] public Color ForegroundStreakColor = new Color(1.2f, 0.25f, 2.8f, 0.8f);
 
-        [Header("Authored Center-Out Fragments")]
+        [Header("Authored Center-Out Screen Flare Lines")]
         [Range(0f, 0.5f)] public float CenterOutInitialViewportRadius;
         [Range(0f, 0.5f)] public float CenterOutProtectedViewportRadius;
         [Range(1, 256)] public int CenterOutParticlePoolCapacity;
@@ -4120,6 +4120,10 @@ namespace DuneVector
         [Min(0f)] public float CenterOutRadialSpeed;
         [Range(0f, 1f)] public float CenterOutTowardCameraSpeedFraction;
         [Range(0f, 1f)] public float CenterOutDirectionalVariation;
+        [Range(0f, 1f)] public float CenterOutFineLineFraction = 0.55f;
+        [Range(0.05f, 1f)] public float CenterOutFineLineWidthMultiplier = 0.32f;
+        [Range(1f, 4f)] public float CenterOutFineLineSpeedMultiplier = 1.55f;
+        [Range(0.25f, 2f)] public float CenterOutBroadRayWidthMultiplier = 1f;
         [ColorUsage(false, true)] public Color CenterOutCyanColor;
         [ColorUsage(false, true)] public Color CenterOutMagentaColor;
         [ColorUsage(false, true)] public Color CenterOutWarmWhiteColor;

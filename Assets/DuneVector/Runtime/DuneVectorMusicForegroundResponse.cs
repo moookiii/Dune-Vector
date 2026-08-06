@@ -97,7 +97,7 @@ namespace DuneVector
 
         private void BuildStreakSystem(Material sharedMaterial)
         {
-            GameObject streakObject = new GameObject("Music Peripheral Streaks");
+            GameObject streakObject = new GameObject("Music Screen-Space Flare Lines");
             streakObject.transform.SetParent(_camera.transform, false);
             _streaks = streakObject.AddComponent<ParticleSystem>();
             _streaks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
@@ -125,7 +125,7 @@ namespace DuneVector
             renderer.lengthScale = _settings.ForegroundStreakLengthScale;
             _streakMaterial = new Material(sharedMaterial)
             {
-                name = "Music Visualizer - Premium Center-Out Streaks",
+                name = "Music Visualizer - Screen-Space Flare Lines",
                 enableInstancing = true,
             };
             _streakMaterial.SetFloat("_ShapeMode", 1f);
@@ -271,12 +271,12 @@ namespace DuneVector
             float punch = musicEnergy <= _settings.ForegroundStreakSlowEnergyThreshold
                 ? Mathf.Max(1f, _settings.ForegroundStreakSlowPunchMultiplier)
                 : 1f;
-            bool centerOut = command.IsAuthored && command.FragmentCount > 0;
+            bool centerOut = command.IsAuthored && command.ScreenFlareLineCount > 0;
             int requested;
             if (centerOut)
             {
                 requested = Mathf.CeilToInt(
-                    command.FragmentCount
+                    command.ScreenFlareLineCount
                     * Mathf.Max(1f, _settings.CenterOutBurstCountMultiplier));
             }
             else if (command.IsAuthored && command.TrebleParticleCount > 0)
@@ -302,22 +302,31 @@ namespace DuneVector
             float viewportScale = Mathf.Min(halfWidth, halfHeight) * 2f;
             for (int i = 0; i < count; i++)
             {
-                float angle = Next01(ref seed) * Mathf.PI * 2f;
-                if (centerOut)
-                {
-                    angle += command.FragmentHorizontalBias * Mathf.Cos(angle) * _settings.CenterOutDirectionalVariation;
-                }
-                Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)).normalized;
+                Vector2 direction = Vector2.zero;
                 float x;
                 float y;
                 Vector3 velocity;
+                bool fineLine = false;
                 if (centerOut)
                 {
+                    fineLine = Next01(ref seed) < _settings.CenterOutFineLineFraction;
+                    float rightChance = Mathf.Clamp01(
+                        0.5f + command.ScreenFlareHorizontalBias * 0.5f);
+                    float side = Next01(ref seed) < rightChance ? 1f : -1f;
+                    float verticalSpread = fineLine
+                        ? _settings.CenterOutDirectionalVariation
+                        : Mathf.Min(1f, _settings.CenterOutDirectionalVariation * 1.75f);
+                    float vertical = Mathf.Lerp(
+                        -verticalSpread,
+                        verticalSpread,
+                        Next01(ref seed));
+                    direction = new Vector2(side, vertical).normalized;
                     float radius = _settings.CenterOutInitialViewportRadius * viewportScale;
                     x = direction.x * radius;
                     y = direction.y * radius;
                     float speed = _settings.CenterOutRadialSpeed
-                        * Mathf.Lerp(1f - _settings.CenterOutDirectionalVariation, 1f, Next01(ref seed));
+                        * Mathf.Lerp(0.82f, 1.18f, Next01(ref seed))
+                        * (fineLine ? _settings.CenterOutFineLineSpeedMultiplier : 1f);
                     velocity = new Vector3(
                         direction.x * speed,
                         direction.y * speed,
@@ -343,7 +352,7 @@ namespace DuneVector
                     color *= command.TrebleBrightness;
                     color.a = alpha;
                 }
-                Vector2 lifetimeRange = command.FragmentLifetimeSeconds;
+                Vector2 lifetimeRange = command.ScreenFlareLineLifetimeSeconds;
                 float lifetime = centerOut && lifetimeRange.y > 0f
                     ? Mathf.Lerp(lifetimeRange.x, lifetimeRange.y, Next01(ref seed))
                     : _settings.ForegroundStreakLifetime;
@@ -353,7 +362,11 @@ namespace DuneVector
                     velocity = velocity,
                     startColor = color,
                     startLifetime = lifetime,
-                    startSize = _settings.ForegroundStreakSize,
+                    startSize = centerOut
+                        ? _settings.ForegroundStreakSize * (fineLine
+                            ? _settings.CenterOutFineLineWidthMultiplier
+                            : _settings.CenterOutBroadRayWidthMultiplier)
+                        : _settings.ForegroundStreakSize,
                 };
                 _streaks.Emit(emit, 1);
             }
