@@ -6,8 +6,6 @@ Banks were ready.
 
 Power grids had been tested.
 
-Military systems had been certified.
-
 The remaining failures, officials said, would be local, technical, and brief.
 
 Privately, the language was different.
@@ -22,7 +20,7 @@ Its final label was Quantum Magnetics.
 
 Almost no one knew the name.
 
-Fewer understood how the system could behaved unexpectedly on Januaray 00.
+Fewer understood how the system could behave unexpectedly on January 00.
 
 
 
@@ -34,19 +32,21 @@ TRANSMITION M2K_0000002
 
 Quantum Magnetics had not begun as a weapon.
 
-Its earliest research concerned perception: the small failures by which the mind mistakes suggestion for instinct, repetition for memory, and unease for knowledge. The work was imprecise, difficult to reproduce, and easy to dismiss.
+Its earliest research concerned perception: the small failures by which the mind mistakes suggestion for instinct, repetition for memory, and unease for knowledge.
 
-Most of it should have ended there.
+The work was imprecise, difficult to reproduce, and easy to dismiss.
 
-Instead, the useful fragments survived.
+Most of it should have ended there. Instead, the useful fragments survived.
 
-Over the following decades, the research moved quietly between laboratories, military programs, and intelligence services. Each generation solved a different part of the problem. One learned how to induce a sensation without sound. Another learned how to shape attention. Another discovered that fear did not need a cause if it arrived at the right moment.
+Over the following decades, the research moved quietly between laboratories, military programs, and intelligence services. Each generation solved a different part of the problem.
 
-No single breakthrough created Quantum Magnetics.
+One learned how to induce a sensation without sound. Another learned how to shape attention. Another discovered that fear did not need a cause if it arrived at the right moment and learned how to induce it remotely.
+
+Not a single breakthrough created Quantum Magnetics.
 
 It emerged gradually, assembled from methods that seemed limited on their own.
 
-In the end, the system no longer needed to tell a person what to think.
+In the end of construction, the system no longer needed to tell a person what to think.
 
 It only needed to make one thought feel more convincing than another.
 
