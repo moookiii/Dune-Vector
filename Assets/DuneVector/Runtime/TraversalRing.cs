@@ -322,7 +322,7 @@ namespace DuneVector
             }
 
             float speedNormalized = Mathf.Clamp01(
-                _controller.Speed / Mathf.Max(Mathf.Epsilon, _controller.CurrentMaximumFlightSpeed));
+                _controller.Speed / Mathf.Max(Mathf.Epsilon, _controller.CurrentSpeedometerMaximum));
             float maximumSpeedScale = _ringTuning != null
                 ? Mathf.Max(FlightModeScale, _ringTuning.UpperFlightRingMaximumSpeedScale)
                 : FlightModeScale;

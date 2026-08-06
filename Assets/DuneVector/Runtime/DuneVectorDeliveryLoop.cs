@@ -592,7 +592,7 @@ namespace DuneVector
             if (_player.CurrentMode == DroneTraversalMode.Flight)
             {
                 float speedNormalized = Mathf.Clamp01(
-                    _player.Speed / Mathf.Max(Mathf.Epsilon, _player.CurrentMaximumFlightSpeed));
+                    _player.Speed / Mathf.Max(Mathf.Epsilon, _player.CurrentSpeedometerMaximum));
                 float flightModeScale = Mathf.Max(1f, _ringTuning.UpperFlightRingActiveScale);
                 float maximumSpeedScale = Mathf.Max(
                     flightModeScale,

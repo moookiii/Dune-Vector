@@ -2060,6 +2060,13 @@ namespace DuneVector
             prefabVisual.name = $"{portalPrefab.name} Visual";
             prefabVisual.transform.localPosition = Vector3.zero;
 
+            ParticleSystem[] particleSystems = prefabVisual.GetComponentsInChildren<ParticleSystem>(true);
+            for (int i = 0; i < particleSystems.Length; i++)
+            {
+                ParticleSystem.MainModule main = particleSystems[i].main;
+                main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+            }
+
             Collider[] colliders = prefabVisual.GetComponentsInChildren<Collider>(true);
             for (int i = 0; i < colliders.Length; i++)
             {
