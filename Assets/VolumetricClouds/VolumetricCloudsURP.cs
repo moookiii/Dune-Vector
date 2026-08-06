@@ -482,6 +482,7 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
         private static readonly int volumetricCloudsDepthTexture = Shader.PropertyToID(_VolumetricCloudsDepthTexture);
         private static readonly int volumetricCloudsLightingTexture = Shader.PropertyToID(_VolumetricCloudsLightingTexture); // Same as "_VolumetricCloudsColorTexture"
         private static readonly int volumetricCloudsWorldOriginOffset = Shader.PropertyToID("_VolumetricCloudsWorldOriginOffset");
+        private static readonly int volumetricCloudsHistoryWorldOffset = Shader.PropertyToID("_VolumetricCloudsHistoryWorldOffset");
 
         // unity_SH is not available when performing full screen blit pass
         private static readonly int shAr = Shader.PropertyToID("clouds_SHAr");
@@ -1004,6 +1005,7 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
             internal TextureHandle historyHandle;
 
             internal CameraHistoryBuffers historyBuffers;
+            internal Vector3 historyWorldOffset;
 
             internal TextureHandle cameraTempDepthHandle;
         }
@@ -1039,6 +1041,8 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
 
                 if (data.historyBuffers.IsValid)
                 {
+                    data.cloudsMaterial.SetVector(volumetricCloudsHistoryWorldOffset, data.historyWorldOffset);
+
                     // Prepare Temporal Reprojection (copy source buffer: colorHandle.rgb + cloudsHandle.a)
                     Blitter.BlitCameraTexture(cmd, data.cameraColorHandle, data.accumulateHandle, data.cloudsMaterial, pass: 2);
 
@@ -1164,11 +1168,8 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
 
                     Vector4 globalWorldOrigin = Shader.GetGlobalVector(volumetricCloudsWorldOriginOffset);
                     Vector2 currentWorldOrigin = new(globalWorldOrigin.x, globalWorldOrigin.y);
-                    if (buffers.WorldOriginOffset != currentWorldOrigin)
-                    {
-                        buffers.WorldOriginOffset = currentWorldOrigin;
-                        buffers.IsValid = false;
-                    }
+                    Vector2 historyWorldOffset = currentWorldOrigin - buffers.WorldOriginOffset;
+                    buffers.WorldOriginOffset = currentWorldOrigin;
 
                     bool historyReallocated = RenderingUtils.ReAllocateHandleIfNeeded(
                         ref buffers.History,
@@ -1189,6 +1190,7 @@ public class VolumetricCloudsURP : ScriptableRendererFeature
                     accumulateTextureHandle = renderGraph.ImportTexture(buffers.Accumulation);
                     historyTextureHandle = renderGraph.ImportTexture(buffers.History);
                     passData.historyBuffers = buffers;
+                    passData.historyWorldOffset = new Vector3(historyWorldOffset.x, 0f, historyWorldOffset.y);
                 }
 
                 // Full resolution camera texture descriptor

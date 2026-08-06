@@ -285,6 +285,7 @@ Shader "Hidden/Sky/VolumetricClouds"
 
             TEXTURE2D_X(_VolumetricCloudsLightingTexture);
             TEXTURE2D_X(_VolumetricCloudsHistoryTexture);
+            float4 _VolumetricCloudsHistoryWorldOffset;
 
             SAMPLER(s_point_clamp_sampler);
 
@@ -363,7 +364,10 @@ Shader "Hidden/Sky/VolumetricClouds"
                 // Reconstruct world position
                 float4 posWS = float4(ComputeWorldSpacePosition(screenUV, depth, UNITY_MATRIX_I_VP), 1.0);
 
-                float4 prevClipPos = mul(_PrevViewProjMatrix, posWS);
+                float4 previousFramePosWS = posWS;
+                previousFramePosWS.xyz += _VolumetricCloudsHistoryWorldOffset.xyz;
+
+                float4 prevClipPos = mul(_PrevViewProjMatrix, previousFramePosWS);
                 float4 curClipPos = mul(_NonJitteredViewProjMatrix, posWS);
 
                 half2 prevPosCS = prevClipPos.xy / prevClipPos.w;
