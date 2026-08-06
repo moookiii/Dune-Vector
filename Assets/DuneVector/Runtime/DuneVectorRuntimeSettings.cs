@@ -4048,7 +4048,8 @@ namespace DuneVector
         public bool PressureFrontUseEnclosingHalo;
         [Min(0.1f)] public float PressureFrontEnclosingHaloStartRadius;
         [Min(0.1f)] public float PressureFrontEnclosingHaloEndRadius;
-        [Min(0.1f)] public float PressureFrontEnclosingHaloVerticalScale;
+        [FormerlySerializedAs("PressureFrontEnclosingHaloVerticalScale")]
+        [Min(0f)] public float PressureFrontEnclosingHaloHeightOffset;
 
         [Header("Authored Front Arrival")]
         [Min(0f)] public float DefaultFrontLeadBeats;

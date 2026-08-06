@@ -291,14 +291,16 @@ namespace DuneVector
                         _settings.PressureFrontEnclosingHaloStartRadius,
                         _settings.PressureFrontEnclosingHaloEndRadius,
                         progress * progress);
-                    float verticalRadius = radius * _settings.PressureFrontEnclosingHaloVerticalScale;
-                    Vector3 center = slot.Origin + slot.Forward * distance;
+                    Vector3 center = _camera != null
+                        ? _camera.transform.position
+                        : slot.Origin;
+                    center.y = slot.BaseHeight + _settings.PressureFrontEnclosingHaloHeightOffset;
                     for (int segment = 0; segment < _positions.Length; segment++)
                     {
                         float angle = segment / (float)_positions.Length * Mathf.PI * 2f;
                         _positions[segment] = center
                             + slot.Right * (Mathf.Cos(angle) * radius)
-                            + Vector3.up * (Mathf.Sin(angle) * verticalRadius);
+                            + slot.Forward * (Mathf.Sin(angle) * radius);
                     }
                 }
                 else
