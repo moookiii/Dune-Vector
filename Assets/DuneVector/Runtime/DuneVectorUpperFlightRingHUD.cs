@@ -38,30 +38,47 @@ namespace DuneVector
             float scale = Mathf.Clamp(Screen.height / referenceHeight, minimumScale, maximumScale);
             EnsureStyles(scale);
 
-            Rect shadow = new Rect(
-                panel.x + (_settings.UpperFlightRingHudShadowOffset.x * scale),
-                panel.y + (_settings.UpperFlightRingHudShadowOffset.y * scale),
-                panel.width,
-                panel.height);
-            DrawSolidRect(shadow, _settings.UpperFlightRingHudShadowColor);
-            DrawSolidRect(panel, _settings.UpperFlightRingHudPanelColor);
+            int requiredPasses = _world.UpperFlightRingRequiredPasses;
+            int completedPasses = Mathf.Min(_world.ActivatedFlightRingCount, requiredPasses);
+            Color accentColor = _world.IsUpperFlightRingUnlocked
+                ? _settings.UpperFlightRingHudUnlockedColor
+                : _settings.UpperFlightRingHudAccentColor;
+
+            DuneVectorHudChrome.DrawSoftShadow(
+                panel,
+                _settings.UpperFlightRingHudShadowColor,
+                _settings.UpperFlightRingHudShadowOffset * scale,
+                5f * scale);
+
+            Color border = accentColor;
+            border.a *= 0.45f;
+            DuneVectorHudChrome.DrawGlassPanel(
+                panel,
+                _settings.UpperFlightRingHudPanelColor,
+                border,
+                Mathf.Max(1f, scale),
+                scale);
 
             float accentWidth = _settings.UpperFlightRingHudAccentWidth * scale;
-            DrawSolidRect(
-                new Rect(panel.x, panel.y, accentWidth, panel.height),
-                _settings.UpperFlightRingHudAccentColor);
+            DuneVectorHudChrome.DrawAccentRail(panel, accentColor, accentWidth, 34f * scale);
+            Color bracket = accentColor;
+            bracket.a *= 0.6f;
+            DuneVectorHudChrome.DrawCornerBrackets(panel, bracket, 12f * scale, Mathf.Max(1f, scale));
 
             float padding = _settings.UpperFlightRingHudPadding * scale;
             float contentX = panel.x + accentWidth + padding;
             float contentWidth = panel.width - accentWidth - (padding * 2f);
             float titleHeight = _settings.UpperFlightRingHudTitleFontSize * scale * 1.5f;
-            GUI.Label(
+            Vector2 textShadow = new Vector2(1f, 1f) * scale;
+            Color textShadowColor = new Color(0f, 0f, 0f, 0.6f);
+            DuneVectorHudChrome.DrawLabel(
                 new Rect(contentX, panel.y + padding, contentWidth, titleHeight),
                 _settings.UpperFlightRingHudTitle,
-                _titleStyle);
+                _titleStyle,
+                Color.white,
+                textShadowColor,
+                textShadow);
 
-            int requiredPasses = _world.UpperFlightRingRequiredPasses;
-            int completedPasses = Mathf.Min(_world.ActivatedFlightRingCount, requiredPasses);
             string status = _world.IsUpperFlightRingUnlocked
                 ? _settings.UpperFlightRingHudUnlockedLabel
                 : $"{_settings.UpperFlightRingHudProgressLabel}  {completedPasses} / {requiredPasses}";
@@ -71,20 +88,30 @@ namespace DuneVector
             float statusY = panel.y + padding + titleHeight;
             float barHeight = _settings.UpperFlightRingHudProgressBarHeight * scale;
             float statusHeight = Mathf.Max(1f, panel.yMax - padding - barHeight - statusY - padding);
-            GUI.Label(new Rect(contentX, statusY, contentWidth, statusHeight), status, _statusStyle);
+            DuneVectorHudChrome.DrawLabel(
+                new Rect(contentX, statusY, contentWidth, statusHeight),
+                status,
+                _statusStyle,
+                Color.white,
+                textShadowColor,
+                textShadow);
 
             Rect track = new Rect(
                 contentX,
                 panel.yMax - padding - barHeight,
                 contentWidth,
                 barHeight);
-            DrawSolidRect(track, _settings.UpperFlightRingHudTrackColor);
             float progress = completedPasses / (float)requiredPasses;
-            DrawSolidRect(
-                new Rect(track.x, track.y, track.width * progress, track.height),
-                _world.IsUpperFlightRingUnlocked
-                    ? _settings.UpperFlightRingHudUnlockedColor
-                    : _settings.UpperFlightRingHudAccentColor);
+            DuneVectorHudChrome.DrawMeter(
+                track,
+                progress,
+                accentColor,
+                _settings.UpperFlightRingHudTrackColor,
+                Mathf.Max(1f, scale),
+                Mathf.Max(1, requiredPasses / 10),
+                new Color(0f, 0f, 0f, 0.28f),
+                Mathf.Max(1f, scale),
+                scale);
         }
 
         public bool TryGetVisiblePanelRect(out Rect panel)
@@ -150,14 +177,6 @@ namespace DuneVector
             _titleStyle.fontSize = Mathf.Max(1, Mathf.RoundToInt(_settings.UpperFlightRingHudTitleFontSize * scale));
             _titleStyle.normal.textColor = _settings.UpperFlightRingHudTitleColor;
             _statusStyle.fontSize = Mathf.Max(1, Mathf.RoundToInt(_settings.UpperFlightRingHudStatusFontSize * scale));
-        }
-
-        private static void DrawSolidRect(Rect rect, Color color)
-        {
-            Color previousColor = GUI.color;
-            GUI.color = color;
-            GUI.DrawTexture(rect, Texture2D.whiteTexture);
-            GUI.color = previousColor;
         }
     }
 }

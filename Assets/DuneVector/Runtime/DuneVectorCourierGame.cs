@@ -3453,10 +3453,52 @@ namespace DuneVector
                 (Screen.height * 0.5f) + _hubSettings.TerminalPromptVerticalOffset - (promptHeight * 0.5f),
                 promptWidth,
                 promptHeight);
-            GUI.Box(promptRect, GUIContent.none);
-            GUI.Label(promptRect, prompt, _objectiveStyle);
+            DrawTerminalPrompt(promptRect, prompt, distance <= interactionRadius);
             GUI.Label(new Rect(24f, 24f, 360f, 86f),
                 $"COURIER AERIE\nDELIVERIES  {Progress.CompletedDeliveries}\nCONTRACT GOLD  {Progress.TotalContractGold:N0}", _hudBodyStyle);
+        }
+
+        /// <summary>
+        /// Centered terminal plate: smoked glass, corner brackets and an accent underline that
+        /// blooms from the middle. The accent brightens once the drone is inside interaction range.
+        /// </summary>
+        private void DrawTerminalPrompt(Rect promptRect, string prompt, bool inRange)
+        {
+            Color accent = inRange
+                ? _hubSettings.TerminalAccentColor
+                : Color.Lerp(_hubSettings.TerminalAccentColor, _hubSettings.TerminalMutedTextColor, 0.55f);
+
+            DuneVectorHudChrome.DrawSoftShadow(
+                promptRect,
+                _hubSettings.TerminalShadowColor,
+                new Vector2(4f, 5f),
+                5f);
+
+            Color border = Color.Lerp(_hubSettings.TerminalBorderColor, accent, 0.45f);
+            border.a = _hubSettings.TerminalBorderColor.a;
+            DuneVectorHudChrome.DrawGlassPanel(promptRect, _hubSettings.TerminalPanelColor, border, 1f, 1f);
+
+            Color bracket = accent;
+            bracket.a *= inRange ? 0.9f : 0.55f;
+            DuneVectorHudChrome.DrawCornerBrackets(promptRect, bracket, 12f, 1f);
+
+            Color underline = accent;
+            underline.a *= inRange ? 0.9f : 0.5f;
+            float half = promptRect.width * 0.5f;
+            Rect rule = new Rect(promptRect.x, promptRect.yMax - 2f, half, 2f);
+            DuneVectorHudChrome.DrawHorizontalFade(rule, underline, false);
+            DuneVectorHudChrome.DrawHorizontalFade(
+                new Rect(promptRect.center.x, rule.y, half, rule.height),
+                underline,
+                true);
+
+            DuneVectorHudChrome.DrawLabel(
+                promptRect,
+                prompt,
+                _objectiveStyle,
+                Color.white,
+                new Color(0f, 0f, 0f, 0.65f),
+                new Vector2(1f, 1f));
         }
 
         private bool TryGetNearestHubTerminal(

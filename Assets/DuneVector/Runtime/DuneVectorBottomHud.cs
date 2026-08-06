@@ -64,22 +64,32 @@ namespace DuneVector
             float meterHeight = Mathf.Max(1f, settings.MeterHeight * scale);
             float meterInset = Mathf.Max(0f, settings.MeterInset * scale);
 
-            DrawSolidRect(
-                new Rect(
-                    panel.x + (settings.ShadowOffset.x * scale),
-                    panel.y + (settings.ShadowOffset.y * scale),
-                    panel.width,
-                    panel.height),
-                settings.ShadowColor);
-            DrawSolidRect(panel, settings.PanelColor);
-            DrawBorder(panel, settings.BorderColor, border);
-            DrawSolidRect(new Rect(panel.x, panel.y, accentWidth, panel.height), accentColor);
+            DuneVectorHudChrome.DrawSoftShadow(
+                panel,
+                settings.ShadowColor,
+                settings.ShadowOffset * scale,
+                5f * scale);
+
+            Color borderColor = Color.Lerp(settings.BorderColor, accentColor, 0.32f);
+            borderColor.a = settings.BorderColor.a;
+            DuneVectorHudChrome.DrawGlassPanel(panel, settings.PanelColor, borderColor, border, scale);
+            DuneVectorHudChrome.DrawAccentRail(panel, accentColor, accentWidth, 30f * scale);
 
             Color topRuleColor = accentColor;
             topRuleColor.a *= settings.TopRuleOpacity;
             DrawSolidRect(
                 new Rect(panel.x + accentWidth, panel.y, panel.width - accentWidth, topRuleHeight),
                 topRuleColor);
+            Color topRuleGlow = accentColor;
+            topRuleGlow.a *= settings.TopRuleOpacity * 0.4f;
+            DuneVectorHudChrome.DrawVerticalFade(
+                new Rect(panel.x + accentWidth, panel.y + topRuleHeight, panel.width - accentWidth, 10f * scale),
+                topRuleGlow,
+                true);
+
+            Color bracketColor = accentColor;
+            bracketColor.a *= 0.6f;
+            DuneVectorHudChrome.DrawCornerBrackets(panel, bracketColor, 11f * scale, border);
 
             float meterY = panel.yMax - (settings.MeterBottomPadding * scale) - meterHeight;
             Rect meter = new Rect(
@@ -87,35 +97,16 @@ namespace DuneVector
                 meterY,
                 panel.width - (padding * 2f),
                 meterHeight);
-            DrawSolidRect(meter, settings.TrackColor);
-
-            Rect fillBounds = new Rect(
-                meter.x + meterInset,
-                meter.y + meterInset,
-                Mathf.Max(0f, meter.width - (meterInset * 2f)),
-                Mathf.Max(0f, meter.height - (meterInset * 2f)));
-            float fillWidth = fillBounds.width * Mathf.Clamp01(normalizedValue);
-            if (fillWidth > 0f && fillBounds.height > 0f)
-            {
-                Rect fill = new Rect(fillBounds.x, fillBounds.y, fillWidth, fillBounds.height);
-                DrawSolidRect(fill, accentColor);
-                DrawSolidRect(
-                    new Rect(fill.x, fill.y, fill.width, fill.height * settings.MeterHighlightFraction),
-                    settings.MeterHighlightColor);
-            }
-
-            int divisions = settings.MeterDivisionCount;
-            if (divisions > 1)
-            {
-                float divisionWidth = Mathf.Max(0.5f, settings.MeterDivisionWidth * scale);
-                for (int index = 1; index < divisions; index++)
-                {
-                    float x = meter.x + (meter.width * index / divisions);
-                    DrawSolidRect(
-                        new Rect(x - (divisionWidth * 0.5f), meter.y, divisionWidth, meter.height),
-                        settings.MeterDivisionColor);
-                }
-            }
+            DuneVectorHudChrome.DrawMeter(
+                meter,
+                normalizedValue,
+                accentColor,
+                settings.TrackColor,
+                meterInset,
+                settings.MeterDivisionCount,
+                settings.MeterDivisionColor,
+                Mathf.Max(0.5f, settings.MeterDivisionWidth * scale),
+                scale);
 
             EnsureStyles(settings);
             DrawLabels(panel, label, value, settings);
@@ -190,11 +181,22 @@ namespace DuneVector
                 panel.width - (padding * 2f) - accentWidth,
                 rowHeight);
             float labelWidth = row.width * settings.LabelWidthFraction;
-            GUI.Label(new Rect(row.x, row.y, labelWidth, row.height), label, _labelStyle);
-            GUI.Label(
+            Vector2 textShadow = new Vector2(1f, 1f) * scale;
+            Color textShadowColor = new Color(0f, 0f, 0f, 0.55f);
+            DuneVectorHudChrome.DrawLabel(
+                new Rect(row.x, row.y, labelWidth, row.height),
+                label,
+                _labelStyle,
+                Color.white,
+                textShadowColor,
+                textShadow);
+            DuneVectorHudChrome.DrawLabel(
                 new Rect(row.x + labelWidth, row.y, row.width - labelWidth, row.height),
                 value,
-                _valueStyle);
+                _valueStyle,
+                Color.white,
+                textShadowColor,
+                textShadow);
         }
 
         private static void DrawSolidRect(Rect rect, Color color)
@@ -203,14 +205,6 @@ namespace DuneVector
             GUI.color = color;
             GUI.DrawTexture(rect, Texture2D.whiteTexture);
             GUI.color = previous;
-        }
-
-        private static void DrawBorder(Rect rect, Color color, float thickness)
-        {
-            DrawSolidRect(new Rect(rect.x, rect.y, rect.width, thickness), color);
-            DrawSolidRect(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), color);
-            DrawSolidRect(new Rect(rect.x, rect.y, thickness, rect.height), color);
-            DrawSolidRect(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), color);
         }
     }
 }

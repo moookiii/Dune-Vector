@@ -226,6 +226,7 @@ namespace DuneVector
         private DroneGoldWallet _wallet;
         private RingTuning _settings;
         private GUIStyle _goldStyle;
+        private GUIStyle _goldLabelStyle;
         private GUIStyle _feedbackStyle;
         private int _lastReward;
         private float _feedbackUntil;
@@ -281,17 +282,37 @@ namespace DuneVector
                 _settings.GoldHudWidth,
                 _settings.GoldHudHeight);
             Color oldColor = GUI.color;
-            Rect shadow = new Rect(
-                panel.x + _settings.GoldHudShadowOffset.x,
-                panel.y + _settings.GoldHudShadowOffset.y,
-                panel.width,
+            Color accent = _settings.GoldHudTextColor;
+            Color border = accent;
+            border.a *= 0.5f;
+
+            DuneVectorHudChrome.DrawSoftShadow(
+                panel,
+                _settings.GoldHudShadowColor,
+                _settings.GoldHudShadowOffset,
+                5f);
+            DuneVectorHudChrome.DrawGlassPanel(panel, _settings.GoldHudPanelColor, border, 1f, 1f);
+            DuneVectorHudChrome.DrawAccentRail(panel, accent, 4f, 28f);
+            Color bracket = accent;
+            bracket.a *= 0.6f;
+            DuneVectorHudChrome.DrawCornerBrackets(panel, bracket, 11f, 1f);
+
+            float padding = 14f;
+            Rect content = new Rect(
+                panel.x + padding,
+                panel.y,
+                panel.width - (padding * 1.6f),
                 panel.height);
-            GUI.color = _settings.GoldHudShadowColor;
-            GUI.DrawTexture(shadow, Texture2D.whiteTexture);
-            GUI.color = _settings.GoldHudPanelColor;
-            GUI.DrawTexture(panel, Texture2D.whiteTexture);
-            GUI.color = Color.white;
-            GUI.Label(panel, $"GOLD  {_wallet.Gold:N0}", _goldStyle);
+            Vector2 textShadow = new Vector2(1f, 1f);
+            Color textShadowColor = new Color(0f, 0f, 0f, 0.6f);
+            DuneVectorHudChrome.DrawLabel(content, "GOLD", _goldLabelStyle, Color.white, textShadowColor, textShadow);
+            DuneVectorHudChrome.DrawLabel(
+                content,
+                $"{_wallet.Gold:N0}",
+                _goldStyle,
+                Color.white,
+                textShadowColor,
+                textShadow);
 
             float remaining = _feedbackUntil - Time.unscaledTime;
             if (remaining > 0f)
@@ -305,7 +326,14 @@ namespace DuneVector
                     _settings.GoldPickupFeedbackTop,
                     Screen.width,
                     _settings.GoldPickupFeedbackHeight);
-                GUI.Label(feedback, $"+{_lastReward:N0} GOLD", _feedbackStyle);
+                Color feedbackShadow = new Color(0f, 0f, 0f, 0.6f * Mathf.Clamp01(remaining / duration));
+                DuneVectorHudChrome.DrawLabel(
+                    feedback,
+                    $"+{_lastReward:N0} GOLD",
+                    _feedbackStyle,
+                    Color.white,
+                    feedbackShadow,
+                    new Vector2(2f, 2f));
             }
             GUI.color = oldColor;
         }
@@ -314,11 +342,28 @@ namespace DuneVector
         {
             _goldStyle ??= new GUIStyle(GUI.skin.label)
             {
-                alignment = TextAnchor.MiddleCenter,
+                alignment = TextAnchor.MiddleRight,
                 fontStyle = FontStyle.Bold,
+                clipping = TextClipping.Clip,
+                wordWrap = false,
             };
             _goldStyle.fontSize = _settings.GoldHudFontSize;
             _goldStyle.normal.textColor = _settings.GoldHudTextColor;
+
+            _goldLabelStyle ??= new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleLeft,
+                fontStyle = FontStyle.Bold,
+                clipping = TextClipping.Clip,
+                wordWrap = false,
+            };
+            _goldLabelStyle.fontSize = Mathf.Max(8, Mathf.RoundToInt(_settings.GoldHudFontSize * 0.66f));
+            Color labelColor = _settings.GoldHudTextColor;
+            labelColor.r = Mathf.Lerp(labelColor.r, 0.75f, 0.35f);
+            labelColor.g = Mathf.Lerp(labelColor.g, 0.75f, 0.35f);
+            labelColor.b = Mathf.Lerp(labelColor.b, 0.75f, 0.35f);
+            labelColor.a *= 0.8f;
+            _goldLabelStyle.normal.textColor = labelColor;
 
             _feedbackStyle ??= new GUIStyle(GUI.skin.label)
             {

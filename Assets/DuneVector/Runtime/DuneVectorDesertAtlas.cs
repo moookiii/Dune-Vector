@@ -1747,6 +1747,9 @@ namespace DuneVector
             return panel.width > 0f && panel.height > 0f;
         }
 
+        private static readonly Color HudTextShadowColor = new Color(0f, 0f, 0f, 0.6f);
+        private static readonly Vector2 HudTextShadowOffset = new Vector2(1f, 1f);
+
         private void DrawAtlasHud(Rect panel)
         {
             bool discoveredLoreActive = _nearestDiscoveredSite != null &&
@@ -1754,52 +1757,97 @@ namespace DuneVector
             Color stateAccent = discoveredLoreActive
                 ? _settings.HudDiscoveredAccentColor
                 : _settings.HudAccentColor;
-            Rect shadow = new Rect(
-                panel.x + _settings.HudShadowOffset.x,
-                panel.y + _settings.HudShadowOffset.y,
-                panel.width,
-                panel.height);
-            DrawRect(shadow, _settings.HudShadowColor);
-            DrawRect(panel, _settings.HudPanelColor);
-            DrawBorder(panel, _settings.HudBorderColor, _settings.HudBorderThickness);
-            DrawRect(
-                new Rect(panel.x, panel.y, _settings.HudAccentWidth, panel.height),
-                stateAccent);
-            DrawRect(
-                new Rect(
-                    panel.x + _settings.HudAccentWidth,
-                    panel.y,
-                    panel.width - _settings.HudAccentWidth,
-                    _settings.HudHeaderHeight),
-                _settings.HudHeaderColor);
-            DrawRect(
-                new Rect(
-                    panel.x + _settings.HudAccentWidth,
-                    panel.y + _settings.HudHeaderHeight,
-                    panel.width - _settings.HudAccentWidth,
-                    _settings.HudDividerHeight),
-                _settings.HudBorderColor);
+            DuneVectorHudChrome.DrawSoftShadow(
+                panel,
+                _settings.HudShadowColor,
+                _settings.HudShadowOffset,
+                5f);
+
+            Color border = Color.Lerp(_settings.HudBorderColor, stateAccent, 0.35f);
+            border.a = _settings.HudBorderColor.a;
+            DuneVectorHudChrome.DrawGlassPanel(
+                panel,
+                _settings.HudPanelColor,
+                border,
+                _settings.HudBorderThickness,
+                1f);
+
+            Rect header = new Rect(
+                panel.x + _settings.HudAccentWidth,
+                panel.y,
+                panel.width - _settings.HudAccentWidth,
+                _settings.HudHeaderHeight);
+            DrawRect(header, _settings.HudHeaderColor);
+            Color headerTint = stateAccent;
+            headerTint.a *= 0.12f;
+            DuneVectorHudChrome.DrawHorizontalFade(header, headerTint, true);
+            DuneVectorHudChrome.DrawVerticalFade(
+                new Rect(header.x, header.y, header.width, header.height * 0.6f),
+                new Color(1f, 1f, 1f, 0.05f),
+                true);
+
+            // Divider reads as a lit rule fed by the accent rail rather than a flat grey line.
+            Rect divider = new Rect(
+                header.x,
+                panel.y + _settings.HudHeaderHeight,
+                header.width,
+                _settings.HudDividerHeight);
+            DrawRect(divider, _settings.HudBorderColor);
+            Color dividerGlow = stateAccent;
+            dividerGlow.a *= 0.55f;
+            DuneVectorHudChrome.DrawHorizontalFade(divider, dividerGlow, true);
+
+            DuneVectorHudChrome.DrawAccentRail(panel, stateAccent, _settings.HudAccentWidth, 32f);
+            Color bracket = stateAccent;
+            bracket.a *= 0.55f;
+            DuneVectorHudChrome.DrawCornerBrackets(panel, bracket, 12f, _settings.HudBorderThickness);
 
             float padding = _settings.HudPadding;
-            GUI.Label(
+            Vector2 textShadow = HudTextShadowOffset;
+            Color textShadowColor = HudTextShadowColor;
+            DuneVectorHudChrome.DrawLabel(
                 new Rect(
                     panel.x + padding,
                     panel.y,
                     panel.width - (_settings.HudCountBadgeWidth + (padding * 3f)),
                     _settings.HudHeaderHeight),
                 _settings.HudTitleFormat,
-                _hudTitleStyle);
+                _hudTitleStyle,
+                Color.white,
+                textShadowColor,
+                textShadow);
             Rect countBadge = new Rect(
                 panel.xMax - padding - _settings.HudCountBadgeWidth,
                 panel.y + ((_settings.HudHeaderHeight - _settings.HudCountBadgeHeight) * 0.5f),
                 _settings.HudCountBadgeWidth,
                 _settings.HudCountBadgeHeight);
-            DrawRect(countBadge, _settings.HudBadgeColor);
-            DrawBorder(countBadge, _settings.HudBorderColor, _settings.HudBorderThickness);
-            GUI.Label(
+            Color badgeBorder = stateAccent;
+            badgeBorder.a *= 0.6f;
+            DuneVectorHudChrome.DrawRect(countBadge, _settings.HudBadgeColor);
+            DuneVectorHudChrome.DrawVerticalFade(
+                new Rect(countBadge.x, countBadge.y, countBadge.width, countBadge.height * 0.55f),
+                new Color(0f, 0f, 0f, 0.3f),
+                true);
+            // Discovery progress quietly backfills the badge so the ratio has a visual reading too.
+            float badgeFill = TotalSiteCount > 0
+                ? Mathf.Clamp01(DiscoveredCount / (float)TotalSiteCount)
+                : 0f;
+            if (badgeFill > 0f)
+            {
+                Color badgeTint = stateAccent;
+                badgeTint.a *= 0.22f;
+                DuneVectorHudChrome.DrawRect(
+                    new Rect(countBadge.x, countBadge.y, countBadge.width * badgeFill, countBadge.height),
+                    badgeTint);
+            }
+            DuneVectorHudChrome.DrawBorder(countBadge, badgeBorder, _settings.HudBorderThickness);
+            DuneVectorHudChrome.DrawLabel(
                 countBadge,
                 FormatDesignerText(_settings.HudCountFormat, DiscoveredCount, TotalSiteCount),
-                _hudCountStyle);
+                _hudCountStyle,
+                Color.white,
+                textShadowColor,
+                textShadow);
 
             bool photographyActive = IsWithinPhotographyPromptRange();
             if (discoveredLoreActive)
@@ -1823,73 +1871,106 @@ namespace DuneVector
 
         private void DrawAtlasDiscoveredState(Rect panel, float padding)
         {
-            GUI.Label(
+            DuneVectorHudChrome.DrawLabel(
                 new Rect(
                     panel.x + padding,
                     panel.y + _settings.HudContentTop,
                     panel.width - (padding * 2f),
                     _settings.HudMetaHeight),
                 FormatDesignerText(_settings.HudDiscoveredLabelFormat, _nearestDiscoveredDistance),
-                _hudLoreMetaStyle);
-            GUI.Label(
+                _hudLoreMetaStyle,
+                Color.white,
+                HudTextShadowColor,
+                HudTextShadowOffset);
+
+            Color glow = _settings.HudDiscoveredAccentColor;
+            glow.a *= 0.24f;
+            DuneVectorHudChrome.DrawGlowLabel(
                 new Rect(
                     panel.x + padding,
                     panel.y + _settings.HudLoreTitleTop,
                     panel.width - (padding * 2f),
                     _settings.HudLoreTitleHeight),
                 _nearestDiscoveredSite.DisplayName,
-                _hudLoreTitleStyle);
-            GUI.Label(
+                _hudLoreTitleStyle,
+                Color.white,
+                glow,
+                1.5f,
+                HudTextShadowColor,
+                HudTextShadowOffset);
+
+            DuneVectorHudChrome.DrawLabel(
                 new Rect(
                     panel.x + padding,
                     panel.y + _settings.HudLoreBodyTop,
                     panel.width - (padding * 2f),
                     _settings.HudLoreBodyHeight),
                 _nearestDiscoveredSite.Description,
-                _hudLoreBodyStyle);
+                _hudLoreBodyStyle,
+                Color.white,
+                HudTextShadowColor,
+                HudTextShadowOffset);
         }
 
         private void DrawAtlasEmptyState(Rect panel, float padding)
         {
-            GUI.Label(
+            DuneVectorHudChrome.DrawLabel(
                 new Rect(
                     panel.x + padding,
                     panel.y + _settings.HudContentTop,
                     panel.width - (padding * 2f),
                     _settings.HudMetaHeight),
                 _settings.HudNoSignalLabel,
-                _hudMetaStyle);
+                _hudMetaStyle,
+                Color.white,
+                HudTextShadowColor,
+                HudTextShadowOffset);
             string state = DiscoveredCount >= TotalSiteCount
                 ? _settings.HudAllDiscoveredText
                 : _settings.HudSignalsLockedText;
-            GUI.Label(
+            DuneVectorHudChrome.DrawLabel(
                 new Rect(
                     panel.x + padding,
                     panel.y + _settings.HudMetricTop,
                     panel.width - (padding * 2f),
                     _settings.HudMetricHeight),
                 state,
-                _hudBodyStyle);
+                _hudBodyStyle,
+                Color.white,
+                HudTextShadowColor,
+                HudTextShadowOffset);
         }
 
         private void DrawAtlasNavigationState(Rect panel, float padding)
         {
-            GUI.Label(
+            DuneVectorHudChrome.DrawLabel(
                 new Rect(
                     panel.x + padding,
                     panel.y + _settings.HudContentTop,
                     panel.width - (padding * 2f),
                     _settings.HudMetaHeight),
                 _settings.HudSignalLabel,
-                _hudMetaStyle);
-            GUI.Label(
+                _hudMetaStyle,
+                Color.white,
+                HudTextShadowColor,
+                HudTextShadowOffset);
+
+            // The live distance is the panel's headline, so it carries the halo.
+            Color glow = _settings.HudAccentColor;
+            glow.a *= 0.28f;
+            DuneVectorHudChrome.DrawGlowLabel(
                 new Rect(
                     panel.x + padding,
                     panel.y + _settings.HudMetricTop,
                     panel.width - (padding * 2f),
                     _settings.HudMetricHeight),
                 FormatDesignerText(_settings.HudDistanceFormat, _nearestDistance),
-                _hudMetricStyle);
+                _hudMetricStyle,
+                Color.white,
+                glow,
+                1.5f,
+                HudTextShadowColor,
+                HudTextShadowOffset);
         }
 
         private void DrawAtlasChallengeState(Rect panel, float padding)
@@ -1897,22 +1978,28 @@ namespace DuneVector
             PhotographyTuning photography = DuneVectorPhotographySystem.Active != null
                 ? DuneVectorPhotographySystem.Active.Tuning
                 : null;
-            GUI.Label(
+            DuneVectorHudChrome.DrawLabel(
                 new Rect(
                     panel.x + padding,
                     panel.y + _settings.HudContentTop,
                     panel.width - (padding * 2f),
                     _settings.HudMetaHeight),
                 _settings.HudChallengeLabel,
-                _hudMetaStyle);
-            GUI.Label(
+                _hudMetaStyle,
+                Color.white,
+                HudTextShadowColor,
+                HudTextShadowOffset);
+            DuneVectorHudChrome.DrawLabel(
                 new Rect(
                     panel.x + padding,
                     panel.y + _settings.HudChallengeBodyTop,
                     panel.width - (padding * 2f),
                     _settings.HudChallengeBodyHeight),
                 photography != null ? photography.PhotographRequiredText : _settings.HudSignalLabel,
-                _hudBodyStyle);
+                _hudBodyStyle,
+                Color.white,
+                HudTextShadowColor,
+                HudTextShadowOffset);
             GUI.Label(
                 new Rect(
                     panel.x + padding,
@@ -1946,13 +2033,38 @@ namespace DuneVector
                     y,
                     segmentWidth,
                     _settings.HudSurveyBarHeight);
-                DrawRect(segment, _settings.ScanBarBackgroundColor);
+                DuneVectorHudChrome.DrawRect(segment, _settings.ScanBarBackgroundColor);
+                DuneVectorHudChrome.DrawVerticalFade(
+                    new Rect(segment.x, segment.y, segment.width, segment.height * 0.6f),
+                    new Color(0f, 0f, 0f, 0.4f),
+                    true);
+
                 float fill = Mathf.Clamp01(filledSegments - i);
                 if (fill > 0f)
                 {
-                    DrawRect(
-                        new Rect(segment.x, segment.y, segment.width * fill, segment.height),
-                        accentColor);
+                    Rect filled = new Rect(segment.x, segment.y, segment.width * fill, segment.height);
+                    Color deep = new Color(
+                        accentColor.r * 0.45f,
+                        accentColor.g * 0.45f,
+                        accentColor.b * 0.45f,
+                        accentColor.a);
+                    DuneVectorHudChrome.DrawRect(filled, deep);
+                    DuneVectorHudChrome.DrawVerticalFade(filled, accentColor, true);
+                    DuneVectorHudChrome.DrawVerticalFade(
+                        new Rect(filled.x, filled.y, filled.width, filled.height * 0.45f),
+                        new Color(1f, 1f, 1f, 0.28f),
+                        true);
+
+                    // The partially-filled segment is the survey's live edge, so it gets the bloom.
+                    if (fill < 1f)
+                    {
+                        Color bloom = accentColor;
+                        bloom.a *= 0.4f;
+                        DuneVectorHudChrome.DrawHorizontalFade(
+                            new Rect(filled.xMax, segment.y, segment.xMax - filled.xMax, segment.height),
+                            bloom,
+                            true);
+                    }
                 }
             }
         }
