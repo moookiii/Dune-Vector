@@ -243,6 +243,8 @@ namespace DuneVector
         public MusicScreenFlareDirectionMode DirectionMode;
         [Min(0f)] public float WidthScale;
         [Min(0f)] public float SpeedScale;
+        [Range(0f, 0.5f)] public float InitialViewportRadius;
+        public bool EmitMirroredPair;
         public uint Seed;
     }
 
@@ -297,6 +299,8 @@ namespace DuneVector
         public MusicScreenFlareDirectionMode ScreenFlareDirectionMode;
         public float ScreenFlareWidthScale;
         public float ScreenFlareSpeedScale;
+        public float ScreenFlareInitialViewportRadius;
+        public bool ScreenFlareEmitMirroredPair;
         public float RoadResponse;
         public float SecondaryRoadResponse;
         public float SecondaryRoadDelaySeconds;
@@ -1076,6 +1080,8 @@ namespace DuneVector
                         ScreenFlareDirectionMode = pattern.DirectionMode,
                         ScreenFlareWidthScale = pattern.WidthScale,
                         ScreenFlareSpeedScale = pattern.SpeedScale,
+                        ScreenFlareInitialViewportRadius = pattern.InitialViewportRadius,
+                        ScreenFlareEmitMirroredPair = pattern.EmitMirroredPair,
                     };
                     for (int sinkIndex = 0; sinkIndex < _sinkCount; sinkIndex++)
                     {

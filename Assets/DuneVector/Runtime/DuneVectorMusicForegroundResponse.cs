@@ -325,8 +325,11 @@ namespace DuneVector
                 if (centerOut)
                 {
                     fineLine = Next01(ref seed) < _settings.CenterOutFineLineFraction;
-                    direction = ResolveCenterOutDirection(in command, fineLine, ref seed);
-                    float radius = _settings.CenterOutInitialViewportRadius * viewportScale;
+                    direction = ResolveCenterOutDirection(in command, fineLine, i, ref seed);
+                    float authoredRadius = command.ScreenFlareInitialViewportRadius;
+                    float radius = (authoredRadius > 0f
+                        ? authoredRadius
+                        : _settings.CenterOutInitialViewportRadius) * viewportScale;
                     x = droneScreenX + direction.x * radius;
                     y = droneScreenY + direction.y * radius;
                     float speed = _settings.CenterOutRadialSpeed
@@ -382,12 +385,15 @@ namespace DuneVector
         private Vector2 ResolveCenterOutDirection(
             in MusicVisualDispatchCommand command,
             bool fineLine,
+            int emissionIndex,
             ref uint seed)
         {
             float spread = fineLine
                 ? _settings.CenterOutDirectionalVariation
                 : Mathf.Min(1f, _settings.CenterOutDirectionalVariation * 1.75f);
-            float signedPrimary = Next01(ref seed) < 0.5f ? -1f : 1f;
+            float signedPrimary = command.ScreenFlareEmitMirroredPair
+                ? (emissionIndex % 2 == 0 ? -1f : 1f)
+                : (Next01(ref seed) < 0.5f ? -1f : 1f);
             float variation = Mathf.Lerp(-spread, spread, Next01(ref seed));
             switch (command.ScreenFlareDirectionMode)
             {
@@ -396,7 +402,9 @@ namespace DuneVector
                 case MusicScreenFlareDirectionMode.Horizontal:
                     return new Vector2(signedPrimary, variation).normalized;
                 case MusicScreenFlareDirectionMode.Diagonal:
-                    float signedSecondary = Next01(ref seed) < 0.5f ? -1f : 1f;
+                    float signedSecondary = command.ScreenFlareEmitMirroredPair
+                        ? signedPrimary * ((command.DeterministicSeed & 1u) == 0u ? -1f : 1f)
+                        : (Next01(ref seed) < 0.5f ? -1f : 1f);
                     float diagonalVariation = variation * 0.45f;
                     return new Vector2(
                         signedPrimary + diagonalVariation,
@@ -404,7 +412,9 @@ namespace DuneVector
                 default:
                     float rightChance = Mathf.Clamp01(
                         0.5f + command.ScreenFlareHorizontalBias * 0.5f);
-                    float side = Next01(ref seed) < rightChance ? 1f : -1f;
+                    float side = command.ScreenFlareEmitMirroredPair
+                        ? signedPrimary
+                        : (Next01(ref seed) < rightChance ? 1f : -1f);
                     return new Vector2(side, variation).normalized;
             }
         }
