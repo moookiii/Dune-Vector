@@ -23,21 +23,8 @@ namespace DuneVector
             public bool Active;
         }
 
-        private struct AnchoredFlareRay
-        {
-            public LineRenderer Renderer;
-            public Vector3 InitialOffset;
-            public Vector3 Velocity;
-            public float Age;
-            public float Lifetime;
-            public float Width;
-            public Color Color;
-            public bool Active;
-        }
-
         private Camera _camera;
         private Transform _drone;
-        private DroneCharacterController _droneController;
         private MusicReactiveSkyTuning _settings;
         private RoadPulse[] _roadPulses;
         private readonly Vector4[] _pulseOrigins = new Vector4[4];
@@ -51,9 +38,6 @@ namespace DuneVector
         private ParticleSystem _centerOutStreaks;
         private Material _streakMaterial;
         private Color[] _streakPalette;
-        private AnchoredFlareRay[] _anchoredFlareRays;
-        private int _anchoredFlareRayCursor;
-        private Vector3 _centerOutAnchorLocalPosition;
         private Renderer[] _droneVisualRenderers;
         private Vector3 _droneVisualLocalCenter;
         private bool _hasDroneVisualLocalCenter;
@@ -69,8 +53,7 @@ namespace DuneVector
         public int DroppedRoadPulseCount => _droppedRoadPulses;
         public bool ReactionLightActive => _reactionLight != null && _reactionLight.enabled;
         public int LiveStreakCount => (_streaks != null ? _streaks.particleCount : 0)
-            + (_centerOutStreaks != null ? _centerOutStreaks.particleCount : 0)
-            + CountActiveAnchoredFlareRays();
+            + (_centerOutStreaks != null ? _centerOutStreaks.particleCount : 0);
 
         public void Initialize(
             Camera camera,
@@ -80,7 +63,6 @@ namespace DuneVector
         {
             _camera = camera;
             _drone = drone;
-            _droneController = _drone != null ? _drone.GetComponent<DroneCharacterController>() : null;
             _settings = settings;
             _roadPulses = new RoadPulse[Mathf.Clamp(settings.MaximumRoadPulseCount, 1, _pulseOrigins.Length)];
             _droneVisualRenderers = _drone != null
@@ -173,10 +155,6 @@ namespace DuneVector
             _streakMaterial.SetFloat("_StreakEndFade", _settings.ForegroundStreakEndFade);
             _streaks = BuildStreakParticleSystem("Music Screen-Space Flare Lines");
             _centerOutStreaks = BuildStreakParticleSystem("Music Drone-Anchored Flare Lines");
-            if (_settings.CenterOutAnchorRayOrigins)
-            {
-                BuildAnchoredFlareRayPool();
-            }
 
             int paletteCount = Mathf.Clamp(_settings.ForegroundStreakPaletteColorCount, 2, 64);
             _streakPalette = new Color[paletteCount];
@@ -191,34 +169,6 @@ namespace DuneVector
                 _streakPalette[i] = color;
             }
             UpdateCenterOutAnchor();
-        }
-
-        private void BuildAnchoredFlareRayPool()
-        {
-            int capacity = _settings.CenterOutParticlePoolCapacity > 0
-                ? _settings.CenterOutParticlePoolCapacity
-                : _settings.ForegroundStreakParticleBudget;
-            _anchoredFlareRays = new AnchoredFlareRay[Mathf.Max(1, capacity)];
-            GameObject poolObject = new GameObject("Music Drone-Anchored Flare Ray Pool");
-            poolObject.transform.SetParent(_camera.transform, false);
-            for (int i = 0; i < _anchoredFlareRays.Length; i++)
-            {
-                GameObject rayObject = new GameObject($"Flare Ray {i:000}");
-                rayObject.transform.SetParent(poolObject.transform, false);
-                LineRenderer renderer = rayObject.AddComponent<LineRenderer>();
-                renderer.useWorldSpace = false;
-                renderer.positionCount = 2;
-                renderer.loop = false;
-                renderer.alignment = LineAlignment.View;
-                renderer.textureMode = LineTextureMode.Stretch;
-                renderer.sharedMaterial = _streakMaterial;
-                renderer.shadowCastingMode = ShadowCastingMode.Off;
-                renderer.receiveShadows = false;
-                renderer.lightProbeUsage = LightProbeUsage.Off;
-                renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
-                renderer.enabled = false;
-                _anchoredFlareRays[i].Renderer = renderer;
-            }
         }
 
         private ParticleSystem BuildStreakParticleSystem(string objectName)
@@ -418,7 +368,6 @@ namespace DuneVector
                 float x;
                 float y;
                 Vector3 velocity;
-                float centerOutRadius = 0f;
                 bool fineLine = false;
                 if (centerOut)
                 {
@@ -429,7 +378,6 @@ namespace DuneVector
                     float radius = (authoredRadius > 0f
                         ? authoredRadius
                         : _settings.CenterOutInitialViewportRadius) * viewportScale;
-                    centerOutRadius = radius;
                     x = direction.x * radius;
                     y = direction.y * radius;
                     float speed = _settings.CenterOutRadialSpeed
@@ -477,76 +425,25 @@ namespace DuneVector
                 float lifetime = centerOut && lifetimeRange.y > 0f
                     ? Mathf.Lerp(lifetimeRange.x, lifetimeRange.y, Next01(ref seed))
                     : _settings.ForegroundStreakLifetime;
-                float startSize = centerOut
-                    ? _settings.ForegroundStreakSize * (fineLine
-                        ? _settings.CenterOutFineLineWidthMultiplier
-                        : _settings.CenterOutBroadRayWidthMultiplier)
-                        * (i >= movingLineCount && command.ScreenFlareHeldWidthScale > 0f
-                            ? command.ScreenFlareHeldWidthScale
-                            : (command.ScreenFlareWidthScale > 0f
-                                ? command.ScreenFlareWidthScale
-                                : 1f))
-                    : _settings.ForegroundStreakSize;
-                if (centerOut && _settings.CenterOutAnchorRayOrigins)
-                {
-                    EmitAnchoredFlareRay(
-                        new Vector3(direction.x * centerOutRadius, direction.y * centerOutRadius, 0f),
-                        velocity,
-                        lifetime,
-                        startSize,
-                        color);
-                    continue;
-                }
                 ParticleSystem.EmitParams emit = new ParticleSystem.EmitParams
                 {
                     position = new Vector3(x, y, _settings.ForegroundStreakForwardOffset),
                     velocity = velocity,
                     startColor = color,
                     startLifetime = lifetime,
-                    startSize = startSize,
+                    startSize = centerOut
+                        ? _settings.ForegroundStreakSize * (fineLine
+                            ? _settings.CenterOutFineLineWidthMultiplier
+                            : _settings.CenterOutBroadRayWidthMultiplier)
+                            * (i >= movingLineCount && command.ScreenFlareHeldWidthScale > 0f
+                                ? command.ScreenFlareHeldWidthScale
+                                : (command.ScreenFlareWidthScale > 0f
+                                    ? command.ScreenFlareWidthScale
+                                    : 1f))
+                        : _settings.ForegroundStreakSize,
                 };
                 targetStreaks.Emit(emit, 1);
             }
-        }
-
-        private void EmitAnchoredFlareRay(
-            Vector3 initialOffset,
-            Vector3 velocity,
-            float lifetime,
-            float width,
-            Color color)
-        {
-            if (_anchoredFlareRays == null || _anchoredFlareRays.Length == 0)
-            {
-                return;
-            }
-            int selected = -1;
-            for (int offset = 0; offset < _anchoredFlareRays.Length; offset++)
-            {
-                int index = (_anchoredFlareRayCursor + offset) % _anchoredFlareRays.Length;
-                if (!_anchoredFlareRays[index].Active)
-                {
-                    selected = index;
-                    break;
-                }
-            }
-            if (selected < 0)
-            {
-                return;
-            }
-            LineRenderer renderer = _anchoredFlareRays[selected].Renderer;
-            _anchoredFlareRays[selected] = new AnchoredFlareRay
-            {
-                Renderer = renderer,
-                InitialOffset = initialOffset,
-                Velocity = velocity,
-                Lifetime = Mathf.Max(0.01f, lifetime),
-                Width = width,
-                Color = color,
-                Active = true,
-            };
-            renderer.enabled = true;
-            _anchoredFlareRayCursor = (selected + 1) % _anchoredFlareRays.Length;
         }
 
         private void UpdateCenterOutAnchor()
@@ -558,19 +455,15 @@ namespace DuneVector
             float forward = Mathf.Max(0.01f, _settings.ForegroundStreakForwardOffset);
             float halfHeight = Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad) * forward;
             float halfWidth = halfHeight * _camera.aspect;
-            Vector3 anchorWorldPosition = _settings.CenterOutAnchorRayOrigins && _droneController != null
-                ? _droneController.WorldCenter
-                : GetDroneVisualCenter();
-            Vector3 droneViewport = _camera.WorldToViewportPoint(anchorWorldPosition);
+            Vector3 droneViewport = _camera.WorldToViewportPoint(GetDroneVisualCenter());
             if (droneViewport.z <= 0f)
             {
                 droneViewport = new Vector3(0.5f, 0.5f, 1f);
             }
-            _centerOutAnchorLocalPosition = new Vector3(
+            _centerOutStreaks.transform.localPosition = new Vector3(
                 (droneViewport.x - 0.5f) * halfWidth * 2f,
                 (droneViewport.y - 0.5f) * halfHeight * 2f,
                 0f);
-            _centerOutStreaks.transform.localPosition = _centerOutAnchorLocalPosition;
         }
 
         private void LateUpdate()
@@ -583,7 +476,6 @@ namespace DuneVector
             if (renderingCamera == _camera)
             {
                 UpdateCenterOutAnchor();
-                RenderAnchoredFlareRays();
             }
         }
 
@@ -675,69 +567,6 @@ namespace DuneVector
             UpdateRoadPulses(deltaTime);
             UpdateReactionLight(deltaTime);
             UpdateDroneTrails(deltaTime);
-            UpdateAnchoredFlareRays(deltaTime);
-        }
-
-        private void UpdateAnchoredFlareRays(float deltaTime)
-        {
-            if (_anchoredFlareRays == null)
-            {
-                return;
-            }
-            for (int i = 0; i < _anchoredFlareRays.Length; i++)
-            {
-                AnchoredFlareRay ray = _anchoredFlareRays[i];
-                if (!ray.Active)
-                {
-                    continue;
-                }
-                ray.Age += deltaTime;
-                if (ray.Age >= ray.Lifetime)
-                {
-                    ray.Active = false;
-                    if (ray.Renderer != null)
-                    {
-                        ray.Renderer.enabled = false;
-                    }
-                }
-                _anchoredFlareRays[i] = ray;
-            }
-        }
-
-        private void RenderAnchoredFlareRays()
-        {
-            if (_anchoredFlareRays == null)
-            {
-                return;
-            }
-            float forward = Mathf.Max(0.01f, _settings.ForegroundStreakForwardOffset);
-            for (int i = 0; i < _anchoredFlareRays.Length; i++)
-            {
-                AnchoredFlareRay ray = _anchoredFlareRays[i];
-                if (!ray.Active || ray.Renderer == null)
-                {
-                    continue;
-                }
-                Vector3 innerEndpoint = _centerOutAnchorLocalPosition
-                    + ray.InitialOffset
-                    + Vector3.forward * forward;
-                Vector3 outerEndpoint = innerEndpoint + ray.Velocity * ray.Age;
-                float normalizedAge = Mathf.Clamp01(ray.Age / ray.Lifetime);
-                float fade = _settings.ForegroundStreakEndFade > 0f
-                    ? 1f - Mathf.InverseLerp(
-                        1f - _settings.ForegroundStreakEndFade,
-                        1f,
-                        normalizedAge)
-                    : 1f;
-                Color renderedColor = ray.Color;
-                renderedColor.a *= fade;
-                ray.Renderer.startWidth = ray.Width;
-                ray.Renderer.endWidth = ray.Width;
-                ray.Renderer.startColor = renderedColor;
-                ray.Renderer.endColor = renderedColor;
-                ray.Renderer.SetPosition(0, innerEndpoint);
-                ray.Renderer.SetPosition(1, outerEndpoint);
-            }
         }
 
         private void UpdateRoadPulses(float deltaTime)
@@ -857,7 +686,6 @@ namespace DuneVector
             {
                 _centerOutStreaks.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
             }
-            ResetAnchoredFlareRays();
             int trailCount = _droneTrails != null ? _droneTrails.Length : 0;
             for (int i = 0; i < trailCount; i++)
             {
@@ -869,26 +697,6 @@ namespace DuneVector
                 }
             }
             ResetShaderGlobals();
-        }
-
-        private void ResetAnchoredFlareRays()
-        {
-            if (_anchoredFlareRays == null)
-            {
-                return;
-            }
-            for (int i = 0; i < _anchoredFlareRays.Length; i++)
-            {
-                AnchoredFlareRay ray = _anchoredFlareRays[i];
-                ray.Active = false;
-                ray.Age = 0f;
-                if (ray.Renderer != null)
-                {
-                    ray.Renderer.enabled = false;
-                }
-                _anchoredFlareRays[i] = ray;
-            }
-            _anchoredFlareRayCursor = 0;
         }
 
         private void ResetShaderGlobals()
@@ -914,23 +722,6 @@ namespace DuneVector
             for (int i = 0; i < _roadPulses.Length; i++)
             {
                 if (_roadPulses[i].Active)
-                {
-                    count++;
-                }
-            }
-            return count;
-        }
-
-        private int CountActiveAnchoredFlareRays()
-        {
-            int count = 0;
-            if (_anchoredFlareRays == null)
-            {
-                return count;
-            }
-            for (int i = 0; i < _anchoredFlareRays.Length; i++)
-            {
-                if (_anchoredFlareRays[i].Active)
                 {
                     count++;
                 }
