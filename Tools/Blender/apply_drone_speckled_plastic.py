@@ -107,8 +107,8 @@ def make_speckled_variant(original):
     texcoord.location = (-1150, 0)
     mapping = nodes.new("ShaderNodeMapping")
     mapping.location = (-950, 0)
-    # Lower tiling makes each mineral fleck about 3.3x larger than the first pass.
-    mapping.inputs["Scale"].default_value = (1.35, 1.35, 1.35)
+    # Twelve times larger than the prior color-preserving speckle pass.
+    mapping.inputs["Scale"].default_value = (0.1125, 0.1125, 0.1125)
     links.new(texcoord.outputs["Generated"], mapping.inputs["Vector"])
 
     def image_node(image, location, label):
