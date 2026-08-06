@@ -44,12 +44,6 @@ namespace DuneVector
         private float _auroraDropShiftAge;
         private float _auroraDropShiftDuration;
         private float _auroraDropHorizontalShift;
-        private float _auroraTravelPhase;
-        private float _previousAuroraTravelSpeed;
-        private int _previousAuroraTimelineMilliseconds;
-        private uint _previousAuroraPlaybackGeneration;
-        private uint _previousAuroraSeekGeneration;
-        private bool _hasAuroraTimelineSample;
 
         public MusicAnalysisFrame LatestAnalysisFrame { get; private set; }
 
@@ -115,8 +109,6 @@ namespace DuneVector
             _highPulse = 0f;
             LatestAnalysisFrame = default;
             _analysisTimer = 0f;
-            ResetAuroraTravelPhase();
-            ResetAuroraDropShift();
         }
 
         public void SetVisualizerMode(MusicVisualizerMode mode)
@@ -177,7 +169,6 @@ namespace DuneVector
             _sky.ReactiveAuroraWaviness.Override(_settings.AuroraWaviness);
             _sky.ReactiveAuroraTravelSpeed.Override(
                 _settings.AuroraTravelSpeed * _settings.AuroraTravelDirection);
-            _sky.ReactiveAuroraTravelPhase.Override(0f);
             _sky.ReactiveAuroraPhaseOffset.Override(0f);
             _sky.ReactiveAuroraFrequency.Override(_settings.AuroraFrequency);
             _sky.ReactiveAuroraSecondaryIntensity.Override(_settings.AuroraSecondaryIntensity);
@@ -252,10 +243,6 @@ namespace DuneVector
             }
             if (!_conductorControlsResponse)
             {
-                float travelSpeed = _settings.AuroraTravelSpeed * _settings.AuroraTravelDirection;
-                MusicTimelineState timeline = _audio.TimelineState;
-                _sky.ReactiveAuroraTravelSpeed.value = travelSpeed;
-                UpdateAuroraTravelPhase(in timeline, travelSpeed);
                 ApplyMusicResponse(deltaTime);
             }
         }
@@ -547,18 +534,15 @@ namespace DuneVector
             _sky.ReactiveAuroraThickness.value = skyAllowed
                 ? _settings.AuroraThickness * state.Multipliers.CurrentThickness
                 : 0f;
-            float auroraTravelSpeed = skyAllowed
+            _sky.ReactiveAuroraTravelSpeed.value = skyAllowed
                 ? _settings.AuroraTravelSpeed * _settings.AuroraTravelDirection * state.Multipliers.CurrentTravel
                 : 0f;
-            _sky.ReactiveAuroraTravelSpeed.value = auroraTravelSpeed;
             if (skyAllowed)
             {
-                UpdateAuroraTravelPhase(in state.Timeline, auroraTravelSpeed);
                 UpdateAuroraDropShift();
             }
             else
             {
-                ResetAuroraTravelPhase();
                 ResetAuroraDropShift();
             }
 
@@ -666,49 +650,6 @@ namespace DuneVector
             ClearVisualResponse();
         }
 
-        private void UpdateAuroraTravelPhase(in MusicTimelineState timeline, float travelSpeed)
-        {
-            int timelineMilliseconds = timeline.TimelinePositionMilliseconds;
-            bool discontinuous = !_hasAuroraTimelineSample
-                || timeline.DiscontinuousJump
-                || timeline.PlaybackGeneration != _previousAuroraPlaybackGeneration
-                || timeline.SeekGeneration != _previousAuroraSeekGeneration
-                || timelineMilliseconds < _previousAuroraTimelineMilliseconds;
-            if (discontinuous)
-            {
-                _auroraTravelPhase = timelineMilliseconds * 0.001f * travelSpeed;
-                _hasAuroraTimelineSample = true;
-            }
-            else if (timeline.IsPlaying && !timeline.IsPaused)
-            {
-                float elapsedSeconds = (timelineMilliseconds - _previousAuroraTimelineMilliseconds) * 0.001f;
-                _auroraTravelPhase += elapsedSeconds
-                    * (_previousAuroraTravelSpeed + travelSpeed)
-                    * 0.5f;
-            }
-
-            _auroraTravelPhase = Mathf.Repeat(_auroraTravelPhase + Mathf.PI, Mathf.PI * 2f) - Mathf.PI;
-            _previousAuroraTravelSpeed = travelSpeed;
-            _previousAuroraTimelineMilliseconds = timelineMilliseconds;
-            _previousAuroraPlaybackGeneration = timeline.PlaybackGeneration;
-            _previousAuroraSeekGeneration = timeline.SeekGeneration;
-            _sky.ReactiveAuroraTravelPhase.value = _auroraTravelPhase;
-        }
-
-        private void ResetAuroraTravelPhase()
-        {
-            _auroraTravelPhase = 0f;
-            _previousAuroraTravelSpeed = 0f;
-            _previousAuroraTimelineMilliseconds = 0;
-            _previousAuroraPlaybackGeneration = 0;
-            _previousAuroraSeekGeneration = 0;
-            _hasAuroraTimelineSample = false;
-            if (_sky != null)
-            {
-                _sky.ReactiveAuroraTravelPhase.value = 0f;
-            }
-        }
-
         private void UpdateAuroraDropShift()
         {
             if (_auroraDropShiftDuration <= 0f)
@@ -772,7 +713,6 @@ namespace DuneVector
             _eventFilamentAge = 0f;
             _eventFilamentDuration = 0f;
             _eventFilamentStrikeCount = 0;
-            ResetAuroraTravelPhase();
             ResetAuroraDropShift();
             _analysisTimer = 0f;
             LatestAnalysisFrame = default;
