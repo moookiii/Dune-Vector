@@ -514,16 +514,19 @@ namespace DuneVector
             }
 
             bool skyAllowed = (state.Permissions & MusicVisualEffectGroups.Sky) != 0;
-            _sky.ReactiveShockRingIntensity.Override(skyAllowed ? _settings.ShockRingIntensity : 0f);
+            bool bassLinesAllowed = (state.Permissions & MusicVisualEffectGroups.BassLines) != 0;
+            bool musicInputsAllowed = skyAllowed || bassLinesAllowed;
+            _sky.ReactiveFrontIntensity.Override(bassLinesAllowed ? _settings.FrontIntensity : 0f);
+            _sky.ReactiveShockRingIntensity.Override(bassLinesAllowed ? _settings.ShockRingIntensity : 0f);
             _sky.ReactiveLightningIntensity.Override(skyAllowed ? _settings.LightningIntensity : 0f);
             _sky.ReactiveSparkIntensity.Override(skyAllowed ? _settings.SparkIntensity : 0f);
             _sky.ReactiveSparkDensity.Override(skyAllowed ? _settings.SparkDensity : 0f);
-            _sky.ReactiveMusicEnergy.value = skyAllowed ? state.Energy : 0f;
-            _sky.ReactiveMusicBass.value = skyAllowed ? state.Bass : 0f;
-            _sky.ReactiveMusicMids.value = skyAllowed ? state.Mid : 0f;
-            _sky.ReactiveMusicHighs.value = skyAllowed ? state.High : 0f;
-            _sky.ReactiveBassPulse.value = skyAllowed ? state.Analysis.BassTransient : 0f;
-            _sky.ReactiveHighPulse.value = skyAllowed ? state.Analysis.HighTransient : 0f;
+            _sky.ReactiveMusicEnergy.value = musicInputsAllowed ? state.Energy : 0f;
+            _sky.ReactiveMusicBass.value = musicInputsAllowed ? state.Bass : 0f;
+            _sky.ReactiveMusicMids.value = musicInputsAllowed ? state.Mid : 0f;
+            _sky.ReactiveMusicHighs.value = musicInputsAllowed ? state.High : 0f;
+            _sky.ReactiveBassPulse.value = musicInputsAllowed ? state.Analysis.BassTransient : 0f;
+            _sky.ReactiveHighPulse.value = musicInputsAllowed ? state.Analysis.HighTransient : 0f;
             _sky.ReactiveAuroraIntensity.value = skyAllowed
                 ? _settings.AuroraIntensity * state.Multipliers.CurrentIntensity
                 : 0f;

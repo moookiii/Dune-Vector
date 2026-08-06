@@ -86,6 +86,7 @@ namespace DuneVector
         Bloom = 1 << 9,
         Filaments = 1 << 10,
         TrebleParticles = 1 << 11,
+        BassLines = 1 << 12,
         All = ushort.MaxValue,
     }
 

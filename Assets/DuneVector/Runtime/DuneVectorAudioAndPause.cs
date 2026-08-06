@@ -28,7 +28,7 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 9;
+            public int Version = 10;
             public float MusicVolume;
             public float SoundEffectsVolume;
             public bool MusicVisualizerEnabled = true;
@@ -1055,7 +1055,7 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version >= 1 && stored.Version <= 9)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 10)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
@@ -1093,6 +1093,11 @@ namespace DuneVector
                     {
                         VisualizerEffectMask = (MusicVisualEffectGroups)stored.MusicVisualizerEffectMask
                             & MusicVisualEffectGroups.All;
+                    }
+                    if (stored.Version < 10
+                        && (VisualizerEffectMask & MusicVisualEffectGroups.Sky) != 0)
+                    {
+                        VisualizerEffectMask |= MusicVisualEffectGroups.BassLines;
                     }
                     if (VisualizerMode == MusicVisualizerMode.NoFlash)
                     {
@@ -1798,8 +1803,13 @@ namespace DuneVector
 
             DrawMusicVisualizerMasterToggle(new Rect(content.x, y, content.width, buttonHeight));
             y += buttonHeight + gap;
-            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerSkyLabel,
+            float splitToggleWidth = (content.width - gap) * 0.5f;
+            DrawMusicVisualizerEffectToggle(new Rect(content.x, y, splitToggleWidth, buttonHeight), _visuals.MusicVisualizerSkyLabel,
                 MusicVisualEffectGroups.Sky | MusicVisualEffectGroups.Filaments | MusicVisualEffectGroups.TrebleParticles);
+            DrawMusicVisualizerEffectToggle(
+                new Rect(content.x + splitToggleWidth + gap, y, splitToggleWidth, buttonHeight),
+                _visuals.MusicVisualizerBassLinesLabel,
+                MusicVisualEffectGroups.BassLines);
             y += buttonHeight + gap;
             DrawMusicVisualizerEffectToggle(new Rect(content.x, y, content.width, buttonHeight), _visuals.MusicVisualizerBloomLabel,
                 MusicVisualEffectGroups.Bloom);
