@@ -61,7 +61,7 @@ namespace DuneVector
 
         [ColorUsage(false)]
         [Tooltip("Ground pigment shown wherever the mask contains linework.")]
-        public Color LineColor = new Color(1f, 1f, 1f, 222f / 255f);
+        public Color LineColor = new Color(0.12f, 0.055f, 0.018f, 1f);
 
         [Header("Mask Definition")]
         [Range(0f, 1f)] public float MaskThreshold = 0.48f;
@@ -91,7 +91,7 @@ namespace DuneVector
 
         [ColorUsage(false, true)]
         [Tooltip("HDR emission added to geoglyph linework. Values above 1 drive the URP bloom post-process.")]
-        public Color BloomEmissionColor = Color.black;
+        public Color BloomEmissionColor = new Color(2.4f, 2.55f, 3f, 1f);
 
         [Tooltip("Unique persistent geoglyph landmarks. Entries are never spawned, tiled, randomized, or repeated by chunks.")]
         public List<GeoglyphArtworkPlacement> Placements = new List<GeoglyphArtworkPlacement>();
