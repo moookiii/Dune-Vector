@@ -312,15 +312,13 @@ namespace DuneVector
                     Vector3 center = _drone != null
                         ? _drone.position
                         : (_camera != null ? _camera.transform.position : slot.Origin);
-                    Vector3 haloRight = _camera != null ? _camera.transform.right : slot.Right;
-                    Vector3 haloUp = _camera != null ? _camera.transform.up : Vector3.up;
                     center.y += _settings.PressureFrontEnclosingHaloHeightOffset;
                     for (int segment = 0; segment < _positions.Length; segment++)
                     {
                         float angle = segment / (float)_positions.Length * Mathf.PI * 2f;
                         _positions[segment] = center
-                            + haloRight * (Mathf.Cos(angle) * radius)
-                            + haloUp * (Mathf.Sin(angle) * radius);
+                            + slot.Right * (Mathf.Cos(angle) * radius)
+                            + slot.Forward * (Mathf.Sin(angle) * radius);
                     }
                 }
                 else
@@ -350,20 +348,6 @@ namespace DuneVector
                 slot.HaloRenderer.startWidth = slot.Renderer.startWidth * _settings.PressureFrontArrivalThicknessGrowth;
                 slot.HaloRenderer.endWidth = slot.HaloRenderer.startWidth;
                 float nearFade = 1f - Mathf.InverseLerp(_settings.PressureFrontNearFadeStart, 1f, progress);
-                if (_settings.PressureFrontFadeBeforeNearPlane
-                    && _camera != null
-                    && slot.UseEnclosingHalo)
-                {
-                    float centerDepth = Vector3.Dot(
-                        (_drone != null ? _drone.position : slot.Origin) - _camera.transform.position,
-                        _camera.transform.forward);
-                    float nearPlaneClearance = _camera.nearClipPlane
-                        + slot.HaloRenderer.startWidth * 0.5f;
-                    nearFade *= Mathf.InverseLerp(
-                        nearPlaneClearance,
-                        nearPlaneClearance + slot.HaloRenderer.startWidth,
-                        centerDepth);
-                }
                 float alpha = slot.MaximumAlpha * slot.Strength * nearFade;
                 Color color = slot.Color;
                 float colorAlpha = color.a;
