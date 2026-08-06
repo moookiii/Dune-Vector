@@ -4969,7 +4969,7 @@ namespace DuneVector
         public string MusicVisualizerEffectDisabledLabel = "OFF";
         public bool DefaultMusicVisualizerEnabled = true;
         public bool DefaultMusicVisualizerSkyEnabled = true;
-        public bool DefaultMusicVisualizerBassLinesEnabled = true;
+        public bool DefaultMusicVisualizerBassLinesEnabled;
         public bool DefaultMusicVisualizerBloomEnabled = true;
         public bool DefaultMusicVisualizerPressureFrontsEnabled = true;
         public bool DefaultMusicVisualizerWorldResponseEnabled = true;
