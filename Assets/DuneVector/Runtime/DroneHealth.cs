@@ -22,6 +22,11 @@ namespace DuneVector
         public event Action<float> Healed;
         public event Action Died;
 
+        private const string DeathEffectResourcePath = "vfx/RedFireImpactV2";
+        private const float DeathEffectVerticalOffset = 0.3f;
+        private const float DeathEffectMinimumLifetime = 3f;
+        private static readonly Vector3 DeathEffectScale = new Vector3(2f, 2f, 2f);
+
         private float _damageInvulnerability;
         private float _nextDamageTime;
 
@@ -84,9 +89,40 @@ namespace DuneVector
             {
                 IsDead = true;
                 Debug.Log($"Player killed by {LastDamageSource} (final hit: {previousHealth - CurrentHealth:0.##} damage).", this);
+                SpawnDeathEffect();
                 Died?.Invoke();
             }
             return true;
+        }
+
+        private void SpawnDeathEffect()
+        {
+            GameObject prefab = Resources.Load<GameObject>(DeathEffectResourcePath);
+            if (prefab == null)
+            {
+                Debug.LogWarning($"Death effect prefab '{DeathEffectResourcePath}' was not found in Resources.", this);
+                return;
+            }
+
+            GameObject effect = Instantiate(
+                prefab,
+                transform.position + (Vector3.up * DeathEffectVerticalOffset),
+                Quaternion.identity);
+            effect.transform.localScale = DeathEffectScale;
+
+            // The game-over screen sets Time.timeScale to zero, so the effect has to run unscaled.
+            float longestLifetime = 0f;
+            foreach (ParticleSystem particles in effect.GetComponentsInChildren<ParticleSystem>(true))
+            {
+                ParticleSystem.MainModule main = particles.main;
+                main.useUnscaledTime = true;
+                longestLifetime = Mathf.Max(
+                    longestLifetime,
+                    main.duration + main.startLifetime.constantMax);
+            }
+
+            effect.AddComponent<DuneVectorUnscaledSelfDestruct>()
+                .Begin(Mathf.Max(DeathEffectMinimumLifetime, longestLifetime));
         }
 
         public void SetDamageImmune(bool immune)
@@ -139,6 +175,21 @@ namespace DuneVector
                 Healed?.Invoke(restored);
             }
             return true;
+        }
+    }
+
+    [DisallowMultipleComponent]
+    public sealed class DuneVectorUnscaledSelfDestruct : MonoBehaviour
+    {
+        public void Begin(float lifetime)
+        {
+            StartCoroutine(DestroyAfter(lifetime));
+        }
+
+        private IEnumerator DestroyAfter(float lifetime)
+        {
+            yield return new WaitForSecondsRealtime(lifetime);
+            Destroy(gameObject);
         }
     }
 
