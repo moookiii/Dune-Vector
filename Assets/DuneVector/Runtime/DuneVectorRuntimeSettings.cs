@@ -1465,6 +1465,8 @@ namespace DuneVector
         [Min(8f)] public float SpireHeight = 96f;
         [Min(4f)] public float ExcavationCraneHeight = 34f;
         [Min(0f)] public float ContractSocketHeight = 5f;
+        [Tooltip("Additional horizontal gap kept between a landmark footprint and any procedural pyramid or obelisk.")]
+        [Min(0f)] public float StructureClearance = 6f;
         [Tooltip("Additional horizontal distance between a landmark and its pickup package and ring.")]
         [Min(0f)] public float PickupRingLandmarkClearance = 6f;
         [Tooltip("Vertical air gap between the landmark's highest rendered point and its delivery ring.")]
@@ -3674,6 +3676,8 @@ namespace DuneVector
         [Header("Placement")]
         [Tooltip("Minimum horizontal center-to-center distance between any two procedurally generated traversal rings, regardless of ring type.")]
         [Min(0f)] public float MinimumRingSeparation = 10f;
+        [Tooltip("Minimum horizontal center-to-center distance between any two ground boost portals, enforced across chunk borders.")]
+        [Min(0f)] public float MinimumGroundPortalSeparation = 30f;
         [Tooltip("Minimum horizontal distance between a newly generated traversal ring center and any player, neutral, or rival courier drone.")]
         [Min(0f)] public float MinimumDroneSpawnSeparation = 14f;
         [Tooltip("Minimum horizontal distance from the hub center where traversal ring centers may spawn.")]

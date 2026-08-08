@@ -7,6 +7,7 @@ namespace DuneVector
     {
         Structure = 0,
         Portal = 1,
+        GroundPortal = 2,
     }
 
     /// <summary>
@@ -19,7 +20,7 @@ namespace DuneVector
     public static class DuneVectorWorldOccupancy
     {
         private const double CellSize = 64d;
-        private const int KindCount = 2;
+        private const int KindCount = 3;
 
         private sealed class Entry
         {

@@ -2494,7 +2494,8 @@ namespace DuneVector
                 if (!TryReserveStructureFootprint(
                         logicalX,
                         logicalZ,
-                        CalculateStructureFootprintRadius(scale)))
+                        CalculateStructureFootprintRadius(scale),
+                        landmarkTuning))
                 {
                     continue;
                 }
@@ -2578,7 +2579,8 @@ namespace DuneVector
                     if (!TryReserveStructureFootprint(
                             logicalX,
                             logicalZ,
-                            CalculateStructureFootprintRadius(scale)))
+                            CalculateStructureFootprintRadius(scale),
+                            landmarkTuning))
                     {
                         continue;
                     }
@@ -2664,7 +2666,8 @@ namespace DuneVector
                     if (!TryReserveStructureFootprint(
                             logicalX,
                             logicalZ,
-                            CalculateStructureFootprintRadius(scale)))
+                            CalculateStructureFootprintRadius(scale),
+                            landmarkTuning))
                     {
                         continue;
                     }
@@ -2745,7 +2748,8 @@ namespace DuneVector
                     if (!TryReserveStructureFootprint(
                             logicalX,
                             logicalZ,
-                            CalculateStructureFootprintRadius(scale)))
+                            CalculateStructureFootprintRadius(scale),
+                            landmarkTuning))
                     {
                         continue;
                     }
@@ -3083,13 +3087,33 @@ namespace DuneVector
             return Mathf.Max(0f, scale) * 1.4142136f;
         }
 
-        private bool TryReserveStructureFootprint(double logicalX, double logicalZ, float footprintRadius)
+        private bool TryReserveStructureFootprint(
+            double logicalX,
+            double logicalZ,
+            float footprintRadius,
+            LandmarkSystemTuning landmarkTuning)
         {
             if (DuneVectorWorldOccupancy.Overlaps(
                     logicalX,
                     logicalZ,
                     footprintRadius,
                     WorldOccupancyKind.Portal))
+            {
+                return false;
+            }
+
+            // Landmarks stream from their own placement grid and never register an
+            // occupancy footprint, so a pyramid or obelisk has to test their exclusion
+            // discs directly or it will spawn straight through the landmark mesh.
+            DuneVectorLandmarkDirector landmarks = DuneVectorBootstrap.Instance != null
+                ? DuneVectorBootstrap.Instance.LandmarkDirector
+                : null;
+            if (landmarks != null && landmarks.OverlapsLandmarkFootprint(
+                    logicalX,
+                    logicalZ,
+                    footprintRadius + (landmarkTuning != null
+                        ? Mathf.Max(0f, landmarkTuning.StructureClearance)
+                        : 0f)))
             {
                 return false;
             }
