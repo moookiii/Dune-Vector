@@ -235,7 +235,6 @@ namespace DuneVector
         private CourierContractTuning _contractSettings;
         private FreeRoamDeliveryTuning _settings;
 
-        private DuneVectorLandmarkInstance _zoneLandmark;
         private JobTraversalRing _zoneRing;
         private Transform _package;
         private DuneVectorFreeRoamCompletionEffect _completionEffect;
@@ -305,6 +304,7 @@ namespace DuneVector
 
         private void BeginPickupLeg(bool useNearestLandmark)
         {
+            DestroyZoneRing();
             LogicalPosition origin = _world.LogicalPlayerPosition;
             DuneLandmarkPlacementRecord record = useNearestLandmark
                 ? _landmarks.ResolveNearestWorldLandmarkOfAnyType(origin)
@@ -460,7 +460,6 @@ namespace DuneVector
             }
 
             _usedLandmarkIds.Add(record.PersistentId);
-            _zoneLandmark = landmark;
             _zoneRadius = Mathf.Clamp(
                 landmark.CalculateMeshHorizontalRadius() + _settings.ZoneMargin,
                 _settings.MinimumZoneRadius,
@@ -564,7 +563,6 @@ namespace DuneVector
                 Destroy(_completionEffect.gameObject);
                 _completionEffect = null;
             }
-            _zoneLandmark = null;
             ActiveObjective = null;
         }
 
@@ -601,6 +599,7 @@ namespace DuneVector
                 Phase == FreeRoamDeliveryPhase.Inactive ||
                 DuneVectorCourierGame.IsGameplayHudSuppressed ||
                 _courierGame == null ||
+                _courierGame.State != CourierRunState.FreeRoam ||
                 _courierGame.IsTerminalOpen)
             {
                 return;
@@ -640,7 +639,7 @@ namespace DuneVector
             Matrix4x4 previousMatrix = GUI.matrix;
             GUIUtility.ScaleAroundPivot(new Vector2(scale, scale), new Vector2(centerX, centerY));
 
-            float width = Mathf.Max(240f, Screen.width * 0.5f);
+            float width = Mathf.Max(240f, Screen.width * 0.26f);
             Rect multiplierRect = new Rect(
                 centerX - (width * 0.5f),
                 centerY - (_settings.StreakMultiplierFontSize * 0.62f),

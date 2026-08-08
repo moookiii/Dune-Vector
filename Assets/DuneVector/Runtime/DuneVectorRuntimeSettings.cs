@@ -1327,8 +1327,6 @@ namespace DuneVector
         public Vector3 FreeRoamTerminalLocalEulerAngles = new Vector3(0f, -90f, 0f);
         [Min(1f)] public float FreeRoamTerminalInteractionRadius = 6f;
         public float FreeRoamDeploymentHeadingDegrees = 90f;
-        [Tooltip("Hub-relative offset applied to the free roam deployment point. Keep the Z push large enough that the drone lands clear of the hub footprint instead of inside it.")]
-        public Vector3 FreeRoamDeploymentLocalOffset = new Vector3(0f, 0f, 40f);
         [Tooltip("Hub-local position of the drone upgrade pad.")]
         public Vector3 UpgradeAreaLocalPosition = new Vector3(0f, 0f, -7.5f);
         [Min(0f)] public float PlayerSpawnHeight = 2.2f;
@@ -6272,7 +6270,7 @@ namespace DuneVector
 
         [Header("Streak Counter HUD")]
         [Tooltip("Screen-space position of the streak counter as a fraction of the screen size.")]
-        public Vector2 StreakCounterAnchor = new Vector2(0.5f, 0.09f);
+        public Vector2 StreakCounterAnchor = new Vector2(0.855f, 0.32f);
 
         [Min(8)] public int StreakMultiplierFontSize = 62;
         [Min(8)] public int StreakLabelFontSize = 20;

@@ -538,7 +538,14 @@ namespace DuneVector
                 ? new Vector3(authoredScale.x * fitScale, authoredScale.y, authoredScale.z * fitScale)
                 : authoredScale * fitScale;
             instanceTransform.localScale = Vector3.Scale(fittedScale, scaleMultiplier);
-            localOffset.y -= groundOffset + _settings.GroundRingPrefabTerrainInset;
+            // The terrain inset buries the base of a prefab whose height grew with the fit. A
+            // horizontally fitted zone keeps its authored height, so sinking it by that same
+            // depth would hide the hexagon entirely.
+            localOffset.y -= groundOffset;
+            if (!_fitGroundVisualHorizontallyOnly)
+            {
+                localOffset.y -= _settings.GroundRingPrefabTerrainInset;
+            }
             instanceTransform.localPosition += localOffset;
             instanceTransform.localRotation *= Quaternion.Euler(localEulerAngles);
             return instanceTransform;

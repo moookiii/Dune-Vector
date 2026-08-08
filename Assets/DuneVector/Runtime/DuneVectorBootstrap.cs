@@ -1113,6 +1113,8 @@ namespace DuneVector
                     WorldHubSettings,
                     DesertAtlasSettings,
                     RuntimeSettings.CompassHud,
+                    RuntimeSettings.FreeRoamDeliveries,
+                    RuntimeSettings.Geoglyphs,
                     EnemyDirector,
                     StormPyramidDirector,
                     VesperKiteDirector);

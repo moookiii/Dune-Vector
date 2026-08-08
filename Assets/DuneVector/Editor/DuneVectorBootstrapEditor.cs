@@ -143,6 +143,7 @@ namespace DuneVector.Editor
         private SerializedProperty _environmentalHazards;
         private SerializedProperty _deliveries;
         private SerializedProperty _contracts;
+        private SerializedProperty _freeRoamDeliveries;
         private SerializedProperty _deliveryMessages;
         private SerializedProperty _worldHub;
         private SerializedProperty _landmarks;
@@ -224,6 +225,7 @@ namespace DuneVector.Editor
             _environmentalHazards = serializedObject.FindProperty("EnvironmentalHazards");
             _deliveries = serializedObject.FindProperty("Deliveries");
             _contracts = serializedObject.FindProperty("Contracts");
+            _freeRoamDeliveries = serializedObject.FindProperty("FreeRoamDeliveries");
             _deliveryMessages = serializedObject.FindProperty("DeliveryMessages");
             _worldHub = serializedObject.FindProperty("WorldHub");
             _landmarks = serializedObject.FindProperty("Landmarks");
@@ -521,6 +523,10 @@ namespace DuneVector.Editor
                 "Courier Contracts",
                 "Contract offers, modifier progression, cargo consequences, rewards, and active-contract HUD.",
                 _contracts);
+            DuneVectorSettingsInspector.DrawSection(
+                "Free Roam Deliveries",
+                "Deployment inside the geoglyph bounds, landmark hexagon zones, leg distance, streak multiplier tiers, payouts, and the delivery-complete effect.",
+                _freeRoamDeliveries);
             DuneVectorSettingsInspector.DrawSection(
                 "Delivery Messages",
                 "Authored narrative order, typewriter timing, replay policy, and per-page FMOD voice events.",

@@ -108,11 +108,14 @@ namespace DuneVector
         [Serializable]
         private sealed class SaveData
         {
-            public int Version = 6;
+            public int Version = 7;
             public int CompletedDeliveries;
             public int FailedDeliveries;
             public int TotalContractGold;
             public int HighestDifficulty;
+            public int FreeRoamDeliveries;
+            public int TotalFreeRoamGold;
+            public int HighestFreeRoamStreak;
             public int NextDeliveryMessageIndex;
             public int PendingDeliveryMessageIndex = -1;
             public bool DeliveryMessageInputHintAcknowledged;
@@ -125,6 +128,9 @@ namespace DuneVector
         public int FailedDeliveries { get; private set; }
         public int TotalContractGold { get; private set; }
         public int HighestDifficulty { get; private set; }
+        public int FreeRoamDeliveries { get; private set; }
+        public int TotalFreeRoamGold { get; private set; }
+        public int HighestFreeRoamStreak { get; private set; }
         public int NextDeliveryMessageIndex { get; private set; }
         public int PendingDeliveryMessageIndex { get; private set; } = -1;
         public bool DeliveryMessageInputHintAcknowledged { get; private set; }
@@ -153,6 +159,17 @@ namespace DuneVector
             {
                 PendingDeliveryMessageIndex = NextDeliveryMessageIndex;
             }
+            Save();
+            Changed?.Invoke();
+        }
+
+        public void RecordFreeRoamDelivery(int reward, int streak)
+        {
+            FreeRoamDeliveries++;
+            TotalFreeRoamGold = TotalFreeRoamGold > int.MaxValue - Mathf.Max(0, reward)
+                ? int.MaxValue
+                : TotalFreeRoamGold + Mathf.Max(0, reward);
+            HighestFreeRoamStreak = Mathf.Max(HighestFreeRoamStreak, streak);
             Save();
             Changed?.Invoke();
         }
@@ -266,6 +283,12 @@ namespace DuneVector
                     data.Version >= 5 && data.StrikeOrbDeathNoteAcknowledged;
                 VesperPilgrimDeathNoteAcknowledged =
                     data.Version >= 6 && data.VesperPilgrimDeathNoteAcknowledged;
+                if (data.Version >= 7)
+                {
+                    FreeRoamDeliveries = Mathf.Max(0, data.FreeRoamDeliveries);
+                    TotalFreeRoamGold = Mathf.Max(0, data.TotalFreeRoamGold);
+                    HighestFreeRoamStreak = Mathf.Max(0, data.HighestFreeRoamStreak);
+                }
                 _acceptedContractIds.Clear();
                 if (data.Version >= 4 && data.AcceptedContractIds != null)
                 {
@@ -295,6 +318,9 @@ namespace DuneVector
                     FailedDeliveries = FailedDeliveries,
                     TotalContractGold = TotalContractGold,
                     HighestDifficulty = HighestDifficulty,
+                    FreeRoamDeliveries = FreeRoamDeliveries,
+                    TotalFreeRoamGold = TotalFreeRoamGold,
+                    HighestFreeRoamStreak = HighestFreeRoamStreak,
                     NextDeliveryMessageIndex = NextDeliveryMessageIndex,
                     PendingDeliveryMessageIndex = PendingDeliveryMessageIndex,
                     DeliveryMessageInputHintAcknowledged = DeliveryMessageInputHintAcknowledged,
@@ -328,7 +354,10 @@ namespace DuneVector
         public Transform ActiveObjective { get; private set; }
         public LogicalPosition ActiveObjectiveLogicalPosition { get; private set; }
         public bool IsContractActive => State == CourierRunState.FindPackage || State == CourierRunState.Delivering;
-        public bool IsCarryingCargo => State == CourierRunState.Delivering;
+        public bool IsCarryingCargo =>
+            State == CourierRunState.Delivering ||
+            (_freeRoamDeliveries != null && _freeRoamDeliveries.IsCarryingCargo);
+        public DuneVectorFreeRoamDeliverySystem FreeRoamDeliveries => _freeRoamDeliveries;
         public bool IsTerminalOpen => _hubTerminalMode != HubTerminalMode.None;
         public bool IsDeliveryMessageOpen => _messagePresenter != null && _messagePresenter.IsOpen;
         public Vector3 HubSpawnPosition => _hubSpawn;
@@ -391,6 +420,9 @@ namespace DuneVector
         private DuneVectorWindFieldSystem _windFields;
         private WorldHubTuning _hubSettings;
         private DesertAtlasTuning _desertAtlasSettings;
+        private FreeRoamDeliveryTuning _freeRoamSettings;
+        private GeoglyphSystemTuning _geoglyphs;
+        private DuneVectorFreeRoamDeliverySystem _freeRoamDeliveries;
         private DuneVectorEnemyDirector _enemyDirector;
         private DuneVectorStormPyramidDirector _stormDirector;
         private DuneVectorVesperKiteDirector _vesperKiteDirector;
@@ -538,6 +570,8 @@ namespace DuneVector
             WorldHubTuning hubSettings,
             DesertAtlasTuning desertAtlasSettings,
             CompassHudTuning compassHudSettings,
+            FreeRoamDeliveryTuning freeRoamDeliverySettings,
+            GeoglyphSystemTuning geoglyphs,
             DuneVectorEnemyDirector enemyDirector,
             DuneVectorStormPyramidDirector stormDirector,
             DuneVectorVesperKiteDirector vesperKiteDirector)
@@ -560,6 +594,9 @@ namespace DuneVector
             _hubSettings = hubSettings;
             _desertAtlasSettings = desertAtlasSettings ?? new DesertAtlasTuning();
             _desertAtlasSettings.EnsureInitialized();
+            _freeRoamSettings = freeRoamDeliverySettings ?? new FreeRoamDeliveryTuning();
+            _freeRoamSettings.EnsureInitialized();
+            _geoglyphs = geoglyphs;
             _enemyDirector = enemyDirector;
             _stormDirector = stormDirector;
             _vesperKiteDirector = vesperKiteDirector;
@@ -577,6 +614,19 @@ namespace DuneVector
                 Progress.AcknowledgeDeliveryMessageInputHint);
             _sandAmbusherSystem = gameObject.AddComponent<DuneVectorSandAmbusherSystem>();
             _sandAmbusherSystem.Initialize(_player, _health, _world, _settings);
+            _freeRoamDeliveries = gameObject.AddComponent<DuneVectorFreeRoamDeliverySystem>();
+            _freeRoamDeliveries.Initialize(
+                _player,
+                _world,
+                _camera,
+                _materials,
+                _wallet,
+                _landmarks,
+                this,
+                Progress,
+                _deliverySettings,
+                _settings,
+                _freeRoamSettings);
             _health.Damaged += HandlePlayerDamaged;
             _health.Died += HandlePlayerDied;
             _world.WorldShifted += HandleWorldShift;
@@ -635,6 +685,7 @@ namespace DuneVector
             {
                 FailContract("CONTRACT ABANDONED", recordFailure: recordAbandonment, beginReturn: false);
             }
+            _freeRoamDeliveries?.NotifyStreakBroken();
             BeginTeleport(toHub: true);
         }
 
@@ -675,34 +726,69 @@ namespace DuneVector
 
             ActiveContract = null;
             CleanupContractObjects();
+            _freeRoamDeliveries?.EndDeployment();
             _landmarks?.ClearContractLandmarks();
             PrepareFreeRoamDeployment();
             BeginTeleport(toHub: false);
             return true;
         }
 
+        /// <summary>
+        /// Free roam drops the drone at a random point inside the combined footprint of every
+        /// authored geoglyph, so each deployment starts beside a different landmark.
+        /// </summary>
         private void PrepareFreeRoamDeployment()
         {
+            LogicalPosition deployment = ChooseFreeRoamDeploymentPosition();
+            float insertionHeight =
+                (float)_world.HeightField.SampleHeight(deployment.X, deployment.Z) +
+                _hubSettings.DesertInsertionHeight;
+            _desertSpawn = _world.LogicalToLocal(deployment.X, insertionHeight, deployment.Z);
+
             float headingRadians = _hubSettings.FreeRoamDeploymentHeadingDegrees * Mathf.Deg2Rad;
             Vector3 heading = new Vector3(
                 Mathf.Cos(headingRadians),
                 0f,
                 Mathf.Sin(headingRadians));
-            Vector3 hubPosition = _hubRoot != null
-                ? _hubRoot.position
-                : _world.LogicalToLocal(
-                    DesertWorldStreamer.StartingLogicalPosition.x,
-                    0f,
-                    DesertWorldStreamer.StartingLogicalPosition.y);
-            // The hub now stands on the sand, so deploy clear of its footprint
-            // instead of directly under the deck.
-            Vector3 deploymentOrigin = hubPosition + _hubSettings.FreeRoamDeploymentLocalOffset;
-            float terrainHeight = _world.SampleHeightAtLocal(deploymentOrigin.x, deploymentOrigin.z);
-            _desertSpawn = new Vector3(
-                deploymentOrigin.x,
-                terrainHeight + _hubSettings.DesertInsertionHeight,
-                deploymentOrigin.z);
             _desertRotation = Quaternion.LookRotation(heading, Vector3.up);
+        }
+
+        private LogicalPosition ChooseFreeRoamDeploymentPosition()
+        {
+            Vector2 minimum;
+            Vector2 maximum;
+            if (_geoglyphs == null ||
+                !_geoglyphs.TryGetCombinedFootprintBounds(out minimum, out maximum))
+            {
+                float halfExtent = _freeRoamSettings.DeploymentFallbackHalfExtent;
+                Vector2 hub = DesertWorldStreamer.StartingLogicalPosition;
+                minimum = hub - new Vector2(halfExtent, halfExtent);
+                maximum = hub + new Vector2(halfExtent, halfExtent);
+            }
+
+            float inset = _freeRoamSettings.DeploymentBoundsInset;
+            Vector2 center = (minimum + maximum) * 0.5f;
+            minimum = Vector2.Min(minimum + new Vector2(inset, inset), center);
+            maximum = Vector2.Max(maximum - new Vector2(inset, inset), center);
+
+            int attempts = Mathf.Max(1, _freeRoamSettings.DeploymentPlacementAttempts);
+            LogicalPosition sample = new LogicalPosition(center.x, center.y);
+            for (int i = 0; i < attempts; i++)
+            {
+                sample = new LogicalPosition(
+                    UnityEngine.Random.Range(minimum.x, maximum.x),
+                    UnityEngine.Random.Range(minimum.y, maximum.y));
+                if (_landmarks == null ||
+                    !_landmarks.OverlapsLandmarkFootprint(
+                        sample.X,
+                        sample.Z,
+                        _freeRoamSettings.DeploymentLandmarkClearance))
+                {
+                    break;
+                }
+            }
+
+            return _world.ResolvePlayerSpawnAwayFromPortals(sample, Vector3.forward);
         }
 
         private void Update()
@@ -1560,6 +1646,8 @@ namespace DuneVector
         {
             _health.SetDamageImmune(true);
             CleanupContractObjects();
+            // Returning to the hub ends the free-roam run and breaks any delivery streak.
+            _freeRoamDeliveries?.EndDeployment();
             _landmarks?.ClearContractLandmarks();
             ActiveContract = null;
             CargoIntegrity = 100f;
@@ -2278,6 +2366,8 @@ namespace DuneVector
 
         private void HandlePlayerDied()
         {
+            // Dying always breaks the free-roam streak, whether or not a contract was running.
+            _freeRoamDeliveries?.NotifyStreakBroken();
             if (!IsContractActive || ActiveContract == null)
             {
                 return;
@@ -2639,6 +2729,11 @@ namespace DuneVector
                         ? $"RISK {risk} // SAND AMBUSHERS ACTIVE"
                         : "CONTRACT DEPLOYED — LOCATE CARGO",
                     3f);
+                if (isFreeRoam)
+                {
+                    // Runs after the deployment banner so the first pickup callout replaces it.
+                    _freeRoamDeliveries?.BeginDeployment();
+                }
             }
         }
 
@@ -2882,6 +2977,15 @@ namespace DuneVector
             {
                 _package.position += shift;
             }
+        }
+
+        /// <summary>
+        /// Publishes a banner through the shared courier status line so free-roam callouts sit in
+        /// the same place as contract callouts.
+        /// </summary>
+        public void ShowStatusMessage(string message, float duration)
+        {
+            ShowStatus(message, duration);
         }
 
         private void ShowStatus(string message, float duration)
