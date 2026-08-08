@@ -974,17 +974,37 @@ namespace DuneVector
 
             _terminal = BuildPhysicalTerminal(
                 "Physical Contract Terminal",
-                Vector3.forward * _hubSettings.TerminalForwardOffset,
-                Quaternion.identity);
+                _hubSettings.ContractTerminalLocalPosition,
+                Quaternion.Euler(_hubSettings.ContractTerminalLocalEulerAngles));
             _messageArchiveTerminal = BuildPhysicalTerminal(
                 "Physical Message Archive Terminal",
                 _hubSettings.ArchiveTerminalLocalPosition,
                 Quaternion.Euler(_hubSettings.ArchiveTerminalLocalEulerAngles));
             _freeRoamTerminal = BuildPhysicalTerminal(
                 "Physical Free Roam Terminal",
-                Vector3.left * _hubSettings.FreeRoamTerminalLeftOffset,
-                Quaternion.Euler(0f, -90f, 0f));
+                _hubSettings.FreeRoamTerminalLocalPosition,
+                Quaternion.Euler(_hubSettings.FreeRoamTerminalLocalEulerAngles));
 
+            // The authored hub carries its own upgrade bay, so the primitive pad
+            // and its rotating calibration arms only exist for the procedural hub.
+            if (!replaceProceduralStructureVisuals)
+            {
+                BuildUpgradeArea();
+            }
+
+            _teleportPlatform = _hubRoot;
+            _hubSpawn = _hubRoot.position
+                + (Vector3.up * (_hubSettings.PlayerSpawnHeight + GetHubSurfaceLocalHeight(0f)));
+            DuneVectorPhotographableMarker.Register(
+                hubObject,
+                DuneVectorCompendiumSubjectIds.Hub,
+                PhotographableSubjectCategory.Misc,
+                minimumObserverHorizontalDistance:
+                    _hubSettings.PhotographySuppressionRadius);
+        }
+
+        private void BuildUpgradeArea()
+        {
             Transform upgradeArea = new GameObject("Drone Upgrade Area").transform;
             upgradeArea.SetParent(_hubRoot, false);
             upgradeArea.localPosition = _hubSettings.UpgradeAreaLocalPosition;
@@ -1008,16 +1028,6 @@ namespace DuneVector
                     new Vector3(0.22f, 0.12f, _hubSettings.UpgradePadArmLength),
                     Quaternion.Euler(0f, angle, 0f), _hubEnergyMaterial, false);
             }
-
-            _teleportPlatform = _hubRoot;
-            _hubSpawn = _hubRoot.position
-                + (Vector3.up * (_hubSettings.PlayerSpawnHeight + GetHubSurfaceLocalHeight(0f)));
-            DuneVectorPhotographableMarker.Register(
-                hubObject,
-                DuneVectorCompendiumSubjectIds.Hub,
-                PhotographableSubjectCategory.Misc,
-                minimumObserverHorizontalDistance:
-                    _hubSettings.PhotographySuppressionRadius);
         }
 
         /// <summary>
@@ -1163,6 +1173,13 @@ namespace DuneVector
             Transform terminal = new GameObject(objectName).transform;
             terminal.SetParent(_hubRoot, false);
             terminal.SetLocalPositionAndRotation(localPosition, localRotation);
+            if (_hubSettings.UseAuthoredTerminalGeometry && UsesPremiumHubVisual)
+            {
+                // The authored hub models its own consoles, so this stays an
+                // invisible interaction anchor standing in front of one.
+                return terminal;
+            }
+
             Material terminalPanelMaterial = new Material(_hubEnergyMaterial)
             {
                 name = $"{objectName} RGB Panel",

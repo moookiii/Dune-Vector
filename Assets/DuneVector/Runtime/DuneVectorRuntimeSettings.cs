@@ -1248,13 +1248,15 @@ namespace DuneVector
         public bool ReplaceProceduralStructureVisuals = true;
         [Min(8f)] public float PlatformRadius = 26f;
         [Min(0.5f)] public float PlatformThickness = 2.4f;
-        [Tooltip("Distance forward of the hub centre where the contract terminal stands. Keep it inside the plaza radius.")]
-        [Min(0f)] public float TerminalForwardOffset = 7.5f;
+        [Tooltip("Hub-local standing spot for the contract terminal. Park it in front of the authored screen it reads from.")]
+        public Vector3 ContractTerminalLocalPosition = new Vector3(0f, 0f, -16.5f);
+        public Vector3 ContractTerminalLocalEulerAngles = new Vector3(0f, 180f, 0f);
         [Min(1f)] public float TerminalInteractionRadius = 6f;
-        public Vector3 ArchiveTerminalLocalPosition = new Vector3(7.5f, 0f, 0f);
+        public Vector3 ArchiveTerminalLocalPosition = new Vector3(16.5f, 0f, 0f);
         public Vector3 ArchiveTerminalLocalEulerAngles = new Vector3(0f, 90f, 0f);
         [Min(1f)] public float ArchiveTerminalInteractionRadius = 6f;
-        [Min(0f)] public float FreeRoamTerminalLeftOffset = 7.5f;
+        public Vector3 FreeRoamTerminalLocalPosition = new Vector3(-16.5f, 0f, 0f);
+        public Vector3 FreeRoamTerminalLocalEulerAngles = new Vector3(0f, -90f, 0f);
         [Min(1f)] public float FreeRoamTerminalInteractionRadius = 6f;
         public float FreeRoamDeploymentHeadingDegrees = 90f;
         [Tooltip("Hub-relative offset applied to the free roam deployment point. Keep the Z push large enough that the drone lands clear of the hub footprint instead of inside it.")]
@@ -1268,6 +1270,8 @@ namespace DuneVector
         [Min(0f)] public float PhotographySuppressionRadius;
 
         [Header("Physical Terminals")]
+        [Tooltip("Skips the primitive pedestal, screen, header, and masts so the authored hub's own consoles act as the terminals. The runtime keeps an invisible interaction anchor at each terminal position.")]
+        public bool UseAuthoredTerminalGeometry = true;
         public Vector3 TerminalPedestalLocalPosition = new Vector3(0f, 2f, 0f);
         public Vector3 TerminalPedestalScale = new Vector3(3f, 4f, 2f);
         public Vector3 TerminalScreenLocalPosition = new Vector3(0f, 4.1f, -0.45f);
@@ -5477,6 +5481,8 @@ namespace DuneVector
         [Min(0f)] public float GroundBrakingSharpness = 5.5f;
         [Min(0f)] public float GroundSteeringSharpness = 11f;
         [Min(0f)] public float TrailMinimumSpeed = 0.35f;
+        [Tooltip("Tallest ledge the drone can walk up without flying. Must clear the step from the world hub's sunken plaza onto its outer deck.")]
+        [Min(0f)] public float MaxStepHeight = 0.9f;
 
         [Header("Jump")]
         [Min(0f)] public float JumpSpeed = 13f;

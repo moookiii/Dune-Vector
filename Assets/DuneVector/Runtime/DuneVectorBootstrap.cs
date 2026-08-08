@@ -42,6 +42,7 @@ namespace DuneVector
         public DesertAtlasTuning DesertAtlasSettings => RuntimeSettings.DesertAtlas;
         public PyramidTuning Pyramids => RuntimeSettings.Pyramids;
         public PyramidTuning Obelisks => RuntimeSettings.Obelisks;
+        public PyramidTuning DarkPyramids => RuntimeSettings.DarkPyramids;
         public CactusTuning Cacti => RuntimeSettings.Cacti;
         public DesertShrubTuning DesertShrubs => RuntimeSettings.DesertShrubs;
         public WorldStreamingTuning WorldStreaming => RuntimeSettings.WorldStreaming;
@@ -362,7 +363,8 @@ namespace DuneVector
                 Pyramids,
                 Obelisks,
                 FlyingEnemies,
-                VesperKites);
+                VesperKites,
+                DarkPyramids);
             _materials.ConfigureStormPyramid(StormPyramids);
             _materials.ConfigurePlayerStrikeOrb(PlayerStrikeOrbs);
 
@@ -455,6 +457,7 @@ namespace DuneVector
             World.PyramidMinimumBurialDepth = Pyramids.MinimumBurialDepth;
             World.PyramidMaximumBurialDepth = Pyramids.MaximumBurialDepth;
             World.Obelisks = Obelisks;
+            World.DarkPyramids = DarkPyramids;
             World.Geoglyphs = RuntimeSettings.Geoglyphs;
             World.Shrubs = DesertShrubs;
             World.Landmarks = Contracts.Enabled && WorldHubSettings.Enabled ? LandmarkSettings : null;
@@ -475,7 +478,7 @@ namespace DuneVector
             motor.SetCapsuleDimensions(0.86f, 1.8f, 0.9f);
             motor.MaxStableSlopeAngle = 57f;
             motor.GroundDetectionExtraDistance = 0.16f;
-            motor.MaxStepHeight = 0.45f;
+            motor.MaxStepHeight = PlayerTuning.MaxStepHeight;
             motor.LedgeAndDenivelationHandling = true;
             motor.MaxStableDenivelationAngle = 72f;
             motor.InteractiveRigidbodyHandling = false;
