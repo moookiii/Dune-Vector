@@ -2960,6 +2960,22 @@ namespace DuneVector
                 return;
             }
 
+            // Ground portals stream in per chunk, so the per-chunk exclusion list cannot
+            // see a neighbour placed just across a chunk border. Half the minimum
+            // separation registered on both portals makes the overlap test measure the
+            // full center-to-center distance.
+            float groundPortalSpacingRadius = type == TraversalRingType.GroundBoost
+                ? Mathf.Max(0f, ringTuning.MinimumGroundPortalSeparation) * 0.5f
+                : 0f;
+            if (groundPortalSpacingRadius > 0f && DuneVectorWorldOccupancy.Overlaps(
+                    logicalX,
+                    logicalZ,
+                    groundPortalSpacingRadius,
+                    WorldOccupancyKind.GroundPortal))
+            {
+                return;
+            }
+
             DuneVectorLandmarkDirector landmarks = DuneVectorBootstrap.Instance != null
                 ? DuneVectorBootstrap.Instance.LandmarkDirector
                 : null;
@@ -3071,6 +3087,14 @@ namespace DuneVector
                 logicalZ,
                 clearanceRadius,
                 WorldOccupancyKind.Portal));
+            if (groundPortalSpacingRadius > 0f)
+            {
+                _occupancyHandles.Add(DuneVectorWorldOccupancy.Register(
+                    logicalX,
+                    logicalZ,
+                    groundPortalSpacingRadius,
+                    WorldOccupancyKind.GroundPortal));
+            }
         }
 
         private static float CalculatePortalClearanceRadius(float radius, RingTuning ringTuning)
