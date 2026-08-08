@@ -1601,15 +1601,11 @@ namespace DuneVector
             float uniformScale = Mathf.Max(0.1f, height) / modelHeight;
             root.localScale = Vector3.one * uniformScale;
 
-            Bounds worldBounds = renderers[0].bounds;
-            for (int i = 1; i < renderers.Length; i++)
-            {
-                worldBounds.Encapsulate(renderers[i].bounds);
-            }
-            float intendedGroundHeight = parent != null
-                ? parent.TransformPoint(localPosition).y
-                : localPosition.y;
-            root.position += Vector3.up * (intendedGroundHeight - worldBounds.min.y);
+            // Renderer bounds are not refreshed until the end of the frame for a model that was
+            // instantiated and re-transformed this same frame, so seat the cactus from the mesh
+            // bounds instead: rotate and scale them into parent space and lift by their lowest point.
+            float lowestPoint = CalculateLowestRotatedPoint(localBounds, root.localRotation, uniformScale);
+            root.localPosition = localPosition + (Vector3.up * -lowestPoint);
 
             for (int i = 0; i < renderers.Length; i++)
             {
@@ -1685,6 +1681,22 @@ namespace DuneVector
                 }
             }
             return hasBounds;
+        }
+
+        private static float CalculateLowestRotatedPoint(Bounds localBounds, Quaternion rotation, float scale)
+        {
+            Vector3 minimum = localBounds.min * scale;
+            Vector3 maximum = localBounds.max * scale;
+            float lowest = float.MaxValue;
+            for (int corner = 0; corner < 8; corner++)
+            {
+                Vector3 point = new Vector3(
+                    (corner & 1) == 0 ? minimum.x : maximum.x,
+                    (corner & 2) == 0 ? minimum.y : maximum.y,
+                    (corner & 4) == 0 ? minimum.z : maximum.z);
+                lowest = Mathf.Min(lowest, (rotation * point).y);
+            }
+            return lowest;
         }
 
         private static void CreateCactusSegment(
