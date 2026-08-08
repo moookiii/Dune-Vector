@@ -1031,75 +1031,22 @@ namespace DuneVector
         }
 
         /// <summary>
-        /// Builds the walkable floor collision for the hub. Authored hubs with a
-        /// sunken centre plaza get two levels: a circle on the plaza floor and a
-        /// generated ring on the outer deck. Everything else stays one flat circle.
+        /// Builds the walkable floor collision for the procedural hub. An authored
+        /// hub collides against its own meshes instead, so its modelled ramps and
+        /// rails are the collision and nothing extra is generated over them.
         /// </summary>
         private void BuildHubFloorColliders()
         {
-            float plazaRadius = HubPlazaRadius;
-            if (plazaRadius <= 0f)
+            if (UsesPremiumHubVisual && _hubSettings.PremiumVisualMeshCollisionEnabled)
             {
-                BuildCircleModelCollider(
-                    _hubRoot,
-                    "Main Teleport Platform Collider (circle.glb)",
-                    Vector3.up * HubDeckSurfaceLocalHeight,
-                    HubPlatformSurfaceRadius);
                 return;
             }
 
             BuildCircleModelCollider(
                 _hubRoot,
-                "Hub Plaza Floor Collider (circle.glb)",
-                Vector3.up * HubPlazaSurfaceLocalHeight,
-                plazaRadius);
-            BuildHubDeckRingCollider(plazaRadius, HubPlatformSurfaceRadius);
-        }
-
-        private void BuildHubDeckRingCollider(float innerRadius, float outerRadius)
-        {
-            if (outerRadius <= innerRadius)
-            {
-                return;
-            }
-
-            int segments = Mathf.Clamp(_hubSettings.PremiumVisualDeckColliderSegments, 8, 128);
-            Vector3[] vertices = new Vector3[segments * 2];
-            int[] triangles = new int[segments * 6];
-            for (int segment = 0; segment < segments; segment++)
-            {
-                float angle = (Mathf.PI * 2f / segments) * segment;
-                Vector3 outward = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
-                vertices[segment * 2] = outward * innerRadius;
-                vertices[(segment * 2) + 1] = outward * outerRadius;
-
-                int inner = segment * 2;
-                int outer = inner + 1;
-                int nextInner = ((segment + 1) % segments) * 2;
-                int nextOuter = nextInner + 1;
-                int triangleIndex = segment * 6;
-                triangles[triangleIndex] = inner;
-                triangles[triangleIndex + 1] = nextInner;
-                triangles[triangleIndex + 2] = outer;
-                triangles[triangleIndex + 3] = outer;
-                triangles[triangleIndex + 4] = nextInner;
-                triangles[triangleIndex + 5] = nextOuter;
-            }
-
-            Mesh ring = new Mesh
-            {
-                name = "Hub Deck Ring Collider",
-            };
-            ring.SetVertices(vertices);
-            ring.SetTriangles(triangles, 0);
-            ring.RecalculateNormals();
-            ring.RecalculateBounds();
-
-            GameObject deckRing = new GameObject("Hub Deck Ring Collider");
-            deckRing.transform.SetParent(_hubRoot, false);
-            deckRing.transform.localPosition = Vector3.up * HubDeckSurfaceLocalHeight;
-            MeshCollider collider = deckRing.AddComponent<MeshCollider>();
-            collider.sharedMesh = ring;
+                "Main Teleport Platform Collider (circle.glb)",
+                Vector3.up * HubDeckSurfaceLocalHeight,
+                HubPlatformSurfaceRadius);
         }
 
         private bool BuildPremiumHubVisual()
@@ -1115,57 +1062,36 @@ namespace DuneVector
                 _hubSettings.PremiumVisualLocalPosition,
                 Quaternion.Euler(_hubSettings.PremiumVisualLocalEulerAngles));
             visual.transform.localScale = _hubSettings.PremiumVisualLocalScale;
-            BuildPremiumHubStructuralColliders(visual.transform);
+            BuildPremiumHubMeshColliders(visual.transform);
             return _hubSettings.ReplaceProceduralStructureVisuals;
         }
 
-        private void BuildPremiumHubStructuralColliders(Transform visualRoot)
+        /// <summary>
+        /// Collides the drone against the authored hub exactly as it was modelled,
+        /// so its ramps, rails, and props are the collision surface. Nothing is
+        /// generated on top of the mesh, which is what would otherwise leave an
+        /// invisible lip where an approximated floor met a modelled slope.
+        /// </summary>
+        private void BuildPremiumHubMeshColliders(Transform visualRoot)
         {
-            string[] namePrefixes = _hubSettings.PremiumVisualStructuralColliderNamePrefixes;
-            if (!_hubSettings.PremiumVisualStructuralCollidersEnabled
-                || visualRoot == null
-                || namePrefixes == null
-                || namePrefixes.Length == 0)
+            if (!_hubSettings.PremiumVisualMeshCollisionEnabled || visualRoot == null)
             {
                 return;
             }
 
-            float padding = Mathf.Max(0f, _hubSettings.PremiumVisualStructuralColliderPadding);
-            Vector3 paddingSize = Vector3.one * (padding * 2f);
             MeshFilter[] meshFilters = visualRoot.GetComponentsInChildren<MeshFilter>(true);
             for (int meshIndex = 0; meshIndex < meshFilters.Length; meshIndex++)
             {
                 MeshFilter meshFilter = meshFilters[meshIndex];
-                Mesh mesh = meshFilter.sharedMesh;
-                if (mesh == null || !HasPremiumColliderNamePrefix(meshFilter.name, namePrefixes))
+                if (meshFilter.sharedMesh == null
+                    || meshFilter.gameObject.GetComponent<MeshCollider>() != null)
                 {
                     continue;
                 }
 
-                BoxCollider collider = meshFilter.gameObject.GetComponent<BoxCollider>();
-                if (collider == null)
-                {
-                    collider = meshFilter.gameObject.AddComponent<BoxCollider>();
-                }
-
-                collider.center = mesh.bounds.center;
-                collider.size = mesh.bounds.size + paddingSize;
+                MeshCollider collider = meshFilter.gameObject.AddComponent<MeshCollider>();
+                collider.sharedMesh = meshFilter.sharedMesh;
             }
-        }
-
-        private static bool HasPremiumColliderNamePrefix(string objectName, string[] namePrefixes)
-        {
-            for (int prefixIndex = 0; prefixIndex < namePrefixes.Length; prefixIndex++)
-            {
-                string prefix = namePrefixes[prefixIndex];
-                if (!string.IsNullOrWhiteSpace(prefix)
-                    && objectName.StartsWith(prefix, System.StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         private Transform BuildPhysicalTerminal(string objectName, Vector3 localPosition, Quaternion localRotation)

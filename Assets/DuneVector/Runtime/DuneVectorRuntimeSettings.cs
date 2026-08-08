@@ -1235,15 +1235,10 @@ namespace DuneVector
         public float PremiumVisualDeckSurfaceHeight = 1.42f;
         [Tooltip("Hub-local height of the sunken centre plaza the drone spawns on. Terminals stand on this floor.")]
         public float PremiumVisualPlazaSurfaceHeight = 0.62f;
-        [Tooltip("Radius of the sunken centre plaza before applying the hub's local X/Z scale. Zero builds one flat floor at the deck height instead.")]
+        [Tooltip("Radius of the sunken centre plaza before applying the hub's local X/Z scale. Used for the spawn height and the flight landing plane only; walking collision comes from the authored meshes.")]
         [Min(0f)] public float PremiumVisualPlazaRadius = 11f;
-        [Tooltip("Radial segment count of the generated deck ring floor collider.")]
-        [Range(8, 128)] public int PremiumVisualDeckColliderSegments = 64;
-        [Tooltip("Adds solid box colliders to authored premium-hub meshes whose names start with one of the configured prefixes.")]
-        public bool PremiumVisualStructuralCollidersEnabled = true;
-        public string[] PremiumVisualStructuralColliderNamePrefixes = System.Array.Empty<string>();
-        [Tooltip("Extra local-space padding added to every side of premium structural colliders.")]
-        [Min(0f)] public float PremiumVisualStructuralColliderPadding = 0.04f;
+        [Tooltip("Collides the drone against the authored hub's own meshes, so modelled ramps, rails, and props are the collision. No extra floor, pad, or box colliders are generated.")]
+        public bool PremiumVisualMeshCollisionEnabled = true;
         [Tooltip("When enabled, the authored visual shell replaces the primitive platform, braces, and pylons.")]
         public bool ReplaceProceduralStructureVisuals = true;
         [Min(8f)] public float PlatformRadius = 26f;
@@ -5481,8 +5476,8 @@ namespace DuneVector
         [Min(0f)] public float GroundBrakingSharpness = 5.5f;
         [Min(0f)] public float GroundSteeringSharpness = 11f;
         [Min(0f)] public float TrailMinimumSpeed = 0.35f;
-        [Tooltip("Tallest ledge the drone can walk up without flying. Must clear the step from the world hub's sunken plaza onto its outer deck.")]
-        [Min(0f)] public float MaxStepHeight = 0.9f;
+        [Tooltip("Tallest ledge the drone can walk up without flying. Ramps are handled by the slope limit, not this.")]
+        [Min(0f)] public float MaxStepHeight = 0.25f;
 
         [Header("Jump")]
         [Min(0f)] public float JumpSpeed = 13f;

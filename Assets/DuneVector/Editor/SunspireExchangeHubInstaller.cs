@@ -199,16 +199,7 @@ namespace DuneVector.Editor
             hub.FindPropertyRelative("PremiumVisualPrefab").objectReferenceValue = prefab;
             hub.FindPropertyRelative("PremiumVisualSurfaceRadius").floatValue = SurfaceRadius;
             hub.FindPropertyRelative("ReplaceProceduralStructureVisuals").boolValue = true;
-            hub.FindPropertyRelative("PremiumVisualStructuralCollidersEnabled").boolValue = true;
-
-            SerializedProperty prefixes = hub.FindPropertyRelative(
-                "PremiumVisualStructuralColliderNamePrefixes");
-            prefixes.arraySize = StructuralColliderNamePrefixes.Length;
-            for (int index = 0; index < StructuralColliderNamePrefixes.Length; index++)
-            {
-                prefixes.GetArrayElementAtIndex(index).stringValue =
-                    StructuralColliderNamePrefixes[index];
-            }
+            hub.FindPropertyRelative("PremiumVisualMeshCollisionEnabled").boolValue = true;
 
             serialized.ApplyModifiedProperties();
             EditorUtility.SetDirty(settings);
