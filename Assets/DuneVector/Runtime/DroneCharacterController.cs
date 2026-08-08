@@ -101,8 +101,6 @@ namespace DuneVector
         [Min(0f)] public float HoverAmplitude = 0.055f;
         [Min(0f)] public float HoverFrequency = 2.2f;
         [Min(0f)] public float TrailMinimumSpeed = 0.35f;
-        [Min(0f)] public float TrailLength = 6f;
-        [Min(0f)] public float TrailMaximumDuration = 2f;
         public bool TrailsEnabled = true;
 
         [Header("Collision Filtering")]
@@ -239,7 +237,6 @@ namespace DuneVector
         private float _flightLandingStartBank;
         private float _flightLandingStartPitch;
         private TrailRenderer[] _trailRenderers;
-        private float[] _trailAuthoredTimes;
         private bool _trailsVisible = true;
 
         private void Awake()
@@ -270,11 +267,6 @@ namespace DuneVector
             {
                 _visualBaseLocalPosition = DroneVisualRoot.localPosition;
                 _trailRenderers = DroneVisualRoot.GetComponentsInChildren<TrailRenderer>(true);
-                _trailAuthoredTimes = new float[_trailRenderers.Length];
-                for (int i = 0; i < _trailRenderers.Length; i++)
-                {
-                    _trailAuthoredTimes[i] = _trailRenderers[i] != null ? _trailRenderers[i].time : 0f;
-                }
                 CacheVisualCenter();
             }
         }
@@ -1420,7 +1412,6 @@ namespace DuneVector
         private void UpdateTrailVisibility()
         {
             bool shouldShowTrails = TrailsEnabled && Speed > TrailMinimumSpeed;
-            UpdateTrailLength(shouldShowTrails);
             if (shouldShowTrails == _trailsVisible || _trailRenderers == null)
             {
                 return;
@@ -1439,32 +1430,6 @@ namespace DuneVector
                 trail.Clear();
                 trail.enabled = shouldShowTrails;
                 trail.emitting = shouldShowTrails;
-            }
-        }
-
-        // Trail renderers hold points for a fixed time, so a faster drone draws a
-        // longer ribbon. Solving time from the authored world-space length keeps the
-        // ribbon the same size at every speed.
-        private void UpdateTrailLength(bool trailsActive)
-        {
-            if (!trailsActive || _trailRenderers == null || _trailAuthoredTimes == null)
-            {
-                return;
-            }
-
-            float speed = Speed;
-            float time = TrailLength > 0f && speed > 0.01f
-                ? Mathf.Min(TrailLength / speed, TrailMaximumDuration)
-                : -1f;
-            for (int i = 0; i < _trailRenderers.Length; i++)
-            {
-                TrailRenderer trail = _trailRenderers[i];
-                if (trail == null)
-                {
-                    continue;
-                }
-
-                trail.time = time > 0f ? time : _trailAuthoredTimes[i];
             }
         }
 
