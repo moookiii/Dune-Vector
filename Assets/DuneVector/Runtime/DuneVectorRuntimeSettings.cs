@@ -4292,7 +4292,7 @@ namespace DuneVector
         [Tooltip("A center-out burst emitting this many lines or fewer is treated as a single line through the drone and uses the solo width multiplier.")]
         [Min(0)] public int CenterOutSparseLineCountThreshold = 2;
         [Tooltip("Width multiplier applied to thin multicolor center-out flare lines that pass through the drone (mirrored pairs), so the line reads thicker at the drone base/center.")]
-        [Range(1f, 4f)] public float CenterOutThroughDroneFineLineWidthMultiplier = 2f;
+        [Range(1f, 30f)] public float CenterOutThroughDroneFineLineWidthMultiplier = 2f;
         [Range(0.25f, 2f)] public float CenterOutBroadRayWidthMultiplier = 1f;
         [ColorUsage(false, true)] public Color CenterOutCyanColor;
         [ColorUsage(false, true)] public Color CenterOutMagentaColor;
