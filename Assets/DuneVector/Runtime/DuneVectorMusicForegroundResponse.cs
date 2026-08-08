@@ -474,19 +474,14 @@ namespace DuneVector
                     startSize = centerOut
                         ? _settings.ForegroundStreakSize * (fineLine
                             ? _settings.CenterOutFineLineWidthMultiplier
-                                * Mathf.Max(
-                                    soloLineThroughDrone
-                                        ? Mathf.Max(1f, _settings.CenterOutSoloFineLineWidthMultiplier)
-                                        : 1f,
-                                    command.ScreenFlareEmitMirroredPair
-                                        ? Mathf.Max(
-                                            1f,
-                                            _settings.CenterOutThroughDroneFineLineWidthMultiplier)
-                                        : 1f)
-                            : _settings.CenterOutBroadRayWidthMultiplier
-                                * (soloLineThroughDrone
+                            : _settings.CenterOutBroadRayWidthMultiplier)
+                            * Mathf.Max(
+                                soloLineThroughDrone
                                     ? Mathf.Max(1f, _settings.CenterOutSoloFineLineWidthMultiplier)
-                                    : 1f))
+                                    : 1f,
+                                Mathf.Max(
+                                    1f,
+                                    _settings.CenterOutThroughDroneFineLineWidthMultiplier))
                             * (i >= movingLineCount && command.ScreenFlareHeldWidthScale > 0f
                                 ? command.ScreenFlareHeldWidthScale
                                 : (command.ScreenFlareWidthScale > 0f
