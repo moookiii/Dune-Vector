@@ -1723,6 +1723,19 @@ namespace DuneVector
         [Tooltip("Adds static mesh colliders to prefab meshes that do not already have colliders.")]
         public bool GenerateMeshColliders = true;
         [Min(0.1f)] public float RefreshInterval = 0.8f;
+        [Header("GPU Instancing")]
+        [Tooltip("Draws every placed building through GPU instancing instead of spawning a renderer GameObject per building. Colliders are still spawned when Generate Mesh Colliders is on.")]
+        public bool GpuInstancingEnabled = true;
+        [Tooltip("Instances submitted per RenderMeshInstanced call. Unity's ceiling is 1023, but the practical limit is lower once per-instance data grows.")]
+        [Range(1, 1023)] public int MaxInstancesPerDraw = 500;
+        [Tooltip("Lets instanced buildings sample light probes. Off is cheaper and matches the baked-free desert lighting.")]
+        public bool InstancedLightProbes = false;
+        [Tooltip("Lets instanced buildings sample reflection probes. Off is cheaper.")]
+        public bool InstancedReflectionProbes = false;
+        [Tooltip("Also instantiates the real prefab beside every instanced building so scale, rotation and grounding can be compared directly.")]
+        public bool GpuInstancingDebugCompare = false;
+        [Tooltip("World offset applied to the debug comparison prefab. Zero overlaps it exactly with the instanced draw.")]
+        public Vector3 GpuInstancingDebugCompareOffset = new Vector3(0f, 0f, 0f);
         [Header("Hue Variation")]
         [Tooltip("Tints each placed building with a deterministically chosen hue from the palette below.")]
         public bool HueVariationEnabled = true;

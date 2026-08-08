@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
+using Unity.Profiling;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace DuneVector
 {
@@ -14,11 +16,22 @@ namespace DuneVector
         private const int RotationSalt = 17341;
         private const int HueSalt = 17351;
 
-        private readonly Dictionary<Vector2Int, GameObject> _loadedCells =
-            new Dictionary<Vector2Int, GameObject>();
+        private const int UntintedHueIndex = -1;
+
+        private static readonly ProfilerMarker BuildSourcesMarker =
+            new ProfilerMarker("ProceduralBuildings.BuildSources");
+        private static readonly ProfilerMarker BuildCellMarker =
+            new ProfilerMarker("ProceduralBuildings.BuildCell");
+        private static readonly ProfilerMarker SubmitBatchesMarker =
+            new ProfilerMarker("ProceduralBuildings.SubmitBatches");
+
+        private readonly Dictionary<Vector2Int, BuildingCell> _loadedCells =
+            new Dictionary<Vector2Int, BuildingCell>();
         private readonly List<Vector2Int> _removalBuffer = new List<Vector2Int>();
         private readonly Dictionary<GameObject, float> _prefabFootprintRadii =
             new Dictionary<GameObject, float>();
+        private readonly Dictionary<GameObject, List<BuildingRendererSource>> _prefabSources =
+            new Dictionary<GameObject, List<BuildingRendererSource>>();
 
         // Quantising to the authored palette keeps buildings sharing a hue on the
         // same material, so they still batch instead of becoming one draw each.
@@ -77,6 +90,8 @@ namespace DuneVector
             {
                 Refresh();
             }
+
+            SubmitBatches();
         }
 
         private void OnDestroy()
@@ -126,7 +141,7 @@ namespace DuneVector
 
             int retentionRadius = radius + 1;
             _removalBuffer.Clear();
-            foreach (KeyValuePair<Vector2Int, GameObject> entry in _loadedCells)
+            foreach (KeyValuePair<Vector2Int, BuildingCell> entry in _loadedCells)
             {
                 if (Mathf.Abs(entry.Key.x - center.x) > retentionRadius ||
                     Mathf.Abs(entry.Key.y - center.y) > retentionRadius)
@@ -138,16 +153,14 @@ namespace DuneVector
             for (int i = 0; i < _removalBuffer.Count; i++)
             {
                 Vector2Int cell = _removalBuffer[i];
-                GameObject cellObject = _loadedCells[cell];
-                if (cellObject != null)
-                {
-                    Destroy(cellObject);
-                }
+                DestroyCell(_loadedCells[cell]);
                 _loadedCells.Remove(cell);
             }
         }
 
-        private GameObject CreateCell(Vector2Int cell, float cellSize)
+        // Each placement cell owns its own instance arrays and its own tight world
+        // bounds, so a distant cell never drags the whole world into the frustum.
+        private BuildingCell CreateCell(Vector2Int cell, float cellSize)
         {
             int buildingCount = CalculateBuildingCount(cell);
             if (buildingCount <= 0)
@@ -155,24 +168,25 @@ namespace DuneVector
                 return null;
             }
 
-            GameObject cellObject = new GameObject($"Building Cell {cell.x}, {cell.y}");
-            cellObject.transform.SetParent(_buildingRoot, false);
+            BuildCellMarker.Begin();
+            BuildingCell buildingCell = new BuildingCell();
             int spawned = 0;
             for (int slot = 0; slot < buildingCount; slot++)
             {
-                if (TrySpawnBuilding(cellObject.transform, cell, slot, cellSize))
+                if (TrySpawnBuilding(buildingCell, cell, slot, cellSize))
                 {
                     spawned++;
                 }
             }
+            BuildCellMarker.End();
 
             if (spawned == 0)
             {
-                Destroy(cellObject);
+                DestroyCell(buildingCell);
                 return null;
             }
 
-            return cellObject;
+            return buildingCell;
         }
 
         private int CalculateBuildingCount(Vector2Int cell)
@@ -188,7 +202,8 @@ namespace DuneVector
             return count;
         }
 
-        private bool TrySpawnBuilding(Transform cellRoot, Vector2Int cell, int slot, float cellSize)
+        private bool TrySpawnBuilding(
+            BuildingCell buildingCell, Vector2Int cell, int slot, float cellSize)
         {
             float inset = cellSize * Mathf.Clamp(_settings.CellInsetFraction, 0.05f, 0.45f);
             int attempts = Mathf.Clamp(_settings.PlacementAttemptsPerBuilding, 1, 8);
@@ -240,49 +255,251 @@ namespace DuneVector
                 }
 
                 float height = (float)_world.HeightField.SampleHeight(logicalX, logicalZ);
-                GameObject placement = new GameObject(
-                    $"{prefab.name} [{cell.x}, {cell.y}:{slot}]");
-                placement.transform.SetParent(cellRoot, false);
-                placement.transform.position = _world.LogicalToLocal(logicalX, height, logicalZ);
-                placement.transform.rotation = Quaternion.Euler(0f,
+                Vector3 position = _world.LogicalToLocal(logicalX, height, logicalZ);
+                Quaternion rotation = Quaternion.Euler(0f,
                     DuneVectorMath.HashRange(cell.x, cell.y, _world.WorldSeed,
                         RotationSalt + saltOffset, 0f, 360f), 0f);
 
-                GameObject instance = Instantiate(prefab, placement.transform, false);
-                instance.name = prefab.name;
-                instance.transform.localPosition = prefab.transform.localPosition;
-                instance.transform.localRotation = prefab.transform.localRotation;
-                instance.transform.localScale = prefab.transform.localScale;
-
-                ApplyHueVariation(instance, cell, saltOffset);
-                GroundToDunes(instance.transform);
-                if (_settings.GenerateMeshColliders)
+                List<BuildingRendererSource> sources = GetRendererSources(prefab);
+                if (sources.Count == 0)
                 {
-                    AddMissingMeshColliders(instance);
+                    continue;
                 }
+
+                // The placement anchor and the prefab root are two separate transforms in
+                // the authored hierarchy, so the instance matrix has to keep both.
+                Matrix4x4 rootMatrix =
+                    Matrix4x4.TRS(position, rotation, Vector3.one) *
+                    Matrix4x4.TRS(
+                        prefab.transform.localPosition,
+                        prefab.transform.localRotation,
+                        prefab.transform.localScale);
+                rootMatrix = GroundToDunes(rootMatrix, sources);
+
+                int hueIndex = SelectHueIndex(cell, saltOffset);
+                AppendBuilding(buildingCell, prefab, sources, rootMatrix, hueIndex);
                 return true;
             }
 
             return false;
         }
 
-        private void ApplyHueVariation(GameObject instance, Vector2Int cell, int saltOffset)
+        private void AppendBuilding(
+            BuildingCell buildingCell,
+            GameObject prefab,
+            List<BuildingRendererSource> sources,
+            Matrix4x4 rootMatrix,
+            int hueIndex)
+        {
+            for (int sourceIndex = 0; sourceIndex < sources.Count; sourceIndex++)
+            {
+                BuildingRendererSource source = sources[sourceIndex];
+                Matrix4x4 objectToWorld = rootMatrix * source.LocalToPrefabRoot;
+
+                if (_settings.GpuInstancingEnabled)
+                {
+                    int submeshCount = Mathf.Min(source.Mesh.subMeshCount, source.Materials.Length);
+                    for (int submesh = 0; submesh < submeshCount; submesh++)
+                    {
+                        Material material = GetRenderMaterial(source.Materials[submesh], hueIndex);
+                        if (material == null)
+                        {
+                            continue;
+                        }
+
+                        RenderKey key = new RenderKey(
+                            source.Mesh,
+                            material,
+                            submesh,
+                            source.Layer,
+                            source.RenderingLayerMask,
+                            source.ShadowCastingMode,
+                            source.ReceiveShadows);
+
+                        if (!buildingCell.Buckets.TryGetValue(key, out List<Matrix4x4> instances))
+                        {
+                            instances = new List<Matrix4x4>(32);
+                            buildingCell.Buckets.Add(key, instances);
+                        }
+                        instances.Add(objectToWorld);
+                    }
+                }
+
+                buildingCell.Encapsulate(TransformBounds(objectToWorld, source.LocalBounds));
+
+                if (_settings.GenerateMeshColliders)
+                {
+                    CreateCollider(buildingCell, source, objectToWorld);
+                }
+            }
+
+            if (!_settings.GpuInstancingEnabled || _settings.GpuInstancingDebugCompare)
+            {
+                CreateComparisonInstance(buildingCell, prefab, rootMatrix, hueIndex);
+            }
+        }
+
+        // GPU instancing cannot carry physics, so colliders keep living as GameObjects.
+        private void CreateCollider(
+            BuildingCell buildingCell, BuildingRendererSource source, Matrix4x4 objectToWorld)
+        {
+            Transform colliderRoot = buildingCell.GetColliderRoot(_buildingRoot);
+            GameObject colliderObject = new GameObject($"{source.Mesh.name} Collider");
+            colliderObject.transform.SetParent(colliderRoot, false);
+            ApplyLocalMatrix(colliderObject.transform, objectToWorld);
+            MeshCollider collider = colliderObject.AddComponent<MeshCollider>();
+            collider.sharedMesh = source.Mesh;
+        }
+
+        private void CreateComparisonInstance(
+            BuildingCell buildingCell, GameObject prefab, Matrix4x4 rootMatrix, int hueIndex)
+        {
+            Transform compareRoot = buildingCell.GetComparisonRoot(_buildingRoot);
+            GameObject instance = Instantiate(prefab, compareRoot, false);
+            instance.name = prefab.name;
+
+            Matrix4x4 offsetMatrix = _settings.GpuInstancingEnabled
+                ? Matrix4x4.Translate(_settings.GpuInstancingDebugCompareOffset) * rootMatrix
+                : rootMatrix;
+            ApplyLocalMatrix(instance.transform, offsetMatrix);
+            ApplyHueVariation(instance, hueIndex);
+
+            if (_settings.GenerateMeshColliders && _settings.GpuInstancingEnabled)
+            {
+                // The instanced path already spawned colliders for this building.
+                Collider[] colliders = instance.GetComponentsInChildren<Collider>(true);
+                for (int i = 0; i < colliders.Length; i++)
+                {
+                    Destroy(colliders[i]);
+                }
+            }
+            else if (_settings.GenerateMeshColliders)
+            {
+                AddMissingMeshColliders(instance);
+            }
+        }
+
+        private void ApplyLocalMatrix(Transform target, Matrix4x4 objectToWorld)
+        {
+            Matrix4x4 local = _buildingRoot.worldToLocalMatrix * objectToWorld;
+            target.localPosition = local.GetColumn(3);
+            target.localRotation = local.rotation;
+            target.localScale = local.lossyScale;
+        }
+
+        private void SubmitBatches()
+        {
+            if (!_settings.GpuInstancingEnabled || _loadedCells.Count == 0)
+            {
+                return;
+            }
+
+            SubmitBatchesMarker.Begin();
+            int maxPerDraw = Mathf.Clamp(_settings.MaxInstancesPerDraw, 1, 1023);
+            LightProbeUsage lightProbeUsage = _settings.InstancedLightProbes
+                ? LightProbeUsage.BlendProbes
+                : LightProbeUsage.Off;
+            ReflectionProbeUsage reflectionProbeUsage = _settings.InstancedReflectionProbes
+                ? ReflectionProbeUsage.BlendProbes
+                : ReflectionProbeUsage.Off;
+
+            foreach (BuildingCell buildingCell in _loadedCells.Values)
+            {
+                if (buildingCell == null || !buildingCell.HasBounds)
+                {
+                    continue;
+                }
+
+                foreach (KeyValuePair<RenderKey, List<Matrix4x4>> bucket in buildingCell.Buckets)
+                {
+                    List<Matrix4x4> instances = bucket.Value;
+                    if (instances.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    RenderKey key = bucket.Key;
+                    RenderParams renderParams = new RenderParams(key.Material)
+                    {
+                        camera = null,
+                        layer = key.Layer,
+                        worldBounds = buildingCell.WorldBounds,
+                        renderingLayerMask = key.RenderingLayerMask,
+                        shadowCastingMode = key.ShadowCastingMode,
+                        receiveShadows = key.ReceiveShadows,
+                        lightProbeUsage = lightProbeUsage,
+                        reflectionProbeUsage = reflectionProbeUsage,
+                    };
+
+                    for (int start = 0; start < instances.Count; start += maxPerDraw)
+                    {
+                        int count = Mathf.Min(maxPerDraw, instances.Count - start);
+                        Graphics.RenderMeshInstanced(
+                            in renderParams, key.Mesh, key.SubmeshIndex, instances, count, start);
+                    }
+                }
+            }
+            SubmitBatchesMarker.End();
+        }
+
+        private List<BuildingRendererSource> GetRendererSources(GameObject prefab)
+        {
+            if (_prefabSources.TryGetValue(prefab, out List<BuildingRendererSource> cached))
+            {
+                return cached;
+            }
+
+            BuildSourcesMarker.Begin();
+            List<BuildingRendererSource> sources = new List<BuildingRendererSource>();
+            Transform prefabRoot = prefab.transform;
+            MeshFilter[] filters = prefab.GetComponentsInChildren<MeshFilter>(true);
+            for (int i = 0; i < filters.Length; i++)
+            {
+                MeshFilter filter = filters[i];
+                MeshRenderer renderer = filter != null
+                    ? filter.GetComponent<MeshRenderer>()
+                    : null;
+                if (renderer == null || filter.sharedMesh == null)
+                {
+                    continue;
+                }
+
+                sources.Add(new BuildingRendererSource(
+                    filter.sharedMesh,
+                    renderer.sharedMaterials,
+                    prefabRoot.worldToLocalMatrix * renderer.transform.localToWorldMatrix,
+                    filter.sharedMesh.bounds,
+                    renderer.shadowCastingMode,
+                    renderer.receiveShadows,
+                    renderer.gameObject.layer,
+                    renderer.renderingLayerMask));
+            }
+
+            _prefabSources[prefab] = sources;
+            BuildSourcesMarker.End();
+            return sources;
+        }
+
+        private int SelectHueIndex(Vector2Int cell, int saltOffset)
         {
             if (!_settings.HueVariationEnabled ||
                 _settings.HueVariationStrength <= 0f ||
                 _settings.HueTints == null ||
                 _settings.HueTints.Length == 0)
             {
-                return;
+                return UntintedHueIndex;
             }
 
-            int hueIndex = Mathf.Clamp(
+            return Mathf.Clamp(
                 Mathf.FloorToInt(DuneVectorMath.Hash01(
                     cell.x, cell.y, _world.WorldSeed, HueSalt + saltOffset) *
                     _settings.HueTints.Length),
                 0,
                 _settings.HueTints.Length - 1);
+        }
 
+        private void ApplyHueVariation(GameObject instance, int hueIndex)
+        {
             Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(true);
             for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
             {
@@ -297,17 +514,24 @@ namespace DuneVector
                 for (int materialIndex = 0; materialIndex < sourceMaterials.Length; materialIndex++)
                 {
                     tinted[materialIndex] =
-                        GetTintedMaterial(sourceMaterials[materialIndex], hueIndex);
+                        GetRenderMaterial(sourceMaterials[materialIndex], hueIndex);
                 }
                 renderer.sharedMaterials = tinted;
             }
         }
 
-        private Material GetTintedMaterial(Material source, int hueIndex)
+        // Every building material is routed through this cache so instancing stays on
+        // and buildings sharing a hue keep sharing a single material.
+        private Material GetRenderMaterial(Material source, int hueIndex)
         {
             if (source == null)
             {
                 return null;
+            }
+
+            if (hueIndex == UntintedHueIndex && source.enableInstancing)
+            {
+                return source;
             }
 
             (int, int) key = (source.GetInstanceID(), hueIndex);
@@ -316,28 +540,36 @@ namespace DuneVector
                 return cached;
             }
 
-            Color tint = Color.Lerp(
-                Color.white,
-                _settings.HueTints[hueIndex],
-                Mathf.Clamp01(_settings.HueVariationStrength));
+            Material variant = new Material(source) { name = $"{source.name} (Hue {hueIndex})" };
+            variant.enableInstancing = true;
 
-            Material tinted = new Material(source) { name = $"{source.name} (Hue {hueIndex})" };
-            tinted.enableInstancing = true;
-            string colorProperty =
-                tinted.HasProperty("_BaseColor") ? "_BaseColor" :
-                tinted.HasProperty("_Color") ? "_Color" : null;
-            if (colorProperty != null)
+            if (hueIndex != UntintedHueIndex)
             {
-                Color baseColor = tinted.GetColor(colorProperty);
-                tinted.SetColor(colorProperty, new Color(
-                    baseColor.r * tint.r,
-                    baseColor.g * tint.g,
-                    baseColor.b * tint.b,
-                    baseColor.a));
+                Color tint = Color.Lerp(
+                    Color.white,
+                    _settings.HueTints[hueIndex],
+                    Mathf.Clamp01(_settings.HueVariationStrength));
+
+                string colorProperty =
+                    variant.HasProperty("_BaseColor") ? "_BaseColor" :
+                    variant.HasProperty("_Color") ? "_Color" : null;
+                if (colorProperty != null)
+                {
+                    Color baseColor = variant.GetColor(colorProperty);
+                    variant.SetColor(colorProperty, new Color(
+                        baseColor.r * tint.r,
+                        baseColor.g * tint.g,
+                        baseColor.b * tint.b,
+                        baseColor.a));
+                }
+            }
+            else
+            {
+                variant.name = $"{source.name} (Instanced)";
             }
 
-            _tintedMaterials[key] = tinted;
-            return tinted;
+            _tintedMaterials[key] = variant;
+            return variant;
         }
 
         private bool OverlapsGeoglyph(double logicalX, double logicalZ)
@@ -369,27 +601,15 @@ namespace DuneVector
             }
 
             float radius = 0f;
-            Renderer[] renderers = prefab.GetComponentsInChildren<Renderer>(true);
-            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            List<BuildingRendererSource> sources = GetRendererSources(prefab);
+            for (int sourceIndex = 0; sourceIndex < sources.Count; sourceIndex++)
             {
-                Renderer renderer = renderers[rendererIndex];
-                if (renderer == null)
-                {
-                    continue;
-                }
-
-                Bounds localBounds = renderer.localBounds;
+                BuildingRendererSource source = sources[sourceIndex];
                 for (int corner = 0; corner < 8; corner++)
                 {
-                    Vector3 rendererCorner = localBounds.center + Vector3.Scale(
-                        localBounds.extents,
-                        new Vector3(
-                            (corner & 1) == 0 ? -1f : 1f,
-                            (corner & 2) == 0 ? -1f : 1f,
-                            (corner & 4) == 0 ? -1f : 1f));
-                    Vector3 worldCorner = renderer.transform.TransformPoint(rendererCorner);
-                    Vector3 fromRoot = worldCorner - prefab.transform.position;
-                    radius = Mathf.Max(radius, new Vector2(fromRoot.x, fromRoot.z).magnitude);
+                    Vector3 rootCorner = source.LocalToPrefabRoot.MultiplyPoint3x4(
+                        BoundsCorner(source.LocalBounds, corner));
+                    radius = Mathf.Max(radius, new Vector2(rootCorner.x, rootCorner.z).magnitude);
                 }
             }
 
@@ -397,34 +617,26 @@ namespace DuneVector
             return radius;
         }
 
-        private void GroundToDunes(Transform prefab)
+        // Sinks the building until its lowest rendered corner sits on the lowest terrain
+        // sample under its rotated footprint, matching the pre-instancing behaviour.
+        private Matrix4x4 GroundToDunes(Matrix4x4 rootMatrix, List<BuildingRendererSource> sources)
         {
-            Renderer[] renderers = prefab.GetComponentsInChildren<Renderer>(true);
             bool hasBounds = false;
             Vector2 minimum = Vector2.zero;
             Vector2 maximum = Vector2.zero;
             float lowestRenderedHeight = float.PositiveInfinity;
-            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
-            {
-                Renderer renderer = renderers[rendererIndex];
-                if (renderer == null)
-                {
-                    continue;
-                }
 
-                Bounds localBounds = renderer.localBounds;
+            for (int sourceIndex = 0; sourceIndex < sources.Count; sourceIndex++)
+            {
+                BuildingRendererSource source = sources[sourceIndex];
                 for (int corner = 0; corner < 8; corner++)
                 {
-                    Vector3 rendererCorner = localBounds.center + Vector3.Scale(
-                        localBounds.extents,
-                        new Vector3(
-                            (corner & 1) == 0 ? -1f : 1f,
-                            (corner & 2) == 0 ? -1f : 1f,
-                            (corner & 4) == 0 ? -1f : 1f));
-                    Vector3 worldCorner = renderer.transform.TransformPoint(rendererCorner);
-                    Vector3 prefabCorner = prefab.InverseTransformPoint(worldCorner);
+                    Vector3 localCorner = BoundsCorner(source.LocalBounds, corner);
+                    Vector3 rootCorner = source.LocalToPrefabRoot.MultiplyPoint3x4(localCorner);
+                    Vector3 worldCorner = rootMatrix.MultiplyPoint3x4(rootCorner);
                     lowestRenderedHeight = Mathf.Min(lowestRenderedHeight, worldCorner.y);
-                    Vector2 horizontal = new Vector2(prefabCorner.x, prefabCorner.z);
+
+                    Vector2 horizontal = new Vector2(rootCorner.x, rootCorner.z);
                     if (!hasBounds)
                     {
                         minimum = horizontal;
@@ -441,7 +653,7 @@ namespace DuneVector
 
             if (!hasBounds)
             {
-                return;
+                return rootMatrix;
             }
 
             int samplesPerAxis = Mathf.Clamp(_settings.GroundingSamplesPerAxis, 2, 9);
@@ -452,7 +664,7 @@ namespace DuneVector
                 for (int x = 0; x < samplesPerAxis; x++)
                 {
                     float x01 = x / (float)(samplesPerAxis - 1);
-                    Vector3 worldSample = prefab.TransformPoint(new Vector3(
+                    Vector3 worldSample = rootMatrix.MultiplyPoint3x4(new Vector3(
                         Mathf.Lerp(minimum.x, maximum.x, x01),
                         0f,
                         Mathf.Lerp(minimum.y, maximum.y, z01)));
@@ -461,11 +673,40 @@ namespace DuneVector
                 }
             }
 
-            if (float.IsFinite(lowestTerrainHeight) && float.IsFinite(lowestRenderedHeight))
+            if (!float.IsFinite(lowestTerrainHeight) || !float.IsFinite(lowestRenderedHeight))
             {
-                prefab.position += Vector3.up * (lowestTerrainHeight - lowestRenderedHeight -
-                    Mathf.Max(0f, _settings.GroundOffsetDown));
+                return rootMatrix;
             }
+
+            float sink = lowestTerrainHeight - lowestRenderedHeight -
+                Mathf.Max(0f, _settings.GroundOffsetDown);
+            return Matrix4x4.Translate(Vector3.up * sink) * rootMatrix;
+        }
+
+        private static Vector3 BoundsCorner(Bounds bounds, int corner)
+        {
+            return bounds.center + Vector3.Scale(
+                bounds.extents,
+                new Vector3(
+                    (corner & 1) == 0 ? -1f : 1f,
+                    (corner & 2) == 0 ? -1f : 1f,
+                    (corner & 4) == 0 ? -1f : 1f));
+        }
+
+        private static Bounds TransformBounds(Matrix4x4 matrix, Bounds localBounds)
+        {
+            Vector3 center = matrix.MultiplyPoint3x4(localBounds.center);
+            Vector3 extents = localBounds.extents;
+
+            Vector3 axisX = matrix.MultiplyVector(new Vector3(extents.x, 0f, 0f));
+            Vector3 axisY = matrix.MultiplyVector(new Vector3(0f, extents.y, 0f));
+            Vector3 axisZ = matrix.MultiplyVector(new Vector3(0f, 0f, extents.z));
+
+            extents.x = Mathf.Abs(axisX.x) + Mathf.Abs(axisY.x) + Mathf.Abs(axisZ.x);
+            extents.y = Mathf.Abs(axisX.y) + Mathf.Abs(axisY.y) + Mathf.Abs(axisZ.y);
+            extents.z = Mathf.Abs(axisX.z) + Mathf.Abs(axisY.z) + Mathf.Abs(axisZ.z);
+
+            return new Bounds(center, extents * 2f);
         }
 
         private static void AddMissingMeshColliders(GameObject instance)
@@ -485,24 +726,201 @@ namespace DuneVector
             }
         }
 
+        // Instance matrices are absolute world space, so a floating-origin shift has to
+        // move them alongside the collider and comparison GameObjects.
         private void HandleWorldShifted(Vector3 shift)
         {
             if (_buildingRoot != null)
             {
                 _buildingRoot.position += shift;
             }
+
+            foreach (BuildingCell buildingCell in _loadedCells.Values)
+            {
+                buildingCell?.Translate(shift);
+            }
         }
 
         private void ClearLoadedCells()
         {
-            foreach (GameObject cellObject in _loadedCells.Values)
+            foreach (BuildingCell buildingCell in _loadedCells.Values)
             {
-                if (cellObject != null)
-                {
-                    Destroy(cellObject);
-                }
+                DestroyCell(buildingCell);
             }
             _loadedCells.Clear();
+        }
+
+        private void DestroyCell(BuildingCell buildingCell)
+        {
+            if (buildingCell == null)
+            {
+                return;
+            }
+
+            if (buildingCell.ColliderRoot != null)
+            {
+                Destroy(buildingCell.ColliderRoot);
+            }
+            if (buildingCell.ComparisonRoot != null)
+            {
+                Destroy(buildingCell.ComparisonRoot);
+            }
+            buildingCell.Buckets.Clear();
+        }
+
+        private readonly struct BuildingRendererSource
+        {
+            public readonly Mesh Mesh;
+            public readonly Material[] Materials;
+            public readonly Matrix4x4 LocalToPrefabRoot;
+            public readonly Bounds LocalBounds;
+            public readonly ShadowCastingMode ShadowCastingMode;
+            public readonly bool ReceiveShadows;
+            public readonly int Layer;
+            public readonly uint RenderingLayerMask;
+
+            public BuildingRendererSource(
+                Mesh mesh,
+                Material[] materials,
+                Matrix4x4 localToPrefabRoot,
+                Bounds localBounds,
+                ShadowCastingMode shadowCastingMode,
+                bool receiveShadows,
+                int layer,
+                uint renderingLayerMask)
+            {
+                Mesh = mesh;
+                Materials = materials;
+                LocalToPrefabRoot = localToPrefabRoot;
+                LocalBounds = localBounds;
+                ShadowCastingMode = shadowCastingMode;
+                ReceiveShadows = receiveShadows;
+                Layer = layer;
+                RenderingLayerMask = renderingLayerMask;
+            }
+        }
+
+        private readonly struct RenderKey : IEquatable<RenderKey>
+        {
+            public readonly Mesh Mesh;
+            public readonly Material Material;
+            public readonly int SubmeshIndex;
+            public readonly int Layer;
+            public readonly uint RenderingLayerMask;
+            public readonly ShadowCastingMode ShadowCastingMode;
+            public readonly bool ReceiveShadows;
+
+            public RenderKey(
+                Mesh mesh,
+                Material material,
+                int submeshIndex,
+                int layer,
+                uint renderingLayerMask,
+                ShadowCastingMode shadowCastingMode,
+                bool receiveShadows)
+            {
+                Mesh = mesh;
+                Material = material;
+                SubmeshIndex = submeshIndex;
+                Layer = layer;
+                RenderingLayerMask = renderingLayerMask;
+                ShadowCastingMode = shadowCastingMode;
+                ReceiveShadows = receiveShadows;
+            }
+
+            public bool Equals(RenderKey other)
+            {
+                return Mesh == other.Mesh
+                    && Material == other.Material
+                    && SubmeshIndex == other.SubmeshIndex
+                    && Layer == other.Layer
+                    && RenderingLayerMask == other.RenderingLayerMask
+                    && ShadowCastingMode == other.ShadowCastingMode
+                    && ReceiveShadows == other.ReceiveShadows;
+            }
+
+            public override bool Equals(object obj)
+            {
+                return obj is RenderKey other && Equals(other);
+            }
+
+            public override int GetHashCode()
+            {
+                unchecked
+                {
+                    int hash = Mesh != null ? Mesh.GetInstanceID() : 0;
+                    hash = (hash * 397) ^ (Material != null ? Material.GetInstanceID() : 0);
+                    hash = (hash * 397) ^ SubmeshIndex;
+                    hash = (hash * 397) ^ Layer;
+                    hash = (hash * 397) ^ (int)RenderingLayerMask;
+                    hash = (hash * 397) ^ (int)ShadowCastingMode;
+                    hash = (hash * 397) ^ (ReceiveShadows ? 1 : 0);
+                    return hash;
+                }
+            }
+        }
+
+        private sealed class BuildingCell
+        {
+            public readonly Dictionary<RenderKey, List<Matrix4x4>> Buckets =
+                new Dictionary<RenderKey, List<Matrix4x4>>();
+
+            public Bounds WorldBounds;
+            public bool HasBounds;
+            public GameObject ColliderRoot;
+            public GameObject ComparisonRoot;
+
+            public void Encapsulate(Bounds bounds)
+            {
+                if (!HasBounds)
+                {
+                    WorldBounds = bounds;
+                    HasBounds = true;
+                    return;
+                }
+
+                WorldBounds.Encapsulate(bounds);
+            }
+
+            public void Translate(Vector3 shift)
+            {
+                foreach (List<Matrix4x4> instances in Buckets.Values)
+                {
+                    for (int i = 0; i < instances.Count; i++)
+                    {
+                        Matrix4x4 matrix = instances[i];
+                        matrix.m03 += shift.x;
+                        matrix.m13 += shift.y;
+                        matrix.m23 += shift.z;
+                        instances[i] = matrix;
+                    }
+                }
+
+                if (HasBounds)
+                {
+                    WorldBounds.center += shift;
+                }
+            }
+
+            public Transform GetColliderRoot(Transform parent)
+            {
+                if (ColliderRoot == null)
+                {
+                    ColliderRoot = new GameObject("Building Colliders");
+                    ColliderRoot.transform.SetParent(parent, false);
+                }
+                return ColliderRoot.transform;
+            }
+
+            public Transform GetComparisonRoot(Transform parent)
+            {
+                if (ComparisonRoot == null)
+                {
+                    ComparisonRoot = new GameObject("Building Prefabs");
+                    ComparisonRoot.transform.SetParent(parent, false);
+                }
+                return ComparisonRoot.transform;
+            }
         }
     }
 }
