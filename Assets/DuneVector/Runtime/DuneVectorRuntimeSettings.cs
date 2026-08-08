@@ -4008,6 +4008,24 @@ namespace DuneVector
         public LightShadowResolution SunShadowResolution = LightShadowResolution.VeryHigh;
         public SoftShadowQuality SunSoftShadowQuality = SoftShadowQuality.High;
 
+        [Header("Sun Shadow Range")]
+        [Tooltip("Applies the shadow range below to the URP pipeline asset at runtime.")]
+        public bool OverrideSunShadowRange = true;
+        [Tooltip("Furthest distance from the camera that receives sun shadows. The open desert needs " +
+            "far more than the URP default before anything visibly casts onto the dunes.")]
+        [Min(1f)] public float SunShadowDistance = 500f;
+        [Tooltip("Cascade count for the sun shadowmap. More cascades hold near-field sharpness " +
+            "across a long shadow distance.")]
+        [Range(1, 4)] public int SunShadowCascadeCount = 4;
+        [Tooltip("Split fraction when the cascade count is 2.")]
+        [Range(0f, 1f)] public float SunShadowCascade2Split = 0.25f;
+        [Tooltip("Split fractions when the cascade count is 3.")]
+        public Vector2 SunShadowCascade3Split = new Vector2(0.1f, 0.3f);
+        [Tooltip("Split fractions when the cascade count is 4.")]
+        public Vector3 SunShadowCascade4Split = new Vector3(0.05f, 0.14f, 0.36f);
+        [Tooltip("Fraction of the last cascade used to fade shadows out at the far edge.")]
+        [Range(0f, 1f)] public float SunShadowCascadeBorder = 0.15f;
+
         [Header("Visibility")]
         [ColorUsage(false)] public Color ClearFogColor = new Color(0.45f, 0.52f, 0.6f);
         [ColorUsage(false)] public Color StormFogColor = new Color(0.32f, 0.3f, 0.28f);

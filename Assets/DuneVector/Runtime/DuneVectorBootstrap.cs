@@ -779,6 +779,26 @@ namespace DuneVector
             conductor.ValidateRuntimeIntegration();
         }
 
+        private static void ApplySunShadowRange(DesertWeatherAtmosphereTuning atmosphere)
+        {
+            if (!atmosphere.OverrideSunShadowRange)
+            {
+                return;
+            }
+
+            if (GraphicsSettings.currentRenderPipeline is not UniversalRenderPipelineAsset pipeline)
+            {
+                return;
+            }
+
+            pipeline.shadowDistance = atmosphere.SunShadowDistance;
+            pipeline.shadowCascadeCount = Mathf.Clamp(atmosphere.SunShadowCascadeCount, 1, 4);
+            pipeline.cascade2Split = atmosphere.SunShadowCascade2Split;
+            pipeline.cascade3Split = atmosphere.SunShadowCascade3Split;
+            pipeline.cascade4Split = atmosphere.SunShadowCascade4Split;
+            pipeline.cascadeBorder = atmosphere.SunShadowCascadeBorder;
+        }
+
         private void BuildEnvironment()
         {
             DesertWeatherAtmosphereTuning atmosphere = WeatherSettings.Atmosphere;
@@ -801,6 +821,7 @@ namespace DuneVector
             sun.intensity = atmosphere.SunIntensity;
             sun.shadowStrength = Mathf.Clamp01(atmosphere.SunShadowDimmer);
             RenderSettings.sun = sun;
+            ApplySunShadowRange(atmosphere);
 
             GameObject volumeObject = new GameObject("URP Desert Environment");
             volumeObject.transform.SetParent(transform, false);
