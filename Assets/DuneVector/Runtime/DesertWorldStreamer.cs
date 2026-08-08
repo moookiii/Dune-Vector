@@ -522,7 +522,7 @@ namespace DuneVector
                         if (_chunks.TryGetValue(coordinate, out DesertChunk queuedChunk) &&
                             (needsContent
                                 ? queuedChunk.IsContentReady && queuedChunk.IsVisualReady
-                                : queuedChunk.IsTerrainVisible))
+                                : queuedChunk.IsTerrainVisible && queuedChunk.IsVisualReady))
                         {
                             continue;
                         }
@@ -543,7 +543,7 @@ namespace DuneVector
                         if (_chunks.TryGetValue(coordinate, out DesertChunk advancedChunk) &&
                             !(needsContent
                                 ? advancedChunk.IsContentReady && advancedChunk.IsVisualReady
-                                : advancedChunk.IsTerrainVisible) &&
+                                : advancedChunk.IsTerrainVisible && advancedChunk.IsVisualReady) &&
                             _desiredVisualCoordinates.Contains(coordinate) &&
                             _queuedCoordinates.Add(coordinate))
                         {
@@ -806,7 +806,7 @@ namespace DuneVector
                 bool needsWork = !_chunks.TryGetValue(coordinate, out DesertChunk chunk) ||
                     (needsContent
                         ? !chunk.IsContentReady || !chunk.IsVisualReady
-                        : !chunk.IsTerrainVisible);
+                        : !chunk.IsTerrainVisible || !chunk.IsVisualReady);
                 if (needsWork)
                 {
                     _candidateCoordinates.Add(coordinate);
