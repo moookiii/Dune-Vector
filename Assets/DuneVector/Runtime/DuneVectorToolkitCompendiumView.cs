@@ -56,10 +56,20 @@ namespace DuneVector
         private readonly Label _detailMetadata;
         private readonly Label _detailStatus;
         private readonly Label _detailDescription;
+        private readonly VisualElement _detailHero;
+        private readonly Label _detailHeroHint;
+        private readonly VisualElement _lightbox;
+        private readonly VisualElement _lightboxFrame;
+        private readonly Image _lightboxImage;
+        private readonly Label _lightboxCaption;
+        private VisualElement _lightboxFooter;
+        private IVisualElementScheduledItem _lightboxExpandSchedule;
+        private IVisualElementScheduledItem _lightboxCloseSchedule;
         private int _selectedTab;
         private int _columnCount;
         private string _selectedSubjectId;
         private bool _visible;
+        private bool _lightboxOpen;
 
         public DuneVectorToolkitCompendiumView(
             DuneVectorPhotographStorage storage,
@@ -141,8 +151,27 @@ namespace DuneVector
                 out _detailStatus,
                 out _detailDescription);
             content.Add(_detail);
+
+            _detailHero = _detailImage.parent;
+            _detailHeroHint = new Label(_settings.CompendiumEnlargeHint)
+            {
+                pickingMode = PickingMode.Ignore,
+            };
+            _detailHeroHint.AddToClassList("compendium-detail-hero-hint");
+            _detailHero.Add(_detailHeroHint);
+            _detailHero.RegisterCallback<PointerDownEvent>(OnHeroPointerDown);
+            _detailHero.RegisterCallback<PointerEnterEvent>(_ => SetHeroHovered(true));
+            _detailHero.RegisterCallback<PointerLeaveEvent>(_ => SetHeroHovered(false));
+
+            _lightbox = BuildLightbox(out _lightboxFrame, out _lightboxImage, out _lightboxCaption);
+            _root.Add(_lightbox);
+
             ApplyTheme();
-            _root.RegisterCallback<GeometryChangedEvent>(_ => UpdateResponsiveLayout());
+            _root.RegisterCallback<GeometryChangedEvent>(_ =>
+            {
+                UpdateResponsiveLayout();
+                LayoutLightbox();
+            });
             Hide();
         }
 
@@ -174,6 +203,7 @@ namespace DuneVector
 
         public void Hide()
         {
+            CloseLightbox();
             _root.style.display = DisplayStyle.None;
             _visible = false;
         }
@@ -342,6 +372,244 @@ namespace DuneVector
             description.AddToClassList("compendium-detail-description");
             detail.Add(description);
             return detail;
+        }
+
+        private VisualElement BuildLightbox(
+            out VisualElement frame,
+            out Image photo,
+            out Label caption)
+        {
+            VisualElement lightbox = new VisualElement { name = "compendium-lightbox" };
+            lightbox.AddToClassList("compendium-lightbox");
+            // The frame is absolutely placed and driven by explicit rects so it can
+            // animate from the detail hero's on-screen position out to full size.
+            frame = new VisualElement();
+            frame.AddToClassList("compendium-lightbox-frame");
+            // ScaleToFit keeps the photo uncropped; the frame is measured to the
+            // photo's aspect so the matte stays even on every side.
+            photo = new Image { scaleMode = ScaleMode.ScaleToFit };
+            photo.AddToClassList("compendium-lightbox-image");
+            frame.Add(photo);
+            lightbox.Add(frame);
+
+            VisualElement footer = new VisualElement { name = "compendium-lightbox-footer" };
+            footer.AddToClassList("compendium-lightbox-footer");
+            caption = new Label();
+            caption.AddToClassList("compendium-lightbox-caption");
+            footer.Add(caption);
+            Label hint = new Label(_settings.CompendiumLightboxCloseHint);
+            hint.AddToClassList("compendium-lightbox-hint");
+            footer.Add(hint);
+            lightbox.Add(footer);
+            _lightboxFooter = footer;
+
+            lightbox.RegisterCallback<PointerDownEvent>(_ => CloseLightbox());
+            return lightbox;
+        }
+
+        private void OnHeroPointerDown(PointerDownEvent evt)
+        {
+            if (_detailImage.image == null)
+            {
+                return;
+            }
+            evt.StopPropagation();
+            OpenLightbox();
+        }
+
+        private void SetHeroHovered(bool hovered)
+        {
+            bool documented = _detailImage.image != null && !_lightboxOpen;
+            _detailHeroHint.style.display = hovered && documented
+                ? DisplayStyle.Flex
+                : DisplayStyle.None;
+            _detailImage.tintColor = hovered && documented
+                ? Color.Lerp(Color.white, _settings.CompendiumHoverBorderColor, 0.18f)
+                : Color.white;
+        }
+
+        private void OpenLightbox()
+        {
+            Texture texture = _detailImage.image;
+            if (texture == null || _lightboxOpen)
+            {
+                return;
+            }
+            _lightboxCloseSchedule?.Pause();
+            _lightboxImage.image = texture;
+            _lightboxCaption.text = _detailTitle.text;
+            _lightbox.style.display = DisplayStyle.Flex;
+            _lightboxOpen = true;
+            SetHeroHovered(false);
+
+            // Start collapsed onto the thumbnail, then grow into the target rect on
+            // the next frame so the style transition has two distinct values to run
+            // between.
+            ApplyFrameRect(GetHeroRect(), _settings.CompendiumDetailImageCornerRadius, 0f);
+            _lightbox.style.opacity = 0f;
+            _lightboxFooter.style.opacity = 0f;
+            _lightboxExpandSchedule?.Pause();
+            _lightboxExpandSchedule = _lightbox.schedule.Execute(() =>
+            {
+                if (!_lightboxOpen)
+                {
+                    return;
+                }
+                _lightbox.style.opacity = 1f;
+                _lightboxFooter.style.opacity = 1f;
+                LayoutLightbox();
+            });
+        }
+
+        public bool CloseLightbox()
+        {
+            if (!_lightboxOpen)
+            {
+                return false;
+            }
+            _lightboxOpen = false;
+            _lightboxExpandSchedule?.Pause();
+            // Collapse back into the thumbnail it grew out of, then hide once the
+            // transition has played out.
+            ApplyFrameRect(
+                GetHeroRect(),
+                _settings.CompendiumDetailImageCornerRadius,
+                _settings.CompendiumLightboxExpandSeconds);
+            _lightbox.style.opacity = 0f;
+            _lightboxFooter.style.opacity = 0f;
+            _lightboxCloseSchedule?.Pause();
+            _lightboxCloseSchedule = _lightbox.schedule.Execute(() =>
+            {
+                if (_lightboxOpen)
+                {
+                    return;
+                }
+                _lightbox.style.display = DisplayStyle.None;
+                _lightboxImage.image = null;
+            }).StartingIn(
+                Mathf.RoundToInt(_settings.CompendiumLightboxExpandSeconds * 1000f));
+            return true;
+        }
+
+        private Rect GetHeroRect()
+        {
+            Rect hero = _detailHero.worldBound;
+            Rect root = _root.worldBound;
+            Rect local = new Rect(
+                hero.x - root.x,
+                hero.y - root.y,
+                hero.width,
+                hero.height);
+            if (local.width <= 1f || local.height <= 1f)
+            {
+                // Geometry is not resolved yet (first open of the session); fall back
+                // to growing out of the middle of the screen.
+                Vector2 center = new Vector2(root.width * 0.5f, root.height * 0.5f);
+                return new Rect(center.x, center.y, 0f, 0f);
+            }
+            return local;
+        }
+
+        private void ApplyFrameRect(Rect rect, float cornerRadius, float seconds)
+        {
+            SetTransition(
+                _lightboxFrame,
+                seconds,
+                "left",
+                "top",
+                "width",
+                "height",
+                "border-top-left-radius",
+                "border-top-right-radius",
+                "border-bottom-left-radius",
+                "border-bottom-right-radius");
+            _lightboxFrame.style.left = rect.x;
+            _lightboxFrame.style.top = rect.y;
+            _lightboxFrame.style.width = rect.width;
+            _lightboxFrame.style.height = rect.height;
+            _lightboxFrame.style.borderTopLeftRadius = cornerRadius;
+            _lightboxFrame.style.borderTopRightRadius = cornerRadius;
+            _lightboxFrame.style.borderBottomLeftRadius = cornerRadius;
+            _lightboxFrame.style.borderBottomRightRadius = cornerRadius;
+        }
+
+        private void LayoutLightbox()
+        {
+            if (!_lightboxOpen)
+            {
+                return;
+            }
+            float rootWidth = _root.resolvedStyle.width;
+            float rootHeight = _root.resolvedStyle.height;
+            if (rootWidth <= 1f || rootHeight <= 1f)
+            {
+                rootWidth = _settings.GalleryReferenceWidth;
+                rootHeight = _settings.GalleryReferenceHeight;
+            }
+            float margin = Mathf.Min(rootWidth, rootHeight) *
+                _settings.CompendiumLightboxScreenMargin;
+            float matte = _settings.CompendiumLightboxMattePadding;
+            // Reserve room for the caption and the close hint so the photo grows
+            // as large as it can without pushing either off screen.
+            float footerHeight = _settings.CompendiumDetailTitleFontSize * 1.6f +
+                (_settings.CompendiumMetadataFontSize * 2.4f) +
+                _settings.CompendiumGap;
+            float availableWidth = Mathf.Max(
+                1f,
+                rootWidth - (margin * 2f) - (matte * 2f));
+            float availableHeight = Mathf.Max(
+                1f,
+                rootHeight - (margin * 2f) - (matte * 2f) - footerHeight);
+            Texture texture = _lightboxImage.image;
+            float aspect = texture != null && texture.height > 0
+                ? (float)texture.width / texture.height
+                : availableWidth / availableHeight;
+            float photoWidth = availableWidth;
+            float photoHeight = photoWidth / aspect;
+            if (photoHeight > availableHeight)
+            {
+                photoHeight = availableHeight;
+                photoWidth = photoHeight * aspect;
+            }
+            float frameWidth = photoWidth + (matte * 2f);
+            float frameHeight = photoHeight + (matte * 2f);
+            Rect target = new Rect(
+                (rootWidth - frameWidth) * 0.5f,
+                ((rootHeight - footerHeight) - frameHeight) * 0.5f,
+                frameWidth,
+                frameHeight);
+            ApplyFrameRect(
+                target,
+                _settings.CompendiumLightboxCornerRadius,
+                _settings.CompendiumLightboxExpandSeconds);
+            _lightboxImage.style.left = matte;
+            _lightboxImage.style.right = matte;
+            _lightboxImage.style.top = matte;
+            _lightboxImage.style.bottom = matte;
+            _lightboxFooter.style.height = footerHeight;
+            _lightboxCaption.style.maxWidth = frameWidth;
+        }
+
+        private static void SetTransition(
+            VisualElement element,
+            float seconds,
+            params string[] properties)
+        {
+            List<StylePropertyName> names = new List<StylePropertyName>(properties.Length);
+            List<TimeValue> durations = new List<TimeValue>(properties.Length);
+            List<TimeValue> delays = new List<TimeValue>(properties.Length);
+            List<EasingFunction> easings = new List<EasingFunction>(properties.Length);
+            for (int i = 0; i < properties.Length; i++)
+            {
+                names.Add(new StylePropertyName(properties[i]));
+                durations.Add(new TimeValue(seconds, TimeUnit.Second));
+                delays.Add(new TimeValue(0f, TimeUnit.Second));
+                easings.Add(new EasingFunction(EasingMode.EaseOutCubic));
+            }
+            element.style.transitionProperty = new StyleList<StylePropertyName>(names);
+            element.style.transitionDuration = new StyleList<TimeValue>(durations);
+            element.style.transitionDelay = new StyleList<TimeValue>(delays);
+            element.style.transitionTimingFunction = new StyleList<EasingFunction>(easings);
         }
 
         private VisualElement MakeGridRow()
@@ -675,6 +943,21 @@ namespace DuneVector
             _detailDescription.text = documented
                 ? FirstNonEmpty(entry.Description, _settings.CompendiumDefaultDescription)
                 : _settings.CompendiumUnknownDescription;
+            SetHeroHovered(false);
+            if (_lightboxOpen)
+            {
+                // Keep an open lightbox in sync when the selection changes behind it.
+                if (!documented)
+                {
+                    CloseLightbox();
+                }
+                else
+                {
+                    _lightboxImage.image = _detailImage.image;
+                    _lightboxCaption.text = _detailTitle.text;
+                    LayoutLightbox();
+                }
+            }
         }
 
         private void UpdateResponsiveLayout()
@@ -852,6 +1135,65 @@ namespace DuneVector
                 _settings.GalleryBodyFontSize, _settings.CompendiumPrimaryTextColor, false);
             _detail.Q(className: "compendium-detail-rule").style.backgroundColor =
                 _settings.CompendiumActiveAccentColor;
+            ApplyLightboxTheme();
+        }
+
+        private void ApplyLightboxTheme()
+        {
+            _lightbox.style.position = Position.Absolute;
+            _lightbox.style.left = 0f;
+            _lightbox.style.top = 0f;
+            _lightbox.style.right = 0f;
+            _lightbox.style.bottom = 0f;
+            _lightbox.style.backgroundColor = _settings.CompendiumLightboxBackdropColor;
+            _lightbox.style.display = DisplayStyle.None;
+            _lightbox.style.opacity = 0f;
+            SetTransition(_lightbox, _settings.CompendiumLightboxExpandSeconds, "opacity");
+
+            _lightboxFrame.style.position = Position.Absolute;
+            _lightboxFrame.style.backgroundColor = _settings.CompendiumRaisedSurfaceColor;
+            SetBorder(
+                _lightboxFrame,
+                _settings.CompendiumDetailBorderColor,
+                _settings.CompendiumLightboxBorderThickness,
+                _settings.CompendiumLightboxCornerRadius);
+            _lightboxImage.style.position = Position.Absolute;
+            SetBorder(
+                _lightboxImage,
+                _settings.CompendiumCardBorderColor,
+                _settings.CompendiumPanelBorderThickness,
+                _settings.CompendiumDetailImageCornerRadius);
+
+            _lightboxFooter.style.position = Position.Absolute;
+            _lightboxFooter.style.left = 0f;
+            _lightboxFooter.style.right = 0f;
+            _lightboxFooter.style.bottom = 0f;
+            _lightboxFooter.style.opacity = 0f;
+            SetTransition(_lightboxFooter, _settings.CompendiumLightboxExpandSeconds, "opacity");
+            SetTextStyle(
+                _lightboxCaption,
+                _settings.CompendiumDetailTitleFontSize,
+                _settings.CompendiumPrimaryTextColor,
+                true);
+            SetTextStyle(
+                _lightbox.Q<Label>(className: "compendium-lightbox-hint"),
+                _settings.CompendiumMetadataFontSize,
+                _settings.CompendiumSecondaryTextColor,
+                true);
+
+            _detailHeroHint.style.position = Position.Absolute;
+            _detailHeroHint.style.left = 0f;
+            _detailHeroHint.style.right = 0f;
+            _detailHeroHint.style.bottom = 0f;
+            _detailHeroHint.style.paddingTop = _settings.CompendiumChipPaddingVertical;
+            _detailHeroHint.style.paddingBottom = _settings.CompendiumChipPaddingVertical;
+            _detailHeroHint.style.backgroundColor = _settings.CompendiumCardScrimColor;
+            _detailHeroHint.style.display = DisplayStyle.None;
+            SetTextStyle(
+                _detailHeroHint,
+                _settings.CompendiumMetadataFontSize,
+                _settings.CompendiumPrimaryTextColor,
+                true);
         }
 
         private void StyleChip(Label chip)

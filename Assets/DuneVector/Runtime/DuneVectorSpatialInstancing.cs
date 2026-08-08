@@ -884,21 +884,34 @@ namespace DuneVector
                 return false;
             }
 
-            int markerIndex = objectName.LastIndexOf("_LOD", StringComparison.OrdinalIgnoreCase);
-            if (markerIndex < 0)
+            // Accepts "Pyramid_LOD0" and bare "LOD0" alike. Exporters differ on
+            // whether the level is a suffix or the whole node name, so the marker
+            // only has to start the name or follow a non-letter separator. That
+            // boundary keeps words that merely contain "lod" from matching.
+            int markerIndex = objectName.Length - 3;
+            while (markerIndex >= 0)
             {
-                return false;
+                if (string.Compare(objectName, markerIndex, "LOD", 0, 3, StringComparison.OrdinalIgnoreCase) == 0 &&
+                    (markerIndex == 0 || !char.IsLetter(objectName[markerIndex - 1])))
+                {
+                    int digitStart = markerIndex + 3;
+                    int digitEnd = digitStart;
+                    while (digitEnd < objectName.Length && char.IsDigit(objectName[digitEnd]))
+                    {
+                        digitEnd++;
+                    }
+                    if (digitEnd > digitStart &&
+                        int.TryParse(objectName.Substring(digitStart, digitEnd - digitStart), out lodNumber) &&
+                        lodNumber >= 0)
+                    {
+                        return true;
+                    }
+                }
+                markerIndex--;
             }
 
-            int digitStart = markerIndex + 4;
-            int digitEnd = digitStart;
-            while (digitEnd < objectName.Length && char.IsDigit(objectName[digitEnd]))
-            {
-                digitEnd++;
-            }
-            return digitEnd > digitStart &&
-                int.TryParse(objectName.Substring(digitStart, digitEnd - digitStart), out lodNumber) &&
-                lodNumber >= 0;
+            lodNumber = -1;
+            return false;
         }
 
         private static void GetLodDistanceRange(

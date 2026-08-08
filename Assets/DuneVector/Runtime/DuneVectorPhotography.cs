@@ -1400,6 +1400,8 @@ namespace DuneVector
         private float _targetZoom = 1f;
         private float _nextValidationTime;
         private float _hudEnteredAt;
+        private float _commandHintStartedAt = -1f;
+        private bool _commandHintShown;
         private float _targetAcquiredAt;
         private float _lastZoomInputAt;
         private float _captureStartedAt;
@@ -1438,8 +1440,8 @@ namespace DuneVector
         private GUIStyle _keyStyle;
         private GUIStyle _statusStyle;
         private GUIStyle _comparisonLabelStyle;
-        private GUIStyle _identificationTitleStyle;
         private GUIStyle _identificationNameStyle;
+        private GUIStyle _replaceEyebrowStyle;
         private GUIStyle _glyphDiscoveryHeaderStyle;
         private GUIStyle _glyphDiscoveryMetadataStyle;
         private GUIStyle _glyphDiscoveryIdentityStyle;
@@ -1447,7 +1449,6 @@ namespace DuneVector
         private GUIStyle _glyphDiscoveryLoreStyle;
         private GUIStyle _glyphDiscoveryArchivedStyle;
         private GUIStyle _glyphDiscoveryContinueStyle;
-        private GUIStyle _buttonStyle;
         private readonly List<Renderer> _hiddenPlayerRenderers = new List<Renderer>();
         private readonly List<bool> _hiddenPlayerRendererStates = new List<bool>();
 
@@ -1552,6 +1553,11 @@ namespace DuneVector
             return true;
         }
 
+        public bool CloseCompendiumViewer()
+        {
+            return _compendium != null && _compendium.CloseLightbox();
+        }
+
         public void HideCompendium()
         {
             _compendium?.Hide();
@@ -1609,6 +1615,18 @@ namespace DuneVector
                     Time.unscaledTime >= _presentationUntil)
                 {
                     ReturnToLiveCamera();
+                }
+                else if (_presentationState == CameraPresentationState.ReplacePrompt && keyboard != null)
+                {
+                    if (keyboard.enterKey.wasPressedThisFrame ||
+                        keyboard.numpadEnterKey.wasPressedThisFrame)
+                    {
+                        ConfirmPhotographReplacement();
+                    }
+                    else if (keyboard.escapeKey.wasPressedThisFrame)
+                    {
+                        ReturnToLiveCamera();
+                    }
                 }
                 return;
             }
@@ -1694,6 +1712,15 @@ namespace DuneVector
             _hudEnteredAt = Time.unscaledTime;
             _lastZoomInputAt = float.NegativeInfinity;
             _nextValidationTime = 0f;
+            if (!_settings.CommandHintFirstUseOnly || !_commandHintShown)
+            {
+                _commandHintShown = true;
+                _commandHintStartedAt = Time.unscaledTime;
+            }
+            else
+            {
+                _commandHintStartedAt = -1f;
+            }
         }
 
         private void ExitCameraMode()
@@ -1940,7 +1967,7 @@ namespace DuneVector
                 labelTop = Mathf.Clamp(
                     labelTop,
                     _settings.ScreenMargin + _settings.SubjectLabelHeight,
-                    _hudHeight - _settings.ScreenMargin - labelBlockHeight - _settings.CommandBarHeight);
+                    _hudHeight - _settings.ScreenMargin - labelBlockHeight - _settings.CornerMetadataHeight);
                 DrawRect(
                     new Rect(
                         labelLeft,
@@ -1978,10 +2005,9 @@ namespace DuneVector
                 WithAlpha(_settings.HudMutedColor, _settings.HudMutedColor.a * enter),
                 true);
 
-            float bottomY = _hudHeight - _settings.ScreenMargin -
-                _settings.CommandBarHeight - _settings.BottomInterfaceOffset;
-            DrawCommandBar(bottomY, enter);
-            DrawCornerMetadata(bottomY, enter);
+            float bandBottom = _hudHeight - _settings.ScreenMargin - _settings.BottomInterfaceOffset;
+            DrawCornerMetadata(bandBottom - _settings.CornerMetadataHeight, enter);
+            DrawCommandBar(bandBottom, enter);
         }
 
         private void DrawCapturePresentation()
@@ -2042,33 +2068,246 @@ namespace DuneVector
 
             if (_presentationState == CameraPresentationState.ReplacePrompt)
             {
-                DrawPhotographComparison();
+                DrawReplaceDecision();
             }
-            Rect panel = new Rect((_hudWidth - _settings.IdentificationPanelWidth) * 0.5f,
-                _hudHeight - _settings.IdentificationPanelHeight - _settings.ScreenMargin,
-                _settings.IdentificationPanelWidth, _settings.IdentificationPanelHeight);
-            DrawRect(panel, _settings.IdentificationPanelColor);
-            DrawBorder(panel, _settings.ValidColor, _settings.FrameThickness);
-            float padding = _settings.GalleryPadding;
-            string heading = _presentationState == CameraPresentationState.ReplacePrompt
-                ? _settings.AlreadyDocumentedText
-                : _settings.IdentifiedTitle;
-            GUI.Label(new Rect(panel.x + padding, panel.y + padding, panel.width - (padding * 2f),
-                _settings.SubjectLabelHeight), heading, _identificationTitleStyle);
-            GUI.Label(new Rect(panel.x + padding, panel.y + padding + _settings.SubjectLabelHeight,
-                panel.width - (padding * 2f), _settings.SubjectLabelHeight), _pendingSubject.DisplayName, _identificationNameStyle);
-            GUI.Label(new Rect(panel.x + padding, panel.y + padding + (_settings.SubjectLabelHeight * 2f),
-                panel.width - (padding * 2f), _settings.SubjectLabelHeight), _settings.ReplacePrompt, _statusStyle);
-            float buttonWidth = (panel.width - (padding * 3f)) * 0.5f;
-            Rect replace = new Rect(panel.x + padding, panel.yMax - padding - _settings.GalleryButtonHeight,
-                buttonWidth, _settings.GalleryButtonHeight);
-            Rect keep = new Rect(replace.xMax + padding, replace.y, buttonWidth, replace.height);
-            if (GUI.Button(replace, _settings.ReplaceButton, _buttonStyle))
+        }
+
+        // The replace prompt is one composed sheet: dimmed capture, header, the two candidate
+        // photographs, then the decision row. Hovering a command focuses the photograph it acts on
+        // so the choice reads before it is made.
+        private void DrawReplaceDecision()
+        {
+            float elapsed = Time.unscaledTime - _captureStartedAt;
+            float progress = EaseOutCubic(Mathf.Clamp01(
+                elapsed / Mathf.Max(0.01f, _settings.HudEnterDuration)));
+            float slide = (1f - progress) * _settings.HudEnterSlideDistance;
+
+            DrawRect(
+                new Rect(0f, 0f, _hudWidth, _hudHeight),
+                WithAlpha(
+                    _settings.ReplaceDecisionBackdropColor,
+                    _settings.ReplaceDecisionBackdropColor.a * progress));
+
+            float padding = _settings.ReplaceDecisionPanelPadding;
+            float gap = _settings.ReplaceDecisionSectionGap;
+            float cardPadding = _settings.ComparisonCardPadding;
+            float headerBlock = _settings.ReplaceDecisionEyebrowHeight + _settings.ReplaceDecisionNameHeight;
+            float footerBlock = _settings.ReplaceDecisionPromptHeight + gap +
+                _settings.ReplaceDecisionButtonHeight + _settings.ReplaceDecisionHintHeight;
+
+            // Fit the pair of photographs to whichever axis runs out first.
+            float widthBudget = _hudWidth - (_settings.ScreenMargin * 2f) - (padding * 2f) -
+                _settings.ComparisonImageGap - (cardPadding * 4f);
+            float heightBudget = _hudHeight - (_settings.ScreenMargin * 2f) - (padding * 2f) -
+                headerBlock - footerBlock - (gap * 2f) - _settings.ComparisonLabelHeight -
+                (cardPadding * 3f);
+            float scale = Mathf.Clamp01(Mathf.Min(
+                (widthBudget * 0.5f) / Mathf.Max(1f, _settings.ComparisonImageWidth),
+                heightBudget / Mathf.Max(1f, _settings.ComparisonImageHeight)));
+            float imageWidth = _settings.ComparisonImageWidth * scale;
+            float imageHeight = _settings.ComparisonImageHeight * scale;
+            float cardWidth = imageWidth + (cardPadding * 2f);
+            float cardHeight = imageHeight + _settings.ComparisonLabelHeight + (cardPadding * 3f);
+
+            float contentWidth = (cardWidth * 2f) + _settings.ComparisonImageGap;
+            float panelWidth = contentWidth + (padding * 2f);
+            float panelHeight = (padding * 2f) + headerBlock + gap + cardHeight + gap + footerBlock;
+            Rect panel = new Rect(
+                (_hudWidth - panelWidth) * 0.5f,
+                ((_hudHeight - panelHeight) * 0.5f) + slide,
+                panelWidth,
+                panelHeight);
+
+            DrawRect(
+                panel,
+                WithAlpha(
+                    _settings.GlyphDiscoveryPanelColor,
+                    _settings.GlyphDiscoveryPanelColor.a * progress));
+            DrawBorder(
+                panel,
+                WithAlpha(
+                    _settings.GlyphDiscoveryBorderColor,
+                    _settings.GlyphDiscoveryBorderColor.a * progress),
+                _settings.GlyphDiscoveryBorderThickness);
+            DrawRect(
+                new Rect(panel.x, panel.y, _settings.GlyphDiscoveryAccentWidth, panel.height),
+                WithAlpha(_settings.ValidColor, _settings.ValidColor.a * progress));
+
+            float contentX = panel.x + padding;
+            float y = panel.y + padding;
+            DrawLabel(
+                new Rect(contentX, y, contentWidth, _settings.ReplaceDecisionEyebrowHeight),
+                TrackText(_settings.AlreadyDocumentedText),
+                _replaceEyebrowStyle,
+                WithAlpha(_settings.ValidColor, _settings.ValidColor.a * progress),
+                true);
+            y += _settings.ReplaceDecisionEyebrowHeight;
+            DrawLabel(
+                new Rect(contentX, y, contentWidth, _settings.ReplaceDecisionNameHeight),
+                _pendingSubject.DisplayName,
+                _identificationNameStyle,
+                WithAlpha(
+                    _settings.GlyphDiscoveryPrimaryTextColor,
+                    _settings.GlyphDiscoveryPrimaryTextColor.a * progress),
+                true);
+            y += _settings.ReplaceDecisionNameHeight + gap;
+
+            Rect currentCard = new Rect(contentX, y, cardWidth, cardHeight);
+            Rect newCard = new Rect(
+                currentCard.xMax + _settings.ComparisonImageGap,
+                y,
+                cardWidth,
+                cardHeight);
+            y += cardHeight + gap;
+
+            Rect prompt = new Rect(contentX, y, contentWidth, _settings.ReplaceDecisionPromptHeight);
+            y += _settings.ReplaceDecisionPromptHeight + gap;
+
+            float buttonWidth = Mathf.Min(
+                _settings.ReplaceDecisionButtonWidth,
+                (contentWidth - _settings.ReplaceDecisionButtonGap) * 0.5f);
+            float buttonsWidth = (buttonWidth * 2f) + _settings.ReplaceDecisionButtonGap;
+            // Keep sits left under the CURRENT photograph, replace right under the NEW one.
+            Rect keep = new Rect(
+                panel.center.x - (buttonsWidth * 0.5f),
+                y,
+                buttonWidth,
+                _settings.ReplaceDecisionButtonHeight);
+            Rect replace = new Rect(
+                keep.xMax + _settings.ReplaceDecisionButtonGap,
+                y,
+                buttonWidth,
+                _settings.ReplaceDecisionButtonHeight);
+
+            Vector2 pointer = Event.current.mousePosition;
+            bool replaceHovered = replace.Contains(pointer) || newCard.Contains(pointer);
+            bool keepHovered = keep.Contains(pointer) || currentCard.Contains(pointer);
+
+            DrawComparisonCard(
+                currentCard,
+                _storage.GetCanonicalTexture(_pendingSubject.SubjectId),
+                _settings.ComparisonCurrentLabel,
+                _settings.NeutralColor,
+                keepHovered,
+                imageWidth,
+                imageHeight,
+                progress);
+            DrawComparisonCard(
+                newCard,
+                _capturedTexture,
+                _settings.ComparisonNewLabel,
+                _settings.ValidColor,
+                replaceHovered,
+                imageWidth,
+                imageHeight,
+                progress);
+
+            DrawLabel(
+                prompt,
+                TrackText(_settings.ReplacePrompt),
+                _statusStyle,
+                WithAlpha(
+                    _settings.GlyphDiscoverySecondaryTextColor,
+                    _settings.GlyphDiscoverySecondaryTextColor.a * progress),
+                true);
+
+            bool replacePressed = DrawDecisionCommand(
+                replace,
+                _settings.ReplaceButton,
+                _settings.ReplaceButtonHint,
+                _settings.ValidColor,
+                replaceHovered,
+                elapsed,
+                progress);
+            bool keepPressed = DrawDecisionCommand(
+                keep,
+                _settings.KeepButton,
+                _settings.KeepButtonHint,
+                _settings.NeutralColor,
+                keepHovered,
+                elapsed,
+                progress);
+
+            bool cardClicked = Event.current.type == EventType.MouseDown && Event.current.button == 0;
+            if (replacePressed || (cardClicked && newCard.Contains(pointer)))
             {
-                _storage.Document(_pendingSubject.SubjectId, _pendingSubject.Category, _pendingPhotograph.PhotographId);
+                ConfirmPhotographReplacement();
+                return;
+            }
+            if (keepPressed || (cardClicked && currentCard.Contains(pointer)))
+            {
                 ReturnToLiveCamera();
             }
-            if (GUI.Button(keep, _settings.KeepButton, _buttonStyle)) ReturnToLiveCamera();
+        }
+
+        private bool DrawDecisionCommand(
+            Rect command,
+            string label,
+            string hint,
+            Color accent,
+            bool hovered,
+            float elapsed,
+            float progress)
+        {
+            Color fill = hovered
+                ? _settings.GlyphDiscoveryCommandHoverColor
+                : _settings.GlyphDiscoveryCommandColor;
+            DrawRect(command, WithAlpha(fill, fill.a * progress));
+            DrawBorder(
+                command,
+                WithAlpha(accent, accent.a * progress * (hovered ? 1f : 0.55f)),
+                _settings.GlyphDiscoveryBorderThickness);
+            if (hovered)
+            {
+                float sweepTravel = command.width + _settings.GlyphDiscoveryFocusSweepWidth;
+                float sweepNormalized = Mathf.Repeat(
+                    elapsed / Mathf.Max(0.01f, _settings.GlyphDiscoveryFocusSweepDuration),
+                    1f);
+                Rect sweep = Intersect(
+                    new Rect(
+                        command.x - _settings.GlyphDiscoveryFocusSweepWidth + (sweepTravel * sweepNormalized),
+                        command.y,
+                        _settings.GlyphDiscoveryFocusSweepWidth,
+                        command.height),
+                    command);
+                if (sweep.width > 0f)
+                {
+                    DrawRect(
+                        sweep,
+                        WithAlpha(
+                            _settings.GlyphDiscoveryFocusSweepColor,
+                            _settings.GlyphDiscoveryFocusSweepColor.a * progress));
+                }
+            }
+            DrawLabel(
+                command,
+                TrackText(label),
+                _glyphDiscoveryContinueStyle,
+                WithAlpha(
+                    _settings.GlyphDiscoveryPrimaryTextColor,
+                    _settings.GlyphDiscoveryPrimaryTextColor.a * progress),
+                true);
+            DrawLabel(
+                new Rect(command.x, command.yMax, command.width, _settings.ReplaceDecisionHintHeight),
+                TrackText(hint),
+                _glyphDiscoveryIdentityStyle,
+                WithAlpha(
+                    _settings.GlyphDiscoverySecondaryTextColor,
+                    _settings.GlyphDiscoverySecondaryTextColor.a * progress * (hovered ? 1f : 0.7f)),
+                true);
+            return GUI.Button(command, GUIContent.none, GUIStyle.none);
+        }
+
+        private void ConfirmPhotographReplacement()
+        {
+            if (_pendingPhotograph != null)
+            {
+                _storage.Document(
+                    _pendingSubject.SubjectId,
+                    _pendingSubject.Category,
+                    _pendingPhotograph.PhotographId);
+            }
+            ReturnToLiveCamera();
         }
 
         private void DrawGlyphDiscoveryPresentation()
@@ -2351,44 +2590,70 @@ namespace DuneVector
             return Rect.MinMaxRect(left, top, Mathf.Max(left, right), Mathf.Max(top, bottom));
         }
 
-        private void DrawPhotographComparison()
+        private void DrawComparisonCard(
+            Rect card,
+            Texture texture,
+            string label,
+            Color accent,
+            bool focused,
+            float imageWidth,
+            float imageHeight,
+            float progress)
         {
-            float cardWidth = _settings.ComparisonImageWidth + (_settings.ComparisonCardPadding * 2f);
-            float cardHeight = _settings.ComparisonImageHeight + _settings.ComparisonLabelHeight +
-                (_settings.ComparisonCardPadding * 3f);
-            float totalWidth = (cardWidth * 2f) + _settings.ComparisonImageGap;
-            float left = (_hudWidth - totalWidth) * 0.5f;
-            float top = _settings.ScreenMargin;
-            Rect currentCard = new Rect(left, top, cardWidth, cardHeight);
-            Rect newCard = new Rect(currentCard.xMax + _settings.ComparisonImageGap, top, cardWidth, cardHeight);
-            DrawComparisonCard(currentCard, _storage.GetCanonicalTexture(_pendingSubject.SubjectId),
-                _settings.ComparisonCurrentLabel, _settings.NeutralColor);
-            DrawComparisonCard(newCard, _capturedTexture, _settings.ComparisonNewLabel, _settings.ValidColor);
-        }
-
-        private void DrawComparisonCard(Rect card, Texture texture, string label, Color accent)
-        {
-            DrawRect(card, _settings.ComparisonCardColor);
-            DrawBorder(card, accent, _settings.FrameThickness);
+            float emphasis = focused ? 1f : _settings.ReplaceDecisionRestingAccent;
+            Color cardAccent = WithAlpha(accent, accent.a * progress * emphasis);
+            DrawRect(
+                card,
+                WithAlpha(
+                    _settings.GlyphDiscoveryRaisedColor,
+                    _settings.GlyphDiscoveryRaisedColor.a * progress));
+            DrawBorder(card, cardAccent, _settings.GlyphDiscoveryBorderThickness);
 
             float padding = _settings.ComparisonCardPadding;
-            Rect imageRect = new Rect(
-                card.x + padding,
-                card.y + padding,
-                _settings.ComparisonImageWidth,
-                _settings.ComparisonImageHeight);
-            DrawRect(imageRect, _settings.GalleryBackdropColor);
-            DrawBorder(imageRect, accent, _settings.FrameThickness);
-            if (texture != null) GUI.DrawTexture(imageRect, texture, ScaleMode.ScaleToFit, false);
+            Rect imageRect = new Rect(card.x + padding, card.y + padding, imageWidth, imageHeight);
+            DrawRect(
+                imageRect,
+                WithAlpha(
+                    _settings.GalleryBackdropColor,
+                    _settings.GalleryBackdropColor.a * progress));
+            if (texture != null)
+            {
+                Color previous = GUI.color;
+                GUI.color = new Color(1f, 1f, 1f, progress * Mathf.Lerp(0.78f, 1f, emphasis));
+                GUI.DrawTexture(imageRect, texture, ScaleMode.ScaleAndCrop, false);
+                GUI.color = previous;
+            }
+            DrawCorners(
+                imageRect,
+                _settings.ReplaceDecisionCornerLength,
+                _settings.FrameThickness,
+                cardAccent);
 
             Rect labelRect = new Rect(
                 card.x + padding,
                 imageRect.yMax + padding,
-                _settings.ComparisonImageWidth,
+                imageWidth,
                 _settings.ComparisonLabelHeight);
-            DrawRect(labelRect, _settings.ComparisonLabelPanelColor);
-            DrawBorder(labelRect, accent, _settings.FrameThickness);
-            GUI.Label(labelRect, label, _comparisonLabelStyle);
+            DrawRect(
+                labelRect,
+                WithAlpha(
+                    _settings.ComparisonLabelPanelColor,
+                    _settings.ComparisonLabelPanelColor.a * progress));
+            DrawRect(
+                new Rect(
+                    labelRect.x,
+                    labelRect.y,
+                    labelRect.width,
+                    _settings.GlyphDiscoveryBorderThickness),
+                cardAccent);
+            DrawLabel(
+                labelRect,
+                TrackText(label),
+                _comparisonLabelStyle,
+                WithAlpha(
+                    focused ? accent : _settings.ComparisonLabelColor,
+                    _settings.ComparisonLabelColor.a * progress * Mathf.Lerp(0.72f, 1f, emphasis)),
+                true);
         }
 
         private void DrawSurfaceTextures()
@@ -2509,19 +2774,41 @@ namespace DuneVector
             _cameraFilmGrainApplied = false;
         }
 
-        private void DrawCommandBar(float y, float enter)
+        // Control hints are onboarding, not permanent chrome: the bar auto-sizes to its content,
+        // holds for CommandHintDuration on the first camera use, then fades out for good.
+        private float GetCommandHintOpacity()
         {
-            float width = Mathf.Min(
+            if (_commandHintStartedAt < 0f) return 0f;
+            float elapsed = Time.unscaledTime - _commandHintStartedAt;
+            if (elapsed <= _settings.CommandHintDuration) return 1f;
+            float fade = Mathf.Max(0.05f, _settings.CommandHintFadeDuration);
+            return 1f - Mathf.Clamp01((elapsed - _settings.CommandHintDuration) / fade);
+        }
+
+        private void DrawCommandBar(float bandBottom, float enter)
+        {
+            float opacity = GetCommandHintOpacity() * enter;
+            if (opacity <= 0.001f) return;
+
+            float gap = _settings.TargetLabelGap * 2f;
+            float exitWidth = GetCommandGroupWidth(_settings.ExitAction, gap);
+            float captureWidth = GetCommandGroupWidth(_settings.CaptureAction, gap);
+            float zoomWidth = GetCommandGroupWidth(_settings.ZoomAction, gap);
+            float content = exitWidth + captureWidth + zoomWidth + (_settings.CommandGroupGap * 2f);
+            float maxWidth = Mathf.Min(
                 _settings.CommandBarWidth,
                 _hudWidth - (_settings.ScreenMargin * 2f));
+            float width = Mathf.Min(content + (_settings.CommandBarPadding * 2f), maxWidth);
             Rect bar = new Rect(
                 (_hudWidth - width) * 0.5f,
-                y + ((1f - enter) * _settings.HudEnterSlideDistance),
+                bandBottom - _settings.CommandBarHeight +
+                    ((1f - opacity) * _settings.HudEnterSlideDistance),
                 width,
                 _settings.CommandBarHeight);
+
             DrawRect(bar, WithAlpha(
                 _settings.CommandBackdropColor,
-                _settings.CommandBackdropColor.a * enter));
+                _settings.CommandBackdropColor.a * opacity));
             if (_settings.SurfaceTexturesEnabled &&
                 _settings.TechnicalGridTexture != null &&
                 _settings.TechnicalGridOpacity > 0f)
@@ -2529,73 +2816,103 @@ namespace DuneVector
                 DrawTexture(
                     bar,
                     _settings.TechnicalGridTexture,
-                    new Color(1f, 1f, 1f, _settings.TechnicalGridOpacity * enter),
+                    new Color(1f, 1f, 1f, _settings.TechnicalGridOpacity * opacity),
                     ScaleMode.StretchToFill);
             }
-            DrawRect(
-                new Rect(bar.x, bar.y, bar.width, _settings.FrameThickness),
+            DrawBorder(
+                bar,
                 WithAlpha(
-                    _settings.NeutralColor,
-                    _settings.NeutralColor.a * _settings.OuterFrameOpacity * enter));
+                    _settings.HudMutedColor,
+                    _settings.HudMutedColor.a * _settings.OuterFrameOpacity * opacity),
+                _settings.FrameThickness);
+            DrawCorners(
+                bar,
+                Mathf.Min(_settings.FrameCornerLength, bar.width * 0.25f),
+                _settings.FrameThickness,
+                WithAlpha(_settings.NeutralColor, _settings.NeutralColor.a * opacity));
 
-            float groupWidth = bar.width / 3f;
+            float scale = content > 0f
+                ? Mathf.Min(1f, (bar.width - (_settings.CommandBarPadding * 2f)) / content)
+                : 1f;
+            float groupGap = _settings.CommandGroupGap * scale;
+            float cursor = bar.center.x - ((content * scale) * 0.5f);
+            cursor = DrawCommandGroup(
+                bar, cursor, exitWidth * scale, _settings.ExitKey, _settings.ExitAction, opacity);
+            DrawCommandSeparator(bar, cursor + (groupGap * 0.5f), opacity);
+            cursor += groupGap;
+            cursor = DrawCommandGroup(
+                bar, cursor, captureWidth * scale, _settings.CaptureKey, _settings.CaptureAction, opacity);
+            DrawCommandSeparator(bar, cursor + (groupGap * 0.5f), opacity);
+            cursor += groupGap;
             DrawCommandGroup(
-                new Rect(bar.x, bar.y, groupWidth, bar.height),
-                _settings.ExitKey,
-                _settings.ExitAction,
-                enter);
-            DrawCommandGroup(
-                new Rect(bar.x + groupWidth, bar.y, groupWidth, bar.height),
-                _settings.CaptureKey,
-                _settings.CaptureAction,
-                enter);
-            DrawCommandGroup(
-                new Rect(bar.x + (groupWidth * 2f), bar.y, groupWidth, bar.height),
-                _settings.ZoomKey,
-                _settings.ZoomAction,
-                enter);
+                bar, cursor, zoomWidth * scale, _settings.ZoomKey, _settings.ZoomAction, opacity);
         }
 
-        private void DrawCommandGroup(Rect rect, string key, string action, float enter)
+        private float GetCommandGroupWidth(string action, float gap)
         {
-            float contentWidth = _settings.CommandKeyWidth + _settings.TargetLabelGap +
-                Mathf.Max(_settings.CommandKeyWidth, rect.width - _settings.CommandKeyWidth -
-                    (_settings.TargetLabelGap * 2f));
-            float left = rect.center.x - (contentWidth * 0.5f);
+            float labelWidth = _commandStyle.CalcSize(new GUIContent(TrackText(action))).x;
+            return _settings.CommandKeyWidth + gap + labelWidth;
+        }
+
+        private float DrawCommandGroup(
+            Rect bar,
+            float left,
+            float width,
+            string key,
+            string action,
+            float opacity)
+        {
             Rect keyRect = new Rect(
                 left,
-                rect.center.y - (_settings.CommandKeyHeight * 0.5f),
+                bar.center.y - (_settings.CommandKeyHeight * 0.5f),
                 _settings.CommandKeyWidth,
                 _settings.CommandKeyHeight);
             DrawRect(keyRect, WithAlpha(
                 _settings.KeycapColor,
-                _settings.KeycapColor.a * enter));
+                _settings.KeycapColor.a * opacity));
+            DrawBorder(
+                keyRect,
+                WithAlpha(_settings.HudMutedColor, _settings.HudMutedColor.a * 0.7f * opacity),
+                _settings.FrameThickness);
             DrawCorners(
                 keyRect,
-                Mathf.Min(_settings.TargetStatusHeight, _settings.CommandKeyWidth * 0.5f),
+                Mathf.Min(_settings.TargetStatusHeight, _settings.CommandKeyWidth * 0.4f),
                 _settings.FrameThickness,
-                WithAlpha(_settings.HudMutedColor, _settings.HudMutedColor.a * enter));
+                WithAlpha(_settings.NeutralColor, _settings.NeutralColor.a * opacity));
             DrawLabel(
                 keyRect,
                 key,
                 _keyStyle,
-                WithAlpha(_settings.HudTextColor, _settings.HudTextColor.a * enter),
-                false);
+                WithAlpha(_settings.HudTextColor, _settings.HudTextColor.a * opacity),
+                true);
             DrawLabel(
                 new Rect(
                     keyRect.xMax + _settings.TargetLabelGap,
-                    rect.y,
-                    rect.xMax - keyRect.xMax - _settings.TargetLabelGap,
-                    rect.height),
+                    bar.y,
+                    Mathf.Max(0f, left + width - keyRect.xMax - _settings.TargetLabelGap),
+                    bar.height),
                 TrackText(action),
                 _commandStyle,
-                WithAlpha(_settings.HudMutedColor, _settings.HudMutedColor.a * enter),
-                false);
+                WithAlpha(_settings.HudTextColor, _settings.HudTextColor.a * 0.78f * opacity),
+                true);
+            return left + width;
+        }
+
+        private void DrawCommandSeparator(Rect bar, float x, float opacity)
+        {
+            float height = bar.height * 0.34f;
+            DrawRect(
+                new Rect(
+                    x - (_settings.FrameThickness * 0.5f),
+                    bar.center.y - (height * 0.5f),
+                    _settings.FrameThickness,
+                    height),
+                WithAlpha(_settings.HudMutedColor, _settings.HudMutedColor.a * 0.45f * opacity));
         }
 
         private void DrawCornerMetadata(float y, float enter)
         {
-            float metadataHeight = _settings.CommandBarHeight;
+            float metadataHeight = _settings.CornerMetadataHeight;
             if (_detection.HasSubject)
             {
                 bool documented = _storage.IsDocumented(_detection.Subject.SubjectId);
@@ -2697,7 +3014,7 @@ namespace DuneVector
                 Color.white,
                 _settings.HudRegularFont);
             _keyStyle ??= CreateStyle(
-                _settings.CommandFontSize,
+                _settings.CommandKeyFontSize,
                 FontStyle.Normal,
                 TextAnchor.MiddleCenter,
                 Color.white,
@@ -2714,11 +3031,11 @@ namespace DuneVector
                 TextAnchor.MiddleCenter,
                 _settings.ComparisonLabelColor,
                 _settings.HudSemiboldFont);
-            _identificationTitleStyle ??= CreateStyle(
-                _settings.IdentificationTitleFontSize,
+            _replaceEyebrowStyle ??= CreateStyle(
+                _settings.GlyphDiscoveryHeaderFontSize,
                 FontStyle.Normal,
                 TextAnchor.MiddleCenter,
-                _settings.HudTextColor,
+                _settings.ValidColor,
                 _settings.HudSemiboldFont);
             _identificationNameStyle ??= CreateStyle(
                 _settings.IdentificationNameFontSize,
@@ -2769,13 +3086,6 @@ namespace DuneVector
                 TextAnchor.MiddleCenter,
                 _settings.GlyphDiscoveryPrimaryTextColor,
                 _settings.HudSemiboldFont);
-            _buttonStyle ??= new GUIStyle(GUI.skin.button)
-            {
-                fontSize = _settings.GalleryBodyFontSize,
-                fontStyle = FontStyle.Bold,
-                alignment = TextAnchor.MiddleCenter,
-                font = _settings.HudSemiboldFont,
-            };
         }
 
         private static GUIStyle CreateStyle(
@@ -2916,13 +3226,18 @@ namespace DuneVector
             {
                 char current = value[i];
                 tracked.Append(current);
-                if (i >= value.Length - 1 ||
-                    char.IsWhiteSpace(current) ||
-                    char.IsWhiteSpace(value[i + 1]))
+                if (i >= value.Length - 1)
                 {
                     continue;
                 }
                 tracked.Append(_settings.TextTrackingSpacer);
+                // Letter tracking closes to roughly a space's width, so word breaks need extra
+                // padding or the words read as one run.
+                if (char.IsWhiteSpace(current) || char.IsWhiteSpace(value[i + 1]))
+                {
+                    tracked.Append(_settings.TextTrackingSpacer);
+                    tracked.Append(_settings.TextTrackingSpacer);
+                }
             }
             return tracked.ToString();
         }

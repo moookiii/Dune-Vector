@@ -862,7 +862,11 @@ namespace DuneVector
             {
                 _state.Permissions |= MusicVisualEffectGroups.HudBorder;
             }
-            if (_audio.VisualizerMode == MusicVisualizerMode.Off)
+            // Silenced music keeps its timeline running (the music bus is turned down rather than
+            // stopped), so authored cues would otherwise keep firing flare lines with no audio.
+            bool silenced = _audio.VisualizerMode == MusicVisualizerMode.Off
+                || _audio.MusicVolume <= Mathf.Epsilon;
+            if (silenced)
             {
                 _state.Permissions = MusicVisualEffectGroups.None;
             }
@@ -885,7 +889,7 @@ namespace DuneVector
             _state.Foreground = Mathf.Clamp01(_state.Energy * multipliers.Foreground);
             _state.Bloom = Mathf.Clamp01(_state.Energy * multipliers.Bloom);
             _state.SuppressTransientEvents = !timeline.IsValid || !timeline.IsPlaying || timeline.IsPaused;
-            if (_audio.VisualizerMode == MusicVisualizerMode.Off)
+            if (silenced)
             {
                 _state.Bass = 0f;
                 _state.Mid = 0f;
