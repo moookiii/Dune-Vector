@@ -5334,6 +5334,26 @@ namespace DuneVector
         [Tooltip("{0} is replaced with the amount of stamina restored.")]
         public string RestoreNotificationFormat = "STAMINA RESTORED: {0}";
 
+        [Header("Meter Feel")]
+        [Tooltip("How quickly the drawn fill chases the true stamina value. Higher is snappier, lower is smoother.")]
+        [Min(0f)] public float MeterFillSharpness = 16f;
+        [Tooltip("How quickly the meter blends between its state colors instead of snapping between them.")]
+        [Min(0f)] public float MeterColorBlendSharpness = 12f;
+        [Tooltip("Draws a lagging segment behind the fill showing stamina that was just spent.")]
+        public bool ChipTrailEnabled = true;
+        [Tooltip("Seconds the spent-stamina segment holds in place before it drains away.")]
+        [Min(0f)] public float ChipTrailDelay = 0.25f;
+        [Tooltip("Fraction of the full meter the spent-stamina segment drains per second once it starts catching up.")]
+        [Min(0f)] public float ChipTrailCatchUpRate = 0.85f;
+        [ColorUsage(false)] public Color ChipTrailColor = new Color(1f, 0.38f, 0.16f, 0.55f);
+        [Tooltip("Extra brightness pulsed into the meter while stamina is low or exhausted.")]
+        [Range(0f, 1f)] public float LowPulseStrength = 0.35f;
+        [Tooltip("Pulses per second while stamina is low or exhausted.")]
+        [Min(0f)] public float LowPulseSpeed = 1.6f;
+        [Tooltip("Strength of the flash blended into the meter when stamina is restored.")]
+        [Range(0f, 1f)] public float RestoreFlashStrength = 0.65f;
+        [ColorUsage(false)] public Color RestoreFlashColor = new Color(1f, 1f, 1f, 1f);
+
         [Range(0f, 1f)] public float LowStaminaThreshold = 0.25f;
         [ColorUsage(false)] public Color ReadyColor = new Color(0.35f, 1f, 0.72f, 1f);
         [ColorUsage(false)] public Color BoostingColor = new Color(0.2f, 0.95f, 1f, 1f);

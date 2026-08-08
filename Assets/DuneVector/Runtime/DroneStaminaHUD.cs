@@ -22,6 +22,11 @@ namespace DuneVector
         private Material _arcMaterial;
         private Vector2 _screenCenter;
         private bool _hasScreenCenter;
+        private float _displayedStamina;
+        private float _chipStamina;
+        private float _chipHoldRemaining;
+        private Color _displayedColor;
+        private bool _hasDisplayedValues;
 
         public void Initialize(
             DroneCharacterController drone,
@@ -39,6 +44,8 @@ namespace DuneVector
             _stamina = stamina;
             _settings = settings;
             _previousState = stamina != null ? stamina.State : DroneStaminaState.Ready;
+            _hasDisplayedValues = false;
+            _chipHoldRemaining = 0f;
             if (_stamina != null)
             {
                 _stamina.Restored += HandleStaminaRestored;
@@ -68,6 +75,49 @@ namespace DuneVector
                 _visibleAlpha,
                 targetAlpha,
                 Mathf.Max(0f, _settings.VisibilityFadeSpeed) * Time.unscaledDeltaTime);
+
+            UpdateMeterReadout();
+        }
+
+        private void UpdateMeterReadout()
+        {
+            float stamina01 = Mathf.Clamp01(_stamina.NormalizedStamina);
+            Color stateColor = GetStateColor(stamina01);
+            if (!_hasDisplayedValues)
+            {
+                _displayedStamina = stamina01;
+                _chipStamina = stamina01;
+                _displayedColor = stateColor;
+                _hasDisplayedValues = true;
+                return;
+            }
+
+            float deltaTime = Time.unscaledDeltaTime;
+            _displayedStamina = Mathf.Lerp(
+                _displayedStamina,
+                stamina01,
+                DuneVectorMath.Sharpness(_settings.MeterFillSharpness, deltaTime));
+            _displayedColor = Color.Lerp(
+                _displayedColor,
+                stateColor,
+                DuneVectorMath.Sharpness(_settings.MeterColorBlendSharpness, deltaTime));
+
+            if (_chipStamina <= _displayedStamina)
+            {
+                _chipStamina = _displayedStamina;
+                _chipHoldRemaining = Mathf.Max(0f, _settings.ChipTrailDelay);
+            }
+            else if (_chipHoldRemaining > 0f)
+            {
+                _chipHoldRemaining -= deltaTime;
+            }
+            else
+            {
+                _chipStamina = Mathf.MoveTowards(
+                    _chipStamina,
+                    _displayedStamina,
+                    Mathf.Max(0f, _settings.ChipTrailCatchUpRate) * deltaTime);
+            }
         }
 
         private void LateUpdate()
@@ -130,8 +180,8 @@ namespace DuneVector
             if (_hasScreenCenter && _visibleAlpha > 0f && Event.current.type == EventType.Repaint)
             {
                 Vector2 center = _screenCenter;
-                float stamina01 = _stamina.NormalizedStamina;
-                Color meterColor = GetMeterColor(stamina01);
+                float stamina01 = Mathf.Clamp01(_displayedStamina);
+                Color meterColor = ApplyMeterEmphasis(_displayedColor, stamina01);
                 Color backgroundColor = _settings.MeterBackgroundColor;
                 backgroundColor.a *= _visibleAlpha;
                 meterColor.a *= _visibleAlpha;
@@ -139,9 +189,21 @@ namespace DuneVector
                 DrawBackgroundIcon(center, backgroundColor);
                 if (EnsureArcMaterial())
                 {
-                    float filledDegrees = _settings.MeterArcDegrees * stamina01;
+                    float totalDegrees = _settings.MeterArcDegrees;
+                    float filledDegrees = totalDegrees * stamina01;
                     float filledStartDegrees = _settings.MeterArcStartDegrees
-                        + (_settings.MeterArcDegrees - filledDegrees);
+                        + (totalDegrees - filledDegrees);
+                    if (_settings.ChipTrailEnabled && _chipStamina > stamina01)
+                    {
+                        float chipDegrees = totalDegrees * Mathf.Clamp01(_chipStamina);
+                        Color chipColor = _settings.ChipTrailColor;
+                        chipColor.a *= _visibleAlpha;
+                        DrawContinuousArc(
+                            center,
+                            _settings.MeterArcStartDegrees + (totalDegrees - chipDegrees),
+                            chipDegrees - filledDegrees,
+                            chipColor);
+                    }
                     DrawContinuousArc(center, filledStartDegrees, filledDegrees, meterColor);
                 }
             }
@@ -213,7 +275,32 @@ namespace DuneVector
             GUI.color = previousColor;
         }
 
-        private Color GetMeterColor(float stamina01)
+        private Color ApplyMeterEmphasis(Color meterColor, float stamina01)
+        {
+            bool low = _stamina.State == DroneStaminaState.Exhausted
+                || stamina01 <= _settings.LowStaminaThreshold;
+            if (low && _settings.LowPulseStrength > 0f)
+            {
+                float pulse = (Mathf.Sin(Time.unscaledTime * _settings.LowPulseSpeed * Mathf.PI * 2f) + 1f) * 0.5f;
+                meterColor = Color.Lerp(
+                    meterColor,
+                    Color.white,
+                    pulse * _settings.LowPulseStrength);
+            }
+
+            float restoreDuration = Mathf.Max(0.0001f, _settings.RestoredFeedbackDuration);
+            float flash = Mathf.Clamp01(_restoredFeedbackRemaining / restoreDuration)
+                * _settings.RestoreFlashStrength;
+            if (flash > 0f)
+            {
+                Color flashColor = _settings.RestoreFlashColor;
+                flashColor.a = meterColor.a;
+                meterColor = Color.Lerp(meterColor, flashColor, flash);
+            }
+            return meterColor;
+        }
+
+        private Color GetStateColor(float stamina01)
         {
             if (_stamina.State == DroneStaminaState.Exhausted)
             {
