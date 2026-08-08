@@ -26,7 +26,7 @@ namespace DuneVector
         {
             return type switch
             {
-                DuneLandmarkType.DesertRelayStation => "RUINS",
+                DuneLandmarkType.DesertRelayStation => "SCARAB BEETLE",
                 DuneLandmarkType.CrashedCarrier => "DC-10",
                 DuneLandmarkType.RaiderBeacon => "RAIDER BEACON",
                 DuneLandmarkType.AncientSpire => "ANCIENT SPIRE",
