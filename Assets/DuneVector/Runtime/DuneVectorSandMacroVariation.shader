@@ -4,6 +4,8 @@ Shader "DuneVector/URP Sand Macro Variation"
     {
         [MainTexture] _BaseMap("Dune Texture", 2D) = "white" {}
         [MainColor] _BaseColor("Base Color", Color) = (1, 1, 1, 1)
+        [Normal] _BumpMap("Dune Normal Map", 2D) = "bump" {}
+        _BumpScale("Dune Normal Strength", Range(0, 4)) = 1
         _Smoothness("Smoothness", Range(0, 1)) = 0.14
         _Metallic("Metallic", Range(0, 1)) = 0
 
@@ -56,12 +58,15 @@ Shader "DuneVector/URP Sand Macro Variation"
             #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
             #pragma multi_compile_fog
             #pragma multi_compile_instancing
+            #pragma shader_feature_local_fragment _NORMALMAP
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
 
             TEXTURE2D(_BaseMap);
             SAMPLER(sampler_BaseMap);
+            TEXTURE2D(_BumpMap);
+            SAMPLER(sampler_BumpMap);
 
             float4 _DVMusicPulseOrigins[4];
             float4 _DVMusicPulseParameters[4];
@@ -80,6 +85,8 @@ Shader "DuneVector/URP Sand Macro Variation"
                 float4 _DVSandDetailBrightnessNoiseOffset;
                 float4 _DVSandBrightnessRange;
                 float4 _DVSandSaturationRange;
+                float4 _BumpMap_ST;
+                half _BumpScale;
                 half _Smoothness;
                 half _Metallic;
                 half _DVSandVariationEnabled;
@@ -101,6 +108,7 @@ Shader "DuneVector/URP Sand Macro Variation"
             {
                 float3 positionOS : POSITION;
                 float3 normalOS : NORMAL;
+                float4 tangentOS : TANGENT;
                 float2 uv : TEXCOORD0;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -113,6 +121,8 @@ Shader "DuneVector/URP Sand Macro Variation"
                 float2 uv : TEXCOORD2;
                 half fogFactor : TEXCOORD3;
                 float2 logicalWorldXZ : TEXCOORD4;
+                half3 tangentWS : TEXCOORD5;
+                half3 bitangentWS : TEXCOORD6;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
@@ -175,7 +185,7 @@ Shader "DuneVector/URP Sand Macro Variation"
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
 
                 VertexPositionInputs positionInputs = GetVertexPositionInputs(input.positionOS);
-                VertexNormalInputs normalInputs = GetVertexNormalInputs(input.normalOS);
+                VertexNormalInputs normalInputs = GetVertexNormalInputs(input.normalOS, input.tangentOS);
                 output.positionCS = positionInputs.positionCS;
                 output.positionWS = positionInputs.positionWS;
                 output.normalWS = NormalizeNormalPerVertex(normalInputs.normalWS);
@@ -186,6 +196,16 @@ Shader "DuneVector/URP Sand Macro Variation"
                 float2 rotatedTextureUv = float2(
                     (input.uv.x * textureRotationCosine) - (input.uv.y * textureRotationSine),
                     (input.uv.x * textureRotationSine) + (input.uv.y * textureRotationCosine));
+
+                // The normal map is sampled with the rotated dune UVs, so spin the mesh
+                // tangent frame by the same angle to keep its ripple lighting aligned.
+                output.tangentWS = (half3)(
+                    (normalInputs.tangentWS * textureRotationCosine) -
+                    (normalInputs.bitangentWS * textureRotationSine));
+                output.bitangentWS = (half3)(
+                    (normalInputs.tangentWS * textureRotationSine) +
+                    (normalInputs.bitangentWS * textureRotationCosine));
+
                 output.uv = TRANSFORM_TEX(rotatedTextureUv, _BaseMap);
                 output.logicalWorldXZ = input.uv;
                 output.fogFactor = ComputeFogFactor(positionInputs.positionCS.z);
@@ -252,6 +272,16 @@ Shader "DuneVector/URP Sand Macro Variation"
                     _DVSandSmoothnessVariation * _DVSandVariationEnabled));
 
                 half3 normalWS = NormalizeNormalPerPixel(input.normalWS);
+#if defined(_NORMALMAP)
+                half3 normalTS = UnpackNormalScale(
+                    SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, input.uv),
+                    _BumpScale);
+                half3x3 tangentToWorld = half3x3(
+                    normalize(input.tangentWS),
+                    normalize(input.bitangentWS),
+                    normalWS);
+                normalWS = NormalizeNormalPerPixel(TransformTangentToWorld(normalTS, tangentToWorld));
+#endif
                 half3 viewDirectionWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
                 float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS);
                 Light mainLight = GetMainLight(shadowCoord);

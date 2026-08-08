@@ -6292,6 +6292,12 @@ namespace DuneVector
         [Tooltip("PNG texture used by the streamed dune terrain material.")]
         public Texture2D DuneTexture;
 
+        [Tooltip("Tangent-space normal map used by the streamed dune terrain material. Import it with texture type Normal map. Leave empty for flat sand.")]
+        public Texture2D DuneNormalMap;
+
+        [Tooltip("Strength of the dune normal map. 0 is flat, 1 is the authored depth, higher exaggerates the ripples.")]
+        [Range(0f, 4f)] public float DuneNormalStrength = 1f;
+
         [Tooltip("World-space width and length, in meters, covered by one repeat of the dune texture.")]
         [Min(0.01f)] public float DuneTextureTileSize = 18f;
 

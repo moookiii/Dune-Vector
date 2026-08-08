@@ -1413,6 +1413,7 @@ namespace DuneVector
             public readonly Vector3[] Vertices;
             public readonly Vector3[] Normals;
             public readonly Vector2[] Uvs;
+            public readonly Vector4[] Tangents;
             public readonly float[] PaddedHeights;
 
             public TerrainBuildBuffers(int resolution)
@@ -1422,6 +1423,7 @@ namespace DuneVector
                 Vertices = new Vector3[row * row];
                 Normals = new Vector3[row * row];
                 Uvs = new Vector2[row * row];
+                Tangents = new Vector4[row * row];
                 PaddedHeights = new float[paddedRow * paddedRow];
             }
         }
@@ -2133,6 +2135,19 @@ namespace DuneVector
 
             StitchEdges(vertices, normals, resolution, edges);
 
+            // The dune UVs run straight along world X and Z, so the tangent is world X
+            // orthogonalized against the surface normal. That is exact here and far cheaper
+            // than Mesh.RecalculateTangents on every streamed chunk.
+            Vector4[] tangents = buffers.Tangents;
+            for (int index = 0; index < vertexCount; index++)
+            {
+                Vector3 normal = normals[index];
+                Vector3 tangent = Vector3.right - (normal * normal.x);
+                float magnitude = tangent.magnitude;
+                tangent = magnitude > 1e-5f ? tangent / magnitude : Vector3.right;
+                tangents[index] = new Vector4(tangent.x, tangent.y, tangent.z, -1f);
+            }
+
             Mesh mesh = new Mesh { name = $"Dune Terrain [{coordinate.x}, {coordinate.y}]" };
             if (vertexCount > 65535)
             {
@@ -2141,6 +2156,7 @@ namespace DuneVector
             mesh.vertices = vertices;
             mesh.normals = normals;
             mesh.uv = uvs;
+            mesh.tangents = tangents;
             mesh.triangles = triangles;
             mesh.bounds = new Bounds(
                 new Vector3(chunkSize * 0.5f, (minimumHeight + maximumHeight) * 0.5f, chunkSize * 0.5f),

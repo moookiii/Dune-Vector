@@ -451,6 +451,19 @@ namespace DuneVector
                 material.SetTextureScale("_BaseMap", tiling);
             }
 
+            if (settings.DuneNormalMap != null)
+            {
+                Vector2 tiling = Vector2.one / Mathf.Max(0.01f, settings.DuneTextureTileSize);
+                material.SetTexture("_BumpMap", settings.DuneNormalMap);
+                material.SetTextureScale("_BumpMap", tiling);
+                material.SetFloat("_BumpScale", settings.DuneNormalStrength);
+                material.EnableKeyword("_NORMALMAP");
+            }
+            else
+            {
+                material.DisableKeyword("_NORMALMAP");
+            }
+
             material.SetFloat("_DVSandTextureRotationDegrees", settings.DuneTextureRotationDegrees);
 
             material.SetFloat("_DVSandVariationEnabled", settings.DuneColorVariationEnabled ? 1f : 0f);

@@ -171,6 +171,8 @@ namespace DuneVector.Editor
         private SerializedProperty _permanentUpgrades;
         private SerializedProperty _dunes;
         private SerializedProperty _duneTexture;
+        private SerializedProperty _duneNormalMap;
+        private SerializedProperty _duneNormalStrength;
         private SerializedProperty _duneTextureTileSize;
         private SerializedProperty _duneTextureRotationDegrees;
         private SerializedProperty _duneColorVariationEnabled;
@@ -246,6 +248,8 @@ namespace DuneVector.Editor
             _permanentUpgrades = serializedObject.FindProperty("PermanentUpgrades");
             _dunes = serializedObject.FindProperty("DuneGeneration");
             _duneTexture = serializedObject.FindProperty("DuneTexture");
+            _duneNormalMap = serializedObject.FindProperty("DuneNormalMap");
+            _duneNormalStrength = serializedObject.FindProperty("DuneNormalStrength");
             _duneTextureTileSize = serializedObject.FindProperty("DuneTextureTileSize");
             _duneTextureRotationDegrees = serializedObject.FindProperty("DuneTextureRotationDegrees");
             _duneColorVariationEnabled = serializedObject.FindProperty("DuneColorVariationEnabled");
@@ -587,6 +591,8 @@ namespace DuneVector.Editor
                     EditorStyles.wordWrappedMiniLabel);
                 EditorGUILayout.Space(3f);
                 EditorGUILayout.PropertyField(_duneTexture);
+                EditorGUILayout.PropertyField(_duneNormalMap);
+                EditorGUILayout.PropertyField(_duneNormalStrength);
                 EditorGUILayout.PropertyField(_duneTextureTileSize);
                 EditorGUILayout.PropertyField(_duneTextureRotationDegrees);
                 EditorGUILayout.Space(4f);
