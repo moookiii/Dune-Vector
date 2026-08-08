@@ -2056,16 +2056,16 @@ namespace DuneVector
     [System.Serializable]
     public sealed class RendererFrustumCullingTuning
     {
-        [Tooltip("Disable rendering for scene renderers outside the gameplay camera's padded frustum.")]
-        public bool Enabled = true;
+        [Tooltip("Disable rendering for scene renderers outside the gameplay camera's padded frustum. Off by default: Unity already frustum-culls every renderer on worker threads, so this only adds main-thread work and cannot remove a draw call Unity would have kept. Enable it only to diagnose renderer counts.")]
+        public bool Enabled = false;
 
-        [Tooltip("World-space distance added beyond every frustum plane so camera movement reveals objects before they enter view.")]
+        [Tooltip("World-space distance added beyond every frustum plane so camera movement reveals objects before they enter view. Any value above zero makes this pass strictly more permissive than Unity's own culling.")]
         [Min(0f)] public float Padding = 30f;
 
-        [Tooltip("How often newly spawned renderers are added to the culling set. Raise this if the scene scan shows up as a periodic frame spike.")]
-        [Min(0.05f)] public float RendererRefreshInterval = 0.5f;
+        [Tooltip("How often newly spawned renderers are added to the culling set. This scan walks every renderer in the scene, so low values show up as a periodic frame spike in a streaming world.")]
+        [Min(0.05f)] public float RendererRefreshInterval = 2f;
 
-        [Tooltip("Frames the tracked renderer set is spread across. 1 tests every renderer every frame; higher values flatten the per-frame cost and need matching Padding so objects are revealed before they enter view.")]
+        [Tooltip("Frames the tracked renderer set is spread across. Only 1/N of the tracked renderers are bounds-tested per frame; higher values flatten the per-frame cost and need matching Padding so objects are revealed before they enter view.")]
         [Range(1, 8)] public int FrustumTestSlicesPerCycle = 4;
     }
 

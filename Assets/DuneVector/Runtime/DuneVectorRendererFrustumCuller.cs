@@ -10,7 +10,6 @@ namespace DuneVector
         private sealed class TrackedRenderer
         {
             public Renderer Renderer;
-            public bool OriginalForceRenderingOff;
             public bool AppliedForceRenderingOff;
         }
 
@@ -28,7 +27,6 @@ namespace DuneVector
         {
             _camera = targetCamera;
             _settings = settings;
-            RefreshRenderers();
         }
 
         private void LateUpdate()
@@ -39,20 +37,22 @@ namespace DuneVector
                 if (_cullingWasActive)
                 {
                     RestoreRendererOverrides();
+                    _trackedRenderers.Clear();
                 }
 
                 _cullingWasActive = false;
                 return;
             }
 
-            _cullingWasActive = true;
-            if (Time.unscaledTime >= _nextRendererRefreshTime)
+            if (!_cullingWasActive)
+            {
+                _cullingWasActive = true;
+                RefreshRenderers();
+            }
+            else if (Time.unscaledTime >= _nextRendererRefreshTime)
             {
                 RefreshRenderers();
             }
-
-            GeometryUtility.CalculateFrustumPlanes(_camera, _frustumPlanes);
-            ExpandFrustum(_frustumPlanes, _settings.Padding);
 
             int slices = Mathf.Max(1, _settings.FrustumTestSlicesPerCycle);
             if (_sliceCursor >= slices)
@@ -60,23 +60,26 @@ namespace DuneVector
                 _sliceCursor = 0;
             }
 
-            for (int i = _trackedRenderers.Count - 1; i >= 0; i--)
+            int count = _trackedRenderers.Count;
+            if (count == 0)
+            {
+                _sliceCursor++;
+                return;
+            }
+
+            GeometryUtility.CalculateFrustumPlanes(_camera, _frustumPlanes);
+            ExpandFrustum(_frustumPlanes, _settings.Padding);
+
+            for (int i = _sliceCursor; i < count; i += slices)
             {
                 TrackedRenderer tracked = _trackedRenderers[i];
                 Renderer renderer = tracked.Renderer;
                 if (renderer == null)
                 {
-                    _trackedRenderers.RemoveAt(i);
                     continue;
                 }
 
-                if (i % slices != _sliceCursor)
-                {
-                    continue;
-                }
-
-                bool insidePaddedFrustum = GeometryUtility.TestPlanesAABB(_frustumPlanes, renderer.bounds);
-                bool shouldForceOff = tracked.OriginalForceRenderingOff || !insidePaddedFrustum;
+                bool shouldForceOff = !GeometryUtility.TestPlanesAABB(_frustumPlanes, renderer.bounds);
                 if (shouldForceOff == tracked.AppliedForceRenderingOff)
                 {
                     continue;
@@ -104,11 +107,16 @@ namespace DuneVector
                 _trackedEntityIds.Add(renderer.GetEntityId());
             }
 
-            Renderer[] sceneRenderers = FindObjectsByType<Renderer>(FindObjectsInactive.Include);
+            Renderer[] sceneRenderers = FindObjectsByType<Renderer>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
             for (int i = 0; i < sceneRenderers.Length; i++)
             {
                 Renderer renderer = sceneRenderers[i];
-                if (!renderer.gameObject.scene.IsValid() || !_trackedEntityIds.Add(renderer.GetEntityId()))
+                if (renderer.forceRenderingOff || !renderer.gameObject.scene.IsValid())
+                {
+                    continue;
+                }
+
+                if (!_trackedEntityIds.Add(renderer.GetEntityId()))
                 {
                     continue;
                 }
@@ -116,8 +124,7 @@ namespace DuneVector
                 _trackedRenderers.Add(new TrackedRenderer
                 {
                     Renderer = renderer,
-                    OriginalForceRenderingOff = renderer.forceRenderingOff,
-                    AppliedForceRenderingOff = renderer.forceRenderingOff,
+                    AppliedForceRenderingOff = false,
                 });
             }
 
@@ -127,6 +134,11 @@ namespace DuneVector
 
         private static void ExpandFrustum(Plane[] planes, float padding)
         {
+            if (padding <= 0f)
+            {
+                return;
+            }
+
             for (int i = 0; i < planes.Length; i++)
             {
                 Plane plane = planes[i];
@@ -151,12 +163,12 @@ namespace DuneVector
             for (int i = 0; i < _trackedRenderers.Count; i++)
             {
                 TrackedRenderer tracked = _trackedRenderers[i];
-                if (tracked.Renderer != null)
+                if (tracked.Renderer != null && tracked.AppliedForceRenderingOff)
                 {
-                    tracked.Renderer.forceRenderingOff = tracked.OriginalForceRenderingOff;
+                    tracked.Renderer.forceRenderingOff = false;
                 }
 
-                tracked.AppliedForceRenderingOff = tracked.OriginalForceRenderingOff;
+                tracked.AppliedForceRenderingOff = false;
             }
         }
     }
