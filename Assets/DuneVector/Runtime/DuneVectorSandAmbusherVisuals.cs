@@ -307,9 +307,10 @@ namespace DuneVector
             visualObject.transform.SetParent(transform, false);
             _visualRoot = visualObject.transform;
 
-            if (_settings.SandAmbusherBodyPrefab != null)
+            GameObject bodyPrefab = ResolveBodyPrefab();
+            if (bodyPrefab != null)
             {
-                BuildPrefabBody();
+                BuildPrefabBody(bodyPrefab);
                 return;
             }
 
@@ -379,9 +380,22 @@ namespace DuneVector
             BuildCrown(seed + 701);
         }
 
-        private void BuildPrefabBody()
+        private GameObject ResolveBodyPrefab()
         {
-            GameObject body = Instantiate(_settings.SandAmbusherBodyPrefab, _visualRoot, false);
+            if (_settings.SandAmbusherBodyPrefab != null)
+            {
+                return _settings.SandAmbusherBodyPrefab;
+            }
+            if (string.IsNullOrWhiteSpace(_settings.SandAmbusherBodyPrefabResourcePath))
+            {
+                return null;
+            }
+            return Resources.Load<GameObject>(_settings.SandAmbusherBodyPrefabResourcePath.Trim());
+        }
+
+        private void BuildPrefabBody(GameObject prefab)
+        {
+            GameObject body = Instantiate(prefab, _visualRoot, false);
             body.name = "Sand Ambusher Body";
             _body = body.transform;
             _body.localPosition = _settings.SandAmbusherBodyPrefabLocalPosition;
