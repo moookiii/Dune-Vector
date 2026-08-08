@@ -1728,8 +1728,8 @@ namespace DuneVector
             y += buttonHeight + gap;
 
             // The trailing entries open settings screens rather than acting on the run,
-            // so a hairline keeps them visually separate from the run controls above.
-            y = DrawGroupSeparator(content, y, scale);
+            // so extra breathing room keeps them separate from the run controls above.
+            y += gap * 1.5f;
 
             if (DrawMenuButton(
                     new Rect(content.x, y, content.width, buttonHeight),
@@ -2769,19 +2769,10 @@ namespace DuneVector
             return y + height + (_visuals.ButtonGap * scale);
         }
 
-        private float DrawGroupSeparator(Rect content, float y, float scale)
-        {
-            float gap = _visuals.ButtonGap * scale;
-            DrawFadedDivider(new Rect(content.x, y + (gap * 0.5f), content.width, Mathf.Max(1f, scale)));
-            return y + (gap * 1.5f);
-        }
-
         private void DrawFooterHint(Rect content, string text, float scale)
         {
             float hintHeight = _hintStyle.lineHeight;
             Rect hintRect = new Rect(content.x, content.yMax - hintHeight, content.width, hintHeight);
-            DrawFadedDivider(
-                new Rect(content.x, hintRect.y - (10f * scale), content.width, Mathf.Max(1f, scale)));
             DrawTrackedLabel(hintRect, text, _hintStyle, _visuals.HintTracking * scale, _visuals.SecondaryTextColor);
         }
 
