@@ -831,10 +831,12 @@ namespace DuneVector
             float altitudeProgress)
         {
             float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
+            float minimumDistance = DuneVectorEnemySpawnClearance.ApplyMinimumDistance(
+                _settings.MinimumSpawnDistance);
             float distance = Mathf.Lerp(
-                _settings.MinimumSpawnDistance,
+                minimumDistance,
                 Mathf.Max(
-                    _settings.MinimumSpawnDistance,
+                    minimumDistance,
                     _settings.MaximumSpawnDistance),
                 (float)random.NextDouble());
             Vector3 playerPosition = _player.WorldCenter;

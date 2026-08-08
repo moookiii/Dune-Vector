@@ -56,6 +56,7 @@ namespace DuneVector
         public PlayerStrikeOrbTuning PlayerStrikeOrbs => RuntimeSettings.PlayerStrikeOrbs;
         public VesperKiteTuning VesperKites => RuntimeSettings.VesperKites;
         public GroundExploderTuning GroundExploders => RuntimeSettings.GroundExploders;
+        public EnemySpawnSafetyTuning EnemySpawnSafety => RuntimeSettings.EnemySpawnSafety;
         public RingTuning Rings => RuntimeSettings.Rings;
         public DuneFieldSettings DuneGeneration
         {
@@ -465,6 +466,7 @@ namespace DuneVector
             World.Shrubs = DesertShrubs;
             World.Landmarks = Contracts.Enabled && WorldHubSettings.Enabled ? LandmarkSettings : null;
             World.GroundExploders = GroundExploders;
+            DuneVectorEnemySpawnClearance.Configure(EnemySpawnSafety);
             World.Initialize(_materials);
         }
 

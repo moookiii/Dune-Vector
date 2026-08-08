@@ -166,6 +166,7 @@ namespace DuneVector.Editor
         private SerializedProperty _playerStrikeOrbs;
         private SerializedProperty _vesperKites;
         private SerializedProperty _groundExploders;
+        private SerializedProperty _enemySpawnSafety;
         private SerializedProperty _rings;
         private SerializedProperty _permanentUpgrades;
         private SerializedProperty _dunes;
@@ -240,6 +241,7 @@ namespace DuneVector.Editor
             _playerStrikeOrbs = serializedObject.FindProperty("PlayerStrikeOrbs");
             _vesperKites = serializedObject.FindProperty("VesperKites");
             _groundExploders = serializedObject.FindProperty("GroundExploders");
+            _enemySpawnSafety = serializedObject.FindProperty("EnemySpawnSafety");
             _rings = serializedObject.FindProperty("Rings");
             _permanentUpgrades = serializedObject.FindProperty("PermanentUpgrades");
             _dunes = serializedObject.FindProperty("DuneGeneration");
@@ -555,6 +557,10 @@ namespace DuneVector.Editor
                 "Ground Exploders",
                 "Patrol motion, proximity wind-up, radial damage, and presentation.",
                 _groundExploders);
+            DuneVectorSettingsInspector.DrawSection(
+                "Player Spawn Clearance",
+                "Radius around contract and free roam deployment points that stays free of enemies.",
+                _enemySpawnSafety);
             DuneVectorSettingsInspector.DrawSection(
                 "Route Encounter Formations",
                 "Encounter volumes, five approach formations, attack passes, break-off behavior, and rewards.",

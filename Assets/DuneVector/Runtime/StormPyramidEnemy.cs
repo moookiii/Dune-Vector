@@ -2424,9 +2424,11 @@ namespace DuneVector
             float normalizedHeight)
         {
             float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
+            float minimumDistance = DuneVectorEnemySpawnClearance.ApplyMinimumDistance(
+                _settings.MinimumSpawnDistance);
             float distance = Mathf.Lerp(
-                _settings.MinimumSpawnDistance,
-                Mathf.Max(_settings.MinimumSpawnDistance, _settings.MaximumSpawnDistance),
+                minimumDistance,
+                Mathf.Max(minimumDistance, _settings.MaximumSpawnDistance),
                 (float)random.NextDouble());
             Vector3 playerPosition = _player.WorldCenter;
             Vector3 spawnPosition = playerPosition + new Vector3(
@@ -2464,9 +2466,11 @@ namespace DuneVector
             float normalizedHeight)
         {
             float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
+            float minimumDistance = DuneVectorEnemySpawnClearance.ApplyMinimumDistance(
+                _orbSettings.MinimumSpawnDistance);
             float distance = Mathf.Lerp(
-                _orbSettings.MinimumSpawnDistance,
-                Mathf.Max(_orbSettings.MinimumSpawnDistance, _orbSettings.MaximumSpawnDistance),
+                minimumDistance,
+                Mathf.Max(minimumDistance, _orbSettings.MaximumSpawnDistance),
                 (float)random.NextDouble());
             Vector3 playerPosition = _player.WorldCenter;
             Vector3 spawnPosition = playerPosition + new Vector3(

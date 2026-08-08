@@ -2428,6 +2428,11 @@ namespace DuneVector
             if (toHub)
             {
                 SetCombatSystemsActive(false);
+                DuneVectorEnemySpawnClearance.Clear();
+            }
+            else
+            {
+                PublishDesertSpawnClearance();
             }
             State = toHub ? CourierRunState.ReturnToBase : CourierRunState.TeleportingToDesert;
             _teleportTimer = 0f;
@@ -2573,6 +2578,8 @@ namespace DuneVector
                 if (!toHub)
                 {
                     EnsureDesertSpawnClearOfPortals();
+                    PublishDesertSpawnClearance();
+                    _world.RemoveEnemiesInsidePlayerSpawnClearance();
                 }
                 Vector3 position = toHub ? _hubSpawn : _desertSpawn;
                 Quaternion rotation = toHub ? Quaternion.identity : _desertRotation;
@@ -2633,6 +2640,16 @@ namespace DuneVector
                         : "CONTRACT DEPLOYED — LOCATE CARGO",
                     3f);
             }
+        }
+
+        /// <summary>
+        /// Publishes the desert deployment point so enemy placement keeps the authored radius around
+        /// it clear for both contract insertions and free roam deployments.
+        /// </summary>
+        private void PublishDesertSpawnClearance()
+        {
+            LogicalPosition spawnLogical = LocalToLogical(_desertSpawn);
+            DuneVectorEnemySpawnClearance.SetSpawnPoint(spawnLogical.X, spawnLogical.Z);
         }
 
         private void EnsureDesertSpawnClearOfPortals()

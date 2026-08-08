@@ -326,7 +326,8 @@ namespace DuneVector
             }
 
             float explosionRadius = GroundExploders.EvaluateExplosionRadius(DuneVectorContractRisk.CurrentRisk);
-            float minimum = Mathf.Max(GroundExploders.DetectionRadius + explosionRadius, minimumDistance);
+            float minimum = DuneVectorEnemySpawnClearance.ApplyMinimumDistance(
+                Mathf.Max(GroundExploders.DetectionRadius + explosionRadius, minimumDistance));
             float maximum = Mathf.Max(minimum, maximumDistance);
             LogicalPosition playerLogical = LogicalPlayerPosition;
             int spawned = 0;
@@ -384,6 +385,46 @@ namespace DuneVector
                     Enemy = enemy,
                 });
                 spawned++;
+            }
+        }
+
+        /// <summary>
+        /// Removes already-streamed ground enemies that sit inside the protected radius around the
+        /// drone's desert deployment point. Chunks streamed afterwards skip the radius while placing.
+        /// </summary>
+        public void RemoveEnemiesInsidePlayerSpawnClearance()
+        {
+            if (!DuneVectorEnemySpawnClearance.HasSpawnPoint)
+            {
+                return;
+            }
+
+            foreach (DesertChunk chunk in _chunks.Values)
+            {
+                chunk.RemoveGroundExplodersInsidePlayerSpawnClearance();
+            }
+
+            for (int i = _contractGroundExploders.Count - 1; i >= 0; i--)
+            {
+                ContractGroundExploderSpawn spawn = _contractGroundExploders[i];
+                if (spawn.Enemy == null)
+                {
+                    continue;
+                }
+
+                Vector3 local = spawn.Enemy.transform.localPosition;
+                double logicalX = (spawn.ChunkCoordinate.x * (double)ChunkSize) + local.x;
+                double logicalZ = (spawn.ChunkCoordinate.y * (double)ChunkSize) + local.z;
+                if (!DuneVectorEnemySpawnClearance.IsBlocked(logicalX, logicalZ))
+                {
+                    continue;
+                }
+
+                if (spawn.Root != null)
+                {
+                    Destroy(spawn.Root.gameObject);
+                }
+                _contractGroundExploders.RemoveAt(i);
             }
         }
 
@@ -1568,6 +1609,30 @@ namespace DuneVector
             }
         }
 
+        public void RemoveGroundExplodersInsidePlayerSpawnClearance()
+        {
+            double originX = Coordinate.x * (double)_chunkSize;
+            double originZ = Coordinate.y * (double)_chunkSize;
+            for (int i = _groundExploders.Count - 1; i >= 0; i--)
+            {
+                GroundExploderEnemy enemy = _groundExploders[i];
+                if (enemy == null)
+                {
+                    _groundExploders.RemoveAt(i);
+                    continue;
+                }
+
+                Vector3 local = enemy.transform.localPosition;
+                if (!DuneVectorEnemySpawnClearance.IsBlocked(originX + local.x, originZ + local.z))
+                {
+                    continue;
+                }
+
+                UnityEngine.Object.Destroy(enemy.gameObject);
+                _groundExploders.RemoveAt(i);
+            }
+        }
+
         public void LateTick(float deltaTime, Camera viewCamera)
         {
             _cloudField?.Tick(deltaTime);
@@ -2476,6 +2541,11 @@ namespace DuneVector
 
                 double logicalX = originX + local.x;
                 double logicalZ = originZ + local.y;
+                if (DuneVectorEnemySpawnClearance.IsBlocked(logicalX, logicalZ))
+                {
+                    continue;
+                }
+
                 Vector3 normal = heightField.SampleNormal(logicalX, logicalZ);
                 if (Vector3.Angle(normal, Vector3.up) > settings.MaximumGroundSlope)
                 {

@@ -311,9 +311,11 @@ namespace DuneVector
             for (int i = 0; i < count; i++)
             {
                 float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
+                float minimumDistance = DuneVectorEnemySpawnClearance.ApplyMinimumDistance(
+                    settings.MinimumSpawnDistance);
                 float distance = Mathf.Lerp(
-                    settings.MinimumSpawnDistance,
-                    Mathf.Max(settings.MinimumSpawnDistance, settings.MaximumSpawnDistance),
+                    minimumDistance,
+                    Mathf.Max(minimumDistance, settings.MaximumSpawnDistance),
                     (float)random.NextDouble());
                 Vector3 playerPosition = player.WorldCenter;
                 Vector3 spawnPosition = playerPosition + new Vector3(Mathf.Cos(angle) * distance, 0f, Mathf.Sin(angle) * distance);
@@ -364,9 +366,11 @@ namespace DuneVector
             for (int i = 0; i < bonusCount; i++)
             {
                 float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
+                float minimumDistance = DuneVectorEnemySpawnClearance.ApplyMinimumDistance(
+                    _settings.MinimumSpawnDistance);
                 float distance = Mathf.Lerp(
-                    _settings.MinimumSpawnDistance,
-                    Mathf.Max(_settings.MinimumSpawnDistance, _settings.MaximumSpawnDistance),
+                    minimumDistance,
+                    Mathf.Max(minimumDistance, _settings.MaximumSpawnDistance),
                     (float)random.NextDouble());
                 Vector3 playerPosition = _player.WorldCenter;
                 Vector3 spawnPosition = playerPosition + new Vector3(

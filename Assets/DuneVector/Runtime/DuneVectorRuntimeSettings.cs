@@ -1762,6 +1762,14 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class EnemySpawnSafetyTuning
+    {
+        [Header("Player Deployment Clearance")]
+        [Tooltip("Radius around the drone's contract or free roam deployment point that must stay free of enemies. Enemies inside the radius are never placed there, and any that already exist are removed when the drone arrives.")]
+        [Min(0f)] public float PlayerSpawnClearanceRadius = 20f;
+    }
+
+    [System.Serializable]
     public sealed class RouteEncounterTuning
     {
         public bool Enabled = true;
@@ -6217,6 +6225,9 @@ namespace DuneVector
         [Tooltip("Ground enemy spawning, patrol, and explosion behavior.")]
         public GroundExploderTuning GroundExploders = new GroundExploderTuning();
 
+        [Tooltip("Enemy-free clearance around the drone's desert deployment point.")]
+        public EnemySpawnSafetyTuning EnemySpawnSafety = new EnemySpawnSafetyTuning();
+
         [Tooltip("Boost and flight ring sizes, height ranges, and animation.")]
         public RingTuning Rings = new RingTuning();
 
@@ -6378,6 +6389,7 @@ namespace DuneVector
             PlayerStrikeOrbs ??= new PlayerStrikeOrbTuning();
             VesperKites ??= new VesperKiteTuning();
             GroundExploders ??= new GroundExploderTuning();
+            EnemySpawnSafety ??= new EnemySpawnSafetyTuning();
             Rings ??= new RingTuning();
             PermanentUpgrades ??= new DronePermanentUpgradeTuning();
             PermanentUpgrades.EnsureInitialized();
