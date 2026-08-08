@@ -1415,6 +1415,7 @@ namespace DuneVector
             public readonly Vector2[] Uvs;
             public readonly Vector4[] Tangents;
             public readonly float[] PaddedHeights;
+            public readonly int[] EdgeNormalSteps;
 
             public TerrainBuildBuffers(int resolution)
             {
@@ -1425,6 +1426,7 @@ namespace DuneVector
                 Uvs = new Vector2[row * row];
                 Tangents = new Vector4[row * row];
                 PaddedHeights = new float[paddedRow * paddedRow];
+                EdgeNormalSteps = new int[row * row];
             }
         }
 
@@ -2038,6 +2040,84 @@ namespace DuneVector
             StitchEdge(vertices, normals, edges.PositiveZ, resolution, resolution * row, 1);
         }
 
+        /// <summary>
+        /// Rebuilds the surface normal at every vertex this chunk shares with a coarser neighbour
+        /// using that neighbour's wider sample spacing. The heights already match exactly on those
+        /// vertices, but a normal taken from this chunk's tighter finite difference does not match
+        /// the one the coarse side takes from its own, which lights the shared row differently on
+        /// each side and draws a hard streak along the boundary. Sampling at the neighbour's
+        /// spacing makes both sides compute the identical normal.
+        /// </summary>
+        private static void ApplyCoarseNeighbourNormals(
+            Vector3[] normals,
+            int[] edgeNormalSteps,
+            int resolution,
+            TerrainEdgeSteps edges,
+            DuneHeightField heightField,
+            double logicalOriginX,
+            double logicalOriginZ,
+            float step)
+        {
+            int row = resolution + 1;
+            Array.Clear(edgeNormalSteps, 0, row * row);
+            bool any = MarkCoarseEdge(edgeNormalSteps, edges.NegativeX, resolution, 0, row);
+            any |= MarkCoarseEdge(edgeNormalSteps, edges.PositiveX, resolution, resolution, row);
+            any |= MarkCoarseEdge(edgeNormalSteps, edges.NegativeZ, resolution, 0, 1);
+            any |= MarkCoarseEdge(edgeNormalSteps, edges.PositiveZ, resolution, resolution * row, 1);
+            if (!any)
+            {
+                return;
+            }
+
+            for (int z = 0; z <= resolution; z++)
+            {
+                for (int x = 0; x <= resolution; x++)
+                {
+                    int index = (z * row) + x;
+                    int coarseStep = edgeNormalSteps[index];
+                    if (coarseStep <= 1)
+                    {
+                        continue;
+                    }
+
+                    double logicalX = logicalOriginX + (x * step);
+                    double logicalZ = logicalOriginZ + (z * step);
+                    double span = coarseStep * (double)step;
+                    float left = (float)heightField.SampleHeight(logicalX - span, logicalZ);
+                    float right = (float)heightField.SampleHeight(logicalX + span, logicalZ);
+                    float back = (float)heightField.SampleHeight(logicalX, logicalZ - span);
+                    float forward = (float)heightField.SampleHeight(logicalX, logicalZ + span);
+                    Vector3 tangentX = new Vector3((float)span * 2f, right - left, 0f);
+                    Vector3 tangentZ = new Vector3(0f, forward - back, (float)span * 2f);
+                    normals[index] = Vector3.Cross(tangentZ, tangentX).normalized;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Tags the vertices this chunk shares with one coarser neighbour. A corner touched by two
+        /// coarse edges takes the wider of the two spacings so it stays deterministic.
+        /// </summary>
+        private static bool MarkCoarseEdge(
+            int[] edgeNormalSteps,
+            int step,
+            int resolution,
+            int baseIndex,
+            int stride)
+        {
+            if (step <= 1 || resolution % step != 0)
+            {
+                return false;
+            }
+
+            for (int i = 0; i <= resolution; i += step)
+            {
+                int index = baseIndex + (i * stride);
+                edgeNormalSteps[index] = Mathf.Max(edgeNormalSteps[index], step);
+            }
+            return true;
+        }
+
         private static void StitchEdge(
             Vector3[] vertices,
             Vector3[] normals,
@@ -2133,6 +2213,15 @@ namespace DuneVector
                 }
             }
 
+            ApplyCoarseNeighbourNormals(
+                normals,
+                buffers.EdgeNormalSteps,
+                resolution,
+                edges,
+                heightField,
+                logicalOriginX,
+                logicalOriginZ,
+                step);
             StitchEdges(vertices, normals, resolution, edges);
 
             // The dune UVs run straight along world X and Z, so the tangent is world X
