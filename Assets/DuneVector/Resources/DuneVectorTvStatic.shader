@@ -8,6 +8,11 @@ Shader "DuneVector/URP TV Static"
         _SignalStrength("Signal Strength", Range(0, 1)) = 0
         _StaticAmount("Static Amount", Range(0, 1)) = 1
 
+        [Header(Tiling)]
+        _EffectTiling("Effect Tiling (XY) Offset (ZW)", Vector) = (1, 1, 0, 0)
+        _StaticTiling("Static Tiling (XY) Offset (ZW)", Vector) = (1, 1, 0, 0)
+        _VignetteAspect("Vignette Aspect", Float) = 1
+
         [Header(Static Grain)]
         _NoiseResolutionX("Noise Resolution X", Float) = 256
         _NoiseResolutionY("Noise Resolution Y", Float) = 144
@@ -98,6 +103,8 @@ Shader "DuneVector/URP TV Static"
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _MainTex_ST;
+                float4 _EffectTiling;
+                float4 _StaticTiling;
                 float4 _SignalTint;
                 float4 _StaticDarkColor;
                 float4 _StaticLightColor;
@@ -131,6 +138,7 @@ Shader "DuneVector/URP TV Static"
                 float _VignetteStrength;
                 float _VignetteScale;
                 float _VignettePower;
+                float _VignetteAspect;
                 float _EmissionIntensity;
                 float _Opacity;
                 float _AlphaFromStatic;
@@ -153,7 +161,8 @@ Shader "DuneVector/URP TV Static"
             {
                 float4 positionCS : SV_POSITION;
                 float2 uv : TEXCOORD0;
-                float fogFactor : TEXCOORD1;
+                float2 signalUV : TEXCOORD1;
+                float fogFactor : TEXCOORD2;
                 float4 color : COLOR;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -176,7 +185,8 @@ Shader "DuneVector/URP TV Static"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 output.positionCS = TransformObjectToHClip(input.positionOS);
-                output.uv = TRANSFORM_TEX(input.uv, _MainTex);
+                output.uv = input.uv;
+                output.signalUV = TRANSFORM_TEX(input.uv, _MainTex);
                 output.fogFactor = ComputeFogFactor(output.positionCS.z);
                 output.color = input.color;
                 return output;
@@ -186,7 +196,9 @@ Shader "DuneVector/URP TV Static"
             {
                 UNITY_SETUP_INSTANCE_ID(input);
 
+                // Raw mesh UV frames the vignette; the effect UV drives everything animated.
                 float2 uv = input.uv;
+                float2 effectUV = (uv * _EffectTiling.xy) + _EffectTiling.zw;
                 float timeSeconds = _Time.y * _TimeScale;
 
                 // Quantize the noise clock so the grain steps at a chosen frame rate.
@@ -197,7 +209,7 @@ Shader "DuneVector/URP TV Static"
                 noiseTime += _Seed;
 
                 // Rolling brightness bar sweeping up the screen.
-                float rollDistance = abs(frac(uv.y - (timeSeconds * _RollBarSpeed) + 0.5) - 0.5) * 2.0;
+                float rollDistance = abs(frac(effectUV.y - (timeSeconds * _RollBarSpeed) + 0.5) - 0.5) * 2.0;
                 float rollBar = 1.0 - smoothstep(
                     saturate(_RollBarHeight),
                     saturate(_RollBarHeight) + _RollBarSoftness,
@@ -206,25 +218,27 @@ Shader "DuneVector/URP TV Static"
                 // Per-row horizontal tearing.
                 float tearRows = max(1.0, _TearRows);
                 float tearClock = floor(timeSeconds * max(0.0, _TearSpeed));
-                float rowIndex = floor(uv.y * tearRows);
+                float rowIndex = floor(effectUV.y * tearRows);
                 float rowSelect = Hash21(float2(rowIndex, tearClock));
                 float tearMask = step(1.0 - saturate(_TearDensity), rowSelect);
                 float tearOffset = (Hash21(float2((rowIndex * 1.7) + 3.1, tearClock + 7.3)) - 0.5) *
                     _TearAmount * tearMask;
 
-                float2 displacedUV = uv;
-                displacedUV.x += tearOffset + (rollBar * _RollBarOffset);
+                float displacement = tearOffset + (rollBar * _RollBarOffset);
 
                 // Signal texture with optional chromatic split.
+                float2 signalUV = input.signalUV + float2(displacement, 0.0);
                 float2 aberration = float2(_ChromaticAberration, 0.0);
-                float4 signalR = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, displacedUV + aberration);
-                float4 signalG = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, displacedUV);
-                float4 signalB = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, displacedUV - aberration);
+                float4 signalR = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, signalUV + aberration);
+                float4 signalG = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, signalUV);
+                float4 signalB = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, signalUV - aberration);
                 float4 signal = float4(signalR.r, signalG.g, signalB.b, signalG.a) * _SignalTint;
 
                 // Static grain sampled on a quantized pixel grid.
+                float2 staticUV = (effectUV * _StaticTiling.xy) + _StaticTiling.zw;
+                staticUV.x += displacement;
                 float2 grid = float2(max(1.0, _NoiseResolutionX), max(1.0, _NoiseResolutionY));
-                float2 cell = floor(displacedUV * grid);
+                float2 cell = floor(staticUV * grid);
                 float luminanceNoise = Hash21(cell + float2(noiseTime, noiseTime * 0.7));
                 float3 channelNoise = float3(
                     Hash21(cell + float2(noiseTime, noiseTime * 0.7)),
@@ -243,7 +257,8 @@ Shader "DuneVector/URP TV Static"
                 color *= 1.0 + (rollBar * _RollBarStrength);
 
                 // Scanlines.
-                float scanPhase = (uv.y + (timeSeconds * _ScanlineScrollSpeed)) * max(0.0, _ScanlineCount);
+                float scanPhase = (effectUV.y + (timeSeconds * _ScanlineScrollSpeed)) *
+                    max(0.0, _ScanlineCount);
                 float scan = (sin(scanPhase * 6.2831853) * 0.5) + 0.5;
                 scan = pow(saturate(scan), max(0.1, _ScanlineSharpness));
                 color *= lerp(1.0, scan, saturate(_ScanlineStrength));
@@ -255,6 +270,7 @@ Shader "DuneVector/URP TV Static"
 
                 // Vignette.
                 float2 centered = (uv * 2.0) - 1.0;
+                centered.x *= max(0.0001, _VignetteAspect);
                 float vignette = 1.0 - (saturate(pow(saturate(length(centered) * _VignetteScale),
                     max(0.1, _VignettePower))) * saturate(_VignetteStrength));
                 color *= vignette;
