@@ -192,6 +192,16 @@ namespace DuneVector
         private readonly HashSet<Vector2Int> _desiredVisualCoordinates = new HashSet<Vector2Int>();
         private readonly HashSet<Vector2Int> _retainedVisualCoordinates = new HashSet<Vector2Int>();
         private readonly Plane[] _streamingFrustumPlanes = new Plane[6];
+
+        /// <summary>
+        /// Unpadded logical height range per chunk coordinate. The height field is static, so these
+        /// samples never change and are kept rather than re-sampled every streaming pass. Logical
+        /// heights are origin-independent, so a floating-origin shift does not invalidate them.
+        /// </summary>
+        private const int ChunkHeightCacheCapacity = 32768;
+
+        private readonly Dictionary<Vector2Int, Vector2> _chunkHeightRangeCache =
+            new Dictionary<Vector2Int, Vector2>();
         private readonly HashSet<string> _activatedFlightRingIdentities = new HashSet<string>();
         private readonly List<ContractGroundExploderSpawn> _contractGroundExploders = new List<ContractGroundExploderSpawn>();
         private Vector2Int _candidateSortCenter;
@@ -253,6 +263,7 @@ namespace DuneVector
             GroundExploders ??= new GroundExploderTuning();
             Dunes.WorldSeed = WorldSeed;
             HeightField = new DuneHeightField(Dunes);
+            _chunkHeightRangeCache.Clear();
 
             GameObject root = new GameObject("Streamed Desert Chunks");
             _chunkRoot = root.transform;
@@ -713,6 +724,14 @@ namespace DuneVector
 
         private void ScheduleStreaming(bool force)
         {
+            // A long traversal would otherwise grow the height cache without bound. One streaming
+            // pass touches roughly a couple thousand coordinates, so dropping it wholesale here
+            // costs a single re-sample pass and keeps the footprint flat.
+            if (_chunkHeightRangeCache.Count > ChunkHeightCacheCapacity)
+            {
+                _chunkHeightRangeCache.Clear();
+            }
+
             Vector2Int playerChunk = GetPlayerLogicalChunk();
             CurrentLogicalChunk = playerChunk;
             bool centerChanged = force || playerChunk != _lastScheduledChunk;
@@ -904,15 +923,22 @@ namespace DuneVector
             double logicalCenterX = logicalMinX + (ChunkSize * 0.5);
             double logicalCenterZ = logicalMinZ + (ChunkSize * 0.5);
 
-            float height0 = (float)HeightField.SampleHeight(logicalMinX, logicalMinZ);
-            float height1 = (float)HeightField.SampleHeight(logicalMaxX, logicalMinZ);
-            float height2 = (float)HeightField.SampleHeight(logicalMinX, logicalMaxZ);
-            float height3 = (float)HeightField.SampleHeight(logicalMaxX, logicalMaxZ);
-            float height4 = (float)HeightField.SampleHeight(logicalCenterX, logicalCenterZ);
-            float minimumHeight = Mathf.Min(height0, height1, height2, height3, height4) -
-                Mathf.Max(0f, CameraFrustumTerrainHeightPadding);
-            float maximumHeight = Mathf.Max(height0, height1, height2, height3, height4) +
-                Mathf.Max(0f, CameraFrustumTerrainHeightPadding);
+            if (!_chunkHeightRangeCache.TryGetValue(coordinate, out Vector2 heightRange))
+            {
+                float height0 = (float)HeightField.SampleHeight(logicalMinX, logicalMinZ);
+                float height1 = (float)HeightField.SampleHeight(logicalMaxX, logicalMinZ);
+                float height2 = (float)HeightField.SampleHeight(logicalMinX, logicalMaxZ);
+                float height3 = (float)HeightField.SampleHeight(logicalMaxX, logicalMaxZ);
+                float height4 = (float)HeightField.SampleHeight(logicalCenterX, logicalCenterZ);
+                heightRange = new Vector2(
+                    Mathf.Min(height0, height1, height2, height3, height4),
+                    Mathf.Max(height0, height1, height2, height3, height4));
+                _chunkHeightRangeCache[coordinate] = heightRange;
+            }
+
+            float heightPadding = Mathf.Max(0f, CameraFrustumTerrainHeightPadding);
+            float minimumHeight = heightRange.x - heightPadding;
+            float maximumHeight = heightRange.y + heightPadding;
             Vector3 center = new Vector3(
                 (float)(logicalCenterX - OriginOffsetX),
                 (minimumHeight + maximumHeight) * 0.5f,
