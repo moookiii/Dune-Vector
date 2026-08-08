@@ -139,6 +139,7 @@ namespace DuneVector
         private readonly Dictionary<int, Source> _sources = new Dictionary<int, Source>();
         private readonly Dictionary<Vector2Int, Cell> _cells = new Dictionary<Vector2Int, Cell>();
         private readonly List<Cell> _dirtyCells = new List<Cell>();
+        private readonly Plane[] _cullingPlanes = new Plane[6];
         private SpatialGpuInstancingTuning _settings;
         private int _nextHandle = 1;
         private bool _forceTransformRefresh;
@@ -480,13 +481,27 @@ namespace DuneVector
                 Camera lodCamera = _lodCamera;
                 Vector3 lodCameraPosition = lodCamera != null ? lodCamera.transform.position : Vector3.zero;
                 bool refreshLods = ShouldRefreshLodBatches(lodCameraPosition, lodCamera != null);
+                bool cullCells = _settings.FrustumCullCells && lodCamera != null;
+                if (cullCells)
+                {
+                    GeometryUtility.CalculateFrustumPlanes(lodCamera, _cullingPlanes);
+                }
+
+                float maximumDrawDistance = Mathf.Max(0f, _settings.MaximumCellDrawDistance);
+                float maximumDrawDistanceSquared = maximumDrawDistance * maximumDrawDistance;
                 foreach (Cell cell in _cells.Values)
                 {
                     if (cell.HasBounds)
                     {
                         for (int batchIndex = 0; batchIndex < cell.ActiveBatches.Count; batchIndex++)
                         {
-                            SubmitBatch(cell.ActiveBatches[batchIndex], maximum);
+                            Batch batch = cell.ActiveBatches[batchIndex];
+                            if (cullCells && !IsBatchVisible(batch, cell.WorldBounds, lodCameraPosition, maximumDrawDistanceSquared))
+                            {
+                                continue;
+                            }
+
+                            SubmitBatch(batch, maximum);
                         }
                     }
 
@@ -496,7 +511,15 @@ namespace DuneVector
                     }
                     for (int batchIndex = 0; batchIndex < cell.ActiveLodBatches.Count; batchIndex++)
                     {
-                        SubmitBatch(cell.ActiveLodBatches[batchIndex], maximum);
+                        Batch lodBatch = cell.ActiveLodBatches[batchIndex];
+                        if (cullCells
+                            && lodBatch.HasWorldBounds
+                            && !IsBatchVisible(lodBatch, lodBatch.WorldBounds, lodCameraPosition, maximumDrawDistanceSquared))
+                        {
+                            continue;
+                        }
+
+                        SubmitBatch(lodBatch, maximum);
                     }
                 }
                 if (refreshLods)
@@ -507,6 +530,34 @@ namespace DuneVector
                     _nextLodRefreshTime = Time.unscaledTime + Mathf.Max(0.02f, _settings.LodRefreshInterval);
                 }
             }
+        }
+
+        /// <summary>
+        /// Tests a batch's world bounds against the camera frustum. Shadow casters use a wider
+        /// pad so geometry just off screen still throws shadows into view.
+        /// </summary>
+        private bool IsBatchVisible(
+            Batch batch,
+            Bounds worldBounds,
+            Vector3 cameraPosition,
+            float maximumDrawDistanceSquared)
+        {
+            bool castsShadows = batch.Key.ShadowCastingMode != ShadowCastingMode.Off;
+            if (maximumDrawDistanceSquared > 0f && !castsShadows)
+            {
+                if ((worldBounds.ClosestPoint(cameraPosition) - cameraPosition).sqrMagnitude
+                    > maximumDrawDistanceSquared)
+                {
+                    return false;
+                }
+            }
+
+            float padding = castsShadows
+                ? Mathf.Max(_settings.FrustumCullPadding, _settings.ShadowCasterFrustumCullPadding)
+                : _settings.FrustumCullPadding;
+            Bounds paddedBounds = worldBounds;
+            paddedBounds.Expand(Mathf.Max(0f, padding) * 2f);
+            return GeometryUtility.TestPlanesAABB(_cullingPlanes, paddedBounds);
         }
 
         private bool ShouldRefreshLodBatches(Vector3 cameraPosition, bool hasCamera)

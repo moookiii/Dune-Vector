@@ -544,7 +544,7 @@ namespace DuneVector.Editor
                 "High-altitude patrol and telegraphed straight-down ground lightning.",
                 _stormPyramids);
             DuneVectorSettingsInspector.DrawSection(
-                "Strike Orbs",
+                "Strike Rings",
                 "Air-only player detection, live intercept prediction, orbiting satellites, and targeted lightning.",
                 _playerStrikeOrbs);
             DuneVectorSettingsInspector.DrawSection(

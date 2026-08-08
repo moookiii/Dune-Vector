@@ -1426,6 +1426,11 @@ namespace DuneVector
         private bool _identifiedGlyphAwaitingContinue;
         private bool _identifiedContinueArmed;
         private CameraPresentationState _presentationState;
+        // Replace-prompt hit rects, in HUD space, published by the last draw so Update can resolve
+        // clicks from the input system instead of relying on IMGUI events reaching this OnGUI.
+        private Rect _replaceKeepRegion;
+        private Rect _replaceReplaceRegion;
+        private bool _replaceRegionsValid;
         private Texture2D _capturedTexture;
         private Texture2D _captureHoldTexture;
         private FilmGrain _cameraFilmGrain;
@@ -1626,16 +1631,31 @@ namespace DuneVector
                 {
                     ReturnToLiveCamera();
                 }
-                else if (_presentationState == CameraPresentationState.ReplacePrompt && keyboard != null)
+                else if (_presentationState == CameraPresentationState.ReplacePrompt)
                 {
-                    if (keyboard.enterKey.wasPressedThisFrame ||
-                        keyboard.numpadEnterKey.wasPressedThisFrame)
+                    if (keyboard != null &&
+                        (keyboard.enterKey.wasPressedThisFrame ||
+                         keyboard.numpadEnterKey.wasPressedThisFrame))
                     {
                         ConfirmPhotographReplacement();
                     }
-                    else if (keyboard.escapeKey.wasPressedThisFrame)
+                    else if (keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
                     {
                         ReturnToLiveCamera();
+                    }
+                    else if (_replaceRegionsValid &&
+                        mouse != null &&
+                        mouse.leftButton.wasPressedThisFrame)
+                    {
+                        Vector2 hudPointer = ScreenToHudPoint(mouse.position.ReadValue());
+                        if (_replaceReplaceRegion.Contains(hudPointer))
+                        {
+                            ConfirmPhotographReplacement();
+                        }
+                        else if (_replaceKeepRegion.Contains(hudPointer))
+                        {
+                            ReturnToLiveCamera();
+                        }
                     }
                 }
                 return;
@@ -1737,6 +1757,7 @@ namespace DuneVector
         {
             EndIdentificationPause();
             _cameraModeActive = false;
+            _replaceRegionsValid = false;
             _camera.fieldOfView = _baseFieldOfView;
             _cameraController.SetPhotographyMode(false, _settings.CameraDistance, _settings.CameraHeight, _settings.MinPitch, _settings.MaxPitch);
             RestorePlayerRenderers();
@@ -1846,6 +1867,7 @@ namespace DuneVector
             _pendingPhotograph = null;
             _identifiedGlyphAwaitingContinue = false;
             _identifiedContinueArmed = false;
+            _replaceRegionsValid = false;
         }
 
         private void BeginIdentificationPause()
@@ -2189,7 +2211,9 @@ namespace DuneVector
                 buttonWidth,
                 _settings.ReplaceDecisionButtonHeight);
 
-            Vector2 pointer = Event.current.mousePosition;
+            Vector2 pointer = Mouse.current != null
+                ? ScreenToHudPoint(Mouse.current.position.ReadValue())
+                : Event.current.mousePosition;
             bool replaceHovered = replace.Contains(pointer) || newCard.Contains(pointer);
             bool keepHovered = keep.Contains(pointer) || currentCard.Contains(pointer);
 
@@ -2238,13 +2262,18 @@ namespace DuneVector
                 elapsed,
                 progress);
 
-            bool cardClicked = Event.current.type == EventType.MouseDown && Event.current.button == 0;
-            if (replacePressed || (cardClicked && newCard.Contains(pointer)))
+            // Each photograph and the command beneath it act as one target, resolved in Update from
+            // the input system so a click lands even when IMGUI never sees the mouse event.
+            _replaceKeepRegion = Union(currentCard, keep);
+            _replaceReplaceRegion = Union(newCard, replace);
+            _replaceRegionsValid = true;
+
+            if (replacePressed)
             {
                 ConfirmPhotographReplacement();
                 return;
             }
-            if (keepPressed || (cardClicked && currentCard.Contains(pointer)))
+            if (keepPressed)
             {
                 ReturnToLiveCamera();
             }
@@ -2598,6 +2627,23 @@ namespace DuneVector
             float right = Mathf.Min(first.xMax, second.xMax);
             float bottom = Mathf.Min(first.yMax, second.yMax);
             return Rect.MinMaxRect(left, top, Mathf.Max(left, right), Mathf.Max(top, bottom));
+        }
+
+        private static Rect Union(Rect first, Rect second)
+        {
+            return Rect.MinMaxRect(
+                Mathf.Min(first.xMin, second.xMin),
+                Mathf.Min(first.yMin, second.yMin),
+                Mathf.Max(first.xMax, second.xMax),
+                Mathf.Max(first.yMax, second.yMax));
+        }
+
+        // Input system coordinates are bottom-left origin in real pixels; the HUD draws top-left
+        // origin in scaled units.
+        private Vector2 ScreenToHudPoint(Vector2 screenPoint)
+        {
+            float scale = Mathf.Max(0.0001f, _hudScale);
+            return new Vector2(screenPoint.x / scale, (Screen.height - screenPoint.y) / scale);
         }
 
         private void DrawComparisonCard(

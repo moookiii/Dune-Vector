@@ -202,9 +202,10 @@ namespace DuneVector
                             center,
                             _settings.MeterArcStartDegrees + (totalDegrees - chipDegrees),
                             chipDegrees - filledDegrees,
-                            chipColor);
+                            chipColor,
+                            false);
                     }
-                    DrawContinuousArc(center, filledStartDegrees, filledDegrees, meterColor);
+                    DrawContinuousArc(center, filledStartDegrees, filledDegrees, meterColor, true);
                 }
             }
 
@@ -344,7 +345,8 @@ namespace DuneVector
             Vector2 center,
             float startDegrees,
             float arcDegrees,
-            Color color)
+            Color color,
+            bool leadingTip)
         {
             if (Mathf.Abs(arcDegrees) <= 0.001f || color.a <= 0f)
             {
@@ -353,52 +355,231 @@ namespace DuneVector
 
             int fullResolution = Mathf.Max(32, _settings.MeterArcResolution);
             int steps = Mathf.Max(1, Mathf.CeilToInt(fullResolution * (Mathf.Abs(arcDegrees) / 360f)));
+            int capSteps = Mathf.Max(8, fullResolution / 8);
             float radius = Mathf.Max(0f, _settings.MeterRadius);
             float halfThickness = Mathf.Max(0.5f, _settings.MeterThickness * 0.5f);
+            float feather = Mathf.Max(0f, _settings.MeterEdgeFeather);
+
+            // The arc drains from its low-degree end, so that end is the live leading tip.
+            Color tipColor = color;
+            Color tailColor = color * (1f - Mathf.Clamp01(_settings.MeterGradientStrength));
+            tailColor.a = color.a;
 
             _arcMaterial.SetPass(0);
             GL.PushMatrix();
             GL.LoadPixelMatrix(0f, Screen.width, Screen.height, 0f);
             GL.Begin(GL.QUADS);
-            GL.Color(color);
-            for (int index = 0; index < steps; index++)
+
+            if (_settings.MeterGlowOpacity > 0f && _settings.MeterGlowThicknessMultiplier > 1f)
             {
-                float angle0 = (startDegrees + (arcDegrees * (index / (float)steps))) * Mathf.Deg2Rad;
-                float angle1 = (startDegrees + (arcDegrees * ((index + 1f) / steps))) * Mathf.Deg2Rad;
-                Vector2 radial0 = new Vector2(Mathf.Cos(angle0), Mathf.Sin(angle0));
-                Vector2 radial1 = new Vector2(Mathf.Cos(angle1), Mathf.Sin(angle1));
-
-                GL.Vertex(center + (radial0 * (radius - halfThickness)));
-                GL.Vertex(center + (radial0 * (radius + halfThickness)));
-                GL.Vertex(center + (radial1 * (radius + halfThickness)));
-                GL.Vertex(center + (radial1 * (radius - halfThickness)));
+                EmitHalo(
+                    center,
+                    startDegrees,
+                    arcDegrees,
+                    steps,
+                    capSteps,
+                    radius,
+                    halfThickness * _settings.MeterGlowThicknessMultiplier,
+                    ScaleAlpha(tipColor, _settings.MeterGlowOpacity),
+                    ScaleAlpha(tailColor, _settings.MeterGlowOpacity));
             }
-            GL.End();
 
-            Vector2 startRadial = new Vector2(
-                Mathf.Cos(startDegrees * Mathf.Deg2Rad),
-                Mathf.Sin(startDegrees * Mathf.Deg2Rad));
-            float endAngle = (startDegrees + arcDegrees) * Mathf.Deg2Rad;
-            Vector2 endRadial = new Vector2(Mathf.Cos(endAngle), Mathf.Sin(endAngle));
-            int capSteps = Mathf.Max(8, fullResolution / 8);
-            GL.Begin(GL.TRIANGLES);
-            GL.Color(color);
-            DrawRoundCap(center + (startRadial * radius), halfThickness, capSteps);
-            DrawRoundCap(center + (endRadial * radius), halfThickness, capSteps);
+            EmitRibbon(
+                center,
+                startDegrees,
+                arcDegrees,
+                steps,
+                capSteps,
+                radius,
+                halfThickness,
+                feather,
+                tipColor,
+                tailColor,
+                1f);
+
+            if (leadingTip && _settings.MeterTipHighlightStrength > 0f)
+            {
+                Color highlight = Color.Lerp(
+                    tipColor,
+                    _settings.MeterTipHighlightColor,
+                    Mathf.Clamp01(_settings.MeterTipHighlightStrength));
+                highlight.a = tipColor.a;
+                Vector2 tip = center + Radial(startDegrees) * radius;
+                EmitDisc(
+                    tip,
+                    halfThickness * Mathf.Max(0f, _settings.MeterTipHighlightScale),
+                    feather,
+                    highlight,
+                    capSteps);
+            }
+
             GL.End();
             GL.PopMatrix();
         }
 
-        private static void DrawRoundCap(Vector2 center, float radius, int steps)
+        /// <summary>
+        /// Emits a soft halo centred on the arc line: opaque along the arc itself and fading to
+        /// nothing <paramref name="glowHalfThickness"/> pixels to either side.
+        /// </summary>
+        private static void EmitHalo(
+            Vector2 center,
+            float startDegrees,
+            float arcDegrees,
+            int steps,
+            int capSteps,
+            float radius,
+            float glowHalfThickness,
+            Color startColor,
+            Color endColor)
+        {
+            EmitBand(
+                center,
+                startDegrees,
+                arcDegrees,
+                steps,
+                radius,
+                radius + glowHalfThickness,
+                1f,
+                0f,
+                startColor,
+                endColor);
+            EmitBand(
+                center,
+                startDegrees,
+                arcDegrees,
+                steps,
+                Mathf.Max(0f, radius - glowHalfThickness),
+                radius,
+                0f,
+                1f,
+                startColor,
+                endColor);
+            EmitDisc(center + (Radial(startDegrees) * radius), 0f, glowHalfThickness, startColor, capSteps);
+            EmitDisc(center + (Radial(startDegrees + arcDegrees) * radius), 0f, glowHalfThickness, endColor, capSteps);
+        }
+
+        /// <summary>
+        /// Emits a rounded arc ribbon whose radial edges fade out over <paramref name="feather"/>
+        /// pixels, with <paramref name="coreAlpha"/> controlling the opacity of the solid middle
+        /// band. A zero core alpha produces a pure halo.
+        /// </summary>
+        private static void EmitRibbon(
+            Vector2 center,
+            float startDegrees,
+            float arcDegrees,
+            int steps,
+            int capSteps,
+            float radius,
+            float halfThickness,
+            float feather,
+            Color startColor,
+            Color endColor,
+            float coreAlpha)
+        {
+            float inner = radius - halfThickness;
+            float outer = radius + halfThickness;
+            EmitBand(center, startDegrees, arcDegrees, steps, inner, outer, coreAlpha, coreAlpha, startColor, endColor);
+            if (feather > 0f)
+            {
+                EmitBand(center, startDegrees, arcDegrees, steps, outer, outer + feather, coreAlpha, 0f, startColor, endColor);
+                EmitBand(
+                    center,
+                    startDegrees,
+                    arcDegrees,
+                    steps,
+                    Mathf.Max(0f, inner - feather),
+                    inner,
+                    0f,
+                    coreAlpha,
+                    startColor,
+                    endColor);
+            }
+
+            EmitDisc(center + (Radial(startDegrees) * radius), halfThickness, feather, ScaleAlpha(startColor, coreAlpha), capSteps);
+            EmitDisc(
+                center + (Radial(startDegrees + arcDegrees) * radius),
+                halfThickness,
+                feather,
+                ScaleAlpha(endColor, coreAlpha),
+                capSteps);
+        }
+
+        private static void EmitBand(
+            Vector2 center,
+            float startDegrees,
+            float arcDegrees,
+            int steps,
+            float innerRadius,
+            float outerRadius,
+            float innerAlpha,
+            float outerAlpha,
+            Color startColor,
+            Color endColor)
         {
             for (int index = 0; index < steps; index++)
             {
-                float angle0 = (index / (float)steps) * Mathf.PI * 2f;
-                float angle1 = ((index + 1f) / steps) * Mathf.PI * 2f;
-                GL.Vertex(center);
-                GL.Vertex(center + new Vector2(Mathf.Cos(angle0), Mathf.Sin(angle0)) * radius);
-                GL.Vertex(center + new Vector2(Mathf.Cos(angle1), Mathf.Sin(angle1)) * radius);
+                float t0 = index / (float)steps;
+                float t1 = (index + 1f) / steps;
+                Vector2 radial0 = Radial(startDegrees + (arcDegrees * t0));
+                Vector2 radial1 = Radial(startDegrees + (arcDegrees * t1));
+                Color color0 = Color.Lerp(startColor, endColor, t0);
+                Color color1 = Color.Lerp(startColor, endColor, t1);
+
+                GL.Color(ScaleAlpha(color0, innerAlpha));
+                GL.Vertex(center + (radial0 * innerRadius));
+                GL.Color(ScaleAlpha(color0, outerAlpha));
+                GL.Vertex(center + (radial0 * outerRadius));
+                GL.Color(ScaleAlpha(color1, outerAlpha));
+                GL.Vertex(center + (radial1 * outerRadius));
+                GL.Color(ScaleAlpha(color1, innerAlpha));
+                GL.Vertex(center + (radial1 * innerRadius));
             }
+        }
+
+        private static void EmitDisc(Vector2 center, float radius, float feather, Color color, int steps)
+        {
+            if (color.a <= 0f)
+            {
+                return;
+            }
+
+            Color edgeColor = ScaleAlpha(color, 0f);
+            for (int index = 0; index < steps; index++)
+            {
+                Vector2 radial0 = Radial((index / (float)steps) * 360f);
+                Vector2 radial1 = Radial(((index + 1f) / steps) * 360f);
+
+                GL.Color(color);
+                GL.Vertex(center);
+                GL.Vertex(center);
+                GL.Vertex(center + (radial0 * radius));
+                GL.Vertex(center + (radial1 * radius));
+
+                if (feather <= 0f)
+                {
+                    continue;
+                }
+
+                GL.Color(color);
+                GL.Vertex(center + (radial0 * radius));
+                GL.Color(edgeColor);
+                GL.Vertex(center + (radial0 * (radius + feather)));
+                GL.Vertex(center + (radial1 * (radius + feather)));
+                GL.Color(color);
+                GL.Vertex(center + (radial1 * radius));
+            }
+        }
+
+        private static Vector2 Radial(float degrees)
+        {
+            float radians = degrees * Mathf.Deg2Rad;
+            return new Vector2(Mathf.Cos(radians), Mathf.Sin(radians));
+        }
+
+        private static Color ScaleAlpha(Color color, float alphaScale)
+        {
+            color.a *= alphaScale;
+            return color;
         }
 
         private void OnDestroy()

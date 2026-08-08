@@ -2072,6 +2072,18 @@ namespace DuneVector
         [Tooltip("Camera movement required before static distance-LOD batches are rebuilt.")]
         [Range(0.1f, 32f)] public float LodCameraMovementThreshold = 4f;
 
+        [Tooltip("Skip submitting instanced cells whose bounds fall outside the camera frustum. Pyramids, cacti, obelisks and buildings are drawn through this path, so they are only culled when this is on.")]
+        public bool FrustumCullCells = true;
+
+        [Tooltip("World-space distance added beyond every frustum plane before a cell is skipped. Covers camera rotation between frames.")]
+        [Min(0f)] public float FrustumCullPadding = 24f;
+
+        [Tooltip("Extra padding used for shadow-casting cells so off-screen geometry still casts into view. Raise this if shadows pop at the screen edge.")]
+        [Min(0f)] public float ShadowCasterFrustumCullPadding = 150f;
+
+        [Tooltip("Cells farther than this from the camera are never submitted. Zero disables the distance cut.")]
+        [Min(0f)] public float MaximumCellDrawDistance;
+
         [Tooltip("Keep one captured source renderer visible and offset its instanced copy for visual transform comparison.")]
         public bool EnableDebugComparison;
 
@@ -5378,6 +5390,21 @@ namespace DuneVector
         [ColorUsage(false)] public Color RestoreNotificationColor = new Color(1f, 0.82f, 0.12f, 1f);
         [Tooltip("{0} is replaced with the amount of stamina restored.")]
         public string RestoreNotificationFormat = "STAMINA RESTORED: {0}";
+
+        [Header("Meter Styling")]
+        [Tooltip("Width in pixels of the soft fade on the arc's edges. Removes the hard aliased outline.")]
+        [Range(0f, 8f)] public float MeterEdgeFeather = 1.75f;
+        [Tooltip("How much the arc darkens from its live leading tip back toward its far end.")]
+        [Range(0f, 1f)] public float MeterGradientStrength = 0.3f;
+        [Tooltip("Opacity of the soft halo drawn under the arc. Set to 0 for no glow.")]
+        [Range(0f, 1f)] public float MeterGlowOpacity = 0.3f;
+        [Tooltip("Halo reach as a multiple of the arc's half thickness.")]
+        [Min(1f)] public float MeterGlowThicknessMultiplier = 3.2f;
+        [Tooltip("How far the leading tip of the arc is tinted toward the highlight color. Set to 0 to disable.")]
+        [Range(0f, 1f)] public float MeterTipHighlightStrength = 0.7f;
+        [Tooltip("Size of the leading tip highlight as a multiple of the arc's half thickness.")]
+        [Min(0f)] public float MeterTipHighlightScale = 1.25f;
+        [ColorUsage(false)] public Color MeterTipHighlightColor = new Color(1f, 1f, 0.92f, 1f);
 
         [Header("Meter Feel")]
         [Tooltip("How quickly the drawn fill chases the true stamina value. Higher is snappier, lower is smoother.")]
