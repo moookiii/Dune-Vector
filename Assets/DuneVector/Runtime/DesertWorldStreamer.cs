@@ -475,8 +475,15 @@ namespace DuneVector
                 {
                     Vector2Int collisionCoordinate = _collisionQueue.Dequeue();
                     _queuedCollisionCoordinates.Remove(collisionCoordinate);
-                    if (_chunks.ContainsKey(collisionCoordinate) ||
-                        ChebyshevDistance(collisionCoordinate, playerChunk) > Mathf.Max(UnloadRadius, PreloadRadius + 2))
+                    if (ChebyshevDistance(collisionCoordinate, playerChunk) > Mathf.Max(UnloadRadius, PreloadRadius + 2))
+                    {
+                        continue;
+                    }
+
+                    // An already-loaded chunk may still be visual-only, so it is upgraded rather
+                    // than skipped. Chunks that already have a collider cost nothing here.
+                    if (_chunks.TryGetValue(collisionCoordinate, out DesertChunk existingChunk) &&
+                        existingChunk.IsCollisionReady)
                     {
                         continue;
                     }
@@ -917,13 +924,29 @@ namespace DuneVector
             return new Bounds(center, size);
         }
 
+        /// <summary>
+        /// Only the chunk the player actually stands on has to exist this frame, or the player
+        /// falls through. The eight neighbours go through the collision queue so they are built
+        /// under the generation time budget instead of costing nine terrain meshes in the single
+        /// frame the player crosses a chunk boundary.
+        /// </summary>
         private void EnsureCollisionNeighborhood(Vector2Int playerChunk)
         {
+            GenerateChunkImmediate(playerChunk, false);
             for (int z = -1; z <= 1; z++)
             {
                 for (int x = -1; x <= 1; x++)
                 {
-                    GenerateChunkImmediate(playerChunk + new Vector2Int(x, z), false);
+                    if (x == 0 && z == 0)
+                    {
+                        continue;
+                    }
+
+                    Vector2Int coordinate = playerChunk + new Vector2Int(x, z);
+                    if (_queuedCollisionCoordinates.Add(coordinate))
+                    {
+                        _collisionQueue.Enqueue(coordinate);
+                    }
                 }
             }
         }
@@ -1300,6 +1323,8 @@ namespace DuneVector
         private Mesh _terrainMesh;
         private Mesh _collisionMesh;
         private MeshCollider _terrainCollider;
+
+        public bool IsCollisionReady => _terrainCollider != null;
         private readonly MeshFilter _terrainFilter;
         private readonly MeshRenderer _terrainRenderer;
         private readonly int _visualResolution;
