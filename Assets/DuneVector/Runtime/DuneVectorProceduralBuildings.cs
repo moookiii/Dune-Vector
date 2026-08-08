@@ -247,6 +247,16 @@ namespace DuneVector
                     continue;
                 }
 
+                float footprintRadius = GetPrefabFootprintRadius(prefab);
+                if (DuneVectorWorldOccupancy.Overlaps(
+                        logicalX,
+                        logicalZ,
+                        footprintRadius + Mathf.Max(0f, _settings.PortalClearance),
+                        WorldOccupancyKind.Portal))
+                {
+                    continue;
+                }
+
                 Vector3 normal = _world.HeightField.SampleNormal(logicalX, logicalZ);
                 float slope = Vector3.Angle(normal, Vector3.up);
                 if (slope > Mathf.Clamp(_settings.MaximumPlacementSlope, 0f, 50f))
@@ -278,6 +288,11 @@ namespace DuneVector
 
                 int hueIndex = SelectHueIndex(cell, saltOffset);
                 AppendBuilding(buildingCell, prefab, sources, rootMatrix, hueIndex);
+                buildingCell.OccupancyHandles.Add(DuneVectorWorldOccupancy.Register(
+                    logicalX,
+                    logicalZ,
+                    footprintRadius,
+                    WorldOccupancyKind.Structure));
                 return true;
             }
 
@@ -765,6 +780,7 @@ namespace DuneVector
             {
                 Destroy(buildingCell.ComparisonRoot);
             }
+            DuneVectorWorldOccupancy.ReleaseAll(buildingCell.OccupancyHandles);
             buildingCell.Buckets.Clear();
         }
 
@@ -864,6 +880,8 @@ namespace DuneVector
         {
             public readonly Dictionary<RenderKey, List<Matrix4x4>> Buckets =
                 new Dictionary<RenderKey, List<Matrix4x4>>();
+
+            public readonly List<int> OccupancyHandles = new List<int>();
 
             public Bounds WorldBounds;
             public bool HasBounds;

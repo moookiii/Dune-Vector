@@ -1717,6 +1717,8 @@ namespace DuneVector
         [Min(0f)] public float GeoglyphClearance = 35f;
         [Tooltip("Extra horizontal clearance between a building's measured prefab footprint and every landmark exclusion footprint.")]
         [Min(0f)] public float LandmarkClearance = 20f;
+        [Tooltip("Extra horizontal clearance between a building's measured prefab footprint and the space every already-placed portal reserves.")]
+        [Min(0f)] public float PortalClearance = 6f;
         [Range(0f, 50f)] public float MaximumPlacementSlope = 35f;
         [Tooltip("Alternative deterministic positions tried when a candidate lands inside an exclusion zone or on an excessive slope.")]
         [Range(1, 8)] public int PlacementAttemptsPerBuilding = 4;
@@ -3591,6 +3593,10 @@ namespace DuneVector
         [Min(0f)] public float MinimumDroneSpawnSeparation = 14f;
         [Tooltip("Minimum horizontal distance from the hub center where traversal ring centers may spawn.")]
         [Min(0f)] public float HubExclusionRadius = 38f;
+        [Tooltip("Multiplier applied to a portal's visual radius when reserving clear space around it. A portal spins to face the camera, so the reserved space is a sphere covering every direction the portal can face. Pyramids, obelisks, buildings, and landmarks may not overlap it.")]
+        [Min(1f)] public float PortalStructureClearanceMultiplier = 1.15f;
+        [Tooltip("Extra world units added to a portal's reserved clear space on top of its scaled visual radius.")]
+        [Min(0f)] public float PortalStructureClearancePadding = 2f;
 
         [Header("Billboarding")]
         [Tooltip("Distance from the drone center at which rings freeze their current orientation instead of continuing to face the camera.")]

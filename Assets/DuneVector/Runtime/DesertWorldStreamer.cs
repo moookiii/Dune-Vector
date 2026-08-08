@@ -239,6 +239,7 @@ namespace DuneVector
             }
 
             _initialized = true;
+            DuneVectorWorldOccupancy.Clear();
             _materials = materials ?? throw new ArgumentNullException(nameof(materials));
             _materials.SetTerrainLogicalOrigin(OriginOffsetX, OriginOffsetZ);
             SetVolumetricCloudsLogicalOrigin();
@@ -1254,6 +1255,7 @@ namespace DuneVector
 
         private readonly List<TraversalRing> _rings = new List<TraversalRing>();
         private readonly List<GroundExploderEnemy> _groundExploders = new List<GroundExploderEnemy>();
+        private readonly List<int> _occupancyHandles = new List<int>();
         private Mesh _terrainMesh;
         private Mesh _collisionMesh;
         private MeshCollider _terrainCollider;
@@ -1689,6 +1691,7 @@ namespace DuneVector
 
         public void Dispose()
         {
+            DuneVectorWorldOccupancy.ReleaseAll(_occupancyHandles);
             _shrubs?.Dispose();
             _shrubs = null;
             if (Root != null)
@@ -2100,6 +2103,13 @@ namespace DuneVector
                 {
                     continue;
                 }
+                if (!TryReserveStructureFootprint(
+                        logicalX,
+                        logicalZ,
+                        CalculateStructureFootprintRadius(scale)))
+                {
+                    continue;
+                }
                 float yaw = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 937 + (i * 17), 0f, 360f);
                 float minimumBurial = Mathf.Max(0f, pyramidMinimumBurialDepth);
                 float maximumBurial = Mathf.Max(minimumBurial, pyramidMaximumBurialDepth);
@@ -2174,6 +2184,13 @@ namespace DuneVector
                             logicalX,
                             logicalZ,
                             scale))
+                    {
+                        continue;
+                    }
+                    if (!TryReserveStructureFootprint(
+                            logicalX,
+                            logicalZ,
+                            CalculateStructureFootprintRadius(scale)))
                     {
                         continue;
                     }
@@ -2256,6 +2273,13 @@ namespace DuneVector
                     {
                         continue;
                     }
+                    if (!TryReserveStructureFootprint(
+                            logicalX,
+                            logicalZ,
+                            CalculateStructureFootprintRadius(scale)))
+                    {
+                        continue;
+                    }
                     float yaw = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 1399 + (i * 17), 0f, 360f);
                     float minimumBurial = Mathf.Max(0f, pyramid2Tuning.MinimumBurialDepth);
                     float maximumBurial = Mathf.Max(minimumBurial, pyramid2Tuning.MaximumBurialDepth);
@@ -2327,6 +2351,13 @@ namespace DuneVector
                             logicalX,
                             logicalZ,
                             scale))
+                    {
+                        continue;
+                    }
+                    if (!TryReserveStructureFootprint(
+                            logicalX,
+                            logicalZ,
+                            CalculateStructureFootprintRadius(scale)))
                     {
                         continue;
                     }
@@ -2519,6 +2550,30 @@ namespace DuneVector
                 return;
             }
 
+            // A portal spins to face the camera, so the space it needs is a sphere of its
+            // visual radius rather than the thin disc it happens to be showing right now.
+            // Nothing solid may sit inside that sphere in any direction the portal can face.
+            float clearanceRadius = CalculatePortalClearanceRadius(radius, ringTuning);
+            if (DuneVectorWorldOccupancy.Overlaps(
+                    logicalX,
+                    logicalZ,
+                    clearanceRadius,
+                    WorldOccupancyKind.Structure))
+            {
+                return;
+            }
+
+            DuneVectorLandmarkDirector landmarks = DuneVectorBootstrap.Instance != null
+                ? DuneVectorBootstrap.Instance.LandmarkDirector
+                : null;
+            if (landmarks != null && landmarks.OverlapsLandmarkFootprint(
+                    logicalX,
+                    logicalZ,
+                    clearanceRadius))
+            {
+                return;
+            }
+
             float terrainHeight = (float)heightField.SampleHeight(logicalX, logicalZ);
             float minimumHeight = type switch
             {
@@ -2614,6 +2669,44 @@ namespace DuneVector
             }
             _rings.Add(ring);
             exclusions.Add(local);
+            _occupancyHandles.Add(DuneVectorWorldOccupancy.Register(
+                logicalX,
+                logicalZ,
+                clearanceRadius,
+                WorldOccupancyKind.Portal));
+        }
+
+        private static float CalculatePortalClearanceRadius(float radius, RingTuning ringTuning)
+        {
+            float visualRadius = DuneVectorVisuals.CalculatePortalVisualRadius(radius, ringTuning);
+            return (visualRadius * Mathf.Max(1f, ringTuning.PortalStructureClearanceMultiplier))
+                + Mathf.Max(0f, ringTuning.PortalStructureClearancePadding);
+        }
+
+        // Pyramids and obelisks are authored around a half-extent, so the circle that
+        // covers their rotated footprint is that half-extent across the diagonal.
+        private static float CalculateStructureFootprintRadius(float scale)
+        {
+            return Mathf.Max(0f, scale) * 1.4142136f;
+        }
+
+        private bool TryReserveStructureFootprint(double logicalX, double logicalZ, float footprintRadius)
+        {
+            if (DuneVectorWorldOccupancy.Overlaps(
+                    logicalX,
+                    logicalZ,
+                    footprintRadius,
+                    WorldOccupancyKind.Portal))
+            {
+                return false;
+            }
+
+            _occupancyHandles.Add(DuneVectorWorldOccupancy.Register(
+                logicalX,
+                logicalZ,
+                footprintRadius,
+                WorldOccupancyKind.Structure));
+            return true;
         }
 
         private static int CountFromDensity(float density, Vector2Int coordinate, int seed, int salt)
