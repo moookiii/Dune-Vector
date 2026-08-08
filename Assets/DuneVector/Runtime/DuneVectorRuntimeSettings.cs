@@ -2437,11 +2437,15 @@ namespace DuneVector
         [Min(0f)] public float ConvoyEventWeight;
         [Tooltip("Allow convoy and rival courier events to spawn while the player is in free roam, outside an active delivery run.")]
         public bool EventsDuringFreeRoam = true;
+        [Tooltip("Allow convoy and rival courier events to spawn while the player is in the world hub.")]
+        public bool EventsInHub;
 
         [Header("Ambient Neutral Deliveries")]
         public bool AmbientNeutralCouriersEnabled;
         [Tooltip("Keep ambient neutral courier traffic flying while the player is in free roam, outside an active delivery run.")]
         public bool AmbientNeutralCouriersDuringFreeRoam = true;
+        [Tooltip("Keep ambient neutral courier traffic flying while the player is in the world hub.")]
+        public bool AmbientNeutralCouriersInHub = true;
         [Range(0, 24)] public int AmbientNeutralCourierCount;
         [Min(1f)] public float AmbientMinimumSpawnDistance;
         [Min(1f)] public float AmbientMaximumSpawnDistance;

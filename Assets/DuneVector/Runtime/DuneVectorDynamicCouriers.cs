@@ -392,30 +392,34 @@ namespace DuneVector
 
         private bool IsGameplayAvailable()
         {
-            if (_courierGame == null)
-            {
-                return true;
-            }
-            if (_courierGame.State == CourierRunState.FreeRoam)
-            {
-                return _settings.EventsDuringFreeRoam;
-            }
-            return _courierGame.State == CourierRunState.FindPackage ||
-                   _courierGame.State == CourierRunState.Delivering;
+            return IsAvailableInState(_settings.EventsDuringFreeRoam, _settings.EventsInHub);
         }
 
         private bool IsAmbientAvailable()
+        {
+            return IsAvailableInState(
+                _settings.AmbientNeutralCouriersDuringFreeRoam,
+                _settings.AmbientNeutralCouriersInHub);
+        }
+
+        private bool IsAvailableInState(bool allowedInFreeRoam, bool allowedInHub)
         {
             if (_courierGame == null)
             {
                 return true;
             }
-            if (_courierGame.State == CourierRunState.FreeRoam)
+            switch (_courierGame.State)
             {
-                return _settings.AmbientNeutralCouriersDuringFreeRoam;
+                case CourierRunState.FreeRoam:
+                    return allowedInFreeRoam;
+                case CourierRunState.Hub:
+                    return allowedInHub;
+                case CourierRunState.FindPackage:
+                case CourierRunState.Delivering:
+                    return true;
+                default:
+                    return false;
             }
-            return _courierGame.State == CourierRunState.FindPackage ||
-                   _courierGame.State == CourierRunState.Delivering;
         }
 
         private void SpawnNextEvent()
