@@ -52,6 +52,8 @@ namespace DuneVector
         [Min(0f)] public float LaunchUpwardWeight = 1f;
         [Min(0f)] public float LaunchForwardWeight = 0.42f;
         [Min(0f)] public float LaunchTangentialWeight = 0.18f;
+        [Tooltip("Horizontal speed below which the drone counts as standing still on launch, so the funnel throws it in a random horizontal direction instead of straight up.")]
+        [Min(0f)] public float StationaryLaunchSpeedThreshold = 1.5f;
 
         [Header("Control Disruption")]
         [Tooltip("Minimum funnel influence required to trigger the temporary airbrake and input lock.")]
@@ -60,12 +62,6 @@ namespace DuneVector
         [Min(0f)] public float ControlLossDuration = 2f;
         [Tooltip("Seconds of full-speed drone spin before it begins fading to zero over the remaining control-loss duration.")]
         [Min(0f)] public float ControlLossSpinFadeDelay = 1f;
-
-        [Header("Ejection")]
-        [Tooltip("Minimum outward horizontal speed applied the moment a funnel takes control, throwing the drone clear of the column.")]
-        [Min(0f)] public float EjectionOutwardSpeed = 34f;
-        [Tooltip("Continuous outward acceleration applied instead of the funnel's inward pull while control is still locked, so the drone keeps clearing the funnel.")]
-        [Min(0f)] public float EjectionOutwardAcceleration = 60f;
 
         [Header("Fragile Cargo Hazard")]
         [Min(0f)] public float FragileCargoDamagePerSecond = 13f;
@@ -84,7 +80,6 @@ namespace DuneVector
     {
         public readonly Vector3 Acceleration;
         public readonly Vector3 Tangent;
-        public readonly Vector3 Outward;
         public readonly float Influence;
         public readonly float CoreInfluence;
         public readonly float SpinSign;
@@ -93,7 +88,6 @@ namespace DuneVector
         public DustDevilSample(
             Vector3 acceleration,
             Vector3 tangent,
-            Vector3 outward,
             float influence,
             float coreInfluence,
             float spinSign,
@@ -101,7 +95,6 @@ namespace DuneVector
         {
             Acceleration = acceleration;
             Tangent = tangent;
-            Outward = outward;
             Influence = influence;
             CoreInfluence = coreInfluence;
             SpinSign = spinSign;
@@ -238,7 +231,7 @@ namespace DuneVector
 
             if (strongest == null)
             {
-                return new DustDevilSample(Vector3.zero, Vector3.zero, Vector3.zero, 0f, 0f, 1f, 0);
+                return new DustDevilSample(Vector3.zero, Vector3.zero, 0f, 0f, 1f, 0);
             }
 
             Vector3 radial = Vector3.ProjectOnPlane(strongestOffset, Vector3.up);
@@ -259,7 +252,6 @@ namespace DuneVector
             return new DustDevilSample(
                 acceleration,
                 tangent,
-                radial,
                 strongestInfluence,
                 strongestCoreInfluence,
                 strongest.SpinSign,
@@ -297,8 +289,7 @@ namespace DuneVector
                 return;
             }
 
-            if (_controlLossSourceId == CurrentPlayerSample.SourceId
-                || _playerInput.IsHazardControlLocked)
+            if (_controlLossSourceId == CurrentPlayerSample.SourceId)
             {
                 return;
             }

@@ -150,7 +150,7 @@ Quantum Magnetics learned to operate at the threshold where certainty begins. Be
 
 A person might see a bird move unnaturally fast past a window, just enough to pull their attention in a particular direction.
 
-They might become certain their phone had vibrated, reach for it, and find nothing.
+A small change in movement could slip their finger to press the wrong button or key.
 
 A bitter taste could appear moments before a warning, repeated often enough that the sensation itself began to carry the warning.
 
