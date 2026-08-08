@@ -1723,6 +1723,23 @@ namespace DuneVector
         [Tooltip("Adds static mesh colliders to prefab meshes that do not already have colliders.")]
         public bool GenerateMeshColliders = true;
         [Min(0.1f)] public float RefreshInterval = 0.8f;
+        [Header("Hue Variation")]
+        [Tooltip("Tints each placed building with a deterministically chosen hue from the palette below.")]
+        public bool HueVariationEnabled = true;
+        [Tooltip("How far each building's albedo is pushed toward its chosen palette hue. Zero leaves the prefab materials untouched.")]
+        [Range(0f, 1f)] public float HueVariationStrength = 0.75f;
+        [Tooltip("Palette the buildings are tinted with. Keep this list short so buildings sharing a hue still batch together.")]
+        public Color[] HueTints =
+        {
+            new Color(1.00f, 0.93f, 0.82f),
+            new Color(0.95f, 0.76f, 0.58f),
+            new Color(0.85f, 0.58f, 0.50f),
+            new Color(0.66f, 0.72f, 0.74f),
+            new Color(0.78f, 0.80f, 0.60f),
+            new Color(0.63f, 0.62f, 0.76f),
+            new Color(0.52f, 0.70f, 0.68f),
+            new Color(0.88f, 0.70f, 0.78f),
+        };
     }
 
     [System.Serializable]
@@ -2130,7 +2147,7 @@ namespace DuneVector
         [ColorUsage(false)] public Color SecondaryButtonColor = new Color(0.075f, 0.105f, 0.13f, 1f);
         [ColorUsage(false)] public Color SecondaryButtonHoverColor = new Color(0.12f, 0.18f, 0.22f, 1f);
 
-        [Header("First Strike Orb Death Note")]
+        [Header("First Strike Ring Death Note")]
         public bool ShowFirstStrikeOrbDeathNote = true;
         public string StrikeOrbNoteLabel = "FIELD NOTE  //  STRIKE RINGS";
         [TextArea(2, 4)]
@@ -2741,15 +2758,15 @@ namespace DuneVector
         [Min(0.1f)] public float ChargeTime = 1.15f;
         [Min(0f)] public float Cooldown = 2.5f;
         [Min(0f)] public float LightningDamage = 34f;
-        public string LightningDamageSource = "Strike Orb lightning";
-        public string LightningDeathMessage = "Struck by Strike Orb lightning.";
+        public string LightningDamageSource = "Strike Ring lightning";
+        public string LightningDeathMessage = "Struck by Strike Ring lightning.";
         [Min(0.1f)] public float StrikeRadius = 4.25f;
         [Min(0.05f)] public float LightningVisualDuration = 0.32f;
         [Min(0.01f)] public float ChargeTelegraphWidth = 0.14f;
         [Min(0.01f)] public float LightningWidth = 0.52f;
-        [Tooltip("Multiplies the strike orb lightning HDR emission without affecting storm pyramid lightning.")]
+        [Tooltip("Multiplies the strike ring lightning HDR emission without affecting storm pyramid lightning.")]
         [Min(0f)] public float LightningBloomIntensity = 1f;
-        [Tooltip("Multiplies the strike orb charge telegraph and impact marker HDR emission.")]
+        [Tooltip("Multiplies the strike ring charge telegraph and impact marker HDR emission.")]
         [Min(0f)] public float WarningBloomIntensity = 1f;
         [Min(0f)] public float ChargePulseSpeed = 12f;
         [Range(0f, 0.5f)] public float ChargePulseAmount = 0.12f;
@@ -2765,11 +2782,11 @@ namespace DuneVector
         [Header("Fly-Through Destruction")]
         [Tooltip("Fraction of the visible ring opening that counts as flying through its center.")]
         [Range(0.1f, 1f)] public float FlyThroughRadiusMultiplier = 0.78f;
-        [Tooltip("Local-space radius of the opening inside the imported strike-orb ring.")]
+        [Tooltip("Local-space radius of the opening inside the imported strike-ring ring.")]
         [Min(0.1f)] public float FlyThroughOpeningRadius;
         [Tooltip("World-space distance at which the ring stops turning while an airborne drone commits to a fly-through.")]
         [Min(0f)] public float FlyThroughFacingLockDistance = 75f;
-        [Tooltip("FMOD one-shot event played at the strike orb when a player fly-through triggers its explosion.")]
+        [Tooltip("FMOD one-shot event played at the strike ring when a player fly-through triggers its explosion.")]
         public string FlyThroughExplosionEvent = "event:/Explosion_Strike_Orb";
         [Min(0.05f)] public float FlyThroughExplosionDuration = 0.7f;
         [Min(0.1f)] public float FlyThroughFlashStartScale = 1.5f;

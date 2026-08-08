@@ -12,12 +12,18 @@ namespace DuneVector
         private const int PositionZSalt = 17327;
         private const int PrefabSalt = 17333;
         private const int RotationSalt = 17341;
+        private const int HueSalt = 17351;
 
         private readonly Dictionary<Vector2Int, GameObject> _loadedCells =
             new Dictionary<Vector2Int, GameObject>();
         private readonly List<Vector2Int> _removalBuffer = new List<Vector2Int>();
         private readonly Dictionary<GameObject, float> _prefabFootprintRadii =
             new Dictionary<GameObject, float>();
+
+        // Quantising to the authored palette keeps buildings sharing a hue on the
+        // same material, so they still batch instead of becoming one draw each.
+        private readonly Dictionary<(int SourceMaterial, int HueIndex), Material> _tintedMaterials =
+            new Dictionary<(int, int), Material>();
 
         private DesertWorldStreamer _world;
         private DuneVectorLandmarkDirector _landmarks;
@@ -79,6 +85,15 @@ namespace DuneVector
             {
                 _world.WorldShifted -= HandleWorldShifted;
             }
+
+            foreach (Material tinted in _tintedMaterials.Values)
+            {
+                if (tinted != null)
+                {
+                    Destroy(tinted);
+                }
+            }
+            _tintedMaterials.Clear();
         }
 
         private void Refresh()
@@ -239,6 +254,7 @@ namespace DuneVector
                 instance.transform.localRotation = prefab.transform.localRotation;
                 instance.transform.localScale = prefab.transform.localScale;
 
+                ApplyHueVariation(instance, cell, saltOffset);
                 GroundToDunes(instance.transform);
                 if (_settings.GenerateMeshColliders)
                 {
@@ -248,6 +264,80 @@ namespace DuneVector
             }
 
             return false;
+        }
+
+        private void ApplyHueVariation(GameObject instance, Vector2Int cell, int saltOffset)
+        {
+            if (!_settings.HueVariationEnabled ||
+                _settings.HueVariationStrength <= 0f ||
+                _settings.HueTints == null ||
+                _settings.HueTints.Length == 0)
+            {
+                return;
+            }
+
+            int hueIndex = Mathf.Clamp(
+                Mathf.FloorToInt(DuneVectorMath.Hash01(
+                    cell.x, cell.y, _world.WorldSeed, HueSalt + saltOffset) *
+                    _settings.HueTints.Length),
+                0,
+                _settings.HueTints.Length - 1);
+
+            Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(true);
+            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            {
+                Renderer renderer = renderers[rendererIndex];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                Material[] sourceMaterials = renderer.sharedMaterials;
+                Material[] tinted = new Material[sourceMaterials.Length];
+                for (int materialIndex = 0; materialIndex < sourceMaterials.Length; materialIndex++)
+                {
+                    tinted[materialIndex] =
+                        GetTintedMaterial(sourceMaterials[materialIndex], hueIndex);
+                }
+                renderer.sharedMaterials = tinted;
+            }
+        }
+
+        private Material GetTintedMaterial(Material source, int hueIndex)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            (int, int) key = (source.GetInstanceID(), hueIndex);
+            if (_tintedMaterials.TryGetValue(key, out Material cached) && cached != null)
+            {
+                return cached;
+            }
+
+            Color tint = Color.Lerp(
+                Color.white,
+                _settings.HueTints[hueIndex],
+                Mathf.Clamp01(_settings.HueVariationStrength));
+
+            Material tinted = new Material(source) { name = $"{source.name} (Hue {hueIndex})" };
+            tinted.enableInstancing = true;
+            string colorProperty =
+                tinted.HasProperty("_BaseColor") ? "_BaseColor" :
+                tinted.HasProperty("_Color") ? "_Color" : null;
+            if (colorProperty != null)
+            {
+                Color baseColor = tinted.GetColor(colorProperty);
+                tinted.SetColor(colorProperty, new Color(
+                    baseColor.r * tint.r,
+                    baseColor.g * tint.g,
+                    baseColor.b * tint.b,
+                    baseColor.a));
+            }
+
+            _tintedMaterials[key] = tinted;
+            return tinted;
         }
 
         private bool OverlapsGeoglyph(double logicalX, double logicalZ)
