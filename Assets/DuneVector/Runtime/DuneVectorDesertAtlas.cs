@@ -1663,6 +1663,14 @@ namespace DuneVector
 
         private void OnGUI()
         {
+            // Nothing in this overlay's draw path owns a control; the only interactive widgets in
+            // the file sit in DrawTerminal, which OnGUI never reaches. So layout does no useful
+            // work here and only Repaint needs to run.
+            if (Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
+
             if (!TryBuildVisibleHudRect(out Rect panel))
             {
                 return;
