@@ -1454,7 +1454,14 @@ namespace DuneVector
             excavation.transform.localPosition = Vector3.zero;
             excavation.transform.localRotation = prefabRotation;
             excavation.transform.localScale = prefabScale;
-            AddMissingBoxColliders(excavation);
+            if (_settings.ExcavationGenerateMeshColliders)
+            {
+                AddMissingMeshColliders(excavation);
+            }
+            else
+            {
+                AddMissingBoxColliders(excavation);
+            }
             GroundPrefabToDunes(
                 excavation.transform,
                 _settings.ExcavationGroundingSamplesPerAxis,

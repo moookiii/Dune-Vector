@@ -1562,6 +1562,8 @@ namespace DuneVector
         [Range(0.5f, 0.95f)] public float ExcavationGroundingBurialCoverage = 0.8f;
         [Tooltip("Maximum distance adaptive grounding may sink a desert obelisk below its legacy footprint placement.")]
         [Min(0f)] public float ExcavationMaximumAdditionalGroundSink = 2f;
+        [Tooltip("Generate exact mesh colliders for the desert obelisk so its doorway stays walkable. Disable to fall back to solid per-mesh box colliders.")]
+        public bool ExcavationGenerateMeshColliders = true;
         [Range(2, 8)] public int ExcavationScaffoldCount = 4;
         [Range(1, 5)] public int ExcavationPitTerraceCount = 3;
         [Min(4f)] public float ExcavationPitWidth = 32f;
