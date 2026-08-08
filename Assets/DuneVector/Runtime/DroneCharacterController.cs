@@ -95,11 +95,13 @@ namespace DuneVector
         [Range(5f, 90f)] public float BankYawErrorForMaximum = 34f;
         [Min(0f)] public float BankSharpness = 8f;
         [Min(0f)] public float BankRecoverySharpness = 5f;
-        [Range(0f, 15f)] public float GroundVisualPitch = 4f;
+        [Range(0f, 40f)] public float GroundVisualPitch = 14f;
+        [Range(0f, 40f)] public float FlightMoveVisualPitch = 12f;
         [Range(0f, 15f)] public float GroundTurnLean = 5f;
         [Min(0f)] public float HoverAmplitude = 0.055f;
         [Min(0f)] public float HoverFrequency = 2.2f;
         [Min(0f)] public float TrailMinimumSpeed = 0.35f;
+        public bool TrailsEnabled = true;
 
         [Header("Collision Filtering")]
         public List<Collider> IgnoredColliders = new List<Collider>();
@@ -117,6 +119,9 @@ namespace DuneVector
         public Vector3 WorldCenter => Motor != null
             ? Motor.TransientPosition + (Motor.CharacterUp * (Motor.Capsule.height * 0.5f))
             : transform.position;
+        public Vector3 VisualWorldCenter => _hasVisualCenter && DroneVisualRoot != null
+            ? DroneVisualRoot.TransformPoint(_visualCenterLocalPosition)
+            : WorldCenter;
         public Quaternion AimRotation => DroneVisualRoot != null
             ? DroneVisualRoot.rotation
             : transform.rotation;
@@ -175,6 +180,8 @@ namespace DuneVector
         private bool _jumpRequested;
         private bool _jumpConsumed;
         private bool _hoverEnabled = true;
+        private Vector3 _visualCenterLocalPosition;
+        private bool _hasVisualCenter;
         private bool _jumpedThisUpdate;
         private float _timeSinceJumpRequested = float.PositiveInfinity;
         private float _timeSinceStableGround = float.PositiveInfinity;
@@ -260,6 +267,66 @@ namespace DuneVector
             {
                 _visualBaseLocalPosition = DroneVisualRoot.localPosition;
                 _trailRenderers = DroneVisualRoot.GetComponentsInChildren<TrailRenderer>(true);
+                CacheVisualCenter();
+            }
+        }
+
+        private void CacheVisualCenter()
+        {
+            _visualCenterLocalPosition = Vector3.zero;
+            _hasVisualCenter = false;
+            if (DroneVisualRoot == null)
+            {
+                return;
+            }
+
+            Renderer[] renderers = DroneVisualRoot.GetComponentsInChildren<Renderer>(true);
+            Bounds combinedBounds = default;
+            bool hasBounds = false;
+            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            {
+                Renderer renderer = renderers[rendererIndex];
+                Bounds sourceBounds;
+                if (renderer is SkinnedMeshRenderer skinnedRenderer)
+                {
+                    sourceBounds = skinnedRenderer.localBounds;
+                }
+                else
+                {
+                    MeshFilter filter = renderer.GetComponent<MeshFilter>();
+                    if (filter == null || filter.sharedMesh == null)
+                    {
+                        continue;
+                    }
+                    sourceBounds = filter.sharedMesh.bounds;
+                }
+
+                for (int cornerIndex = 0; cornerIndex < 8; cornerIndex++)
+                {
+                    Vector3 corner = sourceBounds.center + Vector3.Scale(
+                        sourceBounds.extents,
+                        new Vector3(
+                            (cornerIndex & 1) == 0 ? -1f : 1f,
+                            (cornerIndex & 2) == 0 ? -1f : 1f,
+                            (cornerIndex & 4) == 0 ? -1f : 1f));
+                    Vector3 localCorner = DroneVisualRoot.InverseTransformPoint(
+                        renderer.transform.TransformPoint(corner));
+                    if (!hasBounds)
+                    {
+                        combinedBounds = new Bounds(localCorner, Vector3.zero);
+                        hasBounds = true;
+                    }
+                    else
+                    {
+                        combinedBounds.Encapsulate(localCorner);
+                    }
+                }
+            }
+
+            if (hasBounds)
+            {
+                _visualCenterLocalPosition = combinedBounds.center;
+                _hasVisualCenter = true;
             }
         }
 
@@ -1219,6 +1286,16 @@ namespace DuneVector
             }
             _lastVisualForward = transform.forward;
 
+            Vector3 planarVelocity = Vector3.ProjectOnPlane(Motor.BaseVelocity, Vector3.up);
+            float referenceSpeed = CurrentMode == DroneTraversalMode.Flight
+                ? Mathf.Max(1f, CurrentMaximumFlightSpeed)
+                : Mathf.Max(1f, MaxGroundSpeed);
+            float forwardSpeed01 = currentForward.sqrMagnitude > 0.001f
+                ? Mathf.Clamp(Vector3.Dot(planarVelocity, currentForward) / referenceSpeed, -1f, 1f)
+                : 0f;
+            // Only lean while the move button is held; coasting levels the drone back out.
+            float movePitchDrive = forwardSpeed01 * Mathf.Clamp01(Mathf.Abs(_rawMove.y));
+
             float targetBank = 0f;
             float targetPitch = 0f;
             if (CurrentMode == DroneTraversalMode.Flight)
@@ -1235,11 +1312,12 @@ namespace DuneVector
                     : actualTurnIntensity;
                 targetBank = Mathf.Clamp(turnIntensity, -1f, 1f) * MaximumBankAngle;
                 targetPitch = Mathf.Clamp(-Motor.BaseVelocity.y / Mathf.Max(1f, CurrentMaximumFlightSpeed), -1f, 1f) * 5f;
+                targetPitch += movePitchDrive * FlightMoveVisualPitch;
             }
             else
             {
                 targetBank = -_rawMove.x * GroundTurnLean;
-                targetPitch = -Mathf.Max(0f, _rawMove.y) * GroundVisualPitch;
+                targetPitch = movePitchDrive * GroundVisualPitch;
             }
 
             if (_flightLandingVisualActive)
@@ -1309,7 +1387,7 @@ namespace DuneVector
 
         private void UpdateTrailVisibility()
         {
-            bool shouldShowTrails = Speed > TrailMinimumSpeed;
+            bool shouldShowTrails = TrailsEnabled && Speed > TrailMinimumSpeed;
             if (shouldShowTrails == _trailsVisible || _trailRenderers == null)
             {
                 return;

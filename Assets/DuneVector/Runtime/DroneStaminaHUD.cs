@@ -78,7 +78,7 @@ namespace DuneVector
                 return;
             }
 
-            Vector3 screenPosition = _camera.WorldToScreenPoint(_drone.WorldCenter);
+            Vector3 screenPosition = _camera.WorldToScreenPoint(_drone.VisualWorldCenter);
             if (screenPosition.z <= 0f)
             {
                 _hasScreenCenter = false;
