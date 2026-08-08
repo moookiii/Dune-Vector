@@ -5476,6 +5476,8 @@ namespace DuneVector
         [Min(0f)] public float GroundBrakingSharpness = 5.5f;
         [Min(0f)] public float GroundSteeringSharpness = 11f;
         [Min(0f)] public float TrailMinimumSpeed = 0.35f;
+        [Tooltip("Turns the drone's speed trails on or off. Disable to fly without any trail ribbons.")]
+        public bool TrailsEnabled = true;
         [Tooltip("Tallest ledge the drone can walk up without flying. Ramps are handled by the slope limit, not this.")]
         [Min(0f)] public float MaxStepHeight = 0.25f;
 
@@ -5583,6 +5585,7 @@ namespace DuneVector
             drone.GroundBrakingSharpness = GroundBrakingSharpness;
             drone.RotationSharpness = GroundSteeringSharpness;
             drone.TrailMinimumSpeed = TrailMinimumSpeed;
+            drone.TrailsEnabled = TrailsEnabled;
             drone.JumpSpeed = JumpSpeed;
             drone.ConfigureFlightStartEffect(
                 FlightStartEffectPrefab,
@@ -5915,8 +5918,6 @@ namespace DuneVector
         [Range(0f, 1f)] public float WorldMapBackdropVignette = 0.75f;
         [Tooltip("Shadow softness under the world-map panel.")]
         [Min(0f)] public float WorldMapPanelShadowSpread = 26f;
-        [Tooltip("Length of the L-shaped tick marks at each corner of the world-map panel.")]
-        [Min(0f)] public float WorldMapCornerBracketLength = 26f;
         [Tooltip("Inner shadow drawn along the map viewport edges so the terrain sits inside the frame.")]
         [Min(0f)] public float WorldMapViewportVignette = 54f;
         [Tooltip("Draw a world-aligned coordinate graticule beneath the map icons.")]

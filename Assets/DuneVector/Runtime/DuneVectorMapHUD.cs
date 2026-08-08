@@ -454,12 +454,6 @@ namespace DuneVector
                 currentCenter,
                 scale);
 
-            DuneVectorHudChrome.DrawCornerBrackets(
-                panelRect,
-                accent,
-                _settings.WorldMapCornerBracketLength * scale,
-                Mathf.Max(1f, 2f * scale));
-
             float labelPadding = _settings.ContentPadding * scale;
             float tickWidth = Mathf.Max(2f, 3f * scale);
             float tickHeight = headerRect.height * 0.42f;
