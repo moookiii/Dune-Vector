@@ -5585,6 +5585,10 @@ namespace DuneVector
         [Min(0f)] public float GroundBrakingSharpness = 5.5f;
         [Min(0f)] public float GroundSteeringSharpness = 11f;
         [Min(0f)] public float TrailMinimumSpeed = 0.35f;
+        [Tooltip("How long the drone's speed trails are, in meters. Held constant across speeds. Set to 0 to use the authored trail duration instead.")]
+        [Min(0f)] public float TrailLength = 6f;
+        [Tooltip("Longest the trail may linger, in seconds. Caps how far the trail stretches back when the drone is crawling.")]
+        [Min(0f)] public float TrailMaximumDuration = 2f;
         [Tooltip("Turns the drone's speed trails on or off. Disable to fly without any trail ribbons.")]
         public bool TrailsEnabled = true;
         [Tooltip("Tallest ledge the drone can walk up without flying. Ramps are handled by the slope limit, not this.")]
@@ -5694,6 +5698,8 @@ namespace DuneVector
             drone.GroundBrakingSharpness = GroundBrakingSharpness;
             drone.RotationSharpness = GroundSteeringSharpness;
             drone.TrailMinimumSpeed = TrailMinimumSpeed;
+            drone.TrailLength = TrailLength;
+            drone.TrailMaximumDuration = TrailMaximumDuration;
             drone.TrailsEnabled = TrailsEnabled;
             drone.JumpSpeed = JumpSpeed;
             drone.ConfigureFlightStartEffect(

@@ -550,13 +550,7 @@ Quantum Magnetics detected the foreign instruction before it could propagate.
 
 The Office eventually understood the problem. Quantum Magnetics did not accept commands simply because they were correctly formatted. Every instruction carried more than content.
 
-Origin.
-
-Authority.
-
-History.
-
-Context.
+Origin. Authority. History. Context.
 
 The system had spent decades learning the shape of its own network. It knew which machines belonged. Which operators belonged. Which patterns of information were supposed to exist.
 
