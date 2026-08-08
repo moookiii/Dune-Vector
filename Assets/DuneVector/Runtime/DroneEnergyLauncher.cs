@@ -990,6 +990,13 @@ namespace DuneVector
 
         private void OnGUI()
         {
+            // Draw-only overlay: it owns no controls and holds no event state, so the layout
+            // pass would repeat every measurement for nothing. Only Repaint does work.
+            if (Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
+
             if (DuneVectorCourierGame.IsGameplayHudSuppressed)
             {
                 return;

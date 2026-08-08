@@ -527,6 +527,11 @@ namespace DuneVector
                             continue;
                         }
 
+                        // Demoting a loaded chunk to a coarser tier is orders of magnitude cheaper
+                        // than generating one, so it is governed by the time budget rather than
+                        // the per-frame chunk count. Otherwise a whole ring of demotions drains
+                        // one chunk per frame and the triangle saving takes seconds to appear.
+                        bool reducedDetailRebuild = false;
                         if (needsContent)
                         {
                             GenerateChunkImmediate(coordinate, true);
@@ -537,6 +542,7 @@ namespace DuneVector
                         }
                         else
                         {
+                            reducedDetailRebuild = visualChunk.IsPendingReducedDetail;
                             visualChunk.BuildVisualTerrain();
                         }
 
@@ -549,7 +555,10 @@ namespace DuneVector
                         {
                             _generationQueue.Enqueue(coordinate);
                         }
-                        generated++;
+                        if (!reducedDetailRebuild)
+                        {
+                            generated++;
+                        }
                         didWork = true;
                         break;
                     }
@@ -1448,6 +1457,13 @@ namespace DuneVector
         private DesertShrubField _shrubs;
         public bool IsVisualReady { get; private set; }
         public bool IsTerrainVisible => _terrainMesh != null;
+
+        /// <summary>
+        /// True when the queued rebuild is a demotion to a coarser tier, which costs a fraction of
+        /// a full-detail build.
+        /// </summary>
+        public bool IsPendingReducedDetail =>
+            !IsVisualReady && _desiredVisualResolution < _visualResolution;
         public bool IsContentReady { get; private set; }
 
         public DesertChunk(
