@@ -244,17 +244,27 @@ namespace DuneVector
         [Min(8)] public int SubjectLabelFontSize = 17;
         [Min(8)] public int StatusFontSize = 14;
         [Min(8)] public int ZoomFontSize = 14;
-        [Min(220f)] public float CommandBarWidth = 640f;
-        [Min(24f)] public float CommandBarHeight = 42f;
-        [Min(20f)] public float CommandKeyWidth = 54f;
-        [Min(14f)] public float CommandKeyHeight = 24f;
+        [Tooltip("Maximum width of the control hint bar. The bar auto-sizes to its content below this.")]
+        [Min(220f)] public float CommandBarWidth = 900f;
+        [Min(24f)] public float CommandBarHeight = 74f;
+        [Min(20f)] public float CommandKeyWidth = 92f;
+        [Min(14f)] public float CommandKeyHeight = 40f;
+        [Min(0f)] public float CommandBarPadding = 30f;
+        [Min(0f)] public float CommandGroupGap = 34f;
+        [Tooltip("Seconds the control hint bar stays fully visible before fading out.")]
+        [Min(0f)] public float CommandHintDuration = 10f;
+        [Min(0.05f)] public float CommandHintFadeDuration = 0.9f;
+        [Tooltip("Show the control hints only the first time the camera is raised in a play session.")]
+        public bool CommandHintFirstUseOnly = true;
         [Min(80f)] public float CornerMetadataWidth = 220f;
+        [Min(20f)] public float CornerMetadataHeight = 42f;
         [Min(0f)] public float BottomInterfaceOffset = 12f;
         [Min(100f)] public float DocumentationToastWidth = 440f;
         [Min(24f)] public float DocumentationToastHeight = 72f;
         [Min(0f)] public float DocumentationToastBottomOffset = 78f;
         [Min(8)] public int MetadataFontSize = 11;
-        [Min(8)] public int CommandFontSize = 11;
+        [Min(8)] public int CommandFontSize = 16;
+        [Min(8)] public int CommandKeyFontSize = 18;
         [Min(8)] public int ModeLabelFontSize = 12;
         [ColorUsage(false)] public Color NeutralColor = new Color(0.92f, 0.88f, 0.78f, 0.88f);
         [ColorUsage(false)] public Color InvalidColor = new Color(0.82f, 0.42f, 0.36f, 0.94f);
@@ -369,6 +379,20 @@ namespace DuneVector
         [Min(8)] public int ComparisonLabelFontSize = 28;
         public string ReplaceButton = "REPLACE";
         public string KeepButton = "KEEP CURRENT";
+        public string ReplaceButtonHint = "ENTER";
+        public string KeepButtonHint = "ESC";
+        [Min(0f)] public float ReplaceDecisionPanelPadding = 30f;
+        [Min(0f)] public float ReplaceDecisionSectionGap = 18f;
+        [Min(0f)] public float ReplaceDecisionEyebrowHeight = 20f;
+        [Min(0f)] public float ReplaceDecisionNameHeight = 38f;
+        [Min(0f)] public float ReplaceDecisionPromptHeight = 22f;
+        [Min(0f)] public float ReplaceDecisionHintHeight = 18f;
+        [Min(24f)] public float ReplaceDecisionButtonHeight = 46f;
+        [Min(60f)] public float ReplaceDecisionButtonWidth = 248f;
+        [Min(0f)] public float ReplaceDecisionButtonGap = 18f;
+        [Min(0f)] public float ReplaceDecisionCornerLength = 18f;
+        [Range(0f, 1f)] public float ReplaceDecisionRestingAccent = 0.4f;
+        [ColorUsage(false)] public Color ReplaceDecisionBackdropColor = new Color(0.008f, 0.012f, 0.014f, 0.8f);
 
         [Header("Gallery Layout")]
         [Min(640f)] public float GalleryReferenceWidth = 1920f;
@@ -447,6 +471,8 @@ namespace DuneVector
         public string CompendiumDefaultDiscoveryLocation = "Location data unavailable";
         public string CompendiumFieldNotesLabel = "FIELD NOTES";
         public string CompendiumDefaultFieldNotes = "Further observation is required to complete this archive entry.";
+        public string CompendiumEnlargeHint = "CLICK TO ENLARGE";
+        public string CompendiumLightboxCloseHint = "CLICK ANYWHERE OR PRESS ESC TO CLOSE";
         public string CompendiumGlyphTabLabel = "GLYPHS";
         public string CompendiumLandmarkTabLabel = "LANDMARKS";
         public string CompendiumEnemyTabLabel = "ENEMIES";
@@ -513,6 +539,17 @@ namespace DuneVector
         [ColorUsage(false)] public Color CompendiumIconColor = new Color(0.72f, 0.94f, 1f, 1f);
         [ColorUsage(false)] public Color CompendiumActiveAccentColor = new Color(0.78f, 0.57f, 0.27f, 1f);
         [ColorUsage(false)] public Color CompendiumHoverBorderColor = new Color(0.62f, 0.86f, 0.91f, 1f);
+
+        [Header("Compendium Lightbox")]
+        [Tooltip("Screen fraction reserved as empty space around the enlarged photo.")]
+        [Range(0.01f, 0.25f)] public float CompendiumLightboxScreenMargin = 0.05f;
+        [Tooltip("Matte thickness drawn between the enlarged photo and its frame edge.")]
+        [Min(0f)] public float CompendiumLightboxMattePadding = 18f;
+        [Tooltip("Seconds the photo takes to grow from its thumbnail into the full frame.")]
+        [Range(0.05f, 1f)] public float CompendiumLightboxExpandSeconds = 0.22f;
+        [Min(0f)] public float CompendiumLightboxCornerRadius = 12f;
+        [Min(0f)] public float CompendiumLightboxBorderThickness = 1f;
+        [ColorUsage(false)] public Color CompendiumLightboxBackdropColor = new Color(0.004f, 0.008f, 0.012f, 0.93f);
 
         [Header("Compendium Style")]
         [Min(0f)] public float CompendiumPanelCornerRadius = 14f;
@@ -5082,12 +5119,12 @@ namespace DuneVector
         public string VideoVisualizerFovLabel = "VISUALIZER FOV";
         public string VideoEffectEnabledLabel = "ON";
         public string VideoEffectDisabledLabel = "OFF";
-        public bool DefaultChromaticAberrationEnabled = true;
-        public bool DefaultLensDistortionEnabled = true;
+        public bool DefaultChromaticAberrationEnabled;
+        public bool DefaultLensDistortionEnabled;
         public bool DefaultCrtLinesEnabled = true;
-        public bool DefaultFilmGrainEnabled = true;
-        public bool DefaultVignetteEnabled = true;
-        public bool DefaultBloomEnabled = true;
+        public bool DefaultFilmGrainEnabled;
+        public bool DefaultVignetteEnabled;
+        public bool DefaultBloomEnabled;
         [Range(0f, 1f)] public float VideoFilmGrainIntensity = 0.18f;
         [Range(0f, 1f)] public float VideoFilmGrainResponse = 0.8f;
 
@@ -5140,11 +5177,11 @@ namespace DuneVector
         [ColorUsage(false)] public Color SliderTrackColor = new Color(0.12f, 0.16f, 0.21f, 1f);
         [ColorUsage(false)] public Color SliderFillColor = new Color(1f, 0.54f, 0.13f, 1f);
         [ColorUsage(false)] public Color SliderThumbColor = new Color(1f, 0.8f, 0.42f, 1f);
-        [ColorUsage(false)] public Color ButtonColor = new Color(0.12f, 0.18f, 0.24f, 1f);
-        [ColorUsage(false)] public Color ButtonHoverColor = new Color(0.19f, 0.29f, 0.38f, 1f);
+        [ColorUsage(false)] public Color ButtonColor = new Color(0.096f, 0.144f, 0.192f, 1f);
+        [ColorUsage(false)] public Color ButtonHoverColor = new Color(0.152f, 0.232f, 0.304f, 1f);
         [ColorUsage(false)] public Color ButtonActiveColor = new Color(0.93f, 0.47f, 0.12f, 1f);
-        [ColorUsage(false)] public Color DangerButtonColor = new Color(0.31f, 0.12f, 0.1f, 1f);
-        [ColorUsage(false)] public Color DangerButtonHoverColor = new Color(0.5f, 0.17f, 0.12f, 1f);
+        [ColorUsage(false)] public Color DangerButtonColor = new Color(0.248f, 0.096f, 0.08f, 1f);
+        [ColorUsage(false)] public Color DangerButtonHoverColor = new Color(0.4f, 0.136f, 0.096f, 1f);
         [Tooltip("Label color used on accent-filled buttons, where light text has too little contrast.")]
         [ColorUsage(false)] public Color PrimaryButtonTextColor = new Color(0.05f, 0.07f, 0.1f, 1f);
         [Tooltip("Label color used while a dark button is hovered.")]
@@ -6012,6 +6049,14 @@ namespace DuneVector
         [Tooltip("Procedural obelisk density, size range, burial, and LOD distances.")]
         public PyramidTuning Obelisks = new PyramidTuning();
 
+        [Tooltip("Darker pyramid variant density, size range, burial, and LOD distances. Uses the PyramidDarker model and its own independent scale controls.")]
+        public PyramidTuning DarkPyramids = new PyramidTuning
+        {
+            DensityPerChunk = 0.12f,
+            MinimumScale = 5f,
+            MaximumScale = 9f,
+        };
+
         [Tooltip("Procedural saguaro distribution, silhouette, ribbing, and blossoms.")]
         public CactusTuning Cacti = new CactusTuning();
 
@@ -6198,6 +6243,7 @@ namespace DuneVector
             DynamicCouriers ??= new DynamicCourierTuning();
             Pyramids ??= new PyramidTuning();
             Obelisks ??= new PyramidTuning();
+            DarkPyramids ??= new PyramidTuning();
             Cacti ??= new CactusTuning();
             DesertShrubs ??= new DesertShrubTuning();
             DesertShrubs.EnsureInitialized();

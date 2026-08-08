@@ -2642,8 +2642,12 @@ namespace DuneVector
                     WithAlpha(_visuals.ShadowColor, 0.5f));
             }
 
-            // Flat panel fill, lifted slightly above the base panel tone.
-            DrawSolidRect(panel, LightenColor(_visuals.PanelColor, 0.12f));
+            // Flat panel fill using the panel's darker bottom tone, drawn opaque so
+            // the scene behind cannot wash it out toward grey.
+            float gradient = Mathf.Clamp01(_visuals.PanelGradientStrength);
+            Color panelFill = Color.Lerp(_visuals.PanelColor, DarkenColor(_visuals.PanelColor, 0.4f), gradient);
+            panelFill.a = 1f;
+            DrawSolidRect(panel, panelFill);
 
             float borderThickness = Mathf.Max(1f, scale * 2f);
             Color borderTop = _visuals.PanelBorderColor;
