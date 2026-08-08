@@ -4287,6 +4287,8 @@ namespace DuneVector
         [Range(0f, 1f)] public float CenterOutFineLineFraction = 0.55f;
         [Range(0.05f, 1f)] public float CenterOutFineLineWidthMultiplier = 0.32f;
         [Range(1f, 4f)] public float CenterOutFineLineSpeedMultiplier = 1.55f;
+        [Tooltip("Width multiplier applied to a center-out fine line when it is the only line passing through the drone anchor for that burst.")]
+        [Range(1f, 4f)] public float CenterOutSoloFineLineWidthMultiplier = 2f;
         [Range(0.25f, 2f)] public float CenterOutBroadRayWidthMultiplier = 1f;
         [ColorUsage(false, true)] public Color CenterOutCyanColor;
         [ColorUsage(false, true)] public Color CenterOutMagentaColor;

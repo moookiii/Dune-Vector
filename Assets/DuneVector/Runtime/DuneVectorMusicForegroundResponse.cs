@@ -472,6 +472,9 @@ namespace DuneVector
                     startSize = centerOut
                         ? _settings.ForegroundStreakSize * (fineLine
                             ? _settings.CenterOutFineLineWidthMultiplier
+                                * (count == 1
+                                    ? Mathf.Max(1f, _settings.CenterOutSoloFineLineWidthMultiplier)
+                                    : 1f)
                             : _settings.CenterOutBroadRayWidthMultiplier)
                             * (i >= movingLineCount && command.ScreenFlareHeldWidthScale > 0f
                                 ? command.ScreenFlareHeldWidthScale
