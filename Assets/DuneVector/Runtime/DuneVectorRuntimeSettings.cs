@@ -967,7 +967,12 @@ namespace DuneVector
         [Min(0.1f)] public float SandAmbusherAttackSpeed = 48f;
         [Min(0f)] public float SandAmbusherAttackOvershoot = 5f;
         [Min(0.1f)] public float SandAmbusherMaximumAttackDuration = 3f;
-        [Min(0.1f)] public float SandAmbusherRetreatSpeed = 32f;
+        [Tooltip("Retreat speed at risk 0.")]
+        [Min(0.1f)] public float SandAmbusherRetreatSpeed = 36f;
+        [Tooltip("Retreat speed at the configured risk ceiling.")]
+        [Min(0.1f)] public float SandAmbusherRetreatSpeedAtRiskCeiling = 96f;
+        [Tooltip("Risk where retreat speed reaches its ceiling value.")]
+        [Min(1)] public int SandAmbusherRetreatSpeedRiskCeiling = 20;
         [Min(0f)] public float SandAmbusherBaseDamage = 18f;
         [Min(0f)] public float SandAmbusherDamagePerRisk = 5f;
         public string SandAmbusherDeathMessage = "Dragged beneath the dunes by a sand ambusher.";

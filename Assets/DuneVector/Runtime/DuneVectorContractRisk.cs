@@ -252,7 +252,7 @@ namespace DuneVector
 
         private bool TickRetreat(SandAmbusher ambusher, float deltaTime)
         {
-            float speed = Mathf.Max(0.1f, _settings.SandAmbusherRetreatSpeed);
+            float speed = GetRetreatSpeed();
             ambusher.Root.transform.position = Vector3.MoveTowards(
                 ambusher.Root.transform.position,
                 ambusher.BuriedPosition,
@@ -383,6 +383,16 @@ namespace DuneVector
             return Mathf.Max(0f, Mathf.Lerp(
                 _settings.SandAmbusherTargetPredictionTime,
                 _settings.SandAmbusherTargetPredictionTimeAtRiskCeiling,
+                riskProgress));
+        }
+
+        private float GetRetreatSpeed()
+        {
+            float riskProgress = Mathf.Clamp01(
+                _risk / (float)Mathf.Max(1, _settings.SandAmbusherRetreatSpeedRiskCeiling));
+            return Mathf.Max(0.1f, Mathf.Lerp(
+                _settings.SandAmbusherRetreatSpeed,
+                _settings.SandAmbusherRetreatSpeedAtRiskCeiling,
                 riskProgress));
         }
 
