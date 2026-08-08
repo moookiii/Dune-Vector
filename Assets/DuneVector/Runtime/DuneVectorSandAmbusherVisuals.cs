@@ -144,6 +144,8 @@ namespace DuneVector
         private CourierContractTuning _settings;
         private DuneVectorSandAmbusherPalette _palette;
         private Transform _visualRoot;
+        private Transform _body;
+        private Quaternion _bodyBaseRotation = Quaternion.identity;
         private Transform _leftProng;
         private Transform _rightProng;
         private ParticleSystem _trickle;
@@ -209,6 +211,12 @@ namespace DuneVector
             }
 
             float swayBlend = _emerging ? Mathf.Clamp01(_emergenceAge / Mathf.Max(0.1f, _settings.SandAmbusherFullSwayBlendDuration)) : 0f;
+            if (_body != null)
+            {
+                UpdatePrefabBody(swayBlend);
+                return;
+            }
+
             for (int i = 0; i < _segments.Count; i++)
             {
                 float delay = i * Mathf.Max(0f, _settings.SandAmbusherSegmentEmergenceDelay);
@@ -299,6 +307,12 @@ namespace DuneVector
             visualObject.transform.SetParent(transform, false);
             _visualRoot = visualObject.transform;
 
+            if (_settings.SandAmbusherBodyPrefab != null)
+            {
+                BuildPrefabBody();
+                return;
+            }
+
             int segmentCount = Mathf.Max(3, _settings.SandAmbusherVisualSegmentCount);
             Mesh jointMesh = DuneVectorSandAmbusherMeshUtility.CreateCapsuleMesh(
                 _settings.SandAmbusherJointMeshRadialSegments,
@@ -363,6 +377,30 @@ namespace DuneVector
             }
 
             BuildCrown(seed + 701);
+        }
+
+        private void BuildPrefabBody()
+        {
+            GameObject body = Instantiate(_settings.SandAmbusherBodyPrefab, _visualRoot, false);
+            body.name = "Sand Ambusher Body";
+            _body = body.transform;
+            _body.localPosition = _settings.SandAmbusherBodyPrefabLocalPosition;
+            _bodyBaseRotation = _body.localRotation *
+                Quaternion.Euler(_settings.SandAmbusherBodyPrefabLocalEulerAngles);
+            _body.localRotation = _bodyBaseRotation;
+            _body.localScale = Vector3.Scale(
+                _body.localScale,
+                _settings.SandAmbusherBodyPrefabLocalScale);
+        }
+
+        private void UpdatePrefabBody(float swayBlend)
+        {
+            float phase = _age * Mathf.Max(0f, _settings.SandAmbusherIdleSwayFrequency);
+            float sway = Mathf.Sin(phase) *
+                Mathf.Max(0f, _settings.SandAmbusherBodyPrefabSwayDegrees) * swayBlend;
+            float crossSway = Mathf.Cos(phase * _settings.SandAmbusherCrossSwayFrequencyMultiplier) *
+                Mathf.Max(0f, _settings.SandAmbusherBodyPrefabSwayDegrees) * swayBlend;
+            _body.localRotation = _bodyBaseRotation * Quaternion.Euler(crossSway, 0f, sway);
         }
 
         private void BuildArmorRidges(Transform parent, float radius, float height, int segmentIndex,

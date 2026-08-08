@@ -975,6 +975,16 @@ namespace DuneVector
         [Range(1, 60)] public int SandAmbusherMaximumActive = 60;
 
         [Header("Risk Sand Ambusher Creature Visual")]
+        [Tooltip("Model spawned as the Sand Ambusher body. When assigned it replaces the procedural segmented creature.")]
+        public GameObject SandAmbusherBodyPrefab;
+        [Tooltip("Local position applied to the spawned Sand Ambusher body prefab.")]
+        public Vector3 SandAmbusherBodyPrefabLocalPosition = Vector3.zero;
+        [Tooltip("Local Euler rotation offset added to the Sand Ambusher body prefab's authored rotation.")]
+        public Vector3 SandAmbusherBodyPrefabLocalEulerAngles = Vector3.zero;
+        [Tooltip("Scale multiplier applied to the Sand Ambusher body prefab's authored scale.")]
+        public Vector3 SandAmbusherBodyPrefabLocalScale = Vector3.one;
+        [Tooltip("Degrees of idle sway rotation applied to the Sand Ambusher body prefab once it has emerged.")]
+        [Min(0f)] public float SandAmbusherBodyPrefabSwayDegrees = 6f;
         public int SandAmbusherVisualSeed = 9317;
         [Range(3, 10)] public int SandAmbusherVisualSegmentCount = 6;
         [Min(0.1f)] public float SandAmbusherSegmentSpacing = 3.8f;
