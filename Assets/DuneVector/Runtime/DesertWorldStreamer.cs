@@ -69,6 +69,8 @@ namespace DuneVector
         public LandmarkSystemTuning Landmarks;
         public CactusTuning Cacti;
         public PyramidTuning Obelisks;
+        public PyramidTuning DarkPyramids;
+        public PyramidTuning Pyramid2;
         public GeoglyphSystemTuning Geoglyphs;
 
         [Header("Spawning - expected count per chunk")]
@@ -1014,6 +1016,8 @@ namespace DuneVector
                     PyramidMinimumBurialDepth,
                     PyramidMaximumBurialDepth,
                     Obelisks,
+                    DarkPyramids,
+                    Pyramid2,
                     GroundRingDensity,
                     AerialRingDensity,
                     Rings,
@@ -1368,6 +1372,8 @@ namespace DuneVector
             float pyramidMinimumBurialDepth,
             float pyramidMaximumBurialDepth,
             PyramidTuning obeliskTuning,
+            PyramidTuning darkPyramidTuning,
+            PyramidTuning pyramid2Tuning,
             float groundRingDensity,
             float aerialRingDensity,
             RingTuning ringTuning,
@@ -1405,6 +1411,8 @@ namespace DuneVector
                     pyramidMinimumBurialDepth,
                     pyramidMaximumBurialDepth,
                     obeliskTuning,
+                    darkPyramidTuning,
+                    pyramid2Tuning,
                     groundRingDensity,
                     aerialRingDensity,
                     ringTuning,
@@ -1821,6 +1829,8 @@ namespace DuneVector
             float pyramidMinimumBurialDepth,
             float pyramidMaximumBurialDepth,
             PyramidTuning obeliskTuning,
+            PyramidTuning darkPyramidTuning,
+            PyramidTuning pyramid2Tuning,
             float groundRingDensity,
             float aerialRingDensity,
             RingTuning ringTuning,
@@ -2107,6 +2117,13 @@ namespace DuneVector
                     scale,
                     yaw);
                 float y = footprintFloor - burial;
+                float hue = DuneVectorMath.HashRange(
+                    coordinate.x,
+                    coordinate.y,
+                    worldSeed,
+                    1009 + (i * 17),
+                    0f,
+                    1f);
                 DuneVectorVisuals.CreatePyramid(
                     Root,
                     new Vector3(local.x, y, local.y),
@@ -2114,8 +2131,167 @@ namespace DuneVector
                     yaw,
                     materials.PyramidPrefab,
                     materials.Sandstone,
-                    materials.PyramidLodTuning);
+                    materials.PyramidLodTuning,
+                    hue);
                 sceneryExclusions.Add(local);
+            }
+
+            if (darkPyramidTuning != null && materials.DarkPyramidPrefab != null)
+            {
+                int darkPyramidCount = CountFromDensity(
+                    darkPyramidTuning.DensityPerChunk,
+                    coordinate,
+                    worldSeed,
+                    1289);
+                for (int i = 0; i < darkPyramidCount; i++)
+                {
+                    Vector2 local = new Vector2(
+                        DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 1291 + (i * 17), 12f, chunkSize - 12f),
+                        DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 1297 + (i * 17), 12f, chunkSize - 12f));
+                    if (IsNearAny(local, ringExclusions, 13f) || IsNearAny(local, sceneryExclusions, 13f))
+                    {
+                        continue;
+                    }
+
+                    double logicalX = originX + local.x;
+                    double logicalZ = originZ + local.y;
+                    if (Vector3.Angle(heightField.SampleNormal(logicalX, logicalZ), Vector3.up) >
+                        darkPyramidTuning.MaximumPlacementSlope)
+                    {
+                        continue;
+                    }
+
+                    float minimumScale = Mathf.Max(0.1f, darkPyramidTuning.MinimumScale);
+                    float maximumScale = Mathf.Max(minimumScale, darkPyramidTuning.MaximumScale);
+                    float scale = DuneVectorMath.HashRange(
+                        coordinate.x,
+                        coordinate.y,
+                        worldSeed,
+                        1301 + (i * 17),
+                        minimumScale,
+                        maximumScale);
+                    if (geoglyphTuning != null && geoglyphTuning.OverlapsArtworkFootprint(
+                            logicalX,
+                            logicalZ,
+                            scale))
+                    {
+                        continue;
+                    }
+                    float yaw = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 1303 + (i * 17), 0f, 360f);
+                    float minimumBurial = Mathf.Max(0f, darkPyramidTuning.MinimumBurialDepth);
+                    float maximumBurial = Mathf.Max(minimumBurial, darkPyramidTuning.MaximumBurialDepth);
+                    float burial = DuneVectorMath.HashRange(
+                        coordinate.x,
+                        coordinate.y,
+                        worldSeed,
+                        1307 + (i * 17),
+                        minimumBurial,
+                        maximumBurial);
+                    float footprintFloor = SampleLowestPyramidFootprintHeight(
+                        heightField,
+                        logicalX,
+                        logicalZ,
+                        scale,
+                        yaw);
+                    float y = footprintFloor - burial;
+                    float hue = DuneVectorMath.HashRange(
+                        coordinate.x,
+                        coordinate.y,
+                        worldSeed,
+                        1319 + (i * 17),
+                        0f,
+                        1f);
+                    DuneVectorVisuals.CreatePyramid(
+                        Root,
+                        new Vector3(local.x, y, local.y),
+                        scale,
+                        yaw,
+                        materials.DarkPyramidPrefab,
+                        materials.Sandstone,
+                        materials.DarkPyramidLodTuning,
+                        hue,
+                        "Small Dark Pyramid");
+                    sceneryExclusions.Add(local);
+                }
+            }
+
+            if (pyramid2Tuning != null && materials.Pyramid2Prefab != null)
+            {
+                int pyramid2Count = CountFromDensity(
+                    pyramid2Tuning.DensityPerChunk,
+                    coordinate,
+                    worldSeed,
+                    1361);
+                for (int i = 0; i < pyramid2Count; i++)
+                {
+                    Vector2 local = new Vector2(
+                        DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 1367 + (i * 17), 12f, chunkSize - 12f),
+                        DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 1373 + (i * 17), 12f, chunkSize - 12f));
+                    if (IsNearAny(local, ringExclusions, 13f) || IsNearAny(local, sceneryExclusions, 13f))
+                    {
+                        continue;
+                    }
+
+                    double logicalX = originX + local.x;
+                    double logicalZ = originZ + local.y;
+                    if (Vector3.Angle(heightField.SampleNormal(logicalX, logicalZ), Vector3.up) >
+                        pyramid2Tuning.MaximumPlacementSlope)
+                    {
+                        continue;
+                    }
+
+                    float minimumScale = Mathf.Max(0.1f, pyramid2Tuning.MinimumScale);
+                    float maximumScale = Mathf.Max(minimumScale, pyramid2Tuning.MaximumScale);
+                    float scale = DuneVectorMath.HashRange(
+                        coordinate.x,
+                        coordinate.y,
+                        worldSeed,
+                        1381 + (i * 17),
+                        minimumScale,
+                        maximumScale);
+                    if (geoglyphTuning != null && geoglyphTuning.OverlapsArtworkFootprint(
+                            logicalX,
+                            logicalZ,
+                            scale))
+                    {
+                        continue;
+                    }
+                    float yaw = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 1399 + (i * 17), 0f, 360f);
+                    float minimumBurial = Mathf.Max(0f, pyramid2Tuning.MinimumBurialDepth);
+                    float maximumBurial = Mathf.Max(minimumBurial, pyramid2Tuning.MaximumBurialDepth);
+                    float burial = DuneVectorMath.HashRange(
+                        coordinate.x,
+                        coordinate.y,
+                        worldSeed,
+                        1409 + (i * 17),
+                        minimumBurial,
+                        maximumBurial);
+                    float footprintFloor = SampleLowestPyramidFootprintHeight(
+                        heightField,
+                        logicalX,
+                        logicalZ,
+                        scale,
+                        yaw);
+                    float y = footprintFloor - burial;
+                    float hue = DuneVectorMath.HashRange(
+                        coordinate.x,
+                        coordinate.y,
+                        worldSeed,
+                        1423 + (i * 17),
+                        0f,
+                        1f);
+                    DuneVectorVisuals.CreatePyramid(
+                        Root,
+                        new Vector3(local.x, y, local.y),
+                        scale,
+                        yaw,
+                        materials.Pyramid2Prefab,
+                        materials.Sandstone,
+                        materials.Pyramid2LodTuning,
+                        hue,
+                        "Pyramid 2");
+                    sceneryExclusions.Add(local);
+                }
             }
 
             if (obeliskTuning != null && materials.ObeliskPrefab != null)

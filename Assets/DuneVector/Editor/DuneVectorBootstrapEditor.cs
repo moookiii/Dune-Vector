@@ -154,6 +154,8 @@ namespace DuneVector.Editor
         private SerializedProperty _dynamicCouriers;
         private SerializedProperty _pyramids;
         private SerializedProperty _obelisks;
+        private SerializedProperty _darkPyramids;
+        private SerializedProperty _pyramid2;
         private SerializedProperty _cacti;
         private SerializedProperty _worldStreaming;
         private SerializedProperty _rendererFrustumCulling;
@@ -226,6 +228,8 @@ namespace DuneVector.Editor
             _dynamicCouriers = serializedObject.FindProperty("DynamicCouriers");
             _pyramids = serializedObject.FindProperty("Pyramids");
             _obelisks = serializedObject.FindProperty("Obelisks");
+            _darkPyramids = serializedObject.FindProperty("DarkPyramids");
+            _pyramid2 = serializedObject.FindProperty("Pyramid2");
             _cacti = serializedObject.FindProperty("Cacti");
             _worldStreaming = serializedObject.FindProperty("WorldStreaming");
             _rendererFrustumCulling = serializedObject.FindProperty("RendererFrustumCulling");
@@ -652,6 +656,14 @@ namespace DuneVector.Editor
                 "Obelisks",
                 "Obelisk density, randomized size range, burial, and LOD distances.",
                 _obelisks);
+            DuneVectorSettingsInspector.DrawSection(
+                "Dark Pyramids",
+                "PyramidDarker variant density, independent size range, burial, and LOD distances.",
+                _darkPyramids);
+            DuneVectorSettingsInspector.DrawSection(
+                "Pyramid 2",
+                "NewPyramidPrefab variant density, independent size range, burial, and LOD distances.",
+                _pyramid2);
             DuneVectorSettingsInspector.DrawSection(
                 "Cacti",
                 "Saguaro density, proportions, ribbing, arm silhouettes, color, and blossoms.",

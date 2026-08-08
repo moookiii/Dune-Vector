@@ -43,6 +43,7 @@ namespace DuneVector
         public PyramidTuning Pyramids => RuntimeSettings.Pyramids;
         public PyramidTuning Obelisks => RuntimeSettings.Obelisks;
         public PyramidTuning DarkPyramids => RuntimeSettings.DarkPyramids;
+        public PyramidTuning Pyramid2 => RuntimeSettings.Pyramid2;
         public CactusTuning Cacti => RuntimeSettings.Cacti;
         public DesertShrubTuning DesertShrubs => RuntimeSettings.DesertShrubs;
         public WorldStreamingTuning WorldStreaming => RuntimeSettings.WorldStreaming;
@@ -364,7 +365,8 @@ namespace DuneVector
                 Obelisks,
                 FlyingEnemies,
                 VesperKites,
-                DarkPyramids);
+                DarkPyramids,
+                Pyramid2);
             _materials.ConfigureStormPyramid(StormPyramids);
             _materials.ConfigurePlayerStrikeOrb(PlayerStrikeOrbs);
 
@@ -458,6 +460,7 @@ namespace DuneVector
             World.PyramidMaximumBurialDepth = Pyramids.MaximumBurialDepth;
             World.Obelisks = Obelisks;
             World.DarkPyramids = DarkPyramids;
+            World.Pyramid2 = Pyramid2;
             World.Geoglyphs = RuntimeSettings.Geoglyphs;
             World.Shrubs = DesertShrubs;
             World.Landmarks = Contracts.Enabled && WorldHubSettings.Enabled ? LandmarkSettings : null;

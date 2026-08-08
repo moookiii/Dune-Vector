@@ -33,6 +33,8 @@ namespace DuneVector
         public Material AncientSpireAccent { get; }
         public Material AncientSpireDark { get; }
         public GameObject PyramidPrefab { get; }
+        public GameObject DarkPyramidPrefab { get; }
+        public GameObject Pyramid2Prefab { get; }
         public GameObject ObeliskPrefab { get; }
         public Material LandmarkStone { get; }
         public Material LandmarkMetal { get; }
@@ -84,6 +86,8 @@ namespace DuneVector
         public Material LightningWarning { get; }
         public RingTuning RingPortalTuning { get; }
         public PyramidTuning PyramidLodTuning { get; }
+        public PyramidTuning DarkPyramidLodTuning { get; }
+        public PyramidTuning Pyramid2LodTuning { get; }
         public PyramidTuning ObeliskLodTuning { get; }
         public FlyingEnemyTuning FlyingEnemyVisualTuning { get; }
         public GameObject FlyingEnemyModel { get; }
@@ -110,7 +114,9 @@ namespace DuneVector
             PyramidTuning pyramidLodTuning = null,
             PyramidTuning obeliskLodTuning = null,
             FlyingEnemyTuning flyingEnemyTuning = null,
-            VesperKiteTuning vesperKiteTuning = null)
+            VesperKiteTuning vesperKiteTuning = null,
+            PyramidTuning darkPyramidLodTuning = null,
+            PyramidTuning pyramid2LodTuning = null)
         {
             if (runtimeSettings == null)
             {
@@ -140,6 +146,8 @@ namespace DuneVector
             VesperKiteTuning vesperKites = vesperKiteTuning ?? new VesperKiteTuning();
             PyramidLodTuning = pyramidLodTuning ?? new PyramidTuning();
             ObeliskLodTuning = obeliskLodTuning ?? new PyramidTuning();
+            DarkPyramidLodTuning = darkPyramidLodTuning ?? new PyramidTuning();
+            Pyramid2LodTuning = pyramid2LodTuning ?? new PyramidTuning();
             FlyingEnemyVisualTuning = flyingEnemyTuning ?? new FlyingEnemyTuning();
             if (!FlyingEnemyVisualTuning.UseProceduralVisualFallback)
             {
@@ -210,6 +218,25 @@ namespace DuneVector
                 Debug.LogError(
                     "World generation pyramids require " +
                     "Assets/DuneVector/Resources/PyramidPrefab.prefab.");
+            }
+            // Loads the authored prefab, not the raw PyramidDarker.glb beside it.
+            // Both share a Resources name if the prefab is not suffixed, and the
+            // glb's LOD nodes are unsuffixed siblings that all render at once.
+            DarkPyramidPrefab = Resources.Load<GameObject>("PyramidDarkerPrefab");
+            if (DarkPyramidPrefab == null)
+            {
+                Debug.LogError(
+                    "Darker world generation pyramids require " +
+                    "Assets/DuneVector/Resources/PyramidDarkerPrefab.prefab.");
+            }
+            // Same reasoning as the darker variant: load the authored prefab so
+            // the raw NewPyramidLOD glbs never render as unsuffixed siblings.
+            Pyramid2Prefab = Resources.Load<GameObject>("NewPyramidPrefab");
+            if (Pyramid2Prefab == null)
+            {
+                Debug.LogError(
+                    "Pyramid 2 world generation requires " +
+                    "Assets/DuneVector/Resources/NewPyramidPrefab.prefab.");
             }
             if (landmarkTuning != null)
             {
@@ -1094,6 +1121,22 @@ namespace DuneVector
         private static readonly Dictionary<string, Mesh> MeshCache = new Dictionary<string, Mesh>();
         private static GameObject[] _cactusModels;
 
+        // Stone hues the miniature pyramids weather into. Quantising to a fixed
+        // palette keeps GPU instancing batching by material instead of exploding
+        // into one draw per pyramid.
+        private static readonly Color[] PyramidHueTints =
+        {
+            new Color(1.00f, 0.97f, 0.90f), // bleached limestone
+            new Color(1.00f, 0.84f, 0.66f), // sun-baked ochre
+            new Color(0.93f, 0.70f, 0.55f), // red sandstone
+            new Color(0.78f, 0.74f, 0.72f), // cold grey granite
+            new Color(0.86f, 0.84f, 0.62f), // pale desert olive
+            new Color(0.72f, 0.66f, 0.74f), // dusk violet stone
+        };
+
+        private static readonly Dictionary<string, Material> PyramidTintCache =
+            new Dictionary<string, Material>();
+
         public static Transform CreateDroneVisual(
             Transform parent,
             DuneVectorMaterials materials,
@@ -1713,6 +1756,74 @@ namespace DuneVector
                 material);
         }
 
+        private static Material GetPyramidTintedMaterial(Material source, int hueIndex)
+        {
+            if (source == null)
+            {
+                return null;
+            }
+
+            string key = $"pyramid-tint:{source.GetEntityId()}:{hueIndex}";
+            if (PyramidTintCache.TryGetValue(key, out Material tinted) && tinted != null)
+            {
+                return tinted;
+            }
+
+            Color tint = PyramidHueTints[hueIndex];
+            tinted = new Material(source) { name = $"{source.name} (Hue {hueIndex})" };
+            tinted.enableInstancing = true;
+            if (tinted.HasProperty("_BaseColor"))
+            {
+                Color baseColor = tinted.GetColor("_BaseColor");
+                tinted.SetColor(
+                    "_BaseColor",
+                    new Color(
+                        baseColor.r * tint.r,
+                        baseColor.g * tint.g,
+                        baseColor.b * tint.b,
+                        baseColor.a));
+            }
+            else if (tinted.HasProperty("_Color"))
+            {
+                Color baseColor = tinted.GetColor("_Color");
+                tinted.SetColor(
+                    "_Color",
+                    new Color(
+                        baseColor.r * tint.r,
+                        baseColor.g * tint.g,
+                        baseColor.b * tint.b,
+                        baseColor.a));
+            }
+
+            PyramidTintCache[key] = tinted;
+            return tinted;
+        }
+
+        private static int ResolvePyramidHueIndex(float hue)
+        {
+            return Mathf.Clamp(
+                Mathf.FloorToInt(Mathf.Repeat(hue, 1f) * PyramidHueTints.Length),
+                0,
+                PyramidHueTints.Length - 1);
+        }
+
+        private static void ApplyPyramidHue(MeshRenderer[] renderers, float hue)
+        {
+            int hueIndex = ResolvePyramidHueIndex(hue);
+
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Material[] sourceMaterials = renderers[i].sharedMaterials;
+                Material[] tintedMaterials = new Material[sourceMaterials.Length];
+                for (int materialIndex = 0; materialIndex < sourceMaterials.Length; materialIndex++)
+                {
+                    tintedMaterials[materialIndex] =
+                        GetPyramidTintedMaterial(sourceMaterials[materialIndex], hueIndex);
+                }
+                renderers[i].sharedMaterials = tintedMaterials;
+            }
+        }
+
         public static Transform CreatePyramid(
             Transform parent,
             Vector3 localPosition,
@@ -1720,9 +1831,11 @@ namespace DuneVector
             float yaw,
             GameObject model,
             Material fallbackMaterial,
-            PyramidTuning pyramidLodTuning)
+            PyramidTuning pyramidLodTuning,
+            float hue = 0f,
+            string rootName = "Small Pyramid")
         {
-            GameObject root = new GameObject("Small Pyramid");
+            GameObject root = new GameObject(rootName);
             root.transform.SetParent(parent, false);
             root.transform.localPosition = localPosition;
             root.transform.localRotation = Quaternion.Euler(0f, yaw, 0f);
@@ -1734,6 +1847,7 @@ namespace DuneVector
 
             Mesh mesh = GetPyramidMesh();
             float targetHalfExtent = Mathf.Max(0.1f, scale);
+            Material tintedFallback = GetPyramidTintedMaterial(fallbackMaterial, ResolvePyramidHueIndex(hue));
 
             if (model == null)
             {
@@ -1743,7 +1857,7 @@ namespace DuneVector
                 MeshFilter filter = root.AddComponent<MeshFilter>();
                 filter.sharedMesh = mesh;
                 MeshRenderer renderer = root.AddComponent<MeshRenderer>();
-                renderer.sharedMaterial = fallbackMaterial;
+                renderer.sharedMaterial = tintedFallback;
                 renderer.shadowCastingMode = ShadowCastingMode.On;
                 renderer.receiveShadows = true;
                 return root.transform;
@@ -1769,7 +1883,7 @@ namespace DuneVector
                 MeshFilter filter = root.AddComponent<MeshFilter>();
                 filter.sharedMesh = mesh;
                 MeshRenderer renderer = root.AddComponent<MeshRenderer>();
-                renderer.sharedMaterial = fallbackMaterial;
+                renderer.sharedMaterial = tintedFallback;
                 renderer.shadowCastingMode = ShadowCastingMode.On;
                 renderer.receiveShadows = true;
                 return root.transform;
@@ -1801,6 +1915,7 @@ namespace DuneVector
             MeshCollider modelCollider = colliderObject.AddComponent<MeshCollider>();
             modelCollider.sharedMesh = mesh;
 
+            ApplyPyramidHue(renderers, hue);
             for (int i = 0; i < renderers.Length; i++)
             {
                 renderers[i].shadowCastingMode = ShadowCastingMode.On;

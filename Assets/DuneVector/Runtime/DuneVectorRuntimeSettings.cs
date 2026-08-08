@@ -6075,6 +6075,14 @@ namespace DuneVector
             MaximumScale = 9f,
         };
 
+        [Tooltip("Pyramid 2 variant density, size range, burial, and LOD distances. Uses the NewPyramidPrefab model and its own independent scale controls.")]
+        public PyramidTuning Pyramid2 = new PyramidTuning
+        {
+            DensityPerChunk = 0.12f,
+            MinimumScale = 5f,
+            MaximumScale = 9f,
+        };
+
         [Tooltip("Procedural saguaro distribution, silhouette, ribbing, and blossoms.")]
         public CactusTuning Cacti = new CactusTuning();
 
@@ -6262,6 +6270,7 @@ namespace DuneVector
             Pyramids ??= new PyramidTuning();
             Obelisks ??= new PyramidTuning();
             DarkPyramids ??= new PyramidTuning();
+            Pyramid2 ??= new PyramidTuning();
             Cacti ??= new CactusTuning();
             DesertShrubs ??= new DesertShrubTuning();
             DesertShrubs.EnsureInitialized();
