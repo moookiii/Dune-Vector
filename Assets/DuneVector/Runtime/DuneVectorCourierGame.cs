@@ -1627,7 +1627,7 @@ namespace DuneVector
         {
             int seed = random.Next();
             int difficulty = Mathf.Clamp(
-                (completed / 10) + random.Next(0, 3),
+                Mathf.FloorToInt(completed / Mathf.Max(0.25f, _settings.DeliveriesPerContractRank)) + random.Next(0, 3),
                 0,
                 Mathf.Max(1, _settings.MaximumRisk));
             float distance = Mathf.Lerp(

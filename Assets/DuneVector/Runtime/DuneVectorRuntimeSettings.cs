@@ -925,6 +925,8 @@ namespace DuneVector
 
         [Header("Risk Scaling")]
         [Range(1, 100)] public int MaximumRisk = 20;
+        [Tooltip("Completed deliveries required to advance one contract rank in the contracts list.")]
+        [Min(0.25f)] public float DeliveriesPerContractRank = 2.5f;
         [Min(0f)] public float RiskRewardMultiplierPerTier = 0.12f;
         [Min(1f)] public float RiskEnemyMultiplierAtRankOne = 1.1f;
         [Min(1f)] public float RiskEnemyMultiplierAtMaximumRank = 3f;
