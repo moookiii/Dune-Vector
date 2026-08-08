@@ -374,6 +374,8 @@ namespace DuneVector
                     _settings.ForegroundStreakBurstCount * Mathf.Clamp01(command.Strength) * punch);
             }
             int count = Mathf.Min(available, requested);
+            bool soloLineThroughDrone = centerOut
+                && (count == 1 || (count == 2 && command.ScreenFlareEmitMirroredPair));
             int movingLineCount = centerOut
                 ? Mathf.CeilToInt(command.ScreenFlareLineCount
                     * Mathf.Max(1f, _settings.CenterOutBurstCountMultiplier))
@@ -472,10 +474,13 @@ namespace DuneVector
                     startSize = centerOut
                         ? _settings.ForegroundStreakSize * (fineLine
                             ? _settings.CenterOutFineLineWidthMultiplier
-                                * (count == 1
+                                * (soloLineThroughDrone
                                     ? Mathf.Max(1f, _settings.CenterOutSoloFineLineWidthMultiplier)
                                     : 1f)
-                            : _settings.CenterOutBroadRayWidthMultiplier)
+                            : _settings.CenterOutBroadRayWidthMultiplier
+                                * (soloLineThroughDrone
+                                    ? Mathf.Max(1f, _settings.CenterOutSoloFineLineWidthMultiplier)
+                                    : 1f))
                             * (i >= movingLineCount && command.ScreenFlareHeldWidthScale > 0f
                                 ? command.ScreenFlareHeldWidthScale
                                 : (command.ScreenFlareWidthScale > 0f
