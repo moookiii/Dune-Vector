@@ -2092,6 +2092,9 @@ namespace DuneVector
         [Tooltip("Cells farther than this from the camera are never submitted. Zero disables the distance cut.")]
         [Min(0f)] public float MaximumCellDrawDistance;
 
+        [Tooltip("Shadow-casting cells farther than this from the camera are never submitted. Should sit well beyond Maximum Cell Draw Distance so distant geometry still casts before it stops drawing. Zero disables the shadow-caster distance cut.")]
+        [Min(0f)] public float ShadowCasterMaximumDrawDistance;
+
         [Tooltip("Keep one captured source renderer visible and offset its instanced copy for visual transform comparison.")]
         public bool EnableDebugComparison;
 

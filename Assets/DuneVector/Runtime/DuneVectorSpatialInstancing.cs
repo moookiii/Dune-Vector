@@ -140,6 +140,7 @@ namespace DuneVector
         private readonly Dictionary<Vector2Int, Cell> _cells = new Dictionary<Vector2Int, Cell>();
         private readonly List<Cell> _dirtyCells = new List<Cell>();
         private readonly Plane[] _cullingPlanes = new Plane[6];
+        private float _shadowCasterMaximumDrawDistanceSquared;
         private SpatialGpuInstancingTuning _settings;
         private int _nextHandle = 1;
         private bool _forceTransformRefresh;
@@ -489,11 +490,18 @@ namespace DuneVector
 
                 float maximumDrawDistance = Mathf.Max(0f, _settings.MaximumCellDrawDistance);
                 float maximumDrawDistanceSquared = maximumDrawDistance * maximumDrawDistance;
+                float shadowCasterDrawDistance = Mathf.Max(0f, _settings.ShadowCasterMaximumDrawDistance);
+                _shadowCasterMaximumDrawDistanceSquared = shadowCasterDrawDistance * shadowCasterDrawDistance;
                 foreach (Cell cell in _cells.Values)
                 {
                     // One cheap test against the cell's widest possible pad rejects every batch it
                     // holds at once, instead of repeating the same AABB test per batch per frame.
-                    if (cell.HasBounds && (!cullCells || IsCellPotentiallyVisible(cell.WorldBounds)))
+                    if (cell.HasBounds
+                        && (!cullCells
+                            || IsCellPotentiallyVisible(
+                                cell.WorldBounds,
+                                lodCameraPosition,
+                                maximumDrawDistanceSquared)))
                     {
                         for (int batchIndex = 0; batchIndex < cell.ActiveBatches.Count; batchIndex++)
                         {
@@ -535,15 +543,27 @@ namespace DuneVector
         }
 
         /// <summary>
-        /// Tests a batch's world bounds against the camera frustum. Shadow casters use a wider
-        /// pad so geometry just off screen still throws shadows into view.
-        /// </summary>
-        /// <summary>
         /// Conservative whole-cell rejection using the widest pad any batch in the cell could ask
         /// for, so a cell that fails here can never contain a visible batch.
         /// </summary>
-        private bool IsCellPotentiallyVisible(Bounds worldBounds)
+        private bool IsCellPotentiallyVisible(
+            Bounds worldBounds,
+            Vector3 cameraPosition,
+            float maximumDrawDistanceSquared)
         {
+            // A zero cut on either class means unlimited for that class, so the cell can only be
+            // distance-rejected when both classes are capped.
+            if (maximumDrawDistanceSquared > 0f && _shadowCasterMaximumDrawDistanceSquared > 0f)
+            {
+                float widestCutSquared =
+                    Mathf.Max(maximumDrawDistanceSquared, _shadowCasterMaximumDrawDistanceSquared);
+                if ((worldBounds.ClosestPoint(cameraPosition) - cameraPosition).sqrMagnitude
+                    > widestCutSquared)
+                {
+                    return false;
+                }
+            }
+
             float padding = Mathf.Max(
                 Mathf.Max(0f, _settings.FrustumCullPadding),
                 Mathf.Max(0f, _settings.ShadowCasterFrustumCullPadding));
@@ -552,6 +572,10 @@ namespace DuneVector
             return GeometryUtility.TestPlanesAABB(_cullingPlanes, paddedBounds);
         }
 
+        /// <summary>
+        /// Tests a batch's world bounds against the camera frustum. Shadow casters use a wider
+        /// pad so geometry just off screen still throws shadows into view.
+        /// </summary>
         private bool IsBatchVisible(
             Batch batch,
             Bounds worldBounds,
@@ -559,10 +583,15 @@ namespace DuneVector
             float maximumDrawDistanceSquared)
         {
             bool castsShadows = batch.Key.ShadowCastingMode != ShadowCastingMode.Off;
-            if (maximumDrawDistanceSquared > 0f && !castsShadows)
+            // Shadow casters get their own, larger cut rather than an exemption, so distant
+            // geometry stops being submitted eventually instead of at any range.
+            float distanceCutSquared = castsShadows
+                ? _shadowCasterMaximumDrawDistanceSquared
+                : maximumDrawDistanceSquared;
+            if (distanceCutSquared > 0f)
             {
                 if ((worldBounds.ClosestPoint(cameraPosition) - cameraPosition).sqrMagnitude
-                    > maximumDrawDistanceSquared)
+                    > distanceCutSquared)
                 {
                     return false;
                 }
