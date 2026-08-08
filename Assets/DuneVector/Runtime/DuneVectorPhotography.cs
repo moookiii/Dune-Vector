@@ -458,6 +458,11 @@ namespace DuneVector
                     {
                         continue;
                     }
+                    if (CalculateVisiblePercentage(site) <
+                        _settings.SubjectDetectionMinimumVisiblePercentage)
+                    {
+                        continue;
+                    }
                     bestDepth = depth;
                     bestCenterPriority = priority;
                     bestBounds = bounds;
@@ -497,6 +502,11 @@ namespace DuneVector
                         bestCenterPriority,
                         prioritizeForeground:
                             !found || bestSubject.Category != PhotographableSubjectCategory.Glyph))
+                {
+                    continue;
+                }
+                if (marker.CalculateVisiblePercentage(_camera, _settings) <
+                    _settings.SubjectDetectionMinimumVisiblePercentage)
                 {
                     continue;
                 }

@@ -217,6 +217,8 @@ namespace DuneVector
         [Min(0f)] public float CaptureHeightOffset = 0.8f;
         [Min(0f)] public float OcclusionRayEndTolerance = 2f;
         public LayerMask OcclusionLayers = -1;
+        [Tooltip("Subjects with less than this visible fraction are ignored by the viewfinder so it never frames something hidden behind geometry.")]
+        [Range(0f, 1f)] public float SubjectDetectionMinimumVisiblePercentage = 0.25f;
 
         [Header("Viewfinder Layout")]
         [Min(360f)] public float HudReferenceHeight = 1080f;
