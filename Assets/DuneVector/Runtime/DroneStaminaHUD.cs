@@ -282,10 +282,9 @@ namespace DuneVector
             if (low && _settings.LowPulseStrength > 0f)
             {
                 float pulse = (Mathf.Sin(Time.unscaledTime * _settings.LowPulseSpeed * Mathf.PI * 2f) + 1f) * 0.5f;
-                meterColor = Color.Lerp(
-                    meterColor,
-                    Color.white,
-                    pulse * _settings.LowPulseStrength);
+                Color dimmed = meterColor * (1f - Mathf.Clamp01(_settings.LowPulseStrength));
+                dimmed.a = meterColor.a;
+                meterColor = Color.Lerp(meterColor, dimmed, pulse);
             }
 
             float restoreDuration = Mathf.Max(0.0001f, _settings.RestoredFeedbackDuration);

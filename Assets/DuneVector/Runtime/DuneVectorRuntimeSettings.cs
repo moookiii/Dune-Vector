@@ -5391,8 +5391,8 @@ namespace DuneVector
         [Tooltip("Fraction of the full meter the spent-stamina segment drains per second once it starts catching up.")]
         [Min(0f)] public float ChipTrailCatchUpRate = 0.85f;
         [ColorUsage(false)] public Color ChipTrailColor = new Color(1f, 0.38f, 0.16f, 0.55f);
-        [Tooltip("Extra brightness pulsed into the meter while stamina is low or exhausted.")]
-        [Range(0f, 1f)] public float LowPulseStrength = 0.35f;
+        [Tooltip("How far the meter dims at the bottom of each blink while stamina is low or exhausted. 1 blinks to black.")]
+        [Range(0f, 1f)] public float LowPulseStrength = 0.55f;
         [Tooltip("Pulses per second while stamina is low or exhausted.")]
         [Min(0f)] public float LowPulseSpeed = 1.6f;
         [Tooltip("Strength of the flash blended into the meter when stamina is restored.")]
