@@ -118,3 +118,6 @@ fmod_editor.log
 /Assets/Archanor/
 # Regenerable placeholder maps for the Sunspire Exchange hub.
 /ArtSource/Blender/SunspireExchange/Textures/
+
+# Blender build cache for the Desert Megagate texture downrez
+/ArtSource/Blender/DesertMegagate/TexturesBaked/
