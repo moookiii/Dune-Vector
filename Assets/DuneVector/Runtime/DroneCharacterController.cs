@@ -769,6 +769,14 @@ namespace DuneVector
                 currentVelocity.y = Mathf.Max(
                     currentVelocity.y,
                     _dustDevilSettings.MinimumEntryLaunchSpeed);
+                ApplyDustDevilEjectionImpulse(ref currentVelocity, sample);
+            }
+
+            if (_dustDevils.IsControlDisruptionActive && sample.Outward.sqrMagnitude > 0.001f)
+            {
+                currentVelocity += sample.Outward
+                    * _dustDevilSettings.EjectionOutwardAcceleration
+                    * Mathf.Max(0f, deltaTime);
             }
 
             Vector3 planarVelocity = Vector3.ProjectOnPlane(currentVelocity, Vector3.up);
@@ -807,6 +815,22 @@ namespace DuneVector
                 launchDirection = Vector3.up;
             }
             RequestFlight(launchDirection, _dustDevilSettings.LaunchFlightSpeedMultiplier);
+        }
+
+        private void ApplyDustDevilEjectionImpulse(ref Vector3 currentVelocity, DustDevilSample sample)
+        {
+            Vector3 outward = sample.Outward;
+            if (outward.sqrMagnitude < 0.001f)
+            {
+                return;
+            }
+
+            float outwardSpeed = Vector3.Dot(currentVelocity, outward);
+            float targetSpeed = Mathf.Max(0f, _dustDevilSettings.EjectionOutwardSpeed);
+            if (outwardSpeed < targetSpeed)
+            {
+                currentVelocity += outward * (targetSpeed - outwardSpeed);
+            }
         }
 
         private void RefreshDustDevilSample()
