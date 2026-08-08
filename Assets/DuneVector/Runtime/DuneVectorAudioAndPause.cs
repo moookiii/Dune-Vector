@@ -2588,46 +2588,16 @@ namespace DuneVector
             DrawSolidRect(new Rect(0f, 0f, Screen.width, Screen.height), _visuals.OverlayColor);
 
             float strength = Mathf.Clamp01(_visuals.OverlayVignetteStrength);
-            float tileSize = 48f * scale;
-            if (strength <= 0.001f || tileSize < 1f)
+            if (strength <= 0.001f)
             {
                 return;
             }
 
-            // The dimming is laid out as a grid of square tiles that darken with
-            // distance from the center, so the falloff steps in blocks that match the
-            // game's vector look rather than sweeping smoothly across the screen.
-            float halfWidth = Screen.width * 0.5f;
-            float halfHeight = Screen.height * 0.5f;
-            float startX = halfWidth - (Mathf.Ceil(halfWidth / tileSize) * tileSize);
-            float startY = halfHeight - (Mathf.Ceil(halfHeight / tileSize) * tileSize);
-            int columns = Mathf.CeilToInt((Screen.width - startX) / tileSize);
-            int rows = Mathf.CeilToInt((Screen.height - startY) / tileSize);
-
-            for (int row = 0; row < rows; row++)
-            {
-                float top = Mathf.Round(startY + (row * tileSize));
-                for (int column = 0; column < columns; column++)
-                {
-                    float left = Mathf.Round(startX + (column * tileSize));
-                    float squareSize = Mathf.Max(1f, Mathf.Round(tileSize));
-                    float centerX = left + (squareSize * 0.5f);
-                    float centerY = top + (squareSize * 0.5f);
-
-                    float offsetX = (centerX - halfWidth) / halfWidth;
-                    float offsetY = (centerY - halfHeight) / halfHeight;
-                    float distance = Mathf.Sqrt((offsetX * offsetX) + (offsetY * offsetY));
-                    float falloff = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(0.45f, 1.2f, distance));
-                    if (falloff <= 0.001f)
-                    {
-                        continue;
-                    }
-
-                    DrawSolidRect(
-                        new Rect(left, top, squareSize, squareSize),
-                        new Color(0f, 0f, 0f, strength * falloff));
-                }
-            }
+            // A single flat dim over the whole screen, so the backdrop reads as an
+            // even darkening with no tiling pattern showing through.
+            DrawSolidRect(
+                new Rect(0f, 0f, Screen.width, Screen.height),
+                new Color(0f, 0f, 0f, strength));
         }
 
         private void DrawPanelChrome(Rect panel, float scale)
