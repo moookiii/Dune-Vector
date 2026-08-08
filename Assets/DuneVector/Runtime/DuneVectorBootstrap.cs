@@ -451,6 +451,9 @@ namespace DuneVector
             World.CollisionActiveRadius = WorldStreaming.CollisionActiveRadius;
             World.SimulationRadius = WorldStreaming.SimulationRadius;
             World.CollisionMeshResolution = WorldStreaming.CollisionMeshResolution;
+            World.EnableTerrainDistanceLod = WorldStreaming.EnableTerrainDistanceLod;
+            World.TerrainFullDetailChunkRadius = WorldStreaming.TerrainFullDetailChunkRadius;
+            World.DistantTerrainResolution = WorldStreaming.DistantTerrainResolution;
             World.FloatingOriginThreshold = WorldStreaming.FloatingOriginThreshold;
             World.Cacti = Cacti;
             World.PyramidDensity = Pyramids.DensityPerChunk;

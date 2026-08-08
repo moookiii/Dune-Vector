@@ -2042,6 +2042,13 @@ namespace DuneVector
         [Range(1, 4)] public int SimulationRadius = 3;
         [Tooltip("Resolution of the terrain collision mesh. Keep lower than the visual terrain mesh to reduce cooking cost.")]
         [Range(8, 64)] public int CollisionMeshResolution = 24;
+        [Header("Terrain Detail Falloff")]
+        [Tooltip("Build terrain chunks past the full-detail radius at a reduced mesh resolution. Seams against full-detail chunks are stitched, so this is a pure triangle saving.")]
+        public bool EnableTerrainDistanceLod = true;
+        [Tooltip("Chunk radius around the player built at the full Dune Mesh Resolution. Everything beyond drops straight to Distant Terrain Resolution.")]
+        [Range(1, 8)] public int TerrainFullDetailChunkRadius = 3;
+        [Tooltip("Mesh resolution used by terrain chunks past the full-detail radius. Snapped down to a whole divisor of Dune Mesh Resolution so distant chunks stitch cleanly.")]
+        [Range(4, 48)] public int DistantTerrainResolution = 12;
         [Tooltip("Local distance at which the world recenters around the drone.")]
         [Min(50f)] public float FloatingOriginThreshold = 520f;
     }

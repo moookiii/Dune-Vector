@@ -56,6 +56,9 @@ namespace DuneVector
         [Range(1, 4)] public int CollisionActiveRadius = 2;
         [Range(1, 4)] public int SimulationRadius = 3;
         [Range(8, 64)] public int CollisionMeshResolution = 24;
+        public bool EnableTerrainDistanceLod = true;
+        [Range(1, 8)] public int TerrainFullDetailChunkRadius = 3;
+        [Range(4, 48)] public int DistantTerrainResolution = 12;
         [Min(50f)] public float FloatingOriginThreshold = 520f;
 
         [Header("Dunes")]
@@ -742,6 +745,7 @@ namespace DuneVector
             }
             QueuePredictedCollisionNeighborhood();
             RefreshChunkActivity(playerChunk);
+            RefreshTerrainLod(playerChunk);
 
             _desiredContentCoordinates.Clear();
             _desiredVisualCoordinates.Clear();
@@ -1004,6 +1008,80 @@ namespace DuneVector
             }
         }
 
+        /// <summary>
+        /// Full mesh resolution inside the full-detail radius, the distant resolution beyond it.
+        /// The distant value is snapped down to a whole divisor of the full resolution so the two
+        /// tiers share every vertex along their boundary and can be stitched exactly.
+        /// </summary>
+        private int GetVisualResolutionForChunk(Vector2Int coordinate, Vector2Int playerChunk)
+        {
+            if (!EnableTerrainDistanceLod)
+            {
+                return ChunkResolution;
+            }
+
+            if (ChebyshevDistance(coordinate, playerChunk) <= Mathf.Max(1, TerrainFullDetailChunkRadius))
+            {
+                return ChunkResolution;
+            }
+
+            return GetSnappedDistantResolution();
+        }
+
+        private int GetSnappedDistantResolution()
+        {
+            int full = Mathf.Max(8, ChunkResolution);
+            int requested = Mathf.Clamp(DistantTerrainResolution, 4, full);
+            for (int candidate = requested; candidate >= 4; candidate--)
+            {
+                if (full % candidate == 0)
+                {
+                    return candidate;
+                }
+            }
+            return full;
+        }
+
+        /// <summary>
+        /// Pushes each loaded chunk its own resolution plus the step ratio of each neighbour, so a
+        /// chunk bordering a coarser one knows which of its edges to collapse.
+        /// </summary>
+        private void RefreshTerrainLod(Vector2Int playerChunk)
+        {
+            foreach (DesertChunk chunk in _chunks.Values)
+            {
+                Vector2Int coordinate = chunk.Coordinate;
+                int resolution = GetVisualResolutionForChunk(coordinate, playerChunk);
+                chunk.RequestVisualLod(
+                    resolution,
+                    BuildEdgeSteps(coordinate, playerChunk));
+            }
+        }
+
+        private DesertChunk.TerrainEdgeSteps BuildEdgeSteps(Vector2Int coordinate, Vector2Int playerChunk)
+        {
+            int resolution = GetVisualResolutionForChunk(coordinate, playerChunk);
+            return new DesertChunk.TerrainEdgeSteps(
+                GetEdgeStep(resolution, coordinate + new Vector2Int(-1, 0), playerChunk),
+                GetEdgeStep(resolution, coordinate + new Vector2Int(1, 0), playerChunk),
+                GetEdgeStep(resolution, coordinate + new Vector2Int(0, -1), playerChunk),
+                GetEdgeStep(resolution, coordinate + new Vector2Int(0, 1), playerChunk));
+        }
+
+        /// <summary>
+        /// How many of this chunk's edge steps the neighbour spans with a single one. Neighbours at
+        /// equal or finer detail leave the edge untouched.
+        /// </summary>
+        private int GetEdgeStep(int resolution, Vector2Int neighbour, Vector2Int playerChunk)
+        {
+            int neighbourResolution = GetVisualResolutionForChunk(neighbour, playerChunk);
+            if (neighbourResolution >= resolution || neighbourResolution <= 0)
+            {
+                return 1;
+            }
+            return Mathf.Max(1, resolution / neighbourResolution);
+        }
+
         private void RefreshChunkActivity(Vector2Int playerChunk)
         {
             int collisionRadius = Mathf.Max(1, CollisionActiveRadius);
@@ -1037,6 +1115,7 @@ namespace DuneVector
                 return;
             }
 
+            Vector2Int playerChunkForLod = GetPlayerLogicalChunk();
             DesertChunk chunk;
             using ((requireCollision ? Markers.CollisionChunk : Markers.VisualChunk).Auto())
             {
@@ -1050,7 +1129,9 @@ namespace DuneVector
                     CollisionMeshResolution,
                     HeightField,
                     _materials,
-                    requireCollision);
+                    requireCollision,
+                    GetVisualResolutionForChunk(coordinate, playerChunkForLod),
+                    BuildEdgeSteps(coordinate, playerChunkForLod));
             }
             _chunks.Add(coordinate, chunk);
             chunk.EnsureClouds(
@@ -1354,6 +1435,10 @@ namespace DuneVector
         private readonly MeshFilter _terrainFilter;
         private readonly MeshRenderer _terrainRenderer;
         private readonly int _visualResolution;
+        private int _desiredVisualResolution;
+        private TerrainEdgeSteps _desiredEdgeSteps = TerrainEdgeSteps.Matched;
+        private int _builtVisualResolution = -1;
+        private TerrainEdgeSteps _builtEdgeSteps = TerrainEdgeSteps.Matched;
         private readonly int _collisionResolution;
         private readonly float _chunkSize;
         private readonly DuneHeightField _heightField;
@@ -1375,12 +1460,16 @@ namespace DuneVector
             int collisionResolution,
             DuneHeightField heightField,
             DuneVectorMaterials materials,
-            bool createCollision)
+            bool createCollision,
+            int visualLodResolution,
+            TerrainEdgeSteps edgeSteps)
         {
             Coordinate = coordinate;
             _chunkSize = chunkSize;
             _heightField = heightField;
             _visualResolution = Mathf.Max(8, resolution);
+            _desiredVisualResolution = Mathf.Clamp(visualLodResolution, 4, _visualResolution);
+            _desiredEdgeSteps = edgeSteps;
             GameObject rootObject = new GameObject($"Desert Chunk [{coordinate.x}, {coordinate.y}]");
             Root = rootObject.transform;
             Root.SetParent(parent, false);
@@ -1391,14 +1480,33 @@ namespace DuneVector
             {
                 if (createCollision)
                 {
-                    _collisionMesh = BuildTerrainMesh(coordinate, chunkSize, _collisionResolution, heightField);
+                    _collisionMesh = BuildTerrainMesh(
+                        coordinate,
+                        chunkSize,
+                        _collisionResolution,
+                        heightField,
+                        TerrainEdgeSteps.Matched);
                     _terrainMesh = _collisionMesh;
-                    IsVisualReady = _visualResolution == _collisionResolution;
+                    // The collision mesh doubles as the visual until the real LOD is built, which
+                    // is only skippable when it already matches what the visual pass would produce.
+                    IsVisualReady = _desiredVisualResolution == _collisionResolution &&
+                        _desiredEdgeSteps.Equals(TerrainEdgeSteps.Matched);
                 }
                 else
                 {
-                    _terrainMesh = BuildTerrainMesh(coordinate, chunkSize, _visualResolution, heightField);
+                    _terrainMesh = BuildTerrainMesh(
+                        coordinate,
+                        chunkSize,
+                        _desiredVisualResolution,
+                        heightField,
+                        _desiredEdgeSteps);
                     IsVisualReady = true;
+                }
+
+                if (IsVisualReady)
+                {
+                    _builtVisualResolution = _desiredVisualResolution;
+                    _builtEdgeSteps = _desiredEdgeSteps;
                 }
             }
             _terrainFilter = rootObject.AddComponent<MeshFilter>();
@@ -1422,8 +1530,15 @@ namespace DuneVector
             {
                 return;
             }
-            if (_terrainMesh != null &&
-                (!IsVisualReady || _collisionResolution == _visualResolution))
+            // A stitched or reduced-LOD visual mesh is not a faithful ground surface, so it is only
+            // reused for collision when it is still the untouched full-detail or collision-grade
+            // build. Otherwise collision gets its own unstitched mesh.
+            bool terrainMeshIsCollisionGrade =
+                _builtVisualResolution < 0 ||
+                (_builtEdgeSteps.Equals(TerrainEdgeSteps.Matched) &&
+                    (_builtVisualResolution == _collisionResolution ||
+                        _builtVisualResolution == _visualResolution));
+            if (_terrainMesh != null && terrainMeshIsCollisionGrade)
             {
                 _collisionMesh = _terrainMesh;
                 AssignTerrainCollider();
@@ -1435,7 +1550,8 @@ namespace DuneVector
                     Coordinate,
                     _chunkSize,
                     _collisionResolution,
-                    _heightField);
+                    _heightField,
+                    TerrainEdgeSteps.Matched);
             }
             AssignTerrainCollider();
         }
@@ -1539,6 +1655,27 @@ namespace DuneVector
                 density);
         }
 
+        /// <summary>
+        /// Records the resolution and neighbour edge steps this chunk should be built at. A change
+        /// clears the ready flag so the streamer rebuilds it through the normal budgeted queue
+        /// rather than stalling the frame.
+        /// </summary>
+        public void RequestVisualLod(int resolution, TerrainEdgeSteps edgeSteps)
+        {
+            int clamped = Mathf.Clamp(resolution, 4, _visualResolution);
+            if (clamped == _desiredVisualResolution && edgeSteps.Equals(_desiredEdgeSteps))
+            {
+                return;
+            }
+
+            _desiredVisualResolution = clamped;
+            _desiredEdgeSteps = edgeSteps;
+            if (_builtVisualResolution != clamped || !_builtEdgeSteps.Equals(edgeSteps))
+            {
+                IsVisualReady = false;
+            }
+        }
+
         public void BuildVisualTerrain()
         {
             if (IsVisualReady)
@@ -1548,8 +1685,15 @@ namespace DuneVector
             Mesh previousTerrainMesh = _terrainMesh;
             using (DesertWorldStreamer.Markers.TerrainMesh.Auto())
             {
-                _terrainMesh = BuildTerrainMesh(Coordinate, _chunkSize, _visualResolution, _heightField);
+                _terrainMesh = BuildTerrainMesh(
+                    Coordinate,
+                    _chunkSize,
+                    _desiredVisualResolution,
+                    _heightField,
+                    _desiredEdgeSteps);
             }
+            _builtVisualResolution = _desiredVisualResolution;
+            _builtEdgeSteps = _desiredEdgeSteps;
             _terrainFilter.sharedMesh = _terrainMesh;
             if (previousTerrainMesh != null && previousTerrainMesh != _collisionMesh)
             {
@@ -1824,9 +1968,103 @@ namespace DuneVector
             }
         }
 
-        private static Mesh BuildTerrainMesh(Vector2Int coordinate, float chunkSize, int resolution, DuneHeightField heightField)
+        /// <summary>
+        /// Per-edge step ratio of the neighbouring chunk's mesh. One means the neighbour is at the
+        /// same resolution or finer and the edge is left alone; k greater than one means the
+        /// neighbour only has a vertex every k steps along that edge.
+        /// </summary>
+        internal readonly struct TerrainEdgeSteps : IEquatable<TerrainEdgeSteps>
         {
-            resolution = Mathf.Max(8, resolution);
+            public readonly int NegativeX;
+            public readonly int PositiveX;
+            public readonly int NegativeZ;
+            public readonly int PositiveZ;
+
+            public TerrainEdgeSteps(int negativeX, int positiveX, int negativeZ, int positiveZ)
+            {
+                NegativeX = Mathf.Max(1, negativeX);
+                PositiveX = Mathf.Max(1, positiveX);
+                NegativeZ = Mathf.Max(1, negativeZ);
+                PositiveZ = Mathf.Max(1, positiveZ);
+            }
+
+            public static TerrainEdgeSteps Matched => new TerrainEdgeSteps(1, 1, 1, 1);
+
+            public bool Equals(TerrainEdgeSteps other) =>
+                NegativeX == other.NegativeX &&
+                PositiveX == other.PositiveX &&
+                NegativeZ == other.NegativeZ &&
+                PositiveZ == other.PositiveZ;
+
+            public override bool Equals(object obj) => obj is TerrainEdgeSteps other && Equals(other);
+
+            public override int GetHashCode() =>
+                (((NegativeX * 397) ^ PositiveX) * 397 ^ NegativeZ) * 397 ^ PositiveZ;
+        }
+
+        /// <summary>
+        /// Collapses this chunk's surplus edge vertices onto the straight line its coarser
+        /// neighbour draws between their shared vertices. Both sides then describe the identical
+        /// edge, so the seam closes exactly rather than being hidden behind a skirt.
+        /// </summary>
+        private static void StitchEdges(
+            Vector3[] vertices,
+            Vector3[] normals,
+            int resolution,
+            TerrainEdgeSteps edges)
+        {
+            int row = resolution + 1;
+            StitchEdge(vertices, normals, edges.NegativeX, resolution, 0, row);
+            StitchEdge(vertices, normals, edges.PositiveX, resolution, resolution, row);
+            StitchEdge(vertices, normals, edges.NegativeZ, resolution, 0, 1);
+            StitchEdge(vertices, normals, edges.PositiveZ, resolution, resolution * row, 1);
+        }
+
+        private static void StitchEdge(
+            Vector3[] vertices,
+            Vector3[] normals,
+            int step,
+            int resolution,
+            int baseIndex,
+            int stride)
+        {
+            if (step <= 1 || resolution % step != 0)
+            {
+                return;
+            }
+
+            for (int i = 1; i < resolution; i++)
+            {
+                int offset = i % step;
+                if (offset == 0)
+                {
+                    continue;
+                }
+
+                // The bracketing vertices are multiples of the step, so they are shared with the
+                // coarse neighbour and are never themselves moved by this pass.
+                int lower = baseIndex + ((i - offset) * stride);
+                int upper = baseIndex + ((i - offset + step) * stride);
+                int target = baseIndex + (i * stride);
+                float blend = offset / (float)step;
+
+                Vector3 position = vertices[target];
+                position.y = Mathf.Lerp(vertices[lower].y, vertices[upper].y, blend);
+                vertices[target] = position;
+                normals[target] = Vector3.Slerp(normals[lower], normals[upper], blend);
+            }
+        }
+
+        private static Mesh BuildTerrainMesh(
+            Vector2Int coordinate,
+            float chunkSize,
+            int resolution,
+            DuneHeightField heightField,
+            TerrainEdgeSteps edges)
+        {
+            // Floored at the same minimum the LOD selection uses, so a distant chunk is never
+            // silently built at a resolution the caller did not compute its edge steps against.
+            resolution = Mathf.Max(4, resolution);
             int row = resolution + 1;
             int vertexCount = row * row;
             TerrainBuildBuffers buffers = GetBuildBuffers(resolution);
@@ -1876,6 +2114,8 @@ namespace DuneVector
                     vertex++;
                 }
             }
+
+            StitchEdges(vertices, normals, resolution, edges);
 
             Mesh mesh = new Mesh { name = $"Dune Terrain [{coordinate.x}, {coordinate.y}]" };
             if (vertexCount > 65535)
