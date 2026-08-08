@@ -464,6 +464,21 @@ namespace DuneVector
                 material.DisableKeyword("_NORMALMAP");
             }
 
+            if (settings.DuneHeightMap != null && settings.DuneDisplacementDepth > 0f)
+            {
+                Vector2 tiling = Vector2.one / Mathf.Max(0.01f, settings.DuneTextureTileSize);
+                material.SetTexture("_ParallaxMap", settings.DuneHeightMap);
+                material.SetTextureScale("_ParallaxMap", tiling);
+                material.SetFloat("_Parallax", settings.DuneDisplacementDepth);
+                material.SetFloat("_DVSandParallaxSteps", settings.DuneDisplacementSteps);
+                material.SetFloat("_DVSandParallaxFadeDistance", settings.DuneDisplacementFadeDistance);
+                material.EnableKeyword("_PARALLAXMAP");
+            }
+            else
+            {
+                material.DisableKeyword("_PARALLAXMAP");
+            }
+
             material.SetFloat("_DVSandTextureRotationDegrees", settings.DuneTextureRotationDegrees);
 
             material.SetFloat("_DVSandVariationEnabled", settings.DuneColorVariationEnabled ? 1f : 0f);

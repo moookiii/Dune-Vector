@@ -6,6 +6,10 @@ Shader "DuneVector/URP Sand Macro Variation"
         [MainColor] _BaseColor("Base Color", Color) = (1, 1, 1, 1)
         [Normal] _BumpMap("Dune Normal Map", 2D) = "bump" {}
         _BumpScale("Dune Normal Strength", Range(0, 4)) = 1
+        _ParallaxMap("Dune Height Map", 2D) = "black" {}
+        _Parallax("Dune Displacement Depth", Range(0, 0.2)) = 0.03
+        _DVSandParallaxSteps("Dune Displacement Steps", Range(4, 64)) = 20
+        _DVSandParallaxFadeDistance("Dune Displacement Fade Distance", Float) = 120
         _Smoothness("Smoothness", Range(0, 1)) = 0.14
         _Metallic("Metallic", Range(0, 1)) = 0
 
@@ -59,6 +63,7 @@ Shader "DuneVector/URP Sand Macro Variation"
             #pragma multi_compile_fog
             #pragma multi_compile_instancing
             #pragma shader_feature_local_fragment _NORMALMAP
+            #pragma shader_feature_local_fragment _PARALLAXMAP
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
@@ -67,6 +72,8 @@ Shader "DuneVector/URP Sand Macro Variation"
             SAMPLER(sampler_BaseMap);
             TEXTURE2D(_BumpMap);
             SAMPLER(sampler_BumpMap);
+            TEXTURE2D(_ParallaxMap);
+            SAMPLER(sampler_ParallaxMap);
 
             float4 _DVMusicPulseOrigins[4];
             float4 _DVMusicPulseParameters[4];
@@ -86,7 +93,11 @@ Shader "DuneVector/URP Sand Macro Variation"
                 float4 _DVSandBrightnessRange;
                 float4 _DVSandSaturationRange;
                 float4 _BumpMap_ST;
+                float4 _ParallaxMap_ST;
                 half _BumpScale;
+                half _Parallax;
+                half _DVSandParallaxSteps;
+                float _DVSandParallaxFadeDistance;
                 half _Smoothness;
                 half _Metallic;
                 half _DVSandVariationEnabled;
@@ -171,6 +182,46 @@ Shader "DuneVector/URP Sand Macro Variation"
                 return saturate((noise - 0.5h) * 1.15h + 0.5h);
             }
 
+#if defined(_PARALLAXMAP)
+            // Steep parallax march. The surface is displaced only in the shading of the
+            // existing triangles, so terrain collision and physics are left untouched.
+            float2 ParallaxOffsetUv(float2 uv, half3 viewDirectionTS, half depth, half stepCount)
+            {
+                half viewZ = max(abs(viewDirectionTS.z), 0.15h);
+                float2 maximumOffset = (viewDirectionTS.xy / viewZ) * depth;
+
+                half steps = max(stepCount, 1.0h);
+                half layerDepth = 1.0h / steps;
+                float2 uvStep = maximumOffset * layerDepth;
+
+                half currentLayerDepth = 0.0h;
+                float2 currentUv = uv;
+                half currentHeight = 1.0h - SAMPLE_TEXTURE2D(_ParallaxMap, sampler_ParallaxMap, currentUv).r;
+
+                [loop]
+                for (int stepIndex = 0; stepIndex < 64; stepIndex++)
+                {
+                    if (currentLayerDepth >= currentHeight || stepIndex >= (int)steps)
+                    {
+                        break;
+                    }
+
+                    currentUv -= uvStep;
+                    currentHeight = 1.0h - SAMPLE_TEXTURE2D(_ParallaxMap, sampler_ParallaxMap, currentUv).r;
+                    currentLayerDepth += layerDepth;
+                }
+
+                // One occlusion-style interpolation between the last two layers removes the
+                // stair-stepping the fixed march would otherwise leave on grazing ripples.
+                float2 previousUv = currentUv + uvStep;
+                half afterDepth = currentHeight - currentLayerDepth;
+                half beforeDepth = (1.0h - SAMPLE_TEXTURE2D(_ParallaxMap, sampler_ParallaxMap, previousUv).r) -
+                    (currentLayerDepth - layerDepth);
+                half weight = afterDepth / max(afterDepth - beforeDepth, 0.0001h);
+                return lerp(currentUv, previousUv, saturate(weight));
+            }
+#endif
+
             half3 ApplySaturation(half3 color, half saturation)
             {
                 half luminance = dot(color, half3(0.2126h, 0.7152h, 0.0722h));
@@ -217,7 +268,34 @@ Shader "DuneVector/URP Sand Macro Variation"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
 
-                half4 textureSample = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv) * _BaseColor;
+                half3 vertexNormalWS = NormalizeNormalPerPixel(input.normalWS);
+                half3 surfaceTangentWS = normalize(input.tangentWS);
+                half3 surfaceBitangentWS = normalize(input.bitangentWS);
+                half3 viewDirectionWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
+
+                float2 surfaceUv = input.uv;
+#if defined(_PARALLAXMAP)
+                // Fade the displacement out with distance so far ripples settle into the
+                // flat texture instead of swimming under the parallax march.
+                float fadeDistance = max(_DVSandParallaxFadeDistance, 0.01);
+                float viewDistance = distance(input.positionWS, GetCameraPositionWS());
+                half parallaxFade = saturate(1.0 - (viewDistance / fadeDistance));
+                half parallaxDepth = _Parallax * parallaxFade;
+                if (parallaxDepth > 0.0001h)
+                {
+                    half3 viewDirectionTS = half3(
+                        dot(viewDirectionWS, surfaceTangentWS),
+                        dot(viewDirectionWS, surfaceBitangentWS),
+                        dot(viewDirectionWS, vertexNormalWS));
+                    surfaceUv = ParallaxOffsetUv(
+                        surfaceUv,
+                        viewDirectionTS,
+                        parallaxDepth,
+                        _DVSandParallaxSteps);
+                }
+#endif
+
+                half4 textureSample = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, surfaceUv) * _BaseColor;
                 float2 logicalWorldXZ = input.logicalWorldXZ;
                 float macroPatternSize = max(_DVSandMacroPatternSize, 0.01);
                 float secondaryPatternSize = max(_DVSandSecondaryPatternSize, 0.01);
@@ -271,18 +349,17 @@ Shader "DuneVector/URP Sand Macro Variation"
                     ((smoothnessNoise * 2.0h - 1.0h) *
                     _DVSandSmoothnessVariation * _DVSandVariationEnabled));
 
-                half3 normalWS = NormalizeNormalPerPixel(input.normalWS);
+                half3 normalWS = vertexNormalWS;
 #if defined(_NORMALMAP)
                 half3 normalTS = UnpackNormalScale(
-                    SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, input.uv),
+                    SAMPLE_TEXTURE2D(_BumpMap, sampler_BumpMap, surfaceUv),
                     _BumpScale);
                 half3x3 tangentToWorld = half3x3(
-                    normalize(input.tangentWS),
-                    normalize(input.bitangentWS),
-                    normalWS);
+                    surfaceTangentWS,
+                    surfaceBitangentWS,
+                    vertexNormalWS);
                 normalWS = NormalizeNormalPerPixel(TransformTangentToWorld(normalTS, tangentToWorld));
 #endif
-                half3 viewDirectionWS = GetWorldSpaceNormalizeViewDir(input.positionWS);
                 float4 shadowCoord = TransformWorldToShadowCoord(input.positionWS);
                 Light mainLight = GetMainLight(shadowCoord);
                 half softenedShadowAttenuation = lerp(

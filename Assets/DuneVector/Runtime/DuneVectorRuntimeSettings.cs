@@ -6298,6 +6298,18 @@ namespace DuneVector
         [Tooltip("Strength of the dune normal map. 0 is flat, 1 is the authored depth, higher exaggerates the ripples.")]
         [Range(0f, 4f)] public float DuneNormalStrength = 1f;
 
+        [Tooltip("Grayscale height map used to fake dune ripple displacement. This is shading only: it never moves terrain vertices, so collision, physics, and landmark grounding are unchanged. Leave empty to disable.")]
+        public Texture2D DuneHeightMap;
+
+        [Tooltip("Apparent depth of the faked dune displacement, as a fraction of one dune texture repeat. 0 is flat; raise it until the ripples read from the drone's cruising height.")]
+        [Range(0f, 0.2f)] public float DuneDisplacementDepth = 0.03f;
+
+        [Tooltip("Ray-march steps used by the faked displacement. Higher looks cleaner at grazing angles and costs more per pixel.")]
+        [Range(4, 64)] public int DuneDisplacementSteps = 20;
+
+        [Tooltip("Distance, in meters, over which the faked displacement fades back to the flat texture. Keeps distant sand from swimming.")]
+        [Min(0.01f)] public float DuneDisplacementFadeDistance = 120f;
+
         [Tooltip("World-space width and length, in meters, covered by one repeat of the dune texture.")]
         [Min(0.01f)] public float DuneTextureTileSize = 18f;
 

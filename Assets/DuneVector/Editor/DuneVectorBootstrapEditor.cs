@@ -173,6 +173,10 @@ namespace DuneVector.Editor
         private SerializedProperty _duneTexture;
         private SerializedProperty _duneNormalMap;
         private SerializedProperty _duneNormalStrength;
+        private SerializedProperty _duneHeightMap;
+        private SerializedProperty _duneDisplacementDepth;
+        private SerializedProperty _duneDisplacementSteps;
+        private SerializedProperty _duneDisplacementFadeDistance;
         private SerializedProperty _duneTextureTileSize;
         private SerializedProperty _duneTextureRotationDegrees;
         private SerializedProperty _duneColorVariationEnabled;
@@ -250,6 +254,10 @@ namespace DuneVector.Editor
             _duneTexture = serializedObject.FindProperty("DuneTexture");
             _duneNormalMap = serializedObject.FindProperty("DuneNormalMap");
             _duneNormalStrength = serializedObject.FindProperty("DuneNormalStrength");
+            _duneHeightMap = serializedObject.FindProperty("DuneHeightMap");
+            _duneDisplacementDepth = serializedObject.FindProperty("DuneDisplacementDepth");
+            _duneDisplacementSteps = serializedObject.FindProperty("DuneDisplacementSteps");
+            _duneDisplacementFadeDistance = serializedObject.FindProperty("DuneDisplacementFadeDistance");
             _duneTextureTileSize = serializedObject.FindProperty("DuneTextureTileSize");
             _duneTextureRotationDegrees = serializedObject.FindProperty("DuneTextureRotationDegrees");
             _duneColorVariationEnabled = serializedObject.FindProperty("DuneColorVariationEnabled");
@@ -593,6 +601,13 @@ namespace DuneVector.Editor
                 EditorGUILayout.PropertyField(_duneTexture);
                 EditorGUILayout.PropertyField(_duneNormalMap);
                 EditorGUILayout.PropertyField(_duneNormalStrength);
+                EditorGUILayout.PropertyField(_duneHeightMap);
+                using (new EditorGUI.DisabledScope(_duneHeightMap.objectReferenceValue == null))
+                {
+                    EditorGUILayout.PropertyField(_duneDisplacementDepth);
+                    EditorGUILayout.PropertyField(_duneDisplacementSteps);
+                    EditorGUILayout.PropertyField(_duneDisplacementFadeDistance);
+                }
                 EditorGUILayout.PropertyField(_duneTextureTileSize);
                 EditorGUILayout.PropertyField(_duneTextureRotationDegrees);
                 EditorGUILayout.Space(4f);
