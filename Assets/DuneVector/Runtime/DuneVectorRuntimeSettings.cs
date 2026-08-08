@@ -1906,6 +1906,16 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class CactusModelBurialOverride
+    {
+        [Tooltip("Asset name of the cactus model in Resources/cacti, for example \"7\".")]
+        public string ModelName = string.Empty;
+
+        [Tooltip("Meters to sink this model below the shared cactus burial depth. Negative values raise it.")]
+        public float AdditionalBurialDepth;
+    }
+
+    [System.Serializable]
     public sealed class CactusTuning
     {
         [Header("Distribution")]
@@ -1913,6 +1923,27 @@ namespace DuneVector
         [Min(0f)] public float DensityPerChunk = 5.5f;
         [Range(0f, 89f)] public float MaximumPlacementSlope = 38f;
         [Min(0f)] public float BurialDepth = 0.18f;
+
+        [Tooltip("Extra burial depth for individual cactus models, keyed by their asset name in Resources/cacti (for example \"7\"). Use this when one model sits high because its mesh has empty space under the base.")]
+        public CactusModelBurialOverride[] ModelBurialOverrides = new CactusModelBurialOverride[0];
+
+        public float ResolveAdditionalBurialDepth(string modelName)
+        {
+            if (ModelBurialOverrides == null || string.IsNullOrEmpty(modelName))
+            {
+                return 0f;
+            }
+
+            for (int i = 0; i < ModelBurialOverrides.Length; i++)
+            {
+                CactusModelBurialOverride entry = ModelBurialOverrides[i];
+                if (entry != null && string.Equals(entry.ModelName, modelName, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return entry.AdditionalBurialDepth;
+                }
+            }
+            return 0f;
+        }
 
         [Header("Overall Size")]
         [Min(0.1f)] public float MinimumHeight = 2.6f;

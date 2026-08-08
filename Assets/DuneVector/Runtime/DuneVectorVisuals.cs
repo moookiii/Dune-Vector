@@ -1633,7 +1633,8 @@ namespace DuneVector
             // instantiated and re-transformed this same frame, so seat the cactus from the mesh
             // bounds instead: rotate and scale them into parent space and lift by their lowest point.
             float lowestPoint = CalculateLowestRotatedPoint(localBounds, root.localRotation, uniformScale);
-            root.localPosition = localPosition + (Vector3.up * -lowestPoint);
+            float extraBurial = cacti.ResolveAdditionalBurialDepth(models[modelIndex].name);
+            root.localPosition = localPosition + (Vector3.up * (-lowestPoint - extraBurial));
 
             for (int i = 0; i < renderers.Length; i++)
             {
