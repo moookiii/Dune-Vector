@@ -3682,6 +3682,8 @@ namespace DuneVector
         [Range(0.25f, 1.5f)] public float PortalVisualRadiusMultiplier = 0.82f;
         [Min(0.5f)] public float PortalMinimumVisualRadius = 3.2f;
         [Min(0.5f)] public float PortalMaximumVisualRadius = 6.8f;
+        [Tooltip("Global multiplier applied to every portal line thickness (outer ring, inner rings, spokes, glyphs, rays).")]
+        [Range(0.5f, 6f)] public float PortalLineThicknessMultiplier = 2f;
         [Min(0.01f)] public float PortalOuterLineThickness = 0.16f;
         [Min(0.01f)] public float PortalInnerLineThickness = 0.09f;
         [Range(0.01f, 0.49f)] public float PortalLineEdgeSoftness = 0.22f;

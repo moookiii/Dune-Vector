@@ -2029,7 +2029,8 @@ namespace DuneVector
         {
             float portalRadius = Mathf.Max(0.25f, radius);
             float lineThickness = Mathf.Max(0.01f, settings.PortalInnerLineThickness) *
-                Mathf.Max(1f, thicknessMultiplier);
+                Mathf.Max(1f, thicknessMultiplier) *
+                Mathf.Max(0.01f, settings.PortalLineThicknessMultiplier);
             float innermostRadius = Mathf.Max(
                 lineThickness * 2f,
                 portalRadius * Mathf.Clamp(settings.PortalInnermostRingRadiusFraction, 0.1f, 0.9f));
@@ -2265,7 +2266,8 @@ namespace DuneVector
                 parent,
                 GetPortalActivationPulseMesh(
                     radius,
-                    settings.PortalActivationPulseLineThickness,
+                    settings.PortalActivationPulseLineThickness *
+                        Mathf.Max(0.01f, settings.PortalLineThicknessMultiplier),
                     settings.PortalCircleSegments),
                 lineMaterial);
             activationPulse.transform.localPosition = Vector3.forward * lineLayerDepth;
@@ -3586,8 +3588,9 @@ namespace DuneVector
             int spokeCount = Mathf.Clamp(settings.PortalSpokeCount, 3, 32);
             int glyphCount = Mathf.Clamp(settings.PortalGlyphCount, 3, 32);
             int rayCount = Mathf.Clamp(settings.PortalExteriorRayCount, 0, 24);
-            float clampedThicknessMultiplier = Mathf.Max(1f, thicknessMultiplier);
-            string key = $"portal-lines-v5:{layer}:{includeRunes}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
+            float clampedThicknessMultiplier = Mathf.Max(1f, thicknessMultiplier) *
+                Mathf.Max(0.01f, settings.PortalLineThicknessMultiplier);
+            string key = $"portal-lines-v6:{layer}:{includeRunes}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
                 $"{settings.PortalOuterLineThickness:0.000}:" +
                 $"{settings.PortalInnerLineThickness:0.000}:{circleSegments}:{concentricCount}:" +
                 $"{settings.PortalInnermostRingRadiusFraction:0.000}:{spokeCount}:" +
