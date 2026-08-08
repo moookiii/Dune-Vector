@@ -491,7 +491,9 @@ namespace DuneVector
                 float maximumDrawDistanceSquared = maximumDrawDistance * maximumDrawDistance;
                 foreach (Cell cell in _cells.Values)
                 {
-                    if (cell.HasBounds)
+                    // One cheap test against the cell's widest possible pad rejects every batch it
+                    // holds at once, instead of repeating the same AABB test per batch per frame.
+                    if (cell.HasBounds && (!cullCells || IsCellPotentiallyVisible(cell.WorldBounds)))
                     {
                         for (int batchIndex = 0; batchIndex < cell.ActiveBatches.Count; batchIndex++)
                         {
@@ -536,6 +538,20 @@ namespace DuneVector
         /// Tests a batch's world bounds against the camera frustum. Shadow casters use a wider
         /// pad so geometry just off screen still throws shadows into view.
         /// </summary>
+        /// <summary>
+        /// Conservative whole-cell rejection using the widest pad any batch in the cell could ask
+        /// for, so a cell that fails here can never contain a visible batch.
+        /// </summary>
+        private bool IsCellPotentiallyVisible(Bounds worldBounds)
+        {
+            float padding = Mathf.Max(
+                Mathf.Max(0f, _settings.FrustumCullPadding),
+                Mathf.Max(0f, _settings.ShadowCasterFrustumCullPadding));
+            Bounds paddedBounds = worldBounds;
+            paddedBounds.Expand(padding * 2f);
+            return GeometryUtility.TestPlanesAABB(_cullingPlanes, paddedBounds);
+        }
+
         private bool IsBatchVisible(
             Batch batch,
             Bounds worldBounds,

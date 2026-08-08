@@ -30,7 +30,11 @@ namespace DuneVector
         private bool _destroyAfterReaction;
         private float _detachedSpinSpeed;
         private Vector3 _detachedSpinAxis;
-        private Camera _camera;
+        private float _appliedFade = float.NaN;
+        private float _appliedDistanceBloomBoost = float.NaN;
+
+        private static Camera _sharedCamera;
+        private static int _sharedCameraFrame = -1;
 
         public float RotationSpeedMultiplier { get; private set; } = 1f;
 
@@ -94,16 +98,13 @@ namespace DuneVector
         private void LateUpdate()
         {
             UpdateActivationReaction(Time.deltaTime);
-            if (_camera == null)
-            {
-                _camera = Camera.main;
-            }
-            if (_camera == null || _renderers == null)
+            Camera camera = GetSharedCamera();
+            if (camera == null || _renderers == null)
             {
                 return;
             }
 
-            float distance = Vector3.Distance(_camera.transform.position, transform.position);
+            float distance = Vector3.Distance(camera.transform.position, transform.position);
             float fade = Mathf.SmoothStep(
                 0f,
                 1f,
@@ -120,6 +121,23 @@ namespace DuneVector
             float distanceBloomBoost =
                 Mathf.Lerp(1f, _distanceVisibilityBloomMultiplier, distanceVisibility);
             ApplyDistanceVisibility(fade, distanceBloomBoost);
+        }
+
+        /// <summary>
+        /// Every portal resolves the same main camera, so the lookup is done once per frame and
+        /// shared instead of once per portal.
+        /// </summary>
+        private static Camera GetSharedCamera()
+        {
+            int frame = Time.frameCount;
+            if (_sharedCameraFrame == frame && _sharedCamera != null)
+            {
+                return _sharedCamera;
+            }
+
+            _sharedCamera = Camera.main;
+            _sharedCameraFrame = frame;
+            return _sharedCamera;
         }
 
         private void UpdateActivationReaction(float deltaTime)
@@ -182,6 +200,15 @@ namespace DuneVector
 
         private void ApplyDistanceVisibility(float fade, float bloomBoost)
         {
+            // The camera barely moves most frames, so re-uploading identical property blocks to
+            // every portal renderer is pure cost. Only write when the values actually changed.
+            if (fade == _appliedFade && bloomBoost == _appliedDistanceBloomBoost)
+            {
+                return;
+            }
+
+            _appliedFade = fade;
+            _appliedDistanceBloomBoost = bloomBoost;
             for (int i = 0; i < _renderers.Length; i++)
             {
                 Renderer renderer = _renderers[i];
