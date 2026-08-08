@@ -40,7 +40,9 @@ namespace Mewlist
             }
         }
 
-        private bool Initialized
+        // Unity reports a destroyed Material as null through this comparison, so this doubles as a
+        // liveness check after the runtime has collected these materials.
+        public bool Initialized
         {
             get
             {

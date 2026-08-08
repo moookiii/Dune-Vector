@@ -267,6 +267,22 @@ namespace Mewlist
                     parameters[i] = currentProfiles[i].Parameter;
             }
 
+            // A mixer holds plain runtime Materials. Once the runtime collects those, the mixer is
+            // permanently broken: Update throws on its first SetColor and keeps throwing every
+            // frame, because the count check above still sees the right number of mixers. Replace
+            // any dead mixer so its materials are rebuilt and the layer comes back.
+            for (var i = 0; i < mixers.Count; i++)
+            {
+                if (mixers[i] == null || !mixers[i].Material.Initialized)
+                {
+                    mixers[i] = new MassiveCloudsMixer();
+                    if (i < currentParameters.Count)
+                    {
+                        currentParameters[i] = default(MassiveCloudsParameter);
+                    }
+                }
+            }
+
             // Update Mixers
             for (var i = 0; i < profiles.Count; i++)
             {
