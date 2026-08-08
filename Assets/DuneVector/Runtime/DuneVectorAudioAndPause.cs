@@ -651,12 +651,12 @@ namespace DuneVector
         public void ResetVideoSettingsToDefaults()
         {
             PauseMenuVisualTuning defaults = _settings != null ? _settings.PauseMenu : null;
-            ChromaticAberrationEnabled = defaults == null || defaults.DefaultChromaticAberrationEnabled;
-            LensDistortionEnabled = defaults == null || defaults.DefaultLensDistortionEnabled;
+            ChromaticAberrationEnabled = defaults != null && defaults.DefaultChromaticAberrationEnabled;
+            LensDistortionEnabled = defaults != null && defaults.DefaultLensDistortionEnabled;
             CrtLinesEnabled = defaults == null || defaults.DefaultCrtLinesEnabled;
-            FilmGrainEnabled = defaults == null || defaults.DefaultFilmGrainEnabled;
-            VignetteEnabled = defaults == null || defaults.DefaultVignetteEnabled;
-            BloomEnabled = defaults == null || defaults.DefaultBloomEnabled;
+            FilmGrainEnabled = defaults != null && defaults.DefaultFilmGrainEnabled;
+            VignetteEnabled = defaults != null && defaults.DefaultVignetteEnabled;
+            BloomEnabled = defaults != null && defaults.DefaultBloomEnabled;
             AntiAliasingMode = _defaultAntiAliasingMode == DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing
                 ? DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing
                 : _defaultAntiAliasingMode;
@@ -1104,18 +1104,18 @@ namespace DuneVector
                 ? defaults.BuildDefaultMusicVisualizerEffectMask()
                 : MusicVisualEffectGroups.All;
             VisualizerFovEnabled = defaults != null && defaults.DefaultVisualizerFovEnabled;
-            ChromaticAberrationEnabled = _settings.PauseMenu == null
-                || _settings.PauseMenu.DefaultChromaticAberrationEnabled;
-            LensDistortionEnabled = _settings.PauseMenu == null
-                || _settings.PauseMenu.DefaultLensDistortionEnabled;
+            ChromaticAberrationEnabled = _settings.PauseMenu != null
+                && _settings.PauseMenu.DefaultChromaticAberrationEnabled;
+            LensDistortionEnabled = _settings.PauseMenu != null
+                && _settings.PauseMenu.DefaultLensDistortionEnabled;
             CrtLinesEnabled = _settings.PauseMenu == null
                 || _settings.PauseMenu.DefaultCrtLinesEnabled;
-            FilmGrainEnabled = _settings.PauseMenu == null
-                || _settings.PauseMenu.DefaultFilmGrainEnabled;
-            VignetteEnabled = _settings.PauseMenu == null
-                || _settings.PauseMenu.DefaultVignetteEnabled;
-            BloomEnabled = _settings.PauseMenu == null
-                || _settings.PauseMenu.DefaultBloomEnabled;
+            FilmGrainEnabled = _settings.PauseMenu != null
+                && _settings.PauseMenu.DefaultFilmGrainEnabled;
+            VignetteEnabled = _settings.PauseMenu != null
+                && _settings.PauseMenu.DefaultVignetteEnabled;
+            BloomEnabled = _settings.PauseMenu != null
+                && _settings.PauseMenu.DefaultBloomEnabled;
             AntiAliasingMode = _defaultAntiAliasingMode == DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing
                 ? DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing
                 : _defaultAntiAliasingMode;
@@ -1407,7 +1407,10 @@ namespace DuneVector
                 }
                 else if (IsPaused && _showCompendium)
                 {
-                    _showCompendium = false;
+                    if (_photography == null || !_photography.CloseCompendiumViewer())
+                    {
+                        _showCompendium = false;
+                    }
                 }
                 else
                 {
@@ -2639,11 +2642,8 @@ namespace DuneVector
                     WithAlpha(_visuals.ShadowColor, 0.5f));
             }
 
-            float gradient = Mathf.Clamp01(_visuals.PanelGradientStrength);
-            DrawVerticalGradient(
-                panel,
-                Color.Lerp(_visuals.PanelColor, LightenColor(_visuals.PanelColor, 0.35f), gradient),
-                Color.Lerp(_visuals.PanelColor, DarkenColor(_visuals.PanelColor, 0.4f), gradient));
+            // Flat panel fill, lifted slightly above the base panel tone.
+            DrawSolidRect(panel, LightenColor(_visuals.PanelColor, 0.12f));
 
             float borderThickness = Mathf.Max(1f, scale * 2f);
             Color borderTop = _visuals.PanelBorderColor;
