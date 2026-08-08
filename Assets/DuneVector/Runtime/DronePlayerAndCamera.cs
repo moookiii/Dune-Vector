@@ -320,6 +320,8 @@ namespace DuneVector
         private bool _photographyModeActive;
         private float _photographyDistance;
         private float _photographyHeight;
+        private float _photographyMinPitch = -85f;
+        private float _photographyMaxPitch = 85f;
         private float _gameplayFieldOfView;
         private float _musicFovOffset;
         private float _musicRollDegrees;
@@ -332,16 +334,26 @@ namespace DuneVector
             _musicLocalPositionOffset = localPositionOffset;
         }
 
-        public void SetPhotographyMode(bool active, float cameraDistance, float cameraHeight)
+        public void SetPhotographyMode(bool active, float cameraDistance, float cameraHeight, float minPitch, float maxPitch)
         {
             _photographyModeActive = active;
             _photographyDistance = Mathf.Max(0f, cameraDistance);
             _photographyHeight = Mathf.Max(0f, cameraHeight);
+            _photographyMinPitch = Mathf.Min(minPitch, maxPitch);
+            _photographyMaxPitch = Mathf.Max(minPitch, maxPitch);
             if (active)
             {
                 _currentDistance = _photographyDistance;
             }
+            else
+            {
+                _targetPitch = Mathf.Clamp(_targetPitch, MinPitch, MaxPitch);
+            }
         }
+
+        private float CurrentMinPitch => _photographyModeActive ? _photographyMinPitch : MinPitch;
+
+        private float CurrentMaxPitch => _photographyModeActive ? _photographyMaxPitch : MaxPitch;
 
         private void Awake()
         {
@@ -414,7 +426,7 @@ namespace DuneVector
                     {
                         PlanarDirection = exitPlanarForward.normalized;
                     }
-                    _targetPitch = Mathf.Clamp(-Mathf.Asin(Mathf.Clamp(exitForward.y, -1f, 1f)) * Mathf.Rad2Deg, MinPitch, MaxPitch);
+                    _targetPitch = Mathf.Clamp(-Mathf.Asin(Mathf.Clamp(exitForward.y, -1f, 1f)) * Mathf.Rad2Deg, CurrentMinPitch, CurrentMaxPitch);
                 }
 
                 Quaternion yawRotation = Quaternion.AngleAxis(lookDelta.x * LookSensitivity, Vector3.up);
@@ -425,7 +437,7 @@ namespace DuneVector
                 }
 
                 _targetPitch -= lookDelta.y * LookSensitivity;
-                _targetPitch = Mathf.Clamp(_targetPitch, MinPitch, MaxPitch);
+                _targetPitch = Mathf.Clamp(_targetPitch, CurrentMinPitch, CurrentMaxPitch);
                 Quaternion planarRotation = Quaternion.LookRotation(PlanarDirection, Vector3.up);
                 desiredRotation = planarRotation * Quaternion.Euler(_targetPitch, 0f, 0f);
             }

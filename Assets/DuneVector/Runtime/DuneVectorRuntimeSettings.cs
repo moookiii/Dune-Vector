@@ -201,6 +201,10 @@ namespace DuneVector
         [Min(1f)] public float MaximumZoom = 8f;
         [Min(0f)] public float CameraDistance = 0f;
         [Min(0f)] public float CameraHeight = 0.65f;
+        [Tooltip("Highest the grounded camera can look while camera mode is active. Negative values look upward.")]
+        [Range(-89f, 89f)] public float MinPitch = -85f;
+        [Tooltip("Lowest the grounded camera can look while camera mode is active. Positive values look downward.")]
+        [Range(-89f, 89f)] public float MaxPitch = 85f;
         [Min(0f)] public float ZoomStep = 2f;
         [Min(0f)] public float ZoomSharpness = 18f;
         [Min(0f)] public float IdentificationHoldDuration = 2.4f;
