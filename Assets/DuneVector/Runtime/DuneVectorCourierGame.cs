@@ -1033,20 +1033,71 @@ namespace DuneVector
         /// <summary>
         /// Builds the walkable floor collision for the procedural hub. An authored
         /// hub collides against its own meshes instead, so its modelled ramps and
-        /// rails are the collision and nothing extra is generated over them.
+        /// rails are the collision and nothing extra is generated over them. The
+        /// authored floor is probed afterwards, because a hub whose centre has no
+        /// upward-facing collision would drop the drone straight through it.
         /// </summary>
         private void BuildHubFloorColliders()
         {
-            if (UsesPremiumHubVisual && _hubSettings.PremiumVisualMeshCollisionEnabled)
+            if (!UsesPremiumHubVisual || !_hubSettings.PremiumVisualMeshCollisionEnabled)
+            {
+                BuildCircleModelCollider(
+                    _hubRoot,
+                    "Main Teleport Platform Collider (circle.glb)",
+                    Vector3.up * HubDeckSurfaceLocalHeight,
+                    HubPlatformSurfaceRadius);
+                return;
+            }
+
+            Physics.SyncTransforms();
+            float plazaRadius = HubPlazaRadius > 0f ? HubPlazaRadius : HubPlatformSurfaceRadius;
+            if (HasAuthoredHubFloorUnder(Vector3.zero)
+                && HasAuthoredHubFloorUnder(Vector3.forward * (plazaRadius * 0.6f))
+                && HasAuthoredHubFloorUnder(Vector3.right * (plazaRadius * 0.6f)))
             {
                 return;
             }
 
+            Debug.LogWarning(
+                "The authored hub has no walkable collision over part of its centre, so the drone "
+                + "would fall through it. Filling the centre with a flat floor collider at "
+                + $"PremiumVisualPlazaSurfaceHeight ({_hubSettings.PremiumVisualPlazaSurfaceHeight}). "
+                + "Model an upward-facing floor across the plaza to remove it.",
+                this);
             BuildCircleModelCollider(
                 _hubRoot,
-                "Main Teleport Platform Collider (circle.glb)",
-                Vector3.up * HubDeckSurfaceLocalHeight,
-                HubPlatformSurfaceRadius);
+                "Hub Plaza Floor Fallback Collider (circle.glb)",
+                Vector3.up * HubPlazaSurfaceLocalHeight,
+                plazaRadius);
+        }
+
+        /// <summary>
+        /// Drops a probe onto the authored hub from above the plaza floor and
+        /// reports whether any of the hub's own colliders caught it.
+        /// </summary>
+        private bool HasAuthoredHubFloorUnder(Vector3 hubLocalOffset)
+        {
+            const float probeHeightAboveFloor = 6f;
+            const float probeDepthBelowFloor = 3f;
+            Vector3 origin = _hubRoot.position
+                + hubLocalOffset
+                + (Vector3.up * (HubPlazaSurfaceLocalHeight + probeHeightAboveFloor));
+            RaycastHit[] hits = Physics.RaycastAll(
+                origin,
+                Vector3.down,
+                probeHeightAboveFloor + probeDepthBelowFloor,
+                ~0,
+                QueryTriggerInteraction.Ignore);
+            for (int hitIndex = 0; hitIndex < hits.Length; hitIndex++)
+            {
+                if (hits[hitIndex].collider != null
+                    && hits[hitIndex].collider.transform.IsChildOf(_hubRoot))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool BuildPremiumHubVisual()
@@ -1079,18 +1130,44 @@ namespace DuneVector
                 return;
             }
 
+            int collidersAdded = 0;
+            int unreadableMeshes = 0;
             MeshFilter[] meshFilters = visualRoot.GetComponentsInChildren<MeshFilter>(true);
             for (int meshIndex = 0; meshIndex < meshFilters.Length; meshIndex++)
             {
                 MeshFilter meshFilter = meshFilters[meshIndex];
-                if (meshFilter.sharedMesh == null
-                    || meshFilter.gameObject.GetComponent<MeshCollider>() != null)
+                Mesh mesh = meshFilter.sharedMesh;
+                if (mesh == null || meshFilter.gameObject.GetComponent<MeshCollider>() != null)
                 {
                     continue;
                 }
 
+                // A mesh without CPU-side data cannot be cooked into collision.
+                if (!mesh.isReadable)
+                {
+                    unreadableMeshes++;
+                    continue;
+                }
+
                 MeshCollider collider = meshFilter.gameObject.AddComponent<MeshCollider>();
-                collider.sharedMesh = meshFilter.sharedMesh;
+                collider.sharedMesh = mesh;
+                collidersAdded++;
+            }
+
+            if (unreadableMeshes > 0)
+            {
+                Debug.LogError(
+                    $"{unreadableMeshes} of {meshFilters.Length} meshes on "
+                    + $"{_hubSettings.PremiumVisualPrefab.name} are not readable, so they cannot "
+                    + "collide. Enable Read/Write on the hub model importer.",
+                    this);
+            }
+            else if (collidersAdded == 0)
+            {
+                Debug.LogError(
+                    $"{_hubSettings.PremiumVisualPrefab.name} produced no hub collision. "
+                    + "The drone will fall through the hub.",
+                    this);
             }
         }
 
