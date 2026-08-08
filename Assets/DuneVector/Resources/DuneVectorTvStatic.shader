@@ -167,16 +167,21 @@ Shader "DuneVector/URP TV Static"
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
 
-            float Hash21(float2 p)
+            // Multipliers stay below 1 so whole-number inputs (the quantized frame
+            // counter) still advance the fractional part instead of short-cycling.
+            float Hash31(float3 p)
             {
-                p = frac(p * float2(127.1, 311.7));
-                p += dot(p, p + 45.32);
-                return frac(p.x * p.y);
+                p = frac(p * 0.1031);
+                p += dot(p, p.zyx + 31.32);
+                return frac((p.x + p.y) * p.z);
             }
 
             float Hash11(float p)
             {
-                return Hash21(float2(p, p * 1.61803));
+                p = frac(p * 0.1031);
+                p *= p + 33.33;
+                p *= p + p;
+                return frac(p);
             }
 
             Varyings Vert(Attributes input)
@@ -202,11 +207,12 @@ Shader "DuneVector/URP TV Static"
                 float timeSeconds = _Time.y * _TimeScale;
 
                 // Quantize the noise clock so the grain steps at a chosen frame rate.
+                // Wrapped to keep float precision usable during long sessions.
                 float frameRate = max(0.0, _FrameRate);
                 float noiseTime = frameRate > 0.0
                     ? floor(timeSeconds * frameRate)
                     : timeSeconds * 60.0;
-                noiseTime += _Seed;
+                noiseTime = fmod(noiseTime + _Seed, 65536.0);
 
                 // Rolling brightness bar sweeping up the screen.
                 float rollDistance = abs(frac(effectUV.y - (timeSeconds * _RollBarSpeed) + 0.5) - 0.5) * 2.0;
@@ -217,11 +223,11 @@ Shader "DuneVector/URP TV Static"
 
                 // Per-row horizontal tearing.
                 float tearRows = max(1.0, _TearRows);
-                float tearClock = floor(timeSeconds * max(0.0, _TearSpeed));
+                float tearClock = fmod(floor(timeSeconds * max(0.0, _TearSpeed)) + _Seed, 65536.0);
                 float rowIndex = floor(effectUV.y * tearRows);
-                float rowSelect = Hash21(float2(rowIndex, tearClock));
+                float rowSelect = Hash31(float3(rowIndex, tearClock, 11.7));
                 float tearMask = step(1.0 - saturate(_TearDensity), rowSelect);
-                float tearOffset = (Hash21(float2((rowIndex * 1.7) + 3.1, tearClock + 7.3)) - 0.5) *
+                float tearOffset = (Hash31(float3(rowIndex, tearClock, 57.3)) - 0.5) *
                     _TearAmount * tearMask;
                 float displacement = tearOffset + (rollBar * _RollBarOffset);
 
@@ -233,16 +239,17 @@ Shader "DuneVector/URP TV Static"
                 float4 signalB = SAMPLE_TEXTURE2D(_MainTex, sampler_MainTex, signalUV - aberration);
                 float4 signal = float4(signalR.r, signalG.g, signalB.b, signalG.a) * _SignalTint;
 
-                // Static grain sampled on a quantized pixel grid.
+                // Static grain on a quantized pixel grid. Time is its own hash dimension,
+                // so each frame is a fresh field rather than the previous one translated.
                 float2 staticUV = (effectUV * _StaticTiling.xy) + _StaticTiling.zw;
                 staticUV.x += displacement;
                 float2 grid = float2(max(1.0, _NoiseResolutionX), max(1.0, _NoiseResolutionY));
                 float2 cell = floor(staticUV * grid);
-                float luminanceNoise = Hash21(cell + float2(noiseTime, noiseTime * 0.7));
+                float luminanceNoise = Hash31(float3(cell, noiseTime));
                 float3 channelNoise = float3(
                     luminanceNoise,
-                    Hash21(cell + float2((noiseTime * 1.3) + 19.0, (noiseTime * 0.4) + 5.0)),
-                    Hash21(cell + float2((noiseTime * 0.9) + 71.0, (noiseTime * 1.1) + 37.0)));
+                    Hash31(float3(cell + float2(17.0, 5.0), noiseTime + 41.0)),
+                    Hash31(float3(cell + float2(71.0, 37.0), noiseTime + 93.0)));
                 float3 noise = lerp(luminanceNoise.xxx, channelNoise, saturate(_ColorNoise));
                 noise = saturate(((noise - 0.5) * _NoiseContrast) + 0.5 + _NoiseBrightness);
 
@@ -262,8 +269,8 @@ Shader "DuneVector/URP TV Static"
                 color *= lerp(1.0, scan, saturate(_ScanlineStrength));
 
                 // Flicker.
-                float flicker = 1.0 + ((Hash11(floor(timeSeconds * max(0.0, _FlickerRate))) - 0.5) *
-                    saturate(_FlickerAmount));
+                float flickerClock = fmod(floor(timeSeconds * max(0.0, _FlickerRate)) + _Seed, 65536.0);
+                float flicker = 1.0 + ((Hash11(flickerClock) - 0.5) * saturate(_FlickerAmount));
                 color *= flicker;
 
                 // Vignette, kept circular by the aspect divisor.
