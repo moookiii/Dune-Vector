@@ -48,7 +48,7 @@ namespace DuneVector
             _tuning = tuning;
             CacheVisualCenter();
 
-            int capacity = tuning != null ? Mathf.Clamp(tuning.MaximumRingCount, 4, 128) : 4;
+            int capacity = tuning != null ? Mathf.Clamp(tuning.MaximumRingCount, 4, 512) : 4;
             _rings = new TrailRing[capacity];
             _properties = new MaterialPropertyBlock();
             _mesh = tuning != null && portalTuning != null
@@ -127,7 +127,7 @@ namespace DuneVector
                 return;
             }
 
-            float spacing = Mathf.Max(0.1f, _tuning.SpawnSpacing);
+            float spacing = Mathf.Max(0.02f, _tuning.SpawnSpacing);
             Vector3 displacement = position - _lastEmissionPosition;
             float distance = displacement.magnitude;
             if (distance < spacing)
@@ -163,7 +163,7 @@ namespace DuneVector
                 ringIndex = FindOldestRingIndex();
             }
 
-            int hueSteps = Mathf.Clamp(_tuning.HueStepCount, 2, 64);
+            int hueSteps = Mathf.Clamp(_tuning.HueStepCount, 2, 320);
             _rings[ringIndex] = new TrailRing
             {
                 Position = sampledPosition - (direction * Mathf.Max(0f, _tuning.SpawnBehindDistance)),
@@ -200,7 +200,7 @@ namespace DuneVector
                 return;
             }
 
-            int hueSteps = Mathf.Clamp(_tuning.HueStepCount, 2, 64);
+            int hueSteps = Mathf.Clamp(_tuning.HueStepCount, 2, 320);
             float fadeInFraction = Mathf.Clamp(_tuning.FadeInFraction, 0.01f, 0.49f);
             float fadeOutFraction = Mathf.Clamp(_tuning.FadeOutFraction, 0.01f, 0.99f);
             RenderParams renderParams = new RenderParams(_material)
