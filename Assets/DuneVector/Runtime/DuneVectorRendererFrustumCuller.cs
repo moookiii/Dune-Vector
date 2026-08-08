@@ -11,6 +11,7 @@ namespace DuneVector
         {
             public Renderer Renderer;
             public bool OriginalForceRenderingOff;
+            public bool AppliedForceRenderingOff;
         }
 
         private readonly Plane[] _frustumPlanes = new Plane[6];
@@ -21,6 +22,7 @@ namespace DuneVector
         private RendererFrustumCullingTuning _settings;
         private float _nextRendererRefreshTime;
         private bool _cullingWasActive;
+        private int _sliceCursor;
 
         public void Initialize(Camera targetCamera, RendererFrustumCullingTuning settings)
         {
@@ -52,6 +54,12 @@ namespace DuneVector
             GeometryUtility.CalculateFrustumPlanes(_camera, _frustumPlanes);
             ExpandFrustum(_frustumPlanes, _settings.Padding);
 
+            int slices = Mathf.Max(1, _settings.FrustumTestSlicesPerCycle);
+            if (_sliceCursor >= slices)
+            {
+                _sliceCursor = 0;
+            }
+
             for (int i = _trackedRenderers.Count - 1; i >= 0; i--)
             {
                 TrackedRenderer tracked = _trackedRenderers[i];
@@ -62,9 +70,23 @@ namespace DuneVector
                     continue;
                 }
 
+                if (i % slices != _sliceCursor)
+                {
+                    continue;
+                }
+
                 bool insidePaddedFrustum = GeometryUtility.TestPlanesAABB(_frustumPlanes, renderer.bounds);
-                renderer.forceRenderingOff = tracked.OriginalForceRenderingOff || !insidePaddedFrustum;
+                bool shouldForceOff = tracked.OriginalForceRenderingOff || !insidePaddedFrustum;
+                if (shouldForceOff == tracked.AppliedForceRenderingOff)
+                {
+                    continue;
+                }
+
+                renderer.forceRenderingOff = shouldForceOff;
+                tracked.AppliedForceRenderingOff = shouldForceOff;
             }
+
+            _sliceCursor++;
         }
 
         private void RefreshRenderers()
@@ -95,6 +117,7 @@ namespace DuneVector
                 {
                     Renderer = renderer,
                     OriginalForceRenderingOff = renderer.forceRenderingOff,
+                    AppliedForceRenderingOff = renderer.forceRenderingOff,
                 });
             }
 
@@ -132,6 +155,8 @@ namespace DuneVector
                 {
                     tracked.Renderer.forceRenderingOff = tracked.OriginalForceRenderingOff;
                 }
+
+                tracked.AppliedForceRenderingOff = tracked.OriginalForceRenderingOff;
             }
         }
     }

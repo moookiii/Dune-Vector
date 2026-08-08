@@ -78,6 +78,14 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorLandmarkInstance : MonoBehaviour
     {
+        private static readonly List<DuneVectorLandmarkInstance> ActiveInstances =
+            new List<DuneVectorLandmarkInstance>();
+
+        /// <summary>
+        /// Every enabled landmark, maintained on enable/disable so hot paths never scan the scene.
+        /// </summary>
+        public static IReadOnlyList<DuneVectorLandmarkInstance> Active => ActiveInstances;
+
         public DuneLandmarkType Type { get; private set; }
         public DuneLandmarkRarity Rarity { get; private set; }
         public LogicalPosition LogicalPosition { get; private set; }
@@ -88,6 +96,16 @@ namespace DuneVector
         public Transform FlightPathSocket { get; private set; }
         public bool IsPinnedToContract { get; private set; }
         public DuneLandmarkPlacementRecord PlacementRecord { get; private set; }
+
+        private void OnEnable()
+        {
+            ActiveInstances.Add(this);
+        }
+
+        private void OnDisable()
+        {
+            ActiveInstances.Remove(this);
+        }
 
         public void AssignPlacementRecord(DuneLandmarkPlacementRecord placementRecord)
         {

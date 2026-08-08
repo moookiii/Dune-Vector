@@ -2047,8 +2047,11 @@ namespace DuneVector
         [Tooltip("World-space distance added beyond every frustum plane so camera movement reveals objects before they enter view.")]
         [Min(0f)] public float Padding = 30f;
 
-        [Tooltip("How often newly spawned renderers are added to the culling set. Tracked renderers are culled every frame.")]
+        [Tooltip("How often newly spawned renderers are added to the culling set. Raise this if the scene scan shows up as a periodic frame spike.")]
         [Min(0.05f)] public float RendererRefreshInterval = 0.5f;
+
+        [Tooltip("Frames the tracked renderer set is spread across. 1 tests every renderer every frame; higher values flatten the per-frame cost and need matching Padding so objects are revealed before they enter view.")]
+        [Range(1, 8)] public int FrustumTestSlicesPerCycle = 4;
     }
 
     [System.Serializable]

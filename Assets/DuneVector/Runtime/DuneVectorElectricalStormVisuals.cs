@@ -894,11 +894,10 @@ namespace DuneVector
 
         private void SpawnLandmarkReaction()
         {
-            DuneVectorLandmarkInstance[] landmarks =
-                Object.FindObjectsByType<DuneVectorLandmarkInstance>();
+            IReadOnlyList<DuneVectorLandmarkInstance> landmarks = DuneVectorLandmarkInstance.Active;
             _landmarkCandidates.Clear();
             float rangeSquared = _settings.LandmarkReactionRange * _settings.LandmarkReactionRange;
-            for (int i = 0; i < landmarks.Length; i++)
+            for (int i = 0; i < landmarks.Count; i++)
             {
                 if ((landmarks[i].transform.position - _drone.WorldCenter).sqrMagnitude <= rangeSquared)
                 {
