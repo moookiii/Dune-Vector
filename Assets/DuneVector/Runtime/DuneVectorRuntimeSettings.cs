@@ -1221,21 +1221,24 @@ namespace DuneVector
     public sealed class WorldHubTuning
     {
         public bool Enabled = true;
-        [Min(0f)] public float PlatformHeightAboveTerrain = 24f;
-        [Tooltip("Exact hub-local position for the rune ring when automatic top alignment is disabled.")]
-        public Vector3 RuneRingLocalPosition = Vector3.zero;
-        public Vector3 RuneRingLocalEulerAngles = Vector3.zero;
-        public Vector3 RuneRingLocalScale = Vector3.one;
-        [Tooltip("Offsets the authored transform so the rune ring's highest mesh point meets the platform underside.")]
-        public bool RuneRingAlignTopToPlatformUnderside = true;
+        [Tooltip("Height of the hub origin above the terrain it is anchored to. Set this so the lowest point of the authored hub meets the sand.")]
+        [Min(0f)] public float PlatformHeightAboveTerrain = 16.53f;
         [Header("Premium Hub Visuals")]
-        [Tooltip("Optional authored visual shell placed above the rune-ring foundation. Gameplay colliders and terminals remain runtime-built.")]
+        [Tooltip("Optional authored visual shell for the hub. Gameplay colliders and terminals remain runtime-built.")]
         public GameObject PremiumVisualPrefab;
         public Vector3 PremiumVisualLocalPosition = Vector3.zero;
         public Vector3 PremiumVisualLocalEulerAngles = Vector3.zero;
         public Vector3 PremiumVisualLocalScale = Vector3.one;
         [Tooltip("Walkable radius of the authored premium hub before applying its local X/Z scale. Used by the floor collider and invisible containment boundary.")]
         [Min(0f)] public float PremiumVisualSurfaceRadius = 25.35f;
+        [Tooltip("Hub-local height of the authored outer deck ring the drone walks on.")]
+        public float PremiumVisualDeckSurfaceHeight = 1.42f;
+        [Tooltip("Hub-local height of the sunken centre plaza the drone spawns on. Terminals stand on this floor.")]
+        public float PremiumVisualPlazaSurfaceHeight = 0.62f;
+        [Tooltip("Radius of the sunken centre plaza before applying the hub's local X/Z scale. Zero builds one flat floor at the deck height instead.")]
+        [Min(0f)] public float PremiumVisualPlazaRadius = 11f;
+        [Tooltip("Radial segment count of the generated deck ring floor collider.")]
+        [Range(8, 128)] public int PremiumVisualDeckColliderSegments = 64;
         [Tooltip("Adds solid box colliders to authored premium-hub meshes whose names start with one of the configured prefixes.")]
         public bool PremiumVisualStructuralCollidersEnabled = true;
         public string[] PremiumVisualStructuralColliderNamePrefixes = System.Array.Empty<string>();
@@ -1245,15 +1248,19 @@ namespace DuneVector
         public bool ReplaceProceduralStructureVisuals = true;
         [Min(8f)] public float PlatformRadius = 26f;
         [Min(0.5f)] public float PlatformThickness = 2.4f;
-        [Min(0f)] public float TerminalForwardOffset = 11f;
+        [Tooltip("Distance forward of the hub centre where the contract terminal stands. Keep it inside the plaza radius.")]
+        [Min(0f)] public float TerminalForwardOffset = 7.5f;
         [Min(1f)] public float TerminalInteractionRadius = 6f;
-        public Vector3 ArchiveTerminalLocalPosition = new Vector3(11f, 0f, 0f);
+        public Vector3 ArchiveTerminalLocalPosition = new Vector3(7.5f, 0f, 0f);
         public Vector3 ArchiveTerminalLocalEulerAngles = new Vector3(0f, 90f, 0f);
         [Min(1f)] public float ArchiveTerminalInteractionRadius = 6f;
-        [Min(0f)] public float FreeRoamTerminalLeftOffset = 11f;
+        [Min(0f)] public float FreeRoamTerminalLeftOffset = 7.5f;
         [Min(1f)] public float FreeRoamTerminalInteractionRadius = 6f;
         public float FreeRoamDeploymentHeadingDegrees = 90f;
-        [Min(0f)] public float UpgradeAreaSideOffset = 13f;
+        [Tooltip("Hub-relative offset applied to the free roam deployment point. Keep the Z push large enough that the drone lands clear of the hub footprint instead of inside it.")]
+        public Vector3 FreeRoamDeploymentLocalOffset = new Vector3(0f, 0f, 40f);
+        [Tooltip("Hub-local position of the drone upgrade pad.")]
+        public Vector3 UpgradeAreaLocalPosition = new Vector3(0f, 0f, -7.5f);
         [Min(0f)] public float PlayerSpawnHeight = 2.2f;
         public bool RestoreHealthOnReturn = true;
         public bool RestoreStaminaOnReturn = true;

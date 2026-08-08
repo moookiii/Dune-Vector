@@ -241,23 +241,6 @@ namespace DuneVector
             Check(courier.ContractTerminal != null && courier.MessageArchiveTerminal != null && courier.FreeRoamTerminal != null,
                 "Courier hub builds contract, message archive, and free roam terminals",
                 "One or more physical hub terminals were missing.");
-            Check(courier.HubRuneRing != null,
-                "Courier hub builds one prefab-authored rune ring",
-                "The rune_ringPrefab instance was missing from the runtime hub.");
-            if (courier.HubRuneRing != null)
-            {
-                GameObject runeRingPrefab = Resources.Load<GameObject>("rune_ringPrefab");
-                bool usesAuthoredTransform = runeRingPrefab != null &&
-                    Vector3.Distance(courier.HubRuneRing.position, runeRingPrefab.transform.position) < 0.001f &&
-                    Quaternion.Angle(courier.HubRuneRing.rotation, runeRingPrefab.transform.rotation) < 0.01f &&
-                    Vector3.Distance(courier.HubRuneRing.lossyScale, runeRingPrefab.transform.lossyScale) < 0.001f;
-                Check(usesAuthoredTransform,
-                    "Hub rune ring preserves its prefab-authored transform",
-                    "The runtime rune ring position, rotation, or scale differs from rune_ringPrefab.");
-                Check(courier.HubRuneRing.IsChildOf(courier.transform),
-                    "Hub rune ring follows floating-origin hub shifts",
-                    "The rune ring was not parented into the runtime hub hierarchy.");
-            }
             if (courier.MessageArchiveTerminal != null)
             {
                 Vector3 spawnToArchive = Vector3.ProjectOnPlane(

@@ -315,8 +315,6 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorCourierGame : MonoBehaviour
     {
-        private const string HubRuneRingResourcePath = "rune_ringPrefab";
-
         private enum HubTerminalMode
         {
             None,
@@ -338,7 +336,6 @@ namespace DuneVector
         public Transform ContractTerminal => _terminal;
         public Transform MessageArchiveTerminal => _messageArchiveTerminal;
         public Transform FreeRoamTerminal => _freeRoamTerminal;
-        public Transform HubRuneRing => _hubRuneRing;
         public DuneVectorDesertAtlas DesertAtlas { get; private set; }
         public int ArchivedMessageCount => GetArchivedMessageCount();
         public static bool IsGameplayHudSuppressed
@@ -403,7 +400,6 @@ namespace DuneVector
         private DuneVectorSandAmbusherSystem _sandAmbusherSystem;
 
         private Transform _hubRoot;
-        private Transform _hubRuneRing;
         private Transform _terminal;
         private Transform _messageArchiveTerminal;
         private Transform _freeRoamTerminal;
@@ -473,22 +469,53 @@ namespace DuneVector
         private Texture2D _archiveTileHoverTexture;
         private Vector2 _archiveScrollPosition;
 
+        private bool UsesPremiumHubVisual => _hubSettings.PremiumVisualPrefab != null
+            && _hubSettings.ReplaceProceduralStructureVisuals;
+
+        private float PremiumHubHorizontalScale => Mathf.Max(
+            Mathf.Abs(_hubSettings.PremiumVisualLocalScale.x),
+            Mathf.Abs(_hubSettings.PremiumVisualLocalScale.z));
+
         private float HubPlatformSurfaceRadius
         {
             get
             {
-                bool usesPremiumVisual = _hubSettings.PremiumVisualPrefab != null
-                    && _hubSettings.ReplaceProceduralStructureVisuals;
-                if (!usesPremiumVisual)
+                if (!UsesPremiumHubVisual)
                 {
                     return Mathf.Max(0f, _hubSettings.PlatformRadius * 0.5f);
                 }
 
-                float horizontalScale = Mathf.Max(
-                    Mathf.Abs(_hubSettings.PremiumVisualLocalScale.x),
-                    Mathf.Abs(_hubSettings.PremiumVisualLocalScale.z));
-                return Mathf.Max(0f, _hubSettings.PremiumVisualSurfaceRadius * horizontalScale);
+                return Mathf.Max(0f, _hubSettings.PremiumVisualSurfaceRadius * PremiumHubHorizontalScale);
             }
+        }
+
+        /// <summary>
+        /// Radius of the authored hub's sunken centre plaza. Zero means the hub
+        /// walks as one flat floor at <see cref="HubDeckSurfaceLocalHeight"/>.
+        /// </summary>
+        private float HubPlazaRadius => UsesPremiumHubVisual
+            ? Mathf.Clamp(
+                _hubSettings.PremiumVisualPlazaRadius * PremiumHubHorizontalScale,
+                0f,
+                HubPlatformSurfaceRadius)
+            : 0f;
+
+        /// <summary>Hub-local height of the outer walkable deck ring.</summary>
+        private float HubDeckSurfaceLocalHeight => UsesPremiumHubVisual
+            ? _hubSettings.PremiumVisualDeckSurfaceHeight * Mathf.Abs(_hubSettings.PremiumVisualLocalScale.y)
+            : _hubSettings.PlatformThickness * 0.5f;
+
+        /// <summary>Hub-local height of the sunken centre plaza the drone spawns on.</summary>
+        private float HubPlazaSurfaceLocalHeight => UsesPremiumHubVisual && HubPlazaRadius > 0f
+            ? _hubSettings.PremiumVisualPlazaSurfaceHeight * Mathf.Abs(_hubSettings.PremiumVisualLocalScale.y)
+            : HubDeckSurfaceLocalHeight;
+
+        private float GetHubSurfaceLocalHeight(float planarDistanceFromHubCenter)
+        {
+            float plazaRadius = HubPlazaRadius;
+            return plazaRadius > 0f && planarDistanceFromHubCenter <= plazaRadius
+                ? HubPlazaSurfaceLocalHeight
+                : HubDeckSurfaceLocalHeight;
         }
 
         public void Initialize(
@@ -665,11 +692,14 @@ namespace DuneVector
                     DesertWorldStreamer.StartingLogicalPosition.x,
                     0f,
                     DesertWorldStreamer.StartingLogicalPosition.y);
-            float terrainHeight = _world.SampleHeightAtLocal(hubPosition.x, hubPosition.z);
+            // The hub now stands on the sand, so deploy clear of its footprint
+            // instead of directly under the deck.
+            Vector3 deploymentOrigin = hubPosition + _hubSettings.FreeRoamDeploymentLocalOffset;
+            float terrainHeight = _world.SampleHeightAtLocal(deploymentOrigin.x, deploymentOrigin.z);
             _desertSpawn = new Vector3(
-                hubPosition.x,
+                deploymentOrigin.x,
                 terrainHeight + _hubSettings.DesertInsertionHeight,
-                hubPosition.z);
+                deploymentOrigin.z);
             _desertRotation = Quaternion.LookRotation(heading, Vector3.up);
         }
 
@@ -869,7 +899,6 @@ namespace DuneVector
             _hubRoot = hubObject.transform;
             _hubRoot.SetParent(transform, false);
             _hubRoot.position = _world.LogicalToLocal(hubLogical.X, platformY, hubLogical.Z);
-            BuildHubRuneRing();
             bool replaceProceduralStructureVisuals = BuildPremiumHubVisual();
 
             if (!replaceProceduralStructureVisuals)
@@ -878,22 +907,21 @@ namespace DuneVector
                     new Vector3(_hubSettings.PlatformRadius, _hubSettings.PlatformThickness * 0.5f, _hubSettings.PlatformRadius),
                     Quaternion.identity, _hubMetalMaterial, false);
             }
-            BuildCircleModelCollider(
-                _hubRoot,
-                "Main Teleport Platform Collider (circle.glb)",
-                Vector3.up * (_hubSettings.PlatformThickness * 0.5f),
-                HubPlatformSurfaceRadius);
+            BuildHubFloorColliders();
             BuildHubContainment();
-            HubPart(PrimitiveType.Cylinder, "Energy Inlay", _hubRoot,
-                new Vector3(0f, (_hubSettings.PlatformThickness * 0.5f) + 0.08f, 0f),
-                new Vector3(_hubSettings.PlatformRadius * 0.72f, 0.08f, _hubSettings.PlatformRadius * 0.72f),
-                Quaternion.identity, _hubEnergyMaterial, false);
+            if (!replaceProceduralStructureVisuals)
+            {
+                HubPart(PrimitiveType.Cylinder, "Energy Inlay", _hubRoot,
+                    new Vector3(0f, HubDeckSurfaceLocalHeight + 0.08f, 0f),
+                    new Vector3(_hubSettings.PlatformRadius * 0.72f, 0.08f, _hubSettings.PlatformRadius * 0.72f),
+                    Quaternion.identity, _hubEnergyMaterial, false);
+            }
 
             if (_hubSettings.PlatformEnergyLanesEnabled)
             {
                 _hubEnergyOrbit = new GameObject("Rotating Platform Energy Lanes").transform;
                 _hubEnergyOrbit.SetParent(_hubRoot, false);
-                _hubEnergyOrbit.localPosition = Vector3.up * ((_hubSettings.PlatformThickness * 0.5f) + 0.18f);
+                _hubEnergyOrbit.localPosition = Vector3.up * (HubDeckSurfaceLocalHeight + 0.18f);
                 BuildSegmentedRing(
                     _hubEnergyOrbit,
                     _hubSettings.PlatformEnergySegmentCount,
@@ -959,7 +987,7 @@ namespace DuneVector
 
             Transform upgradeArea = new GameObject("Drone Upgrade Area").transform;
             upgradeArea.SetParent(_hubRoot, false);
-            upgradeArea.localPosition = Vector3.right * _hubSettings.UpgradeAreaSideOffset;
+            upgradeArea.localPosition = _hubSettings.UpgradeAreaLocalPosition;
             Transform upgradePad = HubPart(PrimitiveType.Cylinder, "Upgrade Pad", upgradeArea, Vector3.up * 0.5f,
                 new Vector3(5f, 0.5f, 5f), Quaternion.identity, _hubMetalMaterial, false);
             BuildCircleModelCollider(
@@ -982,7 +1010,8 @@ namespace DuneVector
             }
 
             _teleportPlatform = _hubRoot;
-            _hubSpawn = _hubRoot.position + Vector3.up * (_hubSettings.PlayerSpawnHeight + (_hubSettings.PlatformThickness * 0.5f));
+            _hubSpawn = _hubRoot.position
+                + (Vector3.up * (_hubSettings.PlayerSpawnHeight + GetHubSurfaceLocalHeight(0f)));
             DuneVectorPhotographableMarker.Register(
                 hubObject,
                 DuneVectorCompendiumSubjectIds.Hub,
@@ -991,38 +1020,76 @@ namespace DuneVector
                     _hubSettings.PhotographySuppressionRadius);
         }
 
-        private void BuildHubRuneRing()
+        /// <summary>
+        /// Builds the walkable floor collision for the hub. Authored hubs with a
+        /// sunken centre plaza get two levels: a circle on the plaza floor and a
+        /// generated ring on the outer deck. Everything else stays one flat circle.
+        /// </summary>
+        private void BuildHubFloorColliders()
         {
-            if (_hubRuneRing != null)
+            float plazaRadius = HubPlazaRadius;
+            if (plazaRadius <= 0f)
+            {
+                BuildCircleModelCollider(
+                    _hubRoot,
+                    "Main Teleport Platform Collider (circle.glb)",
+                    Vector3.up * HubDeckSurfaceLocalHeight,
+                    HubPlatformSurfaceRadius);
+                return;
+            }
+
+            BuildCircleModelCollider(
+                _hubRoot,
+                "Hub Plaza Floor Collider (circle.glb)",
+                Vector3.up * HubPlazaSurfaceLocalHeight,
+                plazaRadius);
+            BuildHubDeckRingCollider(plazaRadius, HubPlatformSurfaceRadius);
+        }
+
+        private void BuildHubDeckRingCollider(float innerRadius, float outerRadius)
+        {
+            if (outerRadius <= innerRadius)
             {
                 return;
             }
 
-            GameObject runeRingPrefab = Resources.Load<GameObject>(HubRuneRingResourcePath);
-            if (runeRingPrefab == null)
+            int segments = Mathf.Clamp(_hubSettings.PremiumVisualDeckColliderSegments, 8, 128);
+            Vector3[] vertices = new Vector3[segments * 2];
+            int[] triangles = new int[segments * 6];
+            for (int segment = 0; segment < segments; segment++)
             {
-                Debug.LogError(
-                    $"World hub requires Assets/DuneVector/Resources/{HubRuneRingResourcePath}.prefab.",
-                    this);
-                return;
+                float angle = (Mathf.PI * 2f / segments) * segment;
+                Vector3 outward = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
+                vertices[segment * 2] = outward * innerRadius;
+                vertices[(segment * 2) + 1] = outward * outerRadius;
+
+                int inner = segment * 2;
+                int outer = inner + 1;
+                int nextInner = ((segment + 1) % segments) * 2;
+                int nextOuter = nextInner + 1;
+                int triangleIndex = segment * 6;
+                triangles[triangleIndex] = inner;
+                triangles[triangleIndex + 1] = nextInner;
+                triangles[triangleIndex + 2] = outer;
+                triangles[triangleIndex + 3] = outer;
+                triangles[triangleIndex + 4] = nextInner;
+                triangles[triangleIndex + 5] = nextOuter;
             }
 
-            GameObject runeRing = Instantiate(runeRingPrefab, _hubRoot, false);
-            runeRing.name = runeRingPrefab.name;
-            _hubRuneRing = runeRing.transform;
-            _hubRuneRing.SetLocalPositionAndRotation(
-                _hubSettings.RuneRingLocalPosition,
-                Quaternion.Euler(_hubSettings.RuneRingLocalEulerAngles));
-            _hubRuneRing.localScale = _hubSettings.RuneRingLocalScale;
-
-            if (_hubSettings.RuneRingAlignTopToPlatformUnderside
-                && TryGetHubLocalMeshMaximumY(_hubRuneRing, out float maximumY))
+            Mesh ring = new Mesh
             {
-                float desiredTopY = _hubSettings.RuneRingLocalPosition.y
-                    - (_hubSettings.PlatformThickness * 0.5f);
-                float topAlignment = desiredTopY - maximumY;
-                _hubRuneRing.localPosition += Vector3.up * topAlignment;
-            }
+                name = "Hub Deck Ring Collider",
+            };
+            ring.SetVertices(vertices);
+            ring.SetTriangles(triangles, 0);
+            ring.RecalculateNormals();
+            ring.RecalculateBounds();
+
+            GameObject deckRing = new GameObject("Hub Deck Ring Collider");
+            deckRing.transform.SetParent(_hubRoot, false);
+            deckRing.transform.localPosition = Vector3.up * HubDeckSurfaceLocalHeight;
+            MeshCollider collider = deckRing.AddComponent<MeshCollider>();
+            collider.sharedMesh = ring;
         }
 
         private bool BuildPremiumHubVisual()
@@ -1089,35 +1156,6 @@ namespace DuneVector
             }
 
             return false;
-        }
-
-        private bool TryGetHubLocalMeshMaximumY(Transform root, out float maximumY)
-        {
-            maximumY = float.NegativeInfinity;
-            MeshFilter[] meshFilters = root.GetComponentsInChildren<MeshFilter>(true);
-            for (int meshIndex = 0; meshIndex < meshFilters.Length; meshIndex++)
-            {
-                MeshFilter meshFilter = meshFilters[meshIndex];
-                Mesh mesh = meshFilter.sharedMesh;
-                if (mesh == null)
-                {
-                    continue;
-                }
-
-                Bounds bounds = mesh.bounds;
-                for (int cornerIndex = 0; cornerIndex < 8; cornerIndex++)
-                {
-                    Vector3 meshCorner = new Vector3(
-                        (cornerIndex & 1) == 0 ? bounds.min.x : bounds.max.x,
-                        (cornerIndex & 2) == 0 ? bounds.min.y : bounds.max.y,
-                        (cornerIndex & 4) == 0 ? bounds.min.z : bounds.max.z);
-                    Vector3 hubLocalCorner = _hubRoot.InverseTransformPoint(
-                        meshFilter.transform.TransformPoint(meshCorner));
-                    maximumY = Mathf.Max(maximumY, hubLocalCorner.y);
-                }
-            }
-
-            return !float.IsNegativeInfinity(maximumY);
         }
 
         private Transform BuildPhysicalTerminal(string objectName, Vector3 localPosition, Quaternion localRotation)
@@ -1198,7 +1236,7 @@ namespace DuneVector
             Transform boundaryRoot = new GameObject("Invisible Hub Containment Boundary").transform;
             boundaryRoot.SetParent(_hubRoot, false);
             boundaryRoot.localPosition = Vector3.up * (
-                (_hubSettings.PlatformThickness * 0.5f) + (wallHeight * 0.5f));
+                HubDeckSurfaceLocalHeight + (wallHeight * 0.5f));
 
             for (int i = 0; i < segmentCount; i++)
             {
@@ -1233,7 +1271,8 @@ namespace DuneVector
             Vector3 planarOffset = Vector3.ProjectOnPlane(hubOffset, Vector3.up);
             bool positionChanged = false;
 
-            float platformSurfaceY = _hubRoot.position.y + (_hubSettings.PlatformThickness * 0.5f);
+            float platformSurfaceY = _hubRoot.position.y
+                + GetHubSurfaceLocalHeight(planarOffset.magnitude);
             if (planarOffset.sqrMagnitude <= safeRadius * safeRadius)
             {
                 _player.TryFinishFlightOnSurface(platformSurfaceY, Vector3.up);
