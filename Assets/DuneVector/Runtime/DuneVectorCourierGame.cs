@@ -438,7 +438,9 @@ namespace DuneVector
         private Material _hubPlatformEnergyMaterial;
         private readonly List<Material> _hubTerminalPanelMaterials = new List<Material>();
         private readonly List<Material> _hubTerminalAntennaMaterials = new List<Material>();
+        private readonly List<Material> _hubAuthoredScreenMaterials = new List<Material>();
         private bool _hubRgbTerminalsApplied;
+        private bool? _hubAuthoredScreenColorNoiseUnlocked;
 
         private GUIStyle _terminalTitleStyle;
         private GUIStyle _terminalBodyStyle;
@@ -1114,6 +1116,7 @@ namespace DuneVector
                 Quaternion.Euler(_hubSettings.PremiumVisualLocalEulerAngles));
             visual.transform.localScale = _hubSettings.PremiumVisualLocalScale;
             BuildPremiumHubMeshColliders(visual.transform);
+            CollectAuthoredHubScreenMaterials(visual.transform);
             return _hubSettings.ReplaceProceduralStructureVisuals;
         }
 
@@ -1169,6 +1172,66 @@ namespace DuneVector
                     + "The drone will fall through the hub.",
                     this);
             }
+        }
+
+        /// <summary>
+        /// Grabs the authored hub's own terminal screens so the RGB unlock can
+        /// drive them. They are modelled into the hub rather than built from
+        /// primitives, so they are found by the object names the model uses.
+        /// </summary>
+        private void CollectAuthoredHubScreenMaterials(Transform visualRoot)
+        {
+            _hubAuthoredScreenMaterials.Clear();
+            _hubAuthoredScreenColorNoiseUnlocked = null;
+            HubRgbTerminalUnlockTuning tuning = _permanentUpgrades?.HubRgbTerminalTuning;
+            string[] screenNames = tuning?.AuthoredScreenObjectNames;
+            if (visualRoot == null || screenNames == null || screenNames.Length == 0)
+            {
+                return;
+            }
+
+            Renderer[] renderers = visualRoot.GetComponentsInChildren<Renderer>(true);
+            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
+            {
+                Renderer renderer = renderers[rendererIndex];
+                if (renderer == null || !IsAuthoredHubScreen(renderer.gameObject.name, screenNames))
+                {
+                    continue;
+                }
+
+                // Instanced materials, so the RGB unlock never writes onto the
+                // shared asset and leaks the noise into every other hub screen.
+                Material[] materials = renderer.materials;
+                for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    Material material = materials[materialIndex];
+                    if (material != null)
+                    {
+                        _hubAuthoredScreenMaterials.Add(material);
+                    }
+                }
+            }
+
+            if (_hubAuthoredScreenMaterials.Count == 0)
+            {
+                Debug.LogWarning(
+                    $"None of the authored hub screens named in {nameof(HubRgbTerminalUnlockTuning)}."
+                    + $"{nameof(HubRgbTerminalUnlockTuning.AuthoredScreenObjectNames)} were found under "
+                    + $"{visualRoot.name}, so the RGB terminal unlock cannot drive their colour noise.",
+                    this);
+            }
+        }
+
+        private static bool IsAuthoredHubScreen(string objectName, string[] screenNames)
+        {
+            for (int index = 0; index < screenNames.Length; index++)
+            {
+                if (string.Equals(objectName, screenNames[index], StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private Transform BuildPhysicalTerminal(string objectName, Vector3 localPosition, Quaternion localRotation)
@@ -1351,21 +1414,23 @@ namespace DuneVector
 
         private void AnimateUnlockedHubTerminals()
         {
-            if (_hubTerminalPanelMaterials.Count == 0 || _permanentUpgrades == null)
+            if (_permanentUpgrades == null
+                || (_hubTerminalPanelMaterials.Count == 0 && _hubAuthoredScreenMaterials.Count == 0))
             {
-                return;
-            }
-
-            if (!_permanentUpgrades.AreHubRgbTerminalsEnabled)
-            {
-                ResetHubTerminalEnergyMaterials();
                 return;
             }
 
             HubRgbTerminalUnlockTuning tuning = _permanentUpgrades.HubRgbTerminalTuning;
-            if (tuning == null)
+            if (tuning == null || !_permanentUpgrades.AreHubRgbTerminalsEnabled)
             {
                 ResetHubTerminalEnergyMaterials();
+                ApplyAuthoredHubScreenColorNoise(tuning, unlocked: false);
+                return;
+            }
+
+            ApplyAuthoredHubScreenColorNoise(tuning, unlocked: true);
+            if (_hubTerminalPanelMaterials.Count == 0)
+            {
                 return;
             }
 
@@ -1384,6 +1449,48 @@ namespace DuneVector
                 }
             }
             _hubRgbTerminalsApplied = true;
+        }
+
+        /// <summary>
+        /// Drives the authored hub screens' colour noise for the RGB terminal
+        /// unlock. Those screens run the TV static shader instead of the hub
+        /// energy material, so the unlock reads on them as full per-channel
+        /// colour noise rather than as a cycling emission colour.
+        /// </summary>
+        private void ApplyAuthoredHubScreenColorNoise(HubRgbTerminalUnlockTuning tuning, bool unlocked)
+        {
+            if (_hubAuthoredScreenMaterials.Count == 0)
+            {
+                return;
+            }
+
+            // The value only changes when the unlock is toggled, so this stays
+            // off the per-frame material write path. The first evaluation always
+            // writes, because the authored material ships whichever look it was
+            // last saved with.
+            if (_hubAuthoredScreenColorNoiseUnlocked == unlocked)
+            {
+                return;
+            }
+
+            string colorNoiseProperty = tuning?.AuthoredScreenColorNoiseProperty;
+            if (string.IsNullOrEmpty(colorNoiseProperty))
+            {
+                return;
+            }
+
+            float colorNoise = unlocked
+                ? tuning.AuthoredScreenUnlockedColorNoise
+                : tuning.AuthoredScreenLockedColorNoise;
+            for (int index = 0; index < _hubAuthoredScreenMaterials.Count; index++)
+            {
+                Material material = _hubAuthoredScreenMaterials[index];
+                if (material != null && material.HasProperty(colorNoiseProperty))
+                {
+                    material.SetFloat(colorNoiseProperty, colorNoise);
+                }
+            }
+            _hubAuthoredScreenColorNoiseUnlocked = unlocked;
         }
 
         private static void ApplyRgbPhase(
