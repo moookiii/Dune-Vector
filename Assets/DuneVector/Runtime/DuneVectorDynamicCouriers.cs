@@ -332,26 +332,35 @@ namespace DuneVector
                 return;
             }
 
+            bool ambientAvailable = IsAmbientAvailable();
             bool gameplayAvailable = IsGameplayAvailable();
-            if (!gameplayAvailable)
+            if (!gameplayAvailable && _wasGameplayAvailable)
             {
-                if (_wasGameplayAvailable)
-                {
-                    ClearEvent();
-                    ClearAmbientCouriers();
-                }
-                _wasGameplayAvailable = false;
-                return;
+                ClearEvent();
             }
 
-            if (!_wasGameplayAvailable)
+            if (gameplayAvailable && !_wasGameplayAvailable)
             {
-                _wasGameplayAvailable = true;
                 _eventTimer = _settings.InitialEventDelay;
             }
 
+            _wasGameplayAvailable = gameplayAvailable;
+
             PruneRuntimeObjects();
-            UpdateAmbientCouriers(Time.deltaTime);
+            if (ambientAvailable)
+            {
+                UpdateAmbientCouriers(Time.deltaTime);
+            }
+            else if (_ambientCouriers.Count > 0)
+            {
+                ClearAmbientCouriers();
+            }
+
+            if (!gameplayAvailable)
+            {
+                return;
+            }
+
             if (_phase == DynamicCourierEventPhase.Inactive)
             {
                 _eventTimer -= Time.deltaTime;
@@ -386,6 +395,24 @@ namespace DuneVector
             if (_courierGame == null)
             {
                 return true;
+            }
+            if (_courierGame.State == CourierRunState.FreeRoam)
+            {
+                return _settings.EventsDuringFreeRoam;
+            }
+            return _courierGame.State == CourierRunState.FindPackage ||
+                   _courierGame.State == CourierRunState.Delivering;
+        }
+
+        private bool IsAmbientAvailable()
+        {
+            if (_courierGame == null)
+            {
+                return true;
+            }
+            if (_courierGame.State == CourierRunState.FreeRoam)
+            {
+                return _settings.AmbientNeutralCouriersDuringFreeRoam;
             }
             return _courierGame.State == CourierRunState.FindPackage ||
                    _courierGame.State == CourierRunState.Delivering;

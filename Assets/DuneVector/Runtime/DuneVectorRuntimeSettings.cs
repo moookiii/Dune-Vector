@@ -221,8 +221,10 @@ namespace DuneVector
         [Min(0f)] public float CaptureHeightOffset = 0.8f;
         [Min(0f)] public float OcclusionRayEndTolerance = 2f;
         public LayerMask OcclusionLayers = -1;
-        [Tooltip("Subjects with less than this visible fraction are ignored by the viewfinder so it never frames something hidden behind geometry.")]
-        [Range(0f, 1f)] public float SubjectDetectionMinimumVisiblePercentage = 0.25f;
+        [Tooltip("Subjects with less than this visible fraction are ignored by the viewfinder, so anything more than half hidden behind geometry never registers.")]
+        [Range(0f, 1f)] public float SubjectDetectionMinimumVisiblePercentage = 0.5f;
+        [Tooltip("Visible fraction a glyph needs when its atlas site does not allow partial occlusion.")]
+        [Range(0f, 1f)] public float GlyphRequiredVisiblePercentage = 0.5f;
 
         [Header("Viewfinder Layout")]
         [Min(360f)] public float HudReferenceHeight = 1080f;
@@ -462,7 +464,7 @@ namespace DuneVector
         public List<CompendiumEntryDefinition> CompendiumEntries = new List<CompendiumEntryDefinition>();
         [Range(0.001f, 1f)] public float CompendiumMinimumPhotoScreenCoverage = 0.001f;
         [Range(0.001f, 1f)] public float CompendiumMaximumPhotoScreenCoverage = 0.92f;
-        [Range(0f, 1f)] public float CompendiumRequiredVisiblePercentage = 0.6f;
+        [Range(0f, 1f)] public float CompendiumRequiredVisiblePercentage = 0.5f;
         public string CompendiumPauseMenuButtonLabel = "COMPENDIUM";
         public string CompendiumTitle = "DESERT COMPENDIUM";
         public string CompendiumSubtitle = "Archive of documented desert phenomena";
@@ -2387,9 +2389,13 @@ namespace DuneVector
         [Min(1f)] public float MaximumRouteDistance;
         [Min(0f)] public float ResultDisplayDuration;
         [Min(0f)] public float ConvoyEventWeight;
+        [Tooltip("Allow convoy and rival courier events to spawn while the player is in free roam, outside an active delivery run.")]
+        public bool EventsDuringFreeRoam = true;
 
         [Header("Ambient Neutral Deliveries")]
         public bool AmbientNeutralCouriersEnabled;
+        [Tooltip("Keep ambient neutral courier traffic flying while the player is in free roam, outside an active delivery run.")]
+        public bool AmbientNeutralCouriersDuringFreeRoam = true;
         [Range(0, 24)] public int AmbientNeutralCourierCount;
         [Min(1f)] public float AmbientMinimumSpawnDistance;
         [Min(1f)] public float AmbientMaximumSpawnDistance;

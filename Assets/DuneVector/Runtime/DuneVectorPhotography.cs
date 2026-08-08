@@ -540,7 +540,7 @@ namespace DuneVector
                 float readableAngle = Vector3.Dot(_camera.transform.forward.normalized, Vector3.down);
                 float requiredVisibility = definition.AllowPartialPhotoOcclusion
                     ? definition.RequiredPhotoVisiblePercentage
-                    : 1f;
+                    : _settings.GlyphRequiredVisiblePercentage;
                 valid = fullyFramed &&
                     bestCoverage >= minimumCoverage &&
                     bestCoverage <= maximumCoverage &&
