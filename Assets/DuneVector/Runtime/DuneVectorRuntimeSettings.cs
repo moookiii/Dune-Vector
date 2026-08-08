@@ -2388,7 +2388,16 @@ namespace DuneVector
         public Vector3 MuzzleOffset = new Vector3(0f, -0.1f, 2.4f);
 
         [Header("Projectile Feedback")]
-        [Min(0.01f)] public float ProjectileScale = 0.28f;
+        [Tooltip("Resources path of the shot sprite drawn in place of the energy core.")]
+        public string ShotSpriteResourcePath = "UI/T_SentryShot";
+        [Tooltip("World length of the shot sprite along its travel direction.")]
+        [Min(0.01f)] public float ShotSpriteLength = 4.5f;
+        [Tooltip("World width of the shot sprite across its travel direction.")]
+        [Min(0.01f)] public float ShotSpriteWidth = 1.5f;
+        [Tooltip("Tint multiplied into the shot sprite. Alpha scales its overall brightness.")]
+        [ColorUsage(false, true)] public Color ShotSpriteColor = new Color(1.4f, 3.2f, 5f, 1f);
+        [Tooltip("Draw the ribbon trail behind the shot sprite.")]
+        public bool ShotTrailEnabled = false;
         [Min(0.01f)] public float TrailDuration = 0.2f;
         [Min(0.001f)] public float TrailStartWidth = 0.2f;
         [Min(0f)] public float TrailMinimumVertexDistance = 0.08f;

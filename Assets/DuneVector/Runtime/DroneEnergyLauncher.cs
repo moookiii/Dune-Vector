@@ -448,6 +448,7 @@ namespace DuneVector
         private EnergyLauncherTuning _settings;
         private DronePermanentUpgradeSystem _upgrades;
         private Material _energyMaterial;
+        private Material _shotSpriteMaterial;
         private float _cooldownRemaining;
         private bool _fireRequested;
         private float _environmentalCooldownMultiplier = 1f;
@@ -469,6 +470,7 @@ namespace DuneVector
             _settings = settings;
             _upgrades = upgrades;
             _energyMaterial = CreateEnergyMaterial(settings);
+            _shotSpriteMaterial = CreateShotSpriteMaterial(settings);
             if (_upgrades != null)
             {
                 _upgrades.UpgradePurchased += HandleUpgradePurchased;
@@ -528,6 +530,8 @@ namespace DuneVector
                 _drone.transform,
                 _world,
                 _energyMaterial,
+                _shotSpriteMaterial,
+                _camera,
                 _settings,
                 GetCurrentDamage(),
                 GetCurrentProjectileSpeed());
@@ -596,6 +600,40 @@ namespace DuneVector
             return material;
         }
 
+        private static Material CreateShotSpriteMaterial(EnergyLauncherTuning settings)
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null)
+            {
+                throw new InvalidOperationException("The shot sprite requires the URP Unlit shader.");
+            }
+
+            Material material = new Material(shader) { name = "Drone Shot Sprite - Runtime" };
+            Texture2D sprite = string.IsNullOrEmpty(settings.ShotSpriteResourcePath)
+                ? null
+                : Resources.Load<Texture2D>(settings.ShotSpriteResourcePath);
+            if (sprite != null)
+            {
+                material.SetTexture("_BaseMap", sprite);
+                material.mainTexture = sprite;
+            }
+            material.SetColor("_BaseColor", settings.ShotSpriteColor);
+
+            // Additive, depth-testing but non-writing transparency so shots glow over the desert.
+            material.SetFloat("_Surface", 1f);
+            material.SetFloat("_Blend", 2f);
+            material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            material.SetFloat("_DstBlend", (float)BlendMode.One);
+            material.SetFloat("_ZWrite", 0f);
+            material.SetFloat("_Cull", (float)CullMode.Off);
+            material.SetFloat("_AlphaClip", 0f);
+            material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+            material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+            material.DisableKeyword("_ALPHATEST_ON");
+            material.renderQueue = (int)RenderQueue.Transparent;
+            return material;
+        }
+
         private void OnDestroy()
         {
             if (_upgrades != null)
@@ -605,6 +643,10 @@ namespace DuneVector
             if (_energyMaterial != null)
             {
                 Destroy(_energyMaterial);
+            }
+            if (_shotSpriteMaterial != null)
+            {
+                Destroy(_shotSpriteMaterial);
             }
         }
     }
@@ -620,10 +662,13 @@ namespace DuneVector
         private Transform _owner;
         private DesertWorldStreamer _world;
         private Material _material;
+        private Material _spriteMaterial;
+        private Camera _viewCamera;
         private EnergyLauncherTuning _settings;
         private float _damage;
         private float _projectileSpeed;
         private TrailRenderer _trail;
+        private Transform _spriteQuad;
         private Vector3 _velocity;
         private float _age;
 
@@ -633,6 +678,8 @@ namespace DuneVector
             Transform owner,
             DesertWorldStreamer world,
             Material material,
+            Material spriteMaterial,
+            Camera viewCamera,
             EnergyLauncherTuning settings,
             float damage,
             float projectileSpeed)
@@ -641,6 +688,8 @@ namespace DuneVector
             _owner = owner;
             _world = world;
             _material = material;
+            _spriteMaterial = spriteMaterial;
+            _viewCamera = viewCamera;
             _settings = settings;
             _damage = Mathf.Max(0f, damage);
             _projectileSpeed = Mathf.Max(1f, projectileSpeed);
@@ -707,6 +756,7 @@ namespace DuneVector
             {
                 transform.rotation = Quaternion.LookRotation(_velocity.normalized, transform.up);
             }
+            AlignSpriteQuad();
         }
 
         private bool TryResolveCollision(
@@ -779,10 +829,13 @@ namespace DuneVector
 
         private void CreateVisual()
         {
-            GameObject core = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-            core.name = "Energy Core";
+            GameObject core = GameObject.CreatePrimitive(PrimitiveType.Quad);
+            core.name = "Shot Sprite";
             core.transform.SetParent(transform, false);
-            core.transform.localScale = Vector3.one * _settings.ProjectileScale;
+            core.transform.localScale = new Vector3(
+                _settings.ShotSpriteLength,
+                _settings.ShotSpriteWidth,
+                1f);
             Collider collider = core.GetComponent<Collider>();
             if (collider != null)
             {
@@ -790,9 +843,18 @@ namespace DuneVector
                 Destroy(collider);
             }
             MeshRenderer renderer = core.GetComponent<MeshRenderer>();
-            renderer.sharedMaterial = _material;
+            renderer.sharedMaterial = _spriteMaterial != null ? _spriteMaterial : _material;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
+            renderer.lightProbeUsage = LightProbeUsage.Off;
+            renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+            _spriteQuad = core.transform;
+            AlignSpriteQuad();
+
+            if (!_settings.ShotTrailEnabled)
+            {
+                return;
+            }
 
             _trail = gameObject.AddComponent<TrailRenderer>();
             _trail.sharedMaterial = _material;
@@ -804,6 +866,42 @@ namespace DuneVector
             _trail.shadowCastingMode = ShadowCastingMode.Off;
             _trail.receiveShadows = false;
             _trail.emitting = true;
+        }
+
+        // Rolls the shot sprite around its travel axis so it always presents its flat face to the
+        // camera, with the bright head of the texture leading the direction of travel.
+        private void AlignSpriteQuad()
+        {
+            if (_spriteQuad == null)
+            {
+                return;
+            }
+
+            Camera camera = _viewCamera != null ? _viewCamera : Camera.main;
+            if (camera == null || _velocity.sqrMagnitude <= Mathf.Epsilon)
+            {
+                return;
+            }
+
+            Vector3 travel = _velocity.normalized;
+            Vector3 toCamera = camera.transform.position - _spriteQuad.position;
+            Vector3 quadUp = Vector3.Cross(travel, toCamera);
+            if (quadUp.sqrMagnitude <= Mathf.Epsilon)
+            {
+                // Looking straight down the shot: any perpendicular axis reads the same on screen.
+                quadUp = Vector3.Cross(travel, camera.transform.up);
+                if (quadUp.sqrMagnitude <= Mathf.Epsilon)
+                {
+                    quadUp = Vector3.Cross(travel, camera.transform.right);
+                }
+                if (quadUp.sqrMagnitude <= Mathf.Epsilon)
+                {
+                    return;
+                }
+            }
+
+            quadUp.Normalize();
+            _spriteQuad.rotation = Quaternion.LookRotation(Vector3.Cross(quadUp, travel), quadUp);
         }
 
         private void HandleWorldShift(Vector3 shift)
