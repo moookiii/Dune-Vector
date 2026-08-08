@@ -116,6 +116,7 @@ namespace DuneVector
 
         private DuneVectorMaterials _materials;
         private VolumeProfile _runtimeVolumeProfile;
+        private bool _ownsRuntimeVolumeProfile;
         private DuneVectorUrpFogState _environmentFog;
         private DuneVectorY2KSky _environmentSky;
         private Bloom _environmentBloom;
@@ -823,17 +824,31 @@ namespace DuneVector
             RenderSettings.sun = sun;
             ApplySunShadowRange(atmosphere);
 
-            GameObject volumeObject = new GameObject("URP Desert Environment");
-            volumeObject.transform.SetParent(transform, false);
-            Volume volume = volumeObject.AddComponent<Volume>();
-            volume.isGlobal = true;
-            volume.priority = 100f;
+            Volume volume = FindSceneGlobalVolume();
+            GameObject volumeObject;
+            if (volume != null)
+            {
+                volumeObject = volume.gameObject;
+                // Volume.profile clones the authored asset, so runtime overrides never dirty it.
+                _runtimeVolumeProfile = volume.profile;
+                _ownsRuntimeVolumeProfile = false;
+            }
+            else
+            {
+                volumeObject = new GameObject("URP Desert Environment");
+                volumeObject.transform.SetParent(transform, false);
+                volume = volumeObject.AddComponent<Volume>();
+                volume.isGlobal = true;
+                volume.priority = atmosphere.EnvironmentVolumePriority;
 
-            _runtimeVolumeProfile = ScriptableObject.CreateInstance<VolumeProfile>();
-            _runtimeVolumeProfile.name = "Runtime Desert URP Profile";
-            volume.sharedProfile = _runtimeVolumeProfile;
+                _runtimeVolumeProfile = ScriptableObject.CreateInstance<VolumeProfile>();
+                _runtimeVolumeProfile.name = "Runtime Desert URP Profile";
+                volume.sharedProfile = _runtimeVolumeProfile;
+                _ownsRuntimeVolumeProfile = true;
+            }
 
-            _environmentSky = _runtimeVolumeProfile.Add<DuneVectorY2KSky>(true);
+            _environmentSky = GetOrAddOverride<DuneVectorY2KSky>(_runtimeVolumeProfile);
+            _environmentSky.CloudsEnabled.Override(atmosphere.SkyCloudsEnabled);
             _environmentSky.Top.Override(atmosphere.ClearSkyTop);
             _environmentSky.Middle.Override(atmosphere.ClearSkyMiddle);
             _environmentSky.Bottom.Override(atmosphere.ClearSkyBottom);
@@ -879,7 +894,7 @@ namespace DuneVector
             _environmentBloom = FindGlobalBloom(volume);
 
             PauseMenuVisualTuning videoSettings = AudioSettings.PauseMenu;
-            FilmGrain filmGrain = _runtimeVolumeProfile.Add<FilmGrain>(true);
+            FilmGrain filmGrain = GetOrAddOverride<FilmGrain>(_runtimeVolumeProfile);
             filmGrain.intensity.Override(videoSettings.VideoFilmGrainIntensity);
             filmGrain.response.Override(videoSettings.VideoFilmGrainResponse);
 
@@ -905,12 +920,44 @@ namespace DuneVector
                 LandmarkDirector);
         }
 
-        private static Bloom FindGlobalBloom(Volume runtimeEnvironmentVolume)
+        private static Volume FindSceneGlobalVolume()
         {
+            Volume[] volumes = FindObjectsByType<Volume>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            Volume best = null;
+            foreach (Volume volume in volumes)
+            {
+                if (volume == null || !volume.isGlobal || volume.sharedProfile == null)
+                {
+                    continue;
+                }
+
+                if (best == null || volume.priority > best.priority)
+                {
+                    best = volume;
+                }
+            }
+
+            return best;
+        }
+
+        private static T GetOrAddOverride<T>(VolumeProfile profile) where T : VolumeComponent
+        {
+            return profile.TryGet(out T existing) ? existing : profile.Add<T>(true);
+        }
+
+        private static Bloom FindGlobalBloom(Volume environmentVolume)
+        {
+            if (environmentVolume != null
+                && environmentVolume.HasInstantiatedProfile()
+                && environmentVolume.profile.TryGet(out Bloom environmentBloom))
+            {
+                return environmentBloom;
+            }
+
             Volume[] volumes = FindObjectsByType<Volume>(FindObjectsInactive.Include, FindObjectsSortMode.None);
             foreach (Volume volume in volumes)
             {
-                if (volume == null || volume == runtimeEnvironmentVolume || !volume.isGlobal || volume.sharedProfile == null)
+                if (volume == null || volume == environmentVolume || !volume.isGlobal || volume.sharedProfile == null)
                 {
                     continue;
                 }
@@ -1223,7 +1270,7 @@ namespace DuneVector
                 Instance = null;
             }
             _materials?.Dispose();
-            if (_runtimeVolumeProfile != null)
+            if (_ownsRuntimeVolumeProfile && _runtimeVolumeProfile != null)
             {
                 Destroy(_runtimeVolumeProfile);
             }

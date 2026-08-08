@@ -82,7 +82,9 @@ namespace DuneVector
             _material.SetColor(CloudColorId, _sky.CloudColor.value);
             _material.SetColor(CloudHighlightId, _sky.CloudHighlight.value);
             _material.SetColor(CloudPearlId, _sky.CloudPearl.value);
-            _material.SetFloat(CloudOpacityId, _sky.CloudOpacity.value);
+            _material.SetFloat(
+                CloudOpacityId,
+                _sky.CloudsEnabled.value ? _sky.CloudOpacity.value : 0f);
             _material.SetFloat(CloudAltitudeId, _sky.CloudAltitude.value);
             _material.SetFloat(CloudThicknessId, _sky.CloudThickness.value);
             _material.SetFloat(CloudScaleId, _sky.CloudScale.value);

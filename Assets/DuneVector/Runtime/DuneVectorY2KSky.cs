@@ -20,6 +20,7 @@ namespace DuneVector
         public ClampedFloatParameter HorizonGlowSize = new ClampedFloatParameter(0.14f, 0.01f, 0.5f);
         public MinFloatParameter HorizonGlowIntensity = new MinFloatParameter(0.7f, 0f);
 
+        public BoolParameter CloudsEnabled = new BoolParameter(true, true);
         public ColorParameter CloudColor = new ColorParameter(Color.white, true, false, true);
         public ColorParameter CloudHighlight = new ColorParameter(Color.white, true, false, true);
         public ColorParameter CloudPearl = new ColorParameter(Color.cyan, true, false, true);
@@ -138,6 +139,8 @@ namespace DuneVector
     public sealed class DuneVectorUrpEnvironmentDriver : MonoBehaviour
     {
         private const string ShaderName = "DuneVector/URP Y2K Sky";
+        private static readonly int SkyIntensityId = Shader.PropertyToID("_SkyIntensity");
+        private static readonly int CloudOpacityId = Shader.PropertyToID("_CloudOpacity");
         private static readonly FieldInfo[] SkyFields = typeof(DuneVectorY2KSky).GetFields(BindingFlags.Public | BindingFlags.Instance);
         private readonly List<SkyPropertyBinding> _skyPropertyBindings = new List<SkyPropertyBinding>(SkyFields.Length);
         private Material _skyMaterial;
@@ -209,7 +212,8 @@ namespace DuneVector
             _skyPropertyBindings.Clear();
             foreach (FieldInfo field in SkyFields)
             {
-                if (field.Name == nameof(DuneVectorY2KSky.Multiplier))
+                if (field.Name == nameof(DuneVectorY2KSky.Multiplier)
+                    || field.Name == nameof(DuneVectorY2KSky.CloudOpacity))
                 {
                     continue;
                 }
@@ -251,7 +255,10 @@ namespace DuneVector
                 }
             }
 
-            _skyMaterial.SetFloat("_SkyIntensity", _sky.Multiplier.value);
+            _skyMaterial.SetFloat(SkyIntensityId, _sky.Multiplier.value);
+            _skyMaterial.SetFloat(
+                CloudOpacityId,
+                _sky.CloudsEnabled.value ? _sky.CloudOpacity.value : 0f);
             RenderSettings.fog = _previousFogEnabled && _fog != null && _fog.maxFogDistance.value > 0f;
             if (RenderSettings.fog)
             {

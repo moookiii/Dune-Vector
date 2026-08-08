@@ -101,6 +101,52 @@ namespace DuneVector
             Placements ??= new List<GeoglyphArtworkPlacement>();
         }
 
+        /// <summary>
+        /// Axis-aligned logical-space rectangle enclosing every authored geoglyph footprint.
+        /// Free roam deploys the drone inside this rectangle instead of a fixed hub offset.
+        /// </summary>
+        public bool TryGetCombinedFootprintBounds(out Vector2 minimum, out Vector2 maximum)
+        {
+            minimum = Vector2.zero;
+            maximum = Vector2.zero;
+            if (Placements == null)
+            {
+                return false;
+            }
+
+            bool any = false;
+            for (int i = 0; i < Placements.Count; i++)
+            {
+                GeoglyphArtworkPlacement placement = Placements[i];
+                if (placement == null || placement.WorldSize.x <= 0f || placement.WorldSize.y <= 0f)
+                {
+                    continue;
+                }
+
+                // The rotated footprint's axis-aligned extent, so a spun glyph still contributes
+                // every metre of ground it actually covers.
+                float radians = placement.RotationDegrees * Mathf.Deg2Rad;
+                float cos = Mathf.Abs(Mathf.Cos(radians));
+                float sin = Mathf.Abs(Mathf.Sin(radians));
+                float halfX = ((placement.WorldSize.x * cos) + (placement.WorldSize.y * sin)) * 0.5f;
+                float halfZ = ((placement.WorldSize.x * sin) + (placement.WorldSize.y * cos)) * 0.5f;
+                Vector2 placementMinimum = placement.WorldCenter - new Vector2(halfX, halfZ);
+                Vector2 placementMaximum = placement.WorldCenter + new Vector2(halfX, halfZ);
+                if (!any)
+                {
+                    minimum = placementMinimum;
+                    maximum = placementMaximum;
+                    any = true;
+                    continue;
+                }
+
+                minimum = Vector2.Min(minimum, placementMinimum);
+                maximum = Vector2.Max(maximum, placementMaximum);
+            }
+
+            return any;
+        }
+
         public bool OverlapsArtworkFootprint(double logicalX, double logicalZ, float clearance = 0f)
         {
             if (!Enabled || Placements == null)
@@ -2516,7 +2562,7 @@ namespace DuneVector
         [Tooltip("Caps measured target velocity used for lead prediction, filtering floating-origin shifts and spikes.")]
         [Min(0f)] public float MaximumLeadSpeed = 140f;
         [Tooltip("Ship-relative launch offset from the drone center.")]
-        public Vector3 MuzzleOffset = new Vector3(0f, -0.1f, 2.4f);
+        public Vector3 MuzzleOffset = new Vector3(0f, 0.2f, 2.4f);
 
         [Header("Projectile Feedback")]
         [Tooltip("Resources path of the shot sprite drawn in place of the energy core.")]
@@ -4102,6 +4148,9 @@ namespace DuneVector
         [Min(1f)] public float StormFogHeight = 160f;
         [Range(0f, 1f)] public float VolumetricFogThreshold = 0.08f;
 
+        [Header("Y2K Sky Volume")]
+        [Min(0f)] public float EnvironmentVolumePriority = 100f;
+
         [Header("Y2K Sky Gradient & Exposure")]
         [ColorUsage(false, true)] public Color ClearSkyTop = new Color(0.018f, 0.24f, 1.65f);
         [ColorUsage(false, true)] public Color ClearSkyMiddle = new Color(0.04f, 0.72f, 2.15f);
@@ -4122,6 +4171,7 @@ namespace DuneVector
         [Min(0f)] public float StormHorizonGlowIntensity = 0.28f;
 
         [Header("Y2K Sky Clouds")]
+        public bool SkyCloudsEnabled = true;
         [ColorUsage(false, true)] public Color ClearSkyCloudColor = new Color(1.1f, 1.75f, 2.05f, 1f);
         [ColorUsage(false, true)] public Color ClearSkyCloudHighlight = new Color(1.8f, 2.7f, 3.1f, 1f);
         [ColorUsage(false, true)] public Color ClearSkyCloudPearl = new Color(0.62f, 1.8f, 2.4f, 1f);
@@ -6154,6 +6204,222 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class FreeRoamStreakTier
+    {
+        [Tooltip("Consecutive free-roam deliveries required before this tier pays out.")]
+        [Min(1)] public int MinimumStreak = 1;
+
+        [Tooltip("Multiplier applied to Base Delivery Gold once the streak reaches Minimum Streak.")]
+        [Min(0f)] public float GoldMultiplier = 1f;
+
+        [Tooltip("Short label drawn beside the streak counter while this tier is active.")]
+        public string Label = "STEADY";
+
+        [ColorUsage(false, true)]
+        [Tooltip("Streak counter and completion-effect color while this tier is active.")]
+        public Color Color = new Color(0.35f, 0.86f, 1f, 1f);
+    }
+
+    [System.Serializable]
+    public sealed class FreeRoamDeliveryTuning
+    {
+        [Tooltip("Runs the repeating pickup and drop-off cycle while the drone is deployed in free roam.")]
+        public bool Enabled = true;
+
+        [Header("Deployment")]
+        [Tooltip("Free roam inserts the drone at a random point inside the combined footprint of every authored geoglyph. This inset keeps the insertion clear of that footprint's outer edge, in meters.")]
+        [Min(0f)] public float DeploymentBoundsInset = 150f;
+
+        [Tooltip("Fallback half-extent used when no geoglyphs are authored, in meters around the hub.")]
+        [Min(50f)] public float DeploymentFallbackHalfExtent = 900f;
+
+        [Tooltip("Attempts made to find a deployment point that is clear of landmark footprints before the last sample is accepted.")]
+        [Min(1)] public int DeploymentPlacementAttempts = 24;
+
+        [Tooltip("Clearance kept between the deployment point and any landmark footprint, in meters.")]
+        [Min(0f)] public float DeploymentLandmarkClearance = 60f;
+
+        [Header("Route")]
+        [Tooltip("Preferred straight-line distance from the drone to the next pickup or drop-off landmark, in meters.")]
+        [Min(20f)] public float LegDistance = 100f;
+
+        [Tooltip("How far a landmark may sit from Leg Distance and still be considered, in meters.")]
+        [Min(5f)] public float LegDistanceTolerance = 45f;
+
+        [Tooltip("Times the tolerance band is widened when no unused landmark is available at Leg Distance.")]
+        [Min(1)] public int LegDistanceWideningSteps = 4;
+
+        [Header("Landmark Zone")]
+        [Tooltip("Distance the hexagon zone extends past the landmark's mesh bounds on every side, in meters.")]
+        [Min(0f)] public float ZoneMargin = 5f;
+
+        [Tooltip("Smallest hexagon zone radius, used when a landmark reports unusually small mesh bounds.")]
+        [Min(1f)] public float MinimumZoneRadius = 10f;
+
+        [Tooltip("Largest hexagon zone radius, capping region-defining landmarks.")]
+        [Min(1f)] public float MaximumZoneRadius = 220f;
+
+        [Header("Rewards")]
+        [Tooltip("Gold paid by a free-roam delivery at a 1x streak. Higher streak tiers multiply this value.")]
+        [Min(0)] public int BaseDeliveryGold = 100;
+
+        [Tooltip("Streak tiers, lowest first. The highest tier whose Minimum Streak is met sets the payout multiplier.")]
+        public List<FreeRoamStreakTier> StreakTiers = new List<FreeRoamStreakTier>();
+
+        [Header("Streak Counter HUD")]
+        [Tooltip("Screen-space position of the streak counter as a fraction of the screen size.")]
+        public Vector2 StreakCounterAnchor = new Vector2(0.5f, 0.09f);
+
+        [Min(8)] public int StreakMultiplierFontSize = 62;
+        [Min(8)] public int StreakLabelFontSize = 20;
+        [Min(8)] public int StreakRewardFontSize = 24;
+
+        [Tooltip("Extra scale added to the streak counter the instant a delivery lands, decaying back to 1.")]
+        [Min(0f)] public float StreakCounterPunchScale = 0.75f;
+
+        [Tooltip("Seconds the streak counter takes to settle after a delivery punch.")]
+        [Min(0.05f)] public float StreakCounterPunchDuration = 0.7f;
+
+        [ColorUsage(false)] public Color StreakLabelColor = new Color(0.86f, 0.94f, 1f, 0.85f);
+        [ColorUsage(false)] public Color StreakShadowColor = new Color(0f, 0.02f, 0.05f, 0.8f);
+
+        [Tooltip("Pixel offset of the streak counter's drop shadow.")]
+        public Vector2 StreakShadowOffset = new Vector2(2f, 2f);
+
+        [Header("Delivery Complete Effect")]
+        [Tooltip("Expanding ground rings emitted at a 1x streak.")]
+        [Min(1)] public int CompletionRingsAtLowestTier = 2;
+
+        [Tooltip("Expanding ground rings emitted once the highest streak tier is reached.")]
+        [Min(1)] public int CompletionRingsAtHighestTier = 6;
+
+        [Tooltip("Radius of the first completion ring relative to the delivery zone radius.")]
+        [Min(0.05f)] public float CompletionRingStartRadiusFraction = 0.35f;
+
+        [Tooltip("Radius the final completion ring expands to, relative to the delivery zone radius.")]
+        [Min(0.1f)] public float CompletionRingEndRadiusFraction = 2.2f;
+
+        [Min(0.05f)] public float CompletionRingDuration = 1.15f;
+        [Min(0f)] public float CompletionRingStagger = 0.09f;
+        [Min(4)] public int CompletionRingSegments = 48;
+        [Min(0.05f)] public float CompletionRingSegmentThickness = 1.1f;
+        [Min(0.05f)] public float CompletionRingHeight = 2.4f;
+
+        [Tooltip("Sparks emitted at a 1x streak.")]
+        [Min(0)] public int CompletionSparksAtLowestTier = 40;
+
+        [Tooltip("Sparks emitted once the highest streak tier is reached.")]
+        [Min(0)] public int CompletionSparksAtHighestTier = 180;
+
+        [Min(0.1f)] public float CompletionSparkSpeed = 26f;
+        [Min(0.1f)] public float CompletionSparkLifetime = 1.6f;
+        [Min(0.01f)] public float CompletionSparkSize = 1.5f;
+
+        [Tooltip("Upward bias added to the spark burst so it reads as a column rather than a flat disc.")]
+        [Range(0f, 1f)] public float CompletionSparkUpwardBias = 0.55f;
+
+        [Tooltip("Emissive intensity multiplier applied to the completion effect at the highest streak tier.")]
+        [Min(1f)] public float CompletionIntensityAtHighestTier = 3.5f;
+
+        [Header("Status Messages")]
+        [Tooltip("Seconds the pickup and delivery status banners stay on screen.")]
+        [Min(0.5f)] public float StatusMessageDuration = 3f;
+
+        public void EnsureInitialized()
+        {
+            StreakTiers ??= new List<FreeRoamStreakTier>();
+            if (StreakTiers.Count != 0)
+            {
+                return;
+            }
+
+            StreakTiers.Add(new FreeRoamStreakTier
+            {
+                MinimumStreak = 1,
+                GoldMultiplier = 1f,
+                Label = "STEADY",
+                Color = new Color(0.35f, 0.86f, 1f, 1f),
+            });
+            StreakTiers.Add(new FreeRoamStreakTier
+            {
+                MinimumStreak = 3,
+                GoldMultiplier = 1.25f,
+                Label = "ON ROUTE",
+                Color = new Color(0.45f, 1f, 0.72f, 1f),
+            });
+            StreakTiers.Add(new FreeRoamStreakTier
+            {
+                MinimumStreak = 5,
+                GoldMultiplier = 1.5f,
+                Label = "RUNNING HOT",
+                Color = new Color(1f, 0.82f, 0.28f, 1f),
+            });
+            StreakTiers.Add(new FreeRoamStreakTier
+            {
+                MinimumStreak = 10,
+                GoldMultiplier = 2f,
+                Label = "UNBROKEN",
+                Color = new Color(1f, 0.42f, 0.72f, 1f),
+            });
+        }
+
+        /// <summary>
+        /// Highest authored tier whose streak requirement the run has met. Never null once
+        /// <see cref="EnsureInitialized"/> has run.
+        /// </summary>
+        public FreeRoamStreakTier EvaluateTier(int streak)
+        {
+            EnsureInitialized();
+            FreeRoamStreakTier resolved = StreakTiers[0];
+            for (int i = 0; i < StreakTiers.Count; i++)
+            {
+                FreeRoamStreakTier tier = StreakTiers[i];
+                if (tier != null &&
+                    streak >= tier.MinimumStreak &&
+                    tier.MinimumStreak >= resolved.MinimumStreak)
+                {
+                    resolved = tier;
+                }
+            }
+            return resolved;
+        }
+
+        public int EvaluateDeliveryGold(int streak)
+        {
+            return Mathf.Max(0, Mathf.RoundToInt(BaseDeliveryGold * EvaluateTier(streak).GoldMultiplier));
+        }
+
+        /// <summary>
+        /// Zero at the lowest authored tier and one at the highest, used to escalate the
+        /// completion effect without hardcoding tier counts in the presentation code.
+        /// </summary>
+        public float EvaluateTierProgress(int streak)
+        {
+            EnsureInitialized();
+            int highestRequirement = StreakTiers[0].MinimumStreak;
+            for (int i = 0; i < StreakTiers.Count; i++)
+            {
+                if (StreakTiers[i] != null)
+                {
+                    highestRequirement = Mathf.Max(highestRequirement, StreakTiers[i].MinimumStreak);
+                }
+            }
+            int lowestRequirement = StreakTiers[0].MinimumStreak;
+            for (int i = 0; i < StreakTiers.Count; i++)
+            {
+                if (StreakTiers[i] != null)
+                {
+                    lowestRequirement = Mathf.Min(lowestRequirement, StreakTiers[i].MinimumStreak);
+                }
+            }
+            return highestRequirement <= lowestRequirement
+                ? 1f
+                : Mathf.Clamp01(
+                    (streak - lowestRequirement) / (float)(highestRequirement - lowestRequirement));
+        }
+    }
+
+    [System.Serializable]
     public sealed class RetroCrtScanlineTuning
     {
         [Tooltip("Enables the fullscreen scanline treatment derived from URP_RetroCRTShader-master.")]
@@ -6231,6 +6497,9 @@ namespace DuneVector
 
         [Tooltip("Courier contract generation, modifiers, rewards, cargo rules, and HUD.")]
         public CourierContractTuning Contracts = new CourierContractTuning();
+
+        [Tooltip("Repeating free-roam pickup and drop-off cycle, landmark hexagon zones, streak multiplier, and payouts.")]
+        public FreeRoamDeliveryTuning FreeRoamDeliveries = new FreeRoamDeliveryTuning();
 
         [Tooltip("Authored post-delivery narrative sequence, typewriter timing, and FMOD typing loop.")]
         public DeliveryMessageTuning DeliveryMessages = new DeliveryMessageTuning();

@@ -211,6 +211,36 @@ namespace DuneVector
             transform.position += shift;
         }
 
+        /// <summary>
+        /// Largest horizontal half-extent of the landmark's rendered meshes measured from its
+        /// origin. Free roam fits its hexagon zone to this value so the zone hugs the silhouette
+        /// the player actually sees.
+        /// </summary>
+        public float CalculateMeshHorizontalRadius()
+        {
+            MeshRenderer[] meshRenderers = GetComponentsInChildren<MeshRenderer>();
+            float radius = 0f;
+            Vector3 origin = transform.position;
+            for (int i = 0; i < meshRenderers.Length; i++)
+            {
+                MeshRenderer meshRenderer = meshRenderers[i];
+                if (meshRenderer == null || !meshRenderer.enabled)
+                {
+                    continue;
+                }
+
+                Bounds bounds = meshRenderer.bounds;
+                float halfX = Mathf.Max(
+                    Mathf.Abs(bounds.max.x - origin.x),
+                    Mathf.Abs(origin.x - bounds.min.x));
+                float halfZ = Mathf.Max(
+                    Mathf.Abs(bounds.max.z - origin.z),
+                    Mathf.Abs(origin.z - bounds.min.z));
+                radius = Mathf.Max(radius, Mathf.Max(halfX, halfZ));
+            }
+            return radius;
+        }
+
         private Transform CreateSocket(string socketName, Vector3 localPosition)
         {
             GameObject socketObject = new GameObject(socketName);
@@ -497,6 +527,105 @@ namespace DuneVector
                     this);
             }
             return record;
+        }
+
+        /// <summary>
+        /// Nearest placement of any archetype. Free roam anchors its first pickup on whatever
+        /// landmark the deployment point actually landed beside.
+        /// </summary>
+        public DuneLandmarkPlacementRecord ResolveNearestWorldLandmarkOfAnyType(
+            LogicalPosition desiredPosition,
+            ISet<string> excludedPersistentIds = null)
+        {
+            return FindNearestPlacement(
+                desiredPosition,
+                DuneLandmarkType.DesertRelayStation,
+                excludedPersistentIds,
+                requireType: false);
+        }
+
+        /// <summary>
+        /// Random placement of any archetype sitting roughly <paramref name="targetDistance"/> from
+        /// <paramref name="origin"/>. The tolerance band widens in whole steps until a candidate
+        /// that is not already excluded appears.
+        /// </summary>
+        public DuneLandmarkPlacementRecord ResolveRandomWorldLandmarkAtDistance(
+            LogicalPosition origin,
+            float targetDistance,
+            float tolerance,
+            int wideningSteps,
+            System.Random random,
+            ISet<string> excludedPersistentIds = null)
+        {
+            if (_settings == null)
+            {
+                return null;
+            }
+
+            float safeDistance = Mathf.Max(1f, targetDistance);
+            float safeTolerance = Mathf.Max(1f, tolerance);
+            int steps = Mathf.Max(1, wideningSteps);
+            List<DuneLandmarkPlacementRecord> candidates = new List<DuneLandmarkPlacementRecord>();
+            for (int step = 1; step <= steps; step++)
+            {
+                float band = safeTolerance * step;
+                float minimumDistance = Mathf.Max(0f, safeDistance - band);
+                float maximumDistance = safeDistance + band;
+                CollectPlacementsInDistanceBand(
+                    origin,
+                    minimumDistance,
+                    maximumDistance,
+                    excludedPersistentIds,
+                    candidates);
+                if (candidates.Count > 0)
+                {
+                    int index = random != null
+                        ? random.Next(candidates.Count)
+                        : UnityEngine.Random.Range(0, candidates.Count);
+                    return candidates[index];
+                }
+            }
+
+            return null;
+        }
+
+        private void CollectPlacementsInDistanceBand(
+            LogicalPosition origin,
+            float minimumDistance,
+            float maximumDistance,
+            ISet<string> excludedPersistentIds,
+            List<DuneLandmarkPlacementRecord> results)
+        {
+            results.Clear();
+            float cellSize = Mathf.Max(1f, _settings.PlacementCellSize);
+            int searchRadius = Mathf.Max(1, Mathf.CeilToInt(maximumDistance / cellSize) + 1);
+            Vector2Int center = LogicalToCell(origin);
+            double minimumSquared = (double)minimumDistance * minimumDistance;
+            double maximumSquared = (double)maximumDistance * maximumDistance;
+            for (int z = -searchRadius; z <= searchRadius; z++)
+            {
+                for (int x = -searchRadius; x <= searchRadius; x++)
+                {
+                    DuneLandmarkPlacementRecord candidate =
+                        GetOrCreatePlacementRecord(center + new Vector2Int(x, z));
+                    if (candidate == null ||
+                        (excludedPersistentIds != null &&
+                         excludedPersistentIds.Contains(candidate.PersistentId)))
+                    {
+                        continue;
+                    }
+
+                    double deltaX = candidate.LogicalPosition.X - origin.X;
+                    double deltaZ = candidate.LogicalPosition.Z - origin.Z;
+                    double distanceSquared = (deltaX * deltaX) + (deltaZ * deltaZ);
+                    if (distanceSquared < minimumSquared || distanceSquared > maximumSquared)
+                    {
+                        continue;
+                    }
+
+                    results.Add(candidate);
+                }
+            }
         }
 
         public DuneVectorLandmarkInstance PinWorldLandmark(DuneLandmarkPlacementRecord record)
