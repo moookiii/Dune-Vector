@@ -194,7 +194,90 @@ def fit_to_bounds(bm, lo, hi):
 # driver
 # ---------------------------------------------------------------------------
 
+def _island_bounds(faces):
+    mn = Vector((1e9, 1e9, 1e9))
+    mx = Vector((-1e9, -1e9, -1e9))
+    for f in faces:
+        for v in f.verts:
+            for i in range(3):
+                mn[i] = min(mn[i], v.co[i])
+                mx[i] = max(mx[i], v.co[i])
+    return mn, mx
+
+
+def main_edit_mode():
+    """Rebuild each selected face island inside a merged mesh."""
+    ob = bpy.context.edit_object
+    me = ob.data
+    bm = bmesh.from_edit_mesh(me)
+    bm.faces.ensure_lookup_table()
+
+    selected = [f for f in bm.faces if f.select]
+    if not selected:
+        print("[dune] no faces selected — switch to Face select and pick the "
+              "blocks you want rebuilt")
+        return
+
+    # group selected faces into connected islands
+    remaining = set(selected)
+    islands = []
+    while remaining:
+        seed_face = remaining.pop()
+        island = [seed_face]
+        stack = [seed_face]
+        while stack:
+            f = stack.pop()
+            for e in f.edges:
+                for nf in e.link_faces:
+                    if nf in remaining:
+                        remaining.discard(nf)
+                        island.append(nf)
+                        stack.append(nf)
+        islands.append(island)
+
+    # capture every island's footprint before mutating the mesh
+    specs = []
+    for island in islands:
+        lo, hi = _island_bounds(island)
+        if (hi - lo).length < 1e-6:
+            continue
+        key = "{:.4f}_{:.4f}_{:.4f}_{:.4f}".format(
+            lo.x, lo.y, hi.x, hi.z)
+        seed = int.from_bytes(
+            hashlib.sha1(key.encode("utf-8")).digest()[:4], "little")
+        specs.append((lo, hi, island[0].material_index, seed))
+
+    # remove the old blocks, then add the replacements
+    doomed = [f for island in islands for f in island]
+    bmesh.ops.delete(bm, geom=doomed, context='FACES')
+
+    for lo, hi, mat_index, seed in specs:
+        sub = build_module(seed % 4, seed)
+
+        extents = hi - lo
+        order = sorted(range(3), key=lambda i: -extents[i])
+        if order[0] != 0:
+            rot = Matrix.Rotation(HALF_PI, 3, 'Z' if order[0] == 1 else 'Y')
+            bmesh.ops.rotate(sub, verts=list(sub.verts), matrix=rot)
+
+        fit_to_bounds(sub, lo, hi)
+
+        before = set(bm.faces)
+        _emit(bm, sub)
+        for f in bm.faces:
+            if f not in before:
+                f.material_index = mat_index
+
+    bmesh.ops.remove_doubles(bm, verts=list(bm.verts), dist=1e-5)
+    bmesh.update_edit_mesh(me, loop_triangles=True, destructive=True)
+    print("[dune] rebuilt {} face island(s) in {}".format(len(specs), me.name))
+
+
 def main():
+    if bpy.context.mode == 'EDIT_MESH':
+        main_edit_mode()
+        return
+
     targets = [o for o in bpy.context.selected_objects if o.type == 'MESH']
     if not targets:
         print("[dune] nothing selected — select the rounded-rect blocks first")
