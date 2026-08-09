@@ -6251,6 +6251,34 @@ namespace DuneVector
         [Tooltip("Times the tolerance band is widened when no unused landmark is available at Leg Distance.")]
         [Min(1)] public int LegDistanceWideningSteps = 4;
 
+        [Header("Streak Escalation")]
+        [Tooltip("Chance a leg becomes a hard route at a 1x streak. Hard routes run longer, raise the risk multipliers, and prefer the dangerous landmark list.")]
+        [Range(0f, 1f)] public float HardRouteChanceAtStreakOne = 0.05f;
+
+        [Tooltip("Chance a leg becomes a hard route once the streak reaches Hard Route Streak Ceiling.")]
+        [Range(0f, 1f)] public float HardRouteChanceAtStreakCeiling = 0.7f;
+
+        [Tooltip("Streak at which the hard-route chance and route risk reach their ceiling values.")]
+        [Min(2)] public int HardRouteStreakCeiling = 10;
+
+        [Tooltip("Leg Distance is multiplied by this on a hard route, making the run longer and faster-paced.")]
+        [Min(1f)] public float HardRouteLegDistanceMultiplier = 1.4f;
+
+        [Tooltip("Landmark archetypes a hard route prefers. Legs fall back to any archetype when none of these sit in the distance band.")]
+        public List<DuneLandmarkType> DangerousLandmarkTypes = new List<DuneLandmarkType>();
+
+        [Tooltip("Contract risk applied to enemies during free roam at a 1x streak.")]
+        [Min(0)] public int RouteRiskAtStreakOne = 1;
+
+        [Tooltip("Contract risk applied to enemies during free roam once the streak reaches Hard Route Streak Ceiling.")]
+        [Min(0)] public int RouteRiskAtStreakCeiling = 8;
+
+        [Tooltip("Extra contract risk added on top of the streak risk while a hard route is running.")]
+        [Min(0)] public int HardRouteAdditionalRisk = 4;
+
+        [Tooltip("Banner shown when a leg rolls a hard route.")]
+        public string HardRoutePrefix = "HOT ROUTE";
+
         [Header("Landmark Zone")]
         [Tooltip("Distance the hexagon zone extends past the landmark's mesh bounds on every side, in meters.")]
         [Min(0f)] public float ZoneMargin = 5f;
@@ -6329,6 +6357,15 @@ namespace DuneVector
 
         public void EnsureInitialized()
         {
+            DangerousLandmarkTypes ??= new List<DuneLandmarkType>();
+            if (DangerousLandmarkTypes.Count == 0)
+            {
+                DangerousLandmarkTypes.Add(DuneLandmarkType.RaiderBeacon);
+                DangerousLandmarkTypes.Add(DuneLandmarkType.CrashedCarrier);
+                DangerousLandmarkTypes.Add(DuneLandmarkType.FallenOrbitalArray);
+                DangerousLandmarkTypes.Add(DuneLandmarkType.WindHarvesterGraveyard);
+            }
+
             StreakTiers ??= new List<FreeRoamStreakTier>();
             if (StreakTiers.Count != 0)
             {
@@ -6384,6 +6421,43 @@ namespace DuneVector
                 }
             }
             return resolved;
+        }
+
+        /// <summary>
+        /// Zero at a 1x streak and one at <see cref="HardRouteStreakCeiling"/>. Drives every
+        /// escalation curve so a single authored ceiling controls the whole ramp.
+        /// </summary>
+        public float EvaluateStreakEscalation(int streak)
+        {
+            int ceiling = Mathf.Max(2, HardRouteStreakCeiling);
+            return Mathf.Clamp01((Mathf.Max(1, streak) - 1f) / (ceiling - 1f));
+        }
+
+        public float EvaluateHardRouteChance(int streak)
+        {
+            return Mathf.Clamp01(Mathf.Lerp(
+                HardRouteChanceAtStreakOne,
+                HardRouteChanceAtStreakCeiling,
+                EvaluateStreakEscalation(streak)));
+        }
+
+        public float EvaluateLegDistance(int streak, bool hardRoute)
+        {
+            float distance = Mathf.Max(20f, LegDistance);
+            return hardRoute ? distance * Mathf.Max(1f, HardRouteLegDistanceMultiplier) : distance;
+        }
+
+        public int EvaluateRouteRisk(int streak, bool hardRoute)
+        {
+            int risk = Mathf.RoundToInt(Mathf.Lerp(
+                Mathf.Max(0, RouteRiskAtStreakOne),
+                Mathf.Max(0, RouteRiskAtStreakCeiling),
+                EvaluateStreakEscalation(streak)));
+            if (hardRoute)
+            {
+                risk += Mathf.Max(0, HardRouteAdditionalRisk);
+            }
+            return Mathf.Max(0, risk);
         }
 
         public int EvaluateDeliveryGold(int streak)

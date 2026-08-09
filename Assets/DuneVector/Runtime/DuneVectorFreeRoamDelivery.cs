@@ -216,6 +216,12 @@ namespace DuneVector
     {
         public FreeRoamDeliveryPhase Phase { get; private set; } = FreeRoamDeliveryPhase.Inactive;
         public int Streak { get; private set; }
+
+        /// <summary>True while the current leg rolled the escalated route.</summary>
+        public bool IsHardRoute { get; private set; }
+
+        /// <summary>Contract risk the current leg applies to enemies.</summary>
+        public int RouteRisk { get; private set; }
         public bool IsCarryingCargo => Phase == FreeRoamDeliveryPhase.Deliver && _package != null;
         public Transform ActiveObjective { get; private set; }
         public LogicalPosition ActiveObjectiveLogicalPosition { get; private set; }
@@ -305,6 +311,7 @@ namespace DuneVector
         private void BeginPickupLeg(bool useNearestLandmark)
         {
             DestroyZoneRing();
+            RollRouteEscalation();
             LogicalPosition origin = _world.LogicalPlayerPosition;
             DuneLandmarkPlacementRecord record = useNearestLandmark
                 ? _landmarks.ResolveNearestWorldLandmarkOfAnyType(origin)
@@ -336,7 +343,7 @@ namespace DuneVector
             ActiveObjective = _package;
             ActiveObjectiveLogicalPosition = ToLogical(_package.position);
             _courierGame.ShowStatusMessage(
-                $"SIGNAL LOCKED — COLLECT CARGO AT {DuneLandmarkNames.GetDisplayName(record.Type).ToUpperInvariant()}",
+                $"SIGNAL LOCKED — COLLECT CARGO AT {DescribeRoute(record)}",
                 _settings.StatusMessageDuration);
         }
 
@@ -381,7 +388,7 @@ namespace DuneVector
             ActiveObjective = _zoneRing.transform;
             ActiveObjectiveLogicalPosition = landmark.LogicalPosition;
             _courierGame.ShowStatusMessage(
-                $"CARGO SECURED — DELIVER TO {DuneLandmarkNames.GetDisplayName(record.Type).ToUpperInvariant()}",
+                $"CARGO SECURED — DELIVER TO {DescribeRoute(record)}",
                 _settings.StatusMessageDuration);
         }
 
@@ -426,13 +433,16 @@ namespace DuneVector
 
         private DuneLandmarkPlacementRecord ResolveNextLandmark(LogicalPosition origin)
         {
+            float legDistance = _settings.EvaluateLegDistance(Streak, IsHardRoute);
+            List<DuneLandmarkType> preferredTypes = IsHardRoute ? _settings.DangerousLandmarkTypes : null;
             DuneLandmarkPlacementRecord record = _landmarks.ResolveRandomWorldLandmarkAtDistance(
                 origin,
-                _settings.LegDistance,
+                legDistance,
                 _settings.LegDistanceTolerance,
                 _settings.LegDistanceWideningSteps,
                 _random,
-                _usedLandmarkIds);
+                _usedLandmarkIds,
+                preferredTypes);
             if (record != null)
             {
                 return record;
@@ -443,11 +453,34 @@ namespace DuneVector
             _usedLandmarkIds.Clear();
             return _landmarks.ResolveRandomWorldLandmarkAtDistance(
                 origin,
-                _settings.LegDistance,
+                legDistance,
                 _settings.LegDistanceTolerance,
                 _settings.LegDistanceWideningSteps,
                 _random,
-                _usedLandmarkIds);
+                _usedLandmarkIds,
+                preferredTypes);
+        }
+
+        /// <summary>
+        /// Rolls the next leg's difficulty. The chance of a hard route and the risk applied to
+        /// enemies both climb with the streak, so an unbroken run drifts toward longer routes
+        /// through the authored dangerous landmarks without ever changing the default 100m feel
+        /// at a low streak.
+        /// </summary>
+        private void RollRouteEscalation()
+        {
+            double roll = _random != null ? _random.NextDouble() : UnityEngine.Random.value;
+            IsHardRoute = roll < _settings.EvaluateHardRouteChance(Streak);
+            RouteRisk = _settings.EvaluateRouteRisk(Streak, IsHardRoute);
+            DuneVectorContractRisk.Configure(_contractSettings, RouteRisk);
+        }
+
+        private string DescribeRoute(DuneLandmarkPlacementRecord record)
+        {
+            string landmark = DuneLandmarkNames.GetDisplayName(record.Type).ToUpperInvariant();
+            return IsHardRoute && !string.IsNullOrEmpty(_settings.HardRoutePrefix)
+                ? $"{_settings.HardRoutePrefix} — {landmark}"
+                : landmark;
         }
 
         private DuneVectorLandmarkInstance PinAndFitZone(DuneLandmarkPlacementRecord record)
@@ -664,6 +697,8 @@ namespace DuneVector
             string multiplierText = $"{displayStreak}x";
             string labelText = Streak <= 0
                 ? "STREAK STANDING BY"
+                : IsHardRoute && !string.IsNullOrEmpty(_settings.HardRoutePrefix)
+                ? $"{tier.Label}  •  {_settings.EvaluateDeliveryGold(Streak)} GOLD PER DROP  •  {_settings.HardRoutePrefix}"
                 : $"{tier.Label}  •  {_settings.EvaluateDeliveryGold(Streak)} GOLD PER DROP";
             DrawShadowedLabel(multiplierRect, multiplierText, _multiplierStyle, tier.Color);
             DrawShadowedLabel(labelRect, labelText, _labelStyle, _settings.StreakLabelColor);

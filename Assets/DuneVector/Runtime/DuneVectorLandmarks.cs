@@ -555,7 +555,8 @@ namespace DuneVector
             float tolerance,
             int wideningSteps,
             System.Random random,
-            ISet<string> excludedPersistentIds = null)
+            ISet<string> excludedPersistentIds = null,
+            IReadOnlyList<DuneLandmarkType> preferredTypes = null)
         {
             if (_settings == null)
             {
@@ -577,7 +578,25 @@ namespace DuneVector
                     maximumDistance,
                     excludedPersistentIds,
                     candidates);
-                if (candidates.Count > 0)
+                if (candidates.Count == 0)
+                {
+                    continue;
+                }
+
+                // A preferred archetype list only narrows the band when it actually matches
+                // something there; an empty match keeps the leg solvable instead of stalling it.
+                if (preferredTypes != null && preferredTypes.Count > 0 &&
+                    ContainsPreferredType(candidates, preferredTypes))
+                {
+                    for (int i = candidates.Count - 1; i >= 0; i--)
+                    {
+                        if (!IsPreferredType(candidates[i].Type, preferredTypes))
+                        {
+                            candidates.RemoveAt(i);
+                        }
+                    }
+                }
+
                 {
                     int index = random != null
                         ? random.Next(candidates.Count)
@@ -587,6 +606,34 @@ namespace DuneVector
             }
 
             return null;
+        }
+
+        private static bool IsPreferredType(
+            DuneLandmarkType type,
+            IReadOnlyList<DuneLandmarkType> preferredTypes)
+        {
+            for (int i = 0; i < preferredTypes.Count; i++)
+            {
+                if (preferredTypes[i] == type)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static bool ContainsPreferredType(
+            List<DuneLandmarkPlacementRecord> candidates,
+            IReadOnlyList<DuneLandmarkType> preferredTypes)
+        {
+            for (int i = 0; i < candidates.Count; i++)
+            {
+                if (IsPreferredType(candidates[i].Type, preferredTypes))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private void CollectPlacementsInDistanceBand(
