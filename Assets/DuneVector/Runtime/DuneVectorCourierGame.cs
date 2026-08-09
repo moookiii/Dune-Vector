@@ -2059,6 +2059,7 @@ namespace DuneVector
             _package.position = objectivePosition;
             _objectiveRing = CreateObjectiveRing(
                 "Contract Pickup Ring",
+                landmark,
                 objectiveLogical,
                 pickupRingHeight,
                 true,
@@ -2089,6 +2090,11 @@ namespace DuneVector
                 float ringRadius = i == 0
                     ? _deliverySettings.ObjectiveRingRadius
                     : _deliverySettings.DeliveryRingRadius;
+                if (TryResolveLandmarkZone(landmark, out LogicalPosition zoneCenter, out float zoneRadius))
+                {
+                    logical = zoneCenter;
+                    ringRadius = zoneRadius;
+                }
                 exclusions.Add(new WindFieldExclusion(
                     new Vector2((float)logical.X, (float)logical.Z),
                     ringRadius));
@@ -2098,12 +2104,27 @@ namespace DuneVector
 
         private JobTraversalRing CreateObjectiveRing(
             string objectName,
+            DuneVectorLandmarkInstance landmark,
             LogicalPosition logical,
             double height,
             bool pickup,
             Action crossed,
             bool playDeliveryAudio = true)
         {
+            LogicalPosition center = logical;
+            double ringHeight = height;
+            float radius = Mathf.Max(1f, pickup
+                ? _deliverySettings.ObjectiveRingRadius
+                : _deliverySettings.DeliveryRingRadius);
+            if (TryResolveLandmarkZone(landmark, out LogicalPosition zoneCenter, out float zoneRadius))
+            {
+                center = zoneCenter;
+                radius = zoneRadius;
+                ringHeight = _world.HeightField.SampleHeight(center.X, center.Z) + (pickup
+                    ? _deliverySettings.PickupRingGroundOffset
+                    : _deliverySettings.DeliveryRingGroundOffset);
+            }
+
             GameObject ringObject = new GameObject(objectName);
             ringObject.transform.SetParent(transform, false);
             JobTraversalRing ring = ringObject.AddComponent<JobTraversalRing>();
@@ -2116,16 +2137,42 @@ namespace DuneVector
                 _materials,
                 _deliverySettings,
                 pickup,
-                Mathf.Max(1f, pickup
-                    ? _deliverySettings.ObjectiveRingRadius
-                    : _deliverySettings.DeliveryRingRadius),
+                radius,
                 crossed,
                 canActivate,
                 playDeliveryAudio);
-            ring.LogicalPosition = logical;
-            ring.LogicalHeight = height;
-            ring.transform.position = _world.LogicalToLocal(logical.X, height, logical.Z);
+            ring.LogicalPosition = center;
+            ring.LogicalHeight = ringHeight;
+            ring.transform.position = _world.LogicalToLocal(center.X, ringHeight, center.Z);
             return ring;
+        }
+
+        /// <summary>
+        /// Contract objectives use the same fitted hexagon zone free roam does: centered on the
+        /// landmark's rendered mesh bounds and padded past them, so the zone hugs the silhouette
+        /// the player actually sees instead of using one fixed radius everywhere.
+        /// </summary>
+        private bool TryResolveLandmarkZone(
+            DuneVectorLandmarkInstance landmark,
+            out LogicalPosition center,
+            out float radius)
+        {
+            center = default;
+            radius = 0f;
+            if (landmark == null ||
+                _settings == null ||
+                !_settings.FitObjectiveZonesToLandmark ||
+                !landmark.TryCalculateMeshBounds(out Bounds bounds))
+            {
+                return false;
+            }
+
+            center = LocalToLogical(bounds.center);
+            radius = Mathf.Clamp(
+                Mathf.Max(bounds.extents.x, bounds.extents.z) + _settings.ObjectiveZonePadding,
+                _settings.MinimumObjectiveZoneRadius,
+                Mathf.Max(_settings.MinimumObjectiveZoneRadius, _settings.MaximumObjectiveZoneRadius));
+            return true;
         }
 
         private void HandlePackagePickup()
@@ -2224,13 +2271,14 @@ namespace DuneVector
                 objectiveLogical.Z);
             _objectiveRing = CreateObjectiveRing(
                 $"Delivery Ring {_deliveryIndex + 1}",
+                landmark,
                 objectiveLogical,
                 groundHeight + _deliverySettings.DeliveryRingGroundOffset,
                 false,
                 HandleDelivery,
                 _deliveryIndex == ActiveContract.DeliveryPositions.Count - 1);
             ActiveObjective = _objectiveRing.transform;
-            ActiveObjectiveLogicalPosition = objectiveLogical;
+            ActiveObjectiveLogicalPosition = _objectiveRing.LogicalPosition;
         }
 
         private LogicalPosition LocalToLogical(Vector3 localPosition)

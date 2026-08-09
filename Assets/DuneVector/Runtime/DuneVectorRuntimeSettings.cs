@@ -920,6 +920,19 @@ namespace DuneVector
         [Tooltip("Immediately completes accepted contracts at the courier hub without awarding gold.")]
         public bool DebugCompleteContractsInstantlyWithoutPayout;
 
+        [Header("Objective Landmark Zone")]
+        [Tooltip("Fits the pickup and delivery hexagon zones to the landmark's mesh bounds instead of using the fixed ring radii from Delivery.")]
+        public bool FitObjectiveZonesToLandmark = true;
+
+        [Tooltip("Distance the hexagon zone extends past the landmark's mesh bounds on every side, in meters.")]
+        [Min(0f)] public float ObjectiveZonePadding = 5f;
+
+        [Tooltip("Smallest fitted zone radius, used when a landmark reports unusually small mesh bounds.")]
+        [Min(1f)] public float MinimumObjectiveZoneRadius = 10f;
+
+        [Tooltip("Largest fitted zone radius, capping region-defining landmarks.")]
+        [Min(1f)] public float MaximumObjectiveZoneRadius = 220f;
+
         [Header("Contract Board")]
         public bool Enabled = true;
         [Range(5, 8)] public int OfferedContractCount = 6;
