@@ -3742,9 +3742,10 @@ namespace DuneVector
 
         [Header("Placement")]
         [Tooltip("Minimum horizontal center-to-center distance between any two procedurally generated traversal rings, regardless of ring type.")]
-        [Min(0f)] public float MinimumRingSeparation = 10f;
-        [Tooltip("Minimum horizontal center-to-center distance between any two ground boost portals, enforced across chunk borders.")]
-        [Min(0f)] public float MinimumGroundPortalSeparation = 30f;
+        [Min(0f)] public float MinimumRingSeparation = 30f;
+        [Tooltip("Minimum horizontal center-to-center distance between any two traversal portals of any type, enforced across chunk borders.")]
+        [FormerlySerializedAs("MinimumGroundPortalSeparation")]
+        [Min(0f)] public float MinimumPortalSeparation = 30f;
         [Tooltip("Minimum horizontal distance between a newly generated traversal ring center and any player, neutral, or rival courier drone.")]
         [Min(0f)] public float MinimumDroneSpawnSeparation = 14f;
         [Tooltip("Minimum horizontal distance from the hub center where traversal ring centers may spawn.")]

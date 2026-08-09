@@ -7,7 +7,7 @@ namespace DuneVector
     {
         Structure = 0,
         Portal = 1,
-        GroundPortal = 2,
+        PortalSpacing = 2,
     }
 
     /// <summary>
