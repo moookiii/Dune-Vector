@@ -3063,6 +3063,29 @@ namespace DuneVector
                 return;
             }
 
+            // Ground and flight portals additionally hold a wider distance from their own
+            // kind, so a run of same-type portals never bunches up even where the shared
+            // spacing above would allow it.
+            WorldOccupancyKind sameTypeSpacingKind = type == TraversalRingType.GroundBoost
+                ? WorldOccupancyKind.GroundPortalSpacing
+                : WorldOccupancyKind.FlightPortalSpacing;
+            float sameTypeSpacingRadius = type switch
+            {
+                TraversalRingType.GroundBoost =>
+                    Mathf.Max(0f, ringTuning.MinimumGroundPortalSeparation) * 0.5f,
+                TraversalRingType.Flight or TraversalRingType.UpperFlight =>
+                    Mathf.Max(0f, ringTuning.MinimumFlightPortalSeparation) * 0.5f,
+                _ => 0f,
+            };
+            if (sameTypeSpacingRadius > 0f && DuneVectorWorldOccupancy.Overlaps(
+                    logicalX,
+                    logicalZ,
+                    sameTypeSpacingRadius,
+                    sameTypeSpacingKind))
+            {
+                return;
+            }
+
             DuneVectorLandmarkDirector landmarks = DuneVectorBootstrap.Instance != null
                 ? DuneVectorBootstrap.Instance.LandmarkDirector
                 : null;
@@ -3181,6 +3204,14 @@ namespace DuneVector
                     logicalZ,
                     portalSpacingRadius,
                     WorldOccupancyKind.PortalSpacing));
+            }
+            if (sameTypeSpacingRadius > 0f)
+            {
+                _occupancyHandles.Add(DuneVectorWorldOccupancy.Register(
+                    logicalX,
+                    logicalZ,
+                    sameTypeSpacingRadius,
+                    sameTypeSpacingKind));
             }
         }
 
