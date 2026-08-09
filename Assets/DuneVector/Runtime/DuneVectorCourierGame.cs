@@ -788,7 +788,7 @@ namespace DuneVector
                 }
             }
 
-            return _world.ResolvePlayerSpawnAwayFromPortals(sample, Vector3.forward);
+            return _world.ResolvePlayerSpawnAwayFromObstacles(sample, Vector3.forward);
         }
 
         private void Update()
@@ -1926,7 +1926,7 @@ namespace DuneVector
                 _desertSpawn = _world.LogicalToLocal(routeOrigin.X, insertionHeight, routeOrigin.Z);
             }
 
-            routeOrigin = _world.ResolvePlayerSpawnAwayFromPortals(routeOrigin, -pickupForward);
+            routeOrigin = _world.ResolvePlayerSpawnAwayFromObstacles(routeOrigin, -pickupForward);
             insertionHeight =
                 (float)_world.HeightField.SampleHeight(routeOrigin.X, routeOrigin.Z) +
                 _hubSettings.DesertInsertionHeight;
@@ -2715,7 +2715,7 @@ namespace DuneVector
                 _teleportMoved = true;
                 if (!toHub)
                 {
-                    EnsureDesertSpawnClearOfPortals();
+                    EnsureDesertSpawnClearOfObstacles();
                     PublishDesertSpawnClearance();
                     _world.RemoveEnemiesInsidePlayerSpawnClearance();
                 }
@@ -2795,10 +2795,10 @@ namespace DuneVector
             DuneVectorEnemySpawnClearance.SetSpawnPoint(spawnLogical.X, spawnLogical.Z);
         }
 
-        private void EnsureDesertSpawnClearOfPortals()
+        private void EnsureDesertSpawnClearOfObstacles()
         {
             LogicalPosition original = LocalToLogical(_desertSpawn);
-            LogicalPosition resolved = _world.ResolvePlayerSpawnAwayFromPortals(
+            LogicalPosition resolved = _world.ResolvePlayerSpawnAwayFromObstacles(
                 original,
                 -(_desertRotation * Vector3.forward));
             if (resolved.X == original.X && resolved.Z == original.Z)

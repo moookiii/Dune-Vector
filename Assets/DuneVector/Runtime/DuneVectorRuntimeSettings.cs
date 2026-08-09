@@ -1990,6 +1990,9 @@ namespace DuneVector
         [Range(0f, 89f)] public float MaximumPlacementSlope = 38f;
         [Min(0f)] public float BurialDepth = 0.18f;
 
+        [Tooltip("Metres of clear ground kept around every cactus when the drone deploys into the desert, for both contract insertions and free roam. The deployment point is pushed out to this distance if it lands on a cactus.")]
+        [Min(0f)] public float DroneSpawnClearance = 6f;
+
         [Tooltip("Extra burial depth for individual cactus models, keyed by their asset name in Resources/cacti (for example \"7\"). Use this when one model sits high because its mesh has empty space under the base.")]
         public CactusModelBurialOverride[] ModelBurialOverrides = new CactusModelBurialOverride[0];
 
@@ -3742,8 +3745,8 @@ namespace DuneVector
         [Range(0f, 30f)] public float SpikeTwistDegrees = 7f;
         [Tooltip("Fraction of each spike's length, measured from the point inward, that is capped with the hot emissive tip plate.")]
         [Range(0f, 0.8f)] public float SpikeTipFraction = 0.34f;
-        [Tooltip("How far the emissive tip plate stands proud of the wheel faces, as a multiple of the wheel half depth.")]
-        [Range(1f, 1.5f)] public float SpikeTipRelief = 1.09f;
+        [Tooltip("Wheel thickness at a spike's point, as a fraction of the disc thickness. Values below 1 taper the spikes into blades instead of leaving them as blocks.")]
+        [Range(0.1f, 1f)] public float SpikeTipThickness = 0.35f;
 
         [Header("Appearance - Body")]
         [ColorUsage(false, true)] public Color BodyColor = new Color(0.055f, 0.045f, 0.04f);
@@ -3752,16 +3755,15 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color BodyEmission = new Color(0.16f, 0.025f, 0.005f);
 
         [Header("Appearance - Trim and Rim")]
-        [Tooltip("Gold trim torus seated in the hub bore, tying the exploder to the desert's gold ringwork.")]
+        [Tooltip("Gold trim rings sunk into the wheel faces, tying the exploder to the desert's gold ringwork.")]
         [ColorUsage(false, true)] public Color TrimColor = new Color(0.62f, 0.42f, 0.11f);
-        [ColorUsage(false, true)] public Color TrimEmission = new Color(1.9f, 1.05f, 0.14f);
+        [ColorUsage(false, true)] public Color TrimEmission = new Color(0.85f, 0.46f, 0.06f);
         [Range(0f, 1f)] public float TrimSmoothness = 0.72f;
         [Range(0f, 1f)] public float TrimMetallic = 0.9f;
-        [Min(0.005f)] public float TrimRingThickness = 0.065f;
-        [Tooltip("Cool unlit band running around the wheel's outer edge. This is the single strongest separation between the exploder's silhouette and the warm sand behind it.")]
+        [Min(0.005f)] public float TrimRingThickness = 0.04f;
+        [Tooltip("Color of the chamfer running around the whole outline, spikes included. It is part of the wheel mesh, so it traces the silhouette exactly and is the strongest separation between the exploder and the warm sand behind it.")]
         [ColorUsage(false, true)] public Color RimColor = new Color(0.36f, 0.85f, 1f);
         [ColorUsage(false, true)] public Color RimEmission = new Color(1.4f, 3.3f, 4.6f);
-        [Min(0.005f)] public float RimRingThickness = 0.038f;
 
         [Header("Appearance - Spike Tips")]
         [ColorUsage(false, true)] public Color SpikeTipColor = new Color(0.5f, 0.2f, 0.03f);
@@ -3806,8 +3808,6 @@ namespace DuneVector
         [Min(0f)] public float ChargeWarningScaleStart = 0.75f;
         [Tooltip("Hub ring scale at the end of the detonation wind-up.")]
         [Min(0f)] public float ChargeWarningScaleEnd = 1.45f;
-        [Tooltip("How far the spikes push outward at full charge, as a multiple of their resting length.")]
-        [Range(1f, 1.5f)] public float ChargeSpikeExtension = 1.04f;
         [Tooltip("Idle hub ring breathing amplitude while patrolling.")]
         [Range(0f, 0.5f)] public float IdleRingPulseAmplitude = 0.08f;
         [Range(0f, 12f)] public float IdleRingPulseFrequency = 3.5f;

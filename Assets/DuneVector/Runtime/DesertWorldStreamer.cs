@@ -122,14 +122,21 @@ namespace DuneVector
 
         public static readonly Vector2 StartingLogicalPosition = new Vector2(10f, 8f);
 
-        public LogicalPosition ResolvePlayerSpawnAwayFromPortals(
+        /// <summary>
+        /// Pushes a desert deployment point out of every ring, portal, and cactus it lands on.
+        /// Used by both contract insertions and free roam deployments.
+        /// </summary>
+        public LogicalPosition ResolvePlayerSpawnAwayFromObstacles(
             LogicalPosition desiredPosition,
             Vector3 preferredDirection)
         {
             float clearance = Rings != null
                 ? Mathf.Max(0f, Rings.MinimumDroneSpawnSeparation)
                 : 0f;
-            if (TraversalRing.ActiveRings.Count == 0)
+            float cactusClearance = Cacti != null
+                ? Mathf.Max(0f, Cacti.DroneSpawnClearance)
+                : 0f;
+            if (TraversalRing.ActiveRings.Count == 0 && cactusClearance <= 0f)
             {
                 return desiredPosition;
             }
@@ -176,10 +183,85 @@ namespace DuneVector
                 }
             }
 
+            // Cacti are solid meshes the drone would materialise inside, and they are placed
+            // deterministically per chunk, so this resolves even against chunks that have not
+            // streamed in yet at the moment of deployment.
+            for (int pass = 0; pass < MaximumCactusSpawnPushPasses; pass++)
+            {
+                if (!TryFindCactusNear(candidate, cactusClearance, out Vector2 cactusPosition))
+                {
+                    break;
+                }
+
+                Vector2 delta = candidate - cactusPosition;
+                Vector2 direction = delta.sqrMagnitude > Mathf.Epsilon
+                    ? delta.normalized
+                    : fallbackDirection;
+                candidate = cactusPosition + (direction * cactusClearance);
+                adjusted = true;
+            }
+
             return adjusted
                 ? new LogicalPosition(candidate.x, candidate.y)
                 : desiredPosition;
         }
+
+        /// <summary>
+        /// Finds the nearest cactus within <paramref name="clearance"/> of a logical point by
+        /// replaying the deterministic cactus placement for every chunk the disc touches.
+        /// </summary>
+        private bool TryFindCactusNear(Vector2 logicalPoint, float clearance, out Vector2 cactusPosition)
+        {
+            cactusPosition = Vector2.zero;
+            if (clearance <= 0f || HeightField == null || ChunkSize <= 0f)
+            {
+                return false;
+            }
+
+            int chunkReach = Mathf.CeilToInt(clearance / ChunkSize);
+            Vector2Int centerChunk = new Vector2Int(
+                Mathf.FloorToInt(logicalPoint.x / ChunkSize),
+                Mathf.FloorToInt(logicalPoint.y / ChunkSize));
+            float closestSquared = clearance * clearance;
+            bool found = false;
+            for (int z = -chunkReach; z <= chunkReach; z++)
+            {
+                for (int x = -chunkReach; x <= chunkReach; x++)
+                {
+                    Vector2Int coordinate = new Vector2Int(centerChunk.x + x, centerChunk.y + z);
+                    DesertChunk.CollectCactusPlacements(
+                        coordinate,
+                        ChunkSize,
+                        HeightField,
+                        WorldSeed,
+                        Cacti,
+                        _cactusPlacementQueryBuffer);
+                    for (int i = 0; i < _cactusPlacementQueryBuffer.Count; i++)
+                    {
+                        Vector2 logicalCactus = new Vector2(
+                            (coordinate.x * ChunkSize) + _cactusPlacementQueryBuffer[i].Local.x,
+                            (coordinate.y * ChunkSize) + _cactusPlacementQueryBuffer[i].Local.y);
+                        float distanceSquared = (logicalCactus - logicalPoint).sqrMagnitude;
+                        if (distanceSquared >= closestSquared)
+                        {
+                            continue;
+                        }
+
+                        closestSquared = distanceSquared;
+                        cactusPosition = logicalCactus;
+                        found = true;
+                    }
+                }
+            }
+
+            return found;
+        }
+
+        // Iteration cap for nudging a deployment point out of overlapping cacti; each pass moves
+        // the point clear of the nearest one, and a handful is enough to settle inside a cluster.
+        private const int MaximumCactusSpawnPushPasses = 8;
+
+        private readonly List<CactusPlacement> _cactusPlacementQueryBuffer = new List<CactusPlacement>();
 
         public event Action<Vector3> WorldShifted;
 
@@ -1406,6 +1488,19 @@ namespace DuneVector
         }
     }
 
+    /// <summary>
+    /// One deterministic cactus slot inside a chunk, in chunk-local XZ metres.
+    /// </summary>
+    internal struct CactusPlacement
+    {
+        public Vector2 Local;
+        public float Height;
+        public float Thickness;
+        public float Yaw;
+        public int Arms;
+        public int InstanceSeed;
+    }
+
     internal sealed class DesertChunk : IDisposable
     {
         private sealed class TerrainBuildBuffers
@@ -2497,19 +2592,12 @@ namespace DuneVector
             }
 
             CactusTuning cacti = cactusTuning ?? new CactusTuning();
-            float regionNoise = (float)DuneVectorMath.ValueNoise((coordinate.x + 0.5) * 0.42, (coordinate.y + 0.5) * 0.42, worldSeed, 811);
-            int cactusCount = regionNoise < -0.36f ? 0 : CountFromDensity(cacti.DensityPerChunk * Mathf.Lerp(0.35f, 1.25f, (regionNoise + 1f) * 0.5f), coordinate, worldSeed, 821);
-            Vector2 clusterCenter = new Vector2(
-                DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 823, 8f, chunkSize - 8f),
-                DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 827, 8f, chunkSize - 8f));
-
-            for (int i = 0; i < cactusCount; i++)
+            List<CactusPlacement> cactusPlacements = new List<CactusPlacement>();
+            CollectCactusPlacements(coordinate, chunkSize, heightField, worldSeed, cacti, cactusPlacements);
+            for (int i = 0; i < cactusPlacements.Count; i++)
             {
-                Vector2 randomPosition = new Vector2(
-                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 839 + (i * 13), 5f, chunkSize - 5f),
-                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 843 + (i * 13), 5f, chunkSize - 5f));
-                float clusterMix = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 849 + (i * 13), 0.1f, 0.72f);
-                Vector2 local = Vector2.Lerp(randomPosition, clusterCenter, clusterMix);
+                CactusPlacement placement = cactusPlacements[i];
+                Vector2 local = placement.Local;
                 if (IsNearAny(local, ringExclusions, 9f))
                 {
                     continue;
@@ -2517,35 +2605,15 @@ namespace DuneVector
 
                 double logicalX = originX + local.x;
                 double logicalZ = originZ + local.y;
-                Vector3 normal = heightField.SampleNormal(logicalX, logicalZ);
-                if (Vector3.Angle(normal, Vector3.up) > cacti.MaximumPlacementSlope)
-                {
-                    continue;
-                }
-
-                float minimumHeight = Mathf.Max(0.1f, cacti.MinimumHeight);
-                float maximumHeight = Mathf.Max(minimumHeight, cacti.MaximumHeight);
-                float minimumThickness = Mathf.Max(0.05f, cacti.MinimumThickness);
-                float maximumThickness = Mathf.Max(minimumThickness, cacti.MaximumThickness);
-                float height = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 853 + (i * 13), minimumHeight, maximumHeight);
-                float thickness = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 857 + (i * 13), minimumThickness, maximumThickness);
-                float yaw = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 863 + (i * 13), 0f, 360f);
-                int minimumArms = Mathf.Clamp(cacti.MinimumArmCount, 0, 5);
-                int maximumArms = Mathf.Clamp(Mathf.Max(minimumArms, cacti.MaximumArmCount), minimumArms, 5);
-                int arms = minimumArms + Mathf.FloorToInt(
-                    DuneVectorMath.Hash01(coordinate.x, coordinate.y, worldSeed, 877 + (i * 13))
-                    * ((maximumArms - minimumArms) + 1));
-                arms = Mathf.Min(maximumArms, arms);
                 float y = (float)heightField.SampleHeight(logicalX, logicalZ) - Mathf.Max(0f, cacti.BurialDepth);
-                int instanceSeed = unchecked((coordinate.x * 73856093) ^ (coordinate.y * 19349663) ^ (i * 83492791) ^ worldSeed);
                 DuneVectorVisuals.CreateCactus(
                     Root,
                     new Vector3(local.x, y, local.y),
-                    height,
-                    thickness,
-                    yaw,
-                    arms,
-                    instanceSeed,
+                    placement.Height,
+                    placement.Thickness,
+                    placement.Yaw,
+                    placement.Arms,
+                    placement.InstanceSeed,
                     cacti,
                     materials.Cactus,
                     materials.CactusBlossom);
@@ -3226,6 +3294,73 @@ namespace DuneVector
             float visualRadius = DuneVectorVisuals.CalculatePortalVisualRadius(radius, ringTuning);
             return (visualRadius * Mathf.Max(1f, ringTuning.PortalStructureClearanceMultiplier))
                 + Mathf.Max(0f, ringTuning.PortalStructureClearancePadding);
+        }
+
+        /// <summary>
+        /// Rebuilds the deterministic cactus placements for a chunk without instantiating anything.
+        /// Chunk generation consumes this to spawn the meshes, and the deployment placement query
+        /// consumes it to keep the drone off a cactus even when that chunk has not streamed in yet.
+        /// Ring exclusions are deliberately not applied here so the query stays conservative.
+        /// </summary>
+        internal static void CollectCactusPlacements(
+            Vector2Int coordinate,
+            float chunkSize,
+            DuneHeightField heightField,
+            int worldSeed,
+            CactusTuning cactusTuning,
+            List<CactusPlacement> results)
+        {
+            results.Clear();
+            if (heightField == null)
+            {
+                return;
+            }
+
+            CactusTuning cacti = cactusTuning ?? new CactusTuning();
+            double originX = coordinate.x * (double)chunkSize;
+            double originZ = coordinate.y * (double)chunkSize;
+            float regionNoise = (float)DuneVectorMath.ValueNoise((coordinate.x + 0.5) * 0.42, (coordinate.y + 0.5) * 0.42, worldSeed, 811);
+            int cactusCount = regionNoise < -0.36f ? 0 : CountFromDensity(cacti.DensityPerChunk * Mathf.Lerp(0.35f, 1.25f, (regionNoise + 1f) * 0.5f), coordinate, worldSeed, 821);
+            Vector2 clusterCenter = new Vector2(
+                DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 823, 8f, chunkSize - 8f),
+                DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 827, 8f, chunkSize - 8f));
+
+            for (int i = 0; i < cactusCount; i++)
+            {
+                Vector2 randomPosition = new Vector2(
+                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 839 + (i * 13), 5f, chunkSize - 5f),
+                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 843 + (i * 13), 5f, chunkSize - 5f));
+                float clusterMix = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 849 + (i * 13), 0.1f, 0.72f);
+                Vector2 local = Vector2.Lerp(randomPosition, clusterCenter, clusterMix);
+
+                double logicalX = originX + local.x;
+                double logicalZ = originZ + local.y;
+                Vector3 normal = heightField.SampleNormal(logicalX, logicalZ);
+                if (Vector3.Angle(normal, Vector3.up) > cacti.MaximumPlacementSlope)
+                {
+                    continue;
+                }
+
+                float minimumHeight = Mathf.Max(0.1f, cacti.MinimumHeight);
+                float maximumHeight = Mathf.Max(minimumHeight, cacti.MaximumHeight);
+                float minimumThickness = Mathf.Max(0.05f, cacti.MinimumThickness);
+                float maximumThickness = Mathf.Max(minimumThickness, cacti.MaximumThickness);
+                int minimumArms = Mathf.Clamp(cacti.MinimumArmCount, 0, 5);
+                int maximumArms = Mathf.Clamp(Mathf.Max(minimumArms, cacti.MaximumArmCount), minimumArms, 5);
+                int arms = minimumArms + Mathf.FloorToInt(
+                    DuneVectorMath.Hash01(coordinate.x, coordinate.y, worldSeed, 877 + (i * 13))
+                    * ((maximumArms - minimumArms) + 1));
+
+                results.Add(new CactusPlacement
+                {
+                    Local = local,
+                    Height = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 853 + (i * 13), minimumHeight, maximumHeight),
+                    Thickness = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 857 + (i * 13), minimumThickness, maximumThickness),
+                    Yaw = DuneVectorMath.HashRange(coordinate.x, coordinate.y, worldSeed, 863 + (i * 13), 0f, 360f),
+                    Arms = Mathf.Min(maximumArms, arms),
+                    InstanceSeed = unchecked((coordinate.x * 73856093) ^ (coordinate.y * 19349663) ^ (i * 83492791) ^ worldSeed),
+                });
+            }
         }
 
         // Pyramids and obelisks are authored around a half-extent, so the circle that
