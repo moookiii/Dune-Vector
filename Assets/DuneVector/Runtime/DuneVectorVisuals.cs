@@ -979,6 +979,10 @@ namespace DuneVector
             };
             material.SetFloat("_Opacity", RingPortalTuning.PortalHaloOpacity);
             material.SetFloat("_CoreMode", 2f);
+            // The halo is glow around the stroke, not part of it, so it stays additive even
+            // on a solid portal. Letting it occlude would smear a dim band over the terrain
+            // for the full halo width, which widens with the family thickness multiplier.
+            material.SetFloat("_Solidity", 0f);
             _ownedMaterials.Add(material);
             _portalHaloMaterials.Add(lineMaterial, material);
             return material;
