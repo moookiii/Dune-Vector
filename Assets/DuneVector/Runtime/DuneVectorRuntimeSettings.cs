@@ -925,7 +925,7 @@ namespace DuneVector
         public bool FitObjectiveZonesToLandmark = true;
 
         [Tooltip("Distance the hexagon zone extends past the landmark's mesh bounds on every side, in meters.")]
-        [Min(0f)] public float ObjectiveZonePadding = 5f;
+        [Min(0f)] public float ObjectiveZonePadding = 15f;
 
         [Tooltip("Smallest fitted zone radius, used when a landmark reports unusually small mesh bounds.")]
         [Min(1f)] public float MinimumObjectiveZoneRadius = 10f;
@@ -6294,7 +6294,7 @@ namespace DuneVector
 
         [Header("Landmark Zone")]
         [Tooltip("Distance the hexagon zone extends past the landmark's mesh bounds on every side, in meters.")]
-        [Min(0f)] public float ZoneMargin = 5f;
+        [Min(0f)] public float ZoneMargin = 15f;
 
         [Tooltip("Smallest hexagon zone radius, used when a landmark reports unusually small mesh bounds.")]
         [Min(1f)] public float MinimumZoneRadius = 10f;
