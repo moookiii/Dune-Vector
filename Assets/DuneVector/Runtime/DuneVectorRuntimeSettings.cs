@@ -3861,16 +3861,20 @@ namespace DuneVector
         [Min(0f)] public float BillboardDisableRadius = 14f;
 
         [Header("Ground Boost Ring Generation")]
+        [Tooltip("Base expected number of ground boost ring placements per chunk, before the amount multiplier.")]
+        [Range(0f, 2f)] public float GroundRingDensityPerChunk = 0.48f;
         [Tooltip("Multiplier for the expected number of procedurally generated ground boost rings.")]
         [Min(0f)] public float GroundBoostRingAmountMultiplier = 1f;
 
         [Header("Blue Flight Ring Generation")]
+        [Tooltip("Base expected number of blue flight ring placements per chunk, before the amount multipliers.")]
+        [Range(0f, 2f)] public float AerialRingDensityPerChunk = 0.35f;
         [Tooltip("Multiplier for the expected number of procedurally generated blue flight rings when the flight meter is empty.")]
         [FormerlySerializedAs("FlightRingAmountMultiplier")]
         [Min(1f)] public float FlightRingAmountMultiplierAtMinimumMeter = 5f;
         [Tooltip("Multiplier for the expected number of procedurally generated blue flight rings when the flight meter is full.")]
         [Min(1f)] public float FlightRingAmountMultiplierAtMaximumMeter = 1f;
-        [Tooltip("A second multiplier applied after the flight-meter-based blue flight ring amount multiplier. Values below the reciprocal meter multiplier preserve the baseline flight ring density.")]
+        [Tooltip("A second multiplier applied after the flight-meter-based blue flight ring amount multiplier. Values below 1 thin the flight rings out, values above 1 add more.")]
         [Min(0f)] public float SecondFlightRingAmountMultiplier = 1f;
         [Tooltip("Seconds before the same flight ring can restore the flight meter again.")]
         [Min(0f)] public float FlightMeterRewardCooldown = 5f;
@@ -3882,7 +3886,7 @@ namespace DuneVector
                 Mathf.Max(1f, FlightRingAmountMultiplierAtMaximumMeter),
                 Mathf.Clamp01(flightMeterNormalized));
             return Mathf.Max(
-                1f,
+                0f,
                 meterBasedMultiplier * Mathf.Max(0f, SecondFlightRingAmountMultiplier));
         }
 
