@@ -2522,6 +2522,9 @@ namespace DuneVector
         [Range(0f, 1f)] public float TopMaterialMetallic;
 
         [Header("Event HUD")]
+        // Uniform multiplier over the whole panel (chrome and text) so the overlay can be sized
+        // against the rest of the HUD without retuning every offset below.
+        [Range(0.4f, 2f)] public float HudScale;
         [Min(100f)] public float HudWidth;
         [Min(60f)] public float HudHeight;
         [Min(0f)] public float HudLeft;
