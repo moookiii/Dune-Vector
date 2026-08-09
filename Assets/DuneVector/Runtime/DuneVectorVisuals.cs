@@ -332,10 +332,10 @@ namespace DuneVector
                     "World generation obelisks require " +
                     "Assets/DuneVector/Resources/obelisk.glb.");
             }
-            BoostRing = CreatePortal("Portal - Boost Amber", rings.BoostRingEmissionColor, rings, rings.GroundBoostPortalSolidity);
-            FlightRing = CreatePortal("Portal - Flight Cyan", rings.FlightRingEmissionColor, rings, rings.FlightPortalSolidity);
-            UpperFlightRing = CreatePortal("Portal - Upper Flight Violet", rings.UpperFlightRingEmissionColor, rings, rings.UpperFlightPortalSolidity);
-            HealthRing = CreatePortal("Portal - Health Green", rings.HealthRingEmissionColor, rings, rings.HealthPortalSolidity);
+            BoostRing = CreatePortal("Portal - Boost Amber", rings.BoostRingEmissionColor, rings);
+            FlightRing = CreatePortal("Portal - Flight Cyan", rings.FlightRingEmissionColor, rings);
+            UpperFlightRing = CreatePortal("Portal - Upper Flight Violet", rings.UpperFlightRingEmissionColor, rings);
+            HealthRing = CreatePortal("Portal - Health Green", rings.HealthRingEmissionColor, rings);
             HealthHeart = CreateLit(
                 "Ring - Health Heart",
                 rings.HealthHeartBaseColor,
@@ -347,7 +347,7 @@ namespace DuneVector
             {
                 Debug.LogError("Health rings require Assets/DuneVector/Resources/heartpiece.glb.");
             }
-            CoinRing = CreatePortal("Portal - Coin Gold", rings.CoinRingEmissionColor, rings, rings.CoinPortalSolidity);
+            CoinRing = CreatePortal("Portal - Coin Gold", rings.CoinRingEmissionColor, rings);
             Coin = CreateLit(
                 "Ring - Coin Icon",
                 rings.CoinBaseColor,
@@ -377,8 +377,8 @@ namespace DuneVector
                 clouds.MaterialSmoothness,
                 clouds.MaterialMetallic);
             Package = CreateLit("Delivery Package", new Color(0.72f, 0.24f, 0.035f), 0.34f, 0.05f, new Color(1.4f, 0.2f, 0.01f));
-            PickupRing = CreatePortal("Portal - Job Pickup", delivery.PickupRingEmissionColor, rings, rings.ObjectivePortalSolidity);
-            DeliveryRing = CreatePortal("Portal - Job Delivery", delivery.DeliveryRingEmissionColor, rings, rings.ObjectivePortalSolidity);
+            PickupRing = CreatePortal("Portal - Job Pickup", delivery.PickupRingEmissionColor, rings);
+            DeliveryRing = CreatePortal("Portal - Job Delivery", delivery.DeliveryRingEmissionColor, rings);
             EnemyBody = CreateLit("Sky Piercer - Body", new Color(0.13f, 0.025f, 0.035f), 0.48f, 0.72f, new Color(1.7f, 0.035f, 0.06f));
             EnemyCore = CreateLit("Sky Piercer - Core", new Color(0.008f, 0.004f, 0.012f), 0.82f, 0.18f, new Color(3.2f, 0.02f, 0.55f));
             GroundExploderTuning groundExploders =
@@ -910,7 +910,7 @@ namespace DuneVector
             material.SetFloat("_GradientWidth", settings.OrbGradientWidth);
         }
 
-        private Material CreatePortal(string name, Color color, RingTuning settings, float solidity)
+        private Material CreatePortal(string name, Color color, RingTuning settings)
         {
             Shader shader = Shader.Find("DuneVector/URP Portal Energy");
             if (shader == null)
@@ -922,7 +922,6 @@ namespace DuneVector
             Material material = new Material(shader) { name = name, enableInstancing = true };
             material.SetColor("_PortalColor", color);
             material.SetFloat("_Opacity", settings.PortalLineOpacity);
-            material.SetFloat("_Solidity", Mathf.Clamp01(solidity));
             material.SetFloat("_BloomIntensity", settings.PortalBloomIntensity);
             material.SetFloat("_CoreMode", 0f);
             material.SetFloat("_DistanceFade", 1f);
@@ -979,10 +978,6 @@ namespace DuneVector
             };
             material.SetFloat("_Opacity", RingPortalTuning.PortalHaloOpacity);
             material.SetFloat("_CoreMode", 2f);
-            // The halo is glow around the stroke, not part of it, so it stays additive even
-            // on a solid portal. Letting it occlude would smear a dim band over the terrain
-            // for the full halo width, which widens with the family thickness multiplier.
-            material.SetFloat("_Solidity", 0f);
             _ownedMaterials.Add(material);
             _portalHaloMaterials.Add(lineMaterial, material);
             return material;
@@ -1030,9 +1025,6 @@ namespace DuneVector
             material.SetFloat("_BloomIntensity", RingPortalTuning.PortalSparkBloomIntensity);
             material.SetFloat("_CoreMode", 3f);
             material.SetFloat("_FeatureBrightness", 1f);
-            // Sparks stay additive whatever the ring's solidity is, so they read as embers
-            // rather than as opaque dots punched over the terrain.
-            material.SetFloat("_Solidity", 0f);
             _ownedMaterials.Add(material);
             _portalParticleMaterials.Add(lineMaterial, material);
             return material;
@@ -2147,18 +2139,6 @@ namespace DuneVector
             return mesh;
         }
 
-        private static float GetPortalThicknessMultiplier(TraversalRingType type, RingTuning settings)
-        {
-            return type switch
-            {
-                TraversalRingType.GroundBoost => settings.GroundBoostPortalThicknessMultiplier,
-                TraversalRingType.Flight => settings.FlightPortalThicknessMultiplier,
-                TraversalRingType.UpperFlight => settings.UpperFlightPortalThicknessMultiplier,
-                TraversalRingType.Health => settings.HealthPortalThicknessMultiplier,
-                _ => settings.CoinPortalThicknessMultiplier,
-            };
-        }
-
         public static Transform CreateRingVisual(
             Transform parent,
             TraversalRingType type,
@@ -2195,7 +2175,6 @@ namespace DuneVector
                 material,
                 visualRadius,
                 settings,
-                GetPortalThicknessMultiplier(type, settings),
                 prefabRenderers);
 
             if (type == TraversalRingType.Health)
@@ -2277,13 +2256,9 @@ namespace DuneVector
             Material lineMaterial,
             float radius,
             RingTuning settings,
-            float thicknessScale,
             Renderer[] additionalRenderers = null)
         {
             float lineLayerDepth = Mathf.Max(0f, settings.PortalLineLayerDepth);
-            // Every stroke in this portal — halo, linework, and activation pulse — widens
-            // together, so a family that reads too thin keeps its proportions as it grows.
-            float clampedThicknessScale = Mathf.Max(0.01f, thicknessScale);
             Material haloMaterial = materials.CreatePortalHaloMaterial(lineMaterial);
             GameObject rearHalo = CreateMeshObject(
                 "Recessed Portal Halo",
@@ -2291,7 +2266,7 @@ namespace DuneVector
                 GetPortalLineMesh(
                     radius,
                     settings,
-                    settings.PortalHaloWidthMultiplier * clampedThicknessScale,
+                    settings.PortalHaloWidthMultiplier,
                     PortalLineLayer.Rear,
                     false),
                 haloMaterial);
@@ -2306,7 +2281,7 @@ namespace DuneVector
                 GetPortalLineMesh(
                     radius,
                     settings,
-                    settings.PortalHaloWidthMultiplier * clampedThicknessScale,
+                    settings.PortalHaloWidthMultiplier,
                     PortalLineLayer.Center,
                     false),
                 haloMaterial);
@@ -2320,7 +2295,7 @@ namespace DuneVector
                 GetPortalLineMesh(
                     radius,
                     settings,
-                    settings.PortalHaloWidthMultiplier * clampedThicknessScale,
+                    settings.PortalHaloWidthMultiplier,
                     PortalLineLayer.Front,
                     false),
                 haloMaterial);
@@ -2332,7 +2307,7 @@ namespace DuneVector
             GameObject rearLinework = CreateMeshObject(
                 "Recessed Portal Linework",
                 parent,
-                GetPortalLineMesh(radius, settings, clampedThicknessScale, PortalLineLayer.Rear),
+                GetPortalLineMesh(radius, settings, 1f, PortalLineLayer.Rear),
                 materials.CreatePortalDepthLineMaterial(lineMaterial, false));
             rearLinework.transform.localPosition = Vector3.back * lineLayerDepth;
             DisableRendererShadows(rearLinework);
@@ -2342,7 +2317,7 @@ namespace DuneVector
             GameObject centerLinework = CreateMeshObject(
                 "Center Portal Linework",
                 parent,
-                GetPortalLineMesh(radius, settings, clampedThicknessScale, PortalLineLayer.Center),
+                GetPortalLineMesh(radius, settings, 1f, PortalLineLayer.Center),
                 lineMaterial);
             DisableRendererShadows(centerLinework);
             MeshRenderer centerLineRenderer = centerLinework.GetComponent<MeshRenderer>();
@@ -2350,7 +2325,7 @@ namespace DuneVector
             GameObject frontLinework = CreateMeshObject(
                 "Forward Portal Linework",
                 parent,
-                GetPortalLineMesh(radius, settings, clampedThicknessScale, PortalLineLayer.Front),
+                GetPortalLineMesh(radius, settings, 1f, PortalLineLayer.Front),
                 materials.CreatePortalDepthLineMaterial(lineMaterial, true));
             frontLinework.transform.localPosition = Vector3.forward * lineLayerDepth;
             DisableRendererShadows(frontLinework);
@@ -2368,7 +2343,7 @@ namespace DuneVector
                 parent,
                 GetPortalActivationPulseMesh(
                     radius,
-                    settings.PortalActivationPulseLineThickness * clampedThicknessScale *
+                    settings.PortalActivationPulseLineThickness *
                         Mathf.Max(0.01f, settings.PortalLineThicknessMultiplier),
                     settings.PortalCircleSegments),
                 lineMaterial);
@@ -2580,8 +2555,7 @@ namespace DuneVector
                 materials,
                 material,
                 visualRadius,
-                materials.RingPortalTuning,
-                materials.RingPortalTuning.ObjectivePortalThicknessMultiplier);
+                materials.RingPortalTuning);
 
             return visualRoot.transform;
         }
@@ -3886,9 +3860,9 @@ namespace DuneVector
             int spokeCount = Mathf.Clamp(settings.PortalSpokeCount, 3, 32);
             int glyphCount = Mathf.Clamp(settings.PortalGlyphCount, 3, 32);
             int rayCount = Mathf.Clamp(settings.PortalExteriorRayCount, 0, 24);
-            float clampedThicknessMultiplier = Mathf.Max(0.01f, thicknessMultiplier) *
+            float clampedThicknessMultiplier = Mathf.Max(1f, thicknessMultiplier) *
                 Mathf.Max(0.01f, settings.PortalLineThicknessMultiplier);
-            string key = $"portal-lines-v7:{layer}:{includeRunes}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
+            string key = $"portal-lines-v6:{layer}:{includeRunes}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
                 $"{settings.PortalOuterLineThickness:0.000}:" +
                 $"{settings.PortalInnerLineThickness:0.000}:{circleSegments}:{concentricCount}:" +
                 $"{settings.PortalInnermostRingRadiusFraction:0.000}:{spokeCount}:" +

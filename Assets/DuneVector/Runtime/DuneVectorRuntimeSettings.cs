@@ -3913,34 +3913,6 @@ namespace DuneVector
         [Header("Portal Linework")]
         [Tooltip("Opacity of the emissive rings, spokes, glyphs, and exterior rays. Empty space remains fully transparent.")]
         [Range(0f, 1f)] public float PortalLineOpacity = 0.9f;
-
-        [Header("Portal Solidity")]
-        [Tooltip("How much of the background a portal's strokes hide. 0 is a purely additive glow that always shows the terrain through it, 1 is a solid colour that covers whatever is behind it. Empty space between the strokes stays transparent at any value.")]
-        [Range(0f, 1f)] public float GroundBoostPortalSolidity = 1f;
-        [Tooltip("Background coverage for blue flight portals. See GroundBoostPortalSolidity.")]
-        [Range(0f, 1f)] public float FlightPortalSolidity;
-        [Tooltip("Background coverage for upper flight layer portals. See GroundBoostPortalSolidity.")]
-        [Range(0f, 1f)] public float UpperFlightPortalSolidity;
-        [Tooltip("Background coverage for health portals. See GroundBoostPortalSolidity.")]
-        [Range(0f, 1f)] public float HealthPortalSolidity = 1f;
-        [Tooltip("Background coverage for coin portals. See GroundBoostPortalSolidity.")]
-        [Range(0f, 1f)] public float CoinPortalSolidity = 1f;
-        [Tooltip("Background coverage for job pickup and delivery portals. See GroundBoostPortalSolidity.")]
-        [Range(0f, 1f)] public float ObjectivePortalSolidity;
-
-        [Header("Portal Line Thickness Per Family")]
-        [Tooltip("Extra stroke thickness for ground boost portals, on top of PortalLineThicknessMultiplier. Solid portals need more width than additive ones to read at the same weight.")]
-        [Range(0.25f, 4f)] public float GroundBoostPortalThicknessMultiplier = 1.6f;
-        [Tooltip("Extra stroke thickness for blue flight portals. See GroundBoostPortalThicknessMultiplier.")]
-        [Range(0.25f, 4f)] public float FlightPortalThicknessMultiplier = 1f;
-        [Tooltip("Extra stroke thickness for upper flight layer portals. See GroundBoostPortalThicknessMultiplier.")]
-        [Range(0.25f, 4f)] public float UpperFlightPortalThicknessMultiplier = 1f;
-        [Tooltip("Extra stroke thickness for health portals. See GroundBoostPortalThicknessMultiplier.")]
-        [Range(0.25f, 4f)] public float HealthPortalThicknessMultiplier = 1.6f;
-        [Tooltip("Extra stroke thickness for coin portals. See GroundBoostPortalThicknessMultiplier.")]
-        [Range(0.25f, 4f)] public float CoinPortalThicknessMultiplier = 1.6f;
-        [Tooltip("Extra stroke thickness for job pickup and delivery portals. See GroundBoostPortalThicknessMultiplier.")]
-        [Range(0.25f, 4f)] public float ObjectivePortalThicknessMultiplier = 1f;
         [Tooltip("HDR brightness multiplier applied only to portal energy, pushing its lines and halo into bloom without brightening the rest of the scene.")]
         [Min(0f)] public float PortalBloomIntensity = 0.6f;
         [Tooltip("Strength of derivative-based edge smoothing applied to portal strokes as they approach subpixel size.")]

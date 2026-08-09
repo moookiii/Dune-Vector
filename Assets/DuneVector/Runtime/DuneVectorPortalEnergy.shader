@@ -4,7 +4,6 @@ Shader "DuneVector/URP Portal Energy"
     {
         [HDR] _PortalColor("Portal Color", Color) = (4, 1.5, 0.05, 1)
         _Opacity("Opacity", Range(0, 1)) = 0.8
-        _Solidity("Solidity", Range(0, 1)) = 0
         _BloomIntensity("Bloom Intensity", Float) = 2
         _CoreMode("Core Mode", Float) = 0
         _DistanceFade("Distance Fade", Range(0, 1)) = 1
@@ -39,10 +38,7 @@ Shader "DuneVector/URP Portal Energy"
         {
             Name "UniversalForward"
             Tags { "LightMode" = "UniversalForward" }
-            // Premultiplied alpha. The fragment premultiplies its colour by coverage, so a
-            // solidity of 0 reproduces the old "Blend SrcAlpha One" additive glow exactly,
-            // while higher values start attenuating the background the stroke covers.
-            Blend One OneMinusSrcAlpha
+            Blend SrcAlpha One
             Cull Off
             ZWrite Off
             ZTest LEqual
@@ -58,7 +54,6 @@ Shader "DuneVector/URP Portal Energy"
             CBUFFER_START(UnityPerMaterial)
                 float4 _PortalColor;
                 float _Opacity;
-                float _Solidity;
                 float _BloomIntensity;
                 float _CoreMode;
                 float _DistanceFade;
@@ -175,14 +170,10 @@ Shader "DuneVector/URP Portal Energy"
                     }
                 }
 
-                alpha = saturate(alpha * _PortalColor.a);
-                float3 energy = _PortalColor.rgb * pulse * _BloomIntensity * travelBrightness *
-                    featureBrightness * _DistanceBloomBoost * _ActivationBloomBoost * particleTint;
-
-                // The colour is premultiplied by coverage either way; only the destination
-                // factor changes, so solidity decides how much background the stroke hides
-                // without altering how bright the stroke itself reads.
-                return float4(energy * alpha, alpha * saturate(_Solidity));
+                return float4(
+                    _PortalColor.rgb * pulse * _BloomIntensity * travelBrightness *
+                        featureBrightness * _DistanceBloomBoost * _ActivationBloomBoost * particleTint,
+                    alpha * _PortalColor.a);
             }
             ENDHLSL
         }
