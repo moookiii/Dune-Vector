@@ -5654,9 +5654,9 @@ namespace DuneVector
         public bool Enabled = true;
 
         [Header("Pool & Emission")]
-        [Range(4, 512)] public int MaximumRingCount = 240;
+        [Range(4, 2048)] public int MaximumRingCount = 720;
         [Tooltip("World-space distance flown between successive trail rings.")]
-        [Min(0.02f)] public float SpawnSpacing = 0.5f;
+        [Min(0.005f)] public float SpawnSpacing = 0.167f;
         [Tooltip("Optional distance behind the visible drone center where each ring is placed.")]
         [Min(0f)] public float SpawnBehindDistance = 0f;
         [Tooltip("Seconds each emitted ring remains visible in the world.")]
@@ -5676,7 +5676,7 @@ namespace DuneVector
 
         [Header("Ordered RGB Color Wheel")]
         [Tooltip("Number of evenly spaced hues in the sequence. Each new ring advances by one hue.")]
-        [Range(2, 320)] public int HueStepCount = 100;
+        [Range(2, 1024)] public int HueStepCount = 300;
         [Tooltip("Hue assigned to the first ring in each 20-color sequence.")]
         [Range(0f, 1f)] public float StartingHue = 0f;
         [Tooltip("HDR multiplier applied to the selected color-wheel hue.")]
