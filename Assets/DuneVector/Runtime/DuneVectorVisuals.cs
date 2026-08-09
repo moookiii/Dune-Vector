@@ -2143,6 +2143,18 @@ namespace DuneVector
             return mesh;
         }
 
+        private static float GetPortalThicknessMultiplier(TraversalRingType type, RingTuning settings)
+        {
+            return type switch
+            {
+                TraversalRingType.GroundBoost => settings.GroundBoostPortalThicknessMultiplier,
+                TraversalRingType.Flight => settings.FlightPortalThicknessMultiplier,
+                TraversalRingType.UpperFlight => settings.UpperFlightPortalThicknessMultiplier,
+                TraversalRingType.Health => settings.HealthPortalThicknessMultiplier,
+                _ => settings.CoinPortalThicknessMultiplier,
+            };
+        }
+
         public static Transform CreateRingVisual(
             Transform parent,
             TraversalRingType type,
@@ -2179,6 +2191,7 @@ namespace DuneVector
                 material,
                 visualRadius,
                 settings,
+                GetPortalThicknessMultiplier(type, settings),
                 prefabRenderers);
 
             if (type == TraversalRingType.Health)
@@ -2260,9 +2273,13 @@ namespace DuneVector
             Material lineMaterial,
             float radius,
             RingTuning settings,
+            float thicknessScale,
             Renderer[] additionalRenderers = null)
         {
             float lineLayerDepth = Mathf.Max(0f, settings.PortalLineLayerDepth);
+            // Every stroke in this portal — halo, linework, and activation pulse — widens
+            // together, so a family that reads too thin keeps its proportions as it grows.
+            float clampedThicknessScale = Mathf.Max(0.01f, thicknessScale);
             Material haloMaterial = materials.CreatePortalHaloMaterial(lineMaterial);
             GameObject rearHalo = CreateMeshObject(
                 "Recessed Portal Halo",
@@ -2270,7 +2287,7 @@ namespace DuneVector
                 GetPortalLineMesh(
                     radius,
                     settings,
-                    settings.PortalHaloWidthMultiplier,
+                    settings.PortalHaloWidthMultiplier * clampedThicknessScale,
                     PortalLineLayer.Rear,
                     false),
                 haloMaterial);
@@ -2285,7 +2302,7 @@ namespace DuneVector
                 GetPortalLineMesh(
                     radius,
                     settings,
-                    settings.PortalHaloWidthMultiplier,
+                    settings.PortalHaloWidthMultiplier * clampedThicknessScale,
                     PortalLineLayer.Center,
                     false),
                 haloMaterial);
@@ -2299,7 +2316,7 @@ namespace DuneVector
                 GetPortalLineMesh(
                     radius,
                     settings,
-                    settings.PortalHaloWidthMultiplier,
+                    settings.PortalHaloWidthMultiplier * clampedThicknessScale,
                     PortalLineLayer.Front,
                     false),
                 haloMaterial);
@@ -2311,7 +2328,7 @@ namespace DuneVector
             GameObject rearLinework = CreateMeshObject(
                 "Recessed Portal Linework",
                 parent,
-                GetPortalLineMesh(radius, settings, 1f, PortalLineLayer.Rear),
+                GetPortalLineMesh(radius, settings, clampedThicknessScale, PortalLineLayer.Rear),
                 materials.CreatePortalDepthLineMaterial(lineMaterial, false));
             rearLinework.transform.localPosition = Vector3.back * lineLayerDepth;
             DisableRendererShadows(rearLinework);
@@ -2321,7 +2338,7 @@ namespace DuneVector
             GameObject centerLinework = CreateMeshObject(
                 "Center Portal Linework",
                 parent,
-                GetPortalLineMesh(radius, settings, 1f, PortalLineLayer.Center),
+                GetPortalLineMesh(radius, settings, clampedThicknessScale, PortalLineLayer.Center),
                 lineMaterial);
             DisableRendererShadows(centerLinework);
             MeshRenderer centerLineRenderer = centerLinework.GetComponent<MeshRenderer>();
@@ -2329,7 +2346,7 @@ namespace DuneVector
             GameObject frontLinework = CreateMeshObject(
                 "Forward Portal Linework",
                 parent,
-                GetPortalLineMesh(radius, settings, 1f, PortalLineLayer.Front),
+                GetPortalLineMesh(radius, settings, clampedThicknessScale, PortalLineLayer.Front),
                 materials.CreatePortalDepthLineMaterial(lineMaterial, true));
             frontLinework.transform.localPosition = Vector3.forward * lineLayerDepth;
             DisableRendererShadows(frontLinework);
@@ -2347,7 +2364,7 @@ namespace DuneVector
                 parent,
                 GetPortalActivationPulseMesh(
                     radius,
-                    settings.PortalActivationPulseLineThickness *
+                    settings.PortalActivationPulseLineThickness * clampedThicknessScale *
                         Mathf.Max(0.01f, settings.PortalLineThicknessMultiplier),
                     settings.PortalCircleSegments),
                 lineMaterial);
@@ -2559,7 +2576,8 @@ namespace DuneVector
                 materials,
                 material,
                 visualRadius,
-                materials.RingPortalTuning);
+                materials.RingPortalTuning,
+                materials.RingPortalTuning.ObjectivePortalThicknessMultiplier);
 
             return visualRoot.transform;
         }
@@ -3864,9 +3882,9 @@ namespace DuneVector
             int spokeCount = Mathf.Clamp(settings.PortalSpokeCount, 3, 32);
             int glyphCount = Mathf.Clamp(settings.PortalGlyphCount, 3, 32);
             int rayCount = Mathf.Clamp(settings.PortalExteriorRayCount, 0, 24);
-            float clampedThicknessMultiplier = Mathf.Max(1f, thicknessMultiplier) *
+            float clampedThicknessMultiplier = Mathf.Max(0.01f, thicknessMultiplier) *
                 Mathf.Max(0.01f, settings.PortalLineThicknessMultiplier);
-            string key = $"portal-lines-v6:{layer}:{includeRunes}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
+            string key = $"portal-lines-v7:{layer}:{includeRunes}:{radius:0.000}:{clampedThicknessMultiplier:0.000}:" +
                 $"{settings.PortalOuterLineThickness:0.000}:" +
                 $"{settings.PortalInnerLineThickness:0.000}:{circleSegments}:{concentricCount}:" +
                 $"{settings.PortalInnermostRingRadiusFraction:0.000}:{spokeCount}:" +

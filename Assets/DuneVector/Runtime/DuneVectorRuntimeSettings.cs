@@ -3924,9 +3924,23 @@ namespace DuneVector
         [Tooltip("Background coverage for health portals. See GroundBoostPortalSolidity.")]
         [Range(0f, 1f)] public float HealthPortalSolidity = 1f;
         [Tooltip("Background coverage for coin portals. See GroundBoostPortalSolidity.")]
-        [Range(0f, 1f)] public float CoinPortalSolidity;
+        [Range(0f, 1f)] public float CoinPortalSolidity = 1f;
         [Tooltip("Background coverage for job pickup and delivery portals. See GroundBoostPortalSolidity.")]
         [Range(0f, 1f)] public float ObjectivePortalSolidity;
+
+        [Header("Portal Line Thickness Per Family")]
+        [Tooltip("Extra stroke thickness for ground boost portals, on top of PortalLineThicknessMultiplier. Solid portals need more width than additive ones to read at the same weight.")]
+        [Range(0.25f, 4f)] public float GroundBoostPortalThicknessMultiplier = 1.6f;
+        [Tooltip("Extra stroke thickness for blue flight portals. See GroundBoostPortalThicknessMultiplier.")]
+        [Range(0.25f, 4f)] public float FlightPortalThicknessMultiplier = 1f;
+        [Tooltip("Extra stroke thickness for upper flight layer portals. See GroundBoostPortalThicknessMultiplier.")]
+        [Range(0.25f, 4f)] public float UpperFlightPortalThicknessMultiplier = 1f;
+        [Tooltip("Extra stroke thickness for health portals. See GroundBoostPortalThicknessMultiplier.")]
+        [Range(0.25f, 4f)] public float HealthPortalThicknessMultiplier = 1.6f;
+        [Tooltip("Extra stroke thickness for coin portals. See GroundBoostPortalThicknessMultiplier.")]
+        [Range(0.25f, 4f)] public float CoinPortalThicknessMultiplier = 1.6f;
+        [Tooltip("Extra stroke thickness for job pickup and delivery portals. See GroundBoostPortalThicknessMultiplier.")]
+        [Range(0.25f, 4f)] public float ObjectivePortalThicknessMultiplier = 1f;
         [Tooltip("HDR brightness multiplier applied only to portal energy, pushing its lines and halo into bloom without brightening the rest of the scene.")]
         [Min(0f)] public float PortalBloomIntensity = 0.6f;
         [Tooltip("Strength of derivative-based edge smoothing applied to portal strokes as they approach subpixel size.")]
