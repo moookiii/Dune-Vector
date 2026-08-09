@@ -3902,7 +3902,15 @@ namespace DuneVector
 
         private void DrawContractHUD()
         {
-            Rect panel = new Rect(_settings.HudLeft, _settings.HudTop, _settings.HudWidth, _settings.HudHeight);
+            // Draw at authored size under a uniform GUI scale so chrome and text shrink together.
+            float hudScale = ContractHudScale;
+            Matrix4x4 previousHudMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.Scale(new Vector3(hudScale, hudScale, 1f));
+            Rect panel = new Rect(
+                _settings.HudLeft / hudScale,
+                _settings.HudTop / hudScale,
+                _settings.HudWidth,
+                _settings.HudHeight);
             Color old = GUI.backgroundColor;
             GUI.backgroundColor = _settings.HudPanelColor;
             GUI.Box(panel, GUIContent.none);
@@ -3938,13 +3946,21 @@ namespace DuneVector
                     Texture2D.whiteTexture);
                 GUI.color = previousColor;
             }
+            GUI.matrix = previousHudMatrix;
         }
+
+        private float ContractHudScale => _settings == null ? 1f : Mathf.Clamp(_settings.HudScale, 0.4f, 2f);
 
         public bool TryGetVisibleContractPanelRect(out Rect panel)
         {
             if (_settings != null && IsContractActive && !IsGameplayHudSuppressed)
             {
-                panel = new Rect(_settings.HudLeft, _settings.HudTop, _settings.HudWidth, _settings.HudHeight);
+                float hudScale = ContractHudScale;
+                panel = new Rect(
+                    _settings.HudLeft,
+                    _settings.HudTop,
+                    _settings.HudWidth * hudScale,
+                    _settings.HudHeight * hudScale);
                 return true;
             }
             panel = default;

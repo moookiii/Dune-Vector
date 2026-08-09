@@ -1676,7 +1676,17 @@ namespace DuneVector
                 return;
             }
             EnsureGui();
-            DrawAtlasHud(panel);
+            // The panel rect is already in scaled screen space; draw it at authored size under a
+            // uniform GUI scale so the chrome and the fonts shrink together.
+            float hudScale = HudScale;
+            Matrix4x4 previousHudMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.Scale(new Vector3(hudScale, hudScale, 1f));
+            DrawAtlasHud(new Rect(
+                panel.x / hudScale,
+                panel.y / hudScale,
+                panel.width / hudScale,
+                panel.height / hudScale));
+            GUI.matrix = previousHudMatrix;
             DrawRelayObjectiveIndicator();
             if (Time.unscaledTime < _discoveryPresentationUntil)
             {
@@ -1726,6 +1736,8 @@ namespace DuneVector
                 _deliverySettings);
         }
 
+        private float HudScale => _settings == null ? 1f : Mathf.Clamp(_settings.HudScale, 0.4f, 2f);
+
         private bool TryBuildVisibleHudRect(out Rect panel)
         {
             if (_settings == null || !IsUnlocked || _courierGame == null ||
@@ -1737,14 +1749,15 @@ namespace DuneVector
             }
             float availableWidth = Mathf.Max(0f, Screen.safeArea.width - _settings.HudLeftMargin);
             float availableHeight = Mathf.Max(0f, Screen.safeArea.height - _settings.HudTopMargin);
-            float panelWidth = Mathf.Min(_settings.HudWidth, availableWidth);
+            float hudScale = HudScale;
+            float panelWidth = Mathf.Min(_settings.HudWidth * hudScale, availableWidth);
             bool discoveredLoreActive = _nearestDiscoveredSite != null &&
                 _nearestDiscoveredDistance <= _settings.DiscoveredLoreRadius;
             bool photographyActive = IsWithinPhotographyPromptRange();
             float desiredHeight = discoveredLoreActive || photographyActive
                 ? _settings.HudExpandedHeight
                 : _settings.HudHeight;
-            float panelHeight = Mathf.Min(desiredHeight, availableHeight);
+            float panelHeight = Mathf.Min(desiredHeight * hudScale, availableHeight);
             float panelLeft = Screen.safeArea.x + _settings.HudLeftMargin;
             float panelTop = (Screen.height - Screen.safeArea.yMax) + _settings.HudTopMargin;
             panel = new Rect(

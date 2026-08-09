@@ -1288,6 +1288,9 @@ namespace DuneVector
         [Min(0f)] public float CargoCriticalSparkSize = 0.08f;
 
         [Header("Contract HUD")]
+        // Uniform multiplier over the whole panel (chrome and text) so the top-left overlays can be
+        // sized against the rest of the HUD without retuning every offset below.
+        [Range(0.4f, 2f)] public float HudScale = 0.78f;
         [Min(160f)] public float HudWidth = 330f;
         [Min(60f)] public float HudHeight = 128f;
         [Min(0f)] public float HudLeft = 24f;
@@ -3560,6 +3563,9 @@ namespace DuneVector
         [Min(0.75f)] public float ChallengeFlightRingRadius = 5.5f;
 
         [Header("Free Roam HUD")]
+        // Uniform multiplier over the whole panel (chrome and text) so the atlas overlay can be
+        // sized against the rest of the HUD without retuning every offset below.
+        [Range(0.4f, 2f)] public float HudScale = 0.78f;
         [Min(0f)] public float HudGapBelowCompass = 10f;
         [Min(0f)] public float HudLeftMargin = 18f;
         [Min(0f)] public float HudTopMargin = 18f;

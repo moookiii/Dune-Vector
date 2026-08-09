@@ -876,7 +876,17 @@ namespace DuneVector
             }
 
             EnsureGuiStyles();
-            Rect panel = GetHudPanelRect();
+            // GetHudPanelRect reports scaled screen space; draw at authored size under a uniform
+            // GUI scale so the box and the text shrink together.
+            float hudScale = HudScale;
+            Rect scaledPanel = GetHudPanelRect();
+            Matrix4x4 previousHudMatrix = GUI.matrix;
+            GUI.matrix = Matrix4x4.Scale(new Vector3(hudScale, hudScale, 1f));
+            Rect panel = new Rect(
+                scaledPanel.x / hudScale,
+                scaledPanel.y / hudScale,
+                scaledPanel.width / hudScale,
+                scaledPanel.height / hudScale);
             Color previousColor = GUI.color;
             GUI.color = _settings.HudPanelColor;
             GUI.DrawTexture(panel, Texture2D.whiteTexture);
@@ -895,6 +905,7 @@ namespace DuneVector
                 title.width,
                 Mathf.Max(_settings.HudLineHeight, panel.yMax - title.yMax - _settings.HudPadding));
             GUI.Label(body, _eventStatus, _bodyStyle);
+            GUI.matrix = previousHudMatrix;
 
             DrawObjectiveMarker();
         }
@@ -911,16 +922,20 @@ namespace DuneVector
             return false;
         }
 
+        private float HudScale => _settings == null ? 1f : Mathf.Clamp(_settings.HudScale, 0.4f, 2f);
+
         private Rect GetHudPanelRect()
         {
+            float hudScale = HudScale;
+            float width = _settings.HudWidth * hudScale;
             float panelTop = _settings.HudTop;
             if (DuneVectorDesertAtlas.TryGetVisibleHudRect(out Rect atlasPanel) &&
                 _settings.HudLeft < atlasPanel.xMax &&
-                _settings.HudLeft + _settings.HudWidth > atlasPanel.x)
+                _settings.HudLeft + width > atlasPanel.x)
             {
                 panelTop = Mathf.Max(panelTop, atlasPanel.yMax + _settings.HudOtherPanelGap);
             }
-            return new Rect(_settings.HudLeft, panelTop, _settings.HudWidth, _settings.HudHeight);
+            return new Rect(_settings.HudLeft, panelTop, width, _settings.HudHeight * hudScale);
         }
 
         private void EnsureGuiStyles()
