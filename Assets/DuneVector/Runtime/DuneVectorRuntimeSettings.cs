@@ -3724,6 +3724,94 @@ namespace DuneVector
         [Tooltip("Risk at which visual scale and explosion radius reach their ceiling values.")]
         [Min(1)] public int RiskScalingCeiling = 20;
 
+        [Header("Spiked Wheel Shape")]
+        [Range(5, 16)] public int SpikeCount = 9;
+        [Tooltip("Radius of the hollow bore at the center of the wheel, in visual-scale units.")]
+        [Min(0.05f)] public float HubRadius = 0.67f;
+        [Tooltip("Radius of the solid disc the spikes grow out of, in visual-scale units.")]
+        [Min(0.1f)] public float DiscRadius = 1.08f;
+        [Tooltip("Half the thickness of the wheel along its rolling axis, in visual-scale units.")]
+        [Min(0.01f)] public float DiscHalfDepth = 0.16f;
+        [Tooltip("Length a spike adds beyond the disc radius, in visual-scale units.")]
+        [Min(0f)] public float SpikeLength = 0.62f;
+        [Tooltip("Fraction by which individual spike lengths vary above and below Spike Length.")]
+        [Range(0f, 0.6f)] public float SpikeLengthVariation = 0.22f;
+        [Tooltip("Width of the chamfer along the wheel's outer edge. The narrow bevel face catches a highlight so the spikes read as solid instead of flat silhouette.")]
+        [Min(0f)] public float SpikeBevel = 0.03f;
+        [Tooltip("Degrees each spike is tilted out of the wheel plane, alternating fore and aft, so the spikes are not all coplanar.")]
+        [Range(0f, 30f)] public float SpikeTwistDegrees = 7f;
+        [Tooltip("Fraction of each spike's length, measured from the point inward, that is capped with the hot emissive tip plate.")]
+        [Range(0f, 0.8f)] public float SpikeTipFraction = 0.34f;
+        [Tooltip("How far the emissive tip plate stands proud of the wheel faces, as a multiple of the wheel half depth.")]
+        [Range(1f, 1.5f)] public float SpikeTipRelief = 1.09f;
+
+        [Header("Appearance - Body")]
+        [ColorUsage(false, true)] public Color BodyColor = new Color(0.055f, 0.045f, 0.04f);
+        [Range(0f, 1f)] public float BodySmoothness = 0.5f;
+        [Range(0f, 1f)] public float BodyMetallic = 0.78f;
+        [ColorUsage(false, true)] public Color BodyEmission = new Color(0.16f, 0.025f, 0.005f);
+
+        [Header("Appearance - Trim and Rim")]
+        [Tooltip("Gold trim torus seated in the hub bore, tying the exploder to the desert's gold ringwork.")]
+        [ColorUsage(false, true)] public Color TrimColor = new Color(0.62f, 0.42f, 0.11f);
+        [ColorUsage(false, true)] public Color TrimEmission = new Color(1.9f, 1.05f, 0.14f);
+        [Range(0f, 1f)] public float TrimSmoothness = 0.72f;
+        [Range(0f, 1f)] public float TrimMetallic = 0.9f;
+        [Min(0.005f)] public float TrimRingThickness = 0.065f;
+        [Tooltip("Cool unlit band running around the wheel's outer edge. This is the single strongest separation between the exploder's silhouette and the warm sand behind it.")]
+        [ColorUsage(false, true)] public Color RimColor = new Color(0.36f, 0.85f, 1f);
+        [ColorUsage(false, true)] public Color RimEmission = new Color(1.4f, 3.3f, 4.6f);
+        [Min(0.005f)] public float RimRingThickness = 0.038f;
+
+        [Header("Appearance - Spike Tips")]
+        [ColorUsage(false, true)] public Color SpikeTipColor = new Color(0.5f, 0.2f, 0.03f);
+        [Tooltip("Spike tip emission while the exploder is patrolling.")]
+        [ColorUsage(false, true)] public Color SpikeTipIdleEmission = new Color(1.6f, 0.42f, 0.05f);
+        [Tooltip("Spike tip emission at the end of the detonation wind-up.")]
+        [ColorUsage(false, true)] public Color SpikeTipChargedEmission = new Color(9f, 3.4f, 0.9f);
+        [Range(0f, 1f)] public float SpikeTipSmoothness = 0.55f;
+        [Range(0f, 1f)] public float SpikeTipMetallic = 0.2f;
+
+        [Header("Appearance - Live Core")]
+        [Tooltip("Glowing core suspended in the hub bore, so the wheel reads as a charged machine instead of a doughnut with sand showing through.")]
+        [ColorUsage(false, true)] public Color CoreColor = new Color(1f, 0.72f, 0.28f);
+        [ColorUsage(false, true)] public Color CoreIdleEmission = new Color(2.4f, 1.15f, 0.22f);
+        [ColorUsage(false, true)] public Color CoreChargedEmission = new Color(12f, 6.5f, 2.2f);
+        [Tooltip("Core sphere radius, in visual-scale units.")]
+        [Min(0.01f)] public float CoreRadius = 0.34f;
+        [Range(0f, 8f)] public float CorePulseFrequency = 1.9f;
+        [Range(0f, 0.5f)] public float CorePulseAmplitude = 0.09f;
+        [Tooltip("Small shards orbiting the core inside the bore.")]
+        [Range(0, 8)] public int CoreShardCount = 3;
+        [Min(0.005f)] public float CoreShardSize = 0.085f;
+        [Min(0f)] public float CoreShardOrbitRadius = 0.5f;
+        [Range(-360f, 360f)] public float CoreShardOrbitSpeed = 96f;
+
+        [Header("Appearance - Warning Rings")]
+        [Min(0.05f)] public float HubRingRadius = 0.7f;
+        [Min(0.05f)] public float TelegraphRingRadius = 1.25f;
+        [Min(0f)] public float TelegraphRingSpacing = 0.32f;
+        [Min(0.005f)] public float TelegraphRingThickness = 0.055f;
+        [ColorUsage(false, true)] public Color WarningColor = new Color(0.46f, 0.055f, 0.008f);
+        [ColorUsage(false, true)] public Color WarningEmission = new Color(5.2f, 0.32f, 0.015f);
+        [Range(0f, 1f)] public float WarningSmoothness = 0.62f;
+        [Range(0f, 1f)] public float WarningMetallic = 0.3f;
+
+        [Header("Appearance - Charge Tell")]
+        [Tooltip("Warning pulse frequency at the start of the detonation wind-up.")]
+        [Min(0f)] public float ChargePulseFrequencyStart = 4f;
+        [Tooltip("Warning pulse frequency at the end of the detonation wind-up.")]
+        [Min(0f)] public float ChargePulseFrequencyEnd = 20f;
+        [Tooltip("Hub ring scale at the start of the detonation wind-up.")]
+        [Min(0f)] public float ChargeWarningScaleStart = 0.75f;
+        [Tooltip("Hub ring scale at the end of the detonation wind-up.")]
+        [Min(0f)] public float ChargeWarningScaleEnd = 1.45f;
+        [Tooltip("How far the spikes push outward at full charge, as a multiple of their resting length.")]
+        [Range(1f, 1.5f)] public float ChargeSpikeExtension = 1.04f;
+        [Tooltip("Idle hub ring breathing amplitude while patrolling.")]
+        [Range(0f, 0.5f)] public float IdleRingPulseAmplitude = 0.08f;
+        [Range(0f, 12f)] public float IdleRingPulseFrequency = 3.5f;
+
         public float EvaluateExplosionRadius(int risk)
         {
             return Mathf.Lerp(ExplosionRadius, ExplosionRadiusAtRiskCeiling, EvaluateRisk(risk));

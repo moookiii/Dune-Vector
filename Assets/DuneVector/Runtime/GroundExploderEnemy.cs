@@ -48,8 +48,12 @@ namespace DuneVector
             _damage = gameObject.AddComponent<GroundExploderDamage>();
             _visual = gameObject.AddComponent<GroundExploderVisual>();
 
-            Transform visualRoot = DuneVectorVisuals.CreateGroundExploderVisual(transform, materials, settings.VisualScale);
-            _visual.Initialize(visualRoot);
+            Transform visualRoot = DuneVectorVisuals.CreateGroundExploderVisual(
+                transform,
+                materials,
+                settings,
+                settings.VisualScale);
+            _visual.Initialize(visualRoot, settings);
             _movement.Initialize(heightField, chunkLogicalX, chunkLogicalZ, chunkSize, settings, identity);
             EnemyHealth enemyHealth = gameObject.AddComponent<EnemyHealth>();
             enemyHealth.Initialize(settings.MaximumHealth);
@@ -679,24 +683,43 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class GroundExploderVisual : MonoBehaviour
     {
+        private static readonly int EmissionColorId = Shader.PropertyToID("_EmissionColor");
+        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+
+        private GroundExploderTuning _settings;
         private Transform _root;
         private Transform _wheel;
         private Quaternion _wheelBaseRotation;
         private Transform _beacon;
+        private Transform _spikeTips;
+        private Transform _core;
         private Transform[] _telegraphRings;
         private Transform _explosionFlash;
         private Renderer[] _renderers;
+        private Renderer _spikeTipRenderer;
+        private Renderer[] _coreRenderers;
+        private MaterialPropertyBlock _chargeProperties;
         private float _windUpTime;
         private float _wheelAngle;
         private float _visualScale;
         private float _explosionRadius;
+        private float _shardOrbitAngle;
+        private float _appliedCharge = -1f;
 
-        public void Initialize(Transform visualRoot)
+        public void Initialize(Transform visualRoot, GroundExploderTuning settings)
         {
+            _settings = settings ?? new GroundExploderTuning();
             _root = visualRoot;
             _wheel = _root.Find("Spiked Hollow Wheel");
             _wheelBaseRotation = _wheel != null ? _wheel.localRotation : Quaternion.identity;
             _beacon = _root.Find("Warning Ring");
+            _spikeTips = _wheel != null ? _wheel.Find("Spike Tips") : null;
+            _spikeTipRenderer = _spikeTips != null ? _spikeTips.GetComponent<Renderer>() : null;
+            _core = _root.Find("Live Core");
+            _coreRenderers = _core != null
+                ? _core.GetComponentsInChildren<Renderer>(true)
+                : Array.Empty<Renderer>();
+            _chargeProperties = new MaterialPropertyBlock();
             _telegraphRings = new[]
             {
                 _root.Find("Telegraph Ring 1"),
@@ -719,6 +742,7 @@ namespace DuneVector
             _windUpTime = 0f;
             _root.localPosition = Vector3.zero;
             SetAllRenderers(true);
+            ApplyCharge(0f);
             if (_explosionFlash != null)
             {
                 _explosionFlash.localScale = Vector3.zero;
@@ -734,7 +758,7 @@ namespace DuneVector
 
         public void TickPatrol(float distanceMoved, float deltaTime)
         {
-            float rollingRadius = Mathf.Max(0.05f, 1.08f * _visualScale);
+            float rollingRadius = Mathf.Max(0.05f, _settings.DiscRadius * _visualScale);
             _wheelAngle = Mathf.Repeat(
                 _wheelAngle + ((distanceMoved / rollingRadius) * Mathf.Rad2Deg),
                 360f);
@@ -744,10 +768,69 @@ namespace DuneVector
             }
             if (_beacon != null)
             {
-                float pulse = 1f + Mathf.Sin(Time.time * 3.5f) * 0.08f;
+                float pulse = 1f
+                    + (Mathf.Sin(Time.time * _settings.IdleRingPulseFrequency)
+                        * _settings.IdleRingPulseAmplitude);
                 _beacon.localScale = Vector3.one * pulse;
             }
+            TickCore(deltaTime, 0f);
+            ApplyCharge(0f);
             _root.localPosition = Vector3.zero;
+        }
+
+        // The core stays upright while the wheel rolls, so the exploder always has
+        // something lit and legible at its center instead of showing sand through
+        // the bore.
+        private void TickCore(float deltaTime, float charge01)
+        {
+            if (_core == null)
+            {
+                return;
+            }
+            _shardOrbitAngle = Mathf.Repeat(
+                _shardOrbitAngle + (_settings.CoreShardOrbitSpeed * Mathf.Lerp(1f, 3f, charge01) * deltaTime),
+                360f);
+            _core.localRotation = Quaternion.Euler(0f, 90f, _shardOrbitAngle);
+            float pulse = 1f
+                + (Mathf.Sin(Time.time * _settings.CorePulseFrequency * Mathf.Lerp(1f, 4f, charge01))
+                    * _settings.CorePulseAmplitude);
+            _core.localScale = Vector3.one * (pulse * Mathf.Lerp(1f, 1.25f, charge01));
+        }
+
+        // Drives the "this is about to go off" tell: tips and core ramp from their
+        // idle emission to white-hot while the spikes push outward.
+        private void ApplyCharge(float charge01)
+        {
+            float charge = Mathf.Clamp01(charge01);
+            if (Mathf.Abs(charge - _appliedCharge) < 0.002f)
+            {
+                return;
+            }
+            _appliedCharge = charge;
+            if (_spikeTipRenderer != null)
+            {
+                _chargeProperties.Clear();
+                _chargeProperties.SetColor(
+                    EmissionColorId,
+                    Color.Lerp(_settings.SpikeTipIdleEmission, _settings.SpikeTipChargedEmission, charge));
+                _spikeTipRenderer.SetPropertyBlock(_chargeProperties);
+            }
+            if (_spikeTips != null)
+            {
+                _spikeTips.localScale = Vector3.one * Mathf.Lerp(1f, _settings.ChargeSpikeExtension, charge);
+            }
+            Color coreColor = Color.Lerp(_settings.CoreIdleEmission, _settings.CoreChargedEmission, charge);
+            for (int i = 0; i < _coreRenderers.Length; i++)
+            {
+                if (_coreRenderers[i] == null)
+                {
+                    continue;
+                }
+                _chargeProperties.Clear();
+                _chargeProperties.SetColor(BaseColorId, coreColor);
+                _chargeProperties.SetColor(EmissionColorId, coreColor);
+                _coreRenderers[i].SetPropertyBlock(_chargeProperties);
+            }
         }
 
         public void EnterWindUp()
@@ -762,9 +845,18 @@ namespace DuneVector
         public void TickWindUp(float windUp01, float deltaTime)
         {
             _windUpTime += deltaTime;
-            float pulseFrequency = Mathf.Lerp(4f, 16f, windUp01);
+            float pulseFrequency = Mathf.Lerp(
+                _settings.ChargePulseFrequencyStart,
+                _settings.ChargePulseFrequencyEnd,
+                windUp01);
             float pulse = 0.5f + (Mathf.Sin(_windUpTime * pulseFrequency) * 0.5f);
-            float warningStrength = Mathf.Lerp(0.75f, 1.45f, windUp01) * Mathf.Lerp(0.78f, 1f, pulse);
+            float warningStrength = Mathf.Lerp(
+                _settings.ChargeWarningScaleStart,
+                _settings.ChargeWarningScaleEnd,
+                windUp01) * Mathf.Lerp(0.78f, 1f, pulse);
+
+            TickCore(deltaTime, windUp01);
+            ApplyCharge(Mathf.Clamp01(windUp01 * Mathf.Lerp(0.72f, 1f, pulse)));
 
             if (_beacon != null)
             {
@@ -777,7 +869,7 @@ namespace DuneVector
                 {
                     continue;
                 }
-                float baseRadius = 1.25f + (i * 0.32f);
+                float baseRadius = _settings.TelegraphRingRadius + (i * _settings.TelegraphRingSpacing);
                 float targetScale = _explosionRadius
                     / (baseRadius * Mathf.Max(0.01f, _visualScale));
                 float stagger = Mathf.Clamp01((windUp01 * 1.12f) - (i * 0.08f));
