@@ -32,8 +32,11 @@ namespace DuneVector
         private Vector3 _visualCenterLocalPosition;
         private int _activeCount;
         private int _nextHueIndex;
-        private Vector3 _lastEmissionPosition;
         private bool _emitting;
+        private readonly Vector3[] _controlPoints = new Vector3[4];
+        private int _controlCount;
+        private Vector3 _smoothedPosition;
+        private Vector3 _lastRingUp;
 
         public void Initialize(
             DroneCharacterController drone,
@@ -80,7 +83,7 @@ namespace DuneVector
                 _drone.IsBoosting;
             if (shouldEmit)
             {
-                EmitAlongFlightPath();
+                EmitAlongFlightPath(deltaTime);
             }
             else
             {
@@ -109,7 +112,7 @@ namespace DuneVector
             }
         }
 
-        private void EmitAlongFlightPath()
+        private void EmitAlongFlightPath(float deltaTime)
         {
             Vector3 position = _visualRoot != null
                 ? _visualRoot.TransformPoint(_visualCenterLocalPosition)
@@ -122,33 +125,98 @@ namespace DuneVector
             if (!_emitting)
             {
                 _emitting = true;
-                _lastEmissionPosition = position;
+                _smoothedPosition = position;
+                _lastRingUp = Vector3.up;
+                _controlCount = 0;
+                _controlPoints[_controlCount++] = position;
                 SpawnRing(position, direction);
                 return;
             }
 
+            float smoothingTime = Mathf.Max(0f, _tuning.PathSmoothingTime);
+            _smoothedPosition = smoothingTime > 0f
+                ? Vector3.Lerp(_smoothedPosition, position, 1f - Mathf.Exp(-deltaTime / smoothingTime))
+                : position;
+
             float spacing = Mathf.Max(0.005f, _tuning.SpawnSpacing);
-            Vector3 displacement = position - _lastEmissionPosition;
+            float controlSpacing = spacing * Mathf.Clamp(_tuning.CurveControlSpacingMultiplier, 1, 32);
+            Vector3 displacement = _smoothedPosition - _controlPoints[_controlCount - 1];
             float distance = displacement.magnitude;
-            if (distance < spacing)
+            if (distance < controlSpacing)
             {
                 return;
             }
 
             Vector3 segmentDirection = displacement / distance;
-            int emittedThisFrame = 0;
-            while (distance >= spacing && emittedThisFrame < _rings.Length)
+            int addedThisFrame = 0;
+            while (distance >= controlSpacing && addedThisFrame < _rings.Length)
             {
-                _lastEmissionPosition += segmentDirection * spacing;
-                SpawnRing(_lastEmissionPosition, segmentDirection);
-                distance -= spacing;
-                emittedThisFrame++;
+                PushControlPoint(_controlPoints[_controlCount - 1] + (segmentDirection * controlSpacing), spacing);
+                distance -= controlSpacing;
+                addedThisFrame++;
+            }
+        }
+
+        private void PushControlPoint(Vector3 point, float ringSpacing)
+        {
+            if (_controlCount < _controlPoints.Length)
+            {
+                _controlPoints[_controlCount++] = point;
+            }
+            else
+            {
+                _controlPoints[0] = _controlPoints[1];
+                _controlPoints[1] = _controlPoints[2];
+                _controlPoints[2] = _controlPoints[3];
+                _controlPoints[3] = point;
             }
 
-            if (distance >= spacing)
+            if (_controlCount < _controlPoints.Length)
             {
-                _lastEmissionPosition = position;
+                return;
             }
+
+            EmitCurveSegment(
+                _controlPoints[0],
+                _controlPoints[1],
+                _controlPoints[2],
+                _controlPoints[3],
+                ringSpacing);
+        }
+
+        private void EmitCurveSegment(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float ringSpacing)
+        {
+            int steps = Mathf.Clamp(
+                Mathf.RoundToInt((p2 - p1).magnitude / ringSpacing),
+                1,
+                _rings.Length);
+            for (int step = 1; step <= steps; step++)
+            {
+                float t = step / (float)steps;
+                SpawnRing(
+                    EvaluateCatmullRom(p0, p1, p2, p3, t),
+                    EvaluateCatmullRomTangent(p0, p1, p2, p3, t));
+            }
+        }
+
+        private static Vector3 EvaluateCatmullRom(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
+        {
+            float tSquared = t * t;
+            float tCubed = tSquared * t;
+            return 0.5f * (
+                (2f * p1) +
+                ((-p0 + p2) * t) +
+                (((2f * p0) - (5f * p1) + (4f * p2) - p3) * tSquared) +
+                ((-p0 + (3f * p1) - (3f * p2) + p3) * tCubed));
+        }
+
+        private static Vector3 EvaluateCatmullRomTangent(Vector3 p0, Vector3 p1, Vector3 p2, Vector3 p3, float t)
+        {
+            Vector3 tangent = 0.5f * (
+                (-p0 + p2) +
+                ((((2f * p0) - (5f * p1) + (4f * p2) - p3) * 2f) * t) +
+                (((-p0 + (3f * p1) - (3f * p2) + p3) * 3f) * t * t));
+            return tangent.sqrMagnitude > 0.0000001f ? tangent.normalized : (p2 - p1).normalized;
         }
 
         private void SpawnRing(Vector3 sampledPosition, Vector3 direction)
@@ -284,10 +352,22 @@ namespace DuneVector
 
         private Quaternion CreateRingRotation(Vector3 direction)
         {
-            Vector3 up = Mathf.Abs(Vector3.Dot(direction, Vector3.up)) > 0.98f
-                ? _drone.transform.right
-                : Vector3.up;
-            return Quaternion.LookRotation(direction, up);
+            // Carry the previous ring's up vector forward so the ribbon never rolls
+            // abruptly when the flight path passes through vertical.
+            Vector3 reference = _lastRingUp.sqrMagnitude > 0.0001f ? _lastRingUp : Vector3.up;
+            if (Mathf.Abs(Vector3.Dot(direction, reference)) > 0.98f)
+            {
+                reference = _drone.transform.right;
+            }
+
+            Vector3 up = Vector3.ProjectOnPlane(reference, direction);
+            if (up.sqrMagnitude <= 0.0001f)
+            {
+                up = Vector3.ProjectOnPlane(Vector3.up, direction);
+            }
+
+            _lastRingUp = up.normalized;
+            return Quaternion.LookRotation(direction, _lastRingUp);
         }
 
         private void CacheVisualCenter()
@@ -362,9 +442,15 @@ namespace DuneVector
                 _rings[i] = ring;
             }
 
-            if (_emitting)
+            if (!_emitting)
             {
-                _lastEmissionPosition += worldShift;
+                return;
+            }
+
+            _smoothedPosition += worldShift;
+            for (int i = 0; i < _controlCount; i++)
+            {
+                _controlPoints[i] += worldShift;
             }
         }
 
@@ -372,6 +458,7 @@ namespace DuneVector
         {
             _activeCount = 0;
             _emitting = false;
+            _controlCount = 0;
         }
 
         private void OnDestroy()

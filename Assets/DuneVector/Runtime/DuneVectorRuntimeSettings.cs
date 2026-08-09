@@ -5657,6 +5657,10 @@ namespace DuneVector
         [Range(4, 2048)] public int MaximumRingCount = 720;
         [Tooltip("World-space distance flown between successive trail rings.")]
         [Min(0.005f)] public float SpawnSpacing = 0.167f;
+        [Tooltip("Seconds of low-pass smoothing applied to the sampled flight path before rings are placed. Higher removes more per-frame jitter.")]
+        [Min(0f)] public float PathSmoothingTime = 0.09f;
+        [Tooltip("How many ring spacings apart the curve control points sit. Higher smooths the trail over a longer stretch of flight.")]
+        [Range(1, 32)] public int CurveControlSpacingMultiplier = 8;
         [Tooltip("Optional distance behind the visible drone center where each ring is placed.")]
         [Min(0f)] public float SpawnBehindDistance = 0f;
         [Tooltip("Seconds each emitted ring remains visible in the world.")]
