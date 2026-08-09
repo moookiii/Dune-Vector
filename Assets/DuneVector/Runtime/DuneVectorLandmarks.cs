@@ -212,15 +212,15 @@ namespace DuneVector
         }
 
         /// <summary>
-        /// Largest horizontal half-extent of the landmark's rendered meshes measured from its
-        /// origin. Free roam fits its hexagon zone to this value so the zone hugs the silhouette
-        /// the player actually sees.
+        /// World-space bounds of every rendered mesh on the landmark. Free roam fits its hexagon
+        /// zone to this so the zone is centered on the silhouette the player actually sees rather
+        /// than on an origin the meshes may sit off to one side of.
         /// </summary>
-        public float CalculateMeshHorizontalRadius()
+        public bool TryCalculateMeshBounds(out Bounds bounds)
         {
             MeshRenderer[] meshRenderers = GetComponentsInChildren<MeshRenderer>();
-            float radius = 0f;
-            Vector3 origin = transform.position;
+            bool found = false;
+            bounds = new Bounds(transform.position, Vector3.zero);
             for (int i = 0; i < meshRenderers.Length; i++)
             {
                 MeshRenderer meshRenderer = meshRenderers[i];
@@ -229,16 +229,28 @@ namespace DuneVector
                     continue;
                 }
 
-                Bounds bounds = meshRenderer.bounds;
-                float halfX = Mathf.Max(
-                    Mathf.Abs(bounds.max.x - origin.x),
-                    Mathf.Abs(origin.x - bounds.min.x));
-                float halfZ = Mathf.Max(
-                    Mathf.Abs(bounds.max.z - origin.z),
-                    Mathf.Abs(origin.z - bounds.min.z));
-                radius = Mathf.Max(radius, Mathf.Max(halfX, halfZ));
+                if (!found)
+                {
+                    bounds = meshRenderer.bounds;
+                    found = true;
+                    continue;
+                }
+                bounds.Encapsulate(meshRenderer.bounds);
             }
-            return radius;
+            return found;
+        }
+
+        /// <summary>
+        /// Largest horizontal half-extent of the landmark's rendered meshes measured from the
+        /// center of those meshes.
+        /// </summary>
+        public float CalculateMeshHorizontalRadius()
+        {
+            if (!TryCalculateMeshBounds(out Bounds bounds))
+            {
+                return 0f;
+            }
+            return Mathf.Max(bounds.extents.x, bounds.extents.z);
         }
 
         private Transform CreateSocket(string socketName, Vector3 localPosition)

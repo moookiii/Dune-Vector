@@ -245,6 +245,7 @@ namespace DuneVector
         private Transform _package;
         private DuneVectorFreeRoamCompletionEffect _completionEffect;
         private System.Random _random;
+        private LogicalPosition _zoneCenter;
         private float _zoneRadius;
         private float _streakPunchTimer;
         private int _lastRewardGold;
@@ -497,6 +498,9 @@ namespace DuneVector
                 landmark.CalculateMeshHorizontalRadius() + _settings.ZoneMargin,
                 _settings.MinimumZoneRadius,
                 Mathf.Max(_settings.MinimumZoneRadius, _settings.MaximumZoneRadius));
+            _zoneCenter = landmark.TryCalculateMeshBounds(out Bounds meshBounds)
+                ? ToLogical(meshBounds.center)
+                : landmark.LogicalPosition;
             return landmark;
         }
 
@@ -521,20 +525,19 @@ namespace DuneVector
                 _zoneRadius,
                 crossed,
                 () => Phase == requiredPhase,
-                !isPickup,
-                fitGroundVisualHorizontallyOnly: true);
-            double groundHeight = _world.HeightField.SampleHeight(
-                landmark.LogicalPosition.X,
-                landmark.LogicalPosition.Z);
+                !isPickup);
+            // The zone sits on the terrain under the middle of the landmark's silhouette, not on
+            // the landmark origin, which several archetypes place off to one side of their meshes.
+            double groundHeight = _world.HeightField.SampleHeight(_zoneCenter.X, _zoneCenter.Z);
             double ringHeight = groundHeight + (isPickup
                 ? _deliverySettings.PickupRingGroundOffset
                 : _deliverySettings.DeliveryRingGroundOffset);
-            ring.LogicalPosition = landmark.LogicalPosition;
+            ring.LogicalPosition = _zoneCenter;
             ring.LogicalHeight = ringHeight;
             ring.transform.position = _world.LogicalToLocal(
-                landmark.LogicalPosition.X,
+                _zoneCenter.X,
                 ringHeight,
-                landmark.LogicalPosition.Z);
+                _zoneCenter.Z);
             return ring;
         }
 

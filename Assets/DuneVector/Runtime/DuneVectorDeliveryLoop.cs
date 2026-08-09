@@ -354,7 +354,6 @@ namespace DuneVector
         private RingTuning _ringTuning;
         private bool _isPickup;
         private bool _isGroundDropZone;
-        private bool _fitGroundVisualHorizontallyOnly;
         private float _innerRadius;
         private float _speedScale = 1f;
         private Vector3 _previousWorldPosition;
@@ -374,8 +373,7 @@ namespace DuneVector
             float radius,
             Action onCrossed,
             Func<bool> canActivate = null,
-            bool playDeliveryAudio = true,
-            bool fitGroundVisualHorizontallyOnly = false)
+            bool playDeliveryAudio = true)
         {
             _player = player;
             _billboardCamera = billboardCamera;
@@ -385,7 +383,6 @@ namespace DuneVector
             _ringTuning = materials.RingPortalTuning;
             _isPickup = isPickup;
             _playDeliveryAudio = playDeliveryAudio;
-            _fitGroundVisualHorizontallyOnly = fitGroundVisualHorizontallyOnly;
             _isGroundDropZone = true;
             if (_isGroundDropZone)
             {
@@ -532,20 +529,10 @@ namespace DuneVector
             Transform instanceTransform = instance.transform;
             float fitScale = radius / Mathf.Max(0.01f, authoredRadius);
             Vector3 authoredScale = instanceTransform.localScale;
-            // Landmark zones fit the hexagon across the ground only; scaling its height with the
-            // footprint would stretch the zone's pillars far above the landmark itself.
-            Vector3 fittedScale = _fitGroundVisualHorizontallyOnly
-                ? new Vector3(authoredScale.x * fitScale, authoredScale.y, authoredScale.z * fitScale)
-                : authoredScale * fitScale;
-            instanceTransform.localScale = Vector3.Scale(fittedScale, scaleMultiplier);
-            // The terrain inset buries the base of a prefab whose height grew with the fit. A
-            // horizontally fitted zone keeps its authored height, so sinking it by that same
-            // depth would hide the hexagon entirely.
-            localOffset.y -= groundOffset;
-            if (!_fitGroundVisualHorizontallyOnly)
-            {
-                localOffset.y -= _settings.GroundRingPrefabTerrainInset;
-            }
+            // The zone keeps its authored proportions. Fitting the footprint on X/Z alone leaves
+            // the hexagon squashed and lifts its ground plane off the terrain.
+            instanceTransform.localScale = Vector3.Scale(authoredScale * fitScale, scaleMultiplier);
+            localOffset.y -= groundOffset + _settings.GroundRingPrefabTerrainInset;
             instanceTransform.localPosition += localOffset;
             instanceTransform.localRotation *= Quaternion.Euler(localEulerAngles);
             return instanceTransform;
