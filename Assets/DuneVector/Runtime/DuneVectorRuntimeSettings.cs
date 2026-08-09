@@ -3678,6 +3678,13 @@ namespace DuneVector
         [Min(0f)] public float MovementSpeed = 5.5f;
         [Min(2f)] public float PatrolRadius = 18f;
         [Range(0f, 60f)] public float MaximumGroundSlope = 34f;
+        [Header("Obstacle Avoidance")]
+        [Tooltip("Physics layers the ground exploder treats as solid meshes it cannot drive through. Terrain chunk surfaces are always ignored.")]
+        public LayerMask ObstacleLayers = -1;
+        [Tooltip("Extra clearance added to the ground exploder's body radius when probing ahead for solid meshes.")]
+        [Min(0f)] public float ObstacleProbePadding = 0.4f;
+        [Tooltip("Height above the ground exploder's body center used as the obstacle probe origin, so shallow terrain contact does not register as an obstacle.")]
+        [Min(0f)] public float ObstacleProbeHeightOffset = 0.25f;
         [Header("Proximity Explosion")]
         [Min(0.5f)] public float DetectionRadius = 18f;
         [Min(0.1f)] public float WindUpDuration = 1.25f;

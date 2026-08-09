@@ -373,6 +373,7 @@ namespace DuneVector
         private float _groundClearance;
         private bool _hasTarget;
         private bool _patrolRequested;
+        private readonly RaycastHit[] _obstacleHits = new RaycastHit[8];
 
         public void Initialize(
             DuneHeightField heightField,
@@ -462,6 +463,15 @@ namespace DuneVector
                     Vector3 worldPosition = transform.parent != null
                         ? transform.parent.TransformPoint(localPosition)
                         : localPosition;
+                    if (IsPathBlocked(_body.position, worldPosition))
+                    {
+                        // A solid mesh stands in the way. Hold position this step and
+                        // pick a fresh patrol target instead of sliding through it.
+                        _hasTarget = false;
+                        ChoosePatrolTarget();
+                        return;
+                    }
+
                     Vector3 forward = Vector3.ProjectOnPlane(
                         new Vector3(toTarget.x, 0f, toTarget.y).normalized,
                         surfaceNormal).normalized;
@@ -519,7 +529,9 @@ namespace DuneVector
                     new Vector2(transform.localPosition.x, transform.localPosition.z),
                     candidate,
                     0.5f);
-                if (IsValidSurface(candidate) && IsValidSurface(midpoint))
+                if (IsValidSurface(candidate)
+                    && IsValidSurface(midpoint)
+                    && !IsPathBlocked(_body != null ? _body.position : transform.position, ToWorld(candidate)))
                 {
                     _patrolTarget = candidate;
                     _hasTarget = true;
@@ -528,6 +540,60 @@ namespace DuneVector
             }
             _patrolTarget = _patrolCenter;
             _hasTarget = true;
+        }
+
+        private Vector3 ToWorld(Vector2 local)
+        {
+            Vector3 localPosition = new Vector3(local.x, SampleHeight(local) + _groundClearance, local.y);
+            return transform.parent != null
+                ? transform.parent.TransformPoint(localPosition)
+                : localPosition;
+        }
+
+        private bool IsPathBlocked(Vector3 fromWorld, Vector3 toWorld)
+        {
+            if (_settings == null || _bodyCollider == null)
+            {
+                return false;
+            }
+
+            Vector3 probeOrigin = fromWorld + (Vector3.up * _settings.ObstacleProbeHeightOffset);
+            Vector3 probeTarget = toWorld + (Vector3.up * _settings.ObstacleProbeHeightOffset);
+            Vector3 delta = probeTarget - probeOrigin;
+            float distance = delta.magnitude;
+            if (distance <= 0.0001f)
+            {
+                return false;
+            }
+
+            float radius = Mathf.Max(0.05f, _bodyCollider.radius + _settings.ObstacleProbePadding);
+            int hitCount = Physics.SphereCastNonAlloc(
+                probeOrigin,
+                radius,
+                delta / distance,
+                _obstacleHits,
+                distance,
+                _settings.ObstacleLayers,
+                QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < hitCount; i++)
+            {
+                Collider hit = _obstacleHits[i].collider;
+                if (hit == null || IsIgnoredObstacle(hit))
+                {
+                    continue;
+                }
+                return true;
+            }
+            return false;
+        }
+
+        private bool IsIgnoredObstacle(Collider candidate)
+        {
+            Transform candidateTransform = candidate.transform;
+            // The exploder's own body, and the dune surface it rides on, are not obstacles.
+            return candidateTransform == transform
+                || candidateTransform.IsChildOf(transform)
+                || candidate.GetComponentInParent<DesertTerrainSurface>() != null;
         }
 
         private bool IsValidSurface(Vector2 local)

@@ -1582,6 +1582,12 @@ namespace DuneVector
             {
                 _terrainCollider = Root.gameObject.AddComponent<MeshCollider>();
                 _terrainCollider.sharedMesh = _collisionMesh;
+                // Ground-bound enemies probe for solid meshes to steer around; the
+                // dune surface they ride on must never read as one of those meshes.
+                if (Root.GetComponent<DesertTerrainSurface>() == null)
+                {
+                    Root.gameObject.AddComponent<DesertTerrainSurface>();
+                }
             }
         }
 
