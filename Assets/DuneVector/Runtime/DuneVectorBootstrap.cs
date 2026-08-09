@@ -1202,7 +1202,9 @@ namespace DuneVector
                 _materials,
                 GoldWallet,
                 DynamicCourierSettings,
-                CourierGame);
+                CourierGame,
+                LandmarkDirector,
+                RuntimeSettings.FreeRoamDeliveries);
         }
 
         private void BuildDroneWeapon()

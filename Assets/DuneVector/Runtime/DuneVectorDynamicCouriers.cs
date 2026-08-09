@@ -34,6 +34,7 @@ namespace DuneVector
         private DesertWorldStreamer _world;
         private DynamicCourierTuning _settings;
         private Transform _cachedTransform;
+        private Transform _package;
         private Vector3 _destination;
         private float _speed;
         private float _maximumHealth;
@@ -72,8 +73,20 @@ namespace DuneVector
 
         public void AttachPackage(DuneVectorMaterials materials, float scale, Vector3 localOffset)
         {
-            Transform package = DuneVectorVisuals.CreatePackageVisual(_cachedTransform, materials, scale);
-            package.localPosition = localOffset;
+            _package = DuneVectorVisuals.CreatePackageVisual(_cachedTransform, materials, scale);
+            _package.localPosition = localOffset;
+        }
+
+        /// <summary>
+        /// Ambient couriers run the same pickup and drop-off cycle the player does, so their cargo
+        /// is only visible on the leg between collecting it and delivering it.
+        /// </summary>
+        public void SetPackageVisible(bool visible)
+        {
+            if (_package != null)
+            {
+                _package.gameObject.SetActive(visible);
+            }
         }
 
         public void ConfigureRoute(Vector3 destination, float speed, bool paused)
@@ -265,6 +278,12 @@ namespace DuneVector
             public float CruiseSpeed;
             public float FlightHeight;
             public float TurnaroundRemaining;
+
+            /// <summary>True while the courier is flying its cargo to a drop-off landmark.</summary>
+            public bool CarryingCargo;
+
+            /// <summary>Landmarks this courier has already used, mirroring the free-roam run history.</summary>
+            public readonly HashSet<string> UsedLandmarkIds = new HashSet<string>();
         }
 
         public DynamicCourierEventType ActiveEventType { get; private set; }
@@ -281,6 +300,9 @@ namespace DuneVector
         private DroneGoldWallet _wallet;
         private DynamicCourierTuning _settings;
         private DuneVectorCourierGame _courierGame;
+        private DuneVectorLandmarkDirector _landmarks;
+        private FreeRoamDeliveryTuning _freeRoamSettings;
+        private System.Random _ambientRandom;
         private DynamicCourierEventPhase _phase;
         private DynamicCourierAgent _primaryCourier;
         private Vector3 _eventDestination;
@@ -302,8 +324,13 @@ namespace DuneVector
             DuneVectorMaterials materials,
             DroneGoldWallet wallet,
             DynamicCourierTuning settings,
-            DuneVectorCourierGame courierGame)
+            DuneVectorCourierGame courierGame,
+            DuneVectorLandmarkDirector landmarks,
+            FreeRoamDeliveryTuning freeRoamSettings)
         {
+            _landmarks = landmarks;
+            _freeRoamSettings = freeRoamSettings ?? new FreeRoamDeliveryTuning();
+            _freeRoamSettings.EnsureInitialized();
             _player = player;
             _playerHealth = playerHealth;
             _world = world;
@@ -469,11 +496,7 @@ namespace DuneVector
                     continue;
                 }
 
-                Vector3 destination = BuildAmbientDestination(flight.Courier.transform.position, flight.FlightHeight);
-                flight.Courier.ConfigureRoute(destination, flight.CruiseSpeed, false);
-                flight.TurnaroundRemaining = RandomRange(
-                    _settings.AmbientMinimumTurnaroundDelay,
-                    _settings.AmbientMaximumTurnaroundDelay);
+                BeginAmbientLeg(flight, flight.Courier.transform.position, advanceCycle: true);
             }
 
             int desiredCount = Mathf.Max(0, _settings.AmbientNeutralCourierCount);
@@ -505,7 +528,6 @@ namespace DuneVector
                 _settings.AmbientMaximumFlightHeight);
             Vector3 start = playerPosition + (new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle)) * distance);
             start.y = _world.SampleHeightAtLocal(start.x, start.z) + flightHeight;
-            Vector3 destination = BuildAmbientDestination(start, flightHeight);
             float cruiseSpeed = RandomRange(
                 _settings.AmbientMinimumCruiseSpeed,
                 _settings.AmbientMaximumCruiseSpeed);
@@ -523,19 +545,84 @@ namespace DuneVector
                 Random.value * Mathf.PI * 2f);
             courier.SetFlightHeightAboveTerrain(flightHeight);
             courier.AttachPackage(_materials, _settings.AmbientPackageScale, _settings.AmbientPackageOffset);
-            courier.ConfigureRoute(destination, cruiseSpeed, false);
-            _ambientCouriers.Add(new AmbientCourierFlight
+            AmbientCourierFlight flight = new AmbientCourierFlight
             {
                 Courier = courier,
                 CruiseSpeed = cruiseSpeed,
                 FlightHeight = flightHeight,
-                TurnaroundRemaining = RandomRange(
-                    _settings.AmbientMinimumTurnaroundDelay,
-                    _settings.AmbientMaximumTurnaroundDelay),
-            });
+            };
+            // A fresh courier starts empty and flies to a pickup landmark, exactly as the player
+            // does on the first leg of a free-roam deployment.
+            flight.CarryingCargo = false;
+            courier.SetPackageVisible(false);
+            BeginAmbientLeg(flight, start, advanceCycle: false);
+            _ambientCouriers.Add(flight);
         }
 
-        private Vector3 BuildAmbientDestination(Vector3 start, float flightHeight)
+        /// <summary>
+        /// Routes a courier to its next landmark. Legs alternate between collecting cargo and
+        /// dropping it off, and use the same authored leg distance, tolerance, widening steps, and
+        /// used-landmark history the player's free-roam cycle runs on.
+        /// </summary>
+        private void BeginAmbientLeg(AmbientCourierFlight flight, Vector3 origin, bool advanceCycle)
+        {
+            if (advanceCycle)
+            {
+                flight.CarryingCargo = !flight.CarryingCargo;
+                flight.Courier.SetPackageVisible(flight.CarryingCargo);
+            }
+
+            Vector3 destination = ResolveAmbientLandmarkDestination(flight, origin)
+                ?? BuildFallbackAmbientDestination(origin, flight.FlightHeight);
+            flight.Courier.ConfigureRoute(destination, flight.CruiseSpeed, false);
+            flight.TurnaroundRemaining = RandomRange(
+                _settings.AmbientMinimumTurnaroundDelay,
+                _settings.AmbientMaximumTurnaroundDelay);
+        }
+
+        private Vector3? ResolveAmbientLandmarkDestination(AmbientCourierFlight flight, Vector3 origin)
+        {
+            if (_landmarks == null || _freeRoamSettings == null || !_freeRoamSettings.Enabled)
+            {
+                return null;
+            }
+
+            _ambientRandom ??= new System.Random(unchecked(_world.WorldSeed ^ 0x2C71B4));
+            LogicalPosition logicalOrigin = new LogicalPosition(
+                _world.OriginOffsetX + origin.x,
+                _world.OriginOffsetZ + origin.z);
+            DuneLandmarkPlacementRecord record = _landmarks.ResolveRandomWorldLandmarkAtDistance(
+                logicalOrigin,
+                _freeRoamSettings.LegDistance,
+                _freeRoamSettings.LegDistanceTolerance,
+                _freeRoamSettings.LegDistanceWideningSteps,
+                _ambientRandom,
+                flight.UsedLandmarkIds);
+            if (record == null)
+            {
+                // Long-lived couriers consume every landmark around them. Forgetting the history
+                // keeps them running the cycle instead of drifting off on fallback headings.
+                flight.UsedLandmarkIds.Clear();
+                record = _landmarks.ResolveRandomWorldLandmarkAtDistance(
+                    logicalOrigin,
+                    _freeRoamSettings.LegDistance,
+                    _freeRoamSettings.LegDistanceTolerance,
+                    _freeRoamSettings.LegDistanceWideningSteps,
+                    _ambientRandom,
+                    flight.UsedLandmarkIds);
+            }
+            if (record == null)
+            {
+                return null;
+            }
+
+            flight.UsedLandmarkIds.Add(record.PersistentId);
+            Vector3 destination = _world.LogicalToLocal(record.LogicalPosition.X, 0.0, record.LogicalPosition.Z);
+            destination.y = _world.SampleHeightAtLocal(destination.x, destination.z) + flight.FlightHeight;
+            return destination;
+        }
+
+        private Vector3 BuildFallbackAmbientDestination(Vector3 start, float flightHeight)
         {
             float angle = Random.value * Mathf.PI * 2f;
             float distance = RandomRange(
