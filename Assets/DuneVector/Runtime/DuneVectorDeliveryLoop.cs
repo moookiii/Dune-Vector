@@ -343,26 +343,16 @@ namespace DuneVector
         public double LogicalHeight;
 
         private DroneCharacterController _player;
-        private Camera _billboardCamera;
         private Action _onCrossed;
         private Func<bool> _canActivate;
         private Transform _visual;
-        private DuneVectorPortalVisual _portalVisual;
-        private Renderer[] _renderers;
-        private MaterialPropertyBlock _colorProperties;
         private DeliveryTuning _settings;
-        private RingTuning _ringTuning;
         private bool _isPickup;
-        private bool _isGroundDropZone;
         private float _innerRadius;
-        private float _speedScale = 1f;
         private Vector3 _previousWorldPosition;
         private bool _hasPreviousPosition;
         private bool _activated;
         private bool _playDeliveryAudio = true;
-        private float _spin;
-        private float _spinSpeed;
-        private float _spinDirection = 1f;
 
         public void Initialize(
             DroneCharacterController player,
@@ -376,39 +366,15 @@ namespace DuneVector
             bool playDeliveryAudio = true)
         {
             _player = player;
-            _billboardCamera = billboardCamera;
             _onCrossed = onCrossed;
             _canActivate = canActivate;
             _settings = settings;
-            _ringTuning = materials.RingPortalTuning;
             _isPickup = isPickup;
             _playDeliveryAudio = playDeliveryAudio;
-            _isGroundDropZone = true;
-            if (_isGroundDropZone)
-            {
-                _innerRadius = Mathf.Max(0.5f, radius);
-                _visual = CreateGroundDropZoneVisual(radius);
-                _renderers = Array.Empty<Renderer>();
-                _colorProperties = new MaterialPropertyBlock();
-                return;
-            }
-
-            float visualRadius = DuneVectorVisuals.CalculatePortalVisualRadius(
-                radius,
-                _ringTuning);
-            _innerRadius = Mathf.Max(0.5f, visualRadius - 0.38f);
-            _spinSpeed = _ringTuning.ClockwiseRotationSpeed;
-            uint spinHash = DuneVectorMath.Hash(
-                Mathf.RoundToInt(transform.position.x),
-                Mathf.RoundToInt(transform.position.z),
-                Mathf.RoundToInt(transform.position.y),
-                isPickup ? 1 : 0);
-            _spinDirection = (spinHash & 1u) == 0u ? -1f : 1f;
-            _visual = DuneVectorVisuals.CreateJobRingVisual(transform, isPickup, materials, radius);
-            _portalVisual = _visual.GetComponent<DuneVectorPortalVisual>();
-            _renderers = _visual.GetComponentsInChildren<Renderer>(true);
-            _colorProperties = new MaterialPropertyBlock();
-            UpdateRgbBlend();
+            // The zone is a flat ground footprint. Its trigger radius is exactly the radius the
+            // hexagon is drawn at, so touching the visible edge is what completes the objective.
+            _innerRadius = Mathf.Max(0.5f, radius);
+            _visual = CreateGroundDropZoneVisual(radius);
         }
 
         public void ApplyWorldShift(Vector3 shift)
@@ -422,9 +388,6 @@ namespace DuneVector
 
         private void Update()
         {
-            UpdateBillboard();
-            UpdateRgbBlend();
-            UpdateSpeedScale();
             if (_activated || _player == null)
             {
                 return;
@@ -432,65 +395,20 @@ namespace DuneVector
             if (_canActivate != null && !_canActivate())
             {
                 // Ignore teleport and setup movement entirely. Starting with a fresh
-                // sample prevents that movement segment from consuming the ring.
+                // sample prevents that movement segment from consuming the zone.
                 _hasPreviousPosition = false;
                 return;
             }
 
             Vector3 worldPosition = _player.WorldCenter;
-            if (_isGroundDropZone)
+            if (CrossedGroundDropZone(worldPosition))
             {
-                if (CrossedGroundDropZone(worldPosition))
-                {
-                    Activate(Vector3.up);
-                    return;
-                }
-
-                _previousWorldPosition = worldPosition;
-                _hasPreviousPosition = true;
+                Activate(Vector3.up);
                 return;
-            }
-
-            Vector3 localPosition = transform.InverseTransformPoint(worldPosition);
-            if (_hasPreviousPosition)
-            {
-                // Convert both segment endpoints using this frame's billboard rotation.
-                // Camera movement alone therefore cannot look like a ring crossing.
-                Vector3 previousLocalPosition = transform.InverseTransformPoint(_previousWorldPosition);
-                if (Mathf.Sign(previousLocalPosition.z) != Mathf.Sign(localPosition.z))
-                {
-                    float denominator = previousLocalPosition.z - localPosition.z;
-                    if (Mathf.Abs(denominator) > 0.0001f)
-                    {
-                        float interpolation = Mathf.Clamp01(previousLocalPosition.z / denominator);
-                        Vector3 crossingPoint = Vector3.Lerp(previousLocalPosition, localPosition, interpolation);
-                        float radialDistance = new Vector2(crossingPoint.x, crossingPoint.y).magnitude;
-                        bool crossedOpening = _player.CurrentMode == DroneTraversalMode.Normal
-                            ? Mathf.Abs(crossingPoint.x) <= _innerRadius
-                            : radialDistance <= _innerRadius;
-                        if (crossedOpening)
-                        {
-                            Activate(transform.forward);
-                            return;
-                        }
-                    }
-                }
             }
 
             _previousWorldPosition = worldPosition;
             _hasPreviousPosition = true;
-
-            if (_visual != null)
-            {
-                _spin = Mathf.Repeat(
-                    _spin + (
-                        _spinSpeed *
-                        _spinDirection *
-                        (_portalVisual != null ? _portalVisual.RotationSpeedMultiplier : 1f) *
-                        Time.deltaTime),
-                    360f);
-                _visual.localRotation = Quaternion.AngleAxis(_spin, Vector3.forward);
-            }
         }
 
         private Transform CreateGroundDropZoneVisual(float radius)
@@ -568,12 +486,7 @@ namespace DuneVector
         private void Activate(Vector3 crossingDirection)
         {
             _activated = true;
-            _portalVisual?.PlayActivationReaction(
-                true,
-                _spinSpeed * _spinDirection,
-                crossingDirection);
             _visual = null;
-            _portalVisual = null;
             if (_isPickup || !_playDeliveryAudio)
             {
                 DuneVectorAudioManager.Instance?.PlayFlightRingSwoosh(transform.position);
@@ -589,97 +502,5 @@ namespace DuneVector
             _onCrossed?.Invoke();
         }
 
-        private void UpdateSpeedScale()
-        {
-            if (_isGroundDropZone || _visual == null || _player == null || _ringTuning == null)
-            {
-                return;
-            }
-
-            float targetScale = 1f;
-            if (_player.CurrentMode == DroneTraversalMode.Flight)
-            {
-                float speedNormalized = Mathf.Clamp01(
-                    _player.Speed / Mathf.Max(Mathf.Epsilon, _player.CurrentSpeedometerMaximum));
-                float flightModeScale = Mathf.Max(1f, _ringTuning.UpperFlightRingActiveScale);
-                float maximumSpeedScale = Mathf.Max(
-                    flightModeScale,
-                    _ringTuning.UpperFlightRingMaximumSpeedScale);
-                targetScale = Mathf.Lerp(flightModeScale, maximumSpeedScale, speedNormalized);
-            }
-
-            _speedScale = Mathf.Lerp(
-                _speedScale,
-                targetScale,
-                DuneVectorMath.Sharpness(_ringTuning.UpperFlightRingScaleSharpness, Time.deltaTime));
-            transform.localScale = Vector3.one * _speedScale;
-        }
-
-        private void UpdateRgbBlend()
-        {
-            if (_isGroundDropZone || _settings == null || _renderers == null || _colorProperties == null)
-            {
-                return;
-            }
-
-            float hueOffset = _isPickup ? 0f : _settings.DeliveryRingRgbHueOffset;
-            float hue = Mathf.Repeat((Time.unscaledTime * _settings.ObjectiveRingRgbBlendSpeed) + hueOffset, 1f);
-            Color rgb = Color.HSVToRGB(hue, 1f, 1f);
-            Color baseColor = rgb * _settings.ObjectiveRingRgbBaseIntensity;
-            Color emissionColor = rgb * _settings.ObjectiveRingRgbEmissionIntensity;
-            baseColor.a = 1f;
-            emissionColor.a = 1f;
-
-            for (int i = 0; i < _renderers.Length; i++)
-            {
-                Renderer renderer = _renderers[i];
-                if (renderer == null)
-                {
-                    continue;
-                }
-
-                renderer.GetPropertyBlock(_colorProperties);
-                _colorProperties.SetColor("_BaseColor", baseColor);
-                _colorProperties.SetColor("_EmissionColor", emissionColor);
-                _colorProperties.SetColor("_PortalColor", emissionColor);
-                renderer.SetPropertyBlock(_colorProperties);
-            }
-        }
-
-        private void UpdateBillboard()
-        {
-            if (_isGroundDropZone)
-            {
-                return;
-            }
-
-            if (_billboardCamera == null)
-            {
-                _billboardCamera = Camera.main;
-            }
-            if (_billboardCamera == null)
-            {
-                return;
-            }
-
-            float billboardDisableRadius = _settings != null
-                ? Mathf.Max(0f, _settings.ObjectiveRingBillboardDisableRadius)
-                : 0f;
-            if (_player != null
-                && billboardDisableRadius > 0f
-                && (_player.WorldCenter - transform.position).sqrMagnitude
-                    <= billboardDisableRadius * billboardDisableRadius)
-            {
-                return;
-            }
-
-            Vector3 toCamera = _billboardCamera.transform.position - transform.position;
-            if (toCamera.sqrMagnitude > 0.001f)
-            {
-                // The root defines both the rendered ring plane and its mathematical
-                // pass-through collider, so they always billboard together.
-                transform.rotation = Quaternion.LookRotation(toCamera.normalized, Vector3.up);
-            }
-        }
     }
 }
