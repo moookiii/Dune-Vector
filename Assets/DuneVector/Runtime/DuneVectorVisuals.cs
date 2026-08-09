@@ -3379,36 +3379,22 @@ namespace DuneVector
             root.SetParent(parent, false);
             root.localScale = Vector3.one * scale;
 
+            // Body, chamfer rim, and hot spike tips are submeshes of one mesh on one
+            // renderer. Maroon on orange sand sits in the same hue family at a
+            // similar value, so the cool chamfer running around the whole outline is
+            // what separates the silhouette from the sand.
             GameObject wheel = CreateMeshObject(
                 "Spiked Hollow Wheel",
                 root,
                 GetGroundExploderWheelMesh(tuning),
                 materials.GroundEnemyBody);
             wheel.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
-
-            // The tips ride with the wheel so they roll with it, but live on their
-            // own transform so the charge tell can push them outward on their own.
-            CreateMeshObject(
-                "Spike Tips",
-                wheel.transform,
-                GetGroundExploderSpikeTipMesh(tuning),
-                materials.GroundEnemySpikeTip);
-
-            // A cool unlit band girdling the outer edge. Maroon on orange sand sits
-            // in the same hue family at a similar value, so without this the
-            // silhouette reads as a hole rather than a shaded object. The band is
-            // centered on the disc edge so only its outer half protrudes, which
-            // keeps it from fighting the disc faces.
-            GameObject coolRim = CreateMeshObject(
-                "Cool Rim Band",
-                wheel.transform,
-                GetTorusMesh(
-                    Mathf.Max(0.02f, tuning.DiscRadius),
-                    Mathf.Max(0.005f, tuning.RimRingThickness),
-                    48,
-                    6),
-                materials.GroundEnemyRim);
-            DisableRendererShadows(coolRim);
+            wheel.GetComponent<MeshRenderer>().sharedMaterials = new[]
+            {
+                materials.GroundEnemyBody,
+                materials.GroundEnemyRim,
+                materials.GroundEnemySpikeTip,
+            };
 
             // Gold face trim carries the desert's ringwork out to the disc edge on
             // both faces, half sunk into the surface so nothing is coplanar.
@@ -3435,7 +3421,7 @@ namespace DuneVector
                 root,
                 GetTorusMesh(
                     Mathf.Max(0.02f, tuning.HubRingRadius),
-                    Mathf.Max(0.005f, tuning.TrimRingThickness),
+                    Mathf.Max(0.005f, tuning.HubRingThickness),
                     40,
                     6),
                 materials.GroundEnemyWarning);
@@ -3525,8 +3511,9 @@ namespace DuneVector
             return flash;
         }
 
-        private const int GroundExploderSegmentsPerSpike = 8;
+        private const int GroundExploderSegmentsPerSpike = 16;
         private const float GroundExploderSpikeFalloff = 0.22f;
+        internal const int GroundExploderTipSubmesh = 2;
 
         private static string GroundExploderShapeKey(GroundExploderTuning tuning)
         {
@@ -3534,12 +3521,12 @@ namespace DuneVector
                 $":{tuning.DiscHalfDepth:0.000}:{tuning.SpikeLength:0.000}" +
                 $":{tuning.SpikeLengthVariation:0.000}:{tuning.SpikeBevel:0.000}" +
                 $":{tuning.SpikeTwistDegrees:0.00}:{tuning.SpikeTipFraction:0.000}" +
-                $":{tuning.SpikeTipRelief:0.000}";
+                $":{tuning.SpikeTipThickness:0.000}";
         }
 
         // Spike lengths vary deterministically so the wheel reads as forged rather
         // than lathed, without changing between the mesh and the rolling radius.
-        private static float GroundExploderSpikeLength(GroundExploderTuning tuning, int spike, int spikeCount)
+        private static float GroundExploderSpikeLength(GroundExploderTuning tuning, int spike)
         {
             float variation = Mathf.Sin((spike + 1) * 2.399963f) * Mathf.Clamp01(tuning.SpikeLengthVariation);
             return Mathf.Max(0f, tuning.SpikeLength * (1f + variation));
@@ -3559,6 +3546,10 @@ namespace DuneVector
             return Mathf.Max(0f, 1f - (Mathf.Abs(spike01 - 0.5f) / GroundExploderSpikeFalloff));
         }
 
+        // One watertight wheel split into three submeshes rather than three
+        // overlapping objects: body, the chamfer that traces the whole outline, and
+        // the hot cap on each spike's point. Nothing intersects, so nothing can read
+        // as a floating slab stuck onto the silhouette.
         private static Mesh GetGroundExploderWheelMesh(GroundExploderTuning tuning)
         {
             string key = $"ground-exploder-spiked-wheel:{GroundExploderShapeKey(tuning)}";
@@ -3575,31 +3566,44 @@ namespace DuneVector
             float bevel = Mathf.Clamp(
                 tuning.SpikeBevel,
                 0f,
-                Mathf.Min(halfDepth * 0.7f, (outerRadius - innerRadius) * 0.4f));
+                Mathf.Min(halfDepth * 0.6f, (outerRadius - innerRadius) * 0.4f));
+            float tipBump = 1f - Mathf.Clamp(tuning.SpikeTipFraction, 0f, 0.8f);
 
-            // Six points traced around the wheel's cross-section: front cap, front
-            // bevel, outer edge, back bevel, back cap, then the hollow bore wall.
-            // The two bevel faces are the narrow strips that catch a highlight.
-            Vector2[] profile = new Vector2[6];
             List<Vector3> vertices = new List<Vector3>(segmentCount * 36);
-            List<int> triangles = new List<int>(segmentCount * 36);
+            List<int> bodyTriangles = new List<int>(segmentCount * 24);
+            List<int> rimTriangles = new List<int>(segmentCount * 12);
+            List<int> tipTriangles = new List<int>(segmentCount * 6);
             Vector3[] ringA = new Vector3[6];
             Vector3[] ringB = new Vector3[6];
 
             for (int i = 0; i < segmentCount; i++)
             {
-                FillGroundExploderRing(tuning, spikeCount, segmentCount, i, innerRadius, outerRadius, halfDepth, bevel, profile, ringA);
-                FillGroundExploderRing(tuning, spikeCount, segmentCount, (i + 1) % segmentCount, innerRadius, outerRadius, halfDepth, bevel, profile, ringB);
+                int next = (i + 1) % segmentCount;
+                float bumpA = GroundExploderSpikeProfile(i % GroundExploderSegmentsPerSpike);
+                float bumpB = GroundExploderSpikeProfile(next % GroundExploderSegmentsPerSpike);
+                bool isTip = bumpA >= tipBump
+                    && bumpB >= tipBump
+                    && (i / GroundExploderSegmentsPerSpike) == (next / GroundExploderSegmentsPerSpike);
+                FillGroundExploderRing(tuning, i, innerRadius, outerRadius, halfDepth, bevel, ringA);
+                FillGroundExploderRing(tuning, next, innerRadius, outerRadius, halfDepth, bevel, ringB);
                 for (int point = 0; point < 6; point++)
                 {
-                    int next = (point + 1) % 6;
-                    AppendFlatQuad(vertices, triangles, ringA[point], ringA[next], ringB[next], ringB[point]);
+                    int nextPoint = (point + 1) % 6;
+                    // Points 1 and 3 open the two chamfer strips.
+                    bool isChamfer = point == 1 || point == 3;
+                    List<int> target = isTip
+                        ? tipTriangles
+                        : (isChamfer ? rimTriangles : bodyTriangles);
+                    AppendFlatQuad(vertices, target, ringA[point], ringA[nextPoint], ringB[nextPoint], ringB[point]);
                 }
             }
 
             Mesh mesh = new Mesh { name = "Kinematic Spiked Hollow Exploder" };
+            mesh.subMeshCount = 3;
             mesh.SetVertices(vertices);
-            mesh.SetTriangles(triangles, 0);
+            mesh.SetTriangles(bodyTriangles, 0);
+            mesh.SetTriangles(rimTriangles, 1);
+            mesh.SetTriangles(tipTriangles, GroundExploderTipSubmesh);
             mesh.RecalculateNormals();
             mesh.RecalculateBounds();
             MeshCache[key] = mesh;
@@ -3608,118 +3612,48 @@ namespace DuneVector
 
         private static void FillGroundExploderRing(
             GroundExploderTuning tuning,
-            int spikeCount,
-            int segmentCount,
             int segment,
             float innerRadius,
             float outerRadius,
             float halfDepth,
             float bevel,
-            Vector2[] profile,
             Vector3[] ring)
         {
-            int spike = segment / GroundExploderSegmentsPerSpike;
-            float bump = GroundExploderSpikeProfile(segment % GroundExploderSegmentsPerSpike);
-            float spikeLength = GroundExploderSpikeLength(tuning, spike, spikeCount) * bump;
-            float radius = outerRadius + spikeLength;
-            float twist = GroundExploderSpikeTwist(tuning, spike) * spikeLength;
-            float capRadius = Mathf.Max(innerRadius, radius - bevel);
-
-            profile[0] = new Vector2(innerRadius, halfDepth);
-            profile[1] = new Vector2(capRadius, halfDepth);
-            profile[2] = new Vector2(radius, halfDepth - bevel);
-            profile[3] = new Vector2(radius, -halfDepth + bevel);
-            profile[4] = new Vector2(capRadius, -halfDepth);
-            profile[5] = new Vector2(innerRadius, -halfDepth);
-
-            float angle = (segment / (float)segmentCount) * Mathf.PI * 2f;
-            Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-            for (int point = 0; point < 6; point++)
-            {
-                ring[point] = new Vector3(
-                    direction.x * profile[point].x,
-                    direction.y * profile[point].x,
-                    profile[point].y + twist);
-            }
-        }
-
-        private static Mesh GetGroundExploderSpikeTipMesh(GroundExploderTuning tuning)
-        {
-            string key = $"ground-exploder-spike-tips:{GroundExploderShapeKey(tuning)}";
-            if (MeshCache.TryGetValue(key, out Mesh cached) && cached != null)
-            {
-                return cached;
-            }
-
             int spikeCount = Mathf.Clamp(tuning.SpikeCount, 5, 16);
             int segmentCount = spikeCount * GroundExploderSegmentsPerSpike;
-            float outerRadius = Mathf.Max(0.07f, tuning.DiscRadius);
-            float halfDepth = Mathf.Max(0.01f, tuning.DiscHalfDepth) * Mathf.Clamp(tuning.SpikeTipRelief, 1f, 1.5f);
-            float tipFraction = Mathf.Clamp(tuning.SpikeTipFraction, 0f, 0.8f);
-
-            List<Vector3> vertices = new List<Vector3>(segmentCount * 24);
-            List<int> triangles = new List<int>(segmentCount * 24);
-            Vector3[] ringA = new Vector3[4];
-            Vector3[] ringB = new Vector3[4];
-
-            for (int i = 0; i < segmentCount; i++)
-            {
-                int spike = i / GroundExploderSegmentsPerSpike;
-                int nextSegment = (i + 1) % segmentCount;
-                if (nextSegment / GroundExploderSegmentsPerSpike != spike)
-                {
-                    // Tip plates never bridge two spikes.
-                    continue;
-                }
-                FillGroundExploderTipRing(tuning, spikeCount, segmentCount, i, outerRadius, halfDepth, tipFraction, ringA);
-                FillGroundExploderTipRing(tuning, spikeCount, segmentCount, nextSegment, outerRadius, halfDepth, tipFraction, ringB);
-                for (int point = 0; point < 4; point++)
-                {
-                    int next = (point + 1) % 4;
-                    AppendFlatQuad(vertices, triangles, ringA[point], ringA[next], ringB[next], ringB[point]);
-                }
-            }
-
-            Mesh mesh = new Mesh { name = "Ground Exploder Spike Tips" };
-            mesh.SetVertices(vertices);
-            mesh.SetTriangles(triangles, 0);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            MeshCache[key] = mesh;
-            return mesh;
-        }
-
-        private static void FillGroundExploderTipRing(
-            GroundExploderTuning tuning,
-            int spikeCount,
-            int segmentCount,
-            int segment,
-            float outerRadius,
-            float halfDepth,
-            float tipFraction,
-            Vector3[] ring)
-        {
             int spike = segment / GroundExploderSegmentsPerSpike;
             float bump = GroundExploderSpikeProfile(segment % GroundExploderSegmentsPerSpike);
-            float fullLength = GroundExploderSpikeLength(tuning, spike, spikeCount);
-            float spikeLength = fullLength * bump;
+            float spikeLength = GroundExploderSpikeLength(tuning, spike) * bump;
             float radius = outerRadius + spikeLength;
-            // The plate starts where the spike has reached the last slice of its
-            // length, so it collapses to nothing on the flanks and closes itself.
-            float tipStart = outerRadius + (fullLength * (1f - tipFraction));
-            float innerTipRadius = Mathf.Min(radius, tipStart);
             float twist = GroundExploderSpikeTwist(tuning, spike) * spikeLength;
+            // Spikes thin toward their points so they read as blades rather than as
+            // blocks that happen to be pointed.
+            float depth = halfDepth * Mathf.Lerp(1f, Mathf.Clamp(tuning.SpikeTipThickness, 0.1f, 1f), bump);
+            float localBevel = Mathf.Min(bevel, depth * 0.6f);
+            float capRadius = Mathf.Max(innerRadius, radius - localBevel);
 
-            ring[0] = GroundExploderTipVertex(segment, segmentCount, innerTipRadius, halfDepth + twist);
-            ring[1] = GroundExploderTipVertex(segment, segmentCount, radius, (halfDepth * 0.5f) + twist);
-            ring[2] = GroundExploderTipVertex(segment, segmentCount, radius, (-halfDepth * 0.5f) + twist);
-            ring[3] = GroundExploderTipVertex(segment, segmentCount, innerTipRadius, -halfDepth + twist);
+            // Six points traced around the cross-section: front cap, front chamfer,
+            // outer edge, back chamfer, back cap, then the hollow bore wall. The two
+            // chamfer strips are the narrow faces that catch a highlight.
+            float angle = (segment / (float)segmentCount) * Mathf.PI * 2f;
+            Vector2 direction = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+            SetGroundExploderRingPoint(ring, 0, direction, innerRadius, halfDepth, 0f);
+            SetGroundExploderRingPoint(ring, 1, direction, capRadius, depth, twist);
+            SetGroundExploderRingPoint(ring, 2, direction, radius, depth - localBevel, twist);
+            SetGroundExploderRingPoint(ring, 3, direction, radius, -depth + localBevel, twist);
+            SetGroundExploderRingPoint(ring, 4, direction, capRadius, -depth, twist);
+            SetGroundExploderRingPoint(ring, 5, direction, innerRadius, -halfDepth, 0f);
         }
 
-        private static Vector3 GroundExploderTipVertex(int segment, int segmentCount, float radius, float depth)
+        private static void SetGroundExploderRingPoint(
+            Vector3[] ring,
+            int index,
+            Vector2 direction,
+            float radius,
+            float depth,
+            float twist)
         {
-            float angle = (segment / (float)segmentCount) * Mathf.PI * 2f;
-            return new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, depth);
+            ring[index] = new Vector3(direction.x * radius, direction.y * radius, depth + twist);
         }
 
         // Quads are emitted with their own vertices so normals stay hard and the

@@ -3790,7 +3790,9 @@ namespace DuneVector
         [Range(-360f, 360f)] public float CoreShardOrbitSpeed = 96f;
 
         [Header("Appearance - Warning Rings")]
-        [Min(0.05f)] public float HubRingRadius = 0.7f;
+        [Tooltip("Major radius of the red warning ring seated in the hub bore. Keep it near Hub Radius so the ring lip protrudes into the bore instead of sinking into the disc.")]
+        [Min(0.05f)] public float HubRingRadius = 0.67f;
+        [Min(0.005f)] public float HubRingThickness = 0.06f;
         [Min(0.05f)] public float TelegraphRingRadius = 1.25f;
         [Min(0f)] public float TelegraphRingSpacing = 0.32f;
         [Min(0.005f)] public float TelegraphRingThickness = 0.055f;

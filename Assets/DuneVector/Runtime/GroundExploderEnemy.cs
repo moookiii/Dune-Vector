@@ -691,7 +691,6 @@ namespace DuneVector
         private Transform _wheel;
         private Quaternion _wheelBaseRotation;
         private Transform _beacon;
-        private Transform _spikeTips;
         private Transform _core;
         private Transform[] _telegraphRings;
         private Transform _explosionFlash;
@@ -713,8 +712,7 @@ namespace DuneVector
             _wheel = _root.Find("Spiked Hollow Wheel");
             _wheelBaseRotation = _wheel != null ? _wheel.localRotation : Quaternion.identity;
             _beacon = _root.Find("Warning Ring");
-            _spikeTips = _wheel != null ? _wheel.Find("Spike Tips") : null;
-            _spikeTipRenderer = _spikeTips != null ? _spikeTips.GetComponent<Renderer>() : null;
+            _spikeTipRenderer = _wheel != null ? _wheel.GetComponent<Renderer>() : null;
             _core = _root.Find("Live Core");
             _coreRenderers = _core != null
                 ? _core.GetComponentsInChildren<Renderer>(true)
@@ -809,15 +807,15 @@ namespace DuneVector
             _appliedCharge = charge;
             if (_spikeTipRenderer != null)
             {
+                // Only the spike-tip submesh heats up; the body and chamfer keep
+                // their authored materials.
                 _chargeProperties.Clear();
                 _chargeProperties.SetColor(
                     EmissionColorId,
                     Color.Lerp(_settings.SpikeTipIdleEmission, _settings.SpikeTipChargedEmission, charge));
-                _spikeTipRenderer.SetPropertyBlock(_chargeProperties);
-            }
-            if (_spikeTips != null)
-            {
-                _spikeTips.localScale = Vector3.one * Mathf.Lerp(1f, _settings.ChargeSpikeExtension, charge);
+                _spikeTipRenderer.SetPropertyBlock(
+                    _chargeProperties,
+                    DuneVectorVisuals.GroundExploderTipSubmesh);
             }
             Color coreColor = Color.Lerp(_settings.CoreIdleEmission, _settings.CoreChargedEmission, charge);
             for (int i = 0; i < _coreRenderers.Length; i++)
