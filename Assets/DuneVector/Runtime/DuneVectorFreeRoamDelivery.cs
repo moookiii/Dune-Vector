@@ -664,6 +664,11 @@ namespace DuneVector
 
         private void DrawStreakCounter()
         {
+            if (Streak <= 0)
+            {
+                return;
+            }
+
             FreeRoamStreakTier tier = _settings.EvaluateTier(Mathf.Max(1, Streak));
             float punch = _settings.StreakCounterPunchDuration <= 0f
                 ? 0f
@@ -675,7 +680,7 @@ namespace DuneVector
             Matrix4x4 previousMatrix = GUI.matrix;
             GUIUtility.ScaleAroundPivot(new Vector2(scale, scale), new Vector2(centerX, centerY));
 
-            float width = Mathf.Max(240f, Screen.width * 0.26f);
+            float width = Screen.width;
             Rect multiplierRect = new Rect(
                 centerX - (width * 0.5f),
                 centerY - (_settings.StreakMultiplierFontSize * 0.62f),
@@ -683,7 +688,7 @@ namespace DuneVector
                 _settings.StreakMultiplierFontSize * 1.3f);
             Rect labelRect = new Rect(
                 multiplierRect.x,
-                multiplierRect.yMax - 4f,
+                multiplierRect.yMax,
                 width,
                 _settings.StreakLabelFontSize * 1.5f);
             Rect rewardRect = new Rect(
@@ -696,11 +701,8 @@ namespace DuneVector
             _labelStyle.fontSize = _settings.StreakLabelFontSize;
             _rewardStyle.fontSize = _settings.StreakRewardFontSize;
 
-            int displayStreak = Mathf.Max(1, Streak);
-            string multiplierText = $"{displayStreak}x";
-            string labelText = Streak <= 0
-                ? "STREAK STANDING BY"
-                : IsHardRoute && !string.IsNullOrEmpty(_settings.HardRoutePrefix)
+            string multiplierText = $"{Streak}x";
+            string labelText = IsHardRoute && !string.IsNullOrEmpty(_settings.HardRoutePrefix)
                 ? $"{tier.Label}  •  {_settings.EvaluateDeliveryGold(Streak)} GOLD PER DROP  •  {_settings.HardRoutePrefix}"
                 : $"{tier.Label}  •  {_settings.EvaluateDeliveryGold(Streak)} GOLD PER DROP";
             DrawShadowedLabel(multiplierRect, multiplierText, _multiplierStyle, tier.Color);
@@ -744,6 +746,9 @@ namespace DuneVector
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
                 richText = false,
+                wordWrap = false,
+                clipping = TextClipping.Overflow,
+                padding = new RectOffset(0, 0, 0, 0),
             };
             _labelStyle = new GUIStyle(_multiplierStyle) { fontStyle = FontStyle.Bold };
             _rewardStyle = new GUIStyle(_multiplierStyle) { fontStyle = FontStyle.Bold };
