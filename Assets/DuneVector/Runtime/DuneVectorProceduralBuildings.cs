@@ -286,10 +286,7 @@ namespace DuneVector
                 // the authored hierarchy, so the instance matrix has to keep both.
                 Matrix4x4 rootMatrix =
                     Matrix4x4.TRS(position, rotation, Vector3.one) *
-                    Matrix4x4.TRS(
-                        prefab.transform.localPosition,
-                        prefab.transform.localRotation,
-                        prefab.transform.localScale);
+                    GetPrefabRootMatrix(prefab);
                 rootMatrix = GroundToDunes(rootMatrix, sources);
 
                 int hueIndex = SelectHueIndex(cell, saltOffset);
@@ -641,6 +638,7 @@ namespace DuneVector
             }
 
             float radius = 0f;
+            Matrix4x4 prefabRootMatrix = GetPrefabRootMatrix(prefab);
             List<BuildingRendererSource> sources = GetRendererSources(prefab);
             for (int sourceIndex = 0; sourceIndex < sources.Count; sourceIndex++)
             {
@@ -649,12 +647,27 @@ namespace DuneVector
                 {
                     Vector3 rootCorner = source.LocalToPrefabRoot.MultiplyPoint3x4(
                         BoundsCorner(source.LocalBounds, corner));
-                    radius = Mathf.Max(radius, new Vector2(rootCorner.x, rootCorner.z).magnitude);
+                    Vector3 placementCorner = prefabRootMatrix.MultiplyPoint3x4(rootCorner);
+                    radius = Mathf.Max(
+                        radius,
+                        new Vector2(placementCorner.x, placementCorner.z).magnitude);
                 }
             }
 
             _prefabFootprintRadii[prefab] = radius;
             return radius;
+        }
+
+        // The prefab root transform is part of every rendered instance. Footprint checks
+        // must apply it too or an authored root scale/offset can extend the visible building
+        // beyond the radius reserved around its placement anchor.
+        private static Matrix4x4 GetPrefabRootMatrix(GameObject prefab)
+        {
+            Transform prefabTransform = prefab.transform;
+            return Matrix4x4.TRS(
+                prefabTransform.localPosition,
+                prefabTransform.localRotation,
+                prefabTransform.localScale);
         }
 
         // Sinks the building until its lowest rendered corner sits on the lowest terrain
