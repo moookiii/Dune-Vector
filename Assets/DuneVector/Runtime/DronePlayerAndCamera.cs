@@ -542,6 +542,23 @@ namespace DuneVector
             transform.position = _currentFollowPosition + (castDirection * _currentDistance) + (transform.up * FollowPointFraming.y);
         }
 
+        /// <summary>
+        /// Re-anchors the smoothed follow point onto the target without touching the camera's
+        /// yaw or pitch. Used to pin the camera to the drone for a few frames after a teleport,
+        /// so a floating-origin rebase cannot leave the follow point smoothing in from the
+        /// position the drone teleported away from.
+        /// </summary>
+        public void SnapFollowPositionToTarget()
+        {
+            if (FollowTransform == null)
+            {
+                return;
+            }
+            _currentFollowPosition = FollowTransform.position;
+            Vector3 castDirection = -(transform.rotation * Vector3.forward);
+            transform.position = _currentFollowPosition + (castDirection * _currentDistance) + (transform.up * FollowPointFraming.y);
+        }
+
         public void SnapToTarget(Vector3 forward)
         {
             Vector3 planarForward = Vector3.ProjectOnPlane(forward, Vector3.up);

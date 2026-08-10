@@ -367,6 +367,9 @@ namespace DuneVector
             Check(courier.ActiveObjective == null,
                 "Returning to the hub clears the abandoned route objective",
                 "An objective remained active after returning to the hub.");
+            Check(bootstrap.DroneCamera.FollowingError < 1f,
+                "Camera arrives at the hub with the drone instead of sweeping in behind it",
+                $"Camera follow point sat {bootstrap.DroneCamera.FollowingError:0.00} m from the drone after the hub placement.");
         }
 
         private void SampleTelemetry(DroneCharacterController drone, DroneCameraController camera, DesertWorldStreamer world)

@@ -439,9 +439,9 @@ namespace DuneVector
         private Transform _hubEnergyOrbit;
         private Transform _upgradeEnergyOrbit;
         private Vector3 _hubSpawn;
-        // Set when the player is placed at the hub spawn so the follow camera is re-snapped after
-        // the character motor has settled, instead of smoothing in from where the player died.
-        private bool _hubCameraSnapPending;
+        // Counts down while the follow camera is pinned to the drone after a teleport, so the
+        // camera cannot smooth in from where the drone came from.
+        private float _cameraPinSecondsRemaining;
         private Vector3 _desertSpawn;
         private Quaternion _desertRotation;
         private Transform _package;
@@ -795,25 +795,33 @@ namespace DuneVector
         }
 
         /// <summary>
-        /// Re-snaps the follow camera the frame after the player is placed at the hub spawn. The
-        /// character motor finishes its teleport during the next simulation step, so a snap taken
-        /// at placement time can still leave the camera smoothing in from the previous location
-        /// (most visibly after respawning from a death out in the desert).
+        /// Snaps the follow camera onto the teleported drone and pins it there for a short window.
+        /// A single snap at placement time is not enough: the character motor settles during the
+        /// next simulation step, and a long jump (dying far out in free roam and restoring to the
+        /// hub) makes the streamer rebase its floating origin on a later frame. Either one can
+        /// leave the follow point behind, and the camera then sweeps across the desert to catch up.
+        /// </summary>
+        private void PinCameraToPlayer(Vector3 forward)
+        {
+            _cameraPinSecondsRemaining = Mathf.Max(0f, _hubSettings.TeleportCameraPinSeconds);
+            _cameraController?.SnapToTarget(forward);
+        }
+
+        /// <summary>
+        /// Holds the pinned camera on the drone every frame of the window. This runs after the
+        /// streamer's floating-origin rebase and after the player camera update, so it is the last
+        /// word on where the follow point sits. Only the follow position is re-anchored, leaving
+        /// the player free to look around immediately.
         /// </summary>
         private void LateUpdate()
         {
-            if (!_hubCameraSnapPending)
+            if (_cameraPinSecondsRemaining <= 0f)
             {
                 return;
             }
 
-            _hubCameraSnapPending = false;
-            if (_cameraController == null || _player == null)
-            {
-                return;
-            }
-
-            _cameraController.SnapToTarget(_player.transform.forward);
+            _cameraPinSecondsRemaining -= Time.unscaledDeltaTime;
+            _cameraController?.SnapFollowPositionToTarget();
         }
 
         private void Update()
@@ -1689,8 +1697,7 @@ namespace DuneVector
             {
                 _player.Motor.SetPositionAndRotation(_hubSpawn, Quaternion.identity, true);
                 _player.ResetTraversalAfterTeleport(Vector3.forward);
-                _cameraController?.SnapToTarget(Vector3.forward);
-                _hubCameraSnapPending = true;
+                PinCameraToPlayer(Vector3.forward);
             }
             SetCombatSystemsActive(false);
             _stormDirector?.SetHubLightningActive();
@@ -2697,7 +2704,7 @@ namespace DuneVector
             _player.Motor.SetPositionAndRotation(_hubSpawn, Quaternion.identity, true);
             _health.SetDamageImmune(true);
             _player.ResetTraversalAfterTeleport(Vector3.forward);
-            _cameraController?.SnapToTarget(Vector3.forward);
+            PinCameraToPlayer(Vector3.forward);
             CreateTeleportParticles();
             RecenterTeleportParticles(_hubSpawn);
         }
@@ -2750,7 +2757,7 @@ namespace DuneVector
                 _player.Motor.SetPositionAndRotation(position, rotation, true);
                 _health.SetDamageImmune(toHub);
                 _player.ResetTraversalAfterTeleport(rotation * Vector3.forward);
-                _cameraController?.SnapToTarget(rotation * Vector3.forward);
+                PinCameraToPlayer(rotation * Vector3.forward);
                 RecenterTeleportParticles(position);
                 if (!toHub)
                 {
@@ -3044,6 +3051,12 @@ namespace DuneVector
                 _hubSpawn += shift;
             }
             _desertSpawn += shift;
+            // A rebase triggered by the teleport itself must not strand the pinned follow point:
+            // re-anchor it in the new origin frame the moment the world moves under it.
+            if (_cameraPinSecondsRemaining > 0f)
+            {
+                _cameraController?.SnapFollowPositionToTarget();
+            }
             _objectiveRing?.ApplyWorldShift(shift);
             if ((State == CourierRunState.TeleportingToDesert ||
                  State == CourierRunState.FindPackage) &&
