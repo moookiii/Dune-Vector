@@ -40,6 +40,7 @@ namespace DuneVector
             _startedAt = Time.realtimeSinceStartup;
             _projectRoot = Directory.GetParent(Application.dataPath)?.FullName ?? Application.dataPath;
             Application.logMessageReceived += OnLogMessage;
+            DuneVectorBootstrap.Instance?.MapHUD?.SetExplorationRecordingEnabled(false);
         }
 
         private void Start()

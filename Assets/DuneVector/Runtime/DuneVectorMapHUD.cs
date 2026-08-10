@@ -156,6 +156,7 @@ namespace DuneVector
         private float _nextExplorationSaveTime;
         private float _nextIconRefreshTime;
         private bool _explorationDirty;
+        private bool _explorationRecordingEnabled = true;
         private bool _forceScanRefresh;
         private bool _scanBuildActive;
         private bool _worldMapPausedGame;
@@ -258,6 +259,27 @@ namespace DuneVector
                     IsExplored,
                     IsWorldMapTerrainTileExplored);
             }
+        }
+
+        /// <summary>
+        /// Prevents automated editor validation from revealing or persisting cells in the
+        /// player's real exploration file. Validation deliberately drives and rebases the
+        /// drone over synthetic routes, which must never become player map history.
+        /// </summary>
+        internal void SetExplorationRecordingEnabled(bool enabled)
+        {
+            _explorationRecordingEnabled = enabled;
+            if (!enabled)
+            {
+                _explorationDirty = false;
+                return;
+            }
+
+            LogicalPosition center = _world != null
+                ? _world.LogicalPlayerPosition
+                : new LogicalPosition(0d, 0d);
+            _lastRevealX = center.X;
+            _lastRevealZ = center.Z;
         }
 
         private void Update()
@@ -2213,7 +2235,10 @@ namespace DuneVector
 
         private void RevealAroundPlayer(bool force)
         {
-            if (_settings == null || !_settings.Enabled || _world == null)
+            if (!_explorationRecordingEnabled ||
+                _settings == null ||
+                !_settings.Enabled ||
+                _world == null)
             {
                 return;
             }
@@ -2664,6 +2689,16 @@ namespace DuneVector
 
         private void SaveExploration(bool flush)
         {
+            if (!_explorationRecordingEnabled)
+            {
+                if (flush && _explorationSaveTask != null)
+                {
+                    _explorationSaveTask.GetAwaiter().GetResult();
+                    CompleteExplorationSaveIfReady();
+                }
+                return;
+            }
+
             if (!_explorationDirty || _settings == null)
             {
                 if (flush && _explorationSaveTask != null)
