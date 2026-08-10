@@ -36,7 +36,7 @@ namespace DuneVector
             public int MusicVisualizerMode;
             public bool ChromaticAberrationEnabled = true;
             public bool LensDistortionEnabled = true;
-            public bool CrtLinesEnabled = true;
+            public bool CrtLinesEnabled;
             public bool FilmGrainEnabled = true;
             public bool VignetteEnabled = true;
             public bool BloomEnabled = true;
@@ -51,7 +51,7 @@ namespace DuneVector
         public MusicVisualizerMode VisualizerMode { get; private set; } = MusicVisualizerMode.All;
         public bool ChromaticAberrationEnabled { get; private set; } = true;
         public bool LensDistortionEnabled { get; private set; } = true;
-        public bool CrtLinesEnabled { get; private set; } = true;
+        public bool CrtLinesEnabled { get; private set; }
         public bool FilmGrainEnabled { get; private set; } = true;
         public bool VignetteEnabled { get; private set; } = true;
         public bool BloomEnabled { get; private set; } = true;
@@ -653,7 +653,7 @@ namespace DuneVector
             PauseMenuVisualTuning defaults = _settings != null ? _settings.PauseMenu : null;
             ChromaticAberrationEnabled = defaults != null && defaults.DefaultChromaticAberrationEnabled;
             LensDistortionEnabled = defaults != null && defaults.DefaultLensDistortionEnabled;
-            CrtLinesEnabled = defaults == null || defaults.DefaultCrtLinesEnabled;
+            CrtLinesEnabled = defaults != null && defaults.DefaultCrtLinesEnabled;
             FilmGrainEnabled = defaults != null && defaults.DefaultFilmGrainEnabled;
             VignetteEnabled = defaults != null && defaults.DefaultVignetteEnabled;
             BloomEnabled = defaults != null && defaults.DefaultBloomEnabled;
@@ -1108,8 +1108,8 @@ namespace DuneVector
                 && _settings.PauseMenu.DefaultChromaticAberrationEnabled;
             LensDistortionEnabled = _settings.PauseMenu != null
                 && _settings.PauseMenu.DefaultLensDistortionEnabled;
-            CrtLinesEnabled = _settings.PauseMenu == null
-                || _settings.PauseMenu.DefaultCrtLinesEnabled;
+            CrtLinesEnabled = _settings.PauseMenu != null
+                && _settings.PauseMenu.DefaultCrtLinesEnabled;
             FilmGrainEnabled = _settings.PauseMenu != null
                 && _settings.PauseMenu.DefaultFilmGrainEnabled;
             VignetteEnabled = _settings.PauseMenu != null

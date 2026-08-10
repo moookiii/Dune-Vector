@@ -5570,7 +5570,7 @@ namespace DuneVector
         public string VideoEffectDisabledLabel = "OFF";
         public bool DefaultChromaticAberrationEnabled;
         public bool DefaultLensDistortionEnabled;
-        public bool DefaultCrtLinesEnabled = true;
+        public bool DefaultCrtLinesEnabled;
         public bool DefaultFilmGrainEnabled;
         public bool DefaultVignetteEnabled;
         public bool DefaultBloomEnabled;
