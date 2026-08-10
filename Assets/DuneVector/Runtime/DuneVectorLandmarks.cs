@@ -1345,7 +1345,7 @@ namespace DuneVector
         private void BuildBeacon(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
             float scale = _settings.BeaconScale;
-            const string beaconResourcePath = "RaiderBeacon/RaiderBeacon";
+            const string beaconResourcePath = "Nano Beacon from my 3D Graphic Novel/BeaconPrefab";
             GameObject beaconPrefab = Resources.Load<GameObject>(beaconResourcePath);
 
             if (beaconPrefab != null)

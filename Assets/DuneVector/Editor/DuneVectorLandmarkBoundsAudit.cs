@@ -22,7 +22,7 @@ namespace DuneVector.EditorTools
                 "turbine/turbinePrefab",
                 "desert_shop_Prefab",
                 "RuinedRingsPrefab",
-                "RaiderBeacon/RaiderBeacon",
+                "Nano Beacon from my 3D Graphic Novel/BeaconPrefab",
             };
 
             StringBuilder report = new StringBuilder();
