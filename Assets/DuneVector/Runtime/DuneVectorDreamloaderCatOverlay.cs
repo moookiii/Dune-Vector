@@ -83,11 +83,8 @@ namespace DuneVector
 
             MusicPlaylistTrack track = _audio.ActiveMusicTrack;
             MusicVisualTrackProfile profile = _audio.ActiveMusicTrackProfile;
-            return Contains(track != null ? track.DisplayName : null, match)
-                || Contains(track != null ? track.FmodEventPath : null, match)
-                || Contains(profile != null ? profile.DisplayName : null, match)
-                || Contains(profile != null ? profile.StableTrackId : null, match)
-                || Contains(profile != null ? profile.FmodEventPath : null, match);
+            return MatchesEventName(track != null ? track.FmodEventPath : null, match)
+                || MatchesEventName(profile != null ? profile.FmodEventPath : null, match);
         }
 
         private bool TryResolveActiveSectionStart(int timelineMilliseconds, out int startMilliseconds)
@@ -136,10 +133,20 @@ namespace DuneVector
             Array.Sort(_frames, (left, right) => string.CompareOrdinal(left.name, right.name));
         }
 
-        private static bool Contains(string value, string match)
+        private static bool MatchesEventName(string eventPath, string match)
         {
-            return !string.IsNullOrEmpty(value)
-                && value.IndexOf(match, StringComparison.OrdinalIgnoreCase) >= 0;
+            if (string.IsNullOrWhiteSpace(eventPath) || string.IsNullOrWhiteSpace(match))
+            {
+                return false;
+            }
+
+            string value = eventPath.Trim();
+            int separator = value.LastIndexOf('/');
+            if (separator >= 0 && separator + 1 < value.Length)
+            {
+                value = value.Substring(separator + 1);
+            }
+            return string.Equals(value, match.Trim(), StringComparison.OrdinalIgnoreCase);
         }
     }
 }

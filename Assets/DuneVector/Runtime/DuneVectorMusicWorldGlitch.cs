@@ -254,13 +254,13 @@ namespace DuneVector
             float maximumIntensity = Mathf.Max(0.0001f, _settings.WorldGlitchMaximumIntensity);
             float envelope = Mathf.Clamp01(intensity / maximumIntensity);
             float normalizedAge = Mathf.Clamp01(_age / Mathf.Max(0.01f, _duration));
-            float seedPhase = (_seed & 0x00FFFFFFu) / 16777216f;
+            float seedPhase = (_seed % 65521u) / 65521f;
+            float rowSelectionPhase = seedPhase * 251f + normalizedAge * 17f;
             Shader.SetGlobalVector(
                 ParametersId,
                 new Vector4(
                     envelope,
-                    seedPhase * Mathf.Max(1, _settings.WorldGlitchSliceCount)
-                        + normalizedAge * Mathf.Max(1, _settings.WorldGlitchSliceCount),
+                    rowSelectionPhase,
                     Mathf.Max(1, _settings.WorldGlitchSliceCount),
                     _displacement));
             Shader.SetGlobalVector(
