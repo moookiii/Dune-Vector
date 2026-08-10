@@ -1626,6 +1626,8 @@ namespace DuneVector
         [Min(0.1f)] public float CarrierCockpitScale = 1f;
 
         [Header("Raider Beacon Detail")]
+        [Tooltip("Distance the imported Raider Beacon prefab is sunk below the landmark's ground position so its foundation feet are partially buried.")]
+        [Min(0f)] public float BeaconGroundSink = 0.65f;
         [Range(3, 8)] public int BeaconFoundationArmCount = 3;
         [Range(6, 24)] public int BeaconSignalRingSegments = 14;
         [Min(0.1f)] public float BeaconSignalRingRadius = 7.2f;

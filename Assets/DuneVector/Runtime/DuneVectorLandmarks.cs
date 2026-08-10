@@ -1352,7 +1352,7 @@ namespace DuneVector
             {
                 GameObject beacon = UnityEngine.Object.Instantiate(beaconPrefab, root, false);
                 beacon.name = "Raider Beacon";
-                beacon.transform.localPosition = Vector3.zero;
+                beacon.transform.localPosition = Vector3.down * _settings.BeaconGroundSink;
                 beacon.transform.localRotation = Quaternion.identity;
                 beacon.transform.localScale = beaconPrefab.transform.localScale * scale;
                 BuildBeaconColliders(beacon.transform);
