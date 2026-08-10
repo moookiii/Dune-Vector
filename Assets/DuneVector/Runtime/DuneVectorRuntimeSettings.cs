@@ -2661,6 +2661,22 @@ namespace DuneVector
         [Min(0.1f)] public float AttackCooldown = 3.5f;
         [Min(0.25f)] public float AttackAlignmentDistance = 4f;
 
+        [Header("Hub Passive Drift")]
+        [Tooltip("Keeps sky piercers alive and drifting while the drone is in the hub. They never chase, dive, or damage the drone in this mode.")]
+        public bool HubPassiveDriftEnabled = true;
+        [Tooltip("Radius of the slow circle each sky piercer drifts around its hub anchor.")]
+        [Min(0f)] public float HubPassiveDriftRadius = 26f;
+        [Tooltip("Degrees per second travelled around the hub drift circle.")]
+        public float HubPassiveDriftSpeed = 7f;
+        [Tooltip("Vertical bob height added to hub drift.")]
+        [Min(0f)] public float HubPassiveBobAmplitude = 2.4f;
+        [Tooltip("Vertical bob cycles per second during hub drift.")]
+        [Min(0f)] public float HubPassiveBobSpeed = 0.55f;
+        [Tooltip("Degrees per second the body yaws while drifting in the hub.")]
+        public float HubPassiveYawSpeed = 18f;
+        [Tooltip("Height above terrain used as the hub drift altitude.")]
+        [Min(0f)] public float HubPassiveHoverHeight = 34f;
+
         [Header("Attack Ground Contact")]
         [Tooltip("Baseline height of the enemy root above the sampled terrain, multiplied by Visual Scale.")]
         [Min(0f)] public float StuckCenterHeightPerVisualScale = 1.05f;

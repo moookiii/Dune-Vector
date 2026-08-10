@@ -30,6 +30,9 @@ namespace DuneVector
         private float _hoverPhase;
         private int _identity;
         private Transform _cachedTransform;
+        private bool _passiveDrift;
+        private Vector3 _passiveAnchor;
+        private float _passiveAngle;
 
         public void Initialize(
             DroneCharacterController player,
@@ -63,8 +66,84 @@ namespace DuneVector
                 PhotographableSubjectCategory.Enemy);
         }
 
+        public void SetPassiveDrift(bool passive)
+        {
+            if (_passiveDrift == passive)
+            {
+                return;
+            }
+            _passiveDrift = passive;
+            if (passive)
+            {
+                BeginPassiveDrift();
+            }
+            else
+            {
+                _hoverAnchor = _cachedTransform != null ? _cachedTransform.position : _hoverAnchor;
+                SetState(SkyPiercerState.IdleFloating);
+            }
+        }
+
+        private void BeginPassiveDrift()
+        {
+            SetState(SkyPiercerState.IdleFloating);
+            _attackCooldown = _settings.AttackCooldown;
+            _passiveAngle = _identity * 137.5f;
+            Vector3 center = _player != null ? _player.WorldCenter : _cachedTransform.position;
+            float distance = Mathf.Lerp(
+                _settings.MinimumSpawnDistance,
+                Mathf.Max(_settings.MinimumSpawnDistance, _settings.MaximumSpawnDistance),
+                Mathf.Repeat((_identity * 0.413f) + 0.27f, 1f));
+            float radians = _passiveAngle * Mathf.Deg2Rad;
+            _passiveAnchor = center + new Vector3(Mathf.Cos(radians) * distance, 0f, Mathf.Sin(radians) * distance);
+            _passiveAnchor.y = SampleGroundHeight(_passiveAnchor) + _settings.HubPassiveHoverHeight;
+            _cachedTransform.position = _passiveAnchor;
+            _hoverAnchor = _passiveAnchor;
+        }
+
+        private float SampleGroundHeight(Vector3 position)
+        {
+            return _world != null ? _world.SampleHeightAtLocal(position.x, position.z) : position.y;
+        }
+
+        private void UpdatePassiveDrift(float deltaTime)
+        {
+            _passiveAngle += _settings.HubPassiveDriftSpeed * deltaTime;
+            float radians = _passiveAngle * Mathf.Deg2Rad;
+            float radius = _settings.HubPassiveDriftRadius;
+            Vector3 target = _passiveAnchor + new Vector3(Mathf.Cos(radians) * radius, 0f, Mathf.Sin(radians) * radius);
+            target.y = SampleGroundHeight(target)
+                + _settings.HubPassiveHoverHeight
+                + (Mathf.Sin((Time.time * _settings.HubPassiveBobSpeed * Mathf.PI * 2f) + _hoverPhase)
+                    * _settings.HubPassiveBobAmplitude);
+            _cachedTransform.position = Vector3.Lerp(
+                _cachedTransform.position,
+                target,
+                DuneVectorMath.Sharpness(2.4f, deltaTime));
+            _cachedTransform.rotation = Quaternion.Euler(
+                0f,
+                _cachedTransform.rotation.eulerAngles.y + (_settings.HubPassiveYawSpeed * deltaTime),
+                0f);
+
+            if (_visual != null)
+            {
+                _visual.localPosition = Vector3.up * (Mathf.Sin((Time.time * 2.1f) + _hoverPhase) * 0.12f);
+            }
+            if (_core != null)
+            {
+                float pulse = 1f + (Mathf.Sin((Time.time * 5f) + _hoverPhase) * 0.12f);
+                _core.localScale = new Vector3(0.36f, 0.42f, 0.1f) * pulse;
+            }
+        }
+
         private void Update()
         {
+            if (_passiveDrift)
+            {
+                UpdatePassiveDrift(Time.deltaTime);
+                return;
+            }
+
             if (_player == null || _world == null || _playerHealth == null || _playerHealth.IsDead)
             {
                 return;
@@ -267,6 +346,7 @@ namespace DuneVector
             _cachedTransform.position += shift;
             _hoverAnchor += shift;
             _strikePoint += shift;
+            _passiveAnchor += shift;
         }
 
         private void OnDrawGizmosSelected()
@@ -341,11 +421,13 @@ namespace DuneVector
             {
                 ClearRiskEnemies();
             }
+            bool passiveDrift = !active && _settings != null && _settings.HubPassiveDriftEnabled;
             for (int i = 0; i < _enemies.Count; i++)
             {
                 if (_enemies[i] != null)
                 {
-                    _enemies[i].enabled = active;
+                    _enemies[i].SetPassiveDrift(passiveDrift);
+                    _enemies[i].enabled = active || passiveDrift;
                 }
             }
         }
