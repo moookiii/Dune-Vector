@@ -439,6 +439,9 @@ namespace DuneVector
         private Transform _hubEnergyOrbit;
         private Transform _upgradeEnergyOrbit;
         private Vector3 _hubSpawn;
+        // Set when the player is placed at the hub spawn so the follow camera is re-snapped after
+        // the character motor has settled, instead of smoothing in from where the player died.
+        private bool _hubCameraSnapPending;
         private Vector3 _desertSpawn;
         private Quaternion _desertRotation;
         private Transform _package;
@@ -789,6 +792,28 @@ namespace DuneVector
             }
 
             return _world.ResolvePlayerSpawnAwayFromObstacles(sample, Vector3.forward);
+        }
+
+        /// <summary>
+        /// Re-snaps the follow camera the frame after the player is placed at the hub spawn. The
+        /// character motor finishes its teleport during the next simulation step, so a snap taken
+        /// at placement time can still leave the camera smoothing in from the previous location
+        /// (most visibly after respawning from a death out in the desert).
+        /// </summary>
+        private void LateUpdate()
+        {
+            if (!_hubCameraSnapPending)
+            {
+                return;
+            }
+
+            _hubCameraSnapPending = false;
+            if (_cameraController == null || _player == null)
+            {
+                return;
+            }
+
+            _cameraController.SnapToTarget(_player.transform.forward);
         }
 
         private void Update()
@@ -1664,7 +1689,8 @@ namespace DuneVector
             {
                 _player.Motor.SetPositionAndRotation(_hubSpawn, Quaternion.identity, true);
                 _player.ResetTraversalAfterTeleport(Vector3.forward);
-                _cameraController?.SnapToTarget();
+                _cameraController?.SnapToTarget(Vector3.forward);
+                _hubCameraSnapPending = true;
             }
             SetCombatSystemsActive(false);
             _stormDirector?.SetHubLightningActive();
