@@ -390,6 +390,28 @@ namespace DuneVector
             Vector3 spinAxis = IsCollectible ? Vector3.up : Vector3.forward;
             _visualRoot.rotation = _billboardFacingRotation
                 * Quaternion.AngleAxis(_visualSpin, spinAxis);
+
+            if (RingType == TraversalRingType.Health && _collectibleIcon != null)
+            {
+                Vector3 heartToCamera = _billboardCamera.transform.position
+                    - _collectibleIcon.position;
+                if (heartToCamera.sqrMagnitude >= 0.001f)
+                {
+                    Vector3 facingDirection = heartToCamera.normalized;
+                    Vector3 uprightDirection = Vector3.ProjectOnPlane(
+                        Vector3.up,
+                        facingDirection);
+                    if (uprightDirection.sqrMagnitude >= 0.001f)
+                    {
+                        // The imported heart lies in its local XZ plane. Keep local Y facing
+                        // the camera and local Z vertical so portal spin can never tip it over.
+                        _collectibleIcon.rotation = Quaternion.LookRotation(
+                                uprightDirection.normalized,
+                                facingDirection)
+                            * _collectibleIconBaseRotation;
+                    }
+                }
+            }
         }
 
         private void UpdateFlightModeHeight(float deltaTime)
