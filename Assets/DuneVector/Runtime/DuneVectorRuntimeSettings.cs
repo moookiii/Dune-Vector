@@ -3965,7 +3965,7 @@ namespace DuneVector
         [Tooltip("Background coverage for upper flight layer portals. See GroundBoostPortalSolidity.")]
         [Range(0f, 1f)] public float UpperFlightPortalSolidity = 0.72f;
         [Tooltip("Background coverage for health portals. See GroundBoostPortalSolidity.")]
-        [Range(0f, 1f)] public float HealthPortalSolidity;
+        [Range(0f, 1f)] public float HealthPortalSolidity = 1f;
         [Tooltip("Background coverage for coin portals. See GroundBoostPortalSolidity.")]
         [Range(0f, 1f)] public float CoinPortalSolidity;
         [Tooltip("Background coverage for job pickup and delivery portals. See GroundBoostPortalSolidity.")]
