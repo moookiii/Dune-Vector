@@ -284,6 +284,13 @@ namespace DuneVector
 
             /// <summary>Landmarks this courier has already used, mirroring the free-roam run history.</summary>
             public readonly HashSet<string> UsedLandmarkIds = new HashSet<string>();
+
+            /// <summary>
+            /// Remaining hops of the current leg. A leg is a single hop unless the straight line
+            /// would cut through the hub, in which case bypass waypoints are queued ahead of the
+            /// real destination.
+            /// </summary>
+            public readonly List<Vector3> PendingWaypoints = new List<Vector3>();
         }
 
         public DynamicCourierEventType ActiveEventType { get; private set; }
@@ -490,6 +497,14 @@ namespace DuneVector
                     continue;
                 }
 
+                // Bypass waypoints are mid-leg course changes, not arrivals, so the courier picks
+                // the next one up without pausing or swapping its cargo state.
+                if (flight.PendingWaypoints.Count > 0)
+                {
+                    AdvanceAmbientWaypoint(flight);
+                    continue;
+                }
+
                 flight.TurnaroundRemaining -= deltaTime;
                 if (flight.TurnaroundRemaining > 0f)
                 {
@@ -574,10 +589,114 @@ namespace DuneVector
 
             Vector3 destination = ResolveAmbientLandmarkDestination(flight, origin)
                 ?? BuildFallbackAmbientDestination(origin, flight.FlightHeight);
-            flight.Courier.ConfigureRoute(destination, flight.CruiseSpeed, false);
+            flight.PendingWaypoints.Clear();
+            BuildHubAvoidingPath(origin, destination, flight.FlightHeight, flight.PendingWaypoints);
+            AdvanceAmbientWaypoint(flight);
             flight.TurnaroundRemaining = RandomRange(
                 _settings.AmbientMinimumTurnaroundDelay,
                 _settings.AmbientMaximumTurnaroundDelay);
+        }
+
+        /// <summary>Sends the courier to the next queued hop of its current leg.</summary>
+        private void AdvanceAmbientWaypoint(AmbientCourierFlight flight)
+        {
+            if (flight.PendingWaypoints.Count <= 0)
+            {
+                return;
+            }
+
+            Vector3 next = flight.PendingWaypoints[0];
+            flight.PendingWaypoints.RemoveAt(0);
+            flight.Courier.ConfigureRoute(next, flight.CruiseSpeed, false);
+        }
+
+        /// <summary>
+        /// Fills <paramref name="path"/> with the hops that carry a courier from
+        /// <paramref name="origin"/> to <paramref name="destination"/> without entering the hub's
+        /// no-fly ring. Ordinary routes that never come near the hub stay a single straight hop.
+        /// </summary>
+        private void BuildHubAvoidingPath(
+            Vector3 origin,
+            Vector3 destination,
+            float flightHeight,
+            List<Vector3> path)
+        {
+            float keepOut = _settings.AmbientAvoidHub
+                ? Mathf.Max(0f, _settings.AmbientHubAvoidanceRadius) +
+                  Mathf.Max(0f, _settings.AmbientHubAvoidanceClearance)
+                : 0f;
+            if (keepOut <= 0f)
+            {
+                path.Add(destination);
+                return;
+            }
+
+            Vector3 hubLocal = _world.LogicalToLocal(
+                DesertWorldStreamer.StartingLogicalPosition.x,
+                0.0,
+                DesertWorldStreamer.StartingLogicalPosition.y);
+            Vector2 hub = new Vector2(hubLocal.x, hubLocal.z);
+
+            // A destination inside the ring would drag the courier back in on its final approach,
+            // so it is pulled out to the ring edge before any bypass is planned.
+            Vector2 end = PushOutsideHubRing(new Vector2(destination.x, destination.z), hub, keepOut);
+
+            // A courier that spawned over the hub leaves radially first; every later hop then
+            // starts from clear air, which is what keeps the bypass geometry below valid.
+            Vector2 start = new Vector2(origin.x, origin.z);
+            if ((start - hub).sqrMagnitude < keepOut * keepOut)
+            {
+                start = PushOutsideHubRing(start, hub, keepOut);
+                path.Add(ToFlightPoint(start, flightHeight));
+            }
+
+            Vector2 travel = end - start;
+            float travelLength = travel.magnitude;
+            if (travelLength > Mathf.Epsilon)
+            {
+                Vector2 forward = travel / travelLength;
+                Vector2 side = new Vector2(-forward.y, forward.x);
+                Vector2 toHub = hub - start;
+                float along = Vector2.Dot(toHub, forward);
+                float lateral = Vector2.Dot(toHub, side);
+                // Only a line that clips the ring between the two ends needs help; both ends are
+                // already outside it by this point.
+                if (Mathf.Abs(lateral) < keepOut && along > 0f && along < travelLength)
+                {
+                    // Skirt the ring on the side the straight line already leans towards, so the
+                    // detour reads as a lane change rather than a doubling back.
+                    Vector2 lateralOffset = side * (lateral > 0f ? -keepOut : keepOut);
+                    // Clamping the entry and exit offsets to the space actually available keeps
+                    // both connecting hops outside the ring even on short legs.
+                    Vector2 entry = hub + lateralOffset - (forward * Mathf.Min(keepOut, along));
+                    Vector2 exit = hub + lateralOffset + (forward * Mathf.Min(keepOut, travelLength - along));
+                    path.Add(ToFlightPoint(entry, flightHeight));
+                    path.Add(ToFlightPoint(exit, flightHeight));
+                }
+            }
+
+            path.Add(ToFlightPoint(end, flightHeight));
+        }
+
+        private static Vector2 PushOutsideHubRing(Vector2 planar, Vector2 hub, float keepOut)
+        {
+            Vector2 offset = planar - hub;
+            float distance = offset.magnitude;
+            if (distance >= keepOut)
+            {
+                return planar;
+            }
+
+            Vector2 direction = distance > Mathf.Epsilon ? offset / distance : Vector2.right;
+            return hub + (direction * keepOut);
+        }
+
+        private Vector3 ToFlightPoint(Vector2 planar, float flightHeight)
+        {
+            return new Vector3(
+                planar.x,
+                _world.SampleHeightAtLocal(planar.x, planar.y) + flightHeight,
+                planar.y);
         }
 
         private Vector3? ResolveAmbientLandmarkDestination(AmbientCourierFlight flight, Vector3 origin)
@@ -851,7 +970,14 @@ namespace DuneVector
             }
             for (int i = 0; i < _ambientCouriers.Count; i++)
             {
-                _ambientCouriers[i].Courier?.HandleWorldShift(worldShift);
+                AmbientCourierFlight flight = _ambientCouriers[i];
+                flight.Courier?.HandleWorldShift(worldShift);
+                // Queued bypass hops are stored in local space, so they travel with the origin
+                // rebase exactly as the courier's active destination does.
+                for (int waypoint = 0; waypoint < flight.PendingWaypoints.Count; waypoint++)
+                {
+                    flight.PendingWaypoints[waypoint] += worldShift;
+                }
             }
         }
 

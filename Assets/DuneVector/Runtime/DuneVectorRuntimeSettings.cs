@@ -2475,6 +2475,12 @@ namespace DuneVector
         [Min(0f)] public float AmbientMinimumTurnaroundDelay;
         [Min(0f)] public float AmbientMaximumTurnaroundDelay;
         [Min(1f)] public float AmbientDespawnDistance;
+        [Tooltip("Route ambient neutral couriers around the hub instead of letting them fly straight over it.")]
+        public bool AmbientAvoidHub = true;
+        [Tooltip("Horizontal radius around the hub centre that ambient neutral couriers treat as no-fly airspace.")]
+        [Min(0f)] public float AmbientHubAvoidanceRadius = 200f;
+        [Tooltip("Extra horizontal margin added outside the hub no-fly radius when a bypass waypoint is placed.")]
+        [Min(0f)] public float AmbientHubAvoidanceClearance = 60f;
         [Min(0.01f)] public float AmbientPackageScale;
         public Vector3 AmbientPackageOffset;
 
