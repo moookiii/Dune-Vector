@@ -45,6 +45,7 @@ namespace DuneVector
         private GameObject[] _prefabs = Array.Empty<GameObject>();
         private Transform _buildingRoot;
         private float _refreshTimer;
+        private int _hueSettingsHash;
 
         public void Initialize(
             DesertWorldStreamer world,
@@ -56,6 +57,7 @@ namespace DuneVector
             _settings = settings;
             _geoglyphs = geoglyphs;
             _landmarks = landmarks;
+            _hueSettingsHash = ComputeHueSettingsHash();
             _prefabs = Resources.LoadAll<GameObject>(_settings.ResourceFolder ?? string.Empty);
             Array.Sort(_prefabs, (left, right) =>
                 string.Compare(left != null ? left.name : string.Empty,
@@ -101,19 +103,23 @@ namespace DuneVector
                 _world.WorldShifted -= HandleWorldShifted;
             }
 
-            foreach (Material tinted in _tintedMaterials.Values)
-            {
-                if (tinted != null)
-                {
-                    Destroy(tinted);
-                }
-            }
-            _tintedMaterials.Clear();
+            DestroyTintedMaterials();
         }
 
         private void Refresh()
         {
             _refreshTimer = Mathf.Max(0.1f, _settings.RefreshInterval);
+
+            int hueSettingsHash = ComputeHueSettingsHash();
+            if (hueSettingsHash != _hueSettingsHash)
+            {
+                // Cells retain their selected palette index and render buckets retain
+                // their generated material. Rebuild both when live WORLD tuning changes.
+                ClearLoadedCells();
+                DestroyTintedMaterials();
+                _hueSettingsHash = hueSettingsHash;
+            }
+
             if (!_settings.Enabled || _settings.AmountMultiplier <= 0f)
             {
                 ClearLoadedCells();
@@ -513,6 +519,25 @@ namespace DuneVector
                 _settings.HueTints.Length - 1);
         }
 
+        private int ComputeHueSettingsHash()
+        {
+            unchecked
+            {
+                int hash = _settings.HueVariationEnabled ? 1 : 0;
+                hash = (hash * 397) ^ _settings.HueVariationStrength.GetHashCode();
+
+                Color[] hueTints = _settings.HueTints;
+                int tintCount = hueTints != null ? hueTints.Length : 0;
+                hash = (hash * 397) ^ tintCount;
+                for (int i = 0; i < tintCount; i++)
+                {
+                    hash = (hash * 397) ^ hueTints[i].GetHashCode();
+                }
+
+                return hash;
+            }
+        }
+
         private void ApplyHueVariation(GameObject instance, int hueIndex)
         {
             Renderer[] renderers = instance.GetComponentsInChildren<Renderer>(true);
@@ -763,6 +788,18 @@ namespace DuneVector
                 DestroyCell(buildingCell);
             }
             _loadedCells.Clear();
+        }
+
+        private void DestroyTintedMaterials()
+        {
+            foreach (Material tinted in _tintedMaterials.Values)
+            {
+                if (tinted != null)
+                {
+                    Destroy(tinted);
+                }
+            }
+            _tintedMaterials.Clear();
         }
 
         private void DestroyCell(BuildingCell buildingCell)
