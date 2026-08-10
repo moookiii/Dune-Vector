@@ -2961,6 +2961,8 @@ namespace DuneVector
         [Min(0f)] public float MinimumTargetHeightAboveGround = 3f;
         [Tooltip("Time spent visibly following the airborne drone before locking the predicted strike point.")]
         [Min(0f)] public float TrackingDuration = 0.55f;
+        [Tooltip("FMOD one-shot event played when the Strike Ring finishes tracking and locks its strike target onto the drone.")]
+        public string LockOnAlertEvent = "event:/Alert";
         [Tooltip("Multiplier applied to the exact time remaining until impact when predicting the drone's future position. A value of 1 aims at a constant-velocity intercept.")]
         [Min(0f)] public float PredictionTimeMultiplier = 1f;
         [Tooltip("Maximum distance the predicted strike point can lead ahead of the drone.")]

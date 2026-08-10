@@ -1205,6 +1205,9 @@ namespace DuneVector
             }
 
             _lightning.BeginCharge(_trackedTarget);
+            DuneVectorAudioManager.Instance?.PlayStrikeRingLockAlert(
+                _settings.LockOnAlertEvent,
+                transform.position);
             SetState(StormPyramidState.ChargingAttack);
         }
 

@@ -711,6 +711,11 @@ namespace DuneVector
             PlayConfiguredOneShot(_settings != null ? _settings.DeliveryRingEvent : null, position, "delivery ring");
         }
 
+        public void PlayStrikeRingLockAlert(string eventPath, Vector3 position)
+        {
+            PlayConfiguredOneShot(eventPath, position, "strike ring lock alert");
+        }
+
         public void PlayVesperMissileAlert(Vector3 position)
         {
             PlayConfiguredOneShot(
