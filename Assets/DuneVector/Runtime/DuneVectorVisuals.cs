@@ -100,6 +100,7 @@ namespace DuneVector
         private readonly List<GeoglyphMaterialBatch> _geoglyphBatches = new List<GeoglyphMaterialBatch>();
         private readonly Dictionary<Material, Material> _portalHaloMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalShadowMaterials = new Dictionary<Material, Material>();
+        private readonly Dictionary<Material, Material> _portalContrastOutlineMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalRearLineMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalFrontLineMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalParticleMaterials = new Dictionary<Material, Material>();
@@ -1001,6 +1002,31 @@ namespace DuneVector
             material.SetFloat("_PulseAmount", 0f);
             _ownedMaterials.Add(material);
             _portalShadowMaterials.Add(lineMaterial, material);
+            return material;
+        }
+
+        public Material CreatePortalContrastOutlineMaterial(Material lineMaterial)
+        {
+            if (_portalContrastOutlineMaterials.TryGetValue(lineMaterial, out Material existing) && existing != null)
+            {
+                return existing;
+            }
+
+            Material material = new Material(lineMaterial)
+            {
+                name = $"{lineMaterial.name} - Contrast Outline",
+                enableInstancing = true,
+            };
+            material.SetColor("_PortalColor", RingPortalTuning.PortalContrastOutlineColor);
+            material.SetFloat("_Opacity", RingPortalTuning.PortalContrastOutlineOpacity);
+            material.SetFloat("_Solidity", RingPortalTuning.PortalContrastOutlineSolidity);
+            material.SetInt("_PortalBlendOp", (int)BlendOp.Add);
+            material.SetFloat("_BloomIntensity", 1f);
+            material.SetFloat("_CoreMode", 2f);
+            material.SetFloat("_TravelPulseBrightness", 0f);
+            material.SetFloat("_PulseAmount", 0f);
+            _ownedMaterials.Add(material);
+            _portalContrastOutlineMaterials.Add(lineMaterial, material);
             return material;
         }
 
@@ -2307,6 +2333,9 @@ namespace DuneVector
         {
             float lineLayerDepth = Mathf.Max(0f, settings.PortalLineLayerDepth);
             Renderer dropShadowRenderer = null;
+            Renderer contrastOutlineRenderer = null;
+            Transform dropShadowTransform = null;
+            Vector3 dropShadowBaseLocalPosition = Vector3.zero;
             if (settings.PortalDropShadowEnabled)
             {
                 GameObject dropShadow = CreateMeshObject(
@@ -2320,13 +2349,32 @@ namespace DuneVector
                     materials.CreatePortalShadowMaterial(lineMaterial));
                 // Portals turn to face the camera, so an offset in the portal's own plane
                 // reads as the screen-space offset a drop shadow is supposed to have.
-                dropShadow.transform.localPosition = new Vector3(
+                dropShadowBaseLocalPosition = new Vector3(
                     settings.PortalDropShadowOffsetFraction.x * radius,
                     settings.PortalDropShadowOffsetFraction.y * radius,
                     -lineLayerDepth * 2f);
+                dropShadow.transform.localPosition = dropShadowBaseLocalPosition;
+                dropShadowTransform = dropShadow.transform;
                 DisableRendererShadows(dropShadow);
                 dropShadowRenderer = dropShadow.GetComponent<MeshRenderer>();
-                dropShadowRenderer.sortingOrder = -3;
+                dropShadowRenderer.sortingOrder = -4;
+            }
+
+            if (settings.PortalContrastOutlineEnabled)
+            {
+                GameObject contrastOutline = CreateMeshObject(
+                    "Portal Contrast Outline",
+                    parent,
+                    GetPortalLineMesh(
+                        radius,
+                        settings,
+                        settings.PortalContrastOutlineWidthMultiplier,
+                        PortalLineLayer.All),
+                    materials.CreatePortalContrastOutlineMaterial(lineMaterial));
+                contrastOutline.transform.localPosition = Vector3.back * lineLayerDepth;
+                DisableRendererShadows(contrastOutline);
+                contrastOutlineRenderer = contrastOutline.GetComponent<MeshRenderer>();
+                contrastOutlineRenderer.sortingOrder = -3;
             }
 
             Material haloMaterial = materials.CreatePortalHaloMaterial(lineMaterial);
@@ -2434,6 +2482,14 @@ namespace DuneVector
                 sparkRenderer,
                 activationPulseRenderer,
             };
+            if (contrastOutlineRenderer != null)
+            {
+                portalRenderers.Add(contrastOutlineRenderer);
+            }
+            if (dropShadowRenderer != null)
+            {
+                portalRenderers.Add(dropShadowRenderer);
+            }
             if (additionalRenderers != null)
             {
                 portalRenderers.AddRange(additionalRenderers);
@@ -2460,6 +2516,8 @@ namespace DuneVector
                 detailRenderers.ToArray(),
                 activationPulseRenderer,
                 activationPulse.transform,
+                dropShadowTransform,
+                dropShadowBaseLocalPosition,
                 settings);
         }
 

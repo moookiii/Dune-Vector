@@ -3957,7 +3957,7 @@ namespace DuneVector
         [Tooltip("Background coverage for blue flight portals. See GroundBoostPortalSolidity.")]
         [Range(0f, 1f)] public float FlightPortalSolidity;
         [Tooltip("Background coverage for upper flight layer portals. See GroundBoostPortalSolidity.")]
-        [Range(0f, 1f)] public float UpperFlightPortalSolidity;
+        [Range(0f, 1f)] public float UpperFlightPortalSolidity = 0.72f;
         [Tooltip("Background coverage for health portals. See GroundBoostPortalSolidity.")]
         [Range(0f, 1f)] public float HealthPortalSolidity;
         [Tooltip("Background coverage for coin portals. See GroundBoostPortalSolidity.")]
@@ -3978,6 +3978,18 @@ namespace DuneVector
         public Vector2 PortalDropShadowOffsetFraction = new Vector2(0.03f, -0.03f);
         [Tooltip("How much wider the shadow stroke is than the linework it sits behind. Higher values read as a softer, more spread shadow.")]
         [Range(1f, 6f)] public float PortalDropShadowWidthMultiplier = 2.4f;
+
+        [Header("Portal Contrast Outline")]
+        [Tooltip("Draws a centered dark outline behind the complete portal line mesh. Unlike the offset drop shadow, this preserves contrast around every edge of a portal and remains readable near the sides of the screen.")]
+        public bool PortalContrastOutlineEnabled = true;
+        [Tooltip("Colour of the centered portal contrast outline.")]
+        [ColorUsage(false, true)] public Color PortalContrastOutlineColor = new Color(0.006f, 0.008f, 0.015f);
+        [Tooltip("Opacity of the centered portal contrast outline before its solidity is applied.")]
+        [Range(0f, 1f)] public float PortalContrastOutlineOpacity = 0.82f;
+        [Tooltip("How much background the centered contrast outline hides.")]
+        [Range(0f, 1f)] public float PortalContrastOutlineSolidity = 0.94f;
+        [Tooltip("How much wider the centered contrast outline is than the portal linework.")]
+        [Range(1f, 6f)] public float PortalContrastOutlineWidthMultiplier = 1.65f;
 
         [Header("Portal Detail Culling")]
         [Tooltip("Distance past which a portal draws only its linework, dropping the halos, the drop shadow, and the edge sparks. Those are wide transparent surfaces that cost overdraw everywhere they land but read as nothing at range. Set to 0 to keep every layer at every distance.")]

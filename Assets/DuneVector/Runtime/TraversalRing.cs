@@ -300,6 +300,7 @@ namespace DuneVector
                         (_portalVisual != null ? _portalVisual.RotationSpeedMultiplier : 1f) *
                         deltaTime),
                     360f);
+                _portalVisual?.SetVisualSpin(_visualSpin);
                 if (IsCollectible)
                 {
                     if (_collectibleIcon != null)

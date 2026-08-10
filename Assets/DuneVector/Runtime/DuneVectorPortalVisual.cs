@@ -14,6 +14,8 @@ namespace DuneVector
         private Renderer[] _detailRenderers;
         private Renderer _activationPulseRenderer;
         private Transform _activationPulseTransform;
+        private Transform _dropShadowTransform;
+        private Vector3 _dropShadowBaseLocalPosition;
         private MaterialPropertyBlock _properties;
         private float _fadeStartDistance;
         private float _fadeEndDistance;
@@ -46,6 +48,8 @@ namespace DuneVector
             Renderer[] detailRenderers,
             Renderer activationPulseRenderer,
             Transform activationPulseTransform,
+            Transform dropShadowTransform,
+            Vector3 dropShadowBaseLocalPosition,
             RingTuning settings)
         {
             _renderers = renderers;
@@ -54,6 +58,8 @@ namespace DuneVector
             _detailCullDistanceSquared = detailCullDistance * detailCullDistance;
             _activationPulseRenderer = activationPulseRenderer;
             _activationPulseTransform = activationPulseTransform;
+            _dropShadowTransform = dropShadowTransform;
+            _dropShadowBaseLocalPosition = dropShadowBaseLocalPosition;
             _properties = new MaterialPropertyBlock();
             _fadeStartDistance = Mathf.Max(0f, settings.PortalCameraFadeStartDistance);
             _fadeEndDistance = Mathf.Max(_fadeStartDistance + 0.01f, settings.PortalCameraFadeEndDistance);
@@ -77,6 +83,26 @@ namespace DuneVector
                 ApplyPulseOpacity(0f);
                 _activationPulseRenderer.gameObject.SetActive(false);
             }
+        }
+
+        public void SetVisualSpin(float angleDegrees)
+        {
+            if (_dropShadowTransform == null)
+            {
+                return;
+            }
+
+            // The whole portal spins around its normal. Counter-rotate only the shadow's
+            // translation so its offset remains screen-stable while its matching line mesh
+            // continues to spin with the portal.
+            Vector2 baseOffset = new Vector2(
+                _dropShadowBaseLocalPosition.x,
+                _dropShadowBaseLocalPosition.y);
+            Vector3 correctedOffset = Quaternion.Euler(0f, 0f, -angleDegrees) * baseOffset;
+            _dropShadowTransform.localPosition = new Vector3(
+                correctedOffset.x,
+                correctedOffset.y,
+                _dropShadowBaseLocalPosition.z);
         }
 
         public void PlayActivationReaction(
