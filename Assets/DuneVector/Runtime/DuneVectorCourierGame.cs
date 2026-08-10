@@ -1704,6 +1704,10 @@ namespace DuneVector
             if (placePlayerAtSpawn)
             {
                 _player.Motor.SetPositionAndRotation(_hubSpawn, Quaternion.identity, true);
+                // An immediate hub restore must complete its floating-origin shift before the
+                // camera is snapped. Deferring this rebase to the streamer's LateUpdate leaves
+                // the follow camera in the old desert frame for a visible cross-world sweep.
+                _world.RebaseAroundPlayerIfNeeded();
                 _player.ResetTraversalAfterTeleport(Vector3.forward);
                 PinCameraToPlayer(Vector3.forward);
             }

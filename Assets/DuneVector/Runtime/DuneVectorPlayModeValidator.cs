@@ -370,6 +370,23 @@ namespace DuneVector
             Check(bootstrap.DroneCamera.FollowingError < 1f,
                 "Camera arrives at the hub with the drone instead of sweeping in behind it",
                 $"Camera follow point sat {bootstrap.DroneCamera.FollowingError:0.00} m from the drone after the hub placement.");
+
+            // A death-menu restart bypasses the normal return teleport. Reproduce the important
+            // part of a long free-roam delivery run by moving the floating origin more than one
+            // threshold away from the hub, then restoring immediately.
+            float distantOriginShift = Mathf.Ceil(
+                (bootstrap.World.FloatingOriginThreshold + bootstrap.World.ChunkSize) /
+                bootstrap.World.ChunkSize) * bootstrap.World.ChunkSize;
+            bootstrap.World.RebaseNow(new Vector3(distantOriginShift, 0f, 0f));
+            bootstrap.Drone.Motor.SetPosition(Vector3.zero, true);
+            int rebasesBeforeImmediateRestart = bootstrap.World.RebaseCount;
+            courier.RestartAtHub(playReturnEffect: false);
+            Check(
+                bootstrap.World.RebaseCount == rebasesBeforeImmediateRestart + 1 &&
+                bootstrap.DroneCamera.FollowingError < 1f,
+                "Immediate death restart rebases and snaps to the distant hub in one update",
+                $"Restart performed {bootstrap.World.RebaseCount - rebasesBeforeImmediateRestart} rebases and left " +
+                $"{bootstrap.DroneCamera.FollowingError:0.00} m of camera follow error.");
         }
 
         private void SampleTelemetry(DroneCharacterController drone, DroneCameraController camera, DesertWorldStreamer world)

@@ -711,24 +711,36 @@ namespace DuneVector
 
         private void LateUpdate()
         {
+            RebaseAroundPlayerIfNeeded();
+        }
+
+        /// <summary>
+        /// Rebases the floating origin around the player's current motor position when it has
+        /// crossed the authored threshold. Teleports can call this synchronously so the player,
+        /// world, and follow camera all enter the destination origin frame in the same update.
+        /// </summary>
+        public bool RebaseAroundPlayerIfNeeded()
+        {
             if (_motor == null)
             {
-                return;
+                return false;
             }
 
             Vector3 localPosition = _motor.TransientPosition;
             if ((localPosition.x * localPosition.x) + (localPosition.z * localPosition.z) < FloatingOriginThreshold * FloatingOriginThreshold)
             {
-                return;
+                return false;
             }
 
             float shiftX = Mathf.Round(localPosition.x / ChunkSize) * ChunkSize;
             float shiftZ = Mathf.Round(localPosition.z / ChunkSize) * ChunkSize;
             if (Mathf.Abs(shiftX) < 0.01f && Mathf.Abs(shiftZ) < 0.01f)
             {
-                return;
+                return false;
             }
+
             RebaseNow(new Vector3(shiftX, 0f, shiftZ));
+            return true;
         }
 
         public void RebaseNow(Vector3 localShift)
