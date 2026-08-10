@@ -710,7 +710,13 @@ namespace DuneVector
             Matrix4x4 previousMatrix = GUI.matrix;
             GUIUtility.ScaleAroundPivot(new Vector2(scale, scale), new Vector2(centerX, centerY));
 
-            float width = Screen.width;
+            float edgePadding = Mathf.Max(0f, _settings.StreakCounterEdgePadding);
+            float availableHalfWidth = Mathf.Max(
+                1f,
+                Mathf.Min(centerX - edgePadding, Screen.width - edgePadding - centerX));
+            float width = Mathf.Min(
+                Screen.width * Mathf.Clamp01(_settings.StreakCounterMaxWidthFraction),
+                (availableHalfWidth * 2f) / Mathf.Max(1f, scale));
             Rect multiplierRect = new Rect(
                 centerX - (width * 0.5f),
                 centerY - (_settings.StreakMultiplierFontSize * 0.62f),
@@ -777,7 +783,7 @@ namespace DuneVector
                 fontStyle = FontStyle.Bold,
                 richText = false,
                 wordWrap = false,
-                clipping = TextClipping.Overflow,
+                clipping = TextClipping.Clip,
                 padding = new RectOffset(0, 0, 0, 0),
             };
             _labelStyle = new GUIStyle(_multiplierStyle) { fontStyle = FontStyle.Bold };

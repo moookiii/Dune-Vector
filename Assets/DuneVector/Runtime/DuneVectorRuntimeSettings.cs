@@ -6535,6 +6535,12 @@ namespace DuneVector
         [Min(8)] public int StreakLabelFontSize = 20;
         [Min(8)] public int StreakRewardFontSize = 24;
 
+        [Tooltip("Maximum width of the streak counter as a fraction of the screen width.")]
+        [Range(0.1f, 1f)] public float StreakCounterMaxWidthFraction = 0.42f;
+
+        [Tooltip("Minimum screen-edge clearance for the streak counter, in pixels.")]
+        [Min(0f)] public float StreakCounterEdgePadding = 24f;
+
         [Tooltip("Extra scale added to the streak counter the instant a delivery lands, decaying back to 1.")]
         [Min(0f)] public float StreakCounterPunchScale = 0.75f;
 
