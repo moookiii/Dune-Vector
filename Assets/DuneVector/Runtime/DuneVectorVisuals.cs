@@ -99,6 +99,7 @@ namespace DuneVector
         private readonly List<Material> _ownedMaterials = new List<Material>();
         private readonly List<GeoglyphMaterialBatch> _geoglyphBatches = new List<GeoglyphMaterialBatch>();
         private readonly Dictionary<Material, Material> _portalHaloMaterials = new Dictionary<Material, Material>();
+        private readonly Dictionary<Material, Material> _portalShadowMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalRearLineMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalFrontLineMaterials = new Dictionary<Material, Material>();
         private readonly Dictionary<Material, Material> _portalParticleMaterials = new Dictionary<Material, Material>();
@@ -962,6 +963,32 @@ namespace DuneVector
             };
             material.SetFloat("_EdgeSoftness", settings.MusicReactiveAdditiveEdgeSoftness);
             _ownedMaterials.Add(material);
+            return material;
+        }
+
+        public Material CreatePortalShadowMaterial(Material lineMaterial)
+        {
+            if (_portalShadowMaterials.TryGetValue(lineMaterial, out Material existing) && existing != null)
+            {
+                return existing;
+            }
+
+            Material material = new Material(lineMaterial)
+            {
+                name = $"{lineMaterial.name} - Drop Shadow",
+                enableInstancing = true,
+            };
+            // A shadow has to remove light, and additive blending can only add it, so the
+            // shadow leans on solidity rather than on its colour being dark.
+            material.SetColor("_PortalColor", RingPortalTuning.PortalDropShadowColor);
+            material.SetFloat("_Opacity", RingPortalTuning.PortalDropShadowOpacity);
+            material.SetFloat("_Solidity", RingPortalTuning.PortalDropShadowSolidity);
+            material.SetFloat("_BloomIntensity", 1f);
+            material.SetFloat("_CoreMode", 2f);
+            material.SetFloat("_TravelPulseBrightness", 0f);
+            material.SetFloat("_PulseAmount", 0f);
+            _ownedMaterials.Add(material);
+            _portalShadowMaterials.Add(lineMaterial, material);
             return material;
         }
 
@@ -2265,6 +2292,27 @@ namespace DuneVector
             Renderer[] additionalRenderers = null)
         {
             float lineLayerDepth = Mathf.Max(0f, settings.PortalLineLayerDepth);
+            if (settings.PortalDropShadowEnabled)
+            {
+                GameObject dropShadow = CreateMeshObject(
+                    "Portal Drop Shadow",
+                    parent,
+                    GetPortalLineMesh(
+                        radius,
+                        settings,
+                        settings.PortalDropShadowWidthMultiplier,
+                        PortalLineLayer.All),
+                    materials.CreatePortalShadowMaterial(lineMaterial));
+                // Portals turn to face the camera, so an offset in the portal's own plane
+                // reads as the screen-space offset a drop shadow is supposed to have.
+                dropShadow.transform.localPosition = new Vector3(
+                    settings.PortalDropShadowOffsetFraction.x * radius,
+                    settings.PortalDropShadowOffsetFraction.y * radius,
+                    -lineLayerDepth * 2f);
+                DisableRendererShadows(dropShadow);
+                dropShadow.GetComponent<MeshRenderer>().sortingOrder = -3;
+            }
+
             Material haloMaterial = materials.CreatePortalHaloMaterial(lineMaterial);
             GameObject rearHalo = CreateMeshObject(
                 "Recessed Portal Halo",

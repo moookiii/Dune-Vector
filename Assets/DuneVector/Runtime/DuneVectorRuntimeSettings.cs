@@ -3936,6 +3936,20 @@ namespace DuneVector
         [Range(0f, 1f)] public float CoinPortalSolidity;
         [Tooltip("Background coverage for job pickup and delivery portals. See GroundBoostPortalSolidity.")]
         [Range(0f, 1f)] public float ObjectivePortalSolidity;
+
+        [Header("Portal Drop Shadow")]
+        [Tooltip("Draws a dark offset copy of the linework behind each portal, so a bright portal still separates from a bright sky and a dark one still separates from dark terrain.")]
+        public bool PortalDropShadowEnabled = true;
+        [Tooltip("Colour of the drop shadow. Keep it dark; it is the contrast the portal is read against, not a glow.")]
+        [ColorUsage(false, true)] public Color PortalDropShadowColor = new Color(0.008f, 0.01f, 0.018f);
+        [Tooltip("Opacity of the drop shadow before its solidity is applied.")]
+        [Range(0f, 1f)] public float PortalDropShadowOpacity = 0.7f;
+        [Tooltip("How much background the drop shadow hides. A shadow that only adds light cannot darken anything, so this needs to stay high to be visible at all.")]
+        [Range(0f, 1f)] public float PortalDropShadowSolidity = 0.85f;
+        [Tooltip("Offset of the shadow as a fraction of the portal radius, so it holds the same apparent distance at every portal size. Portals face the camera, so this reads as a screen-space offset.")]
+        public Vector2 PortalDropShadowOffsetFraction = new Vector2(0.03f, -0.03f);
+        [Tooltip("How much wider the shadow stroke is than the linework it sits behind. Higher values read as a softer, more spread shadow.")]
+        [Range(1f, 6f)] public float PortalDropShadowWidthMultiplier = 2.4f;
         [Tooltip("HDR brightness multiplier applied only to portal energy, pushing its lines and halo into bloom without brightening the rest of the scene.")]
         [Min(0f)] public float PortalBloomIntensity = 0.6f;
         [Tooltip("Strength of derivative-based edge smoothing applied to portal strokes as they approach subpixel size.")]
