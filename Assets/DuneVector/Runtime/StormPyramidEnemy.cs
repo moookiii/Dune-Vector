@@ -1947,11 +1947,11 @@ namespace DuneVector
             _marker.localScale = Vector3.one
                 * Mathf.Lerp(_settings.ChargeMarkerStartScale, 1f, charge01)
                 * pulse;
+            // Keep the strike orb's local warning halo hidden. The charge line below
+            // remains visible so the orb-to-drone telegraph is preserved.
             if (_halo != null)
             {
-                _halo.localScale = Vector3.one
-                    * Mathf.Lerp(_settings.ChargeHaloStartScale, _settings.ChargeHaloEndScale, charge01)
-                    * pulse;
+                _halo.localScale = Vector3.zero;
             }
             _chargeLine.positionCount = 2;
             _chargeLine.SetPosition(0, _origin.position);
