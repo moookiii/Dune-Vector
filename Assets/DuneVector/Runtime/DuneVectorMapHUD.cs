@@ -78,9 +78,13 @@ namespace DuneVector
 
         private sealed class ExplorationSaveResult
         {
-            public bool RewroteFile;
-            public long[] Cells;
             public Exception Error;
+        }
+
+        private struct ExplorationChunkDistance
+        {
+            public long Key;
+            public double DistanceSquared;
         }
 
         private sealed class GeoglyphRevealTexture
@@ -118,7 +122,8 @@ namespace DuneVector
         private Color[] _scanPixels;
         private readonly DuneVectorExplorationCellGrid _exploredCells =
             new DuneVectorExplorationCellGrid();
-        private readonly List<long> _pendingExplorationCells = new List<long>();
+        private readonly List<ExplorationChunkDistance> _explorationEvictionBuffer =
+            new List<ExplorationChunkDistance>();
         private readonly HashSet<long> _exploredTerrainBaseTiles = new HashSet<long>();
         private readonly List<MapIconRecord> _mapIcons = new List<MapIconRecord>();
         private readonly Dictionary<GeoglyphArtworkPlacement, Texture2D> _geoglyphWorldMapTextures =
@@ -188,8 +193,15 @@ namespace DuneVector
         private const int MaximumGraticuleLines = 256;
 
         private const int ExplorationFileMagic = 0x44564D50;
-        private const int ExplorationFileVersion = 3;
+        // Version 4 stores one bit per cell inside 64x64 blocks. Versions 2 and 3
+        // wrote a full 8-byte key per explored cell, which grew by roughly 240 bytes
+        // for every metre flown and eventually stalled loading; they are read once
+        // and then rewritten in the packed form.
+        private const int ExplorationFileVersion = 4;
+        private const int PackedCellListFileVersion = 3;
         private const int LegacyExplorationFileVersion = 2;
+        /// <summary>Cells per chunk edge, mirrored from the grid for the file layout.</summary>
+        private static int ExplorationChunkSpan => DuneVectorExplorationCellGrid.ChunkCellSpan;
 
         public void Initialize(
             DroneCharacterController drone,
@@ -219,9 +231,9 @@ namespace DuneVector
             _worldMapGui.enabled = false;
             if (settings != null)
             {
-                _pendingExplorationCells.Capacity = Mathf.Max(
-                    _pendingExplorationCells.Capacity,
-                    settings.ExplorationJournalBufferCapacity);
+                _explorationEvictionBuffer.Capacity = Mathf.Max(
+                    _explorationEvictionBuffer.Capacity,
+                    Mathf.Max(64, settings.MaximumExploredChunks));
             }
             Shader geoglyphMapShader = Shader.Find("Hidden/DuneVector/Map Geoglyph Mask");
             if (geoglyphMapShader != null)
@@ -1983,20 +1995,26 @@ namespace DuneVector
             }
 
             float cellSize = Mathf.Max(1f, _settings.ExplorationCellSize);
-            HashSet<long> exploredSnapshot = new HashSet<long>(_exploredCells);
+            // A bit-packed clone, so the atlas thread reads map memory at one bit per
+            // cell instead of a hash entry per cell.
+            DuneVectorExplorationCellGrid exploredSnapshot = _exploredCells.CreateSnapshot();
             LogicalPosition playerPosition = _world.LogicalPlayerPosition;
             double minimumX = playerPosition.X;
             double maximumX = playerPosition.X;
             double minimumZ = playerPosition.Z;
             double maximumZ = playerPosition.Z;
-            foreach (long packedCell in exploredSnapshot)
+            // Framing is measured per stored block rather than per cell. The extents
+            // round out to the block edge, which the atlas margin already absorbs, and
+            // the cost stays tied to blocks instead of explored area.
+            double chunkWorldSize = cellSize * (double)ExplorationChunkSpan;
+            foreach (KeyValuePair<long, ulong[]> chunk in exploredSnapshot.Chunks)
             {
-                int cellX = (int)(packedCell >> 32);
-                int cellZ = unchecked((int)(uint)packedCell);
-                minimumX = Math.Min(minimumX, cellX * (double)cellSize);
-                maximumX = Math.Max(maximumX, (cellX + 1d) * cellSize);
-                minimumZ = Math.Min(minimumZ, cellZ * (double)cellSize);
-                maximumZ = Math.Max(maximumZ, (cellZ + 1d) * cellSize);
+                DuneVectorExplorationCellGrid.UnpackChunkKey(
+                    chunk.Key, out int chunkX, out int chunkZ);
+                minimumX = Math.Min(minimumX, chunkX * chunkWorldSize);
+                maximumX = Math.Max(maximumX, (chunkX + 1d) * chunkWorldSize);
+                minimumZ = Math.Min(minimumZ, chunkZ * chunkWorldSize);
+                maximumZ = Math.Max(maximumZ, (chunkZ + 1d) * chunkWorldSize);
             }
 
             float margin = Mathf.Max(0f, _settings.WorldMapAtlasExplorationMargin);
@@ -2064,7 +2082,7 @@ namespace DuneVector
 
         private static WorldAtlasBuildResult BuildWorldAtlas(
             DuneHeightField heightField,
-            HashSet<long> exploredCells,
+            DuneVectorExplorationCellGrid exploredCells,
             float cellSize,
             int resolution,
             double centerX,
@@ -2221,6 +2239,7 @@ namespace DuneVector
             int maximumZ = Mathf.FloorToInt((float)((center.Z + radius) / cellSize));
             double radiusSquared = radius * radius;
             bool discoveredAny = false;
+            bool needsCapacity = false;
 
             for (int cellZ = minimumZ; cellZ <= maximumZ; cellZ++)
             {
@@ -2247,16 +2266,29 @@ namespace DuneVector
                     }
 
                     long packedCell = PackCell(cellX, cellZ);
-                    if (_exploredCells.Add(packedCell))
+                    if (_exploredCells.Add(
+                            packedCell,
+                            GetMaximumExploredChunks(),
+                            out bool blockedByCapacity))
                     {
                         discoveredAny = true;
-                        if (!_explorationNeedsRewrite)
-                        {
-                            _pendingExplorationCells.Add(packedCell);
-                        }
                         AddExploredTerrainBaseTile(sampleX, sampleZ);
                     }
+                    else if (blockedByCapacity)
+                    {
+                        needsCapacity = true;
+                    }
                 }
+            }
+
+            if (needsCapacity)
+            {
+                // Map memory is full, so the blocks furthest from the drone are dropped
+                // to make room. Exploration keeps working and the file size holds
+                // steady instead of climbing until loading it stalls the game.
+                ForgetFurthestExploredChunks(center);
+                RebuildExploredTerrainBaseTiles();
+                discoveredAny = true;
             }
 
             _lastRevealX = center.X;
@@ -2400,6 +2432,7 @@ namespace DuneVector
 
                 int version = reader.ReadInt32();
                 if (version != ExplorationFileVersion &&
+                    version != PackedCellListFileVersion &&
                     version != LegacyExplorationFileVersion)
                 {
                     _explorationNeedsRewrite = true;
@@ -2408,34 +2441,32 @@ namespace DuneVector
                 }
                 float savedCellSize = Mathf.Max(1f, reader.ReadSingle());
                 float currentCellSize = Mathf.Max(1f, _settings.ExplorationCellSize);
-                if (version == LegacyExplorationFileVersion)
+                bool truncated;
+                if (version == ExplorationFileVersion)
                 {
-                    int count = reader.ReadInt32();
-                    for (int index = 0;
-                        index < count && stream.Length - stream.Position >= sizeof(long);
-                        index++)
-                    {
-                        AddLoadedExplorationCell(
-                            reader.ReadInt64(),
-                            savedCellSize,
-                            currentCellSize);
-                    }
+                    truncated = ReadPackedExplorationChunks(
+                        stream, reader, savedCellSize, currentCellSize);
                 }
                 else
                 {
-                    while (stream.Length - stream.Position >= sizeof(long))
-                    {
-                        AddLoadedExplorationCell(
-                            reader.ReadInt64(),
-                            savedCellSize,
-                            currentCellSize);
-                    }
+                    truncated = ReadExplorationCellList(
+                        stream, reader, version, savedCellSize, currentCellSize);
                 }
 
+                // Anything that did not arrive as an in-place packed load has to be
+                // written back so the next launch reads the compact form.
                 _explorationNeedsRewrite =
+                    truncated ||
                     version != ExplorationFileVersion ||
                     !Mathf.Approximately(savedCellSize, currentCellSize);
                 _explorationDirty = _explorationNeedsRewrite;
+                if (truncated)
+                {
+                    Debug.LogWarning(
+                        $"Map exploration reached the {GetMaximumExploredChunks()} block ceiling " +
+                        "while loading, so the furthest map memory was dropped. Raise " +
+                        "MaximumExploredChunks in WORLD settings to keep more of it.");
+                }
             }
             catch (IOException exception)
             {
@@ -2445,14 +2476,160 @@ namespace DuneVector
             }
         }
 
+        /// <summary>
+        /// Drops the stored blocks furthest from the drone once the ceiling is hit,
+        /// so map memory has a fixed cost no matter how long the save has been played.
+        /// </summary>
+        private void ForgetFurthestExploredChunks(LogicalPosition center)
+        {
+            int maximumChunks = GetMaximumExploredChunks();
+            float releaseFraction = _settings != null
+                ? Mathf.Clamp(_settings.ExploredChunkReleaseFraction, 0.01f, 0.5f)
+                : 0.1f;
+            int releaseCount = Mathf.Clamp(
+                Mathf.CeilToInt(maximumChunks * releaseFraction),
+                1,
+                Mathf.Max(1, _exploredCells.ChunkCount - 1));
+
+            double cellSize = Mathf.Max(1f, _settings.ExplorationCellSize);
+            double chunkWorldSize = cellSize * ExplorationChunkSpan;
+            _explorationEvictionBuffer.Clear();
+            foreach (KeyValuePair<long, ulong[]> chunk in _exploredCells.Chunks)
+            {
+                DuneVectorExplorationCellGrid.UnpackChunkKey(
+                    chunk.Key, out int chunkX, out int chunkZ);
+                double deltaX = ((chunkX + 0.5d) * chunkWorldSize) - center.X;
+                double deltaZ = ((chunkZ + 0.5d) * chunkWorldSize) - center.Z;
+                _explorationEvictionBuffer.Add(
+                    new ExplorationChunkDistance
+                    {
+                        Key = chunk.Key,
+                        DistanceSquared = (deltaX * deltaX) + (deltaZ * deltaZ),
+                    });
+            }
+
+            _explorationEvictionBuffer.Sort(
+                (left, right) => right.DistanceSquared.CompareTo(left.DistanceSquared));
+            int removed = Mathf.Min(releaseCount, _explorationEvictionBuffer.Count);
+            for (int index = 0; index < removed; index++)
+            {
+                _exploredCells.RemoveChunk(_explorationEvictionBuffer[index].Key);
+            }
+            _explorationEvictionBuffer.Clear();
+            _explorationNeedsRewrite = true;
+        }
+
+        private int GetMaximumExploredChunks()
+        {
+            return _settings != null ? Mathf.Max(64, _settings.MaximumExploredChunks) : 64;
+        }
+
+        /// <summary>
+        /// Reads the packed layout: one header per chunk followed by its bitmap rows.
+        /// Loading is proportional to stored blocks rather than explored cells, so a
+        /// long-lived save costs megabytes and milliseconds instead of gigabytes.
+        /// Returns true when the block ceiling cut the read short.
+        /// </summary>
+        private bool ReadPackedExplorationChunks(
+            FileStream stream,
+            BinaryReader reader,
+            float savedCellSize,
+            float currentCellSize)
+        {
+            int span = ExplorationChunkSpan;
+            long chunkBytes = (sizeof(int) * 2) + (span * (long)sizeof(ulong));
+            int maximumChunks = GetMaximumExploredChunks();
+            bool sameCellSize = Mathf.Approximately(savedCellSize, currentCellSize);
+            while (stream.Length - stream.Position >= chunkBytes)
+            {
+                if (_exploredCells.ChunkCount >= maximumChunks)
+                {
+                    return true;
+                }
+
+                int chunkX = reader.ReadInt32();
+                int chunkZ = reader.ReadInt32();
+                ulong[] rows = new ulong[span];
+                for (int index = 0; index < span; index++)
+                {
+                    rows[index] = reader.ReadUInt64();
+                }
+
+                if (sameCellSize)
+                {
+                    _exploredCells.SetChunkRows(
+                        DuneVectorExplorationCellGrid.PackChunkKey(chunkX, chunkZ),
+                        rows);
+                    continue;
+                }
+
+                // A changed cell size has to be remapped one cell at a time, which is
+                // why the size lives in the header and migration happens only once.
+                int baseCellX = chunkX * span;
+                int baseCellZ = chunkZ * span;
+                for (int localZ = 0; localZ < span; localZ++)
+                {
+                    ulong row = rows[localZ];
+                    if (row == 0UL)
+                    {
+                        continue;
+                    }
+                    for (int localX = 0; localX < span; localX++)
+                    {
+                        if ((row & (1UL << localX)) == 0UL)
+                        {
+                            continue;
+                        }
+                        AddLoadedExplorationCell(
+                            PackCell(baseCellX + localX, baseCellZ + localZ),
+                            savedCellSize,
+                            currentCellSize);
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Reads the superseded per-cell layouts. The block ceiling bounds the work so
+        /// even a save that grew to hundreds of megabytes before this format existed
+        /// loads in bounded time and is then rewritten packed.
+        /// </summary>
+        private bool ReadExplorationCellList(
+            FileStream stream,
+            BinaryReader reader,
+            int version,
+            float savedCellSize,
+            float currentCellSize)
+        {
+            long remaining = version == LegacyExplorationFileVersion
+                ? reader.ReadInt32()
+                : long.MaxValue;
+            int maximumChunks = GetMaximumExploredChunks();
+            while (remaining > 0 && stream.Length - stream.Position >= sizeof(long))
+            {
+                remaining--;
+                if (_exploredCells.ChunkCount >= maximumChunks)
+                {
+                    return true;
+                }
+                AddLoadedExplorationCell(
+                    reader.ReadInt64(),
+                    savedCellSize,
+                    currentCellSize);
+            }
+            return false;
+        }
+
         private void AddLoadedExplorationCell(
             long packedCell,
             float savedCellSize,
             float currentCellSize)
         {
+            int maximumChunks = GetMaximumExploredChunks();
             if (Mathf.Approximately(savedCellSize, currentCellSize))
             {
-                _exploredCells.Add(packedCell);
+                _exploredCells.Add(packedCell, maximumChunks, out _);
                 return;
             }
 
@@ -2470,7 +2647,7 @@ namespace DuneVector
             {
                 for (int cellX = minimumCellX; cellX <= maximumCellX; cellX++)
                 {
-                    _exploredCells.Add(PackCell(cellX, cellZ));
+                    _exploredCells.Add(PackCell(cellX, cellZ), maximumChunks, out _);
                 }
             }
         }
@@ -2479,10 +2656,6 @@ namespace DuneVector
         {
             CompleteExplorationSaveIfReady();
             if (!_explorationDirty || Time.unscaledTime < _nextExplorationSaveTime)
-            {
-                return;
-            }
-            if (_explorationNeedsRewrite && !_worldMapVisible)
             {
                 return;
             }
@@ -2526,25 +2699,11 @@ namespace DuneVector
                 return;
             }
 
-            bool rewriteFile = _explorationNeedsRewrite;
-            long[] cells;
-            if (rewriteFile)
-            {
-                cells = new long[_exploredCells.Count];
-                _exploredCells.CopyTo(cells);
-                _pendingExplorationCells.Clear();
-                _explorationNeedsRewrite = false;
-            }
-            else
-            {
-                if (_pendingExplorationCells.Count == 0)
-                {
-                    _explorationDirty = false;
-                    return;
-                }
-                cells = _pendingExplorationCells.ToArray();
-                _pendingExplorationCells.Clear();
-            }
+            // The whole grid is serialized every time. At one bit per cell the payload
+            // stays proportional to explored blocks, so a full rewrite is cheaper than
+            // the append journal it replaces and cannot accumulate duplicates.
+            byte[] payload = BuildExplorationPayload();
+            _explorationNeedsRewrite = false;
 
             string path = GetExplorationPath();
             float cellSize = Mathf.Max(1f, _settings.ExplorationCellSize);
@@ -2552,7 +2711,7 @@ namespace DuneVector
             _nextExplorationSaveTime =
                 Time.unscaledTime + Mathf.Max(1f, _settings.ExplorationSaveInterval);
             _explorationSaveTask = Task.Run(
-                () => PersistExploration(path, cellSize, cells, rewriteFile));
+                () => PersistExploration(path, cellSize, payload));
         }
 
         private void CompleteExplorationSaveIfReady()
@@ -2566,62 +2725,82 @@ namespace DuneVector
             _explorationSaveTask = null;
             if (result.Error == null)
             {
-                _explorationDirty =
-                    _explorationNeedsRewrite || _pendingExplorationCells.Count > 0;
+                _explorationDirty = _explorationNeedsRewrite;
                 return;
             }
 
-            if (result.RewroteFile)
-            {
-                _explorationNeedsRewrite = true;
-            }
-            else if (result.Cells != null)
-            {
-                _pendingExplorationCells.AddRange(result.Cells);
-            }
+            // The payload is rebuilt from the live grid, so a failed write only has to
+            // be retried rather than replayed from a buffer of lost cells.
             _explorationDirty = true;
             _nextExplorationSaveTime =
                 Time.unscaledTime + Mathf.Max(1f, _settings.ExplorationSaveInterval);
             Debug.LogWarning($"Unable to save map exploration: {result.Error.Message}");
         }
 
+        /// <summary>
+        /// Packs the live grid into the bytes that follow the file header: each chunk
+        /// contributes its coordinate pair and one bit per cell.
+        /// </summary>
+        private byte[] BuildExplorationPayload()
+        {
+            int span = ExplorationChunkSpan;
+            int chunkBytes = (sizeof(int) * 2) + (span * sizeof(ulong));
+            byte[] payload = new byte[_exploredCells.ChunkCount * (long)chunkBytes];
+            int offset = 0;
+            foreach (KeyValuePair<long, ulong[]> chunk in _exploredCells.Chunks)
+            {
+                DuneVectorExplorationCellGrid.UnpackChunkKey(
+                    chunk.Key, out int chunkX, out int chunkZ);
+                WriteInt32(payload, ref offset, chunkX);
+                WriteInt32(payload, ref offset, chunkZ);
+                ulong[] rows = chunk.Value;
+                for (int index = 0; index < span; index++)
+                {
+                    WriteUInt64(payload, ref offset, rows[index]);
+                }
+            }
+            return payload;
+        }
+
+        private static void WriteInt32(byte[] destination, ref int offset, int value)
+        {
+            destination[offset++] = (byte)value;
+            destination[offset++] = (byte)(value >> 8);
+            destination[offset++] = (byte)(value >> 16);
+            destination[offset++] = (byte)(value >> 24);
+        }
+
+        private static void WriteUInt64(byte[] destination, ref int offset, ulong value)
+        {
+            for (int shift = 0; shift < 64; shift += 8)
+            {
+                destination[offset++] = (byte)(value >> shift);
+            }
+        }
+
         private static ExplorationSaveResult PersistExploration(
             string path,
             float cellSize,
-            long[] cells,
-            bool rewriteFile)
+            byte[] payload)
         {
             try
             {
-                if (rewriteFile || !File.Exists(path))
-                {
-                    WriteExplorationJournal(path, cellSize, cells);
-                }
-                else
-                {
-                    AppendExplorationJournal(path, cells);
-                }
-                return new ExplorationSaveResult
-                {
-                    RewroteFile = rewriteFile,
-                    Cells = cells,
-                };
+                WriteExplorationSnapshot(path, cellSize, payload);
+                return new ExplorationSaveResult();
             }
             catch (Exception exception)
             {
                 return new ExplorationSaveResult
                 {
-                    RewroteFile = rewriteFile,
-                    Cells = cells,
                     Error = exception,
                 };
             }
         }
 
-        private static void WriteExplorationJournal(
+        private static void WriteExplorationSnapshot(
             string path,
             float cellSize,
-            long[] cells)
+            byte[] payload)
         {
             string directory = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(directory))
@@ -2637,27 +2816,10 @@ namespace DuneVector
                 writer.Write(ExplorationFileMagic);
                 writer.Write(ExplorationFileVersion);
                 writer.Write(cellSize);
-                for (int index = 0; index < cells.Length; index++)
-                {
-                    writer.Write(cells[index]);
-                }
+                writer.Write(payload);
             }
             File.Copy(pendingPath, path, true);
             File.Delete(pendingPath);
-        }
-
-        private static void AppendExplorationJournal(string path, long[] cells)
-        {
-            using FileStream stream = File.Open(
-                path,
-                FileMode.Append,
-                FileAccess.Write,
-                FileShare.Read);
-            using BinaryWriter writer = new BinaryWriter(stream);
-            for (int index = 0; index < cells.Length; index++)
-            {
-                writer.Write(cells[index]);
-            }
         }
 
         private void EnsureTexture()

@@ -6200,6 +6200,10 @@ namespace DuneVector
         [Min(1f)] public float ExplorationSaveInterval = 10f;
         [Tooltip("Exploration cells reserved in the append journal during initialization so flight-time reveals do not resize the buffer.")]
         [Min(0)] public int ExplorationJournalBufferCapacity = 32768;
+        [Tooltip("Hard ceiling on stored map memory, counted in 64x64 cell blocks. Each block costs 520 bytes on disk and covers a square of 64 exploration cells per side. Once the ceiling is reached the blocks furthest from the drone are forgotten so the save file can never grow without bound.")]
+        [Min(64)] public int MaximumExploredChunks = 8192;
+        [Tooltip("Fraction of the block ceiling released at once when map memory fills up. Larger values forget more distant map in a single step but reclaim room less often.")]
+        [Range(0.01f, 0.5f)] public float ExploredChunkReleaseFraction = 0.1f;
         [Range(32, 512)] public int ScanTextureResolution = 256;
         [Tooltip("Full world-map terrain resolution. Refinement happens only after navigation settles.")]
         [Range(256, 1024)] public int WorldMapScanTextureResolution = 512;

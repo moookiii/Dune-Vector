@@ -20,6 +20,114 @@ namespace DuneVector
 
         public int Count { get; private set; }
 
+        /// <summary>
+        /// Number of 64x64 cell blocks currently held. Persistence is sized by this
+        /// rather than by cell count, so it is the figure worth capping.
+        /// </summary>
+        public int ChunkCount => _chunks.Count;
+
+        /// <summary>Cells along one edge of a chunk.</summary>
+        public static int ChunkCellSpan => ChunkSize;
+
+        public IEnumerable<KeyValuePair<long, ulong[]>> Chunks => _chunks;
+
+        public static long PackChunkKey(int chunkX, int chunkZ)
+        {
+            return Pack(chunkX, chunkZ);
+        }
+
+        public static void UnpackChunkKey(long packedChunk, out int chunkX, out int chunkZ)
+        {
+            Unpack(packedChunk, out chunkX, out chunkZ);
+        }
+
+        public static long ChunkKeyForCell(long packedCell)
+        {
+            Unpack(packedCell, out int cellX, out int cellZ);
+            return Pack(cellX >> ChunkShift, cellZ >> ChunkShift);
+        }
+
+        /// <summary>
+        /// Adds a cell only when it lands in an existing chunk or the grid still has
+        /// room for a new one. Returns false when the cell was already known or the
+        /// chunk budget is spent, so callers can tell growth from a no-op.
+        /// </summary>
+        public bool Add(long packedCell, int maximumChunks, out bool blockedByCapacity)
+        {
+            blockedByCapacity = false;
+            if (maximumChunks > 0 &&
+                _chunks.Count >= maximumChunks &&
+                !_chunks.ContainsKey(ChunkKeyForCell(packedCell)))
+            {
+                blockedByCapacity = true;
+                return false;
+            }
+            return Add(packedCell);
+        }
+
+        /// <summary>
+        /// Replaces a whole chunk, used when loading the bit-packed file straight
+        /// into storage instead of replaying it one cell at a time.
+        /// </summary>
+        public void SetChunkRows(long packedChunk, ulong[] rows)
+        {
+            if (rows == null || rows.Length != ChunkSize)
+            {
+                throw new ArgumentException(
+                    $"Exploration chunks must supply exactly {ChunkSize} rows.",
+                    nameof(rows));
+            }
+
+            if (_chunks.TryGetValue(packedChunk, out ulong[] existing))
+            {
+                Count -= CountBits(existing);
+            }
+            _chunks[packedChunk] = rows;
+            Count += CountBits(rows);
+        }
+
+        public bool RemoveChunk(long packedChunk)
+        {
+            if (!_chunks.TryGetValue(packedChunk, out ulong[] rows))
+            {
+                return false;
+            }
+            Count -= CountBits(rows);
+            return _chunks.Remove(packedChunk);
+        }
+
+        /// <summary>
+        /// Deep copy for background threads. Costs one array per chunk rather than
+        /// one entry per explored cell, which is what keeps atlas builds affordable.
+        /// </summary>
+        public DuneVectorExplorationCellGrid CreateSnapshot()
+        {
+            DuneVectorExplorationCellGrid snapshot = new DuneVectorExplorationCellGrid();
+            foreach (KeyValuePair<long, ulong[]> chunk in _chunks)
+            {
+                ulong[] rows = new ulong[ChunkSize];
+                Array.Copy(chunk.Value, rows, ChunkSize);
+                snapshot._chunks.Add(chunk.Key, rows);
+            }
+            snapshot.Count = Count;
+            return snapshot;
+        }
+
+        private static int CountBits(ulong[] rows)
+        {
+            int total = 0;
+            for (int index = 0; index < rows.Length; index++)
+            {
+                ulong row = rows[index];
+                while (row != 0UL)
+                {
+                    row &= row - 1UL;
+                    total++;
+                }
+            }
+            return total;
+        }
+
         public bool Add(long packedCell)
         {
             Unpack(packedCell, out int cellX, out int cellZ);
