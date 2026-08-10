@@ -808,10 +808,11 @@ namespace DuneVector
         }
 
         /// <summary>
-        /// Holds the pinned camera on the drone every frame of the window. This runs after the
-        /// streamer's floating-origin rebase and after the player camera update, so it is the last
-        /// word on where the follow point sits. Only the follow position is re-anchored, leaving
-        /// the player free to look around immediately.
+        /// Holds the pinned camera on the drone through the window. This runs after the streamer's
+        /// floating-origin rebase and after the player camera update, so it is the last word on
+        /// where the follow point sits. Only a trail long enough to read as a sweep is corrected,
+        /// so the drone's short drop onto the hub still smooths normally, and only the follow
+        /// position is re-anchored, leaving the player free to look around immediately.
         /// </summary>
         private void LateUpdate()
         {
@@ -821,7 +822,11 @@ namespace DuneVector
             }
 
             _cameraPinSecondsRemaining -= Time.unscaledDeltaTime;
-            _cameraController?.SnapFollowPositionToTarget();
+            if (_cameraController != null &&
+                _cameraController.FollowingError > _hubSettings.TeleportCameraPinMaximumTrailMeters)
+            {
+                _cameraController.SnapFollowPositionToTarget();
+            }
         }
 
         private void Update()

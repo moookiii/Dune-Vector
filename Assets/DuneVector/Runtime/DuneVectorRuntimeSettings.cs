@@ -1350,6 +1350,8 @@ namespace DuneVector
         public bool RestoreStaminaOnReturn = true;
         [Tooltip("How long the follow camera stays pinned to the drone after it is teleported. Covers the frames where the world rebases its floating origin behind a long-distance jump, so the camera never sweeps in from where the drone came from (most visible when respawning at the hub after dying far out in free roam).")]
         [Min(0f)] public float TeleportCameraPinSeconds = 0.75f;
+        [Tooltip("How far the follow camera may trail the drone during that window before it is re-anchored. Keep it above the drone's short drop onto the hub so the landing still smooths normally, and below any distance that would read as the camera flying across the desert.")]
+        [Min(0f)] public float TeleportCameraPinMaximumTrailMeters = 4f;
         [Tooltip("Horizontal distance from the hub center inside which the hub is hidden from photography subject detection.")]
         [Min(0f)] public float PhotographySuppressionRadius;
 
