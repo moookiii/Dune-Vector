@@ -4123,11 +4123,23 @@ namespace DuneVector
         [Min(1)] public int UpperFlightRingRequiredPasses = 100;
 
         [Header("Upper Flight Ring Generation")]
+        [Tooltip("Fraction of blue flight rings that receive an upper-layer flight ring when the flight meter is empty.")]
+        [Range(0f, 1f)] public float UpperFlightRingAmountMultiplierAtMinimumMeter = 1f;
+        [Tooltip("Fraction of blue flight rings that receive an upper-layer flight ring when the flight meter is full.")]
+        [Range(0f, 1f)] public float UpperFlightRingAmountMultiplierAtMaximumMeter = 1f / 3f;
         [Tooltip("Independent procedural salt used for upper-layer positions, altitudes, rotations, and movement.")]
         public int UpperFlightRingSeedOffset = 19031;
         [Min(0.75f)] public float UpperFlightRingRadius = 5f;
         [Min(0f)] public float UpperFlightRingMinimumHeight = 45f;
         [Min(0f)] public float UpperFlightRingMaximumHeight = 70f;
+
+        public float GetUpperFlightRingAmountMultiplier(float flightMeterNormalized)
+        {
+            return Mathf.Lerp(
+                Mathf.Clamp01(UpperFlightRingAmountMultiplierAtMinimumMeter),
+                Mathf.Clamp01(UpperFlightRingAmountMultiplierAtMaximumMeter),
+                Mathf.Clamp01(flightMeterNormalized));
+        }
 
         [Header("Upper Flight Ring Appearance")]
         [ColorUsage(false, true)] public Color UpperFlightRingBaseColor = new Color(0.24f, 0.015f, 0.42f);

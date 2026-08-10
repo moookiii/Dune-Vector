@@ -1301,7 +1301,7 @@ namespace DuneVector
                     HandleTraversalRingActivated);
                 if (IsUpperFlightRingUnlocked)
                 {
-                    chunk.SpawnUpperFlightLayers();
+                    chunk.SpawnUpperFlightLayers(_player != null ? _player.FlightTimeNormalized : 0f);
                 }
                 chunk.SetCoinRingsUnlocked(IsUpperFlightRingUnlocked);
             }
@@ -1405,7 +1405,7 @@ namespace DuneVector
         {
             foreach (DesertChunk chunk in _chunks.Values)
             {
-                chunk.SpawnUpperFlightLayers();
+                chunk.SpawnUpperFlightLayers(_player != null ? _player.FlightTimeNormalized : 0f);
                 chunk.SetCoinRingsUnlocked(true);
             }
         }
@@ -1972,14 +1972,24 @@ namespace DuneVector
             }
         }
 
-        public void SpawnUpperFlightLayers()
+        public void SpawnUpperFlightLayers(float flightMeterNormalized)
         {
+            float amountMultiplier = _ringTuning.GetUpperFlightRingAmountMultiplier(flightMeterNormalized);
             for (int i = 0; i < _rings.Count; i++)
             {
                 TraversalRing ring = _rings[i];
                 if (ring != null && ring.RingType == TraversalRingType.Flight)
                 {
                     int seedOffset = _ringTuning.UpperFlightRingSeedOffset + (i * 53);
+                    float amountRoll = DuneVectorMath.Hash01(
+                        Coordinate.x,
+                        Coordinate.y,
+                        _worldSeed,
+                        seedOffset);
+                    if (amountRoll >= amountMultiplier)
+                    {
+                        continue;
+                    }
                     float margin = Mathf.Min(
                         _chunkSize * 0.5f,
                         Mathf.Max(0f, _ringTuning.UpperFlightRingRadius));
