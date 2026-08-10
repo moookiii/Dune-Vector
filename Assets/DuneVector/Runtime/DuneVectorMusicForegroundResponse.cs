@@ -160,7 +160,8 @@ namespace DuneVector
             _streakMaterial.SetFloat("_StreakEndFade", _settings.ForegroundStreakEndFade);
             _streaks = BuildStreakParticleSystem("Music Screen-Space Flare Lines");
             _centerOutStreaks = BuildStreakParticleSystem("Music Drone-Anchored Flare Lines");
-            if (_settings.CenterOutCompensateAnchorMotion)
+            if (_settings.CenterOutCompensateAnchorMotion
+                || _settings.CenterOutMaximumTravelToScreenEdgeFraction > 0f)
             {
                 int capacity = _settings.CenterOutParticlePoolCapacity > 0
                     ? _settings.CenterOutParticlePoolCapacity
@@ -465,6 +466,18 @@ namespace DuneVector
                 float lifetime = centerOut && lifetimeRange.y > 0f
                     ? Mathf.Lerp(lifetimeRange.x, lifetimeRange.y, Next01(ref seed))
                     : _settings.ForegroundStreakLifetime;
+                if (centerOut && _settings.CenterOutMaximumTravelToScreenEdgeFraction > 0f)
+                {
+                    float initialDistance = new Vector2(x, y).magnitude;
+                    float speed = new Vector2(velocity.x, velocity.y).magnitude;
+                    float maximumDistance = ResolveCenterOutMaximumTravelDistance(direction);
+                    float availableDistance = Mathf.Max(0f, maximumDistance - initialDistance);
+                    lifetime = Mathf.Min(lifetime, availableDistance / Mathf.Max(0.001f, speed));
+                    if (lifetime <= 0.001f)
+                    {
+                        continue;
+                    }
+                }
                 ParticleSystem.EmitParams emit = new ParticleSystem.EmitParams
                 {
                     position = new Vector3(x, y, _settings.ForegroundStreakForwardOffset),
@@ -541,6 +554,64 @@ namespace DuneVector
         private void LateUpdate()
         {
             UpdateCenterOutAnchor();
+            LimitCenterOutParticleTravel();
+        }
+
+        private float ResolveCenterOutMaximumTravelDistance(Vector2 direction)
+        {
+            float forward = Mathf.Max(0.01f, _settings.ForegroundStreakForwardOffset);
+            float halfHeight = Mathf.Tan(_camera.fieldOfView * 0.5f * Mathf.Deg2Rad) * forward;
+            float halfWidth = halfHeight * _camera.aspect;
+            Vector3 anchor = _centerOutStreaks.transform.localPosition;
+            float edgeDistance = float.PositiveInfinity;
+            if (direction.x > 0.0001f)
+            {
+                edgeDistance = Mathf.Min(edgeDistance, (halfWidth - anchor.x) / direction.x);
+            }
+            else if (direction.x < -0.0001f)
+            {
+                edgeDistance = Mathf.Min(edgeDistance, (-halfWidth - anchor.x) / direction.x);
+            }
+            if (direction.y > 0.0001f)
+            {
+                edgeDistance = Mathf.Min(edgeDistance, (halfHeight - anchor.y) / direction.y);
+            }
+            else if (direction.y < -0.0001f)
+            {
+                edgeDistance = Mathf.Min(edgeDistance, (-halfHeight - anchor.y) / direction.y);
+            }
+            return Mathf.Max(0f, edgeDistance)
+                * Mathf.Clamp01(_settings.CenterOutMaximumTravelToScreenEdgeFraction);
+        }
+
+        private void LimitCenterOutParticleTravel()
+        {
+            if (_settings.CenterOutMaximumTravelToScreenEdgeFraction <= 0f
+                || _centerOutParticleBuffer == null
+                || _centerOutStreaks == null)
+            {
+                return;
+            }
+            int particleCount = _centerOutStreaks.GetParticles(_centerOutParticleBuffer);
+            bool changed = false;
+            for (int i = 0; i < particleCount; i++)
+            {
+                ParticleSystem.Particle particle = _centerOutParticleBuffer[i];
+                Vector2 position = new Vector2(particle.position.x, particle.position.y);
+                float distance = position.magnitude;
+                if (distance <= 0.0001f
+                    || distance < ResolveCenterOutMaximumTravelDistance(position / distance))
+                {
+                    continue;
+                }
+                particle.remainingLifetime = 0f;
+                _centerOutParticleBuffer[i] = particle;
+                changed = true;
+            }
+            if (changed)
+            {
+                _centerOutStreaks.SetParticles(_centerOutParticleBuffer, particleCount);
+            }
         }
 
         private void HandleCameraPreCull(Camera renderingCamera)
