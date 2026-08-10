@@ -272,6 +272,16 @@ namespace DuneVector
         [Tooltip("Visible fraction a glyph needs when its atlas site does not allow partial occlusion.")]
         [Range(0f, 1f)] public float GlyphRequiredVisiblePercentage = 0.5f;
 
+        [Header("Subject Selection")]
+        [Tooltip("Influence of a subject's on-screen size when choosing which visible subject to frame.")]
+        [Min(0f)] public float SubjectSelectionSizeWeight = 0.65f;
+        [Tooltip("Influence of a subject being close to the camera when choosing which visible subject to frame.")]
+        [Min(0f)] public float SubjectSelectionForegroundWeight = 0.25f;
+        [Tooltip("Influence of a subject being near the center of the viewfinder when choosing which visible subject to frame.")]
+        [Min(0f)] public float SubjectSelectionCenterWeight = 0.1f;
+        [Tooltip("Distance in meters at which foreground influence falls to half strength.")]
+        [Min(0.1f)] public float SubjectSelectionDepthReference = 50f;
+
         [Header("Viewfinder Layout")]
         [Min(360f)] public float HudReferenceHeight = 1080f;
         [Range(0.5f, 2f)] public float HudMinimumScale = 0.75f;

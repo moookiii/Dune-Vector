@@ -423,9 +423,8 @@ namespace DuneVector
             bool found = false;
             PhotographableSubject bestSubject = default;
             Rect bestBounds = default;
-            float bestCenterPriority = float.PositiveInfinity;
             float bestCoverage = -1f;
-            float bestDepth = float.PositiveInfinity;
+            float bestSelectionScore = float.NegativeInfinity;
             bool allowGlyphSubjects = _character == null || !_character.IsStableGrounded;
             if (allowGlyphSubjects &&
                 _world != null &&
@@ -447,14 +446,8 @@ namespace DuneVector
                     {
                         continue;
                     }
-                    if (!IsBetterCandidate(
-                            depth,
-                            coverage,
-                            priority,
-                            bestDepth,
-                            bestCoverage,
-                            bestCenterPriority,
-                            prioritizeForeground: false))
+                    float selectionScore = CalculateSelectionScore(depth, coverage, priority);
+                    if (selectionScore <= bestSelectionScore)
                     {
                         continue;
                     }
@@ -463,10 +456,9 @@ namespace DuneVector
                     {
                         continue;
                     }
-                    bestDepth = depth;
-                    bestCenterPriority = priority;
                     bestBounds = bounds;
                     bestCoverage = coverage;
+                    bestSelectionScore = selectionScore;
                     bestSubject = new PhotographableSubject(site, artwork);
                     found = true;
                 }
@@ -493,15 +485,8 @@ namespace DuneVector
                     markerBounds.center,
                     new Vector2(Screen.width * 0.5f, Screen.height * 0.5f)) /
                     Mathf.Max(1f, Screen.height);
-                if (!IsBetterCandidate(
-                        markerDepth,
-                        markerCoverage,
-                        centerPriority,
-                        bestDepth,
-                        bestCoverage,
-                        bestCenterPriority,
-                        prioritizeForeground:
-                            !found || bestSubject.Category != PhotographableSubjectCategory.Glyph))
+                float selectionScore = CalculateSelectionScore(markerDepth, markerCoverage, centerPriority);
+                if (selectionScore <= bestSelectionScore)
                 {
                     continue;
                 }
@@ -510,10 +495,9 @@ namespace DuneVector
                 {
                     continue;
                 }
-                bestDepth = markerDepth;
-                bestCenterPriority = centerPriority;
                 bestBounds = markerBounds;
                 bestCoverage = markerCoverage;
+                bestSelectionScore = selectionScore;
                 bestSubject = new PhotographableSubject(marker, displayName);
                 found = true;
             }
@@ -585,23 +569,15 @@ namespace DuneVector
             return false;
         }
 
-        private static bool IsBetterCandidate(
-            float depth,
-            float coverage,
-            float centerPriority,
-            float bestDepth,
-            float bestCoverage,
-            float bestCenterPriority,
-            bool prioritizeForeground)
+        private float CalculateSelectionScore(float depth, float coverage, float centerPriority)
         {
-            const float coverageTieTolerance = 0.0001f;
-            if (prioritizeForeground && !Mathf.Approximately(depth, bestDepth))
-            {
-                return depth < bestDepth;
-            }
-            return coverage > bestCoverage + coverageTieTolerance ||
-                (Mathf.Abs(coverage - bestCoverage) <= coverageTieTolerance &&
-                    centerPriority < bestCenterPriority);
+            float sizeScore = Mathf.Sqrt(Mathf.Clamp01(coverage));
+            float foregroundScore = 1f / (1f + Mathf.Max(0f, depth) /
+                Mathf.Max(0.1f, _settings.SubjectSelectionDepthReference));
+            float centerScore = 1f - Mathf.Clamp01(centerPriority);
+            return sizeScore * Mathf.Max(0f, _settings.SubjectSelectionSizeWeight) +
+                foregroundScore * Mathf.Max(0f, _settings.SubjectSelectionForegroundWeight) +
+                centerScore * Mathf.Max(0f, _settings.SubjectSelectionCenterWeight);
         }
 
         private GeoglyphArtworkPlacement FindArtwork(DesertAtlasSiteDefinition site)
