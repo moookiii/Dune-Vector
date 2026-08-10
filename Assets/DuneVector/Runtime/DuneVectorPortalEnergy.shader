@@ -39,11 +39,11 @@ Shader "DuneVector/URP Portal Energy"
         {
             Name "UniversalForward"
             Tags { "LightMode" = "UniversalForward" }
-            // Reverse-subtractive colour blending makes portal energy carve light out of
-            // the scene instead of adding light to it. Alpha still accumulates normally so
-            // portal coverage remains available to the rest of the transparent pipeline.
-            Blend One One, One OneMinusSrcAlpha
-            BlendOp RevSub, Add
+            // Premultiplied alpha. The fragment premultiplies its colour by coverage, so a
+            // solidity of 0 reproduces the old "Blend SrcAlpha One" additive glow exactly,
+            // while higher values let the stroke keep its own hue instead of washing the
+            // background towards white.
+            Blend One OneMinusSrcAlpha
             Cull Off
             ZWrite Off
             ZTest LEqual
@@ -180,8 +180,9 @@ Shader "DuneVector/URP Portal Energy"
                 float3 energy = _PortalColor.rgb * pulse * _BloomIntensity * travelBrightness *
                     featureBrightness * _DistanceBloomBoost * _ActivationBloomBoost * particleTint;
 
-                // Colour is premultiplied by coverage before being subtracted from the
-                // destination. Solidity continues to control alpha coverage independently.
+                // The colour is premultiplied by coverage either way; only the destination
+                // factor changes, so solidity decides how much background the stroke hides
+                // without altering the stroke's own colour.
                 return float4(energy * alpha, alpha * saturate(_Solidity));
             }
             ENDHLSL
