@@ -246,6 +246,7 @@ namespace DuneVector
         private DuneVectorFreeRoamCompletionEffect _completionEffect;
         private System.Random _random;
         private LogicalPosition _zoneCenter;
+        private double _pickupLogicalHeight;
         private float _zoneRadius;
         private float _streakPunchTimer;
         private int _lastRewardGold;
@@ -343,6 +344,7 @@ namespace DuneVector
             _zoneRing = CreateZoneRing("Free Roam Pickup Zone", landmark, true, HandlePickup);
             ActiveObjective = _package;
             ActiveObjectiveLogicalPosition = ToLogical(_package.position);
+            _pickupLogicalHeight = _package.position.y;
             _courierGame.ShowStatusMessage(
                 $"SIGNAL LOCKED — COLLECT CARGO AT {DescribeRoute(record)}",
                 _settings.StatusMessageDuration);
@@ -387,7 +389,7 @@ namespace DuneVector
             Phase = FreeRoamDeliveryPhase.Deliver;
             _zoneRing = CreateZoneRing("Free Roam Delivery Zone", landmark, false, HandleDelivery);
             ActiveObjective = _zoneRing.transform;
-            ActiveObjectiveLogicalPosition = landmark.LogicalPosition;
+            ActiveObjectiveLogicalPosition = _zoneRing.LogicalPosition;
             _courierGame.ShowStatusMessage(
                 $"CARGO SECURED — DELIVER TO {DescribeRoute(record)}",
                 _settings.StatusMessageDuration);
@@ -570,6 +572,27 @@ namespace DuneVector
             if (Phase == FreeRoamDeliveryPhase.Pickup && _package != null)
             {
                 _package.Rotate(0f, _contractSettings.PackageSpinSpeed * Time.deltaTime, 0f, Space.World);
+            }
+        }
+
+        private void LateUpdate()
+        {
+            // Floating-origin rebases move scene transforms in large float-sized steps. Rebuild
+            // the active objective from its immutable logical coordinate every frame so a missed,
+            // duplicated, or precision-lost shift can never make the target recede from the drone.
+            if (Phase == FreeRoamDeliveryPhase.Pickup && _package != null)
+            {
+                _package.position = _world.LogicalToLocal(
+                    ActiveObjectiveLogicalPosition.X,
+                    _pickupLogicalHeight,
+                    ActiveObjectiveLogicalPosition.Z);
+            }
+            else if (Phase == FreeRoamDeliveryPhase.Deliver && _zoneRing != null)
+            {
+                _zoneRing.transform.position = _world.LogicalToLocal(
+                    _zoneRing.LogicalPosition.X,
+                    _zoneRing.LogicalHeight,
+                    _zoneRing.LogicalPosition.Z);
             }
         }
 
