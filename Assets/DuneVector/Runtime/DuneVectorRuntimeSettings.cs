@@ -4291,7 +4291,7 @@ namespace DuneVector
         [Header("Health Pickup Feedback")]
         [Min(0.1f)] public float HealthPickupFeedbackDuration = 1.4f;
         [Min(8)] public int HealthPickupFeedbackFontSize = 28;
-        [Min(0f)] public float HealthPickupFeedbackTop = 170f;
+        [Min(0f)] public float HealthPickupFeedbackTop = 120f;
         [Tooltip("Additional vertical offset as a fraction of screen height. Positive values move the text down.")]
         [Range(-1f, 1f)] public float HealthPickupFeedbackVerticalScreenOffset = 0.05f;
         [Min(24f)] public float HealthPickupFeedbackHeight = 48f;
