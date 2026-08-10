@@ -427,10 +427,8 @@ namespace DuneVector
                 GetExclusionRadius(DuneLandmarkType.AncientSpire),
                 GetExclusionRadius(DuneLandmarkType.SandRing));
             float cellSize = Mathf.Max(1f, _settings.PlacementCellSize);
-            // Records are jittered anywhere inside their cell, so sweep one extra ring
-            // beyond the cell count the separation distance alone would cover.
             int searchRadius = Mathf.Max(1, Mathf.CeilToInt(
-                (maximumLandmarkRadius + clearance) / cellSize) + 1);
+                (maximumLandmarkRadius + clearance) / cellSize));
             Vector2Int center = LogicalToCell(new LogicalPosition(logicalX, logicalZ));
 
             for (int z = -searchRadius; z <= searchRadius; z++)
