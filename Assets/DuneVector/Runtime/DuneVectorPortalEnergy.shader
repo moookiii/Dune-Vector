@@ -24,6 +24,7 @@ Shader "DuneVector/URP Portal Energy"
         _ActivationBloomBoost("Activation Bloom Boost", Float) = 1
         _PulseSpeed("Pulse Speed", Float) = 1.35
         _PulseAmount("Pulse Amount", Range(0, 0.5)) = 0.12
+        [HideInInspector] _PortalBlendOp("Portal Blend Operation", Float) = 0
     }
 
     SubShader
@@ -43,6 +44,7 @@ Shader "DuneVector/URP Portal Energy"
             // solidity of 0 reproduces the old "Blend SrcAlpha One" additive glow exactly,
             // while higher values let the stroke keep its own hue instead of washing the
             // background towards white.
+            BlendOp [_PortalBlendOp]
             Blend One OneMinusSrcAlpha
             Cull Off
             ZWrite Off

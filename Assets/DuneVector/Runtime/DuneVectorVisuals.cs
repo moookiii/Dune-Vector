@@ -334,7 +334,12 @@ namespace DuneVector
                     "Assets/DuneVector/Resources/obelisk.glb.");
             }
             BoostRing = CreatePortal("Portal - Boost Amber", rings.BoostRingEmissionColor, rings, rings.GroundBoostPortalSolidity);
-            FlightRing = CreatePortal("Portal - Flight Cyan", rings.FlightRingEmissionColor, rings, rings.FlightPortalSolidity);
+            FlightRing = CreatePortal(
+                "Portal - Flight Cyan",
+                rings.FlightRingEmissionColor,
+                rings,
+                rings.FlightPortalSolidity,
+                rings.FlightPortalBlendOperation);
             UpperFlightRing = CreatePortal("Portal - Upper Flight Violet", rings.UpperFlightRingEmissionColor, rings, rings.UpperFlightPortalSolidity);
             HealthRing = CreatePortal("Portal - Health Green", rings.HealthRingEmissionColor, rings, rings.HealthPortalSolidity);
             HealthHeart = CreateLit(
@@ -911,7 +916,12 @@ namespace DuneVector
             material.SetFloat("_GradientWidth", settings.OrbGradientWidth);
         }
 
-        private Material CreatePortal(string name, Color color, RingTuning settings, float solidity)
+        private Material CreatePortal(
+            string name,
+            Color color,
+            RingTuning settings,
+            float solidity,
+            BlendOp blendOperation = BlendOp.Add)
         {
             Shader shader = Shader.Find("DuneVector/URP Portal Energy");
             if (shader == null)
@@ -924,6 +934,7 @@ namespace DuneVector
             material.SetColor("_PortalColor", color);
             material.SetFloat("_Opacity", settings.PortalLineOpacity);
             material.SetFloat("_Solidity", Mathf.Clamp01(solidity));
+            material.SetInt("_PortalBlendOp", (int)blendOperation);
             material.SetFloat("_BloomIntensity", settings.PortalBloomIntensity);
             material.SetFloat("_CoreMode", 0f);
             material.SetFloat("_DistanceFade", 1f);
@@ -983,6 +994,7 @@ namespace DuneVector
             material.SetColor("_PortalColor", RingPortalTuning.PortalDropShadowColor);
             material.SetFloat("_Opacity", RingPortalTuning.PortalDropShadowOpacity);
             material.SetFloat("_Solidity", RingPortalTuning.PortalDropShadowSolidity);
+            material.SetInt("_PortalBlendOp", (int)BlendOp.Add);
             material.SetFloat("_BloomIntensity", 1f);
             material.SetFloat("_CoreMode", 2f);
             material.SetFloat("_TravelPulseBrightness", 0f);
@@ -1009,6 +1021,7 @@ namespace DuneVector
             // The halo is glow around the stroke rather than part of it, so it stays additive
             // even on a solid portal instead of smearing a dim band across the terrain.
             material.SetFloat("_Solidity", 0f);
+            material.SetInt("_PortalBlendOp", (int)BlendOp.Add);
             _ownedMaterials.Add(material);
             _portalHaloMaterials.Add(lineMaterial, material);
             return material;
@@ -1054,6 +1067,7 @@ namespace DuneVector
             };
             material.SetFloat("_Opacity", 1f);
             material.SetFloat("_BloomIntensity", RingPortalTuning.PortalSparkBloomIntensity);
+            material.SetInt("_PortalBlendOp", (int)BlendOp.Add);
             material.SetFloat("_CoreMode", 3f);
             material.SetFloat("_FeatureBrightness", 1f);
             // Sparks stay additive too, so they read as embers rather than opaque dots.

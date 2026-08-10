@@ -3948,6 +3948,8 @@ namespace DuneVector
         [Header("Portal Linework")]
         [Tooltip("Opacity of the emissive rings, spokes, glyphs, and exterior rays. Empty space remains fully transparent.")]
         [Range(0f, 1f)] public float PortalLineOpacity = 0.9f;
+        [Tooltip("Blend operation used by first-layer blue flight portals. Reverse Subtract removes the portal energy colour from the background instead of adding it.")]
+        public BlendOp FlightPortalBlendOperation = BlendOp.Add;
 
         [Header("Portal Solidity")]
         [Tooltip("How much of the background a portal's strokes hide. 0 is a purely additive glow, which can only add light and so washes any hue towards white over bright sand. Raise it when the portal's colour needs to survive against a bright background. Empty space between the strokes stays transparent at any value.")]
