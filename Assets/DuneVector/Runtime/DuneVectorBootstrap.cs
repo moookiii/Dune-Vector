@@ -378,7 +378,6 @@ namespace DuneVector
             BuildEnvironment();
             BuildWorld();
             BuildDroneAndCamera();
-            BuildProceduralBuildings();
             BuildWindFields();
             BuildAudio();
             BuildMusicReactiveSky();
@@ -386,6 +385,9 @@ namespace DuneVector
             BuildInterface();
             BuildEnemyGameplay();
             BuildDeliveryGameplay();
+            // Buildings reject placements that overlap landmarks, so the landmark
+            // director created by BuildDeliveryGameplay has to exist first.
+            BuildProceduralBuildings();
             BuildDustDevils();
             BuildDynamicCourierGameplay();
             BuildDroneWeapon();
