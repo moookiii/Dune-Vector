@@ -2292,6 +2292,7 @@ namespace DuneVector
             Renderer[] additionalRenderers = null)
         {
             float lineLayerDepth = Mathf.Max(0f, settings.PortalLineLayerDepth);
+            Renderer dropShadowRenderer = null;
             if (settings.PortalDropShadowEnabled)
             {
                 GameObject dropShadow = CreateMeshObject(
@@ -2310,7 +2311,8 @@ namespace DuneVector
                     settings.PortalDropShadowOffsetFraction.y * radius,
                     -lineLayerDepth * 2f);
                 DisableRendererShadows(dropShadow);
-                dropShadow.GetComponent<MeshRenderer>().sortingOrder = -3;
+                dropShadowRenderer = dropShadow.GetComponent<MeshRenderer>();
+                dropShadowRenderer.sortingOrder = -3;
             }
 
             Material haloMaterial = materials.CreatePortalHaloMaterial(lineMaterial);
@@ -2423,9 +2425,25 @@ namespace DuneVector
                 portalRenderers.AddRange(additionalRenderers);
             }
 
+            // The halos, the drop shadow, and the sparks are wide transparent surfaces that
+            // cost overdraw wherever they land but stop being legible at a distance. They are
+            // tracked separately so a far portal can drop to its linework alone.
+            List<Renderer> detailRenderers = new List<Renderer>
+            {
+                rearHaloRenderer,
+                centerHaloRenderer,
+                frontHaloRenderer,
+                sparkRenderer,
+            };
+            if (dropShadowRenderer != null)
+            {
+                detailRenderers.Add(dropShadowRenderer);
+            }
+
             DuneVectorPortalVisual portalVisual = parent.gameObject.AddComponent<DuneVectorPortalVisual>();
             portalVisual.Initialize(
                 portalRenderers.ToArray(),
+                detailRenderers.ToArray(),
                 activationPulseRenderer,
                 activationPulse.transform,
                 settings);

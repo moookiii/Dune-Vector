@@ -11,6 +11,7 @@ namespace DuneVector
         private static readonly int OpacityProperty = Shader.PropertyToID("_Opacity");
 
         private Renderer[] _renderers;
+        private Renderer[] _detailRenderers;
         private Renderer _activationPulseRenderer;
         private Transform _activationPulseTransform;
         private MaterialPropertyBlock _properties;
@@ -32,6 +33,8 @@ namespace DuneVector
         private Vector3 _detachedSpinAxis;
         private float _appliedFade = float.NaN;
         private float _appliedDistanceBloomBoost = float.NaN;
+        private float _detailCullDistanceSquared;
+        private bool _detailVisible = true;
 
         private static Camera _sharedCamera;
         private static int _sharedCameraFrame = -1;
@@ -40,11 +43,15 @@ namespace DuneVector
 
         public void Initialize(
             Renderer[] renderers,
+            Renderer[] detailRenderers,
             Renderer activationPulseRenderer,
             Transform activationPulseTransform,
             RingTuning settings)
         {
             _renderers = renderers;
+            _detailRenderers = detailRenderers;
+            float detailCullDistance = Mathf.Max(0f, settings.PortalDetailCullDistance);
+            _detailCullDistanceSquared = detailCullDistance * detailCullDistance;
             _activationPulseRenderer = activationPulseRenderer;
             _activationPulseTransform = activationPulseTransform;
             _properties = new MaterialPropertyBlock();
@@ -104,6 +111,8 @@ namespace DuneVector
                 return;
             }
 
+            UpdateDetailCulling(camera);
+
             float distance = Vector3.Distance(camera.transform.position, transform.position);
             float fade = Mathf.SmoothStep(
                 0f,
@@ -121,6 +130,36 @@ namespace DuneVector
             float distanceBloomBoost =
                 Mathf.Lerp(1f, _distanceVisibilityBloomMultiplier, distanceVisibility);
             ApplyDistanceVisibility(fade, distanceBloomBoost);
+        }
+
+        /// <summary>
+        /// A portal's halos, drop shadow, and sparks are wide transparent surfaces. They read
+        /// as nothing beyond a certain range but still cost their full overdraw, so they are
+        /// switched off out there and the linework carries the portal on its own.
+        /// </summary>
+        private void UpdateDetailCulling(Camera camera)
+        {
+            if (_detailRenderers == null || _detailCullDistanceSquared <= 0f)
+            {
+                return;
+            }
+
+            bool visible = (camera.transform.position - transform.position).sqrMagnitude
+                <= _detailCullDistanceSquared;
+            if (visible == _detailVisible)
+            {
+                return;
+            }
+
+            _detailVisible = visible;
+            for (int i = 0; i < _detailRenderers.Length; i++)
+            {
+                Renderer renderer = _detailRenderers[i];
+                if (renderer != null)
+                {
+                    renderer.enabled = visible;
+                }
+            }
         }
 
         /// <summary>

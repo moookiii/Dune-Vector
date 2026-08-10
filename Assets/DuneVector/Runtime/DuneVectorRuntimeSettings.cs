@@ -3950,6 +3950,10 @@ namespace DuneVector
         public Vector2 PortalDropShadowOffsetFraction = new Vector2(0.03f, -0.03f);
         [Tooltip("How much wider the shadow stroke is than the linework it sits behind. Higher values read as a softer, more spread shadow.")]
         [Range(1f, 6f)] public float PortalDropShadowWidthMultiplier = 2.4f;
+
+        [Header("Portal Detail Culling")]
+        [Tooltip("Distance past which a portal draws only its linework, dropping the halos, the drop shadow, and the edge sparks. Those are wide transparent surfaces that cost overdraw everywhere they land but read as nothing at range. Set to 0 to keep every layer at every distance.")]
+        [Min(0f)] public float PortalDetailCullDistance = 110f;
         [Tooltip("HDR brightness multiplier applied only to portal energy, pushing its lines and halo into bloom without brightening the rest of the scene.")]
         [Min(0f)] public float PortalBloomIntensity = 0.6f;
         [Tooltip("Strength of derivative-based edge smoothing applied to portal strokes as they approach subpixel size.")]
