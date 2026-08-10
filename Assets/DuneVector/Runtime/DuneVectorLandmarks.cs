@@ -1131,7 +1131,13 @@ namespace DuneVector
             }
             instance.PositionDeliverySocketAboveVisuals(_settings.DeliveryRingClearance);
             Bounds? photographyBounds = null;
-            if (type == DuneLandmarkType.DesertMegagate)
+            if (type == DuneLandmarkType.RaiderBeacon)
+            {
+                photographyBounds = CreatePhotographyBounds(
+                    _settings.BeaconPhotographyBoundsCenter,
+                    _settings.BeaconPhotographyBoundsSize);
+            }
+            else if (type == DuneLandmarkType.DesertMegagate)
             {
                 photographyBounds = CreatePhotographyBounds(
                     _settings.MegagatePhotographyBoundsCenter,
