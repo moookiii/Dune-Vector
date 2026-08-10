@@ -2577,7 +2577,11 @@ namespace DuneVector
                 Vector2 collectiblePosition = new Vector2(
                     DuneVectorMath.HashRange(coordinate.x, coordinate.y, collectibleSeed, spawnSalt + 4, 16f, chunkSize - 16f),
                     DuneVectorMath.HashRange(coordinate.x, coordinate.y, collectibleSeed, spawnSalt + 12, 16f, chunkSize - 16f));
-                if (IsNearAny(collectiblePosition, ringExclusions, radius * 2f))
+                // Health rings are recovery pickups, so they must not lose their spawn roll
+                // merely because another traversal ring happens to be nearby. Coin rings keep
+                // the normal local spacing so their distribution remains unchanged.
+                if (collectibleType != TraversalRingType.Health
+                    && IsNearAny(collectiblePosition, ringExclusions, radius * 2f))
                 {
                     continue;
                 }
@@ -3110,8 +3114,9 @@ namespace DuneVector
             string identitySuffix,
             Action<TraversalRing> ringActivated)
         {
+            bool usesSharedRingSpacing = type != TraversalRingType.Health;
             float minimumRingSeparation = Mathf.Max(0f, ringTuning.MinimumRingSeparation);
-            if (IsNearAny(local, exclusions, minimumRingSeparation))
+            if (usesSharedRingSpacing && IsNearAny(local, exclusions, minimumRingSeparation))
             {
                 return;
             }
@@ -3144,7 +3149,9 @@ namespace DuneVector
             // see a neighbour placed just across a chunk border. Half the minimum
             // separation registered on both portals makes the overlap test measure the
             // full center-to-center distance.
-            float portalSpacingRadius = Mathf.Max(0f, ringTuning.MinimumPortalSeparation) * 0.5f;
+            float portalSpacingRadius = usesSharedRingSpacing
+                ? Mathf.Max(0f, ringTuning.MinimumPortalSeparation) * 0.5f
+                : 0f;
             if (portalSpacingRadius > 0f && DuneVectorWorldOccupancy.Overlaps(
                     logicalX,
                     logicalZ,
