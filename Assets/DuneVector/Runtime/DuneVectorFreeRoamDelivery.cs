@@ -599,7 +599,14 @@ namespace DuneVector
         private void HandleWorldShift(Vector3 shift)
         {
             _zoneRing?.ApplyWorldShift(shift);
-            _completionEffect?.ApplyWorldShift(shift);
+            // Unity's null-conditional operator does not use Object's destroyed-object null
+            // semantics. The completion effect can destroy itself while this field still holds
+            // its managed wrapper; invoking through ?. then throws and prevents every later
+            // WorldShifted subscriber (including the hub and camera) from receiving the rebase.
+            if (_completionEffect != null)
+            {
+                _completionEffect.ApplyWorldShift(shift);
+            }
             if (Phase == FreeRoamDeliveryPhase.Pickup && _package != null)
             {
                 _package.position += shift;
@@ -620,8 +627,8 @@ namespace DuneVector
             if (_completionEffect != null)
             {
                 Destroy(_completionEffect.gameObject);
-                _completionEffect = null;
             }
+            _completionEffect = null;
             ActiveObjective = null;
         }
 
