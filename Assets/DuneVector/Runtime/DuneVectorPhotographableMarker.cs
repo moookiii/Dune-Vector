@@ -15,6 +15,8 @@ namespace DuneVector
         public const string FormationEnemy = SkyPiercer;
         public const string SandAmbusher = "enemy:sand-ambusher";
         public const string Pyramid = "misc:pyramid";
+        public const string Pyramid2 = "misc:pyramid-2";
+        public const string DarkPyramid = "misc:pyramid-dark";
         public const string Hub = "misc:hub";
 
         public static string ForLandmark(DuneLandmarkType type)

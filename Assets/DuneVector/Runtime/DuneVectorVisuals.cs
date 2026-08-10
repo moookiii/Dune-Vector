@@ -1983,7 +1983,8 @@ namespace DuneVector
             Material fallbackMaterial,
             PyramidTuning pyramidLodTuning,
             float hue = 0f,
-            string rootName = "Small Pyramid")
+            string rootName = "Small Pyramid",
+            string compendiumSubjectId = DuneVectorCompendiumSubjectIds.Pyramid)
         {
             GameObject root = new GameObject(rootName);
             root.transform.SetParent(parent, false);
@@ -1992,7 +1993,7 @@ namespace DuneVector
             root.transform.localScale = Vector3.one;
             DuneVectorPhotographableMarker.Register(
                 root,
-                DuneVectorCompendiumSubjectIds.Pyramid,
+                compendiumSubjectId,
                 PhotographableSubjectCategory.Misc);
 
             Mesh mesh = GetPyramidMesh();
@@ -2051,7 +2052,7 @@ namespace DuneVector
                 bounds.size);
             DuneVectorPhotographableMarker.Register(
                 root,
-                DuneVectorCompendiumSubjectIds.Pyramid,
+                compendiumSubjectId,
                 PhotographableSubjectCategory.Misc,
                 photographyBounds);
 

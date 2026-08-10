@@ -2811,7 +2811,8 @@ namespace DuneVector
                         materials.Sandstone,
                         materials.DarkPyramidLodTuning,
                         hue,
-                        "Small Dark Pyramid");
+                        "Small Dark Pyramid",
+                        DuneVectorCompendiumSubjectIds.DarkPyramid);
                     sceneryExclusions.Add(local);
                 }
             }
@@ -2898,7 +2899,8 @@ namespace DuneVector
                         materials.Sandstone,
                         materials.Pyramid2LodTuning,
                         hue,
-                        "Pyramid 2");
+                        "Pyramid 2",
+                        DuneVectorCompendiumSubjectIds.Pyramid2);
                     sceneryExclusions.Add(local);
                 }
             }
