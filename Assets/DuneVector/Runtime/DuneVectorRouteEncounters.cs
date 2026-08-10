@@ -52,8 +52,11 @@ namespace DuneVector
         private float _pursuitTimer;
         private int _waveIndex;
         private float _waveAnnouncementUntil;
+        private float _waveAnnouncementStartedAt;
         private string _waveAnnouncement;
+        private string _waveAnnouncementSubtitle;
         private GUIStyle _waveStyle;
+        private GUIStyle _waveSubtitleStyle;
         private Material _formationMaterial;
         private Material _shotMaterial;
 
@@ -224,9 +227,13 @@ namespace DuneVector
                 }
             }
             Vector3 travelRight = Vector3.Cross(Vector3.up, travelForward).normalized;
-            _waveAnnouncement = highValue
-                ? $"HIGH-VALUE AMBUSH // {FormationTitle(formation)}"
-                : FormationTitle(formation);
+            // The formation is the headline; the wave count or the high-value warning rides
+            // underneath it so neither has to fight for the same line.
+            _waveAnnouncement = FormationTitle(formation);
+            _waveAnnouncementSubtitle = highValue
+                ? _settings.WaveAnnouncementHighValueSubtitle
+                : string.Format(_settings.WaveAnnouncementSubtitleFormat, _waveIndex);
+            _waveAnnouncementStartedAt = Time.unscaledTime;
             _waveAnnouncementUntil = Time.unscaledTime + _settings.WaveAnnouncementDuration;
             if (formation == RouteFormationType.FlyThroughAssault)
             {
@@ -433,22 +440,130 @@ namespace DuneVector
             {
                 return;
             }
-            if (_waveStyle == null)
-            {
-                _waveStyle = new GUIStyle(GUI.skin.label)
-                {
-                    alignment = TextAnchor.MiddleCenter,
-                    fontStyle = FontStyle.Bold,
-                    fontSize = _settings.WaveAnnouncementFontSize,
-                    normal = { textColor = _settings.WaveAnnouncementColor },
-                };
-            }
+            EnsureAnnouncementStyles();
+
             float remaining = _waveAnnouncementUntil - Time.unscaledTime;
-            float alpha = Mathf.Clamp01(remaining / Mathf.Max(0.01f, _settings.WaveAnnouncementDuration));
-            Color previous = GUI.color;
-            GUI.color = new Color(1f, 1f, 1f, Mathf.SmoothStep(0f, 1f, alpha));
-            GUI.Label(new Rect(0f, _settings.WaveAnnouncementTop, Screen.width, 34f), _waveAnnouncement, _waveStyle);
-            GUI.color = previous;
+            float intro = _settings.WaveAnnouncementIntroDuration <= 0f
+                ? 1f
+                : Mathf.Clamp01(
+                    (Time.unscaledTime - _waveAnnouncementStartedAt) / _settings.WaveAnnouncementIntroDuration);
+            intro = Mathf.SmoothStep(0f, 1f, intro);
+            float fade = _settings.WaveAnnouncementFadeDuration <= 0f
+                ? 1f
+                : Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(remaining / _settings.WaveAnnouncementFadeDuration));
+            float alpha = intro * fade;
+            if (alpha <= 0.001f)
+            {
+                return;
+            }
+
+            float width = Mathf.Min(_settings.WaveAnnouncementWidth, Screen.safeArea.width);
+            Rect banner = new Rect(
+                Mathf.Round((Screen.width - width) * 0.5f),
+                _settings.WaveAnnouncementTop + (_settings.WaveAnnouncementSlideDistance * (1f - intro)),
+                width,
+                _settings.WaveAnnouncementHeight);
+
+            Color accent = _settings.WaveAnnouncementColor;
+            if (_settings.WaveAnnouncementPulseSpeed > 0f)
+            {
+                float pulse = 0.5f + (0.5f * Mathf.Sin(Time.unscaledTime * _settings.WaveAnnouncementPulseSpeed));
+                accent.a *= Mathf.Lerp(1f - _settings.WaveAnnouncementPulseAmount, 1f, pulse);
+            }
+
+            DuneVectorHudChrome.DrawSoftShadow(
+                banner,
+                FadeColor(_settings.WaveAnnouncementShadowColor, alpha),
+                _settings.WaveAnnouncementShadowOffset,
+                7f);
+            DuneVectorHudChrome.DrawGlassPanel(
+                banner,
+                FadeColor(_settings.WaveAnnouncementPanelColor, alpha),
+                FadeColor(_settings.WaveAnnouncementBorderColor, alpha),
+                _settings.WaveAnnouncementBorderThickness,
+                1f);
+
+            // Alert bars top and bottom rather than a left rail: the banner is centred, so a
+            // one-sided accent would read as lopsided.
+            DuneVectorHudChrome.DrawRect(
+                new Rect(banner.x, banner.y, banner.width, _settings.WaveAnnouncementAccentHeight),
+                FadeColor(accent, alpha));
+            DuneVectorHudChrome.DrawRect(
+                new Rect(
+                    banner.x,
+                    banner.yMax - _settings.WaveAnnouncementAccentHeight,
+                    banner.width,
+                    _settings.WaveAnnouncementAccentHeight),
+                FadeColor(accent, alpha * 0.55f));
+            DuneVectorHudChrome.DrawVerticalFade(
+                new Rect(
+                    banner.x,
+                    banner.y + _settings.WaveAnnouncementAccentHeight,
+                    banner.width,
+                    banner.height * 0.4f),
+                FadeColor(accent, alpha * 0.18f),
+                true);
+            DuneVectorHudChrome.DrawCornerBrackets(
+                banner,
+                FadeColor(accent, alpha * 0.75f),
+                _settings.WaveAnnouncementCornerBracketLength,
+                _settings.WaveAnnouncementBorderThickness);
+
+            float padding = _settings.WaveAnnouncementPadding;
+            Vector2 textShadowOffset = new Vector2(1f, 1f);
+            Color textShadow = new Color(0f, 0f, 0f, 0.6f * alpha);
+            Rect title = new Rect(
+                banner.x + padding,
+                banner.y + padding,
+                banner.width - (padding * 2f),
+                _settings.WaveAnnouncementTitleHeight);
+            DuneVectorHudChrome.DrawGlowLabel(
+                title,
+                _waveAnnouncement,
+                _waveStyle,
+                FadeColor(Color.white, alpha),
+                FadeColor(_settings.WaveAnnouncementColor, alpha * _settings.WaveAnnouncementGlowOpacity),
+                _settings.WaveAnnouncementGlowRadius,
+                textShadow,
+                textShadowOffset);
+            DuneVectorHudChrome.DrawLabel(
+                new Rect(title.x, title.yMax, title.width, _settings.WaveAnnouncementSubtitleHeight),
+                _waveAnnouncementSubtitle,
+                _waveSubtitleStyle,
+                FadeColor(Color.white, alpha),
+                textShadow,
+                textShadowOffset);
+        }
+
+        private void EnsureAnnouncementStyles()
+        {
+            if (_waveStyle != null)
+            {
+                return;
+            }
+
+            _waveStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+                fontSize = _settings.WaveAnnouncementFontSize,
+                clipping = TextClipping.Clip,
+                normal = { textColor = _settings.WaveAnnouncementColor },
+            };
+            _waveSubtitleStyle = new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+                fontSize = _settings.WaveAnnouncementSubtitleFontSize,
+                clipping = TextClipping.Clip,
+                normal = { textColor = _settings.WaveAnnouncementSubtitleColor },
+            };
+        }
+
+        private static Color FadeColor(Color color, float alpha)
+        {
+            color.a *= alpha;
+            return color;
         }
 
         private static string FormationTitle(RouteFormationType formation)

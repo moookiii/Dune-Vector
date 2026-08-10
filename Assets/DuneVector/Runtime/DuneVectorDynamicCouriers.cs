@@ -319,8 +319,14 @@ namespace DuneVector
         private string _eventTitle;
         private string _eventStatus;
         private Color _eventColor;
+        // Unscaled stamp of the last phase change; drives the panel slide-in and the swap flash
+        // when the event resolves.
+        private float _phaseChangedAt;
+        private float _hullNormalized;
         private GUIStyle _titleStyle;
         private GUIStyle _bodyStyle;
+        private GUIStyle _meterLabelStyle;
+        private GUIStyle _meterValueStyle;
         private GUIStyle _markerStyle;
 
         public void Initialize(
@@ -761,6 +767,8 @@ namespace DuneVector
         {
             ActiveEventType = DynamicCourierEventType.MovingConvoy;
             _phase = DynamicCourierEventPhase.Active;
+            _phaseChangedAt = Time.unscaledTime;
+            _hullNormalized = 1f;
             BuildRoute(out Vector3 start, out _eventDestination);
             _primaryCourier = SpawnCourier(
                 "Neutral Cargo Carrier",
@@ -802,7 +810,13 @@ namespace DuneVector
                 return;
             }
 
-            _eventStatus = $"CARRIER HULL  {Mathf.CeilToInt(_primaryCourier.NormalizedHealth * 100f)}%  //  HOSTILES  {_attackers.Count}";
+            // The hull reads on the meter, so the status line carries what the meter cannot:
+            // how many raiders are still up and how much route is left to survive.
+            _hullNormalized = _primaryCourier.NormalizedHealth;
+            _eventStatus = string.Format(
+                _settings.HudActiveStatusFormat,
+                _attackers.Count,
+                HorizontalDistance(_primaryCourier.transform.position, _eventDestination));
             if (_primaryCourier.ReachedDestination)
             {
                 float rewardFraction = Mathf.Lerp(
@@ -882,8 +896,14 @@ namespace DuneVector
                 _wallet?.AddGold(reward);
             }
             _phase = DynamicCourierEventPhase.Result;
+            _phaseChangedAt = Time.unscaledTime;
             _eventTimer = _settings.ResultDisplayDuration;
-            _eventStatus = success && reward > 0 ? $"{result}  //  +{reward:N0} GOLD" : result;
+            // The outcome takes over the headline; leaving CONVOY UNDER ATTACK above a success
+            // line read as a contradiction.
+            _eventTitle = result;
+            _eventStatus = success
+                ? (reward > 0 ? string.Format(_settings.HudRewardStatusFormat, reward) : string.Empty)
+                : _settings.HudFailureStatusLabel;
             _eventColor = success ? _settings.SuccessHudColor : _settings.FailureHudColor;
             _objectiveTarget = null;
             DestroyAttackers();
@@ -1013,27 +1033,156 @@ namespace DuneVector
                 scaledPanel.y / hudScale,
                 scaledPanel.width / hudScale,
                 scaledPanel.height / hudScale);
-            Color previousColor = GUI.color;
-            GUI.color = _settings.HudPanelColor;
-            GUI.DrawTexture(panel, Texture2D.whiteTexture);
-            GUI.color = previousColor;
-
-            _titleStyle.normal.textColor = _eventColor;
-            Rect title = new Rect(
-                panel.x + _settings.HudPadding,
-                panel.y + _settings.HudPadding,
-                panel.width - (_settings.HudPadding * 2f),
-                _settings.HudTitleHeight);
-            GUI.Label(title, _eventTitle, _titleStyle);
-            Rect body = new Rect(
-                title.x,
-                title.yMax,
-                title.width,
-                Mathf.Max(_settings.HudLineHeight, panel.yMax - title.yMax - _settings.HudPadding));
-            GUI.Label(body, _eventStatus, _bodyStyle);
+            DrawEventPanel(panel);
             GUI.matrix = previousHudMatrix;
 
             DrawObjectiveMarker();
+        }
+
+        /// <summary>
+        /// Draws the event overlay in authored space; the caller has already applied the HUD
+        /// scale to <see cref="GUI.matrix"/>, so every measurement below is a raw tuning value.
+        /// </summary>
+        private void DrawEventPanel(Rect panel)
+        {
+            float sincePhase = Time.unscaledTime - _phaseChangedAt;
+            float intro = _settings.HudIntroDuration <= 0f
+                ? 1f
+                : Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(sincePhase / _settings.HudIntroDuration));
+            float outro = _phase == DynamicCourierEventPhase.Result && _settings.HudOutroDuration > 0f
+                ? Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(_eventTimer / _settings.HudOutroDuration))
+                : 1f;
+            float alpha = intro * outro;
+            if (alpha <= 0.001f)
+            {
+                return;
+            }
+
+            // Slide in from the screen edge so a new event reads as arriving rather than popping.
+            panel.x -= _settings.HudIntroSlideDistance * (1f - intro);
+
+            Color accent = _eventColor;
+            if (_phase == DynamicCourierEventPhase.Active && _settings.HudActivePulseSpeed > 0f)
+            {
+                float pulse = 0.5f + (0.5f * Mathf.Sin(Time.unscaledTime * _settings.HudActivePulseSpeed));
+                accent = Color.Lerp(
+                    accent,
+                    Color.white,
+                    pulse * _settings.HudActivePulseAmount * 0.35f);
+                accent.a *= Mathf.Lerp(1f - _settings.HudActivePulseAmount, 1f, pulse);
+            }
+
+            DuneVectorHudChrome.DrawSoftShadow(
+                panel,
+                Fade(_settings.HudShadowColor, alpha),
+                _settings.HudShadowOffset,
+                6f);
+
+            Color border = Color.Lerp(_settings.HudBorderColor, _eventColor, 0.35f);
+            border.a = _settings.HudBorderColor.a;
+            DuneVectorHudChrome.DrawGlassPanel(
+                panel,
+                Fade(_settings.HudPanelColor, alpha),
+                Fade(border, alpha),
+                _settings.HudBorderThickness,
+                1f);
+            DuneVectorHudChrome.DrawAccentRail(
+                panel,
+                Fade(accent, alpha),
+                _settings.HudAccentWidth,
+                26f);
+
+            Rect topRule = new Rect(
+                panel.x + _settings.HudAccentWidth,
+                panel.y,
+                panel.width - _settings.HudAccentWidth,
+                _settings.HudTopRuleHeight);
+            DuneVectorHudChrome.DrawRect(topRule, Fade(accent, alpha * _settings.HudTopRuleOpacity));
+            DuneVectorHudChrome.DrawVerticalFade(
+                new Rect(topRule.x, topRule.yMax, topRule.width, 9f),
+                Fade(accent, alpha * _settings.HudTopRuleOpacity * 0.4f),
+                true);
+            DuneVectorHudChrome.DrawCornerBrackets(
+                panel,
+                Fade(accent, alpha * 0.6f),
+                _settings.HudCornerBracketLength,
+                _settings.HudBorderThickness);
+
+            float padding = _settings.HudPadding;
+            float contentX = panel.x + padding + _settings.HudAccentWidth;
+            float contentWidth = panel.width - (padding * 2f) - _settings.HudAccentWidth;
+            Vector2 textShadowOffset = new Vector2(1f, 1f);
+            Color textShadow = new Color(0f, 0f, 0f, 0.55f * alpha);
+
+            Rect title = new Rect(contentX, panel.y + padding, contentWidth, _settings.HudTitleHeight);
+            DuneVectorHudChrome.DrawGlowLabel(
+                title,
+                _eventTitle,
+                _titleStyle,
+                Fade(_eventColor, alpha),
+                Fade(_eventColor, alpha * _settings.HudTitleGlowOpacity),
+                _settings.HudTitleGlowRadius,
+                textShadow,
+                textShadowOffset);
+
+            Rect body = new Rect(contentX, title.yMax, contentWidth, _settings.HudLineHeight);
+            DuneVectorHudChrome.DrawLabel(
+                body,
+                _eventStatus,
+                _bodyStyle,
+                Fade(Color.white, alpha),
+                textShadow,
+                textShadowOffset);
+
+            bool active = _phase == DynamicCourierEventPhase.Active;
+            float meterY = panel.yMax - _settings.HudMeterBottomPadding - _settings.HudMeterHeight;
+            if (active)
+            {
+                Rect meterLabel = new Rect(
+                    contentX,
+                    meterY - _settings.HudMeterLabelHeight,
+                    contentWidth,
+                    _settings.HudMeterLabelHeight);
+                DuneVectorHudChrome.DrawLabel(
+                    meterLabel,
+                    _settings.HudHullMeterLabel,
+                    _meterLabelStyle,
+                    Fade(Color.white, alpha),
+                    textShadow,
+                    textShadowOffset);
+                DuneVectorHudChrome.DrawLabel(
+                    meterLabel,
+                    string.Format(_settings.HudHullMeterFormat, Mathf.CeilToInt(_hullNormalized * 100f)),
+                    _meterValueStyle,
+                    Fade(Color.white, alpha),
+                    textShadow,
+                    textShadowOffset);
+            }
+
+            // Active: carrier hull. Result: the display timer draining, so the panel visibly
+            // announces its own dismissal instead of vanishing mid-read.
+            float normalized = active
+                ? _hullNormalized
+                : Mathf.Clamp01(_eventTimer / Mathf.Max(0.01f, _settings.ResultDisplayDuration));
+            Color meterAccent = active
+                ? Color.Lerp(_settings.FailureHudColor, accent, Mathf.Clamp01(_hullNormalized))
+                : accent;
+            DuneVectorHudChrome.DrawMeter(
+                new Rect(contentX, meterY, contentWidth, _settings.HudMeterHeight),
+                normalized,
+                Fade(meterAccent, alpha),
+                Fade(_settings.HudTrackColor, alpha),
+                _settings.HudMeterInset,
+                _settings.HudMeterDivisionCount,
+                Fade(_settings.HudMeterDivisionColor, alpha),
+                _settings.HudMeterDivisionWidth,
+                1f);
+        }
+
+        private static Color Fade(Color color, float alpha)
+        {
+            color.a *= alpha;
+            return color;
         }
 
         public bool TryGetVisiblePanelRect(out Rect panel)
@@ -1085,6 +1234,18 @@ namespace DuneVector
                 alignment = TextAnchor.UpperLeft,
                 wordWrap = true,
                 normal = { textColor = _settings.HudTextColor },
+            };
+            _meterLabelStyle = new GUIStyle(GUI.skin.label)
+            {
+                fontSize = _settings.HudMeterLabelFontSize,
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleLeft,
+                clipping = TextClipping.Clip,
+                normal = { textColor = _settings.HudMutedColor },
+            };
+            _meterValueStyle = new GUIStyle(_meterLabelStyle)
+            {
+                alignment = TextAnchor.MiddleRight,
             };
             _markerStyle = new GUIStyle(GUI.skin.label)
             {

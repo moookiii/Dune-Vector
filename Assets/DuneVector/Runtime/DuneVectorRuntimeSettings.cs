@@ -1962,6 +1962,31 @@ namespace DuneVector
         [Min(0f)] public float WaveAnnouncementTop = 142f;
         [Min(10)] public int WaveAnnouncementFontSize = 18;
         [ColorUsage(false)] public Color WaveAnnouncementColor = new Color(1f, 0.35f, 0.12f, 1f);
+        [Min(160f)] public float WaveAnnouncementWidth = 420f;
+        [Min(28f)] public float WaveAnnouncementHeight = 74f;
+        [Min(0f)] public float WaveAnnouncementPadding = 12f;
+        [Min(0f)] public float WaveAnnouncementTitleHeight = 26f;
+        [Min(0f)] public float WaveAnnouncementSubtitleHeight = 16f;
+        [Min(9)] public int WaveAnnouncementSubtitleFontSize = 11;
+        [Min(1f)] public float WaveAnnouncementAccentHeight = 3f;
+        [Min(1f)] public float WaveAnnouncementBorderThickness = 1f;
+        [Min(0f)] public float WaveAnnouncementCornerBracketLength = 14f;
+        public Vector2 WaveAnnouncementShadowOffset = new Vector2(4f, 6f);
+        [Tooltip("Rise and fade of the announcement banner, in seconds.")]
+        [Min(0f)] public float WaveAnnouncementIntroDuration = 0.22f;
+        [Min(0f)] public float WaveAnnouncementSlideDistance = 20f;
+        [Min(0f)] public float WaveAnnouncementFadeDuration = 0.5f;
+        [Min(0f)] public float WaveAnnouncementGlowRadius = 2f;
+        [Range(0f, 1f)] public float WaveAnnouncementGlowOpacity = 0.4f;
+        [Min(0f)] public float WaveAnnouncementPulseSpeed = 6f;
+        [Range(0f, 1f)] public float WaveAnnouncementPulseAmount = 0.25f;
+        [Tooltip("{0} = wave number.")]
+        public string WaveAnnouncementSubtitleFormat = "HOSTILE WAVE {0}";
+        public string WaveAnnouncementHighValueSubtitle = "HIGH-VALUE CARGO DETECTED";
+        [ColorUsage(false)] public Color WaveAnnouncementPanelColor = new Color(0.05f, 0.014f, 0.012f, 0.92f);
+        [ColorUsage(false)] public Color WaveAnnouncementBorderColor = new Color(0.45f, 0.18f, 0.09f, 0.9f);
+        [ColorUsage(false)] public Color WaveAnnouncementShadowColor = new Color(0f, 0f, 0f, 0.45f);
+        [ColorUsage(false)] public Color WaveAnnouncementSubtitleColor = new Color(0.95f, 0.78f, 0.66f, 1f);
         [Min(0f)] public float EnemyTrailDuration = 0.42f;
         [Min(0f)] public float EnemyTrailStartWidth = 0.32f;
         [Min(0f)] public float EnemyTrailEndWidth = 0.02f;
@@ -2568,6 +2593,36 @@ namespace DuneVector
         [Min(8)] public int HudBodyFontSize;
         [Min(0f)] public float HudTitleHeight;
         [Min(0f)] public float HudLineHeight;
+        [Min(1f)] public float HudAccentWidth;
+        [Min(1f)] public float HudBorderThickness;
+        [Min(0f)] public float HudTopRuleHeight;
+        [Range(0f, 1f)] public float HudTopRuleOpacity;
+        [Min(0f)] public float HudCornerBracketLength;
+        public Vector2 HudShadowOffset;
+        [Min(0f)] public float HudTitleGlowRadius;
+        [Range(0f, 1f)] public float HudTitleGlowOpacity;
+        [Tooltip("Hull readout strip along the bottom of the event panel.")]
+        [Min(0f)] public float HudMeterLabelHeight;
+        [Min(8)] public int HudMeterLabelFontSize;
+        [Min(1f)] public float HudMeterHeight;
+        [Min(0f)] public float HudMeterBottomPadding;
+        [Min(0f)] public float HudMeterInset;
+        [Range(1, 24)] public int HudMeterDivisionCount;
+        [Min(0.5f)] public float HudMeterDivisionWidth;
+        [Tooltip("Slide-in and fade-out of the whole panel, in seconds.")]
+        [Min(0f)] public float HudIntroDuration;
+        [Min(0f)] public float HudIntroSlideDistance;
+        [Min(0f)] public float HudOutroDuration;
+        [Min(0f)] public float HudActivePulseSpeed;
+        [Range(0f, 1f)] public float HudActivePulseAmount;
+        [Tooltip("{0} = hostile count, {1} = metres left on the convoy route.")]
+        public string HudActiveStatusFormat;
+        public string HudHullMeterLabel;
+        [Tooltip("{0} = hull percentage.")]
+        public string HudHullMeterFormat;
+        [Tooltip("{0} = gold reward.")]
+        public string HudRewardStatusFormat;
+        public string HudFailureStatusLabel;
         [Min(8f)] public float ObjectiveMarkerSize;
         [Min(0f)] public float ObjectiveMarkerEdgePadding;
         [Min(80f)] public float ObjectiveMarkerLabelWidth;
@@ -2575,6 +2630,11 @@ namespace DuneVector
         [Min(8)] public int ObjectiveMarkerFontSize;
         [ColorUsage(false)] public Color HudPanelColor;
         [ColorUsage(false)] public Color HudTextColor;
+        [ColorUsage(false)] public Color HudMutedColor;
+        [ColorUsage(false)] public Color HudBorderColor;
+        [ColorUsage(false)] public Color HudShadowColor;
+        [ColorUsage(false)] public Color HudTrackColor;
+        [ColorUsage(false)] public Color HudMeterDivisionColor;
         [ColorUsage(false)] public Color ConvoyHudColor;
         [ColorUsage(false)] public Color SuccessHudColor;
         [ColorUsage(false)] public Color FailureHudColor;
