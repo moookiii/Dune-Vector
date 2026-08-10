@@ -713,16 +713,26 @@ namespace DuneVector
                 _settings.TargetMarkerStartRadius,
                 _hazards.LightningTargetsAir ? _settings.AirTargetMarkerRadius : _settings.TargetMarkerEndRadius,
                 progress) * pulse;
-            UpdateCircle(_targetRings[0], target, Vector3.right, Vector3.forward, radius);
-            if (_hazards.LightningTargetsAir)
+            if (!_settings.ShowStrikeTargetRings)
             {
-                UpdateCircle(_targetRings[1], target, Vector3.right, Vector3.up, radius);
-                UpdateCircle(_targetRings[2], target, Vector3.forward, Vector3.up, radius);
+                for (int i = 0; i < _targetRings.Count; i++)
+                {
+                    _targetRings[i].enabled = false;
+                }
             }
             else
             {
-                _targetRings[1].enabled = false;
-                _targetRings[2].enabled = false;
+                UpdateCircle(_targetRings[0], target, Vector3.right, Vector3.forward, radius);
+                if (_hazards.LightningTargetsAir)
+                {
+                    UpdateCircle(_targetRings[1], target, Vector3.right, Vector3.up, radius);
+                    UpdateCircle(_targetRings[2], target, Vector3.forward, Vector3.up, radius);
+                }
+                else
+                {
+                    _targetRings[1].enabled = false;
+                    _targetRings[2].enabled = false;
+                }
             }
 
             _chargeColumn.positionCount = 2;

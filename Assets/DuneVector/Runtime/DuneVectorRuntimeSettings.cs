@@ -5026,6 +5026,7 @@ namespace DuneVector
         [Min(0f)] public float ProbeMaximumFrequencyMultiplier = 1.6f;
 
         [Header("Readable Strike Telegraph")]
+        public bool ShowStrikeTargetRings = false;
         [Range(8, 96)] public int TargetMarkerSegments = 40;
         [Min(0f)] public float TargetMarkerStartRadius = 1.4f;
         [Min(0f)] public float TargetMarkerEndRadius = 5.2f;
