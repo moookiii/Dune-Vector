@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using KinematicCharacterController;
@@ -438,6 +439,7 @@ namespace DuneVector
         private Transform _teleportPlatform;
         private Transform _hubEnergyOrbit;
         private Transform _upgradeEnergyOrbit;
+        private Coroutine _hubClothResetCoroutine;
         private Vector3 _hubSpawn;
         // Counts down while the follow camera is pinned to the drone after a teleport, so the
         // camera cannot smooth in from where the drone came from.
@@ -1682,6 +1684,7 @@ namespace DuneVector
 
         private void EnterHubImmediate(bool openTerminal, bool placePlayerAtSpawn = true)
         {
+            BeginHubClothReset();
             _health.SetDamageImmune(true);
             CleanupContractObjects();
             // Returning to the hub ends the free-roam run and breaks any delivery streak.
@@ -1711,6 +1714,66 @@ namespace DuneVector
             State = CourierRunState.Hub;
             _playerInput.SetInputEnabled(!openTerminal);
             SetTerminalOpen(openTerminal);
+        }
+
+        private void BeginHubClothReset()
+        {
+            if (!_hubSettings.ResetClothOnHubEntry || _hubRoot == null)
+            {
+                return;
+            }
+
+            if (_hubClothResetCoroutine != null)
+            {
+                return;
+            }
+
+            Cloth[] hubCloth = _hubRoot.GetComponentsInChildren<Cloth>(true);
+            List<Cloth> enabledCloth = new List<Cloth>(hubCloth.Length);
+            for (int index = 0; index < hubCloth.Length; index++)
+            {
+                Cloth cloth = hubCloth[index];
+                if (cloth == null || !cloth.enabled)
+                {
+                    continue;
+                }
+
+                cloth.enabled = false;
+                enabledCloth.Add(cloth);
+            }
+
+            if (enabledCloth.Count > 0)
+            {
+                _hubClothResetCoroutine = StartCoroutine(CompleteHubClothReset(enabledCloth));
+            }
+        }
+
+        private IEnumerator CompleteHubClothReset(List<Cloth> hubCloth)
+        {
+            float delaySeconds = Mathf.Max(0f, _hubSettings.ClothResetDelaySeconds);
+            if (delaySeconds > 0f)
+            {
+                yield return new WaitForSecondsRealtime(delaySeconds);
+            }
+            else
+            {
+                yield return null;
+            }
+
+            Physics.SyncTransforms();
+            for (int index = 0; index < hubCloth.Count; index++)
+            {
+                Cloth cloth = hubCloth[index];
+                if (cloth == null)
+                {
+                    continue;
+                }
+
+                cloth.enabled = true;
+                cloth.ClearTransformMotion();
+            }
+
+            _hubClothResetCoroutine = null;
         }
 
         private void GenerateOffers()
@@ -4216,6 +4279,11 @@ namespace DuneVector
 
         private void OnDestroy()
         {
+            if (_hubClothResetCoroutine != null)
+            {
+                StopCoroutine(_hubClothResetCoroutine);
+                _hubClothResetCoroutine = null;
+            }
             DuneVectorContractRisk.Reset();
             if (_health != null) _health.Damaged -= HandlePlayerDamaged;
             if (_health != null) _health.Died -= HandlePlayerDied;

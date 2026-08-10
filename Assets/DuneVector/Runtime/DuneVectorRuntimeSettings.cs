@@ -1355,6 +1355,12 @@ namespace DuneVector
         [Tooltip("Horizontal distance from the hub center inside which the hub is hidden from photography subject detection.")]
         [Min(0f)] public float PhotographySuppressionRadius;
 
+        [Header("Cloth Stability")]
+        [Tooltip("Pauses and reinitializes enabled cloth beneath the authored hub whenever the player enters the hub. This prevents cloth from inheriting invalid spawn or floating-origin motion.")]
+        public bool ResetClothOnHubEntry = true;
+        [Tooltip("Real-time delay before paused hub cloth is re-enabled. Keep this long enough for hub and player transforms to settle after spawning or teleporting.")]
+        [Min(0f)] public float ClothResetDelaySeconds = 0.1f;
+
         [Header("Physical Terminals")]
         [Tooltip("Skips the primitive pedestal, screen, header, and masts so the authored hub's own consoles act as the terminals. The runtime keeps an invisible interaction anchor at each terminal position.")]
         public bool UseAuthoredTerminalGeometry = true;
