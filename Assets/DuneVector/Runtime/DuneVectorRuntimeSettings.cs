@@ -4238,7 +4238,7 @@ namespace DuneVector
         [Header("Upper Flight Ring HUD")]
         public bool ShowUpperFlightRingHud = true;
         public string UpperFlightRingHudTitle = "UPPER FLIGHT LAYER";
-        public string UpperFlightRingHudProgressLabel = "UNIQUE WHITE RINGS";
+        public string UpperFlightRingHudProgressLabel = "UNIQUE FLIGHT RINGS";
         public string UpperFlightRingHudUnlockedLabel = "UPPER RING UNLOCKED";
         [Min(0f)]
         [Tooltip("Seconds the HUD remains visible after the upper flight layer unlocks. Uses unscaled time.")]
@@ -6604,8 +6604,9 @@ namespace DuneVector
         public List<FreeRoamStreakTier> StreakTiers = new List<FreeRoamStreakTier>();
 
         [Header("Streak Counter HUD")]
-        [Tooltip("Screen-space position of the streak counter as a fraction of the screen size.")]
-        public Vector2 StreakCounterAnchor = new Vector2(0.855f, 0.32f);
+        [Tooltip("Pixel gap between the bottom of the gold HUD panel and the top of the streak counter. " +
+                 "The counter shares the gold panel's horizontal centre so the right-hand HUD reads as one column.")]
+        [Min(0f)] public float StreakCounterGapUnderGoldHud = 18f;
 
         [Min(8)] public int StreakMultiplierFontSize = 62;
         [Min(8)] public int StreakLabelFontSize = 20;

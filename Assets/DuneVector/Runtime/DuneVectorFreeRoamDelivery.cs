@@ -705,33 +705,41 @@ namespace DuneVector
                 : Mathf.Clamp01(_streakPunchTimer / _settings.StreakCounterPunchDuration);
             float scale = 1f + (_settings.StreakCounterPunchScale * punch * punch);
 
-            float centerX = Screen.width * _settings.StreakCounterAnchor.x;
-            float centerY = Screen.height * _settings.StreakCounterAnchor.y;
-            Matrix4x4 previousMatrix = GUI.matrix;
-            GUIUtility.ScaleAroundPivot(new Vector2(scale, scale), new Vector2(centerX, centerY));
-
+            // The counter hangs off the right-hand HUD column: its right edge lines up with the
+            // gold panel's and it starts a gap below that panel, so the two read as one stack.
+            // The rows stay centred inside the block, which grows leftwards into open screen.
             float edgePadding = Mathf.Max(0f, _settings.StreakCounterEdgePadding);
-            float availableHalfWidth = Mathf.Max(
-                1f,
-                Mathf.Min(centerX - edgePadding, Screen.width - edgePadding - centerX));
+            float rightEdge = Screen.width - _settings.GoldHudRightMargin;
             float width = Mathf.Min(
                 Screen.width * Mathf.Clamp01(_settings.StreakCounterMaxWidthFraction),
-                (availableHalfWidth * 2f) / Mathf.Max(1f, scale));
-            Rect multiplierRect = new Rect(
-                centerX - (width * 0.5f),
-                centerY - (_settings.StreakMultiplierFontSize * 0.62f),
+                Mathf.Max(1f, rightEdge - edgePadding));
+            float left = rightEdge - width;
+            float centerX = left + (width * 0.5f);
+
+            float blockTop = _settings.GoldHudTopMargin + _settings.GoldHudHeight + _settings.StreakCounterGapUnderGoldHud;
+            float rewardHeight = _settings.StreakRewardFontSize * 1.5f;
+            float multiplierHeight = _settings.StreakMultiplierFontSize * 1.3f;
+            float centerY = blockTop + rewardHeight + (multiplierHeight * 0.5f);
+
+            Matrix4x4 previousMatrix = GUI.matrix;
+            // Punch from the right edge so the swell grows into open screen instead of off it.
+            GUIUtility.ScaleAroundPivot(new Vector2(scale, scale), new Vector2(rightEdge, centerY));
+
+            Rect rewardRect = new Rect(
+                left,
+                blockTop,
                 width,
-                _settings.StreakMultiplierFontSize * 1.3f);
+                rewardHeight);
+            Rect multiplierRect = new Rect(
+                rewardRect.x,
+                rewardRect.yMax,
+                width,
+                multiplierHeight);
             Rect labelRect = new Rect(
                 multiplierRect.x,
                 multiplierRect.yMax,
                 width,
                 _settings.StreakLabelFontSize * 1.5f);
-            Rect rewardRect = new Rect(
-                multiplierRect.x,
-                multiplierRect.y - (_settings.StreakRewardFontSize * 1.6f),
-                width,
-                _settings.StreakRewardFontSize * 1.5f);
 
             _multiplierStyle.fontSize = _settings.StreakMultiplierFontSize;
             _labelStyle.fontSize = _settings.StreakLabelFontSize;
