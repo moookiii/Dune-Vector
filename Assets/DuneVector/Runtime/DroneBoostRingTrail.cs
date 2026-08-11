@@ -141,12 +141,25 @@ namespace DuneVector
             }
 
             float smoothingTime = Mathf.Max(0f, _tuning.PathSmoothingTime);
-            _smoothedPosition = smoothingTime > 0f
-                ? Vector3.Lerp(_smoothedPosition, position, 1f - Mathf.Exp(-deltaTime / smoothingTime))
-                : position;
-
             float spacing = Mathf.Max(0.005f, _tuning.SpawnSpacing);
             float controlSpacing = spacing * Mathf.Clamp(_tuning.CurveControlSpacingMultiplier, 1, 32);
+            // Exponential smoothing trails a constant-speed target by roughly velocity * smoothingTime.
+            // Catmull-Rom also finishes at p2 while p3 supplies its look-ahead, leaving one control
+            // interval behind the latest sample. Predict through both delays so the newest completed
+            // curve segment remains attached to the drone at any flight speed.
+            Vector3 velocityDirection = velocity.sqrMagnitude > 0.01f
+                ? velocity.normalized
+                : direction;
+            Vector3 compensatedPosition = position
+                + (velocity * smoothingTime)
+                + (velocityDirection * controlSpacing);
+            _smoothedPosition = smoothingTime > 0f
+                ? Vector3.Lerp(
+                    _smoothedPosition,
+                    compensatedPosition,
+                    1f - Mathf.Exp(-deltaTime / smoothingTime))
+                : compensatedPosition;
+
             Vector3 displacement = _smoothedPosition - _controlPoints[_controlCount - 1];
             float distance = displacement.magnitude;
             if (distance < controlSpacing)
