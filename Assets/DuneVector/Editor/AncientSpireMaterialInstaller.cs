@@ -73,6 +73,13 @@ namespace DuneVector.Editor
                 Debug.LogError("Ancient Spire materials: could not load " + RuntimeSettingsPath);
                 return;
             }
+            LandmarkSystemTuning landmarkSettings = settings.Landmarks;
+            if (landmarkSettings == null)
+            {
+                Debug.LogError("Ancient Spire materials: WORLD landmark settings are missing from " +
+                    RuntimeSettingsPath);
+                return;
+            }
 
             AssetImporter importer = AssetImporter.GetAtPath(ModelPath);
             if (importer == null)
@@ -106,7 +113,7 @@ namespace DuneVector.Editor
                 }
                 material.shader = shader;
 
-                ConfigureMaterial(material, spec, settings, missing);
+                ConfigureMaterial(material, spec, landmarkSettings, missing);
                 EditorUtility.SetDirty(material);
                 written++;
 
@@ -133,7 +140,7 @@ namespace DuneVector.Editor
         private static void ConfigureMaterial(
             Material material,
             MaterialSpec spec,
-            DuneVectorRuntimeSettings settings,
+            LandmarkSystemTuning settings,
             List<string> missing)
         {
             Color tint;
@@ -260,7 +267,7 @@ namespace DuneVector.Editor
             }
         }
 
-        private static float TilingFor(Family family, DuneVectorRuntimeSettings settings)
+        private static float TilingFor(Family family, LandmarkSystemTuning settings)
         {
             switch (family)
             {
