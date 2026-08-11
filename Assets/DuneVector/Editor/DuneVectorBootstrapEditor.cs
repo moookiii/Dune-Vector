@@ -232,12 +232,6 @@ namespace DuneVector.Editor
             _worldHub = serializedObject.FindProperty("WorldHub");
             _landmarks = serializedObject.FindProperty("Landmarks");
             _buildings = serializedObject.FindProperty("Buildings");
-            if (_buildings != null)
-            {
-                // DrawSection supplies the visible heading, so a collapsed generic
-                // property otherwise looks like an empty section with no foldout label.
-                _buildings.isExpanded = true;
-            }
             _geoglyphs = serializedObject.FindProperty("Geoglyphs");
             _desertAtlas = serializedObject.FindProperty("DesertAtlas");
             _photography = serializedObject.FindProperty("Photography");
@@ -800,10 +794,27 @@ namespace DuneVector.Editor
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                EditorGUILayout.LabelField(title, EditorStyles.boldLabel);
+                property.isExpanded = EditorGUILayout.Foldout(
+                    property.isExpanded,
+                    title,
+                    true,
+                    EditorStyles.foldoutHeader);
                 EditorGUILayout.LabelField(subtitle, EditorStyles.wordWrappedMiniLabel);
+
+                if (!property.isExpanded)
+                {
+                    return;
+                }
+
                 EditorGUILayout.Space(3f);
-                EditorGUILayout.PropertyField(property, GUIContent.none, true);
+                SerializedProperty child = property.Copy();
+                SerializedProperty end = child.GetEndProperty();
+                bool enterChildren = true;
+                while (child.NextVisible(enterChildren) && !SerializedProperty.EqualContents(child, end))
+                {
+                    EditorGUILayout.PropertyField(child, true);
+                    enterChildren = false;
+                }
             }
         }
     }
