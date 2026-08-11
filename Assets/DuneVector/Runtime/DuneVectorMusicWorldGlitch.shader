@@ -78,11 +78,10 @@ Shader "DuneVector/URP Music World Glitch"
                 half flash = rowNoise * glitchMask;
                 half3 color = lerp(source, split, glitchMask);
                 color = lerp(color, _DVMusicGlitchTint.rgb, flash * _DVMusicGlitchTint.a);
-                half tintMaximum = max(max(_DVMusicGlitchTint.r, _DVMusicGlitchTint.g), _DVMusicGlitchTint.b);
-                half3 normalizedTint = _DVMusicGlitchTint.rgb / max(tintMaximum, 0.0001h);
-                half luminance = dot(color, half3(0.2126h, 0.7152h, 0.0722h));
-                half3 hueColor = luminance * normalizedTint * 1.35h;
-                color = lerp(color, hueColor, saturate(_DVMusicFullscreenHueIntensity));
+                color = lerp(
+                    color,
+                    _DVMusicGlitchTint.rgb,
+                    saturate(_DVMusicFullscreenHueIntensity) * _DVMusicGlitchTint.a);
                 return half4(color, 1.0h);
             }
             ENDHLSL
