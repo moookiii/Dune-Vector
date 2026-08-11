@@ -46,6 +46,9 @@ namespace DuneVector
         private Transform _buildingRoot;
         private float _refreshTimer;
         private int _hueSettingsHash;
+        private int _playerDeploymentOccupancyHandle = DuneVectorWorldOccupancy.InvalidHandle;
+
+        private const int MaximumDeploymentResolutionPasses = 8;
 
         public void Initialize(
             DesertWorldStreamer world,
@@ -103,7 +106,76 @@ namespace DuneVector
                 _world.WorldShifted -= HandleWorldShifted;
             }
 
+            DuneVectorWorldOccupancy.Release(_playerDeploymentOccupancyHandle);
+            _playerDeploymentOccupancyHandle = DuneVectorWorldOccupancy.InvalidHandle;
+
             DestroyTintedMaterials();
+        }
+
+        public LogicalPosition ResolvePlayerDeployment(
+            LogicalPosition desiredPosition,
+            Vector3 preferredDirection)
+        {
+            float clearance = _settings != null
+                ? Mathf.Max(0f, _settings.PlayerDeploymentClearance)
+                : 0f;
+            if (clearance <= 0f)
+            {
+                return desiredPosition;
+            }
+
+            Vector2 candidate = new Vector2((float)desiredPosition.X, (float)desiredPosition.Z);
+            Vector2 fallbackDirection = new Vector2(preferredDirection.x, preferredDirection.z);
+            fallbackDirection = fallbackDirection.sqrMagnitude > Mathf.Epsilon
+                ? fallbackDirection.normalized
+                : Vector2.right;
+            bool adjusted = false;
+            for (int pass = 0; pass < MaximumDeploymentResolutionPasses; pass++)
+            {
+                if (!DuneVectorWorldOccupancy.TryGetNearestOverlap(
+                        candidate.x,
+                        candidate.y,
+                        clearance,
+                        WorldOccupancyKind.Structure,
+                        out double structureX,
+                        out double structureZ,
+                        out float structureRadius))
+                {
+                    break;
+                }
+
+                Vector2 structurePosition = new Vector2((float)structureX, (float)structureZ);
+                Vector2 delta = candidate - structurePosition;
+                Vector2 direction = delta.sqrMagnitude > Mathf.Epsilon
+                    ? delta.normalized
+                    : fallbackDirection;
+                candidate = structurePosition +
+                    (direction * (structureRadius + clearance));
+                adjusted = true;
+            }
+
+            return adjusted
+                ? new LogicalPosition(candidate.x, candidate.y)
+                : desiredPosition;
+        }
+
+        public void ReservePlayerDeployment(LogicalPosition position)
+        {
+            DuneVectorWorldOccupancy.Release(_playerDeploymentOccupancyHandle);
+            _playerDeploymentOccupancyHandle = DuneVectorWorldOccupancy.InvalidHandle;
+            float clearance = _settings != null
+                ? Mathf.Max(0f, _settings.PlayerDeploymentClearance)
+                : 0f;
+            if (clearance <= 0f)
+            {
+                return;
+            }
+
+            _playerDeploymentOccupancyHandle = DuneVectorWorldOccupancy.Register(
+                position.X,
+                position.Z,
+                clearance,
+                WorldOccupancyKind.PlayerDeployment);
         }
 
         private void Refresh()
@@ -254,6 +326,15 @@ namespace DuneVector
                 }
 
                 float footprintRadius = GetPrefabFootprintRadius(prefab);
+                if (DuneVectorWorldOccupancy.Overlaps(
+                        logicalX,
+                        logicalZ,
+                        footprintRadius,
+                        WorldOccupancyKind.PlayerDeployment))
+                {
+                    continue;
+                }
+
                 if (DuneVectorWorldOccupancy.Overlaps(
                         logicalX,
                         logicalZ,

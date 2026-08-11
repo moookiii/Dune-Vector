@@ -10,6 +10,7 @@ namespace DuneVector
         PortalSpacing = 2,
         GroundPortalSpacing = 3,
         FlightPortalSpacing = 4,
+        PlayerDeployment = 5,
     }
 
     /// <summary>
@@ -22,7 +23,7 @@ namespace DuneVector
     public static class DuneVectorWorldOccupancy
     {
         private const double CellSize = 64d;
-        private const int KindCount = 5;
+        private const int KindCount = 6;
 
         private sealed class Entry
         {
@@ -148,6 +149,70 @@ namespace DuneVector
             }
 
             return false;
+        }
+
+        public static bool TryGetNearestOverlap(
+            double logicalX,
+            double logicalZ,
+            float radius,
+            WorldOccupancyKind kind,
+            out double overlapX,
+            out double overlapZ,
+            out float overlapRadius)
+        {
+            radius = Mathf.Max(0f, radius);
+            overlapX = 0d;
+            overlapZ = 0d;
+            overlapRadius = 0f;
+            double reach = radius + LargestRadiusByKind[(int)kind];
+            if (reach <= 0d)
+            {
+                return false;
+            }
+
+            Vector2Int center = ToCell(logicalX, logicalZ);
+            int cellReach = Mathf.Max(1, Mathf.CeilToInt((float)(reach / CellSize)));
+            double nearestSquared = double.MaxValue;
+            bool found = false;
+            for (int z = -cellReach; z <= cellReach; z++)
+            {
+                for (int x = -cellReach; x <= cellReach; x++)
+                {
+                    if (!HandlesByCell.TryGetValue(
+                            new Vector2Int(center.x + x, center.y + z),
+                            out List<int> handles))
+                    {
+                        continue;
+                    }
+
+                    for (int i = 0; i < handles.Count; i++)
+                    {
+                        if (!EntriesByHandle.TryGetValue(handles[i], out Entry entry) ||
+                            entry.Kind != kind)
+                        {
+                            continue;
+                        }
+
+                        double deltaX = logicalX - entry.X;
+                        double deltaZ = logicalZ - entry.Z;
+                        double separation = entry.Radius + radius;
+                        double distanceSquared = (deltaX * deltaX) + (deltaZ * deltaZ);
+                        if (distanceSquared >= separation * separation ||
+                            distanceSquared >= nearestSquared)
+                        {
+                            continue;
+                        }
+
+                        nearestSquared = distanceSquared;
+                        overlapX = entry.X;
+                        overlapZ = entry.Z;
+                        overlapRadius = entry.Radius;
+                        found = true;
+                    }
+                }
+            }
+
+            return found;
         }
 
         public static void Clear()

@@ -415,6 +415,7 @@ namespace DuneVector
         private DroneGoldWallet _wallet;
         private DronePermanentUpgradeSystem _permanentUpgrades;
         private DuneVectorLandmarkDirector _landmarks;
+        private DuneVectorProceduralBuildingDirector _buildings;
         private CourierContractTuning _settings;
         private DeliveryMessageTuning _messageSettings;
         private DeliveryTuning _deliverySettings;
@@ -748,6 +749,11 @@ namespace DuneVector
             PrepareFreeRoamDeployment();
             BeginTeleport(toHub: false);
             return true;
+        }
+
+        public void BindProceduralBuildings(DuneVectorProceduralBuildingDirector buildings)
+        {
+            _buildings = buildings;
         }
 
         /// <summary>
@@ -2920,6 +2926,13 @@ namespace DuneVector
                 resolved = _dustDevils.ResolvePlayerDeployment(
                     resolved,
                     -(_desertRotation * Vector3.forward));
+            }
+            if (_buildings != null)
+            {
+                resolved = _buildings.ResolvePlayerDeployment(
+                    resolved,
+                    -(_desertRotation * Vector3.forward));
+                _buildings.ReservePlayerDeployment(resolved);
             }
             if (resolved.X == original.X && resolved.Z == original.Z)
             {

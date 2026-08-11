@@ -920,6 +920,7 @@ namespace DuneVector
                 RuntimeSettings.Buildings,
                 RuntimeSettings.Geoglyphs,
                 LandmarkDirector);
+            CourierGame?.BindProceduralBuildings(BuildingDirector);
         }
 
         private static Volume FindSceneGlobalVolume()

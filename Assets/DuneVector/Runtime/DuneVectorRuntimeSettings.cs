@@ -1877,6 +1877,8 @@ namespace DuneVector
         [Min(0f)] public float LandmarkClearance = 20f;
         [Tooltip("Extra horizontal clearance between a building's measured prefab footprint and the space every already-placed portal reserves.")]
         [Min(0f)] public float PortalClearance = 6f;
+        [Tooltip("Clear ground kept between the drone's contract or free roam deployment point and every procedural building footprint. Existing buildings push the deployment point away, and buildings streamed afterward avoid the reserved area.")]
+        [Min(0f)] public float PlayerDeploymentClearance = 8f;
         [Range(0f, 50f)] public float MaximumPlacementSlope = 35f;
         [Tooltip("Alternative deterministic positions tried when a candidate lands inside an exclusion zone or on an excessive slope.")]
         [Range(1, 8)] public int PlacementAttemptsPerBuilding = 4;
