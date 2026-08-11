@@ -1600,20 +1600,9 @@ namespace DuneVector
             List<Transform> shardParts = CollectSpireParts(spire, shardPrefix);
             List<Transform> monolithParts = CollectSpireParts(spire, monolithPrefix);
 
-            // The relic core carries the pivot for the whole assembly so the rings
-            // stay concentric with it while it spins, bobs and pulses.
+            // Keep the relic gem-and-sphere assembly at its authored transform.
+            // The surrounding shards and monoliths animate independently below.
             Transform relicCore = FindExactSpirePart(relicParts, relicPrefix);
-            if (relicParts.Count > 0)
-            {
-                Vector3 pivotPosition = relicCore != null
-                    ? relicCore.localPosition
-                    : AverageLocalPosition(relicParts);
-                Transform relicPivot = CreateSpirePivot(spire, "Ancient Spire Relic", pivotPosition, relicParts);
-                animator.RegisterSpin(relicPivot, Vector3.up, _settings.SpireRelicRotationSpeed);
-                animator.RegisterBob(relicPivot, _settings.SpireRelicFloatAmplitude * scale,
-                    _settings.SpireRelicFloatSpeed);
-                animator.RegisterPulse(relicPivot, _settings.BeaconPulseAmount, _settings.BeaconPulseSpeed);
-            }
 
             // Shards orbit the tower axis, counter to the relic, exactly as the
             // procedural spire's shard parent did.
@@ -1806,10 +1795,7 @@ namespace DuneVector
                         Quaternion.Euler(0f, (i + 1f) * 13f, 0f), _materials.AncientSpireAccent, false);
                 }
             }
-            Transform relic = Part(PrimitiveType.Sphere, "Floating Spire Relic", root, new Vector3(0f, height + 12f, 0f) * scale, Vector3.one * 5f * scale, Quaternion.identity, _materials.AncientSpireAccent, false);
-            animator.RegisterSpin(relic, Vector3.up, _settings.SpireRelicRotationSpeed);
-            animator.RegisterBob(relic, _settings.SpireRelicFloatAmplitude * scale, _settings.SpireRelicFloatSpeed);
-            animator.RegisterPulse(relic, _settings.BeaconPulseAmount, _settings.BeaconPulseSpeed);
+            Part(PrimitiveType.Sphere, "Floating Spire Relic", root, new Vector3(0f, height + 12f, 0f) * scale, Vector3.one * 5f * scale, Quaternion.identity, _materials.AncientSpireAccent, false);
             Transform shardOrbit = new GameObject("Spire Relic Shards").transform;
             shardOrbit.SetParent(root, false);
             int shardCount = Mathf.Max(2, _settings.SpireShardCount);
