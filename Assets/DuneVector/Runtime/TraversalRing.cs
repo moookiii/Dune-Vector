@@ -483,16 +483,13 @@ namespace DuneVector
                     {
                         _controller.RestoreStaminaToFull();
                     }
-                    if (Time.time >= _nextFlightMeterRewardTime)
+                    bool rechargeFlightMeter = Time.time >= _nextFlightMeterRewardTime;
+                    if (rechargeFlightMeter)
                     {
                         _nextFlightMeterRewardTime = Time.time
                             + Mathf.Max(0f, _ringTuning.FlightMeterRewardCooldown);
-                        _controller.RequestFlightFromRing(transform.forward, speedMultiplier);
                     }
-                    else
-                    {
-                        _controller.RequestFlight(transform.forward, speedMultiplier);
-                    }
+                    _controller.RequestFlightFromRing(speedMultiplier, rechargeFlightMeter);
                 }
                 else
                 {

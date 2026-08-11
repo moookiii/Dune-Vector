@@ -584,13 +584,32 @@ namespace DuneVector
             _flightRequested = true;
         }
 
-        public void RequestFlightFromRing(Vector3 launchDirection, float speedMultiplier = 1f)
+        public void RequestFlightFromRing(
+            float speedMultiplier = 1f,
+            bool rechargeFlightMeter = true)
         {
-            FlightTimeRemaining = Mathf.Min(
-                FlightDuration,
-                FlightTimeRemaining + FlightRingRechargeSeconds);
-            MarkFlightMeterDirty();
-            SaveFlightMeter();
+            if (rechargeFlightMeter)
+            {
+                FlightTimeRemaining = Mathf.Min(
+                    FlightDuration,
+                    FlightTimeRemaining + FlightRingRechargeSeconds);
+                MarkFlightMeterDirty();
+                SaveFlightMeter();
+            }
+
+            // A procedural ring's forward axis describes its generated route, not the
+            // exact direction the drone crossed it. Preserve the current trajectory so
+            // entering flight cannot inject an unrequested left/right steering impulse.
+            Vector3 launchDirection = Motor != null
+                ? Vector3.ProjectOnPlane(Motor.Velocity, Motor.CharacterUp)
+                : Vector3.zero;
+            if (launchDirection.sqrMagnitude <= 0.001f)
+            {
+                launchDirection = Motor != null
+                    ? Vector3.ProjectOnPlane(Motor.CharacterForward, Motor.CharacterUp)
+                    : transform.forward;
+            }
+
             RequestFlight(launchDirection, speedMultiplier);
         }
 
