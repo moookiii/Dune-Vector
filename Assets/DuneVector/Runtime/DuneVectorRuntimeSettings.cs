@@ -5813,7 +5813,9 @@ namespace DuneVector
         [Header("FMOD Events")]
         [Tooltip("Songs played as a shuffled playlist. Each entry selects its matching visualizer profile.")]
         public MusicPlaylistTrack[] BackgroundMusicPlaylist = System.Array.Empty<MusicPlaylistTrack>();
-        [Tooltip("Playlist entry played first when the game starts. Remaining entries stay shuffled.")]
+        [Tooltip("Choose the first song from the shuffled playlist when the game starts.")]
+        public bool RandomizeStartingBackgroundMusicTrack = true;
+        [Tooltip("Playlist entry played first when startup randomization is disabled. Remaining entries stay shuffled.")]
         [Min(0)] public int StartingBackgroundMusicTrackIndex;
         [Tooltip("Legacy fallback used only when the background-music playlist is empty.")]
         public string BackgroundMusicEvent = "event:/Shadows on the Mesa";

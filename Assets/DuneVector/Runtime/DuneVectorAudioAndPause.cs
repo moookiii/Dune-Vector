@@ -852,7 +852,7 @@ namespace DuneVector
                 _musicPlayOrder[i] = i;
             }
             ShuffleMusicPlayOrder(-1);
-            if (_musicPlayOrder.Length > 1)
+            if (_musicPlayOrder.Length > 1 && !_settings.RandomizeStartingBackgroundMusicTrack)
             {
                 int startingTrackIndex = Mathf.Clamp(
                     _settings.StartingBackgroundMusicTrackIndex,
