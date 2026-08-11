@@ -81,7 +81,7 @@ model_width = maxs.x - mins.x
 model_depth = maxs.y - mins.y
 
 # Infinite-looking dark navy studio floor.
-ground_mat = material("Reference Ground", (0.0025, 0.007, 0.012), metallic=0.05, roughness=0.26)
+ground_mat = material("Reference Ground", (0.006, 0.012, 0.018), metallic=0.0, roughness=0.42)
 bpy.ops.mesh.primitive_plane_add(size=40.0, location=(center.x, center.y, floor_z))
 ground = bpy.context.object
 ground.name = "Reference dark navy floor"
@@ -90,11 +90,10 @@ link_to_setup(ground, setup)
 
 # Match the reference's warm upper-left key and cool blue right-hand rim.
 target = Vector((center.x, center.y, mins.z + (maxs.z - mins.z) * 0.48))
-area_light(setup, "Warm ivory key", (-4.6, -5.8, 8.3), (1.0, 0.72, 0.48), 980, 4.2, target)
-area_light(setup, "Cool cyan fill", (5.5, -2.0, 4.2), (0.14, 0.55, 1.0), 720, 4.0, target)
-area_light(setup, "Blue rear rim", (2.5, 6.0, 4.0), (0.0, 0.48, 1.0), 1150, 3.0, target)
-area_light(setup, "Soft overhead", (-0.5, 0.2, 10.0), (0.55, 0.70, 1.0), 520, 5.0, target)
-point_light(setup, "Cyan ground bloom", (center.x + 2.4, center.y + 2.5, floor_z + 0.25), (0.0, 0.55, 1.0), 280, 1.6)
+area_light(setup, "Warm ivory key", (-4.6, -5.8, 8.3), (1.0, 0.76, 0.56), 1750, 4.0, target)
+area_light(setup, "Cool cyan fill", (5.5, -2.0, 4.2), (0.20, 0.62, 1.0), 1120, 4.5, target)
+area_light(setup, "Blue rear rim", (2.5, 6.0, 4.0), (0.0, 0.44, 1.0), 820, 3.5, target)
+area_light(setup, "Soft overhead", (-1.8, -1.0, 9.0), (0.72, 0.82, 1.0), 1350, 3.8, target)
 
 # Three-quarter elevated orthographic framing, with the nose toward camera.
 cam_data = bpy.data.cameras.new("Reference Camera")
@@ -103,7 +102,7 @@ setup.objects.link(camera)
 camera.location = (center.x + 6.9, center.y - 8.5, center.z + 5.5)
 look_at(camera, target)
 cam_data.type = "ORTHO"
-cam_data.ortho_scale = max(6.10, model_width * 1.12)
+cam_data.ortho_scale = max(7.00, model_width * 1.28)
 cam_data.lens = 55
 bpy.context.scene.camera = camera
 
@@ -129,9 +128,10 @@ scene.render.resolution_percentage = 100
 
 scene.world.use_nodes = True
 background = scene.world.node_tree.nodes.get("Background")
-background.inputs["Color"].default_value = (0.0006, 0.002, 0.006, 1.0)
-background.inputs["Strength"].default_value = 0.075
+background.inputs["Color"].default_value = (0.0015, 0.004, 0.009, 1.0)
+background.inputs["Strength"].default_value = 0.13
 scene.view_settings.look = "AgX - Medium High Contrast"
+scene.view_settings.exposure = 0.65
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 bpy.ops.wm.save_as_mainfile(filepath=OUTPUT_BLEND)
