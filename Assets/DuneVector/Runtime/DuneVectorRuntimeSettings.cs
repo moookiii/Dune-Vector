@@ -5950,6 +5950,7 @@ namespace DuneVector
         }
     }
 
+    // Keep this runtime tuning type platform-agnostic because Unity validates its serialized layout during player builds.
     [System.Serializable]
     public sealed class StaminaBoostTuning
     {
