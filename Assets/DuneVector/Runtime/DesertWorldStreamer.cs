@@ -266,6 +266,7 @@ namespace DuneVector
         private readonly Dictionary<Vector2Int, DesertChunk> _chunks = new Dictionary<Vector2Int, DesertChunk>();
         private readonly Queue<Vector2Int> _generationQueue = new Queue<Vector2Int>();
         private readonly HashSet<Vector2Int> _queuedCoordinates = new HashSet<Vector2Int>();
+        private readonly Queue<Vector2Int> _contentCompletionQueue = new Queue<Vector2Int>();
         private readonly Queue<Vector2Int> _collisionQueue = new Queue<Vector2Int>();
         private readonly HashSet<Vector2Int> _queuedCollisionCoordinates = new HashSet<Vector2Int>();
         private readonly List<Vector2Int> _candidateCoordinates = new List<Vector2Int>();
@@ -274,6 +275,7 @@ namespace DuneVector
         private readonly HashSet<Vector2Int> _desiredContentCoordinates = new HashSet<Vector2Int>();
         private readonly HashSet<Vector2Int> _desiredVisualCoordinates = new HashSet<Vector2Int>();
         private readonly HashSet<Vector2Int> _retainedVisualCoordinates = new HashSet<Vector2Int>();
+        private readonly HashSet<Vector2Int> _cameraPriorityCoordinates = new HashSet<Vector2Int>();
         private readonly Plane[] _streamingFrustumPlanes = new Plane[6];
 
         /// <summary>
@@ -595,6 +597,29 @@ namespace DuneVector
 
                 if (!didWork)
                 {
+                    while (_contentCompletionQueue.Count > 0)
+                    {
+                        Vector2Int coordinate = _contentCompletionQueue.Dequeue();
+                        if (!_desiredContentCoordinates.Contains(coordinate) ||
+                            !_chunks.TryGetValue(coordinate, out DesertChunk stagedChunk) ||
+                            stagedChunk.IsContentReady)
+                        {
+                            continue;
+                        }
+
+                        AdvanceChunkContent(stagedChunk);
+                        if (stagedChunk.IsContentReady && stagedChunk.IsVisualReady)
+                        {
+                            stagedChunk.SetPresentationActive(true);
+                        }
+                        generated++;
+                        didWork = true;
+                        break;
+                    }
+                }
+
+                if (!didWork)
+                {
                     while (_generationQueue.Count > 0)
                     {
                         Vector2Int coordinate = _generationQueue.Dequeue();
@@ -620,12 +645,9 @@ namespace DuneVector
                         bool reducedDetailRebuild = false;
                         if (needsContent)
                         {
-                            // Normal streamed content does not need a collider. The dedicated
-                            // collision queue upgrades only the player and predicted-flight
-                            // neighbourhood. Building every preload chunk as collision terrain
-                            // duplicated mesh work and split its visual/content completion across
-                            // multiple queue passes. Without that unnecessary collision pass, a
-                            // new content chunk creates its dunes and authored content together.
+                            // The chunk stages mesh and content work across queue passes while its
+                            // root remains hidden, then reveals both together. Collision remains a
+                            // separate near-player upgrade instead of burdening every preload chunk.
                             GenerateChunkImmediate(coordinate, true, false);
                         }
                         else if (!_chunks.TryGetValue(coordinate, out DesertChunk visualChunk))
@@ -636,6 +658,7 @@ namespace DuneVector
                         {
                             reducedDetailRebuild = visualChunk.IsPendingReducedDetail;
                             visualChunk.BuildVisualTerrain();
+                            visualChunk.SetPresentationActive(true);
                         }
 
                         if (_chunks.TryGetValue(coordinate, out DesertChunk advancedChunk) &&
@@ -863,6 +886,7 @@ namespace DuneVector
             _desiredContentCoordinates.Clear();
             _desiredVisualCoordinates.Clear();
             _retainedVisualCoordinates.Clear();
+            _cameraPriorityCoordinates.Clear();
             _candidateCoordinates.Clear();
             int radius = Mathf.Max(1, Mathf.Max(ActiveRadius, PreloadRadius));
             for (int z = -radius; z <= radius; z++)
@@ -893,6 +917,16 @@ namespace DuneVector
                     CameraFrustumPaddingChunks,
                     MaximumCameraFrustumTerrainChunks,
                     _desiredVisualCoordinates);
+
+                foreach (Vector2Int coordinate in _desiredVisualCoordinates)
+                {
+                    if (GeometryUtility.TestPlanesAABB(
+                        _streamingFrustumPlanes,
+                        CalculateChunkTerrainBounds(coordinate, 0f)))
+                    {
+                        _cameraPriorityCoordinates.Add(coordinate);
+                    }
+                }
 
                 int retainedFrustumBudget = Mathf.Max(16, MaximumCameraFrustumTerrainChunks);
                 foreach (Vector2Int coordinate in _desiredVisualCoordinates)
@@ -1227,6 +1261,10 @@ namespace DuneVector
                 {
                     AdvanceChunkContent(existing);
                 }
+                if (completeContent && existing.IsContentReady && existing.IsVisualReady)
+                {
+                    existing.SetPresentationActive(true);
+                }
                 return;
             }
 
@@ -1256,7 +1294,11 @@ namespace DuneVector
                 WorldSeed);
             if (completeContent)
             {
-                AdvanceChunkContent(chunk);
+                // Keep a staged content chunk invisible until the next queue pass completes its
+                // authored content. This avoids one large mesh+content spike while ensuring the
+                // terrain and everything belonging to it appear together.
+                chunk.SetPresentationActive(false);
+                _contentCompletionQueue.Enqueue(coordinate);
             }
             GeneratedChunkCount++;
             PeakActiveChunkCount = Mathf.Max(PeakActiveChunkCount, _chunks.Count);
@@ -1456,6 +1498,13 @@ namespace DuneVector
                 return leftNeedsVisualTerrain ? -1 : 1;
             }
 
+            bool leftCameraPriority = _cameraPriorityCoordinates.Contains(left);
+            bool rightCameraPriority = _cameraPriorityCoordinates.Contains(right);
+            if (leftCameraPriority != rightCameraPriority)
+            {
+                return leftCameraPriority ? -1 : 1;
+            }
+
             bool leftNeedsContent = _desiredContentCoordinates.Contains(left);
             bool rightNeedsContent = _desiredContentCoordinates.Contains(right);
             if (leftNeedsContent != rightNeedsContent)
@@ -1598,7 +1647,7 @@ namespace DuneVector
         private DuneVectorCloudField _cloudField;
         private DesertShrubField _shrubs;
         public bool IsVisualReady { get; private set; }
-        public bool IsTerrainVisible => _terrainMesh != null;
+        public bool IsTerrainVisible => _terrainMesh != null && Root.gameObject.activeSelf;
 
         /// <summary>
         /// True when the queued rebuild is a demotion to a coarser tier, which costs a fraction of
@@ -1712,6 +1761,14 @@ namespace DuneVector
                     TerrainEdgeSteps.Matched);
             }
             AssignTerrainCollider();
+        }
+
+        public void SetPresentationActive(bool active)
+        {
+            if (Root.gameObject.activeSelf != active)
+            {
+                Root.gameObject.SetActive(active);
+            }
         }
 
         private void AssignTerrainCollider()

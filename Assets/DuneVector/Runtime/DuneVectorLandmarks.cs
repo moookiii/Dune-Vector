@@ -406,6 +406,7 @@ namespace DuneVector
         private Transform _root;
         private float _refreshTimer;
         private bool _hasPendingTerrainCells;
+        private int _remainingBuildsThisRefresh;
         private Vector2Int _lastCenter = new Vector2Int(int.MinValue, int.MinValue);
 
         public IReadOnlyCollection<DuneVectorLandmarkInstance> StreamedLandmarks => _streamed.Values;
@@ -713,6 +714,7 @@ namespace DuneVector
             {
                 _pinned.Add(landmark);
             }
+            landmark.gameObject.SetActive(_world.IsVisualTerrainReady(record.LogicalPosition));
             return landmark;
         }
 
@@ -731,6 +733,7 @@ namespace DuneVector
 
         private void Update()
         {
+            RefreshTerrainVisibility();
             _refreshTimer -= Time.deltaTime;
             if (_refreshTimer <= 0f)
             {
@@ -738,6 +741,29 @@ namespace DuneVector
                 _refreshTimer = _hasPendingTerrainCells
                     ? 0.05f
                     : Mathf.Max(0.1f, _settings.RefreshInterval);
+            }
+        }
+
+        private void RefreshTerrainVisibility()
+        {
+            if (_world == null)
+            {
+                return;
+            }
+
+            foreach (DuneVectorLandmarkInstance landmark in _streamed.Values)
+            {
+                if (landmark == null || landmark.PlacementRecord == null)
+                {
+                    continue;
+                }
+
+                bool terrainReady = _world.IsVisualTerrainReady(
+                    landmark.PlacementRecord.LogicalPosition);
+                if (landmark.gameObject.activeSelf != terrainReady)
+                {
+                    landmark.gameObject.SetActive(terrainReady);
+                }
             }
         }
 
@@ -755,6 +781,7 @@ namespace DuneVector
             }
             _lastCenter = center;
             _hasPendingTerrainCells = false;
+            _remainingBuildsThisRefresh = Mathf.Max(1, _settings.MaximumBuildsPerRefresh);
 
             int radius = Mathf.Max(1, _settings.ActiveCellRadius);
             for (int z = -radius; z <= radius; z++)
@@ -805,6 +832,12 @@ namespace DuneVector
             {
                 return false;
             }
+
+            if (_remainingBuildsThisRefresh <= 0)
+            {
+                return false;
+            }
+            _remainingBuildsThisRefresh--;
 
             DuneVectorLandmarkInstance landmark = BuildLandmark(record.Type, record.Rarity, record.LogicalPosition,
                 record.VariantSeed, false, record.RotationDegrees);

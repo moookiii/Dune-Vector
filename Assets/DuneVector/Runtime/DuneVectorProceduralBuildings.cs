@@ -212,6 +212,13 @@ namespace DuneVector
                     Vector2Int cell = center + new Vector2Int(x, z);
                     if (!_loadedCells.ContainsKey(cell))
                     {
+                        LogicalPosition cellCenter = new LogicalPosition(
+                            (cell.x + 0.5) * cellSize,
+                            (cell.y + 0.5) * cellSize);
+                        if (!_world.IsVisualTerrainReady(cellCenter))
+                        {
+                            continue;
+                        }
                         _loadedCells.Add(cell, CreateCell(cell, cellSize));
                     }
                 }
@@ -372,6 +379,7 @@ namespace DuneVector
 
                 int hueIndex = SelectHueIndex(cell, saltOffset);
                 AppendBuilding(buildingCell, prefab, sources, rootMatrix, hueIndex);
+                buildingCell.TerrainAnchors.Add(new LogicalPosition(logicalX, logicalZ));
                 buildingCell.OccupancyHandles.Add(DuneVectorWorldOccupancy.Register(
                     logicalX,
                     logicalZ,
@@ -509,6 +517,13 @@ namespace DuneVector
                     continue;
                 }
 
+                bool terrainReady = IsBuildingCellTerrainReady(buildingCell);
+                buildingCell.SetAuxiliaryPresentationActive(terrainReady);
+                if (!terrainReady)
+                {
+                    continue;
+                }
+
                 foreach (KeyValuePair<RenderKey, List<Matrix4x4>> bucket in buildingCell.Buckets)
                 {
                     List<Matrix4x4> instances = bucket.Value;
@@ -539,6 +554,18 @@ namespace DuneVector
                 }
             }
             SubmitBatchesMarker.End();
+        }
+
+        private bool IsBuildingCellTerrainReady(BuildingCell buildingCell)
+        {
+            for (int i = 0; i < buildingCell.TerrainAnchors.Count; i++)
+            {
+                if (!_world.IsVisualTerrainReady(buildingCell.TerrainAnchors[i]))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         private List<BuildingRendererSource> GetRendererSources(GameObject prefab)
@@ -1013,11 +1040,24 @@ namespace DuneVector
                 new Dictionary<RenderKey, List<Matrix4x4>>();
 
             public readonly List<int> OccupancyHandles = new List<int>();
+            public readonly List<LogicalPosition> TerrainAnchors = new List<LogicalPosition>();
 
             public Bounds WorldBounds;
             public bool HasBounds;
             public GameObject ColliderRoot;
             public GameObject ComparisonRoot;
+
+            public void SetAuxiliaryPresentationActive(bool active)
+            {
+                if (ColliderRoot != null && ColliderRoot.activeSelf != active)
+                {
+                    ColliderRoot.SetActive(active);
+                }
+                if (ComparisonRoot != null && ComparisonRoot.activeSelf != active)
+                {
+                    ComparisonRoot.SetActive(active);
+                }
+            }
 
             public void Encapsulate(Bounds bounds)
             {
