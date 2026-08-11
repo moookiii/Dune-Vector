@@ -1309,6 +1309,7 @@ namespace DuneVector
         private readonly Dictionary<FilmGrain, bool> _filmGrainOriginalStates = new();
         private readonly Dictionary<Vignette, bool> _vignetteOriginalStates = new();
         private readonly Dictionary<Bloom, bool> _bloomOriginalStates = new();
+        private readonly Dictionary<ScreenSpaceLensFlare, bool> _screenSpaceLensFlareOriginalStates = new();
         private RetroCrtScanlineTuning _retroCrtScanlines;
 
         private GUIStyle _titleStyle;
@@ -2090,14 +2091,10 @@ namespace DuneVector
                 _audio == null || _audio.BloomEnabled,
                 _bloomOriginalStates);
 
-            Camera gameplayCamera = _player?.CharacterCamera?.Camera;
-            LensFlareComponentSRP lensFlare = gameplayCamera != null
-                ? gameplayCamera.GetComponent<LensFlareComponentSRP>()
-                : null;
-            if (lensFlare != null)
-            {
-                lensFlare.enabled = _audio != null && _audio.LensFlareEnabled;
-            }
+            ApplyVolumePreference(
+                _audio != null && _audio.LensFlareEnabled,
+                _screenSpaceLensFlareOriginalStates,
+                true);
 
             if (_retroCrtScanlines?.Material != null)
             {

@@ -5731,7 +5731,7 @@ namespace DuneVector
         public bool DefaultFilmGrainEnabled;
         public bool DefaultVignetteEnabled;
         public bool DefaultBloomEnabled;
-        [Tooltip("Whether the gameplay camera's SRP lens flare starts enabled. Off by default.")]
+        [Tooltip("Whether Screen Space Lens Flare starts enabled on global volumes. Off by default.")]
         public bool DefaultLensFlareEnabled;
         [Range(0f, 1f)] public float VideoFilmGrainIntensity = 0.18f;
         [Range(0f, 1f)] public float VideoFilmGrainResponse = 0.8f;
