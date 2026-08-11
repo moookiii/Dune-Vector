@@ -229,100 +229,30 @@ namespace DuneVector
             _restoreNotificationStyle.fontSize = _settings.RestoreNotificationFontSize;
 
             float duration = Mathf.Max(0.1f, _settings.RestoreNotificationDuration);
-            float life01 = Mathf.Clamp01(1f - (remaining / duration));
-            float hold = Mathf.Clamp01(_settings.RestoreNotificationHoldFraction);
-            float fade = life01 <= hold
-                ? 1f
-                : 1f - Mathf.SmoothStep(0f, 1f, (life01 - hold) / Mathf.Max(0.0001f, 1f - hold));
-
-            float rise = _settings.RestoreNotificationRise * EaseOut(life01);
-            Rect rect = new Rect(
-                0f,
-                _settings.RestoreNotificationTop - rise,
-                Screen.width,
-                _settings.RestoreNotificationHeight);
-            string text = string.Format(
-                _settings.RestoreNotificationFormat,
-                Mathf.CeilToInt(Mathf.Max(0f, _staminaRestored)));
-
-            float popFraction = Mathf.Clamp01(_settings.RestoreNotificationPopFraction);
-            float pop = popFraction <= 0f
-                ? 1f
-                : Mathf.Lerp(
-                    Mathf.Max(1f, _settings.RestoreNotificationPopScale),
-                    1f,
-                    EaseOut(Mathf.Clamp01(life01 / popFraction)));
-
-            Matrix4x4 previousMatrix = GUI.matrix;
-            if (!Mathf.Approximately(pop, 1f))
-            {
-                GUIUtility.ScaleAroundPivot(
-                    new Vector2(pop, pop),
-                    new Vector2(rect.width * 0.5f, rect.y + (rect.height * 0.5f)));
-            }
-
-            Vector2 shadowOffset = _settings.RestoreNotificationShadowOffset;
-            if (shadowOffset.sqrMagnitude > 0f)
-            {
-                // The shadow is retired early so the text finishes fading on its own.
-                float shadowLife = Mathf.Clamp01(_settings.RestoreNotificationShadowLifetimeFraction);
-                float shadowFade = 1f - Mathf.SmoothStep(
+            HudRestoreNotification.Draw(
+                _restoreNotificationStyle,
+                new Rect(
                     0f,
-                    1f,
-                    Mathf.Clamp01((life01 - hold) / Mathf.Max(0.0001f, shadowLife - hold)));
-                DrawNotificationText(
-                    text,
-                    new Rect(rect.x + shadowOffset.x, rect.y + shadowOffset.y, rect.width, rect.height),
-                    ScaleAlpha(_settings.RestoreNotificationShadowColor, Mathf.Min(fade, shadowFade)));
-            }
-
-            float outline = Mathf.Max(0f, _settings.RestoreNotificationOutlineThickness);
-            if (outline > 0f)
-            {
-                Color outlineColor = ScaleAlpha(_settings.RestoreNotificationOutlineColor, fade);
-                float diagonal = outline * 0.7071f;
-                DrawNotificationOutlinePass(text, rect, outlineColor, outline, 0f);
-                DrawNotificationOutlinePass(text, rect, outlineColor, -outline, 0f);
-                DrawNotificationOutlinePass(text, rect, outlineColor, 0f, outline);
-                DrawNotificationOutlinePass(text, rect, outlineColor, 0f, -outline);
-                DrawNotificationOutlinePass(text, rect, outlineColor, diagonal, diagonal);
-                DrawNotificationOutlinePass(text, rect, outlineColor, diagonal, -diagonal);
-                DrawNotificationOutlinePass(text, rect, outlineColor, -diagonal, diagonal);
-                DrawNotificationOutlinePass(text, rect, outlineColor, -diagonal, -diagonal);
-            }
-
-            DrawNotificationText(text, rect, ScaleAlpha(_settings.RestoreNotificationColor, fade));
-            GUI.matrix = previousMatrix;
-        }
-
-        private void DrawNotificationOutlinePass(
-            string text,
-            Rect rect,
-            Color color,
-            float offsetX,
-            float offsetY)
-        {
-            DrawNotificationText(
-                text,
-                new Rect(rect.x + offsetX, rect.y + offsetY, rect.width, rect.height),
-                color);
-        }
-
-        private void DrawNotificationText(string text, Rect rect, Color color)
-        {
-            if (color.a <= 0f)
-            {
-                return;
-            }
-
-            _restoreNotificationStyle.normal.textColor = color;
-            GUI.Label(rect, text, _restoreNotificationStyle);
-        }
-
-        private static float EaseOut(float t)
-        {
-            float inverse = 1f - Mathf.Clamp01(t);
-            return 1f - (inverse * inverse * inverse);
+                    _settings.RestoreNotificationTop,
+                    Screen.width,
+                    _settings.RestoreNotificationHeight),
+                string.Format(
+                    _settings.RestoreNotificationFormat,
+                    Mathf.CeilToInt(Mathf.Max(0f, _staminaRestored))),
+                1f - (remaining / duration),
+                new HudRestoreNotificationStyle
+                {
+                    HoldFraction = _settings.RestoreNotificationHoldFraction,
+                    Rise = _settings.RestoreNotificationRise,
+                    PopScale = _settings.RestoreNotificationPopScale,
+                    PopFraction = _settings.RestoreNotificationPopFraction,
+                    OutlineThickness = _settings.RestoreNotificationOutlineThickness,
+                    OutlineColor = _settings.RestoreNotificationOutlineColor,
+                    ShadowOffset = _settings.RestoreNotificationShadowOffset,
+                    ShadowColor = _settings.RestoreNotificationShadowColor,
+                    ShadowLifetimeFraction = _settings.RestoreNotificationShadowLifetimeFraction,
+                    TextColor = _settings.RestoreNotificationColor,
+                });
         }
 
         private void HandleStaminaRestored(float amount)

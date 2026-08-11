@@ -255,20 +255,32 @@ namespace DuneVector
             {
                 alignment = TextAnchor.MiddleCenter,
                 fontStyle = FontStyle.Bold,
+                wordWrap = false,
             };
             _pickupStyle.fontSize = ringSettings.HealthPickupFeedbackFontSize;
             float duration = Mathf.Max(0.1f, ringSettings.HealthPickupFeedbackDuration);
-            Color pickupColor = ringSettings.HealthPickupFeedbackColor;
-            pickupColor.a *= Mathf.Clamp01((_feedbackUntil - Time.unscaledTime) / duration);
-            _pickupStyle.normal.textColor = pickupColor;
             float feedbackTop = ringSettings.HealthPickupFeedbackTop +
                 (Screen.height * ringSettings.HealthPickupFeedbackVerticalScreenOffset);
-            GUI.Label(
+            HudRestoreNotification.Draw(
+                _pickupStyle,
                 new Rect(0f, feedbackTop, Screen.width, ringSettings.HealthPickupFeedbackHeight),
                 string.Format(
                     ringSettings.HealthPickupFeedbackFormat,
                     Mathf.CeilToInt(Mathf.Max(0f, _healthRestored))),
-                _pickupStyle);
+                1f - ((_feedbackUntil - Time.unscaledTime) / duration),
+                new HudRestoreNotificationStyle
+                {
+                    HoldFraction = ringSettings.HealthPickupFeedbackHoldFraction,
+                    Rise = ringSettings.HealthPickupFeedbackRise,
+                    PopScale = ringSettings.HealthPickupFeedbackPopScale,
+                    PopFraction = ringSettings.HealthPickupFeedbackPopFraction,
+                    OutlineThickness = ringSettings.HealthPickupFeedbackOutlineThickness,
+                    OutlineColor = ringSettings.HealthPickupFeedbackOutlineColor,
+                    ShadowOffset = ringSettings.HealthPickupFeedbackShadowOffset,
+                    ShadowColor = ringSettings.HealthPickupFeedbackShadowColor,
+                    ShadowLifetimeFraction = ringSettings.HealthPickupFeedbackShadowLifetimeFraction,
+                    TextColor = ringSettings.HealthPickupFeedbackColor,
+                });
         }
 
         private void ObserveHealth()

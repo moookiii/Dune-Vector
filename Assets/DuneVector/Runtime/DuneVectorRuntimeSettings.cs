@@ -4439,7 +4439,23 @@ namespace DuneVector
         [Min(24f)] public float HealthPickupFeedbackHeight = 48f;
         [ColorUsage(false)] public Color HealthPickupFeedbackColor = new Color(0.22f, 1f, 0.48f, 1f);
         [Tooltip("{0} is replaced with the amount of health restored.")]
-        public string HealthPickupFeedbackFormat = "HEALTH RESTORED: {0}";
+        public string HealthPickupFeedbackFormat = "HEALTH RESTORED  +{0}";
+        [Tooltip("Fraction of the banner's lifetime it stays fully opaque before it fades out.")]
+        [Range(0f, 1f)] public float HealthPickupFeedbackHoldFraction = 0.55f;
+        [Tooltip("Pixels the banner drifts upward across its lifetime.")]
+        [Min(0f)] public float HealthPickupFeedbackRise = 24f;
+        [Tooltip("Scale the banner pops in at before settling to its normal size.")]
+        [Range(1f, 2f)] public float HealthPickupFeedbackPopScale = 1.3f;
+        [Tooltip("Fraction of the banner's lifetime spent settling out of the pop-in scale.")]
+        [Range(0f, 1f)] public float HealthPickupFeedbackPopFraction = 0.18f;
+        [Tooltip("Outline width in pixels drawn around the banner so it reads against bright sky. Set to 0 for no outline.")]
+        [Range(0f, 6f)] public float HealthPickupFeedbackOutlineThickness = 2f;
+        public Color HealthPickupFeedbackOutlineColor = new Color(0.02f, 0.06f, 0.03f, 0.9f);
+        [Tooltip("Pixel offset of the banner's drop shadow. Set to zero for no shadow.")]
+        public Vector2 HealthPickupFeedbackShadowOffset = new Vector2(0f, 4f);
+        public Color HealthPickupFeedbackShadowColor = new Color(0f, 0f, 0f, 0.5f);
+        [Tooltip("Fraction of the banner's lifetime at which the drop shadow has fully faded out. Lower values drop the shadow well before the text itself disappears.")]
+        [Range(0.05f, 1f)] public float HealthPickupFeedbackShadowLifetimeFraction = 0.7f;
 
         [Header("Coin Rings")]
         [Tooltip("Expected coin-ring count per streamed terrain chunk.")]
