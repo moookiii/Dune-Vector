@@ -5730,7 +5730,7 @@ namespace DuneVector
         public bool DefaultCrtLinesEnabled;
         public bool DefaultFilmGrainEnabled;
         public bool DefaultVignetteEnabled;
-        public bool DefaultBloomEnabled;
+        public bool DefaultBloomEnabled = true;
         [Tooltip("Whether Screen Space Lens Flare starts enabled on global volumes. Off by default.")]
         public bool DefaultLensFlareEnabled;
         [Range(0f, 1f)] public float VideoFilmGrainIntensity = 0.18f;
