@@ -1430,6 +1430,18 @@ namespace DuneVector
 
         private int CompareCandidateCoordinates(Vector2Int left, Vector2Int right)
         {
+            // Terrain must win over secondary chunk content. A content-radius chunk can already
+            // have a usable dune mesh while it is still waiting for landmarks, rings, shrubs, and
+            // enemies. Sorting that content pass ahead of missing frustum terrain leaves visible
+            // holes in aerial flight until every nearby chunk has completed all of its content.
+            // Keep the authored content coverage, but fill/rebuild the desert surface first.
+            bool leftNeedsVisualTerrain = NeedsVisualTerrain(left);
+            bool rightNeedsVisualTerrain = NeedsVisualTerrain(right);
+            if (leftNeedsVisualTerrain != rightNeedsVisualTerrain)
+            {
+                return leftNeedsVisualTerrain ? -1 : 1;
+            }
+
             bool leftNeedsContent = _desiredContentCoordinates.Contains(left);
             bool rightNeedsContent = _desiredContentCoordinates.Contains(right);
             if (leftNeedsContent != rightNeedsContent)
@@ -1438,6 +1450,13 @@ namespace DuneVector
             }
             return ChebyshevDistance(left, _candidateSortCenter)
                 .CompareTo(ChebyshevDistance(right, _candidateSortCenter));
+        }
+
+        private bool NeedsVisualTerrain(Vector2Int coordinate)
+        {
+            return !_chunks.TryGetValue(coordinate, out DesertChunk chunk) ||
+                !chunk.IsTerrainVisible ||
+                !chunk.IsVisualReady;
         }
 
         private int CompareFrustumCandidateCoordinates(Vector2Int left, Vector2Int right)
