@@ -6019,6 +6019,8 @@ namespace DuneVector
         [Tooltip("Pixel offset of the notification's drop shadow. Set to zero for no shadow.")]
         public Vector2 RestoreNotificationShadowOffset = new Vector2(0f, 4f);
         public Color RestoreNotificationShadowColor = new Color(0f, 0f, 0f, 0.5f);
+        [Tooltip("Fraction of the notification's lifetime at which the drop shadow has fully faded out. Lower values drop the shadow well before the text itself disappears.")]
+        [Range(0.05f, 1f)] public float RestoreNotificationShadowLifetimeFraction = 0.7f;
 
         [Header("Meter Styling")]
         [Tooltip("Width in pixels of the soft fade on the arc's edges. Removes the hard aliased outline.")]

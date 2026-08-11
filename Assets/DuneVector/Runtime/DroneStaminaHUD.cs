@@ -264,10 +264,16 @@ namespace DuneVector
             Vector2 shadowOffset = _settings.RestoreNotificationShadowOffset;
             if (shadowOffset.sqrMagnitude > 0f)
             {
+                // The shadow is retired early so the text finishes fading on its own.
+                float shadowLife = Mathf.Clamp01(_settings.RestoreNotificationShadowLifetimeFraction);
+                float shadowFade = 1f - Mathf.SmoothStep(
+                    0f,
+                    1f,
+                    Mathf.Clamp01((life01 - hold) / Mathf.Max(0.0001f, shadowLife - hold)));
                 DrawNotificationText(
                     text,
                     new Rect(rect.x + shadowOffset.x, rect.y + shadowOffset.y, rect.width, rect.height),
-                    ScaleAlpha(_settings.RestoreNotificationShadowColor, fade));
+                    ScaleAlpha(_settings.RestoreNotificationShadowColor, Mathf.Min(fade, shadowFade)));
             }
 
             float outline = Mathf.Max(0f, _settings.RestoreNotificationOutlineThickness);
