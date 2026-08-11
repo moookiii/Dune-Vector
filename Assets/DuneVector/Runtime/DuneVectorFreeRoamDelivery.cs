@@ -241,6 +241,7 @@ namespace DuneVector
         private CourierContractTuning _contractSettings;
         private FreeRoamDeliveryTuning _settings;
         private RingTuning _ringSettings;
+        private DuneVectorUpperFlightRingHUD _upperFlightRingHud;
 
         private JobTraversalRing _zoneRing;
         private Transform _package;
@@ -284,6 +285,7 @@ namespace DuneVector
             // The streak counter docks under the gold HUD, so it reads that panel's own layout
             // rather than duplicating its margins.
             _ringSettings = ringSettings ?? new RingTuning();
+            _upperFlightRingHud = _world.GetComponent<DuneVectorUpperFlightRingHUD>();
             _random = new System.Random(unchecked(_world.WorldSeed ^ 0x5F3A21));
             _world.WorldShifted += HandleWorldShift;
         }
@@ -721,7 +723,15 @@ namespace DuneVector
             float left = rightEdge - width;
             float centerX = left + (width * 0.5f);
 
-            float blockTop = _ringSettings.GoldHudTopMargin + _ringSettings.GoldHudHeight + _settings.StreakCounterGapUnderGoldHud;
+            // The upper-flight-layer tracker drops in under the gold panel while it is showing, so
+            // the counter follows whichever right-column panel currently reaches lowest.
+            float columnBottom = _ringSettings.GoldHudTopMargin + _ringSettings.GoldHudHeight;
+            if (_upperFlightRingHud != null && _upperFlightRingHud.TryGetVisiblePanelRect(out Rect upperFlightPanel))
+            {
+                columnBottom = Mathf.Max(columnBottom, upperFlightPanel.yMax);
+            }
+
+            float blockTop = columnBottom + _settings.StreakCounterTopGap;
             float rewardHeight = _settings.StreakRewardFontSize * 1.5f;
             float multiplierHeight = _settings.StreakMultiplierFontSize * 1.3f;
             float centerY = blockTop + rewardHeight + (multiplierHeight * 0.5f);

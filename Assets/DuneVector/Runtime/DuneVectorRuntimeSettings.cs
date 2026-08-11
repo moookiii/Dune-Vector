@@ -6604,9 +6604,9 @@ namespace DuneVector
         public List<FreeRoamStreakTier> StreakTiers = new List<FreeRoamStreakTier>();
 
         [Header("Streak Counter HUD")]
-        [Tooltip("Pixel gap between the bottom of the gold HUD panel and the top of the streak counter. " +
-                 "The counter shares the gold panel's horizontal centre so the right-hand HUD reads as one column.")]
-        [Min(0f)] public float StreakCounterGapUnderGoldHud = 18f;
+        [Tooltip("Pixel gap between the lowest right-hand HUD panel (gold, or the upper-flight-layer " +
+                 "tracker while it is showing) and the top of the streak counter.")]
+        [Min(0f)] public float StreakCounterTopGap = 18f;
 
         [Min(8)] public int StreakMultiplierFontSize = 62;
         [Min(8)] public int StreakLabelFontSize = 20;
