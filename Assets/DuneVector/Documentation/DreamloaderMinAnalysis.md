@@ -59,7 +59,7 @@ Composition changes receive separate anticipation and impact cues. The pre-impac
 
 Glitch displacement is capped at 0.0038 UV. Ordinary lyric phrases use approximately 0.0018-0.0023, while major returns and the final climax reach approximately 0.0035-0.0037. The center of the screen retains the existing protected region so the effect reads as expressive without burying the drone or aiming area.
 
-The August 10 gameplay capture begins the track 7.487 seconds after video time zero. Its requested 1:01-1:22 and 1:43.5-1:54 glitch-line passages therefore align to the authored 180 BPM grid at 0:53.383-1:14.717 and 1:36.050-1:46.717. The first passage uses 7 slices per authored cue. The second begins at 10 slices and steps down to 1 by its final beat so the line density visibly fades out without changing the scene hue.
+The August 10 gameplay capture begins the track 7.487 seconds after video time zero. Its requested 1:01-1:22 and 1:43.5-1:54 moving-line passages therefore align to the authored 180 BPM grid at 0:53.383-1:14.717 and 1:36.050-1:46.717. The first passage emits 6-8 drone-anchored lines per beat. The second begins at 8-10 lines per beat and steps through 6-8, 4-6, and 2-4 line stages so the moving line density visibly fades out without changing the scene hue. Post-process glitch slices retain their original phrase-level choreography.
 
 ## Post-1:57 climax choreography
 

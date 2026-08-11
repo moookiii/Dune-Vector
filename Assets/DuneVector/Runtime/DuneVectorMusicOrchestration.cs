@@ -230,7 +230,7 @@ namespace DuneVector
         [Min(0f)] public float PositionImpulseMeters;
         public float RollDegrees;
         [Min(0f)] public float GlitchUvDisplacement;
-        [Range(0, 64)] public int GlitchSliceCount;
+        [Range(0, 2)] public int GlitchSliceCount;
         [Min(0f)] public float FilamentIntensity;
         [Range(0, 3)] public int FilamentStrikeCount;
         [Min(0)] public int TrebleParticleCount;
