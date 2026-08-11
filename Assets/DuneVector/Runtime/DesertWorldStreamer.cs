@@ -38,6 +38,7 @@ namespace DuneVector
         [Range(8, 96)] public int ChunkResolution = 32;
         [Range(1, 14)] public int ActiveRadius = 3;
         [Range(1, 9)] public int PreloadRadius = 3;
+        [Range(0f, 6f)] public float ContentPreloadPredictionSeconds = 3f;
         [Range(2, 12)] public int UnloadRadius = 4;
         [Min(0.05f)] public float RefreshInterval = 0.18f;
         [Range(1, 48)] public int ChunksGeneratedPerFrame = 1;
@@ -888,18 +889,27 @@ namespace DuneVector
             _retainedVisualCoordinates.Clear();
             _cameraPriorityCoordinates.Clear();
             _candidateCoordinates.Clear();
-            int radius = Mathf.Max(1, Mathf.Max(ActiveRadius, PreloadRadius));
-            for (int z = -radius; z <= radius; z++)
-            {
-                for (int x = -radius; x <= radius; x++)
-                {
-                    Vector2Int coordinate = playerChunk + new Vector2Int(x, z);
-                    _desiredContentCoordinates.Add(coordinate);
-                    _desiredVisualCoordinates.Add(coordinate);
-                }
-            }
+            int activeRadius = Mathf.Max(1, ActiveRadius);
+            AppendSquareCoordinates(
+                playerChunk,
+                activeRadius,
+                _desiredContentCoordinates,
+                _desiredVisualCoordinates);
 
-            int unloadRadius = Mathf.Max(radius, UnloadRadius);
+            LogicalPosition playerLogical = LogicalPlayerPosition;
+            Vector3 velocity = _motor != null ? _motor.Velocity : Vector3.zero;
+            float predictionSeconds = Mathf.Max(0f, ContentPreloadPredictionSeconds);
+            Vector2Int predictedContentChunk = LogicalToChunk(
+                playerLogical.X + (velocity.x * predictionSeconds),
+                playerLogical.Z + (velocity.z * predictionSeconds));
+            int preloadRadius = Mathf.Max(1, PreloadRadius);
+            AppendSquareCoordinates(
+                predictedContentChunk,
+                preloadRadius,
+                _desiredContentCoordinates,
+                _desiredVisualCoordinates);
+
+            int unloadRadius = Mathf.Max(activeRadius, UnloadRadius);
             for (int z = -unloadRadius; z <= unloadRadius; z++)
             {
                 for (int x = -unloadRadius; x <= unloadRadius; x++)
@@ -907,6 +917,7 @@ namespace DuneVector
                     _retainedVisualCoordinates.Add(playerChunk + new Vector2Int(x, z));
                 }
             }
+            _retainedVisualCoordinates.UnionWith(_desiredVisualCoordinates);
 
             Camera viewCamera = _camera != null ? _camera.Camera : null;
             if (TryGetCameraFrustumDistance(viewCamera, out float frustumDistance))
@@ -983,6 +994,23 @@ namespace DuneVector
                 UnloadedChunkCount++;
             }
             RefreshChunkActivity(playerChunk);
+        }
+
+        private static void AppendSquareCoordinates(
+            Vector2Int center,
+            int radius,
+            HashSet<Vector2Int> contentDestination,
+            HashSet<Vector2Int> visualDestination)
+        {
+            for (int z = -radius; z <= radius; z++)
+            {
+                for (int x = -radius; x <= radius; x++)
+                {
+                    Vector2Int coordinate = center + new Vector2Int(x, z);
+                    contentDestination.Add(coordinate);
+                    visualDestination.Add(coordinate);
+                }
+            }
         }
 
         private bool TryGetCameraFrustumDistance(Camera viewCamera, out float distance)

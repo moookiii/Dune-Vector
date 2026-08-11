@@ -436,6 +436,7 @@ namespace DuneVector
             World.ChunkSize = DuneChunkSize;
             World.ActiveRadius = WorldStreaming.ActiveRadius;
             World.PreloadRadius = WorldStreaming.PreloadRadius;
+            World.ContentPreloadPredictionSeconds = WorldStreaming.ContentPreloadPredictionSeconds;
             World.UnloadRadius = WorldStreaming.UnloadRadius;
             World.RefreshInterval = WorldStreaming.RefreshInterval;
             World.ChunksGeneratedPerFrame = WorldStreaming.ChunksGeneratedPerFrame;

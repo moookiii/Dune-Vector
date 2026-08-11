@@ -2275,6 +2275,8 @@ namespace DuneVector
         [Range(1, 14)] public int ActiveRadius = 3;
         [Tooltip("Chunk radius generated ahead of the player.")]
         [Range(1, 9)] public int PreloadRadius = 3;
+        [Tooltip("Seconds of planar velocity used to project the content preload area ahead of the drone. Higher values prepare portals, vegetation, enemies, and chunk content earlier during maximum-speed boost flight.")]
+        [Range(0f, 6f)] public float ContentPreloadPredictionSeconds = 3f;
         [Tooltip("Chunks beyond this radius are removed.")]
         [Range(2, 12)] public int UnloadRadius = 4;
         [Tooltip("How often the desired visual terrain set is refreshed.")]
