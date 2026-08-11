@@ -232,6 +232,12 @@ namespace DuneVector.Editor
             _worldHub = serializedObject.FindProperty("WorldHub");
             _landmarks = serializedObject.FindProperty("Landmarks");
             _buildings = serializedObject.FindProperty("Buildings");
+            if (_buildings != null)
+            {
+                // DrawSection supplies the visible heading, so a collapsed generic
+                // property otherwise looks like an empty section with no foldout label.
+                _buildings.isExpanded = true;
+            }
             _geoglyphs = serializedObject.FindProperty("Geoglyphs");
             _desertAtlas = serializedObject.FindProperty("DesertAtlas");
             _photography = serializedObject.FindProperty("Photography");
