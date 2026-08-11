@@ -3685,8 +3685,6 @@ namespace DuneVector
             warningRing.transform.localRotation = Quaternion.Euler(0f, 90f, 0f);
             DisableRendererShadows(warningRing);
 
-            CreateGroundExploderCore(root, materials, tuning);
-
             for (int i = 0; i < 2; i++)
             {
                 GameObject ring = CreateMeshObject(
