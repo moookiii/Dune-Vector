@@ -5721,6 +5721,7 @@ namespace DuneVector
         public string VideoCrtLinesLabel = "CRT LINES";
         public string VideoVignetteLabel = "VIGNETTE";
         public string VideoBloomLabel = "BLOOM";
+        public string VideoBloomIntensityLabel = "BLOOM INTENSITY";
         public string VideoLensFlareLabel = "LENS FLARE";
         public string VideoVisualizerFovLabel = "VISUALIZER FOV";
         public string VideoEffectEnabledLabel = "ON";
@@ -5733,6 +5734,12 @@ namespace DuneVector
         public bool DefaultBloomEnabled = true;
         [Tooltip("Whether Screen Space Lens Flare starts enabled on global volumes. Off by default.")]
         public bool DefaultLensFlareEnabled;
+        [Tooltip("Lowest bloom intensity the video settings slider can reach.")]
+        [Min(0f)] public float MinimumBloomIntensity = 0.07f;
+        [Tooltip("Highest bloom intensity the video settings slider can reach.")]
+        [Min(0f)] public float MaximumBloomIntensity = 3f;
+        [Tooltip("Bloom intensity applied on a fresh profile and by RESET DEFAULTS.")]
+        [Min(0f)] public float DefaultBloomIntensity = 0.07f;
         [Range(0f, 1f)] public float VideoFilmGrainIntensity = 0.18f;
         [Range(0f, 1f)] public float VideoFilmGrainResponse = 0.8f;
 

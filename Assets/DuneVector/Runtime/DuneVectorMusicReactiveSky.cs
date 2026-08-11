@@ -95,6 +95,20 @@ namespace DuneVector
             SetVisualizerMode(_audio.VisualizerMode);
         }
 
+        // The video settings bloom slider owns the resting intensity the reactive
+        // response swings around, so it has to replace the value captured at bind time.
+        public void SetBaseBloomIntensity(float intensity)
+        {
+            _baseBloomIntensity = Mathf.Max(0f, intensity);
+            if (_bloom == null)
+            {
+                return;
+            }
+
+            _currentBloomIntensity = _baseBloomIntensity;
+            _bloom.intensity.value = _baseBloomIntensity;
+        }
+
         private void HandleActiveMusicTrackChanged(MusicPlaylistTrack track)
         {
             ReleaseSpectrumDsp();

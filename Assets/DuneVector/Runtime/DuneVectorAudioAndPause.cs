@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using FMOD.Studio;
 using FMODUnity;
@@ -28,7 +29,7 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 14;
+            public int Version = 15;
             public float MusicVolume;
             public float SoundEffectsVolume;
             public float DialogueVolume;
@@ -40,6 +41,7 @@ namespace DuneVector
             public bool FilmGrainEnabled = true;
             public bool VignetteEnabled = true;
             public bool BloomEnabled = true;
+            public float BloomIntensity;
             public bool LensFlareEnabled;
             public int AntiAliasingMode;
             public bool VisualizerFovEnabled;
@@ -56,6 +58,7 @@ namespace DuneVector
         public bool FilmGrainEnabled { get; private set; } = true;
         public bool VignetteEnabled { get; private set; } = true;
         public bool BloomEnabled { get; private set; } = true;
+        public float BloomIntensity { get; private set; }
         public bool LensFlareEnabled { get; private set; }
         public DuneVectorCameraAntiAliasingMode AntiAliasingMode { get; private set; }
         public bool VisualizerFovEnabled { get; private set; }
@@ -622,6 +625,38 @@ namespace DuneVector
             FlushPreferences();
         }
 
+        public void SetBloomIntensity(float intensity)
+        {
+            float clamped = ClampBloomIntensity(intensity);
+            if (Mathf.Approximately(BloomIntensity, clamped))
+            {
+                return;
+            }
+
+            BloomIntensity = clamped;
+            _preferencesDirty = true;
+            FlushPreferences();
+        }
+
+        // Bloom authoring lives on PauseMenuVisualTuning; before it binds there is no
+        // authored range to clamp against, so the raw value passes through untouched.
+        public float MinimumBloomIntensity => _settings != null && _settings.PauseMenu != null
+            ? _settings.PauseMenu.MinimumBloomIntensity
+            : 0f;
+
+        public float MaximumBloomIntensity => _settings != null && _settings.PauseMenu != null
+            ? Mathf.Max(_settings.PauseMenu.MinimumBloomIntensity, _settings.PauseMenu.MaximumBloomIntensity)
+            : Mathf.Infinity;
+
+        private float DefaultBloomIntensity => _settings != null && _settings.PauseMenu != null
+            ? ClampBloomIntensity(_settings.PauseMenu.DefaultBloomIntensity)
+            : BloomIntensity;
+
+        private float ClampBloomIntensity(float intensity)
+        {
+            return Mathf.Clamp(intensity, MinimumBloomIntensity, MaximumBloomIntensity);
+        }
+
         public void SetLensFlareEnabled(bool enabled)
         {
             if (LensFlareEnabled == enabled)
@@ -671,6 +706,7 @@ namespace DuneVector
             FilmGrainEnabled = defaults != null && defaults.DefaultFilmGrainEnabled;
             VignetteEnabled = defaults != null && defaults.DefaultVignetteEnabled;
             BloomEnabled = defaults != null && defaults.DefaultBloomEnabled;
+            BloomIntensity = DefaultBloomIntensity;
             LensFlareEnabled = defaults != null && defaults.DefaultLensFlareEnabled;
             AntiAliasingMode = _defaultAntiAliasingMode == DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing
                 ? DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing
@@ -1136,6 +1172,7 @@ namespace DuneVector
                 && _settings.PauseMenu.DefaultVignetteEnabled;
             BloomEnabled = _settings.PauseMenu != null
                 && _settings.PauseMenu.DefaultBloomEnabled;
+            BloomIntensity = DefaultBloomIntensity;
             LensFlareEnabled = _settings.PauseMenu != null
                 && _settings.PauseMenu.DefaultLensFlareEnabled;
             AntiAliasingMode = _defaultAntiAliasingMode == DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing
@@ -1149,7 +1186,7 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version >= 1 && stored.Version <= 14)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 15)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
@@ -1200,6 +1237,10 @@ namespace DuneVector
                     {
                         LensFlareEnabled = stored.LensFlareEnabled;
                     }
+                    if (stored.Version >= 15)
+                    {
+                        BloomIntensity = ClampBloomIntensity(stored.BloomIntensity);
+                    }
                     if (VisualizerMode == MusicVisualizerMode.NoFlash)
                     {
                         VisualizerEffectMask &= ~PauseMenuVisualTuning.FlashMusicVisualizerEffects;
@@ -1241,6 +1282,7 @@ namespace DuneVector
                     FilmGrainEnabled = FilmGrainEnabled,
                     VignetteEnabled = VignetteEnabled,
                     BloomEnabled = BloomEnabled,
+                    BloomIntensity = BloomIntensity,
                     LensFlareEnabled = LensFlareEnabled,
                     AntiAliasingMode = (int)AntiAliasingMode,
                     VisualizerFovEnabled = VisualizerFovEnabled,
@@ -1865,6 +1907,27 @@ namespace DuneVector
                 value => _audio?.SetLensFlareEnabled(value));
             y += buttonHeight + gap;
 
+            float minimumBloom = _visuals.MinimumBloomIntensity;
+            float maximumBloom = Mathf.Max(minimumBloom, _visuals.MaximumBloomIntensity);
+            float bloomIntensity = _audio != null
+                ? _audio.BloomIntensity
+                : _visuals.DefaultBloomIntensity;
+            float bloomRange = Mathf.Max(0.0001f, maximumBloom - minimumBloom);
+            float bloomNormalized = Mathf.Clamp01((bloomIntensity - minimumBloom) / bloomRange);
+            float sliderRowHeight = _visuals.SliderRowHeight * scale;
+            DrawSliderRow(
+                new Rect(content.x, y, content.width, sliderRowHeight),
+                _visuals.VideoBloomIntensityLabel,
+                bloomIntensity.ToString("0.00", CultureInfo.InvariantCulture),
+                bloomNormalized,
+                normalized =>
+                {
+                    _audio?.SetBloomIntensity(minimumBloom + (normalized * bloomRange));
+                    ApplyBloomIntensityPreference();
+                },
+                scale);
+            y += sliderRowHeight;
+
             y += gap;
 
             float navigationWidth = (content.width - gap) * 0.5f;
@@ -2090,6 +2153,7 @@ namespace DuneVector
             ApplyVolumePreference(
                 _audio == null || _audio.BloomEnabled,
                 _bloomOriginalStates);
+            ApplyBloomIntensityPreference();
 
             ApplyVolumePreference(
                 _audio != null && _audio.LensFlareEnabled,
@@ -2102,6 +2166,44 @@ namespace DuneVector
                 _retroCrtScanlines.Material.SetFloat(
                     "_ScanlineStrength",
                     enabled ? Mathf.Clamp01(_retroCrtScanlines.ScanlineStrength) : 0f);
+            }
+        }
+
+        // The music reactive sky swings bloom around a resting value it captured when it
+        // bound, so the slider has to retarget that base as well as the profile itself.
+        private void ApplyBloomIntensityPreference()
+        {
+            if (_audio == null || _visuals == null)
+            {
+                return;
+            }
+
+            float intensity = Mathf.Clamp(
+                _audio.BloomIntensity,
+                _visuals.MinimumBloomIntensity,
+                Mathf.Max(_visuals.MinimumBloomIntensity, _visuals.MaximumBloomIntensity));
+            Volume[] volumes = FindObjectsByType<Volume>(FindObjectsInactive.Include);
+            foreach (Volume volume in volumes)
+            {
+                if (volume == null || !volume.isGlobal || volume.sharedProfile == null)
+                {
+                    continue;
+                }
+
+                VolumeProfile runtimeProfile = volume.profile;
+                if (runtimeProfile == null || !runtimeProfile.TryGet(out Bloom bloom))
+                {
+                    continue;
+                }
+
+                bloom.intensity.value = intensity;
+            }
+
+            DuneVectorMusicReactiveSky reactiveSky =
+                FindFirstObjectByType<DuneVectorMusicReactiveSky>(FindObjectsInactive.Include);
+            if (reactiveSky != null)
+            {
+                reactiveSky.SetBaseBloomIntensity(intensity);
             }
         }
 
@@ -2211,6 +2313,17 @@ namespace DuneVector
             Action<float> apply,
             float scale)
         {
+            DrawSliderRow(area, label, $"{Mathf.RoundToInt(value * 100f):00}%", value, apply, scale);
+        }
+
+        private void DrawSliderRow(
+            Rect area,
+            string label,
+            string valueText,
+            float value,
+            Action<float> apply,
+            float scale)
+        {
             float labelHeight = Mathf.Max(_mixerLabelStyle.lineHeight, _valueStyle.lineHeight);
             DrawTintedLabel(
                 new Rect(area.x, area.y, area.width * 0.7f, labelHeight),
@@ -2219,7 +2332,7 @@ namespace DuneVector
                 _visuals.PrimaryTextColor);
             DrawTintedLabel(
                 new Rect(area.x + (area.width * 0.7f), area.y, area.width * 0.3f, labelHeight),
-                $"{Mathf.RoundToInt(value * 100f):00}%",
+                valueText,
                 _valueStyle,
                 _visuals.TitleColor);
 
