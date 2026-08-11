@@ -5719,7 +5719,6 @@ namespace DuneVector
         public string VideoChromaticAberrationLabel = "CHROMATIC ABERRATION";
         public string VideoLensDistortionLabel = "LENS DISTORTION";
         public string VideoCrtLinesLabel = "CRT LINES";
-        public string VideoFilmGrainLabel = "FILM GRAIN";
         public string VideoVignetteLabel = "VIGNETTE";
         public string VideoBloomLabel = "BLOOM";
         public string VideoLensFlareLabel = "LENS FLARE";

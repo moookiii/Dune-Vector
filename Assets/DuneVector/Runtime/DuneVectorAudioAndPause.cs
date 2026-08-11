@@ -1845,13 +1845,6 @@ namespace DuneVector
 
             DrawVideoToggle(
                 new Rect(content.x, y, content.width, buttonHeight),
-                _visuals.VideoFilmGrainLabel,
-                _audio == null || _audio.FilmGrainEnabled,
-                value => _audio?.SetFilmGrainEnabled(value));
-            y += buttonHeight + gap;
-
-            DrawVideoToggle(
-                new Rect(content.x, y, content.width, buttonHeight),
                 _visuals.VideoVignetteLabel,
                 _audio == null || _audio.VignetteEnabled,
                 value => _audio?.SetVignetteEnabled(value));
