@@ -196,7 +196,14 @@ Shader "DuneVector/URP Sand Macro Variation"
 
                 half currentLayerDepth = 0.0h;
                 float2 currentUv = uv;
-                half currentHeight = 1.0h - SAMPLE_TEXTURE2D(_ParallaxMap, sampler_ParallaxMap, currentUv).r;
+                // Use an explicit mip level for every height sample in the variable-length
+                // march. Player shader compilers reject implicit-gradient sampling here
+                // because neighboring pixels can leave the loop on different iterations.
+                half currentHeight = 1.0h - SAMPLE_TEXTURE2D_LOD(
+                    _ParallaxMap,
+                    sampler_ParallaxMap,
+                    currentUv,
+                    0.0).r;
 
                 [loop]
                 for (int stepIndex = 0; stepIndex < 64; stepIndex++)
@@ -207,7 +214,11 @@ Shader "DuneVector/URP Sand Macro Variation"
                     }
 
                     currentUv -= uvStep;
-                    currentHeight = 1.0h - SAMPLE_TEXTURE2D(_ParallaxMap, sampler_ParallaxMap, currentUv).r;
+                    currentHeight = 1.0h - SAMPLE_TEXTURE2D_LOD(
+                        _ParallaxMap,
+                        sampler_ParallaxMap,
+                        currentUv,
+                        0.0).r;
                     currentLayerDepth += layerDepth;
                 }
 
@@ -215,7 +226,11 @@ Shader "DuneVector/URP Sand Macro Variation"
                 // stair-stepping the fixed march would otherwise leave on grazing ripples.
                 float2 previousUv = currentUv + uvStep;
                 half afterDepth = currentHeight - currentLayerDepth;
-                half beforeDepth = (1.0h - SAMPLE_TEXTURE2D(_ParallaxMap, sampler_ParallaxMap, previousUv).r) -
+                half beforeDepth = (1.0h - SAMPLE_TEXTURE2D_LOD(
+                    _ParallaxMap,
+                    sampler_ParallaxMap,
+                    previousUv,
+                    0.0).r) -
                     (currentLayerDepth - layerDepth);
                 half weight = afterDepth / max(afterDepth - beforeDepth, 0.0001h);
                 return lerp(currentUv, previousUv, saturate(weight));
