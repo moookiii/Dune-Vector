@@ -419,12 +419,31 @@ namespace DuneVector
             _progress?.RecordFreeRoamDelivery(reward, Streak);
             _streakPunchTimer = _settings.StreakCounterPunchDuration;
             PlayCompletionEffect(deliveryPosition);
-            DestroyPackage();
+            ReleaseDeliveredPackage();
             FreeRoamStreakTier tier = _settings.EvaluateTier(Streak);
             _courierGame.ShowStatusMessage(
                 $"DELIVERED  •  {Streak}x {tier.Label}  •  +{reward} GOLD",
                 _settings.StatusMessageDuration);
             BeginPickupLeg(useNearestLandmark: false);
+        }
+
+        private void ReleaseDeliveredPackage()
+        {
+            if (_package == null)
+            {
+                return;
+            }
+
+            Vector3 carrierVelocity = _player != null && _player.Motor != null
+                ? _player.Motor.Velocity
+                : Vector3.zero;
+            DroppedDeliveryPackage.Release(
+                _package,
+                transform,
+                _world,
+                _deliverySettings,
+                carrierVelocity);
+            _package = null;
         }
 
         /// <summary>
