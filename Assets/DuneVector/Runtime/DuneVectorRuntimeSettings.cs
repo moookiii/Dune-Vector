@@ -1038,7 +1038,10 @@ namespace DuneVector
         public Vector3 SandAmbusherEmergencePrefabLocalScale = Vector3.one;
         [Tooltip("Seconds before the spawned emergence effect is destroyed. Set to 0 to let the emergence object manage its lifetime.")]
         [Min(0f)] public float SandAmbusherEmergencePrefabLifetime = 5f;
-        [Min(0.1f)] public float SandAmbusherBuriedDepth = 8f;
+        [Tooltip("Depth below the terrain where a Sand Ambusher begins its buried warning blend.")]
+        [Min(0.1f)] public float SandAmbusherSpawnBuriedDepth = 22f;
+        [Tooltip("Depth below the terrain where a Sand Ambusher finishes its buried warning blend and waits to attack.")]
+        [Min(0.1f)] public float SandAmbusherBuriedDepth = 15f;
         [Min(0.1f)] public float SandAmbusherAttackSpeed = 48f;
         [Min(0f)] public float SandAmbusherAttackOvershoot = 5f;
         [Min(0.1f)] public float SandAmbusherMaximumAttackDuration = 3f;

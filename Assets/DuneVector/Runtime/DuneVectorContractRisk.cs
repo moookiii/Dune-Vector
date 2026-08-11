@@ -181,9 +181,20 @@ namespace DuneVector
         {
             float warningDuration = Mathf.Max(0f, _settings.SandAmbusherWarningDuration) /
                 Mathf.Max(0.1f, DuneVectorContractRisk.EnemyAttackRateMultiplier);
-            ambusher.Emergence?.TickWarning(warningDuration > 0f
+            float warningProgress = warningDuration > 0f
                 ? Mathf.Clamp01(ambusher.StateTime / warningDuration)
-                : 1f);
+                : 1f;
+            float spawnDepth = Mathf.Max(0.1f, _settings.SandAmbusherSpawnBuriedDepth);
+            float finalDepth = Mathf.Max(0.1f, _settings.SandAmbusherBuriedDepth);
+            float currentDepth = Mathf.Lerp(spawnDepth, finalDepth, warningProgress);
+            ambusher.Root.transform.position = ambusher.BuriedPosition +
+                (Vector3.down * (currentDepth - finalDepth));
+            if (ambusher.CombatTarget != null)
+            {
+                ambusher.CombatTarget.transform.localPosition = Vector3.up * currentDepth;
+            }
+            ambusher.Emergence?.TickWarning(warningProgress);
+            TryDamagePlayerOnBuriedContact(ambusher);
             if (ambusher.StateTime < warningDuration)
             {
                 return;
@@ -199,6 +210,10 @@ namespace DuneVector
                 Mathf.Max(0f, _settings.SandAmbusherAttackOvershoot);
             ambusher.AttackEnd = ambusher.BuriedPosition + (attackDirection * attackDistance);
             ambusher.Root.transform.rotation = Quaternion.FromToRotation(Vector3.up, attackDirection);
+            if (ambusher.CombatTarget != null)
+            {
+                ambusher.CombatTarget.transform.localPosition = Vector3.zero;
+            }
             ambusher.Emergence?.Burst();
             ambusher.Visual?.BeginEmergence();
             if (!string.IsNullOrWhiteSpace(_settings.SandAmbusherEmergenceEvent))
@@ -286,6 +301,21 @@ namespace DuneVector
             }
         }
 
+        private void TryDamagePlayerOnBuriedContact(SandAmbusher ambusher)
+        {
+            if (ambusher.DamagedPlayer || ambusher.CombatTarget == null)
+            {
+                return;
+            }
+
+            float collisionRadius = Mathf.Max(0.1f, _settings.SandAmbusherCollisionRadius) +
+                Mathf.Max(0.1f, _settings.SandAmbusherPlayerCollisionRadius);
+            if (Vector3.Distance(_player.WorldCenter, ambusher.CombatTarget.AimPoint) <= collisionRadius)
+            {
+                DamagePlayer(ambusher);
+            }
+        }
+
         private void DamagePlayer(SandAmbusher ambusher)
         {
             ambusher.DamagedPlayer = true;
@@ -316,7 +346,9 @@ namespace DuneVector
 
             GameObject root = new GameObject($"Risk {_risk} Sand Ambusher");
             root.transform.SetParent(transform, true);
-            root.transform.position = buriedPosition;
+            float spawnDepth = Mathf.Max(0.1f, _settings.SandAmbusherSpawnBuriedDepth);
+            float finalDepth = Mathf.Max(0.1f, _settings.SandAmbusherBuriedDepth);
+            root.transform.position = buriedPosition + (Vector3.down * (spawnDepth - finalDepth));
 
             int visualSeed = _random.Next();
             DuneVectorSandAmbusherVisual visual = root.AddComponent<DuneVectorSandAmbusherVisual>();
@@ -328,9 +360,12 @@ namespace DuneVector
 
             EnemyHealth enemyHealth = root.AddComponent<EnemyHealth>();
             enemyHealth.Initialize(Mathf.Max(0.1f, _settings.SandAmbusherHealth));
-            EnemyCombatTarget combatTarget = root.AddComponent<EnemyCombatTarget>();
+            GameObject combatTargetObject = new GameObject("Buried Sand Ambusher Hurtbox and Beam Target");
+            combatTargetObject.transform.SetParent(root.transform, false);
+            combatTargetObject.transform.localPosition = Vector3.up * spawnDepth;
+            EnemyCombatTarget combatTarget = combatTargetObject.AddComponent<EnemyCombatTarget>();
             combatTarget.Initialize(enemyHealth, Mathf.Max(0.1f, _settings.SandAmbusherCollisionRadius));
-            combatTarget.SetTargetable(false);
+            combatTarget.SetTargetable(true);
 
             GameObject emergenceObject = new GameObject($"Risk {_risk} Terrain Rupture and Sand Displacement");
             emergenceObject.transform.SetParent(transform, true);
