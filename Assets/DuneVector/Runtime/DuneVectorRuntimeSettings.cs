@@ -3997,36 +3997,46 @@ namespace DuneVector
         [Range(0.1f, 1f)] public float SpikeTipThickness = 0.35f;
 
         [Header("Appearance - Body")]
-        [ColorUsage(false, true)] public Color BodyColor = new Color(0.055f, 0.045f, 0.04f);
-        [Range(0f, 1f)] public float BodySmoothness = 0.5f;
-        [Range(0f, 1f)] public float BodyMetallic = 0.78f;
-        [ColorUsage(false, true)] public Color BodyEmission = new Color(0.16f, 0.025f, 0.005f);
+        [Tooltip("Tileable albedo texture used by the ground exploder's wheel body.")]
+        public Texture2D BodyTexture;
+        [Tooltip("Tangent-space normal map paired with Body Texture.")]
+        public Texture2D BodyNormalTexture;
+        [Tooltip("URP metallic/smoothness mask paired with Body Texture (metallic in RGB, smoothness in alpha).")]
+        public Texture2D BodyMaskTexture;
+        [Tooltip("Number of times the body texture repeats around the procedural wheel UVs.")]
+        [Min(0.01f)] public float BodyTextureTiling = 2.4f;
+        [Tooltip("Strength of the ground exploder body normal map.")]
+        [Range(0f, 2f)] public float BodyNormalStrength = 0.85f;
+        [ColorUsage(false, true)] public Color BodyColor = new Color(0.85f, 0.72f, 0.58f);
+        [Range(0f, 1f)] public float BodySmoothness = 0.18f;
+        [Range(0f, 1f)] public float BodyMetallic = 0f;
+        [ColorUsage(false, true)] public Color BodyEmission = Color.black;
 
         [Header("Appearance - Trim and Rim")]
-        [Tooltip("Gold trim rings sunk into the wheel faces, tying the exploder to the desert's gold ringwork.")]
-        [ColorUsage(false, true)] public Color TrimColor = new Color(0.62f, 0.42f, 0.11f);
-        [ColorUsage(false, true)] public Color TrimEmission = new Color(0.85f, 0.46f, 0.06f);
-        [Range(0f, 1f)] public float TrimSmoothness = 0.72f;
-        [Range(0f, 1f)] public float TrimMetallic = 0.9f;
+        [Tooltip("Weathered ochre trim rings sunk into the wheel faces.")]
+        [ColorUsage(false, true)] public Color TrimColor = new Color(0.32f, 0.17f, 0.07f);
+        [ColorUsage(false, true)] public Color TrimEmission = new Color(0.03f, 0.008f, 0f);
+        [Range(0f, 1f)] public float TrimSmoothness = 0.24f;
+        [Range(0f, 1f)] public float TrimMetallic = 0.12f;
         [Min(0.005f)] public float TrimRingThickness = 0.04f;
         [Tooltip("Color of the chamfer running around the whole outline, spikes included. It is part of the wheel mesh, so it traces the silhouette exactly and is the strongest separation between the exploder and the warm sand behind it.")]
-        [ColorUsage(false, true)] public Color RimColor = new Color(0.36f, 0.85f, 1f);
-        [ColorUsage(false, true)] public Color RimEmission = new Color(1.4f, 3.3f, 4.6f);
+        [ColorUsage(false, true)] public Color RimColor = new Color(0.68f, 0.42f, 0.19f);
+        [ColorUsage(false, true)] public Color RimEmission = Color.black;
 
         [Header("Appearance - Spike Tips")]
-        [ColorUsage(false, true)] public Color SpikeTipColor = new Color(0.5f, 0.2f, 0.03f);
+        [ColorUsage(false, true)] public Color SpikeTipColor = new Color(0.22f, 0.09f, 0.035f);
         [Tooltip("Spike tip emission while the exploder is patrolling.")]
-        [ColorUsage(false, true)] public Color SpikeTipIdleEmission = new Color(1.6f, 0.42f, 0.05f);
+        [ColorUsage(false, true)] public Color SpikeTipIdleEmission = new Color(0.06f, 0.015f, 0f);
         [Tooltip("Spike tip emission at the end of the detonation wind-up.")]
-        [ColorUsage(false, true)] public Color SpikeTipChargedEmission = new Color(9f, 3.4f, 0.9f);
-        [Range(0f, 1f)] public float SpikeTipSmoothness = 0.55f;
-        [Range(0f, 1f)] public float SpikeTipMetallic = 0.2f;
+        [ColorUsage(false, true)] public Color SpikeTipChargedEmission = new Color(3f, 1f, 0.15f);
+        [Range(0f, 1f)] public float SpikeTipSmoothness = 0.16f;
+        [Range(0f, 1f)] public float SpikeTipMetallic = 0f;
 
         [Header("Appearance - Live Core")]
         [Tooltip("Glowing core suspended in the hub bore, so the wheel reads as a charged machine instead of a doughnut with sand showing through.")]
-        [ColorUsage(false, true)] public Color CoreColor = new Color(1f, 0.72f, 0.28f);
-        [ColorUsage(false, true)] public Color CoreIdleEmission = new Color(2.4f, 1.15f, 0.22f);
-        [ColorUsage(false, true)] public Color CoreChargedEmission = new Color(12f, 6.5f, 2.2f);
+        [ColorUsage(false, true)] public Color CoreColor = new Color(0.32f, 0.11f, 0.025f);
+        [ColorUsage(false, true)] public Color CoreIdleEmission = new Color(0.22f, 0.07f, 0.01f);
+        [ColorUsage(false, true)] public Color CoreChargedEmission = new Color(5f, 2f, 0.4f);
         [Tooltip("Core sphere radius, in visual-scale units.")]
         [Min(0.01f)] public float CoreRadius = 0.34f;
         [Range(0f, 8f)] public float CorePulseFrequency = 1.9f;

@@ -396,6 +396,7 @@ namespace DuneVector
                 groundExploders.BodySmoothness,
                 groundExploders.BodyMetallic,
                 groundExploders.BodyEmission);
+            ConfigureGroundExploderBodyTextures(GroundEnemyBody, groundExploders);
             GroundEnemyWarning = CreateLit(
                 "Ground Exploder - Warning",
                 groundExploders.WarningColor,
@@ -403,14 +404,16 @@ namespace DuneVector
                 groundExploders.WarningMetallic,
                 groundExploders.WarningEmission);
             GroundEnemyTrim = CreateLit(
-                "Ground Exploder - Gold Trim",
+                "Ground Exploder - Weathered Ochre Trim",
                 groundExploders.TrimColor,
                 groundExploders.TrimSmoothness,
                 groundExploders.TrimMetallic,
                 groundExploders.TrimEmission);
-            GroundEnemyRim = CreateUnlit(
-                "Ground Exploder - Cool Rim",
+            GroundEnemyRim = CreateLit(
+                "Ground Exploder - Sand Worn Rim",
                 groundExploders.RimColor,
+                groundExploders.BodySmoothness,
+                groundExploders.BodyMetallic,
                 groundExploders.RimEmission);
             GroundEnemySpikeTip = CreateLit(
                 "Ground Exploder - Spike Tips",
@@ -828,6 +831,32 @@ namespace DuneVector
                 material.SetTexture("_EmissionMap", texture);
                 material.SetTextureScale("_EmissionMap", textureScale);
                 material.EnableKeyword("_EMISSION");
+            }
+        }
+
+        private static void ConfigureGroundExploderBodyTextures(
+            Material material,
+            GroundExploderTuning tuning)
+        {
+            if (material == null || tuning == null)
+            {
+                return;
+            }
+
+            float tiling = Mathf.Max(0.01f, tuning.BodyTextureTiling);
+            ConfigureSurfaceTexture(material, tuning.BodyTexture, tiling);
+            if (tuning.BodyNormalTexture != null && material.HasProperty("_BumpMap"))
+            {
+                material.SetTexture("_BumpMap", tuning.BodyNormalTexture);
+                material.SetTextureScale("_BumpMap", Vector2.one * tiling);
+                material.SetFloat("_BumpScale", tuning.BodyNormalStrength);
+                material.EnableKeyword("_NORMALMAP");
+            }
+            if (tuning.BodyMaskTexture != null && material.HasProperty("_MetallicGlossMap"))
+            {
+                material.SetTexture("_MetallicGlossMap", tuning.BodyMaskTexture);
+                material.SetTextureScale("_MetallicGlossMap", Vector2.one * tiling);
+                material.EnableKeyword("_METALLICSPECGLOSSMAP");
             }
         }
 
@@ -3624,7 +3653,7 @@ namespace DuneVector
                 materials.GroundEnemySpikeTip,
             };
 
-            // Gold face trim carries the desert's ringwork out to the disc edge on
+            // Weathered ochre face trim carries the desert's ringwork out to the disc edge on
             // both faces, half sunk into the surface so nothing is coplanar.
             float trimTube = Mathf.Max(0.005f, tuning.TrimRingThickness * 0.5f);
             float trimRadius = Mathf.Max(
@@ -3633,7 +3662,7 @@ namespace DuneVector
             for (int face = 0; face < 2; face++)
             {
                 GameObject goldTrim = CreateMeshObject(
-                    face == 0 ? "Gold Face Trim Front" : "Gold Face Trim Back",
+                    face == 0 ? "Ochre Face Trim Front" : "Ochre Face Trim Back",
                     wheel.transform,
                     GetTorusMesh(trimRadius, trimTube, 48, 6),
                     materials.GroundEnemyTrim);
@@ -3798,6 +3827,7 @@ namespace DuneVector
             float tipBump = 1f - Mathf.Clamp(tuning.SpikeTipFraction, 0f, 0.8f);
 
             List<Vector3> vertices = new List<Vector3>(segmentCount * 36);
+            List<Vector2> uvs = new List<Vector2>(segmentCount * 36);
             List<int> bodyTriangles = new List<int>(segmentCount * 24);
             List<int> rimTriangles = new List<int>(segmentCount * 12);
             List<int> tipTriangles = new List<int>(segmentCount * 6);
@@ -3807,6 +3837,8 @@ namespace DuneVector
             for (int i = 0; i < segmentCount; i++)
             {
                 int next = (i + 1) % segmentCount;
+                float uA = i / (float)segmentCount;
+                float uB = next == 0 ? 1f : next / (float)segmentCount;
                 float bumpA = GroundExploderSpikeProfile(i % GroundExploderSegmentsPerSpike);
                 float bumpB = GroundExploderSpikeProfile(next % GroundExploderSegmentsPerSpike);
                 bool isTip = bumpA >= tipBump
@@ -3822,20 +3854,69 @@ namespace DuneVector
                     List<int> target = isTip
                         ? tipTriangles
                         : (isChamfer ? rimTriangles : bodyTriangles);
-                    AppendFlatQuad(vertices, target, ringA[point], ringA[nextPoint], ringB[nextPoint], ringB[point]);
+                    float vA = point / 6f;
+                    float vB = nextPoint == 0 ? 1f : nextPoint / 6f;
+                    AppendGroundExploderQuad(
+                        vertices,
+                        uvs,
+                        target,
+                        ringA[point],
+                        ringA[nextPoint],
+                        ringB[nextPoint],
+                        ringB[point],
+                        new Vector2(uA, vA),
+                        new Vector2(uA, vB),
+                        new Vector2(uB, vB),
+                        new Vector2(uB, vA));
                 }
             }
 
             Mesh mesh = new Mesh { name = "Kinematic Spiked Hollow Exploder" };
             mesh.subMeshCount = 3;
             mesh.SetVertices(vertices);
+            mesh.SetUVs(0, uvs);
             mesh.SetTriangles(bodyTriangles, 0);
             mesh.SetTriangles(rimTriangles, 1);
             mesh.SetTriangles(tipTriangles, GroundExploderTipSubmesh);
             mesh.RecalculateNormals();
+            mesh.RecalculateTangents();
             mesh.RecalculateBounds();
             MeshCache[key] = mesh;
             return mesh;
+        }
+
+        private static void AppendGroundExploderQuad(
+            List<Vector3> vertices,
+            List<Vector2> uvs,
+            List<int> triangles,
+            Vector3 a,
+            Vector3 b,
+            Vector3 c,
+            Vector3 d,
+            Vector2 uvA,
+            Vector2 uvB,
+            Vector2 uvC,
+            Vector2 uvD)
+        {
+            int start = vertices.Count;
+            vertices.Add(a);
+            vertices.Add(b);
+            vertices.Add(c);
+            vertices.Add(a);
+            vertices.Add(c);
+            vertices.Add(d);
+            uvs.Add(uvA);
+            uvs.Add(uvB);
+            uvs.Add(uvC);
+            uvs.Add(uvA);
+            uvs.Add(uvC);
+            uvs.Add(uvD);
+            triangles.Add(start);
+            triangles.Add(start + 1);
+            triangles.Add(start + 2);
+            triangles.Add(start + 3);
+            triangles.Add(start + 4);
+            triangles.Add(start + 5);
         }
 
         private static void FillGroundExploderRing(
