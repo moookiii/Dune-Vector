@@ -1321,6 +1321,46 @@ namespace DuneVector
         [ColorUsage(false)] public Color HudTextColor = new Color(0.9f, 0.96f, 1f, 1f);
         [ColorUsage(false)] public Color IntegrityHealthyColor = new Color(0.22f, 0.95f, 0.64f, 1f);
         [ColorUsage(false)] public Color IntegrityCriticalColor = new Color(1f, 0.16f, 0.08f, 1f);
+
+        [Header("Contract HUD Chrome")]
+        [Min(0f)] public float HudPadding = 11f;
+        [Min(0f)] public float HudTitleHeight = 21f;
+        [Min(0f)] public float HudLineHeight = 17f;
+        [Min(0f)] public float HudRowGap = 3f;
+        [Min(1f)] public float HudAccentWidth = 3f;
+        [Min(1f)] public float HudBorderThickness = 1f;
+        [Min(0f)] public float HudTopRuleHeight = 2f;
+        [Range(0f, 1f)] public float HudTopRuleOpacity = 0.85f;
+        [Min(0f)] public float HudCornerBracketLength = 13f;
+        [Min(0f)] public float HudTitleGlowRadius = 1.5f;
+        [Range(0f, 1f)] public float HudTitleGlowOpacity = 0.35f;
+        public Vector2 HudShadowOffset = new Vector2(2f, 3f);
+        [ColorUsage(false)] public Color HudShadowColor = new Color(0f, 0.01f, 0.02f, 0.55f);
+        [ColorUsage(false)] public Color HudBorderColor = new Color(0.45f, 0.66f, 0.8f, 0.35f);
+        [ColorUsage(false)] public Color HudMutedTextColor = new Color(0.72f, 0.82f, 0.9f, 0.72f);
+        [ColorUsage(false)] public Color HudTrackColor = new Color(0.04f, 0.07f, 0.1f, 0.9f);
+
+        [Header("Contract HUD Multi-Drop Route")]
+        [Min(8)] public int HudLabelFontSize = 10;
+        [Min(1f)] public float HudRouteBarHeight = 7f;
+        [Min(0f)] public float HudRouteBarGap = 3f;
+        [Min(0f)] public float HudRouteBarTopPadding = 4f;
+        [Min(0f)] public float HudRouteBarLabelHeight = 13f;
+        [Min(0f)] public float HudRouteCurrentPulseSpeed = 4.2f;
+        [Range(0f, 1f)] public float HudRouteCurrentPulseAmount = 0.45f;
+        [ColorUsage(false)] public Color HudRouteCompletedColor = new Color(0.22f, 0.95f, 0.64f, 1f);
+        [ColorUsage(false)] public Color HudRoutePendingColor = new Color(0.5f, 0.62f, 0.72f, 0.3f);
+        public string HudRouteLabel = "ROUTE";
+        public string HudRouteStopFormat = "STOP {0} / {1}";
+        public string HudRouteCompleteLabel = "FINAL STOP";
+        public string HudPickupObjectiveLabel = "LOCATE AND FLY THROUGH PICKUP RING";
+        public string HudDeliverObjectiveLabel = "DELIVER CARGO";
+        public string HudDeliverStopObjectiveFormat = "DELIVER STOP {0} OF {1}";
+        public string HudRewardLabel = "REWARD";
+        public string HudRewardFormat = "{0:N0} GOLD";
+        public string HudTimeLabel = "TIME";
+        public string HudIntegrityLabel = "CARGO INTEGRITY";
+        public string HudIntegrityFormat = "{0}%";
     }
 
     [System.Serializable]

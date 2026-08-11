@@ -499,6 +499,8 @@ namespace DuneVector
         private GUIStyle _archiveTileButtonStyle;
         private GUIStyle _hudTitleStyle;
         private GUIStyle _hudBodyStyle;
+        private GUIStyle _hudLabelStyle;
+        private GUIStyle _hudValueStyle;
         private GUIStyle _objectiveStyle;
         private GUIStyle _statusStyle;
         private readonly DuneVectorObjectiveIndicator _objectiveIndicator = new DuneVectorObjectiveIndicator();
@@ -3228,8 +3230,15 @@ namespace DuneVector
             _terminalButtonStyle.active.background = _terminalCardHoverTexture;
             _terminalButtonStyle.normal.textColor = GuiTextColor(_hubSettings.TerminalTextColor);
             _terminalButtonStyle.hover.textColor = GuiTextColor(_hubSettings.TerminalTextColor);
-            _hudTitleStyle = LabelStyle(_settings.HudTitleFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _settings.HudAccentColor);
+            // Contract panel labels are tinted per-draw through GUI.color, so their styles stay white.
+            _hudTitleStyle = LabelStyle(_settings.HudTitleFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
+            _hudTitleStyle.wordWrap = false;
+            _hudTitleStyle.clipping = TextClipping.Clip;
             _hudBodyStyle = LabelStyle(_settings.HudBodyFontSize, FontStyle.Normal, TextAnchor.UpperLeft, _settings.HudTextColor);
+            _hudLabelStyle = LabelStyle(_settings.HudLabelFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, Color.white);
+            _hudLabelStyle.wordWrap = false;
+            _hudLabelStyle.clipping = TextClipping.Clip;
+            _hudValueStyle = new GUIStyle(_hudLabelStyle) { alignment = TextAnchor.MiddleRight };
             _objectiveStyle = LabelStyle(_settings.HudStatusFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudTextColor);
             _statusStyle = LabelStyle(_settings.HudStatusFontSize + 2, FontStyle.Bold, TextAnchor.MiddleCenter, _settings.HudAccentColor);
         }
@@ -4022,43 +4031,237 @@ namespace DuneVector
                 _settings.HudLeft / hudScale,
                 _settings.HudTop / hudScale,
                 _settings.HudWidth,
-                _settings.HudHeight);
-            Color old = GUI.backgroundColor;
-            GUI.backgroundColor = _settings.HudPanelColor;
-            GUI.Box(panel, GUIContent.none);
-            GUI.backgroundColor = old;
+                ContractPanelAuthoredHeight());
+
+            Color accent = _settings.HudAccentColor;
+            Color border = Color.Lerp(_settings.HudBorderColor, accent, 0.35f);
+            border.a = _settings.HudBorderColor.a;
+            DuneVectorHudChrome.DrawSoftShadow(panel, _settings.HudShadowColor, _settings.HudShadowOffset, 6f);
+            DuneVectorHudChrome.DrawGlassPanel(
+                panel,
+                _settings.HudPanelColor,
+                border,
+                _settings.HudBorderThickness,
+                1f);
+            DuneVectorHudChrome.DrawAccentRail(panel, accent, _settings.HudAccentWidth, 26f);
+            Rect topRule = new Rect(
+                panel.x + _settings.HudAccentWidth,
+                panel.y,
+                panel.width - _settings.HudAccentWidth,
+                _settings.HudTopRuleHeight);
+            DuneVectorHudChrome.DrawRect(topRule, WithAlpha(accent, accent.a * _settings.HudTopRuleOpacity));
+            DuneVectorHudChrome.DrawVerticalFade(
+                new Rect(topRule.x, topRule.yMax, topRule.width, 9f),
+                WithAlpha(accent, accent.a * _settings.HudTopRuleOpacity * 0.4f),
+                true);
+            DuneVectorHudChrome.DrawCornerBrackets(
+                panel,
+                WithAlpha(accent, accent.a * 0.6f),
+                _settings.HudCornerBracketLength,
+                _settings.HudBorderThickness);
+
+            float padding = _settings.HudPadding;
+            float contentX = panel.x + padding + _settings.HudAccentWidth;
+            float contentWidth = panel.width - (padding * 2f) - _settings.HudAccentWidth;
+            Vector2 textShadowOffset = new Vector2(1f, 1f);
+            Color textShadow = new Color(0f, 0f, 0f, 0.55f);
+            float y = panel.y + padding;
+
             string modifier = ActiveContract.DisplayModifiers == CourierContractModifier.Unknown && !_unknownRevealed
                 ? "UNKNOWN CARGO"
                 : CourierContract.FormatModifiers(ActiveContract.GameplayModifiers);
-            GUI.Label(new Rect(panel.x + 12f, panel.y + 6f, panel.width - 24f, 24f), modifier, _hudTitleStyle);
+            DuneVectorHudChrome.DrawGlowLabel(
+                new Rect(contentX, y, contentWidth, _settings.HudTitleHeight),
+                modifier,
+                _hudTitleStyle,
+                accent,
+                WithAlpha(accent, accent.a * _settings.HudTitleGlowOpacity),
+                _settings.HudTitleGlowRadius,
+                textShadow,
+                textShadowOffset);
+            y += _settings.HudTitleHeight;
+
+            int stopCount = Mathf.Max(1, ActiveContract.StopCount);
+            int currentStop = Mathf.Clamp(_deliveryIndex + 1, 1, stopCount);
             string objective = State == CourierRunState.FindPackage
-                ? "LOCATE AND FLY THROUGH PICKUP RING"
-                : _deliveryIndex + 1 < ActiveContract.StopCount
-                    ? $"DELIVER STOP {_deliveryIndex + 1} / {ActiveContract.StopCount}"
-                    : "DELIVER CARGO";
-            string timer = ActiveContract.Has(CourierContractModifier.Express)
-                ? $"\nTIME  {FormatTime(ExpressTimeRemaining)}"
-                : string.Empty;
-            string integrity = State == CourierRunState.Delivering && CargoUsesIntegrity()
-                ? $"\nCARGO INTEGRITY  {CargoIntegrity:0}%"
-                : string.Empty;
-            GUI.Label(new Rect(panel.x + 12f, panel.y + 34f, panel.width - 24f, panel.height - 40f),
-                $"{objective}\nREWARD  {ActiveContract.OfferedReward:N0} GOLD{timer}{integrity}", _hudBodyStyle);
+                ? _settings.HudPickupObjectiveLabel
+                : stopCount > 1
+                    ? FormatDesignerText(_settings.HudDeliverStopObjectiveFormat, currentStop, stopCount)
+                    : _settings.HudDeliverObjectiveLabel;
+            DuneVectorHudChrome.DrawLabel(
+                new Rect(contentX, y, contentWidth, _settings.HudLineHeight),
+                objective,
+                _hudBodyStyle,
+                _settings.HudTextColor,
+                textShadow,
+                textShadowOffset);
+            y += _settings.HudLineHeight + _settings.HudRowGap;
+
+            // Multi-drop only: one segment per stop so the route reads at a glance instead of
+            // forcing the player to parse "2 / 3" mid-flight.
+            if (stopCount > 1)
+            {
+                y += _settings.HudRouteBarTopPadding;
+                Rect routeLabel = new Rect(contentX, y, contentWidth, _settings.HudRouteBarLabelHeight);
+                DuneVectorHudChrome.DrawLabel(
+                    routeLabel,
+                    _settings.HudRouteLabel,
+                    _hudLabelStyle,
+                    _settings.HudMutedTextColor,
+                    textShadow,
+                    textShadowOffset);
+                bool finalStop = State != CourierRunState.FindPackage && currentStop >= stopCount;
+                DuneVectorHudChrome.DrawLabel(
+                    routeLabel,
+                    finalStop
+                        ? _settings.HudRouteCompleteLabel
+                        : FormatDesignerText(_settings.HudRouteStopFormat, currentStop, stopCount),
+                    _hudValueStyle,
+                    accent,
+                    textShadow,
+                    textShadowOffset);
+                y += _settings.HudRouteBarLabelHeight;
+
+                float gap = _settings.HudRouteBarGap;
+                float segmentWidth = (contentWidth - (gap * (stopCount - 1))) / stopCount;
+                float pulse = 0.5f + (0.5f * Mathf.Sin(Time.unscaledTime * _settings.HudRouteCurrentPulseSpeed));
+                for (int index = 0; index < stopCount; index++)
+                {
+                    Rect segment = new Rect(
+                        contentX + (index * (segmentWidth + gap)),
+                        y,
+                        segmentWidth,
+                        _settings.HudRouteBarHeight);
+                    bool completed = State != CourierRunState.FindPackage && index < _deliveryIndex;
+                    bool current = State != CourierRunState.FindPackage && index == _deliveryIndex;
+                    Color segmentColor = completed
+                        ? _settings.HudRouteCompletedColor
+                        : current
+                            ? Color.Lerp(accent, Color.white, pulse * _settings.HudRouteCurrentPulseAmount)
+                            : _settings.HudRoutePendingColor;
+                    DuneVectorHudChrome.DrawMeter(
+                        segment,
+                        completed || current ? 1f : 0f,
+                        segmentColor,
+                        _settings.HudTrackColor,
+                        1f,
+                        1,
+                        Color.clear,
+                        1f,
+                        1f);
+                }
+                y += _settings.HudRouteBarHeight + _settings.HudRowGap;
+            }
+
+            y = DrawContractHudRow(
+                contentX,
+                y,
+                contentWidth,
+                _settings.HudRewardLabel,
+                FormatDesignerText(_settings.HudRewardFormat, ActiveContract.OfferedReward),
+                accent,
+                textShadow,
+                textShadowOffset);
+
+            if (ActiveContract.Has(CourierContractModifier.Express))
+            {
+                y = DrawContractHudRow(
+                    contentX,
+                    y,
+                    contentWidth,
+                    _settings.HudTimeLabel,
+                    FormatTime(ExpressTimeRemaining),
+                    _settings.HudTextColor,
+                    textShadow,
+                    textShadowOffset);
+            }
+
             if (State == CourierRunState.Delivering && CargoUsesIntegrity())
             {
-                Rect integrityBar = new Rect(panel.x + 12f, panel.yMax - 11f, panel.width - 24f, 5f);
-                GUI.Box(integrityBar, GUIContent.none);
-                Color previousColor = GUI.color;
-                GUI.color = Color.Lerp(
+                float normalized = Mathf.Clamp01(CargoIntegrity / 100f);
+                Color integrityColor = Color.Lerp(
                     _settings.IntegrityCriticalColor,
                     _settings.IntegrityHealthyColor,
-                    CargoIntegrity / 100f);
-                GUI.DrawTexture(
-                    new Rect(integrityBar.x, integrityBar.y, integrityBar.width * Mathf.Clamp01(CargoIntegrity / 100f), integrityBar.height),
-                    Texture2D.whiteTexture);
-                GUI.color = previousColor;
+                    normalized);
+                y = DrawContractHudRow(
+                    contentX,
+                    y,
+                    contentWidth,
+                    _settings.HudIntegrityLabel,
+                    FormatDesignerText(_settings.HudIntegrityFormat, Mathf.CeilToInt(CargoIntegrity)),
+                    integrityColor,
+                    textShadow,
+                    textShadowOffset);
+                DuneVectorHudChrome.DrawMeter(
+                    new Rect(contentX, y, contentWidth, _settings.HudRouteBarHeight),
+                    normalized,
+                    integrityColor,
+                    _settings.HudTrackColor,
+                    1f,
+                    1,
+                    Color.clear,
+                    1f,
+                    1f);
             }
+
             GUI.matrix = previousHudMatrix;
+        }
+
+        private float DrawContractHudRow(
+            float contentX,
+            float y,
+            float contentWidth,
+            string label,
+            string value,
+            Color valueColor,
+            Color textShadow,
+            Vector2 textShadowOffset)
+        {
+            Rect row = new Rect(contentX, y, contentWidth, _settings.HudRouteBarLabelHeight);
+            DuneVectorHudChrome.DrawLabel(
+                row,
+                label,
+                _hudLabelStyle,
+                _settings.HudMutedTextColor,
+                textShadow,
+                textShadowOffset);
+            DuneVectorHudChrome.DrawLabel(
+                row,
+                value,
+                _hudValueStyle,
+                valueColor,
+                textShadow,
+                textShadowOffset);
+            return y + _settings.HudRouteBarLabelHeight + _settings.HudRowGap;
+        }
+
+        /// <summary>Panel height in authored (pre-scale) space, grown to fit whichever rows this contract shows.</summary>
+        private float ContractPanelAuthoredHeight()
+        {
+            float height = (_settings.HudPadding * 2f) + _settings.HudTitleHeight
+                + _settings.HudLineHeight + _settings.HudRowGap;
+            if (IsContractActive && Mathf.Max(1, ActiveContract.StopCount) > 1)
+            {
+                height += _settings.HudRouteBarTopPadding + _settings.HudRouteBarLabelHeight
+                    + _settings.HudRouteBarHeight + _settings.HudRowGap;
+            }
+            // Reward row.
+            height += _settings.HudRouteBarLabelHeight + _settings.HudRowGap;
+            if (IsContractActive && ActiveContract.Has(CourierContractModifier.Express))
+            {
+                height += _settings.HudRouteBarLabelHeight + _settings.HudRowGap;
+            }
+            if (State == CourierRunState.Delivering && CargoUsesIntegrity())
+            {
+                height += _settings.HudRouteBarLabelHeight + _settings.HudRowGap + _settings.HudRouteBarHeight;
+            }
+            return Mathf.Max(_settings.HudHeight, height);
+        }
+
+        private static Color WithAlpha(Color color, float alpha)
+        {
+            color.a = alpha;
+            return color;
         }
 
         private float ContractHudScale => _settings == null ? 1f : Mathf.Clamp(_settings.HudScale, 0.4f, 2f);
@@ -4072,7 +4275,7 @@ namespace DuneVector
                     _settings.HudLeft,
                     _settings.HudTop,
                     _settings.HudWidth * hudScale,
-                    _settings.HudHeight * hudScale);
+                    ContractPanelAuthoredHeight() * hudScale);
                 return true;
             }
             panel = default;

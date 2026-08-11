@@ -1212,6 +1212,15 @@ namespace DuneVector
             {
                 panelTop = Mathf.Max(panelTop, atlasPanel.yMax + _settings.HudOtherPanelGap);
             }
+            // The contract panel grows with its row count (multi-drop route, express timer, integrity),
+            // so stack under whatever it is currently occupying instead of a fixed offset.
+            if (_courierGame != null &&
+                _courierGame.TryGetVisibleContractPanelRect(out Rect contractPanel) &&
+                _settings.HudLeft < contractPanel.xMax &&
+                _settings.HudLeft + width > contractPanel.x)
+            {
+                panelTop = Mathf.Max(panelTop, contractPanel.yMax + _settings.HudOtherPanelGap);
+            }
             return new Rect(_settings.HudLeft, panelTop, width, _settings.HudHeight * hudScale);
         }
 
