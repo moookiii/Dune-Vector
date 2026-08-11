@@ -6003,7 +6003,21 @@ namespace DuneVector
         [Min(24f)] public float RestoreNotificationHeight = 48f;
         [ColorUsage(false)] public Color RestoreNotificationColor = new Color(1f, 0.82f, 0.12f, 1f);
         [Tooltip("{0} is replaced with the amount of stamina restored.")]
-        public string RestoreNotificationFormat = "STAMINA RESTORED: {0}";
+        public string RestoreNotificationFormat = "STAMINA RESTORED  +{0}";
+        [Tooltip("Fraction of the notification's lifetime it stays fully opaque before it fades out.")]
+        [Range(0f, 1f)] public float RestoreNotificationHoldFraction = 0.55f;
+        [Tooltip("Pixels the notification drifts upward across its lifetime.")]
+        [Min(0f)] public float RestoreNotificationRise = 24f;
+        [Tooltip("Scale the notification pops in at before settling to its normal size.")]
+        [Range(1f, 2f)] public float RestoreNotificationPopScale = 1.3f;
+        [Tooltip("Fraction of the notification's lifetime spent settling out of the pop-in scale.")]
+        [Range(0f, 1f)] public float RestoreNotificationPopFraction = 0.18f;
+        [Tooltip("Outline width in pixels drawn around the notification so it reads against bright sky. Set to 0 for no outline.")]
+        [Range(0f, 6f)] public float RestoreNotificationOutlineThickness = 2f;
+        public Color RestoreNotificationOutlineColor = new Color(0.04f, 0.03f, 0.06f, 0.9f);
+        [Tooltip("Pixel offset of the notification's drop shadow. Set to zero for no shadow.")]
+        public Vector2 RestoreNotificationShadowOffset = new Vector2(0f, 4f);
+        public Color RestoreNotificationShadowColor = new Color(0f, 0f, 0f, 0.5f);
 
         [Header("Meter Styling")]
         [Tooltip("Width in pixels of the soft fade on the arc's edges. Removes the hard aliased outline.")]
