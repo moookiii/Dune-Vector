@@ -995,13 +995,17 @@ namespace DuneVector
         }
 
         [Header("Risk Scaling")]
+        [Tooltip("Highest contract risk. Every board offer uses one risk per completed delivery, capped at this value.")]
         [Range(1, 100)] public int MaximumRisk = 20;
-        [Tooltip("Completed deliveries required to advance one contract rank in the contracts list.")]
-        [Min(0.25f)] public float DeliveriesPerContractRank = 2.5f;
         [Min(0f)] public float RiskRewardMultiplierPerTier = 0.12f;
         [Min(1f)] public float RiskEnemyMultiplierAtRankOne = 1.1f;
         [Min(1f)] public float RiskEnemyMultiplierAtMaximumRank = 3f;
         [Min(1)] public int RiskGroundEnemyReferenceCount = 8;
+
+        public int EvaluateRisk(int completedDeliveries)
+        {
+            return Mathf.Clamp(completedDeliveries, 0, Mathf.Max(1, MaximumRisk));
+        }
 
         [Header("Risk Sand Ambusher")]
         [Min(1)] public int SandAmbusherMinimumRisk = 2;

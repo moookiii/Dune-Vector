@@ -1823,10 +1823,7 @@ namespace DuneVector
         private CourierContract CreateOffer(System.Random random, int index, int completed)
         {
             int seed = random.Next();
-            int difficulty = Mathf.Clamp(
-                Mathf.FloorToInt(completed / Mathf.Max(0.25f, _settings.DeliveriesPerContractRank)) + random.Next(0, 3),
-                0,
-                Mathf.Max(1, _settings.MaximumRisk));
+            int difficulty = _settings.EvaluateRisk(completed);
             float distance = Mathf.Lerp(
                 _settings.EvaluateMinimumRouteDistance(difficulty),
                 _settings.EvaluateMaximumRouteDistance(difficulty),
