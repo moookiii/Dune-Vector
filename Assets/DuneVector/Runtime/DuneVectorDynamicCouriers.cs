@@ -432,7 +432,9 @@ namespace DuneVector
 
         private bool IsGameplayAvailable()
         {
-            return IsAvailableInState(_settings.EventsDuringFreeRoam, _settings.EventsInHub);
+            return _settings.EventsDuringFreeRoam &&
+                   _courierGame != null &&
+                   _courierGame.State == CourierRunState.FreeRoam;
         }
 
         private bool IsAmbientAvailable()
