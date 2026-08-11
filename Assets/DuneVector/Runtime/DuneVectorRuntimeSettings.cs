@@ -2953,6 +2953,38 @@ namespace DuneVector
         [Tooltip("Multiplies only the lightning bolt emission, creating a stronger HDR bloom halo.")]
         [Min(0f)] public float LightningBloomIntensity = 4f;
 
+        [Header("Ground Strike Warning")]
+        [Tooltip("Seconds the danger zone is painted on the ground at full size before the strike starts charging. This is the warning window the drone gets, so the total lead time is this plus Ground Strike Charge Time. Set to 0 to strike with no ground warning.")]
+        [Min(0f)] public float GroundWarningLeadTime = 1.8f;
+        [Tooltip("Height the danger zone floats above the impact point so it stays readable over dune slopes. Authored at the base Strike Radius and scaled with the risk-scaled radius.")]
+        [Min(0f)] public float GroundWarningHeightOffset = 0.45f;
+        [Tooltip("Thickness of the outer danger ring as a fraction of the strike radius.")]
+        [Range(0.005f, 0.3f)] public float GroundWarningRingThickness = 0.045f;
+        [Tooltip("Radius of the inner danger ring as a fraction of the strike radius.")]
+        [Range(0.05f, 0.95f)] public float GroundWarningInnerRingRadiusFraction = 0.55f;
+        [Tooltip("Thickness of the inner danger ring as a fraction of the strike radius.")]
+        [Range(0.005f, 0.3f)] public float GroundWarningInnerRingThickness = 0.03f;
+        [Tooltip("Radial spokes drawn across the danger zone so it reads from directly overhead. Set to 0 for rings only.")]
+        [Range(0, 12)] public int GroundWarningSpokeCount = 4;
+        [Tooltip("Width of each radial spoke as a fraction of the strike radius.")]
+        [Range(0.005f, 0.2f)] public float GroundWarningSpokeWidth = 0.028f;
+        [Tooltip("Radius the closing countdown ring starts at, as a multiple of the strike radius. It shrinks onto the danger zone edge exactly as the charge begins.")]
+        [Range(1f, 8f)] public float GroundWarningClosingRingStartMultiplier = 3.2f;
+        [Tooltip("Thickness of the closing countdown ring as a fraction of the strike radius.")]
+        [Range(0.005f, 0.3f)] public float GroundWarningClosingRingThickness = 0.05f;
+        [Tooltip("Width of the vertical warning beam linking the pyramid to its impact point, as a fraction of the strike radius. Set to 0 to hide the beam.")]
+        [Range(0f, 0.5f)] public float GroundWarningBeamWidth = 0.05f;
+        [Tooltip("Pulse speed of the danger zone when the warning first appears.")]
+        [Min(0f)] public float GroundWarningPulseSpeedStart = 4f;
+        [Tooltip("Pulse speed of the danger zone in the last moments before the strike fires.")]
+        [Min(0f)] public float GroundWarningPulseSpeedEnd = 24f;
+        [Tooltip("Dimmest point of the danger zone pulse as a fraction of full warning brightness.")]
+        [Range(0f, 1f)] public float GroundWarningPulseDepth = 0.3f;
+        [Tooltip("Multiplies the danger zone brightness so it stays visible against bright sand. 1 uses the authored Warning Emission unchanged.")]
+        [Min(0f)] public float GroundWarningBrightnessMultiplier = 1.6f;
+        [Tooltip("Optional FMOD event played once when a ground strike warning appears. Leave empty for no sound.")]
+        public string GroundWarningAudioEvent = string.Empty;
+
         [Header("Ground Impact Effect")]
         [Tooltip("Optional effect spawned at the lightning strike point. If empty, the procedural ground shockwave is used.")]
         public GameObject GroundImpactPrefab;

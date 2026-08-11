@@ -13,6 +13,7 @@ namespace DuneVector
         FiringLightning,
         Cooldown,
         TriggeredWindUp,
+        WarningTelegraph,
     }
 
     public enum StormLightningAttackType
@@ -188,7 +189,8 @@ namespace DuneVector
                 _movement.Tick(deltaTime);
             }
 
-            bool mayReposition = CurrentState != StormPyramidState.ChargingAttack
+            bool mayReposition = CurrentState != StormPyramidState.WarningTelegraph
+                && CurrentState != StormPyramidState.ChargingAttack
                 && CurrentState != StormPyramidState.FiringLightning
                 && CurrentState != StormPyramidState.TriggeredWindUp;
             if (mayReposition && _movement.HorizontalDistanceFromPlayer > _settings.RepositionDistance)
@@ -203,6 +205,9 @@ namespace DuneVector
                     break;
                 case StormPyramidState.TrackingPlayer:
                     BeginGroundStrike();
+                    break;
+                case StormPyramidState.WarningTelegraph:
+                    UpdateWarningTelegraph(deltaTime);
                     break;
                 case StormPyramidState.ChargingAttack:
                     UpdateCharging(deltaTime);
@@ -234,8 +239,24 @@ namespace DuneVector
             _trackedTarget = new StormLightningTarget(
                 StormLightningAttackType.GroundStrike,
                 _targeting.GetGroundPointBelow(transform.position));
+            if (_lightning.BeginWarning(_trackedTarget))
+            {
+                SetState(StormPyramidState.WarningTelegraph);
+                return;
+            }
+
             _lightning.BeginCharge(_trackedTarget);
             SetState(StormPyramidState.ChargingAttack);
+        }
+
+        private void UpdateWarningTelegraph(float deltaTime)
+        {
+            FacePosition(_lightning.TargetPosition, 9f);
+            if (_lightning.TickWarning(deltaTime))
+            {
+                _lightning.BeginCharge(_trackedTarget);
+                SetState(StormPyramidState.ChargingAttack);
+            }
         }
 
         private void UpdateCharging(float deltaTime)
@@ -451,9 +472,24 @@ namespace DuneVector
                 return false;
             }
 
+            float chargeDuration = _lightning.GetChargeDuration(_lightning.TargetType);
+
+            // The HUD must cover the whole reaction window, not just the charge. With a short
+            // charge time the charge alone is far too brief to register.
+            if (CurrentState == StormPyramidState.WarningTelegraph)
+            {
+                float leadTime = Mathf.Max(0f, _settings.GroundWarningLeadTime) + chargeDuration;
+                float secondsRemaining = _lightning.WarningSecondsRemaining + chargeDuration;
+                warning = new StormPyramidThreatWarning(
+                    _lightning.TargetType,
+                    _lightning.TargetPosition,
+                    secondsRemaining,
+                    Mathf.Clamp01(1f - (secondsRemaining / Mathf.Max(0.01f, leadTime))));
+                return true;
+            }
+
             if (CurrentState == StormPyramidState.ChargingAttack)
             {
-                float chargeDuration = _lightning.GetChargeDuration(_lightning.TargetType);
                 float elapsedCharge = Mathf.Max(0f, chargeDuration - _lightning.ChargeSecondsRemaining);
                 warning = new StormPyramidThreatWarning(
                     _lightning.TargetType,
@@ -671,29 +707,39 @@ namespace DuneVector
         public float ChargeSecondsRemaining => _charging
             ? Mathf.Max(0f, _chargeDuration - _timer)
             : 0f;
+        public bool IsWarning => _warning;
+        public float WarningSecondsRemaining => _warning
+            ? Mathf.Max(0f, _warningDuration - _timer)
+            : 0f;
 
         private const int LightningSegments = 11;
         private readonly Vector3[] _lightningPositions = new Vector3[LightningSegments];
+        private readonly List<Renderer> _warningRenderers = new List<Renderer>();
+        private MaterialPropertyBlock _warningBlock;
         private Transform _owner;
         private Transform _origin;
         private Transform _core;
         private Transform _halo;
         private Transform _marker;
         private Transform _impactFlash;
-        private Transform _outerWarningRing;
-        private Transform _innerWarningRing;
+        private Transform _warningZone;
+        private Transform _closingRing;
         private Transform _groundImpactWave;
         private Transform _spawnedGroundImpact;
         private LineRenderer _chargeLine;
+        private LineRenderer _warningBeam;
         private LineRenderer _lightningLine;
         private StormPyramidTuning _settings;
         private StormPyramidLightningDamage _damage;
         private StormLightningTarget _target;
         private float _timer;
         private float _chargeDuration;
+        private float _warningDuration;
+        private float _warningPulsePhase;
         private float _strikeRadius;
         private float _strikeRadiusScale = 1f;
         private int _identity;
+        private bool _warning;
         private bool _charging;
         private bool _firing;
 
@@ -714,10 +760,11 @@ namespace DuneVector
             _settings = settings;
             _damage = damage;
             _identity = identity;
-            _marker = DuneVectorVisuals.CreateStormStrikeMarker(owner.parent, materials, settings.StrikeRadius);
+            _marker = DuneVectorVisuals.CreateStormPyramidStrikeMarker(owner.parent, materials, settings);
             _impactFlash = _marker.Find("Strike Impact Flash");
-            _outerWarningRing = _marker.Find("Outer Warning Ring");
-            _innerWarningRing = _marker.Find("Inner Warning Ring");
+            _warningZone = _marker.Find("Ground Warning Zone");
+            _closingRing = _marker.Find("Closing Countdown Ring");
+            CacheWarningRenderers();
             if (settings.GroundImpactPrefab == null)
             {
                 _groundImpactWave = DuneVectorVisuals.CreateStormGroundImpactWave(
@@ -728,32 +775,63 @@ namespace DuneVector
                     settings.GroundImpactHeightOffset);
             }
             _chargeLine = CreateLine("Lightning Charge Telegraph", materials.LightningWarning, settings.ChargeTelegraphWidth);
+            _warningBeam = CreateLine(
+                "Strike Warning Beam",
+                materials.LightningWarning,
+                Mathf.Max(0.01f, settings.StrikeRadius * settings.GroundWarningBeamWidth));
             _lightningLine = CreateLine("Lightning Bolt", materials.Lightning, settings.LightningWidth);
             CancelAttack();
         }
 
+        /// <summary>
+        /// Paints the danger zone on the ground at its true final size before the strike starts
+        /// charging. Returns false when the designer has disabled the lead time, in which case the
+        /// caller should go straight to charging.
+        /// </summary>
+        public bool BeginWarning(StormLightningTarget target)
+        {
+            float leadTime = Mathf.Max(0f, _settings.GroundWarningLeadTime);
+            if (leadTime <= 0f)
+            {
+                return false;
+            }
+
+            PrepareStrike(target);
+            _warningDuration = leadTime;
+            _warning = true;
+            _charging = false;
+            _chargeLine.enabled = false;
+            PlayWarningAudio();
+            UpdateWarningVisual(0f);
+            return true;
+        }
+
+        public bool TickWarning(float deltaTime)
+        {
+            if (!_warning)
+            {
+                return false;
+            }
+            _timer += deltaTime;
+            float warning01 = Mathf.Clamp01(_timer / Mathf.Max(0.01f, _warningDuration));
+            UpdateWarningVisual(warning01);
+            return warning01 >= 1f;
+        }
+
         public void BeginCharge(StormLightningTarget target)
         {
-            _target = target;
-            _strikeRadius = _settings.EvaluateStrikeRadius(DuneVectorContractRisk.CurrentRisk);
-            _strikeRadiusScale = _strikeRadius / Mathf.Max(0.1f, _settings.StrikeRadius);
+            // A warning phase already staged the marker at full size; re-preparing it here would
+            // reset the danger zone the drone has been reading.
+            if (!_warning || _target.Position != target.Position)
+            {
+                PrepareStrike(target);
+            }
+
+            _warning = false;
             _timer = 0f;
             _chargeDuration = GetChargeDuration(target.Type);
             _charging = true;
             _firing = false;
-            _marker.gameObject.SetActive(true);
-            _marker.position = target.Position;
-            _marker.localScale = Vector3.one * (0.25f * _strikeRadiusScale);
-            if (_impactFlash != null)
-            {
-                _impactFlash.localScale = Vector3.zero;
-            }
-            SetWarningRingsActive(true);
-            if (_groundImpactWave != null)
-            {
-                _groundImpactWave.gameObject.SetActive(false);
-                _groundImpactWave.localScale = Vector3.zero;
-            }
             _chargeLine.enabled = true;
             _lightningLine.enabled = false;
             UpdateChargeVisual(0f);
@@ -773,13 +851,15 @@ namespace DuneVector
 
         public void Fire()
         {
+            _warning = false;
             _charging = false;
             _firing = true;
             _timer = 0f;
             _chargeLine.enabled = false;
+            _warningBeam.enabled = false;
             _lightningLine.enabled = true;
             _marker.localScale = Vector3.one * _strikeRadiusScale;
-            SetWarningRingsActive(false);
+            SetWarningZoneActive(false);
             if (_groundImpactWave != null)
             {
                 _groundImpactWave.gameObject.SetActive(true);
@@ -843,9 +923,11 @@ namespace DuneVector
 
         public void CancelAttack()
         {
+            _warning = false;
             _charging = false;
             _firing = false;
             if (_chargeLine != null) _chargeLine.enabled = false;
+            if (_warningBeam != null) _warningBeam.enabled = false;
             if (_lightningLine != null) _lightningLine.enabled = false;
             if (_marker != null) _marker.gameObject.SetActive(false);
             if (_groundImpactWave != null)
@@ -868,7 +950,12 @@ namespace DuneVector
             {
                 _spawnedGroundImpact.position += shift;
             }
-            if (_charging)
+            if (_warning)
+            {
+                float warning01 = Mathf.Clamp01(_timer / Mathf.Max(0.01f, _warningDuration));
+                UpdateWarningVisual(warning01);
+            }
+            else if (_charging)
             {
                 float charge01 = Mathf.Clamp01(_timer / Mathf.Max(0.01f, _chargeDuration));
                 UpdateChargeVisual(charge01);
@@ -884,10 +971,131 @@ namespace DuneVector
             return Mathf.Max(0.01f, _settings.ChargeTime);
         }
 
-        private void SetWarningRingsActive(bool active)
+        private void PrepareStrike(StormLightningTarget target)
         {
-            if (_outerWarningRing != null) _outerWarningRing.gameObject.SetActive(active);
-            if (_innerWarningRing != null) _innerWarningRing.gameObject.SetActive(active);
+            _target = target;
+            _strikeRadius = _settings.EvaluateStrikeRadius(DuneVectorContractRisk.CurrentRisk);
+            _strikeRadiusScale = _strikeRadius / Mathf.Max(0.1f, _settings.StrikeRadius);
+            _timer = 0f;
+            _warningPulsePhase = 0f;
+            _firing = false;
+            _marker.gameObject.SetActive(true);
+            _marker.position = target.Position;
+            // The danger zone is staged at its true radius immediately. Growing it into place
+            // would misreport the strike area for the whole time the drone can still react.
+            _marker.localScale = Vector3.one * _strikeRadiusScale;
+            if (_impactFlash != null)
+            {
+                _impactFlash.localScale = Vector3.zero;
+            }
+            SetWarningZoneActive(true);
+            if (_groundImpactWave != null)
+            {
+                _groundImpactWave.gameObject.SetActive(false);
+                _groundImpactWave.localScale = Vector3.zero;
+            }
+            _lightningLine.enabled = false;
+        }
+
+        private void PlayWarningAudio()
+        {
+            if (string.IsNullOrWhiteSpace(_settings.GroundWarningAudioEvent))
+            {
+                return;
+            }
+            RuntimeManager.PlayOneShot(_settings.GroundWarningAudioEvent, _target.Position);
+        }
+
+        private void UpdateWarningVisual(float warning01)
+        {
+            _marker.position = _target.Position;
+            _marker.localScale = Vector3.one * _strikeRadiusScale;
+
+            // The countdown ring collapses onto the danger zone edge exactly as the charge starts,
+            // so the closing gap reads as the remaining reaction time from any viewing angle.
+            if (_closingRing != null)
+            {
+                float closingScale = Mathf.Lerp(
+                    Mathf.Max(1f, _settings.GroundWarningClosingRingStartMultiplier),
+                    1f,
+                    warning01);
+                _closingRing.localScale = Vector3.one * closingScale;
+            }
+
+            ApplyWarningPulse(warning01);
+            UpdateWarningBeam(warning01);
+        }
+
+        private void ApplyWarningPulse(float urgency01)
+        {
+            float pulseSpeed = Mathf.Lerp(
+                Mathf.Max(0f, _settings.GroundWarningPulseSpeedStart),
+                Mathf.Max(0f, _settings.GroundWarningPulseSpeedEnd),
+                Mathf.Clamp01(urgency01));
+            _warningPulsePhase += Time.deltaTime * pulseSpeed;
+            float wave = 0.5f + (Mathf.Sin(_warningPulsePhase + _identity) * 0.5f);
+            float brightness = Mathf.Lerp(
+                Mathf.Clamp01(_settings.GroundWarningPulseDepth),
+                1f,
+                wave) * Mathf.Max(0f, _settings.GroundWarningBrightnessMultiplier);
+
+            if (_warningRenderers.Count == 0)
+            {
+                return;
+            }
+
+            _warningBlock ??= new MaterialPropertyBlock();
+            Color emission = _settings.WarningEmission * brightness;
+            emission.a = 1f;
+            _warningBlock.SetColor("_BaseColor", emission);
+            for (int i = 0; i < _warningRenderers.Count; i++)
+            {
+                if (_warningRenderers[i] != null)
+                {
+                    _warningRenderers[i].SetPropertyBlock(_warningBlock);
+                }
+            }
+        }
+
+        private void UpdateWarningBeam(float urgency01)
+        {
+            float beamWidth = _strikeRadius * Mathf.Max(0f, _settings.GroundWarningBeamWidth);
+            if (beamWidth <= 0f)
+            {
+                _warningBeam.enabled = false;
+                return;
+            }
+
+            _warningBeam.enabled = true;
+            _warningBeam.positionCount = 2;
+            _warningBeam.SetPosition(0, _origin.position);
+            _warningBeam.SetPosition(1, _target.Position);
+            float taper = Mathf.Lerp(0.6f, 1f, Mathf.Clamp01(urgency01));
+            _warningBeam.startWidth = beamWidth * taper;
+            _warningBeam.endWidth = beamWidth * taper;
+        }
+
+        private void CacheWarningRenderers()
+        {
+            _warningRenderers.Clear();
+            if (_warningZone != null)
+            {
+                _warningZone.GetComponentsInChildren(true, _warningRenderers);
+            }
+            if (_closingRing != null)
+            {
+                Renderer closingRenderer = _closingRing.GetComponent<Renderer>();
+                if (closingRenderer != null)
+                {
+                    _warningRenderers.Add(closingRenderer);
+                }
+            }
+        }
+
+        private void SetWarningZoneActive(bool active)
+        {
+            if (_warningZone != null) _warningZone.gameObject.SetActive(active);
+            if (_closingRing != null) _closingRing.gameObject.SetActive(active);
         }
 
         private void SpawnGroundImpactPrefab()
@@ -928,10 +1136,13 @@ namespace DuneVector
         {
             float pulse = 0.88f + (Mathf.Sin((Time.time * 12f) + _identity) * 0.12f);
             _marker.position = _target.Position;
-            _marker.localScale = Vector3.one
-                * Mathf.Lerp(0.25f, 1f, charge01)
-                * pulse
-                * _strikeRadiusScale;
+            _marker.localScale = Vector3.one * _strikeRadiusScale;
+            if (_closingRing != null)
+            {
+                _closingRing.localScale = Vector3.one;
+            }
+            ApplyWarningPulse(1f);
+            UpdateWarningBeam(1f);
             if (_halo != null)
             {
                 _halo.localScale = Vector3.one * Mathf.Lerp(0.35f, 1.15f, charge01) * pulse;

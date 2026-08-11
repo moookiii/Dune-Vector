@@ -3466,6 +3466,89 @@ namespace DuneVector
             return root;
         }
 
+        /// <summary>
+        /// Builds the storm pyramid strike marker with a readable ground danger zone: a
+        /// thickness-scaled boundary ring, an inner ring, overhead-readable radial spokes, and a
+        /// separate closing countdown ring that collapses onto the boundary as the strike nears.
+        /// </summary>
+        public static Transform CreateStormPyramidStrikeMarker(
+            Transform parent,
+            DuneVectorMaterials materials,
+            StormPyramidTuning settings)
+        {
+            GameObject rootObject = new GameObject("Lightning Strike Marker");
+            Transform root = rootObject.transform;
+            root.SetParent(parent, true);
+
+            float radius = Mathf.Max(0.2f, settings.StrikeRadius);
+            Material warningMaterial = materials.LightningWarning;
+
+            GameObject warningZoneObject = new GameObject("Ground Warning Zone");
+            Transform warningZone = warningZoneObject.transform;
+            warningZone.SetParent(root, false);
+            warningZone.localPosition = Vector3.up * Mathf.Max(0f, settings.GroundWarningHeightOffset);
+
+            float ringThickness = Mathf.Max(0.01f, radius * settings.GroundWarningRingThickness);
+            GameObject boundaryRing = CreateMeshObject(
+                "Danger Zone Ring",
+                warningZone,
+                GetTorusMesh(radius - ringThickness, ringThickness, 56, 6),
+                warningMaterial);
+            boundaryRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            DisableRendererShadows(boundaryRing);
+
+            float innerRadius = Mathf.Max(
+                0.05f,
+                radius * Mathf.Clamp01(settings.GroundWarningInnerRingRadiusFraction));
+            float innerThickness = Mathf.Max(0.008f, radius * settings.GroundWarningInnerRingThickness);
+            GameObject innerRing = CreateMeshObject(
+                "Danger Zone Inner Ring",
+                warningZone,
+                GetTorusMesh(innerRadius, innerThickness, 48, 6),
+                warningMaterial);
+            innerRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            DisableRendererShadows(innerRing);
+
+            int spokeCount = Mathf.Clamp(settings.GroundWarningSpokeCount, 0, 12);
+            float spokeWidth = Mathf.Max(0.008f, radius * settings.GroundWarningSpokeWidth);
+            for (int i = 0; i < spokeCount; i++)
+            {
+                float angle = (360f / spokeCount) * i;
+                Quaternion rotation = Quaternion.Euler(0f, angle, 0f);
+                Transform spoke = CreatePart(
+                    PrimitiveType.Cube,
+                    $"Danger Zone Spoke {i + 1}",
+                    warningZone,
+                    rotation * (Vector3.forward * (radius * 0.5f)),
+                    new Vector3(spokeWidth, spokeWidth, radius),
+                    rotation,
+                    warningMaterial);
+                DisableRendererShadows(spoke.gameObject);
+            }
+
+            float closingThickness = Mathf.Max(0.01f, radius * settings.GroundWarningClosingRingThickness);
+            GameObject closingRing = CreateMeshObject(
+                "Closing Countdown Ring",
+                root,
+                GetTorusMesh(radius - closingThickness, closingThickness, 56, 6),
+                warningMaterial);
+            closingRing.transform.localPosition = Vector3.up * Mathf.Max(0f, settings.GroundWarningHeightOffset);
+            closingRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            DisableRendererShadows(closingRing);
+
+            Transform impactFlash = CreatePart(
+                PrimitiveType.Sphere,
+                "Strike Impact Flash",
+                root,
+                Vector3.zero,
+                Vector3.zero,
+                Quaternion.identity,
+                materials.Lightning);
+            DisableRendererShadows(impactFlash.gameObject);
+            rootObject.SetActive(false);
+            return root;
+        }
+
         public static Transform CreateStormGroundImpactWave(
             Transform marker,
             DuneVectorMaterials materials,
