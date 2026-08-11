@@ -1023,6 +1023,7 @@ namespace DuneVector
                 World,
                 CourierGame,
                 DustDevilSettings);
+            CourierGame?.BindDustDevils(DustDevilSystem);
         }
 
         private void BuildInterface()

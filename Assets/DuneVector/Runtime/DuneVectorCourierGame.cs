@@ -419,6 +419,7 @@ namespace DuneVector
         private DeliveryMessageTuning _messageSettings;
         private DeliveryTuning _deliverySettings;
         private DuneVectorWindFieldSystem _windFields;
+        private DuneVectorDustDevilSystem _dustDevils;
         private WorldHubTuning _hubSettings;
         private DesertAtlasTuning _desertAtlasSettings;
         private FreeRoamDeliveryTuning _freeRoamSettings;
@@ -680,6 +681,11 @@ namespace DuneVector
             {
                 _routeEncounterDirector.enabled = State != CourierRunState.Hub;
             }
+        }
+
+        public void BindDustDevils(DuneVectorDustDevilSystem dustDevils)
+        {
+            _dustDevils = dustDevils;
         }
 
         public void RequestReturnToHub(bool recordAbandonment = true)
@@ -2909,6 +2915,12 @@ namespace DuneVector
             LogicalPosition resolved = _world.ResolvePlayerSpawnAwayFromObstacles(
                 original,
                 -(_desertRotation * Vector3.forward));
+            if (_dustDevils != null)
+            {
+                resolved = _dustDevils.ResolvePlayerDeployment(
+                    resolved,
+                    -(_desertRotation * Vector3.forward));
+            }
             if (resolved.X == original.X && resolved.Z == original.Z)
             {
                 return;

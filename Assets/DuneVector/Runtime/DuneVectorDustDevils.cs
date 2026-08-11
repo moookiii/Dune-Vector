@@ -18,6 +18,10 @@ namespace DuneVector
         [Range(0f, 89f)] public float MaximumGroundSlope = 30f;
         public int RandomSeedOffset = 8849;
 
+        [Header("Player Deployment")]
+        [Tooltip("Minimum horizontal distance, in meters, kept between contract or free roam deployment points and a tornado center.")]
+        [Min(0f)] public float PlayerDeploymentClearance = 50f;
+
         [Header("Funnel Dimensions")]
         [Min(10f)] public float ColumnHeight = 125f;
         [Min(0.5f)] public float BaseRadius = 5.5f;
@@ -257,6 +261,92 @@ namespace DuneVector
                 strongest.SpinSign,
                 strongest.Identity);
         }
+
+        /// <summary>
+        /// Pushes a contract or free roam deployment point outside every deterministic tornado
+        /// cell it overlaps. This predicts cells that have not streamed at the destination yet.
+        /// </summary>
+        public LogicalPosition ResolvePlayerDeployment(
+            LogicalPosition desiredPosition,
+            Vector3 preferredDirection)
+        {
+            float clearance = Mathf.Max(0f, _settings.PlayerDeploymentClearance);
+            if (clearance <= 0f)
+            {
+                return desiredPosition;
+            }
+
+            Vector2 candidate = new Vector2((float)desiredPosition.X, (float)desiredPosition.Z);
+            Vector2 fallbackDirection = new Vector2(preferredDirection.x, preferredDirection.z);
+            fallbackDirection = fallbackDirection.sqrMagnitude > Mathf.Epsilon
+                ? fallbackDirection.normalized
+                : Vector2.right;
+            bool adjusted = false;
+
+            for (int pass = 0; pass < MaximumDeploymentPushPasses; pass++)
+            {
+                if (!TryFindTornadoNear(candidate, clearance, out Vector2 tornadoPosition))
+                {
+                    break;
+                }
+
+                Vector2 delta = candidate - tornadoPosition;
+                Vector2 direction = delta.sqrMagnitude > Mathf.Epsilon
+                    ? delta.normalized
+                    : fallbackDirection;
+                candidate = tornadoPosition + (direction * clearance);
+                adjusted = true;
+            }
+
+            return adjusted
+                ? new LogicalPosition(candidate.x, candidate.y)
+                : desiredPosition;
+        }
+
+        private bool TryFindTornadoNear(
+            Vector2 logicalPoint,
+            float clearance,
+            out Vector2 tornadoPosition)
+        {
+            tornadoPosition = Vector2.zero;
+            float cellSize = Mathf.Max(1f, _settings.SpawnCellSize);
+            int cellReach = Mathf.CeilToInt(clearance / cellSize) + 1;
+            Vector2Int centerCell = new Vector2Int(
+                Mathf.FloorToInt(logicalPoint.x / cellSize),
+                Mathf.FloorToInt(logicalPoint.y / cellSize));
+            float closestSquared = clearance * clearance;
+            bool found = false;
+
+            for (int z = -cellReach; z <= cellReach; z++)
+            {
+                for (int x = -cellReach; x <= cellReach; x++)
+                {
+                    Vector2Int cell = centerCell + new Vector2Int(x, z);
+                    if (!ShouldSpawn(cell))
+                    {
+                        continue;
+                    }
+
+                    LogicalPosition logicalTornado = GetLogicalPosition(cell);
+                    Vector2 position = new Vector2(
+                        (float)logicalTornado.X,
+                        (float)logicalTornado.Z);
+                    float distanceSquared = (logicalPoint - position).sqrMagnitude;
+                    if (distanceSquared >= closestSquared)
+                    {
+                        continue;
+                    }
+
+                    closestSquared = distanceSquared;
+                    tornadoPosition = position;
+                    found = true;
+                }
+            }
+
+            return found;
+        }
+
+        private const int MaximumDeploymentPushPasses = 8;
 
         private void Update()
         {

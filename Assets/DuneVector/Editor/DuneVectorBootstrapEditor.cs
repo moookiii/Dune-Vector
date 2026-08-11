@@ -137,6 +137,7 @@ namespace DuneVector.Editor
         private SerializedProperty _flightSwooshes;
         private SerializedProperty _boostRingTrail;
         private SerializedProperty _windFields;
+        private SerializedProperty _dustDevils;
         private SerializedProperty _clouds;
         private SerializedProperty _weather;
         private SerializedProperty _musicReactiveSky;
@@ -219,6 +220,7 @@ namespace DuneVector.Editor
             _flightSwooshes = serializedObject.FindProperty("FlightSwooshes");
             _boostRingTrail = serializedObject.FindProperty("BoostRingTrail");
             _windFields = serializedObject.FindProperty("WindFields");
+            _dustDevils = serializedObject.FindProperty("DustDevils");
             _clouds = serializedObject.FindProperty("Clouds");
             _weather = serializedObject.FindProperty("Weather");
             _musicReactiveSky = serializedObject.FindProperty("MusicReactiveSky");
@@ -677,6 +679,10 @@ namespace DuneVector.Editor
                 "Wind Fields",
                 "World-space wind regions, gameplay forces, falloff, streamlines, surface sand, and distance LOD.",
                 _windFields);
+            DuneVectorSettingsInspector.DrawSection(
+                "Procedural Dust Devils",
+                "Tornado distribution, player deployment clearance, traversal forces, cargo damage, and presentation.",
+                _dustDevils);
             DuneVectorSettingsInspector.DrawSection(
                 "Cloud Field",
                 "Sky coverage, altitude, extent, and drift speed.",
