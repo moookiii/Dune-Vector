@@ -1895,16 +1895,17 @@ namespace DuneVector
 
             DrawVideoToggle(
                 new Rect(content.x, y, content.width, buttonHeight),
-                _visuals.VideoBloomLabel,
-                _audio == null || _audio.BloomEnabled,
-                value => _audio?.SetBloomEnabled(value));
-            y += buttonHeight + gap;
-
-            DrawVideoToggle(
-                new Rect(content.x, y, content.width, buttonHeight),
                 _visuals.VideoLensFlareLabel,
                 _audio != null && _audio.LensFlareEnabled,
                 value => _audio?.SetLensFlareEnabled(value));
+            y += buttonHeight + gap;
+
+            // Bloom sits directly above its intensity slider so the pair reads as one control.
+            DrawVideoToggle(
+                new Rect(content.x, y, content.width, buttonHeight),
+                _visuals.VideoBloomLabel,
+                _audio == null || _audio.BloomEnabled,
+                value => _audio?.SetBloomEnabled(value));
             y += buttonHeight + gap;
 
             float minimumBloom = _visuals.MinimumBloomIntensity;
