@@ -6138,7 +6138,7 @@ namespace DuneVector
         [Min(0f)] public float NearCameraFadeEndDistance = 8f;
 
         [Header("Camera Angle Transparency")]
-        [Tooltip("Opacity multiplier when the camera looks directly down the trail rings. Reduces additive stacking without changing their angled appearance.")]
+        [Tooltip("Opacity multiplier when the camera looks directly down the trail rings. Reduces transparent overlap without changing their angled appearance.")]
         [Range(0f, 1f)] public float HeadOnOpacityMultiplier = 0.28f;
         [Tooltip("View angle, in degrees from face-on, through which the head-on opacity multiplier is fully applied.")]
         [Range(0f, 89f)] public float HeadOnFadeStartAngle = 8f;

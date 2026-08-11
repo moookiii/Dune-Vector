@@ -20,6 +20,7 @@ namespace DuneVector
         private static readonly int OpacityId = Shader.PropertyToID("_Opacity");
         private static readonly int BloomIntensityId = Shader.PropertyToID("_BloomIntensity");
         private static readonly int DistanceFadeId = Shader.PropertyToID("_DistanceFade");
+        private static readonly int SolidityId = Shader.PropertyToID("_Solidity");
 
         private DroneCharacterController _drone;
         private Camera _camera;
@@ -47,7 +48,13 @@ namespace DuneVector
         {
             _drone = drone;
             _camera = targetCamera;
-            _material = portalMaterial;
+            _material = portalMaterial != null ? new Material(portalMaterial) : null;
+            if (_material != null)
+            {
+                _material.name = $"{portalMaterial.name} - Flight Stamina Boost Trail";
+                _material.enableInstancing = true;
+                _material.SetFloat(SolidityId, 1f);
+            }
             _tuning = tuning;
             CacheVisualCenter();
 
@@ -466,6 +473,11 @@ namespace DuneVector
             if (_drone != null && _drone.World != null)
             {
                 _drone.World.WorldShifted -= HandleWorldShift;
+            }
+
+            if (_material != null)
+            {
+                Destroy(_material);
             }
         }
     }
