@@ -59,6 +59,8 @@ Composition changes receive separate anticipation and impact cues. The pre-impac
 
 Glitch displacement is capped at 0.0038 UV. Ordinary lyric phrases use approximately 0.0018-0.0023, while major returns and the final climax reach approximately 0.0035-0.0037. The center of the screen retains the existing protected region so the effect reads as expressive without burying the drone or aiming area.
 
+The August 10 gameplay capture begins the track 7.487 seconds after video time zero. Its requested 1:01-1:22 and 1:43.5-1:54 glitch-line passages therefore align to the authored 180 BPM grid at 0:53.383-1:14.717 and 1:36.050-1:46.717. The first passage uses 14 slices per authored cue. The second begins at 20 slices and steps down to 2 by its final beat so the line density visibly fades out without changing the scene hue.
+
 ## Post-1:57 climax choreography
 
 At 1:57.000 the profile switches to visual tier 5 and fires a three-arc reactor discharge. From there to 2:18.717:
@@ -69,6 +71,7 @@ At 1:57.000 the profile switches to visual tier 5 and fires a three-arc reactor 
 - two interleaved drone-anchored flare patterns alternate diagonal and horizontal directions;
 - the patterns are offset by half a beat, producing a new ray burst about every 0.167 seconds;
 - each pattern emits mirrored moving rays plus short held rays, so the drone appears to radiate flashing light;
+- drone-anchored rays are limited to half of the available distance from the drone to the screen edge;
 - flare travel speed rises to 1.55-1.75 times the song baseline;
 - short 0.10-0.23 second lifetimes keep the barrage crisp at 180 BPM;
 - down accents also drive road and structure response, while the rapid in-between accents emphasize bloom, filaments, treble particles, and camera motion;
