@@ -2280,7 +2280,7 @@ namespace DuneVector
         [Tooltip("How often the desired visual terrain set is refreshed.")]
         [Min(0.05f)] public float RefreshInterval = 0.18f;
         [Tooltip("Maximum terrain chunks generated during one frame.")]
-        [Range(1, 4)] public int ChunksGeneratedPerFrame = 1;
+        [Range(1, 16)] public int ChunksGeneratedPerFrame = 1;
         [Tooltip("Main-thread time budget for queued chunk work. A single indivisible stage may exceed this budget.")]
         [Range(0.25f, 8f)] public float GenerationTimeBudgetMilliseconds = 1.25f;
         [Header("Camera Frustum Terrain")]
