@@ -40,7 +40,7 @@ namespace DuneVector
         [Range(1, 9)] public int PreloadRadius = 3;
         [Range(2, 12)] public int UnloadRadius = 4;
         [Min(0.05f)] public float RefreshInterval = 0.18f;
-        [Range(1, 16)] public int ChunksGeneratedPerFrame = 1;
+        [Range(1, 48)] public int ChunksGeneratedPerFrame = 1;
         [Range(0.25f, 8f)] public float GenerationTimeBudgetMilliseconds = 1.25f;
         public bool EnableCameraFrustumTerrainStreaming = true;
         [Min(0f)] public float CameraFrustumMinimumAltitude = 18f;
