@@ -2510,11 +2510,19 @@ namespace DuneVector
                 WithAlpha(
                     _settings.GlyphDiscoveryBorderColor,
                     _settings.GlyphDiscoveryBorderColor.a * progress));
+            string continuePrompt = _settings.GlyphDiscoveryContinuePrompt;
+            float continueTextWidth = _glyphDiscoveryContinueStyle
+                .CalcSize(new GUIContent(continuePrompt)).x;
+            float commandWidth = Mathf.Min(
+                footer.width,
+                Mathf.Max(
+                    _settings.GlyphDiscoveryCommandWidth,
+                    continueTextWidth + (_settings.GlyphDiscoveryCommandTextPadding * 2f)));
             DrawLabel(
                 new Rect(
                     footer.x,
                     footer.y,
-                    Mathf.Max(0f, footer.width - _settings.GlyphDiscoveryCommandWidth - gap),
+                    Mathf.Max(0f, footer.width - commandWidth - gap),
                     footer.height),
                 TrackText(_settings.GlyphDiscoveryArchivedLabel),
                 _glyphDiscoveryArchivedStyle,
@@ -2524,9 +2532,9 @@ namespace DuneVector
                 true);
 
             Rect command = new Rect(
-                footer.xMax - _settings.GlyphDiscoveryCommandWidth,
+                footer.xMax - commandWidth,
                 footer.y + gap,
-                _settings.GlyphDiscoveryCommandWidth,
+                commandWidth,
                 Mathf.Max(0f, footer.height - gap));
             bool commandHovered = command.Contains(Event.current.mousePosition);
             Color commandColor = commandHovered
@@ -2566,7 +2574,7 @@ namespace DuneVector
             }
             DrawLabel(
                 command,
-                TrackText(_settings.GlyphDiscoveryContinuePrompt),
+                TrackText(continuePrompt),
                 _glyphDiscoveryContinueStyle,
                 WithAlpha(
                     _settings.GlyphDiscoveryPrimaryTextColor,
@@ -3118,6 +3126,7 @@ namespace DuneVector
                 TextAnchor.MiddleCenter,
                 _settings.GlyphDiscoveryPrimaryTextColor,
                 _settings.HudSemiboldFont);
+            _glyphDiscoveryContinueStyle.wordWrap = false;
         }
 
         private static GUIStyle CreateStyle(

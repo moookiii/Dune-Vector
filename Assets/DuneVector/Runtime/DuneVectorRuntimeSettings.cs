@@ -405,6 +405,7 @@ namespace DuneVector
         [Min(0f)] public float GlyphDiscoveryThumbnailSize = 110f;
         [Min(0f)] public float GlyphDiscoveryIdentityLabelHeight = 22f;
         [Min(0f)] public float GlyphDiscoveryCommandWidth = 190f;
+        [Min(0f)] public float GlyphDiscoveryCommandTextPadding = 18f;
         [Min(0f)] public float GlyphDiscoveryBorderThickness = 1f;
         [Min(0f)] public float GlyphDiscoveryAccentWidth = 3f;
         [Min(0f)] public float GlyphDiscoveryVignettePadding = 54f;
