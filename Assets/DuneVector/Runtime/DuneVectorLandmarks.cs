@@ -405,6 +405,7 @@ namespace DuneVector
         private GeoglyphSystemTuning _geoglyphs;
         private Transform _root;
         private float _refreshTimer;
+        private bool _hasPendingTerrainCells;
         private Vector2Int _lastCenter = new Vector2Int(int.MinValue, int.MinValue);
 
         public IReadOnlyCollection<DuneVectorLandmarkInstance> StreamedLandmarks => _streamed.Values;
@@ -733,8 +734,10 @@ namespace DuneVector
             _refreshTimer -= Time.deltaTime;
             if (_refreshTimer <= 0f)
             {
-                _refreshTimer = Mathf.Max(0.1f, _settings.RefreshInterval);
                 Refresh(force: false);
+                _refreshTimer = _hasPendingTerrainCells
+                    ? 0.05f
+                    : Mathf.Max(0.1f, _settings.RefreshInterval);
             }
         }
 
@@ -746,11 +749,12 @@ namespace DuneVector
             }
 
             Vector2Int center = LogicalToCell(_world.LogicalPlayerPosition);
-            if (!force && center == _lastCenter)
+            if (!force && center == _lastCenter && !_hasPendingTerrainCells)
             {
                 return;
             }
             _lastCenter = center;
+            _hasPendingTerrainCells = false;
 
             int radius = Mathf.Max(1, _settings.ActiveCellRadius);
             for (int z = -radius; z <= radius; z++)
@@ -760,7 +764,7 @@ namespace DuneVector
                     Vector2Int cell = center + new Vector2Int(x, z);
                     if (!_streamed.ContainsKey(cell))
                     {
-                        TryGenerateCell(cell);
+                        _hasPendingTerrainCells |= !TryGenerateCell(cell);
                     }
                 }
             }
@@ -785,19 +789,28 @@ namespace DuneVector
             }
         }
 
-        private void TryGenerateCell(Vector2Int cell)
+        private bool TryGenerateCell(Vector2Int cell)
         {
             DuneLandmarkPlacementRecord record = GetOrCreatePlacementRecord(cell);
             if (record == null)
             {
                 _streamed[cell] = null;
-                return;
+                return true;
+            }
+
+            // Landmark cells and terrain chunks use different grid sizes. Gate the landmark on
+            // the terrain chunk beneath its actual jittered placement so silhouettes never appear
+            // over an unloaded desert tile. Pending cells retry quickly while terrain streams.
+            if (!_world.IsVisualTerrainReady(record.LogicalPosition))
+            {
+                return false;
             }
 
             DuneVectorLandmarkInstance landmark = BuildLandmark(record.Type, record.Rarity, record.LogicalPosition,
                 record.VariantSeed, false, record.RotationDegrees);
             landmark.AssignPlacementRecord(record);
             _streamed[cell] = landmark;
+            return true;
         }
 
         private DuneLandmarkPlacementRecord FindNearestPlacement(

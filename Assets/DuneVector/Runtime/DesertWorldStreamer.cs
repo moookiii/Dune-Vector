@@ -410,6 +410,12 @@ namespace DuneVector
             return new Vector3((float)(logicalX - OriginOffsetX), (float)height, (float)(logicalZ - OriginOffsetZ));
         }
 
+        public bool IsVisualTerrainReady(LogicalPosition logicalPosition)
+        {
+            Vector2Int coordinate = LogicalToChunk(logicalPosition.X, logicalPosition.Z);
+            return _chunks.TryGetValue(coordinate, out DesertChunk chunk) && chunk.IsTerrainVisible;
+        }
+
         public void SetContractGroundExploders(int count, float minimumDistance, float maximumDistance, int seed)
         {
             ClearContractGroundExploders();
@@ -614,7 +620,13 @@ namespace DuneVector
                         bool reducedDetailRebuild = false;
                         if (needsContent)
                         {
-                            GenerateChunkImmediate(coordinate, true);
+                            // Normal streamed content does not need a collider. The dedicated
+                            // collision queue upgrades only the player and predicted-flight
+                            // neighbourhood. Building every preload chunk as collision terrain
+                            // duplicated mesh work and split its visual/content completion across
+                            // multiple queue passes. Without that unnecessary collision pass, a
+                            // new content chunk creates its dunes and authored content together.
+                            GenerateChunkImmediate(coordinate, true, false);
                         }
                         else if (!_chunks.TryGetValue(coordinate, out DesertChunk visualChunk))
                         {
@@ -1101,7 +1113,9 @@ namespace DuneVector
                 for (int x = -radius; x <= radius; x++)
                 {
                     Vector2Int coordinate = predictedChunk + new Vector2Int(x, z);
-                    if (!_chunks.ContainsKey(coordinate) && _queuedCollisionCoordinates.Add(coordinate))
+                    bool needsCollision = !_chunks.TryGetValue(coordinate, out DesertChunk chunk) ||
+                        !chunk.IsCollisionReady;
+                    if (needsCollision && _queuedCollisionCoordinates.Add(coordinate))
                     {
                         _collisionQueue.Enqueue(coordinate);
                     }
