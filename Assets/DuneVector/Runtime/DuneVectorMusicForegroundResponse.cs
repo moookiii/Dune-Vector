@@ -158,8 +158,8 @@ namespace DuneVector
             _streakMaterial.SetFloat("_StreakCoreBrightness", _settings.ForegroundStreakCoreBrightness);
             _streakMaterial.SetFloat("_StreakHaloBrightness", _settings.ForegroundStreakHaloBrightness);
             _streakMaterial.SetFloat("_StreakEndFade", _settings.ForegroundStreakEndFade);
-            _streaks = BuildStreakParticleSystem("Music Screen-Space Flare Lines");
-            _centerOutStreaks = BuildStreakParticleSystem("Music Drone-Anchored Flare Lines");
+            _streaks = BuildStreakParticleSystem("Music Screen-Space Flare Lines", false);
+            _centerOutStreaks = BuildStreakParticleSystem("Music Drone-Anchored Flare Lines", true);
             if (_settings.CenterOutCompensateAnchorMotion
                 || _settings.CenterOutMaximumTravelToScreenEdgeFraction > 0f)
             {
@@ -184,7 +184,7 @@ namespace DuneVector
             UpdateCenterOutAnchor();
         }
 
-        private ParticleSystem BuildStreakParticleSystem(string objectName)
+        private ParticleSystem BuildStreakParticleSystem(string objectName, bool centerOut)
         {
             GameObject streakObject = new GameObject(objectName);
             streakObject.transform.SetParent(_camera.transform, false);
@@ -210,8 +210,14 @@ namespace DuneVector
 
             ParticleSystemRenderer renderer = streakObject.GetComponent<ParticleSystemRenderer>();
             renderer.renderMode = ParticleSystemRenderMode.Stretch;
-            renderer.velocityScale = _settings.ForegroundStreakVelocityScale;
-            renderer.lengthScale = _settings.ForegroundStreakLengthScale;
+            renderer.velocityScale = _settings.ForegroundStreakVelocityScale
+                * (centerOut && _settings.CenterOutMaximumTravelToScreenEdgeFraction > 0f
+                    ? Mathf.Clamp01(_settings.CenterOutMaximumTravelToScreenEdgeFraction)
+                    : 1f);
+            renderer.lengthScale = _settings.ForegroundStreakLengthScale
+                * (centerOut && _settings.CenterOutMaximumTravelToScreenEdgeFraction > 0f
+                    ? Mathf.Clamp01(_settings.CenterOutMaximumTravelToScreenEdgeFraction)
+                    : 1f);
             renderer.sharedMaterial = _streakMaterial;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;

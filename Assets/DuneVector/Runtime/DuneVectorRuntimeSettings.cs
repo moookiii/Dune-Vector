@@ -4601,6 +4601,16 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public struct MusicFullscreenHueSection
+    {
+        [Min(0)] public int StartTimelineMilliseconds;
+        [Min(0)] public int EndTimelineMilliseconds;
+        [Min(0)] public int FadeInMilliseconds;
+        [Min(0)] public int FadeOutMilliseconds;
+        [Range(0f, 1f)] public float Strength;
+    }
+
+    [System.Serializable]
     public sealed class MusicReactiveSkyTuning
     {
         public bool Enabled = true;
@@ -4838,6 +4848,10 @@ namespace DuneVector
         [Range(0.001f, 0.25f)] public float WorldGlitchProtectedFeather = 0.08f;
         [Range(0f, 1f)] public float WorldGlitchProtectedIntensityMultiplier = 0.18f;
         [ColorUsage(false, true)] public Color WorldGlitchTint = new Color(2.8f, 0.55f, 2.2f, 0.24f);
+
+        [Header("Authored Fullscreen Hue Sections")]
+        [Tooltip("Song-timeline windows that recolor the full gameplay image using the drop-glitch tint. Fades are clamped inside each window.")]
+        public MusicFullscreenHueSection[] FullscreenHueSections = System.Array.Empty<MusicFullscreenHueSection>();
 
         [Header("Authored Glitch Events")]
         [Min(0f)] public float OrdinaryGlitchUvDisplacement;
