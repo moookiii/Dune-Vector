@@ -276,8 +276,6 @@ namespace DuneVector
             }
 
             int hueSteps = Mathf.Clamp(_tuning.HueStepCount, 2, 1024);
-            float fadeInFraction = Mathf.Clamp(_tuning.FadeInFraction, 0.01f, 0.49f);
-            float fadeOutFraction = Mathf.Clamp(_tuning.FadeOutFraction, 0.01f, 0.99f);
             RenderParams renderParams = new RenderParams(_material)
             {
                 camera = _camera,
@@ -294,13 +292,10 @@ namespace DuneVector
             {
                 TrailRing ring = _rings[i];
                 float lifetime01 = Mathf.Clamp01(ring.Age / ring.Lifetime);
-                float fadeIn = Mathf.SmoothStep(0f, 1f, lifetime01 / fadeInFraction);
-                float fadeOut = 1f - Mathf.SmoothStep(
-                    0f,
-                    1f,
-                    (lifetime01 - (1f - fadeOutFraction)) / fadeOutFraction);
                 float viewOpacity = CalculateViewOpacity(ring);
-                float opacity = Mathf.Clamp01(_tuning.Opacity) * fadeIn * fadeOut * viewOpacity;
+                // Keep the stroke fully opaque over its lifetime at normal viewing angles.
+                // View opacity still preserves the deliberate head-on and near-camera transparency.
+                float opacity = Mathf.Clamp01(_tuning.Opacity) * viewOpacity;
                 float hue = Mathf.Repeat(
                     _tuning.StartingHue + (ring.HueIndex / (float)hueSteps),
                     1f);

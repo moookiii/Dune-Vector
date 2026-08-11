@@ -6144,8 +6144,6 @@ namespace DuneVector
         [Range(0f, 89f)] public float HeadOnFadeStartAngle = 8f;
         [Tooltip("View angle, in degrees from face-on, at which the rings return to their normal opacity.")]
         [Range(1f, 90f)] public float HeadOnFadeEndAngle = 28f;
-        [Range(0.01f, 0.49f)] public float FadeInFraction = 0.08f;
-        [Range(0.01f, 0.99f)] public float FadeOutFraction = 0.62f;
     }
 
     public enum DuneVectorCameraAntiAliasingMode
