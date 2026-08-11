@@ -1564,8 +1564,6 @@ namespace DuneVector
         [Min(40f)] public float PlacementCellSize = 190f;
         [Range(1, 5)] public int ActiveCellRadius = 2;
         [Min(0.1f)] public float RefreshInterval = 0.55f;
-        [Tooltip("Maximum procedural landmarks constructed during one streaming refresh. Pending landmarks continue on later refreshes after their supporting terrain is ready.")]
-        [Range(1, 8)] public int MaximumBuildsPerRefresh = 2;
         [Range(0f, 1f)] public float CommonCellChance = 0.42f;
         [Range(0f, 1f)] public float StandardCellChance = 0.22f;
         [Tooltip("Share of common and standard landmark selections that become DC-10 wrecks.")]

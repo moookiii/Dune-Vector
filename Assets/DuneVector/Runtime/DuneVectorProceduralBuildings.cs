@@ -212,13 +212,6 @@ namespace DuneVector
                     Vector2Int cell = center + new Vector2Int(x, z);
                     if (!_loadedCells.ContainsKey(cell))
                     {
-                        LogicalPosition cellCenter = new LogicalPosition(
-                            (cell.x + 0.5) * cellSize,
-                            (cell.y + 0.5) * cellSize);
-                        if (!_world.IsVisualTerrainReady(cellCenter))
-                        {
-                            continue;
-                        }
                         _loadedCells.Add(cell, CreateCell(cell, cellSize));
                     }
                 }
