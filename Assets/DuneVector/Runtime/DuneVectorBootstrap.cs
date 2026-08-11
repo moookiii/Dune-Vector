@@ -553,6 +553,8 @@ namespace DuneVector
                 lensFlare = cameraObject.AddComponent<LensFlareComponentSRP>();
             }
             lensFlare.lensFlareData = RuntimeSettings.RuntimeCameraLensFlare;
+            lensFlare.enabled = AudioSettings.PauseMenu != null
+                && AudioSettings.PauseMenu.DefaultLensFlareEnabled;
 
             DroneCamera = cameraObject.GetComponent<DroneCameraController>();
             if (DroneCamera == null)

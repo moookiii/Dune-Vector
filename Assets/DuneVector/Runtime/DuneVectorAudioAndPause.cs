@@ -28,7 +28,7 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 13;
+            public int Version = 14;
             public float MusicVolume;
             public float SoundEffectsVolume;
             public float DialogueVolume;
@@ -40,6 +40,7 @@ namespace DuneVector
             public bool FilmGrainEnabled = true;
             public bool VignetteEnabled = true;
             public bool BloomEnabled = true;
+            public bool LensFlareEnabled;
             public int AntiAliasingMode;
             public bool VisualizerFovEnabled;
             public int MusicVisualizerEffectMask;
@@ -55,6 +56,7 @@ namespace DuneVector
         public bool FilmGrainEnabled { get; private set; } = true;
         public bool VignetteEnabled { get; private set; } = true;
         public bool BloomEnabled { get; private set; } = true;
+        public bool LensFlareEnabled { get; private set; }
         public DuneVectorCameraAntiAliasingMode AntiAliasingMode { get; private set; }
         public bool VisualizerFovEnabled { get; private set; }
         public MusicVisualEffectGroups VisualizerEffectMask { get; private set; }
@@ -620,6 +622,18 @@ namespace DuneVector
             FlushPreferences();
         }
 
+        public void SetLensFlareEnabled(bool enabled)
+        {
+            if (LensFlareEnabled == enabled)
+            {
+                return;
+            }
+
+            LensFlareEnabled = enabled;
+            _preferencesDirty = true;
+            FlushPreferences();
+        }
+
         public void SetAntiAliasingMode(DuneVectorCameraAntiAliasingMode mode)
         {
             if (!Enum.IsDefined(typeof(DuneVectorCameraAntiAliasingMode), mode))
@@ -657,6 +671,7 @@ namespace DuneVector
             FilmGrainEnabled = defaults != null && defaults.DefaultFilmGrainEnabled;
             VignetteEnabled = defaults != null && defaults.DefaultVignetteEnabled;
             BloomEnabled = defaults != null && defaults.DefaultBloomEnabled;
+            LensFlareEnabled = defaults != null && defaults.DefaultLensFlareEnabled;
             AntiAliasingMode = _defaultAntiAliasingMode == DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing
                 ? DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing
                 : _defaultAntiAliasingMode;
@@ -1121,6 +1136,8 @@ namespace DuneVector
                 && _settings.PauseMenu.DefaultVignetteEnabled;
             BloomEnabled = _settings.PauseMenu != null
                 && _settings.PauseMenu.DefaultBloomEnabled;
+            LensFlareEnabled = _settings.PauseMenu != null
+                && _settings.PauseMenu.DefaultLensFlareEnabled;
             AntiAliasingMode = _defaultAntiAliasingMode == DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing
                 ? DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing
                 : _defaultAntiAliasingMode;
@@ -1132,7 +1149,7 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version >= 1 && stored.Version <= 13)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 14)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
@@ -1179,6 +1196,10 @@ namespace DuneVector
                     {
                         BloomEnabled = stored.BloomEnabled;
                     }
+                    if (stored.Version >= 14)
+                    {
+                        LensFlareEnabled = stored.LensFlareEnabled;
+                    }
                     if (VisualizerMode == MusicVisualizerMode.NoFlash)
                     {
                         VisualizerEffectMask &= ~PauseMenuVisualTuning.FlashMusicVisualizerEffects;
@@ -1220,6 +1241,7 @@ namespace DuneVector
                     FilmGrainEnabled = FilmGrainEnabled,
                     VignetteEnabled = VignetteEnabled,
                     BloomEnabled = BloomEnabled,
+                    LensFlareEnabled = LensFlareEnabled,
                     AntiAliasingMode = (int)AntiAliasingMode,
                     VisualizerFovEnabled = VisualizerFovEnabled,
                     MusicVisualizerEffectMask = (int)VisualizerEffectMask,
@@ -1842,6 +1864,13 @@ namespace DuneVector
                 value => _audio?.SetBloomEnabled(value));
             y += buttonHeight + gap;
 
+            DrawVideoToggle(
+                new Rect(content.x, y, content.width, buttonHeight),
+                _visuals.VideoLensFlareLabel,
+                _audio != null && _audio.LensFlareEnabled,
+                value => _audio?.SetLensFlareEnabled(value));
+            y += buttonHeight + gap;
+
             y += gap;
 
             float navigationWidth = (content.width - gap) * 0.5f;
@@ -2067,6 +2096,15 @@ namespace DuneVector
             ApplyVolumePreference(
                 _audio == null || _audio.BloomEnabled,
                 _bloomOriginalStates);
+
+            Camera gameplayCamera = _player?.CharacterCamera?.Camera;
+            LensFlareComponentSRP lensFlare = gameplayCamera != null
+                ? gameplayCamera.GetComponent<LensFlareComponentSRP>()
+                : null;
+            if (lensFlare != null)
+            {
+                lensFlare.enabled = _audio != null && _audio.LensFlareEnabled;
+            }
 
             if (_retroCrtScanlines?.Material != null)
             {

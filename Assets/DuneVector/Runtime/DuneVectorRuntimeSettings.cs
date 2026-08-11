@@ -5722,6 +5722,7 @@ namespace DuneVector
         public string VideoFilmGrainLabel = "FILM GRAIN";
         public string VideoVignetteLabel = "VIGNETTE";
         public string VideoBloomLabel = "BLOOM";
+        public string VideoLensFlareLabel = "LENS FLARE";
         public string VideoVisualizerFovLabel = "VISUALIZER FOV";
         public string VideoEffectEnabledLabel = "ON";
         public string VideoEffectDisabledLabel = "OFF";
@@ -5731,6 +5732,8 @@ namespace DuneVector
         public bool DefaultFilmGrainEnabled;
         public bool DefaultVignetteEnabled;
         public bool DefaultBloomEnabled;
+        [Tooltip("Whether the gameplay camera's SRP lens flare starts enabled. Off by default.")]
+        public bool DefaultLensFlareEnabled;
         [Range(0f, 1f)] public float VideoFilmGrainIntensity = 0.18f;
         [Range(0f, 1f)] public float VideoFilmGrainResponse = 0.8f;
 
