@@ -71,7 +71,7 @@ At 1:57.000 the profile switches to visual tier 5 and fires a three-arc reactor 
 - two interleaved drone-anchored flare patterns alternate diagonal and horizontal directions;
 - the patterns are offset by half a beat, producing a new ray burst about every 0.167 seconds;
 - each pattern emits mirrored moving rays plus short held rays, so the drone appears to radiate flashing light;
-- drone-anchored rays are limited to half of the available distance from the drone to the screen edge;
+- drone-anchored particle centers are limited to one quarter of the available edge distance, compensating for velocity-stretched ray geometry so the visible tips stop around halfway to the screen edge;
 - flare travel speed rises to 1.55-1.75 times the song baseline;
 - short 0.10-0.23 second lifetimes keep the barrage crisp at 180 BPM;
 - down accents also drive road and structure response, while the rapid in-between accents emphasize bloom, filaments, treble particles, and camera motion;
