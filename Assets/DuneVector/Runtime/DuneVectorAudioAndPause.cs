@@ -1915,11 +1915,17 @@ namespace DuneVector
                 : _visuals.DefaultBloomIntensity;
             float bloomRange = Mathf.Max(0.0001f, maximumBloom - minimumBloom);
             float bloomNormalized = Mathf.Clamp01((bloomIntensity - minimumBloom) / bloomRange);
+            // The authored range starts at a fraction, which reads as a broken slider.
+            // The row reports the same position on a plain 1-to-3 scale instead.
+            float bloomDisplay = Mathf.Lerp(
+                _visuals.BloomIntensityDisplayMinimum,
+                _visuals.BloomIntensityDisplayMaximum,
+                bloomNormalized);
             float sliderRowHeight = _visuals.SliderRowHeight * scale;
             DrawSliderRow(
                 new Rect(content.x, y, content.width, sliderRowHeight),
                 _visuals.VideoBloomIntensityLabel,
-                bloomIntensity.ToString("0.00", CultureInfo.InvariantCulture),
+                bloomDisplay.ToString("0.00", CultureInfo.InvariantCulture),
                 bloomNormalized,
                 normalized =>
                 {

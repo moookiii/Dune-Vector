@@ -5740,6 +5740,10 @@ namespace DuneVector
         [Min(0f)] public float MaximumBloomIntensity = 3f;
         [Tooltip("Bloom intensity applied on a fresh profile and by RESET DEFAULTS.")]
         [Min(0f)] public float DefaultBloomIntensity = 0.07f;
+        [Tooltip("Number shown at the left end of the bloom slider. Display only; the effect still uses MinimumBloomIntensity.")]
+        public float BloomIntensityDisplayMinimum = 1f;
+        [Tooltip("Number shown at the right end of the bloom slider. Display only; the effect still uses MaximumBloomIntensity.")]
+        public float BloomIntensityDisplayMaximum = 3f;
         [Range(0f, 1f)] public float VideoFilmGrainIntensity = 0.18f;
         [Range(0f, 1f)] public float VideoFilmGrainResponse = 0.8f;
 
