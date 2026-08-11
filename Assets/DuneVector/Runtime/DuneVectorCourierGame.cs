@@ -423,6 +423,7 @@ namespace DuneVector
         private DesertAtlasTuning _desertAtlasSettings;
         private FreeRoamDeliveryTuning _freeRoamSettings;
         private GeoglyphSystemTuning _geoglyphs;
+        private RingTuning _ringSettings;
         private DuneVectorFreeRoamDeliverySystem _freeRoamDeliveries;
         private DuneVectorEnemyDirector _enemyDirector;
         private DuneVectorStormPyramidDirector _stormDirector;
@@ -576,6 +577,7 @@ namespace DuneVector
             DesertAtlasTuning desertAtlasSettings,
             CompassHudTuning compassHudSettings,
             FreeRoamDeliveryTuning freeRoamDeliverySettings,
+            RingTuning ringSettings,
             GeoglyphSystemTuning geoglyphs,
             DuneVectorEnemyDirector enemyDirector,
             DuneVectorStormPyramidDirector stormDirector,
@@ -601,6 +603,7 @@ namespace DuneVector
             _desertAtlasSettings.EnsureInitialized();
             _freeRoamSettings = freeRoamDeliverySettings ?? new FreeRoamDeliveryTuning();
             _freeRoamSettings.EnsureInitialized();
+            _ringSettings = ringSettings ?? new RingTuning();
             _geoglyphs = geoglyphs;
             _enemyDirector = enemyDirector;
             _stormDirector = stormDirector;
@@ -631,7 +634,8 @@ namespace DuneVector
                 Progress,
                 _deliverySettings,
                 _settings,
-                _freeRoamSettings);
+                _freeRoamSettings,
+                _ringSettings);
             _health.Damaged += HandlePlayerDamaged;
             _health.Died += HandlePlayerDied;
             _world.WorldShifted += HandleWorldShift;

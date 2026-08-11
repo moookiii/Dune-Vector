@@ -1116,6 +1116,7 @@ namespace DuneVector
                     DesertAtlasSettings,
                     RuntimeSettings.CompassHud,
                     RuntimeSettings.FreeRoamDeliveries,
+                    RuntimeSettings.Rings,
                     RuntimeSettings.Geoglyphs,
                     EnemyDirector,
                     StormPyramidDirector,

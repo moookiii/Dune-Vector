@@ -240,6 +240,7 @@ namespace DuneVector
         private DeliveryTuning _deliverySettings;
         private CourierContractTuning _contractSettings;
         private FreeRoamDeliveryTuning _settings;
+        private RingTuning _ringSettings;
 
         private JobTraversalRing _zoneRing;
         private Transform _package;
@@ -265,7 +266,8 @@ namespace DuneVector
             DuneVectorCourierProgress progress,
             DeliveryTuning deliverySettings,
             CourierContractTuning contractSettings,
-            FreeRoamDeliveryTuning settings)
+            FreeRoamDeliveryTuning settings,
+            RingTuning ringSettings)
         {
             _player = player;
             _world = world;
@@ -279,6 +281,9 @@ namespace DuneVector
             _contractSettings = contractSettings;
             _settings = settings ?? new FreeRoamDeliveryTuning();
             _settings.EnsureInitialized();
+            // The streak counter docks under the gold HUD, so it reads that panel's own layout
+            // rather than duplicating its margins.
+            _ringSettings = ringSettings ?? new RingTuning();
             _random = new System.Random(unchecked(_world.WorldSeed ^ 0x5F3A21));
             _world.WorldShifted += HandleWorldShift;
         }
@@ -709,14 +714,14 @@ namespace DuneVector
             // gold panel's and it starts a gap below that panel, so the two read as one stack.
             // The rows stay centred inside the block, which grows leftwards into open screen.
             float edgePadding = Mathf.Max(0f, _settings.StreakCounterEdgePadding);
-            float rightEdge = Screen.width - _settings.GoldHudRightMargin;
+            float rightEdge = Screen.width - _ringSettings.GoldHudRightMargin;
             float width = Mathf.Min(
                 Screen.width * Mathf.Clamp01(_settings.StreakCounterMaxWidthFraction),
                 Mathf.Max(1f, rightEdge - edgePadding));
             float left = rightEdge - width;
             float centerX = left + (width * 0.5f);
 
-            float blockTop = _settings.GoldHudTopMargin + _settings.GoldHudHeight + _settings.StreakCounterGapUnderGoldHud;
+            float blockTop = _ringSettings.GoldHudTopMargin + _ringSettings.GoldHudHeight + _settings.StreakCounterGapUnderGoldHud;
             float rewardHeight = _settings.StreakRewardFontSize * 1.5f;
             float multiplierHeight = _settings.StreakMultiplierFontSize * 1.3f;
             float centerY = blockTop + rewardHeight + (multiplierHeight * 0.5f);
