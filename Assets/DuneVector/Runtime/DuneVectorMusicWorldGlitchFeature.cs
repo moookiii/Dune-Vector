@@ -41,7 +41,7 @@ namespace DuneVector
         public override void AddRenderPasses(ScriptableRenderer renderer, ref RenderingData renderingData)
         {
             if (material == null
-                || !DuneVectorMusicGlitchRuntime.IsActive
+                || DuneVectorMusicGlitchRuntime.Intensity <= 0f
                 || renderingData.cameraData.cameraType != CameraType.Game
                 || renderingData.cameraData.renderType != CameraRenderType.Base)
             {
@@ -68,7 +68,7 @@ namespace DuneVector
 
             public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
             {
-                if (_material == null || !DuneVectorMusicGlitchRuntime.IsActive)
+                if (_material == null || DuneVectorMusicGlitchRuntime.Intensity <= 0f)
                 {
                     return;
                 }

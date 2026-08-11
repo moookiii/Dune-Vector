@@ -6,11 +6,8 @@ namespace DuneVector
     {
         private static int _availableFeatureCount;
 
-        public static float GlitchIntensity { get; private set; }
-        public static float HueIntensity { get; private set; }
-        public static float Intensity => Mathf.Max(GlitchIntensity, HueIntensity);
+        public static float Intensity { get; private set; }
         public static bool FeatureAvailable => _availableFeatureCount > 0;
-        public static bool IsActive => GlitchIntensity > 0f || HueIntensity > 0f;
 
         internal static void RegisterFeature()
         {
@@ -24,18 +21,12 @@ namespace DuneVector
 
         public static void SetIntensity(float intensity)
         {
-            GlitchIntensity = Mathf.Clamp01(intensity);
-        }
-
-        public static void SetHueIntensity(float intensity)
-        {
-            HueIntensity = Mathf.Clamp01(intensity);
+            Intensity = Mathf.Clamp01(intensity);
         }
 
         public static void Reset()
         {
-            GlitchIntensity = 0f;
-            HueIntensity = 0f;
+            Intensity = 0f;
         }
     }
 
@@ -46,7 +37,6 @@ namespace DuneVector
         private static readonly int ShapeId = Shader.PropertyToID("_DVMusicGlitchShape");
         private static readonly int SafetyId = Shader.PropertyToID("_DVMusicGlitchSafety");
         private static readonly int TintId = Shader.PropertyToID("_DVMusicGlitchTint");
-        private static readonly int HueIntensityId = Shader.PropertyToID("_DVMusicFullscreenHueIntensity");
 
         private MusicReactiveSkyTuning _settings;
         private float _age;
@@ -79,53 +69,6 @@ namespace DuneVector
             {
                 ResetHudBorder();
             }
-            float hueIntensity = (state.Permissions & MusicVisualEffectGroups.Sky) != 0
-                ? ResolveFullscreenHueIntensity(state.Timeline.TimelinePositionMilliseconds)
-                : 0f;
-            DuneVectorMusicGlitchRuntime.SetHueIntensity(hueIntensity);
-            Shader.SetGlobalFloat(HueIntensityId, hueIntensity);
-            if (hueIntensity > 0f)
-            {
-                Shader.SetGlobalColor(TintId, _settings.WorldGlitchTint);
-            }
-        }
-
-        private float ResolveFullscreenHueIntensity(int timelineMilliseconds)
-        {
-            MusicFullscreenHueSection[] sections = _settings.FullscreenHueSections;
-            if (sections == null)
-            {
-                return 0f;
-            }
-            float strongest = 0f;
-            for (int i = 0; i < sections.Length; i++)
-            {
-                MusicFullscreenHueSection section = sections[i];
-                if (section.EndTimelineMilliseconds <= section.StartTimelineMilliseconds
-                    || timelineMilliseconds < section.StartTimelineMilliseconds
-                    || timelineMilliseconds >= section.EndTimelineMilliseconds)
-                {
-                    continue;
-                }
-                int duration = section.EndTimelineMilliseconds - section.StartTimelineMilliseconds;
-                int fadeIn = Mathf.Min(Mathf.Max(0, section.FadeInMilliseconds), duration);
-                int fadeOut = Mathf.Min(Mathf.Max(0, section.FadeOutMilliseconds), duration);
-                float envelope = 1f;
-                if (fadeIn > 0)
-                {
-                    envelope = Mathf.Min(
-                        envelope,
-                        (timelineMilliseconds - section.StartTimelineMilliseconds) / (float)fadeIn);
-                }
-                if (fadeOut > 0)
-                {
-                    envelope = Mathf.Min(
-                        envelope,
-                        (section.EndTimelineMilliseconds - timelineMilliseconds) / (float)fadeOut);
-                }
-                strongest = Mathf.Max(strongest, Mathf.Clamp01(section.Strength) * Mathf.Clamp01(envelope));
-            }
-            return strongest;
         }
 
         public void Dispatch(in MusicVisualDispatchCommand command, in MusicReactiveRuntimeState state)
@@ -245,7 +188,7 @@ namespace DuneVector
             if (normalizedAge >= 1f)
             {
                 _strength = 0f;
-                DuneVectorMusicGlitchRuntime.SetIntensity(0f);
+                DuneVectorMusicGlitchRuntime.Reset();
             }
             UpdateHudBorder();
         }
@@ -348,12 +291,11 @@ namespace DuneVector
             _duration = 0f;
             _displacement = 0f;
             _sliceCount = 0;
-            DuneVectorMusicGlitchRuntime.SetIntensity(0f);
+            DuneVectorMusicGlitchRuntime.Reset();
             Shader.SetGlobalVector(ParametersId, Vector4.zero);
             Shader.SetGlobalVector(ShapeId, Vector4.zero);
             Shader.SetGlobalVector(SafetyId, Vector4.zero);
             Shader.SetGlobalColor(TintId, Color.clear);
-            Shader.SetGlobalFloat(HueIntensityId, 0f);
         }
 
         private void ResetHudBorder()
@@ -366,8 +308,6 @@ namespace DuneVector
         private void OnDisable()
         {
             ResetMusicResponse();
-            DuneVectorMusicGlitchRuntime.SetHueIntensity(0f);
-            Shader.SetGlobalFloat(HueIntensityId, 0f);
         }
     }
 }
