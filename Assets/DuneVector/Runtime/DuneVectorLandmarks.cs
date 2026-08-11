@@ -1527,6 +1527,254 @@ namespace DuneVector
 
         private void BuildSpire(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
+            if (_settings.SpireUsePrefabModel && BuildSpireFromPrefab(root, animator))
+            {
+                return;
+            }
+
+            BuildProceduralSpire(root, seed, animator);
+        }
+
+        /// <summary>
+        /// Instantiates the authored Ancient Spire model and drives the parts the
+        /// procedural version used to animate. The model exports as a flat list of
+        /// siblings, so the relic, its rings and each monolith glow are gathered onto
+        /// runtime pivots before being handed to the animator: bobbing and pulsing a
+        /// pivot keeps an assembly moving as one piece, which animating the individual
+        /// meshes cannot do.
+        /// </summary>
+        private bool BuildSpireFromPrefab(Transform root, DuneVectorLandmarkAnimator animator)
+        {
+            GameObject spirePrefab = null;
+            if (!string.IsNullOrWhiteSpace(_settings.AncientSpireResourcePath))
+            {
+                spirePrefab = Resources.Load<GameObject>(_settings.AncientSpireResourcePath);
+            }
+            if (spirePrefab == null)
+            {
+                spirePrefab = _settings.AncientSpirePrefab;
+            }
+            if (spirePrefab == null)
+            {
+                Debug.LogWarning(
+                    "Ancient Spire replacement prefab could not be resolved from Dune Vector Runtime Settings; " +
+                    "falling back to the procedural spire.", root);
+                return false;
+            }
+
+            float scale = _settings.SpireScale;
+            Quaternion prefabRotation = spirePrefab.transform.localRotation;
+            GameObject spire = UnityEngine.Object.Instantiate(spirePrefab, root, false);
+            spire.name = spirePrefab.name;
+            spire.transform.localPosition = Vector3.zero;
+            spire.transform.localRotation = prefabRotation;
+            spire.transform.localScale = spirePrefab.transform.localScale * scale;
+
+            GroundPrefabToDunes(
+                spire.transform,
+                _settings.SpireGroundingSamplesPerAxis,
+                _settings.SpireBurialDepth);
+            spire.transform.localScale = spirePrefab.transform.localScale * scale;
+
+            if (_settings.SpireGenerateMeshColliders)
+            {
+                AddMissingMeshColliders(spire);
+            }
+
+            AnimateSpirePrefab(spire.transform, animator, scale);
+            return true;
+        }
+
+        private void AnimateSpirePrefab(Transform spire, DuneVectorLandmarkAnimator animator, float scale)
+        {
+            if (animator == null)
+            {
+                return;
+            }
+
+            string relicPrefix = _settings.SpireRelicChildPrefix;
+            string shardPrefix = _settings.SpireShardChildPrefix;
+            string monolithPrefix = _settings.SpireMonolithChildPrefix;
+
+            List<Transform> relicParts = CollectSpireParts(spire, relicPrefix);
+            List<Transform> shardParts = CollectSpireParts(spire, shardPrefix);
+            List<Transform> monolithParts = CollectSpireParts(spire, monolithPrefix);
+
+            // The relic core carries the pivot for the whole assembly so the rings
+            // stay concentric with it while it spins, bobs and pulses.
+            Transform relicCore = FindExactSpirePart(relicParts, relicPrefix);
+            if (relicParts.Count > 0)
+            {
+                Vector3 pivotPosition = relicCore != null
+                    ? relicCore.localPosition
+                    : AverageLocalPosition(relicParts);
+                Transform relicPivot = CreateSpirePivot(spire, "Ancient Spire Relic", pivotPosition, relicParts);
+                animator.RegisterSpin(relicPivot, Vector3.up, _settings.SpireRelicRotationSpeed);
+                animator.RegisterBob(relicPivot, _settings.SpireRelicFloatAmplitude * scale,
+                    _settings.SpireRelicFloatSpeed);
+                animator.RegisterPulse(relicPivot, _settings.BeaconPulseAmount, _settings.BeaconPulseSpeed);
+            }
+
+            // Shards orbit the tower axis, counter to the relic, exactly as the
+            // procedural spire's shard parent did.
+            if (shardParts.Count > 0)
+            {
+                Vector3 axis = relicCore != null
+                    ? new Vector3(relicCore.localPosition.x, AverageLocalPosition(shardParts).y, relicCore.localPosition.z)
+                    : AverageLocalPosition(shardParts);
+                Transform shardOrbit = CreateSpirePivot(spire, "Ancient Spire Relic Shards", axis, shardParts);
+                animator.RegisterSpin(shardOrbit, Vector3.up, -_settings.SpireRelicRotationSpeed);
+            }
+
+            // Each monolith hovers with its own rune glow, offset in phase so the
+            // ring of them never pulses in lockstep. Positions are cached up front:
+            // reparenting a glow rewrites its local position, so pairing has to be
+            // decided before the first pivot is built.
+            List<Transform> monolithBodies = new List<Transform>();
+            List<Transform> monolithGlows = new List<Transform>();
+            List<Vector2> glowGroundPositions = new List<Vector2>();
+            for (int i = 0; i < monolithParts.Count; i++)
+            {
+                Transform part = monolithParts[i];
+                if (IsSpireMonolithBody(part, monolithPrefix))
+                {
+                    monolithBodies.Add(part);
+                }
+                else
+                {
+                    monolithGlows.Add(part);
+                    glowGroundPositions.Add(new Vector2(part.localPosition.x, part.localPosition.z));
+                }
+            }
+            monolithBodies.Sort((a, b) => string.CompareOrdinal(a.name, b.name));
+
+            for (int i = 0; i < monolithBodies.Count; i++)
+            {
+                Transform body = monolithBodies[i];
+                Vector3 bodyPosition = body.localPosition;
+                List<Transform> group = new List<Transform> { body };
+
+                int nearest = NearestGroundIndex(glowGroundPositions,
+                    new Vector2(bodyPosition.x, bodyPosition.z));
+                if (nearest >= 0)
+                {
+                    group.Add(monolithGlows[nearest]);
+                    // Claimed: a glow belongs to exactly one monolith.
+                    monolithGlows.RemoveAt(nearest);
+                    glowGroundPositions.RemoveAt(nearest);
+                }
+
+                Transform pivot = CreateSpirePivot(spire, "Ancient Spire Monolith " + (i + 1),
+                    bodyPosition, group);
+                animator.RegisterSpin(pivot, Vector3.up, _settings.SpireMonolithSpinSpeed);
+                animator.RegisterBob(pivot, _settings.SpireMonolithFloatAmplitude * scale,
+                    _settings.SpireMonolithFloatSpeed, i * _settings.SpireMonolithFloatPhaseStep);
+            }
+        }
+
+        private static List<Transform> CollectSpireParts(Transform spire, string prefix)
+        {
+            List<Transform> parts = new List<Transform>();
+            if (string.IsNullOrWhiteSpace(prefix))
+            {
+                return parts;
+            }
+
+            Transform[] children = spire.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < children.Length; i++)
+            {
+                Transform child = children[i];
+                if (child != spire && child.name.StartsWith(prefix, StringComparison.Ordinal))
+                {
+                    parts.Add(child);
+                }
+            }
+            return parts;
+        }
+
+        private static Transform FindExactSpirePart(List<Transform> parts, string name)
+        {
+            for (int i = 0; i < parts.Count; i++)
+            {
+                if (string.Equals(parts[i].name, name, StringComparison.Ordinal))
+                {
+                    return parts[i];
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// True for a monolith body rather than one of its companion pieces. The
+        /// export names bodies `Spire_Monolith_1` and glows `Spire_MonolithGlow_1`,
+        /// so the body is the variant whose prefix is followed by the index.
+        /// </summary>
+        private static bool IsSpireMonolithBody(Transform part, string prefix)
+        {
+            if (part.name.Length <= prefix.Length)
+            {
+                return false;
+            }
+            return part.name[prefix.Length] == '_';
+        }
+
+        private static int NearestGroundIndex(List<Vector2> positions, Vector2 reference)
+        {
+            int best = -1;
+            float bestDistance = float.MaxValue;
+            for (int i = 0; i < positions.Count; i++)
+            {
+                float distance = (positions[i] - reference).sqrMagnitude;
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    best = i;
+                }
+            }
+            return best;
+        }
+
+        private static Vector3 AverageLocalPosition(List<Transform> parts)
+        {
+            if (parts.Count == 0)
+            {
+                return Vector3.zero;
+            }
+
+            Vector3 total = Vector3.zero;
+            for (int i = 0; i < parts.Count; i++)
+            {
+                total += parts[i].localPosition;
+            }
+            return total / parts.Count;
+        }
+
+        private static Transform CreateSpirePivot(
+            Transform spire,
+            string name,
+            Vector3 localPosition,
+            List<Transform> parts)
+        {
+            // The pivot has to sit in the same space the part positions were read
+            // from, otherwise any transform between the prefab root and the meshes
+            // offsets the centre the assembly spins around.
+            Transform space = parts.Count > 0 && parts[0].parent != null ? parts[0].parent : spire;
+            Transform pivot = new GameObject(name).transform;
+            pivot.SetParent(space, false);
+            pivot.localPosition = localPosition;
+            pivot.localRotation = Quaternion.identity;
+            pivot.localScale = Vector3.one;
+            for (int i = 0; i < parts.Count; i++)
+            {
+                // Keep the world placement the model was authored with; only the
+                // parenting changes so the animator can drive the group as one.
+                parts[i].SetParent(pivot, true);
+            }
+            return pivot;
+        }
+
+        private void BuildProceduralSpire(Transform root, int seed, DuneVectorLandmarkAnimator animator)
+        {
             float scale = _settings.SpireScale;
             float height = _settings.SpireHeight;
             Transform baseRing = new GameObject("Ancient Spire Ground Circuit").transform;

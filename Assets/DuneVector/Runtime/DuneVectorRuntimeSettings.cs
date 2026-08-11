@@ -1696,6 +1696,56 @@ namespace DuneVector
         [Range(3, 12)] public int BeaconTowerFinCount = 6;
 
         [Header("Ancient Spire Detail")]
+        [Tooltip("Uses the authored Ancient Spire prefab for the landmark body. Disable to fall back to the original procedural layer stack.")]
+        public bool SpireUsePrefabModel = true;
+        [Tooltip("Optional direct fallback prefab used when the Ancient Spire Resources path cannot be resolved. Its authored scale and rotation are preserved.")]
+        public GameObject AncientSpirePrefab;
+        [Tooltip("Primary Resources path used to load the Ancient Spire prefab.")]
+        public string AncientSpireResourcePath = "AncientSpirePrefab";
+        [Tooltip("Samples per axis used to ground the Ancient Spire across the dunes.")]
+        [Range(2, 9)] public int SpireGroundingSamplesPerAxis = 5;
+        [Tooltip("Depth the grounded Ancient Spire is sunk into the dunes so its plinth never floats.")]
+        [Min(0f)] public float SpireBurialDepth = 1.2f;
+        [Tooltip("Adds mesh colliders to Ancient Spire meshes that do not already have colliders.")]
+        public bool SpireGenerateMeshColliders = true;
+        [Tooltip("Name prefix of the prefab children that make up the floating relic assembly.")]
+        public string SpireRelicChildPrefix = "Spire_Relic";
+        [Tooltip("Name prefix of the prefab children orbiting the relic.")]
+        public string SpireShardChildPrefix = "Spire_Shard";
+        [Tooltip("Name prefix of the prefab children that hover beside the tower.")]
+        public string SpireMonolithChildPrefix = "Spire_Monolith";
+        [Tooltip("Degrees per second each hovering monolith turns about its own axis.")]
+        public float SpireMonolithSpinSpeed = 7f;
+        [Tooltip("Vertical travel of each hovering monolith, before Spire Scale is applied.")]
+        [Min(0f)] public float SpireMonolithFloatAmplitude = 1.1f;
+        [Tooltip("Bob speed of the hovering monoliths.")]
+        [Min(0f)] public float SpireMonolithFloatSpeed = 0.8f;
+        [Tooltip("Phase spacing between consecutive hovering monoliths so they do not bob in lockstep.")]
+        public float SpireMonolithFloatPhaseStep = 1.4f;
+        [Tooltip("Tint multiplied over the weathered stone albedo on the Ancient Spire shaft, plinth and crown.")]
+        [ColorUsage(false)] public Color SpireStoneTextureTint = new Color(1f, 0.78f, 0.52f);
+        [Tooltip("Tint multiplied over the dark stone albedo on the Ancient Spire buttresses, monoliths and rubble.")]
+        [ColorUsage(false)] public Color SpireStoneDarkTextureTint = new Color(0.72f, 0.52f, 0.36f);
+        [Tooltip("Tint multiplied over the carved stone albedo on the Ancient Spire cornice, gallery and portal.")]
+        [ColorUsage(false)] public Color SpireCarvedTextureTint = new Color(1f, 0.9f, 0.68f);
+        [Tooltip("Tint multiplied over the albedo of the Ancient Spire's hanging banners.")]
+        [ColorUsage(false)] public Color SpireClothTextureTint = new Color(0.52f, 0.3f, 0.2f);
+        [Tooltip("Tint multiplied over the bronze albedo on the Ancient Spire bands, chains and armature.")]
+        [ColorUsage(false)] public Color SpireMetalTextureTint = new Color(0.7f, 0.86f, 0.78f);
+        [Tooltip("Tint multiplied over the plate albedo on the Ancient Spire tympanum and armature ties.")]
+        [ColorUsage(false)] public Color SpirePlateTextureTint = new Color(0.86f, 0.74f, 0.58f);
+        [Tooltip("Tint multiplied over the sand albedo on the Ancient Spire drift and gallery piles.")]
+        [ColorUsage(false)] public Color SpireSandTextureTint = new Color(1f, 0.92f, 0.66f);
+        [Tooltip("Stone texture repetitions per authored UV unit on Ancient Spire geometry.")]
+        [Min(0.001f)] public float SpireStoneTextureTiling = 1f;
+        [Tooltip("Carved and cloth texture repetitions per authored UV unit on Ancient Spire geometry.")]
+        [Min(0.001f)] public float SpireDetailTextureTiling = 2f;
+        [Tooltip("Metal texture repetitions per authored UV unit on Ancient Spire geometry.")]
+        [Min(0.001f)] public float SpireMetalTextureTiling = 3f;
+        [Tooltip("Sand texture repetitions per authored UV unit on Ancient Spire geometry.")]
+        [Min(0.001f)] public float SpireSandTextureTiling = 0.6f;
+        [Tooltip("Surface smoothness of the Ancient Spire floating relic.")]
+        [Range(0f, 1f)] public float SpireRelicSmoothness = 0.9f;
         [Tooltip("Concrete surface applied to every Ancient Spire material while retaining each part's original color and emission.")]
         public Texture2D SpireConcreteTexture;
         [Tooltip("World-space width and height filled by one complete concrete image before the texture begins repeating on larger Spire parts.")]
