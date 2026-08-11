@@ -63,7 +63,9 @@ Shader "DuneVector/URP Sand Macro Variation"
             #pragma multi_compile_fog
             #pragma multi_compile_instancing
             #pragma shader_feature_local_fragment _NORMALMAP
-            #pragma shader_feature_local_fragment _PARALLAXMAP
+            // The sand material is created and configured at runtime, so no authored
+            // material tells the player build to retain the parallax variant.
+            #pragma multi_compile_local_fragment _ _PARALLAXMAP
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Lighting.hlsl"
