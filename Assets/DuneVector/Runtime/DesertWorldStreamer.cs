@@ -345,7 +345,10 @@ namespace DuneVector
             _flightRingProgressSavePath = Path.Combine(
                 Application.persistentDataPath,
                 FlightRingProgressSaveFileName);
-            LoadFlightRingProgress();
+            if (!DuneTrainingRuntime.Enabled)
+            {
+                LoadFlightRingProgress();
+            }
             GroundExploders ??= new GroundExploderTuning();
             Dunes.WorldSeed = WorldSeed;
             HeightField = new DuneHeightField(Dunes);
@@ -1461,7 +1464,7 @@ namespace DuneVector
 
         private void SaveFlightRingProgress()
         {
-            if (string.IsNullOrEmpty(_flightRingProgressSavePath))
+            if (DuneTrainingRuntime.Enabled || string.IsNullOrEmpty(_flightRingProgressSavePath))
             {
                 return;
             }

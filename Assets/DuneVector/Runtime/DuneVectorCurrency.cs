@@ -91,6 +91,11 @@ namespace DuneVector
 
             _initialized = true;
             _savePath = Path.Combine(Application.persistentDataPath, GoldSaveFileName);
+            if (DuneTrainingRuntime.Enabled)
+            {
+                Gold = Mathf.Max(0, startingGold);
+                return;
+            }
             Gold = LoadGold(Mathf.Max(0, startingGold));
             SaveGold();
         }
@@ -159,6 +164,10 @@ namespace DuneVector
 
         private bool SaveGold()
         {
+            if (DuneTrainingRuntime.Enabled)
+            {
+                return true;
+            }
             try
             {
                 GoldSaveData stored = new GoldSaveData { Gold = Gold };

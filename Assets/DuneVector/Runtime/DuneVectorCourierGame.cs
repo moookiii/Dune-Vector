@@ -146,7 +146,10 @@ namespace DuneVector
         public void Initialize()
         {
             _savePath = Path.Combine(Application.persistentDataPath, SaveFileName);
-            Load();
+            if (!DuneTrainingRuntime.Enabled)
+            {
+                Load();
+            }
         }
 
         public void RecordCompletion(int reward, int difficulty, bool assignDeliveryMessage)
@@ -311,6 +314,10 @@ namespace DuneVector
 
         private void Save()
         {
+            if (DuneTrainingRuntime.Enabled)
+            {
+                return;
+            }
             try
             {
                 SaveData data = new SaveData

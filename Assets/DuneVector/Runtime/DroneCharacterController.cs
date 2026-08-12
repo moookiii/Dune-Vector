@@ -528,7 +528,14 @@ namespace DuneVector
             {
                 _flightMeterInitialized = true;
                 _flightMeterSavePath = Path.Combine(Application.persistentDataPath, FlightMeterSaveFileName);
-                LoadFlightMeter();
+                if (DuneTrainingRuntime.Enabled)
+                {
+                    FlightTimeRemaining = FlightDuration;
+                }
+                else
+                {
+                    LoadFlightMeter();
+                }
             }
             else
             {
@@ -1159,6 +1166,11 @@ namespace DuneVector
 
         private void SaveFlightMeter()
         {
+            if (DuneTrainingRuntime.Enabled)
+            {
+                _flightMeterSaveDirty = false;
+                return;
+            }
             if (!_flightMeterInitialized || !_flightMeterSaveDirty || string.IsNullOrEmpty(_flightMeterSavePath))
             {
                 return;
