@@ -72,6 +72,7 @@ namespace DuneVector
 
             if (_episodeSteps > 0)
             {
+                _bootstrap.CourierGame.Progress?.ResetTrainingEpisodeProgress();
                 _bootstrap.CourierGame.RestartAtHub(playReturnEffect: false);
                 _bootstrap.DroneHealth?.ReviveAtFullHealth();
                 _bootstrap.Player?.SetInputEnabled(true);

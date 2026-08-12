@@ -237,7 +237,8 @@ namespace DuneVector
 
         public void RecordContractAccepted(string contractId)
         {
-            if (string.IsNullOrEmpty(contractId) || _acceptedContractIds.Contains(contractId))
+            if (DuneTrainingRuntime.Enabled || string.IsNullOrEmpty(contractId) ||
+                _acceptedContractIds.Contains(contractId))
             {
                 return;
             }
@@ -250,6 +251,29 @@ namespace DuneVector
         public bool WasContractAccepted(string contractId)
         {
             return !string.IsNullOrEmpty(contractId) && _acceptedContractIds.Contains(contractId);
+        }
+
+        public void ResetTrainingEpisodeProgress()
+        {
+            if (!DuneTrainingRuntime.Enabled)
+            {
+                return;
+            }
+
+            CompletedDeliveries = 0;
+            FailedDeliveries = 0;
+            TotalContractGold = 0;
+            HighestDifficulty = 0;
+            FreeRoamDeliveries = 0;
+            TotalFreeRoamGold = 0;
+            HighestFreeRoamStreak = 0;
+            NextDeliveryMessageIndex = 0;
+            PendingDeliveryMessageIndex = -1;
+            DeliveryMessageInputHintAcknowledged = false;
+            StrikeOrbDeathNoteAcknowledged = false;
+            VesperPilgrimDeathNoteAcknowledged = false;
+            _acceptedContractIds.Clear();
+            Changed?.Invoke();
         }
 
         private void Load()
