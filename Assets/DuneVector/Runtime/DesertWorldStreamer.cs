@@ -425,7 +425,7 @@ namespace DuneVector
         public void SetContractGroundExploders(int count, float minimumDistance, float maximumDistance, int seed)
         {
             ClearContractGroundExploders();
-            if (count <= 0 || GroundExploders == null || !GroundExploders.Enabled ||
+            if (DuneTrainingRuntime.ControlledGroundStage || count <= 0 || GroundExploders == null || !GroundExploders.Enabled ||
                 _player == null || _playerHealth == null || HeightField == null || _chunkRoot == null)
             {
                 return;
@@ -3166,7 +3166,8 @@ namespace DuneVector
             List<Vector2> sceneryExclusions,
             GroundExploderTuning settings)
         {
-            if (settings == null || !settings.Enabled || settings.DensityPerChunk <= 0f || coordinate == Vector2Int.zero)
+            if (DuneTrainingRuntime.ControlledGroundStage || settings == null || !settings.Enabled ||
+                settings.DensityPerChunk <= 0f || coordinate == Vector2Int.zero)
             {
                 return;
             }

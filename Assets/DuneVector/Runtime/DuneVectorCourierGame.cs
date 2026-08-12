@@ -645,8 +645,11 @@ namespace DuneVector
                 audio,
                 Progress.DeliveryMessageInputHintAcknowledged,
                 Progress.AcknowledgeDeliveryMessageInputHint);
-            _sandAmbusherSystem = gameObject.AddComponent<DuneVectorSandAmbusherSystem>();
-            _sandAmbusherSystem.Initialize(_player, _health, _world, _settings);
+            if (!DuneTrainingRuntime.ControlledGroundStage)
+            {
+                _sandAmbusherSystem = gameObject.AddComponent<DuneVectorSandAmbusherSystem>();
+                _sandAmbusherSystem.Initialize(_player, _health, _world, _settings);
+            }
             _freeRoamDeliveries = gameObject.AddComponent<DuneVectorFreeRoamDeliverySystem>();
             _freeRoamDeliveries.Initialize(
                 _player,

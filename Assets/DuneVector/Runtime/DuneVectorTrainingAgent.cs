@@ -252,14 +252,15 @@ namespace DuneVector
             ActionSegment<float> continuous = actions.ContinuousActions;
             bool hubCurriculum = _curriculumStage == 1 &&
                 _bootstrap.CourierGame.State == CourierRunState.Hub;
+            bool groundCurriculum = _curriculumStage == 2;
             DroneRawInputFrame command = new DroneRawInputFrame
             {
                 Move = Vector2.ClampMagnitude(new Vector2(continuous[0], continuous[1]), 1f),
                 LookDelta = new Vector2(continuous[2], continuous[3]),
-                JumpPressed = !hubCurriculum && Pulse(continuous[4], 4),
-                JumpHeld = !hubCurriculum && continuous[4] > 0f,
-                BoostHeld = !hubCurriculum && continuous[5] > 0f,
-                FirePressed = !hubCurriculum && Pulse(continuous[6], 6),
+                JumpPressed = !hubCurriculum && !groundCurriculum && Pulse(continuous[4], 4),
+                JumpHeld = !hubCurriculum && !groundCurriculum && continuous[4] > 0f,
+                BoostHeld = !hubCurriculum && !groundCurriculum && continuous[5] > 0f,
+                FirePressed = !hubCurriculum && !groundCurriculum && Pulse(continuous[6], 6),
                 InteractPressed = Pulse(continuous[7], 7),
                 MenuNavigate = PulseSigned(continuous[8], 8),
                 ConfirmPressed = Pulse(continuous[9], 9),
@@ -577,6 +578,7 @@ namespace DuneVector
         public static bool Enabled => HasArgument("--dune-training");
         public static bool Evaluation => HasArgument("--dune-evaluation");
         public static bool VisualEvaluation => Evaluation && HasArgument("--dune-visual-evaluation");
+        public static bool ControlledGroundStage => Enabled && ReadCurriculumStage() == 2;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void ConfigureHeadlessRuntime()

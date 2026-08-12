@@ -1139,18 +1139,21 @@ namespace DuneVector
                 DesertAtlas = CourierGame.DesertAtlas;
                 PermanentUpgrades.BindAtlasGlyphMaterial(DesertAtlas, _materials);
 
-                GameObject encounterObject = new GameObject("Route Encounter Formation Director");
-                encounterObject.transform.SetParent(transform, false);
-                RouteEncounterDirector = encounterObject.AddComponent<DuneVectorRouteEncounterDirector>();
-                RouteEncounterDirector.Initialize(
-                    Drone,
-                    DroneHealth,
-                    World,
-                    _materials,
-                    GoldWallet,
-                    RouteEncounterSettings,
-                    CourierGame);
-                CourierGame.BindEncounterDirector(RouteEncounterDirector);
+                if (!DuneTrainingRuntime.ControlledGroundStage)
+                {
+                    GameObject encounterObject = new GameObject("Route Encounter Formation Director");
+                    encounterObject.transform.SetParent(transform, false);
+                    RouteEncounterDirector = encounterObject.AddComponent<DuneVectorRouteEncounterDirector>();
+                    RouteEncounterDirector.Initialize(
+                        Drone,
+                        DroneHealth,
+                        World,
+                        _materials,
+                        GoldWallet,
+                        RouteEncounterSettings,
+                        CourierGame);
+                    CourierGame.BindEncounterDirector(RouteEncounterDirector);
+                }
                 PauseMenu?.BindCourierGame(CourierGame);
                 GameOverController?.BindCourierGame(CourierGame);
                 return;
@@ -1164,6 +1167,11 @@ namespace DuneVector
 
         private void BuildEnemyGameplay()
         {
+            if (DuneTrainingRuntime.ControlledGroundStage)
+            {
+                return;
+            }
+
             if (FlyingEnemies.Enabled)
             {
                 GameObject enemyObject = new GameObject("Flying Enemy Director");
@@ -1204,6 +1212,11 @@ namespace DuneVector
 
         private void BuildDynamicCourierGameplay()
         {
+            if (DuneTrainingRuntime.ControlledGroundStage)
+            {
+                return;
+            }
+
             if (!DynamicCourierSettings.Enabled)
             {
                 return;
@@ -1256,6 +1269,11 @@ namespace DuneVector
 
         private void BuildEnvironmentalHazards()
         {
+            if (DuneTrainingRuntime.ControlledGroundStage)
+            {
+                return;
+            }
+
             if (EnvironmentalHazardSettings == null)
             {
                 return;
