@@ -337,7 +337,9 @@ namespace DuneVector
             BoostRing = CreatePortal("Portal - Boost Amber", rings.BoostRingEmissionColor, rings, rings.GroundBoostPortalSolidity);
             FlightRing = CreatePortal(
                 "Portal - Flight Cyan",
-                rings.FlightRingEmissionColor,
+                rings.FlightPortalEmissionEnabled
+                    ? rings.FlightRingEmissionColor
+                    : rings.FlightRingBaseColor,
                 rings,
                 rings.FlightPortalSolidity,
                 rings.FlightPortalBlendOperation,

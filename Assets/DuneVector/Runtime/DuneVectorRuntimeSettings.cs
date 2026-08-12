@@ -4229,7 +4229,7 @@ namespace DuneVector
         [Range(0f, 1f)] public float PortalLineOpacity = 0.9f;
         [Tooltip("Blend operation used by first-layer blue flight portals. Reverse Subtract removes the portal energy colour from the background instead of adding it.")]
         public BlendOp FlightPortalBlendOperation = BlendOp.Add;
-        [Tooltip("When disabled, first-layer blue flight portals use a clamped non-HDR color so they do not contribute emissive bloom.")]
+        [Tooltip("When disabled, first-layer flight portals use Flight Ring Base Color as a clamped non-HDR source. Blend operations such as Subtract still apply.")]
         public bool FlightPortalEmissionEnabled = true;
 
         [Header("Portal Solidity")]
