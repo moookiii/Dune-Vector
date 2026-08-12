@@ -1397,17 +1397,11 @@ namespace DuneVector
                 return;
             }
 
-            Vector3 screen = _camera.WorldToScreenPoint(targetPosition);
-            if (screen.z < 0f)
-            {
-                screen.x = Screen.width - screen.x;
-                screen.y = Screen.height - screen.y;
-            }
-            float guiY = Screen.height - screen.y;
             float halfMarker = _settings.ObjectiveMarkerSize * 0.5f;
             float padding = _settings.ObjectiveMarkerEdgePadding + halfMarker;
-            float x = Mathf.Clamp(screen.x, padding, Screen.width - padding);
-            float y = Mathf.Clamp(guiY, padding, Screen.height - padding);
+            Vector2 markerPosition = ResolveObjectiveMarkerPosition(targetPosition, padding);
+            float x = markerPosition.x;
+            float y = markerPosition.y;
 
             Color previousColor = GUI.color;
             Rect markerRect = new Rect(
@@ -1431,7 +1425,7 @@ namespace DuneVector
                 GUI.color = Color.white;
                 GUI.DrawTexture(
                     markerRect,
-                    _settings.ConvoyObjectiveMarkerIcon,
+                    markerIcon,
                     ScaleMode.ScaleToFit,
                     true);
             }
@@ -1449,6 +1443,61 @@ namespace DuneVector
                 _settings.ObjectiveMarkerLabelWidth,
                 _settings.ObjectiveMarkerLabelHeight);
             GUI.Label(label, $"{Mathf.CeilToInt(distance)}m", _markerStyle);
+        }
+
+        /// <summary>
+        /// Keeps an objective on its projected point while visible, then intersects its direction
+        /// from screen centre with the padded camera rectangle. A behind-camera target uses the
+        /// opposite of Unity's reversed projection, preventing it from folding back into the
+        /// middle of the screen when it is almost directly behind the player.
+        /// </summary>
+        private Vector2 ResolveObjectiveMarkerPosition(Vector3 targetPosition, float requestedPadding)
+        {
+            Rect cameraPixels = _camera.pixelRect;
+            Vector3 viewport = _camera.WorldToViewportPoint(targetPosition);
+            float maximumHorizontalPadding = Mathf.Max(0f, (cameraPixels.width * 0.5f) - 1f);
+            float maximumVerticalPadding = Mathf.Max(0f, (cameraPixels.height * 0.5f) - 1f);
+            float horizontalPadding = Mathf.Min(requestedPadding, maximumHorizontalPadding);
+            float verticalPadding = Mathf.Min(requestedPadding, maximumVerticalPadding);
+
+            bool visible = viewport.z > 0f &&
+                           viewport.x >= 0f && viewport.x <= 1f &&
+                           viewport.y >= 0f && viewport.y <= 1f;
+            Vector2 screenPosition;
+            if (visible)
+            {
+                screenPosition = new Vector2(
+                    cameraPixels.xMin + (viewport.x * cameraPixels.width),
+                    cameraPixels.yMin + (viewport.y * cameraPixels.height));
+            }
+            else
+            {
+                Vector2 cameraCenter = cameraPixels.center;
+                Vector2 fromCenter = new Vector2(
+                    (viewport.x - 0.5f) * cameraPixels.width,
+                    (viewport.y - 0.5f) * cameraPixels.height);
+                if (viewport.z <= 0f)
+                {
+                    fromCenter = -fromCenter;
+                }
+                if (fromCenter.sqrMagnitude <= Mathf.Epsilon)
+                {
+                    fromCenter = Vector2.down;
+                }
+
+                float horizontalExtent = Mathf.Max(1f, (cameraPixels.width * 0.5f) - horizontalPadding);
+                float verticalExtent = Mathf.Max(1f, (cameraPixels.height * 0.5f) - verticalPadding);
+                float horizontalScale = Mathf.Abs(fromCenter.x) > Mathf.Epsilon
+                    ? horizontalExtent / Mathf.Abs(fromCenter.x)
+                    : float.PositiveInfinity;
+                float verticalScale = Mathf.Abs(fromCenter.y) > Mathf.Epsilon
+                    ? verticalExtent / Mathf.Abs(fromCenter.y)
+                    : float.PositiveInfinity;
+                screenPosition = cameraCenter + (fromCenter * Mathf.Min(horizontalScale, verticalScale));
+            }
+
+            // IMGUI's Y axis runs downward, while camera pixel coordinates run upward.
+            return new Vector2(screenPosition.x, Screen.height - screenPosition.y);
         }
     }
 }
