@@ -86,12 +86,20 @@ namespace DuneVector
             _settings = settings;
             _savePath = Path.Combine(Application.persistentDataPath, SaveFileName);
             _imageDirectory = Path.Combine(Application.persistentDataPath, ImageFolderName);
+            if (DuneTrainingRuntime.Enabled)
+            {
+                return;
+            }
             Directory.CreateDirectory(_imageDirectory);
             Load();
         }
 
         public PhotographRecord Store(Texture2D image, string subjectId, PhotographableSubjectCategory category, bool valid)
         {
+            if (DuneTrainingRuntime.Enabled)
+            {
+                throw new InvalidOperationException("Photography storage is disabled during agent training.");
+            }
             while (_data.Photographs.Count >= Mathf.Max(1, _settings.MaximumGalleryPhotographs))
             {
                 Delete(_data.Photographs[0].PhotographId);
@@ -318,6 +326,10 @@ namespace DuneVector
 
         private void Save()
         {
+            if (DuneTrainingRuntime.Enabled)
+            {
+                return;
+            }
             string temporaryPath = _savePath + ".tmp";
             File.WriteAllText(temporaryPath, JsonUtility.ToJson(_data, true));
             File.Copy(temporaryPath, _savePath, true);

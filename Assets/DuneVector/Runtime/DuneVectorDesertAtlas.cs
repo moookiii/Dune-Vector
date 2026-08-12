@@ -148,7 +148,10 @@ namespace DuneVector
             _settings.EnsureInitialized();
             _activeInstance = this;
             _savePath = Path.Combine(Application.persistentDataPath, SaveFileName);
-            Load();
+            if (!DuneTrainingRuntime.Enabled)
+            {
+                Load();
+            }
             _discoveredMaterial = CreateSignalMaterial(_materials.LandmarkMetal, _settings.DiscoveredColor);
             CatalogDocumentedGlyphs();
             TryGrantCompletionReward(showStatus: false);
@@ -2319,6 +2322,10 @@ namespace DuneVector
 
         private void Save()
         {
+            if (DuneTrainingRuntime.Enabled)
+            {
+                return;
+            }
             try
             {
                 AtlasSaveData data = new AtlasSaveData

@@ -127,6 +127,10 @@ namespace DuneVector
 
         public void LoadInto(DroneUpgradeTierState state)
         {
+            if (DuneTrainingRuntime.Enabled)
+            {
+                return;
+            }
             if (!File.Exists(_savePath))
             {
                 return;
@@ -161,6 +165,10 @@ namespace DuneVector
 
         public bool Save(DroneUpgradeTierState state, IReadOnlyList<DroneUpgradeDefinition> definitions)
         {
+            if (DuneTrainingRuntime.Enabled)
+            {
+                return true;
+            }
             try
             {
                 UpgradeSaveData saveData = new UpgradeSaveData

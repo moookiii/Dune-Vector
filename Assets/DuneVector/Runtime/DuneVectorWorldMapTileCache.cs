@@ -125,7 +125,10 @@ namespace DuneVector
                     "World-map terrain tile shader was not found. Falling back to the legacy map renderer.");
             }
 
-            InitializeCacheIndex();
+            if (!DuneTrainingRuntime.Enabled)
+            {
+                InitializeCacheIndex();
+            }
         }
 
         public void MarkExplorationChanged()
