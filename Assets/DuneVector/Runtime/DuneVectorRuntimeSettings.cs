@@ -6370,6 +6370,10 @@ namespace DuneVector
 
         [Header("Camera")]
         [Min(0f)] public float CameraLookSensitivity = 0.085f;
+        [Tooltip("Lowest mouse sensitivity the pause-menu slider can select.")]
+        [Min(0.001f)] public float MinimumCameraLookSensitivity = 0.02f;
+        [Tooltip("Highest mouse sensitivity the pause-menu slider can select.")]
+        [Min(0.001f)] public float MaximumCameraLookSensitivity = 0.4f;
         [Min(0f)] public float CameraRotationSharpness = 30f;
         [Min(0f)] public float CameraFollowSharpness = 4.2f;
         [Min(0.001f)] public float CameraNearClipPlane = 0.01f;
@@ -7097,6 +7101,37 @@ namespace DuneVector
         public Color Color = new Color(1f, 1f, 1f, 0.5f);
     }
 
+    [System.Serializable]
+    public sealed class PufferTrainingTuning
+    {
+        [Header("Deterministic Simulation")]
+        [Min(0.001f)] public float FixedTickSeconds = 0.05f;
+        [Min(1)] public int HubStepBudget = 600;
+        [Min(1)] public int EpisodeStepBudget = 12000;
+
+        [Header("Observation Scales")]
+        [Min(1f)] public float ObjectiveDistanceScale = 1500f;
+        [Min(1f)] public float HubDistanceScale = 40f;
+        [Min(1f)] public float RingDistanceScale = 250f;
+        [Min(1f)] public float CombatDistanceScale = 180f;
+        [Min(1f)] public float VelocityScale = 45f;
+        [Min(1f)] public float ProbeDistance = 24f;
+
+        [Header("Potential Shaping")]
+        [Min(0f)] public float HubPotentialScale = 0.0005f;
+        [Min(0f)] public float ObjectivePotentialScale = 0.0008f;
+        [Min(0f)] public float ValidDeploymentReward = 0.02f;
+
+        [Header("Gameplay Events")]
+        [Min(0f)] public float PickupReward = 0.25f;
+        [Min(0f)] public float DeliveryReward = 1f;
+        [Min(0f)] public float UsefulRingReward = 0.04f;
+        [Min(0f)] public float DamagePenaltyPerHealth = 0.01f;
+        [Min(0f)] public float DeathPenalty = 1f;
+        [Min(0f)] public float HubTimeoutPenalty = 0.1f;
+        [Min(0f)] public float StepPenalty = 0.00002f;
+    }
+
     [CreateAssetMenu(fileName = "Dune Vector Runtime Settings", menuName = "Dune Vector/Runtime Settings", order = 0)]
     public sealed class DuneVectorRuntimeSettings : ScriptableObject
     {
@@ -7109,6 +7144,9 @@ namespace DuneVector
 
         [Tooltip("Initial shader state for the runtime-switchable blend-operation cube prefab.")]
         public RuntimeBlendModeCubeTuning RuntimeBlendModeCube = new RuntimeBlendModeCubeTuning();
+
+        [Header("Puffer Training")]
+        public PufferTrainingTuning PufferTraining = new PufferTrainingTuning();
 
         [Tooltip("Movement, flight, boost, and camera controls for the drone.")]
         public DroneTuning PlayerTuning = new DroneTuning();
@@ -7382,6 +7420,7 @@ namespace DuneVector
         {
             RetroCrtScanlines ??= new RetroCrtScanlineTuning();
             RuntimeBlendModeCube ??= new RuntimeBlendModeCubeTuning();
+            PufferTraining ??= new PufferTrainingTuning();
             PlayerTuning ??= new DroneTuning();
             PlayerTuning.EnsureInitialized();
             CompassHud ??= new CompassHudTuning();

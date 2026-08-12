@@ -29,7 +29,7 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 15;
+            public int Version = 16;
             public float MusicVolume;
             public float SoundEffectsVolume;
             public float DialogueVolume;
@@ -46,6 +46,7 @@ namespace DuneVector
             public int AntiAliasingMode;
             public bool VisualizerFovEnabled;
             public int MusicVisualizerEffectMask;
+            public float LookSensitivity;
         }
 
         public float MusicVolume { get; private set; }
@@ -63,6 +64,11 @@ namespace DuneVector
         public DuneVectorCameraAntiAliasingMode AntiAliasingMode { get; private set; }
         public bool VisualizerFovEnabled { get; private set; }
         public MusicVisualEffectGroups VisualizerEffectMask { get; private set; }
+
+        // Mouse sensitivity is authored on DroneTuning, so the preferences file only
+        // records a player override. Zero means "no override stored yet".
+        public float LookSensitivity { get; private set; }
+        public bool HasStoredLookSensitivity => LookSensitivity > 0f;
         public event Action<MusicVisualizerMode> MusicVisualizerModeChanged;
         public event Action<MusicVisualEffectGroups> MusicVisualizerEffectsChanged;
         public event Action<bool> VisualizerFovEnabledChanged;
@@ -493,6 +499,12 @@ namespace DuneVector
             {
                 ApplyMusicInstanceVolumeAndMute();
             }
+        }
+
+        public void SetLookSensitivity(float sensitivity)
+        {
+            LookSensitivity = Mathf.Max(0f, sensitivity);
+            _preferencesDirty = true;
         }
 
         public void SetSoundEffectsVolume(float volume)
@@ -1198,7 +1210,7 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version >= 1 && stored.Version <= 15)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 16)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
@@ -1253,6 +1265,10 @@ namespace DuneVector
                     {
                         BloomIntensity = ClampBloomIntensity(stored.BloomIntensity);
                     }
+                    if (stored.Version >= 16)
+                    {
+                        LookSensitivity = Mathf.Max(0f, stored.LookSensitivity);
+                    }
                     if (VisualizerMode == MusicVisualizerMode.NoFlash)
                     {
                         VisualizerEffectMask &= ~PauseMenuVisualTuning.FlashMusicVisualizerEffects;
@@ -1299,6 +1315,7 @@ namespace DuneVector
                     AntiAliasingMode = (int)AntiAliasingMode,
                     VisualizerFovEnabled = VisualizerFovEnabled,
                     MusicVisualizerEffectMask = (int)VisualizerEffectMask,
+                    LookSensitivity = LookSensitivity,
                 };
                 File.WriteAllText(_preferencesPath, JsonUtility.ToJson(stored));
                 _preferencesDirty = false;
@@ -1420,11 +1437,45 @@ namespace DuneVector
             _visuals = visuals;
             _retroCrtScanlines = retroCrtScanlines;
             _shopView = new DuneVectorUpgradeShopView(_upgrades, _wallet, shopVisuals);
+            ApplyStoredLookSensitivity();
             if (_health != null)
             {
                 _health.Died += HandleDeath;
             }
             ApplyVideoPreferences();
+        }
+
+        private DroneCameraController LookCamera => _player != null ? _player.CharacterCamera : null;
+
+        private float MinimumLookSensitivity => Mathf.Max(0.001f, _playerTuning.MinimumCameraLookSensitivity);
+
+        private float MaximumLookSensitivity =>
+            Mathf.Max(MinimumLookSensitivity + 0.001f, _playerTuning.MaximumCameraLookSensitivity);
+
+        private float CurrentLookSensitivity => LookCamera != null
+            ? LookCamera.LookSensitivity
+            : _playerTuning.CameraLookSensitivity;
+
+        // The camera is configured from DroneTuning during bootstrap, so a stored
+        // player override has to be reapplied once the pause menu binds to it.
+        private void ApplyStoredLookSensitivity()
+        {
+            if (_playerTuning == null || _audio == null || !_audio.HasStoredLookSensitivity)
+            {
+                return;
+            }
+
+            SetLookSensitivity(_audio.LookSensitivity);
+        }
+
+        private void SetLookSensitivity(float sensitivity)
+        {
+            float clamped = Mathf.Clamp(sensitivity, MinimumLookSensitivity, MaximumLookSensitivity);
+            if (LookCamera != null)
+            {
+                LookCamera.LookSensitivity = clamped;
+            }
+            _audio?.SetLookSensitivity(clamped);
         }
 
         public void BindCourierGame(DuneVectorCourierGame courierGame)
@@ -1738,7 +1789,26 @@ namespace DuneVector
                 _audio != null ? _audio.DialogueVolume : 0f,
                 value => _audio?.SetDialogueVolume(value),
                 scale);
-            y += sliderRowHeight + (_visuals.DialogueButtonGap * scale);
+            y += sliderRowHeight;
+
+            if (_playerTuning != null)
+            {
+                float minimumSensitivity = MinimumLookSensitivity;
+                float sensitivityRange = MaximumLookSensitivity - minimumSensitivity;
+                float sensitivity = Mathf.Clamp(CurrentLookSensitivity, minimumSensitivity, MaximumLookSensitivity);
+
+                y = DrawSectionHeader(content, y, "INPUT", scale);
+                DrawSliderRow(
+                    new Rect(content.x, y, content.width, sliderRowHeight),
+                    "MOUSE SENSITIVITY",
+                    sensitivity.ToString("0.00", CultureInfo.InvariantCulture),
+                    (sensitivity - minimumSensitivity) / sensitivityRange,
+                    normalized => SetLookSensitivity(minimumSensitivity + (normalized * sensitivityRange)),
+                    scale);
+                y += sliderRowHeight;
+            }
+
+            y += _visuals.DialogueButtonGap * scale;
 
             float buttonHeight = _visuals.ButtonHeight * scale;
             if (DrawMenuButton(new Rect(content.x, y, content.width, buttonHeight), "RESUME FLIGHT", PauseButtonKind.Primary))
