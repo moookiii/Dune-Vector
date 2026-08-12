@@ -333,7 +333,7 @@ namespace DuneVector
             }
             Instance = this;
             Time.timeScale = 1f;
-            bool headlessTraining = DuneTrainingRuntime.Enabled;
+            bool headlessTraining = DuneTrainingRuntime.Enabled && !DuneTrainingRuntime.VisualEvaluation;
 
             if (RuntimeSettings == null)
             {

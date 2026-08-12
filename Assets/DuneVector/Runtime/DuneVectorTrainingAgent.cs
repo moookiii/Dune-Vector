@@ -44,6 +44,7 @@ namespace DuneVector
         private float _previousTargetHealth;
         private EnemyCombatTarget _previousTarget;
         private readonly float[] _previousActions = new float[ActionCount];
+        private readonly int[] _nextPulseStep = new int[ActionCount];
 
         public void Bind(DuneVectorBootstrap bootstrap, int curriculumStage, bool evaluation)
         {
@@ -82,6 +83,7 @@ namespace DuneVector
             _trainingReturn = 0f;
             _unshapedReturn = 0f;
             Array.Clear(_previousActions, 0, _previousActions.Length);
+            Array.Clear(_nextPulseStep, 0, _nextPulseStep.Length);
             CaptureBaseline();
             _bootstrap.Player?.SetAutomatedInput(default);
         }
@@ -248,24 +250,52 @@ namespace DuneVector
             }
 
             ActionSegment<float> continuous = actions.ContinuousActions;
+            bool hubCurriculum = _curriculumStage == 1 &&
+                _bootstrap.CourierGame.State == CourierRunState.Hub;
             DroneRawInputFrame command = new DroneRawInputFrame
             {
                 Move = Vector2.ClampMagnitude(new Vector2(continuous[0], continuous[1]), 1f),
                 LookDelta = new Vector2(continuous[2], continuous[3]),
-                JumpPressed = Rising(continuous[4], 4),
-                JumpHeld = continuous[4] > 0.5f,
-                BoostHeld = continuous[5] > 0.25f,
-                FirePressed = Rising(continuous[6], 6),
-                InteractPressed = Rising(continuous[7], 7),
-                MenuNavigate = RisingSigned(continuous[8], 8),
-                ConfirmPressed = Rising(continuous[9], 9),
-                CancelPressed = Rising(continuous[10], 10),
+                JumpPressed = !hubCurriculum && Pulse(continuous[4], 4),
+                JumpHeld = !hubCurriculum && continuous[4] > 0f,
+                BoostHeld = !hubCurriculum && continuous[5] > 0f,
+                FirePressed = !hubCurriculum && Pulse(continuous[6], 6),
+                InteractPressed = Pulse(continuous[7], 7),
+                MenuNavigate = PulseSigned(continuous[8], 8),
+                ConfirmPressed = Pulse(continuous[9], 9),
+                CancelPressed = Pulse(continuous[10], 10),
             };
             if (command.FirePressed)
             {
                 _shots++;
             }
             _bootstrap.Player.SetAutomatedInput(command);
+        }
+
+        private bool Pulse(float value, int index)
+        {
+            bool active = value > 0f;
+            bool rising = active && _previousActions[index] <= 0f;
+            bool repeated = active && _episodeSteps >= _nextPulseStep[index];
+            _previousActions[index] = value;
+            if (!rising && !repeated) return false;
+            _nextPulseStep[index] = _episodeSteps + 5;
+            return true;
+        }
+
+        private float PulseSigned(float value, int index)
+        {
+            if (Mathf.Abs(value) <= 0.1f)
+            {
+                _previousActions[index] = value;
+                return 0f;
+            }
+            bool changedDirection = Mathf.Sign(value) != Mathf.Sign(_previousActions[index]);
+            bool repeated = _episodeSteps >= _nextPulseStep[index];
+            _previousActions[index] = value;
+            if (!changedDirection && !repeated) return 0f;
+            _nextPulseStep[index] = _episodeSteps + 5;
+            return Mathf.Sign(value);
         }
 
         public override void Heuristic(in ActionBuffers actionsOut)
@@ -455,22 +485,6 @@ namespace DuneVector
             }
         }
 
-        private bool Rising(float value, int index)
-        {
-            bool pressed = value > 0.5f && _previousActions[index] <= 0.5f;
-            _previousActions[index] = value;
-            return pressed;
-        }
-
-        private float RisingSigned(float value, int index)
-        {
-            float previous = _previousActions[index];
-            _previousActions[index] = value;
-            if (value > 0.5f && previous <= 0.5f) return 1f;
-            if (value < -0.5f && previous >= -0.5f) return -1f;
-            return 0f;
-        }
-
         private Transform ResolveActiveObjective(DuneVectorCourierGame courier)
         {
             if (courier.ActiveObjective != null)
@@ -562,6 +576,7 @@ namespace DuneVector
     {
         public static bool Enabled => HasArgument("--dune-training");
         public static bool Evaluation => HasArgument("--dune-evaluation");
+        public static bool VisualEvaluation => Evaluation && HasArgument("--dune-visual-evaluation");
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void ConfigureHeadlessRuntime()
@@ -571,9 +586,9 @@ namespace DuneVector
             Time.maximumDeltaTime = 0.05f;
             Time.captureDeltaTime = 0.05f;
             QualitySettings.vSyncCount = 0;
-            Application.targetFrameRate = -1;
+            Application.targetFrameRate = VisualEvaluation ? 20 : -1;
             Application.runInBackground = true;
-            AudioListener.pause = true;
+            AudioListener.pause = !VisualEvaluation;
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -644,11 +659,15 @@ namespace DuneVector
 
             DuneVectorTrainingAgent agent = bootstrap.gameObject.AddComponent<DuneVectorTrainingAgent>();
             agent.Bind(bootstrap, DuneTrainingRuntime.ReadCurriculumStage(), DuneTrainingRuntime.Evaluation);
+            bootstrap.Player.SetHumanGameplayInputSuppressed(true);
             DecisionRequester requester = bootstrap.gameObject.AddComponent<DecisionRequester>();
             requester.DecisionPeriod = 1;
             requester.TakeActionsBetweenDecisions = true;
 
-            DisablePresentation(bootstrap);
+            if (!DuneTrainingRuntime.VisualEvaluation)
+            {
+                DisablePresentation(bootstrap);
+            }
         }
 
         private static void DisablePresentation(DuneVectorBootstrap bootstrap)

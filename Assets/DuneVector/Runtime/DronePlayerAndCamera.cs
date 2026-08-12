@@ -88,6 +88,7 @@ namespace DuneVector
         public DroneStaminaSystem Stamina;
 
         public bool AutomatedInputEnabled { get; private set; }
+        public bool HumanGameplayInputSuppressed { get; private set; }
         public DroneRawInputFrame AutomatedInput { get; private set; }
         public bool InputEnabled { get; private set; } = true;
         public bool IsHazardControlLocked => _hazardControlLockTimeRemaining > 0f;
@@ -123,7 +124,10 @@ namespace DuneVector
                 return;
             }
 
-            InputSource?.Capture();
+            if (!HumanGameplayInputSuppressed)
+            {
+                InputSource?.Capture();
+            }
 
             if (!InputEnabled)
             {
@@ -202,6 +206,15 @@ namespace DuneVector
         {
             AutomatedInputEnabled = true;
             AutomatedInput = input;
+        }
+
+        public void SetHumanGameplayInputSuppressed(bool suppressed)
+        {
+            HumanGameplayInputSuppressed = suppressed;
+            if (suppressed && InputSource != null)
+            {
+                InputSource.enabled = false;
+            }
         }
 
         public void ClearAutomatedInput()
