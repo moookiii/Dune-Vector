@@ -1461,7 +1461,8 @@ namespace DuneVector
         [Tooltip("Extra horizontal clearance kept between the drone capsule and the containment wall.")]
         [Min(0f)] public float ContainmentSafetyPadding = 0.15f;
 
-        [Min(0f)] public float DesertInsertionHeight = 8f;
+        [Tooltip("Small vertical clearance above the sampled desert surface used for contract and free-roam deployment. Keep this near zero so the drone starts grounded instead of falling into place.")]
+        [Min(0f)] public float DesertInsertionHeight = 0.08f;
         [Min(0.1f)] public float TeleportBuildDuration = 1.15f;
         [Min(0.1f)] public float TeleportFadeDuration = 0.45f;
         [Min(0.1f)] public float TeleportRebuildDuration = 0.8f;
