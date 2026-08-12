@@ -11,6 +11,7 @@ Shader "DuneVector/URP Portal Energy"
         _DistanceBloomBoost("Distance Bloom Boost", Float) = 1
         _LineEdgeSoftness("Line Edge Softness", Range(0.01, 0.49)) = 0.14
         _ScreenSpaceAntiAliasing("Screen Space Anti-Aliasing", Float) = 0.25
+        _MinimumScreenSpaceStrokePixels("Minimum Screen-Space Stroke Pixels", Range(0, 4)) = 1.5
         _TravelPulseCount("Travel Pulse Count", Float) = 3
         _TravelPulseSpeed("Travel Pulse Speed", Float) = 0.22
         _TravelPulseWidth("Travel Pulse Width", Range(0.01, 0.8)) = 0.16
@@ -68,6 +69,7 @@ Shader "DuneVector/URP Portal Energy"
                 float _DistanceBloomBoost;
                 float _LineEdgeSoftness;
                 float _ScreenSpaceAntiAliasing;
+                float _MinimumScreenSpaceStrokePixels;
                 float _TravelPulseCount;
                 float _TravelPulseSpeed;
                 float _TravelPulseWidth;
@@ -87,6 +89,7 @@ Shader "DuneVector/URP Portal Energy"
             {
                 float3 positionOS : POSITION;
                 float2 uv : TEXCOORD0;
+                float2 strokeCenterOS : TEXCOORD1;
                 float4 color : COLOR;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
             };
@@ -106,6 +109,22 @@ Shader "DuneVector/URP Portal Energy"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 output.positionCS = TransformObjectToHClip(input.positionOS);
+                if (_CoreMode < 2.5 && _MinimumScreenSpaceStrokePixels > 0.0)
+                {
+                    float4 strokeCenterCS = TransformObjectToHClip(
+                        float3(input.strokeCenterOS, input.positionOS.z));
+                    float2 positionNdc = output.positionCS.xy / output.positionCS.w;
+                    float2 centerNdc = strokeCenterCS.xy / strokeCenterCS.w;
+                    float2 offsetPixels = (positionNdc - centerNdc) * (0.5 * _ScreenParams.xy);
+                    float currentHalfWidthPixels = length(offsetPixels);
+                    float minimumHalfWidthPixels = _MinimumScreenSpaceStrokePixels * 0.5;
+                    if (currentHalfWidthPixels > 0.0001 && currentHalfWidthPixels < minimumHalfWidthPixels)
+                    {
+                        float2 expandedOffsetPixels = normalize(offsetPixels) * minimumHalfWidthPixels;
+                        float2 expandedOffsetNdc = expandedOffsetPixels * (2.0 / _ScreenParams.xy);
+                        output.positionCS.xy = (centerNdc + expandedOffsetNdc) * output.positionCS.w;
+                    }
+                }
                 output.uv = input.uv;
                 output.portalPosition = input.positionOS.xy;
                 output.color = input.color;

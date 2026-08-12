@@ -4224,6 +4224,8 @@ namespace DuneVector
         [Min(0f)] public float PortalBloomIntensity = 0.6f;
         [Tooltip("Strength of derivative-based edge smoothing applied to portal strokes as they approach subpixel size.")]
         [Min(0f)] public float PortalScreenSpaceAntiAliasing = 0.25f;
+        [Tooltip("Minimum width, in screen pixels, used when drawing portal strokes. Thin distant strokes expand in clip space to remain stable instead of collapsing below one pixel. Set to 0 to disable.")]
+        [Range(0f, 4f)] public float PortalMinimumScreenSpaceStrokePixels = 1.5f;
         [Tooltip("Scales authored gameplay radii before drawing and testing the visible portal opening.")]
         [Range(0.25f, 1.5f)] public float PortalVisualRadiusMultiplier = 0.82f;
         [Min(0.5f)] public float PortalMinimumVisualRadius = 3.2f;

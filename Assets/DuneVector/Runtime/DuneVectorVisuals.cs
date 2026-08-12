@@ -971,6 +971,9 @@ namespace DuneVector
             material.SetFloat("_DistanceBloomBoost", 1f);
             material.SetFloat("_LineEdgeSoftness", settings.PortalLineEdgeSoftness);
             material.SetFloat("_ScreenSpaceAntiAliasing", settings.PortalScreenSpaceAntiAliasing);
+            material.SetFloat(
+                "_MinimumScreenSpaceStrokePixels",
+                settings.PortalMinimumScreenSpaceStrokePixels);
             material.SetFloat("_TravelPulseCount", settings.PortalTravelPulseCount);
             material.SetFloat("_TravelPulseSpeed", settings.PortalTravelPulseSpeed);
             material.SetFloat("_TravelPulseWidth", settings.PortalTravelPulseWidth);
@@ -2224,10 +2227,12 @@ namespace DuneVector
 
             List<Vector3> vertices = new List<Vector3>();
             List<Vector2> uvs = new List<Vector2>();
+            List<Vector2> strokeCenters = new List<Vector2>();
             List<int> triangles = new List<int>();
             AddPortalRing(
                 vertices,
                 uvs,
+                strokeCenters,
                 triangles,
                 innermostRadius,
                 lineThickness,
@@ -2236,6 +2241,7 @@ namespace DuneVector
             Mesh mesh = new Mesh { name = "Procedural Portal Innermost Ring" };
             mesh.SetVertices(vertices);
             mesh.SetUVs(0, uvs);
+            mesh.SetUVs(1, strokeCenters);
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateBounds();
             MeshCache[key] = mesh;
@@ -2563,12 +2569,14 @@ namespace DuneVector
 
             List<Vector3> vertices = new List<Vector3>();
             List<Vector2> uvs = new List<Vector2>();
+            List<Vector2> strokeCenters = new List<Vector2>();
             List<int> triangles = new List<int>();
-            AddPortalRing(vertices, uvs, triangles, radius, lineThickness, segments, 3f);
+            AddPortalRing(vertices, uvs, strokeCenters, triangles, radius, lineThickness, segments, 3f);
 
             Mesh mesh = new Mesh { name = "Portal Activation Outward Pulse" };
             mesh.SetVertices(vertices);
             mesh.SetUVs(0, uvs);
+            mesh.SetUVs(1, strokeCenters);
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateBounds();
             MeshCache[key] = mesh;
@@ -4187,6 +4195,7 @@ namespace DuneVector
 
             List<Vector3> vertices = new List<Vector3>();
             List<Vector2> uvs = new List<Vector2>();
+            List<Vector2> strokeCenters = new List<Vector2>();
             List<int> triangles = new List<int>();
             float outerThickness = Mathf.Max(0.01f, settings.PortalOuterLineThickness) * clampedThicknessMultiplier;
             float innerThickness = Mathf.Max(0.01f, settings.PortalInnerLineThickness) * clampedThicknessMultiplier;
@@ -4196,11 +4205,11 @@ namespace DuneVector
 
             if (layer == PortalLineLayer.All || layer == PortalLineLayer.Center)
             {
-                AddPortalRing(vertices, uvs, triangles, radius, outerThickness, circleSegments, 3f);
+                AddPortalRing(vertices, uvs, strokeCenters, triangles, radius, outerThickness, circleSegments, 3f);
             }
             if (layer == PortalLineLayer.All || layer == PortalLineLayer.Rear)
             {
-                AddPortalRing(vertices, uvs, triangles, innermostRadius, innerThickness, circleSegments);
+                AddPortalRing(vertices, uvs, strokeCenters, triangles, innermostRadius, innerThickness, circleSegments);
             }
             for (int ringIndex = 0; ringIndex < concentricCount; ringIndex++)
             {
@@ -4211,7 +4220,7 @@ namespace DuneVector
                     : PortalLineLayer.Front;
                 if (layer == PortalLineLayer.All || layer == ringLayer)
                 {
-                    AddPortalRing(vertices, uvs, triangles, ringRadius, innerThickness, circleSegments);
+                    AddPortalRing(vertices, uvs, strokeCenters, triangles, ringRadius, innerThickness, circleSegments);
                 }
             }
 
@@ -4235,6 +4244,7 @@ namespace DuneVector
                     AddPortalStroke(
                         vertices,
                         uvs,
+                        strokeCenters,
                         triangles,
                         start,
                         end,
@@ -4302,6 +4312,7 @@ namespace DuneVector
                     AddPortalRune(
                         vertices,
                         uvs,
+                        strokeCenters,
                         triangles,
                         glyphIndex,
                         center,
@@ -4324,6 +4335,7 @@ namespace DuneVector
                     AddPortalStroke(
                         vertices,
                         uvs,
+                        strokeCenters,
                         triangles,
                         direction * (radius + outerThickness),
                         direction * (radius + outerThickness + (rayLength * variation)),
@@ -4334,6 +4346,7 @@ namespace DuneVector
             Mesh mesh = new Mesh { name = $"Procedural Transparent Portal Linework - {layer}" };
             mesh.SetVertices(vertices);
             mesh.SetUVs(0, uvs);
+            mesh.SetUVs(1, strokeCenters);
             mesh.SetTriangles(triangles, 0);
             mesh.RecalculateBounds();
             MeshCache[key] = mesh;
@@ -4343,6 +4356,7 @@ namespace DuneVector
         private static void AddPortalRune(
             List<Vector3> vertices,
             List<Vector2> uvs,
+            List<Vector2> strokeCenters,
             List<int> triangles,
             int runeIndex,
             Vector2 center,
@@ -4356,6 +4370,7 @@ namespace DuneVector
             void Stroke(float ax, float ay, float bx, float by) => AddPortalStroke(
                 vertices,
                 uvs,
+                strokeCenters,
                 triangles,
                 Point(ax, ay),
                 Point(bx, by),
@@ -4364,6 +4379,7 @@ namespace DuneVector
             void Node(float x, float y) => AddPortalRuneNode(
                 vertices,
                 uvs,
+                strokeCenters,
                 triangles,
                 Point(x, y),
                 thickness * 1.8f,
@@ -4438,6 +4454,7 @@ namespace DuneVector
         private static void AddPortalRuneNode(
             List<Vector3> vertices,
             List<Vector2> uvs,
+            List<Vector2> strokeCenters,
             List<int> triangles,
             Vector2 center,
             float size,
@@ -4448,6 +4465,7 @@ namespace DuneVector
             AddPortalQuad(
                 vertices,
                 uvs,
+                strokeCenters,
                 triangles,
                 center - horizontal,
                 center + vertical,
@@ -4459,6 +4477,7 @@ namespace DuneVector
         private static void AddPortalRing(
             List<Vector3> vertices,
             List<Vector2> uvs,
+            List<Vector2> strokeCenters,
             List<int> triangles,
             float radius,
             float thickness,
@@ -4476,6 +4495,7 @@ namespace DuneVector
                 AddPortalQuad(
                     vertices,
                     uvs,
+                    strokeCenters,
                     triangles,
                     directionA * inner,
                     directionA * outer,
@@ -4488,6 +4508,7 @@ namespace DuneVector
         private static void AddPortalStroke(
             List<Vector3> vertices,
             List<Vector2> uvs,
+            List<Vector2> strokeCenters,
             List<int> triangles,
             Vector2 start,
             Vector2 end,
@@ -4503,6 +4524,7 @@ namespace DuneVector
             AddPortalQuad(
                 vertices,
                 uvs,
+                strokeCenters,
                 triangles,
                 start - normal,
                 start + normal,
@@ -4514,6 +4536,7 @@ namespace DuneVector
         private static void AddPortalQuad(
             List<Vector3> vertices,
             List<Vector2> uvs,
+            List<Vector2> strokeCenters,
             List<int> triangles,
             Vector2 a,
             Vector2 b,
@@ -4533,6 +4556,12 @@ namespace DuneVector
             uvs.Add(new Vector2(startU, 1f));
             uvs.Add(new Vector2(endU, 1f));
             uvs.Add(new Vector2(endU, 0f));
+            Vector2 startCenter = (a + b) * 0.5f;
+            Vector2 endCenter = (c + d) * 0.5f;
+            strokeCenters.Add(startCenter);
+            strokeCenters.Add(startCenter);
+            strokeCenters.Add(endCenter);
+            strokeCenters.Add(endCenter);
             triangles.Add(firstVertex);
             triangles.Add(firstVertex + 1);
             triangles.Add(firstVertex + 2);
