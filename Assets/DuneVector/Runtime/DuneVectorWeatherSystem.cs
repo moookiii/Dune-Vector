@@ -488,7 +488,9 @@ namespace DuneVector
             float closeDensity = (ambientAirborneDensity
                     * Mathf.Clamp01(_settings.AmbientAirborneSandProximityDensityMultiplier))
                 + (stormDensity * Mathf.Pow(snapshot.StormIntensity, 1.35f));
-            float frontDensity = EvaluateFrontDensity(snapshot) * Mathf.Max(0f, _settings.StormDustDensity);
+            float frontDensity = Mathf.Max(
+                ambientAirborneDensity,
+                EvaluateFrontDensity(snapshot) * Mathf.Max(0f, _settings.StormDustDensity));
             float ambientSizeMultiplier = Mathf.Lerp(
                 1f,
                 Mathf.Max(0f, _settings.AmbientAirborneSandSizeMultiplier),
