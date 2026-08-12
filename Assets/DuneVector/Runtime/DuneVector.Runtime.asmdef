@@ -4,6 +4,7 @@
     "references": [
         "FMODUnity",
         "KinematicCharacterController",
+        "Unity.ML-Agents",
         "Unity.InputSystem",
         "Unity.RenderPipelines.Core.Runtime",
         "Unity.RenderPipelines.Universal.Runtime"

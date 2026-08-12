@@ -372,6 +372,15 @@ namespace DuneVector
         public Transform FreeRoamTerminal => _freeRoamTerminal;
         public DuneVectorDesertAtlas DesertAtlas { get; private set; }
         public int ArchivedMessageCount => GetArchivedMessageCount();
+        public int HubTerminalMenuKind => (int)_hubTerminalMode;
+        public int HubTerminalSelectedIndex => _hubTerminalSelectedIndex;
+        public int HubTerminalChoiceCount => _hubTerminalMode == HubTerminalMode.Contracts ? _offers.Count : 0;
+        public bool HubTerminalConfirmValid =>
+            State == CourierRunState.Hub &&
+            _hubTerminalMode == HubTerminalMode.Contracts &&
+            _hubTerminalSelectedIndex >= 0 &&
+            _hubTerminalSelectedIndex < _offers.Count;
+        public bool IsDeploymentTransition => State == CourierRunState.TeleportingToDesert;
         public static bool IsGameplayHudSuppressed
         {
             get
@@ -471,6 +480,7 @@ namespace DuneVector
         private bool _deliveryMessageSafetyActive;
         private bool _infiniteHealthBeforeDeliveryMessage;
         private HubTerminalMode _hubTerminalMode;
+        private int _hubTerminalSelectedIndex;
         private bool _unknownRevealed;
         private bool _wasGrounded;
         private float _minimumAirVerticalSpeed;
@@ -923,16 +933,33 @@ namespace DuneVector
                 return;
             }
 
-            Keyboard keyboard = Keyboard.current;
-            if (_hubTerminalMode != HubTerminalMode.None &&
-                keyboard != null && keyboard.escapeKey.wasPressedThisFrame)
+            DroneRawInputFrame command = _playerInput != null
+                ? _playerInput.CurrentCommand
+                : default;
+            if (_hubTerminalMode != HubTerminalMode.None && command.CancelPressed)
             {
                 SetHubTerminalMode(HubTerminalMode.None);
+                _playerInput?.ConsumeContextualActions();
                 return;
             }
 
-            if (_hubTerminalMode == HubTerminalMode.None &&
-                keyboard != null && keyboard.eKey.wasPressedThisFrame &&
+            if (_hubTerminalMode == HubTerminalMode.Contracts)
+            {
+                if (_offers.Count > 0 && Mathf.Abs(command.MenuNavigate) > 0.5f)
+                {
+                    int direction = command.MenuNavigate > 0f ? 1 : -1;
+                    _hubTerminalSelectedIndex =
+                        (_hubTerminalSelectedIndex + direction + _offers.Count) % _offers.Count;
+                }
+                if (command.ConfirmPressed && HubTerminalConfirmValid)
+                {
+                    AcceptOffer(_hubTerminalSelectedIndex);
+                }
+                _playerInput?.ConsumeContextualActions();
+                return;
+            }
+
+            if (_hubTerminalMode == HubTerminalMode.None && command.InteractPressed &&
                 TryGetNearestHubTerminal(out HubTerminalMode mode, out _, out float distance, out float radius) &&
                 distance <= radius)
             {
@@ -945,6 +972,7 @@ namespace DuneVector
                     SetHubTerminalMode(mode);
                 }
             }
+            _playerInput?.ConsumeContextualActions();
         }
 
         private void UpdateActiveContract()
@@ -3019,6 +3047,10 @@ namespace DuneVector
         private void SetHubTerminalMode(HubTerminalMode mode)
         {
             _hubTerminalMode = mode;
+            if (mode == HubTerminalMode.Contracts)
+            {
+                _hubTerminalSelectedIndex = Mathf.Clamp(_hubTerminalSelectedIndex, 0, Mathf.Max(0, _offers.Count - 1));
+            }
             if (mode != HubTerminalMode.MessageArchive)
             {
                 _archiveScrollPosition = Vector2.zero;
@@ -3322,6 +3354,10 @@ namespace DuneVector
 
         private void OnGUI()
         {
+            if (DuneTrainingRuntime.Enabled)
+            {
+                return;
+            }
             EnsureStyles();
             if (_hubTerminalMode == HubTerminalMode.Contracts && State == CourierRunState.Hub)
             {
@@ -4035,6 +4071,33 @@ namespace DuneVector
                 return true;
             }
             return false;
+        }
+
+        public bool TryGetHubInteractionObservation(
+            out int terminalKind,
+            out Vector3 terminalPosition,
+            out float distance,
+            out float interactionRadius)
+        {
+            bool found = TryGetNearestHubTerminal(
+                out HubTerminalMode mode,
+                out Transform terminal,
+                out distance,
+                out interactionRadius);
+            terminalKind = (int)mode;
+            terminalPosition = terminal != null ? terminal.position : Vector3.zero;
+            return found;
+        }
+
+        public bool TryGetSelectedHubOffer(out CourierContract offer)
+        {
+            if (!HubTerminalConfirmValid)
+            {
+                offer = null;
+                return false;
+            }
+            offer = _offers[_hubTerminalSelectedIndex];
+            return offer != null;
         }
 
         private static string FormatDesignerText(string format, params object[] arguments)

@@ -14,6 +14,10 @@ namespace DuneVector
         public bool JumpHeld;
         public bool BoostHeld;
         public bool FirePressed;
+        public bool InteractPressed;
+        public float MenuNavigate;
+        public bool ConfirmPressed;
+        public bool CancelPressed;
     }
 
     [DisallowMultipleComponent]
@@ -60,6 +64,14 @@ namespace DuneVector
                 JumpHeld = jumpHeld,
                 BoostHeld = boostHeld,
                 FirePressed = (mouse != null && mouse.leftButton.wasPressedThisFrame) || gamepadFirePressed,
+                InteractPressed = keyboard != null && keyboard.eKey.wasPressedThisFrame,
+                MenuNavigate = keyboard != null
+                    ? (keyboard.rightArrowKey.wasPressedThisFrame || keyboard.downArrowKey.wasPressedThisFrame ? 1f : 0f) -
+                      (keyboard.leftArrowKey.wasPressedThisFrame || keyboard.upArrowKey.wasPressedThisFrame ? 1f : 0f)
+                    : 0f,
+                ConfirmPressed = keyboard != null &&
+                    (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame),
+                CancelPressed = keyboard != null && keyboard.escapeKey.wasPressedThisFrame,
             };
         }
     }
@@ -80,6 +92,9 @@ namespace DuneVector
         public bool InputEnabled { get; private set; } = true;
         public bool IsHazardControlLocked => _hazardControlLockTimeRemaining > 0f;
         public float HazardControlLockTimeRemaining => _hazardControlLockTimeRemaining;
+        public DroneRawInputFrame CurrentCommand => AutomatedInputEnabled
+            ? AutomatedInput
+            : InputSource != null ? InputSource.Current : default;
 
         private Quaternion _disabledMovementRotation = Quaternion.identity;
         private bool _disabledFlightStopEnabled;
@@ -108,6 +123,8 @@ namespace DuneVector
                 return;
             }
 
+            InputSource?.Capture();
+
             if (!InputEnabled)
             {
                 ClearCharacterInput();
@@ -119,7 +136,6 @@ namespace DuneVector
                 _hazardControlLockTimeRemaining = Mathf.Max(
                     0f,
                     _hazardControlLockTimeRemaining - Time.deltaTime);
-                InputSource.Capture();
                 ClearCharacterInput(true);
                 return;
             }
@@ -134,8 +150,7 @@ namespace DuneVector
                 Cursor.visible = false;
             }
 
-            InputSource.Capture();
-            DroneRawInputFrame raw = AutomatedInputEnabled ? AutomatedInput : InputSource.Current;
+            DroneRawInputFrame raw = CurrentCommand;
             Stamina?.Tick(raw.BoostHeld, Time.deltaTime);
             DroneControlInput characterInput = new DroneControlInput
             {
@@ -193,6 +208,21 @@ namespace DuneVector
         {
             AutomatedInputEnabled = false;
             AutomatedInput = default;
+        }
+
+        public void ConsumeContextualActions()
+        {
+            if (!AutomatedInputEnabled)
+            {
+                return;
+            }
+
+            DroneRawInputFrame consumed = AutomatedInput;
+            consumed.InteractPressed = false;
+            consumed.MenuNavigate = 0f;
+            consumed.ConfirmPressed = false;
+            consumed.CancelPressed = false;
+            AutomatedInput = consumed;
         }
 
         public void SetInputEnabled(bool enabled)

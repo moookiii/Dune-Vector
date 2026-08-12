@@ -54,6 +54,9 @@ namespace DuneVector
         public float CollisionRadius { get; private set; }
         public bool IsPriorityTarget { get; private set; }
         public bool IsValid => _targetable && isActiveAndEnabled && _health != null && !_health.IsDead;
+        public float NormalizedHealth => _health != null && _health.MaximumHealth > 0f
+            ? Mathf.Clamp01(_health.CurrentHealth / _health.MaximumHealth)
+            : 0f;
         public static IReadOnlyList<EnemyCombatTarget> ActiveTargets => Targets;
 
         private EnemyHealth _health;

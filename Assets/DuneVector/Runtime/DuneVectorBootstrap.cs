@@ -58,6 +58,7 @@ namespace DuneVector
         public GroundExploderTuning GroundExploders => RuntimeSettings.GroundExploders;
         public EnemySpawnSafetyTuning EnemySpawnSafety => RuntimeSettings.EnemySpawnSafety;
         public RingTuning Rings => RuntimeSettings.Rings;
+        public PufferTrainingTuning PufferTraining => RuntimeSettings.PufferTraining;
         public DuneFieldSettings DuneGeneration
         {
             get => RuntimeSettings.DuneGeneration;
@@ -332,6 +333,7 @@ namespace DuneVector
             }
             Instance = this;
             Time.timeScale = 1f;
+            bool headlessTraining = DuneTrainingRuntime.Enabled;
 
             if (RuntimeSettings == null)
             {
@@ -344,10 +346,14 @@ namespace DuneVector
                     this);
             }
             RuntimeSettings.EnsureInitialized();
+            if (headlessTraining)
+            {
+                DuneGeneration.WorldSeed = DuneTrainingRuntime.ReadWorldSeed(DuneGeneration.WorldSeed);
+            }
             ApplyRetroCrtScanlines();
 
-            QualitySettings.vSyncCount = Mathf.Clamp(RuntimeSettings.Performance.VSyncCount, 0, 4);
-            Application.targetFrameRate = Mathf.Clamp(RuntimeSettings.Performance.TargetFrameRate, -1, 360);
+            QualitySettings.vSyncCount = headlessTraining ? 0 : Mathf.Clamp(RuntimeSettings.Performance.VSyncCount, 0, 4);
+            Application.targetFrameRate = headlessTraining ? -1 : Mathf.Clamp(RuntimeSettings.Performance.TargetFrameRate, -1, 360);
             if (Debug.isDebugBuild)
             {
                 Application.runInBackground = RuntimeSettings.Performance.RunDevelopmentBuildsInBackground;
@@ -379,8 +385,11 @@ namespace DuneVector
             BuildWorld();
             BuildDroneAndCamera();
             BuildWindFields();
-            BuildAudio();
-            BuildMusicReactiveSky();
+            if (!headlessTraining)
+            {
+                BuildAudio();
+                BuildMusicReactiveSky();
+            }
             BuildWeather();
             BuildInterface();
             BuildEnemyGameplay();
@@ -393,8 +402,11 @@ namespace DuneVector
             BuildDroneWeapon();
             BuildEnvironmentalHazards();
 
-            DuneVectorRendererFrustumCuller rendererCuller = gameObject.AddComponent<DuneVectorRendererFrustumCuller>();
-            rendererCuller.Initialize(DroneCamera.Camera, RuntimeSettings.RendererFrustumCulling);
+            if (!headlessTraining)
+            {
+                DuneVectorRendererFrustumCuller rendererCuller = gameObject.AddComponent<DuneVectorRendererFrustumCuller>();
+                rendererCuller.Initialize(DroneCamera.Camera, RuntimeSettings.RendererFrustumCulling);
+            }
 
 #if UNITY_EDITOR
             if (UnityEditor.EditorPrefs.GetBool("DuneVector.ValidationRequested", false))

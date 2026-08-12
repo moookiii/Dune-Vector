@@ -733,7 +733,7 @@ namespace DuneVector
 
         internal void LateTickStreamedObjects(float deltaTime)
         {
-            if (!_initialized)
+            if (!_initialized || DuneTrainingRuntime.Enabled)
             {
                 return;
             }
