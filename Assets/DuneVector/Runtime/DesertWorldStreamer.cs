@@ -3387,7 +3387,11 @@ namespace DuneVector
             else if (type == TraversalRingType.Coin)
             {
                 CoinRingReward reward = ringObject.AddComponent<CoinRingReward>();
-                reward.Initialize(player != null ? player.GetComponent<DroneGoldWallet>() : null, ringTuning.GoldReward);
+                reward.Initialize(
+                    player != null ? player.GetComponent<DroneGoldWallet>() : null,
+                    ringTuning.GoldReward,
+                    ringTuning.CoinRingMinimumGoldMultiplier,
+                    ringTuning.CoinRingMaximumGoldMultiplier);
                 ring.SetCollectibleReward(reward);
             }
             ring.BoostRingActiveScale = ringTuning.BoostRingActiveScale;

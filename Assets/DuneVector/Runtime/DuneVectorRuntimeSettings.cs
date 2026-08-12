@@ -4464,7 +4464,12 @@ namespace DuneVector
         [Tooltip("Expected coin-ring count per streamed terrain chunk.")]
         [Range(0f, 1f)] public float CoinRingDensityPerChunk = 0.12f;
         [Min(0.75f)] public float CoinRingRadius = 4.2f;
+        [Tooltip("Base gold awarded by a coin ring before its random integer multiplier is applied.")]
         [Min(1)] public int GoldReward = 25;
+        [Tooltip("Lowest integer multiplier a coin ring can apply to its base gold reward.")]
+        [Min(1)] public int CoinRingMinimumGoldMultiplier = 1;
+        [Tooltip("Highest integer multiplier a coin ring can apply to its base gold reward (inclusive).")]
+        [Min(1)] public int CoinRingMaximumGoldMultiplier = 5;
         [Min(0)] public int StartingGold;
         [Tooltip("Target size of the imported coin model at the center of a coin ring.")]
         [Min(0.1f)] public float CoinModelScale = 2.4f;

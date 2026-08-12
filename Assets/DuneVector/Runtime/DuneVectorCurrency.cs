@@ -44,10 +44,13 @@ namespace DuneVector
         private DroneGoldWallet _wallet;
         private int _amount;
 
-        public void Initialize(DroneGoldWallet wallet, int amount)
+        public void Initialize(DroneGoldWallet wallet, int baseAmount, int minimumMultiplier, int maximumMultiplier)
         {
             _wallet = wallet;
-            _amount = Mathf.Max(1, amount);
+            int clampedMinimumMultiplier = Mathf.Max(1, minimumMultiplier);
+            int clampedMaximumMultiplier = Mathf.Max(clampedMinimumMultiplier, maximumMultiplier);
+            int multiplier = UnityEngine.Random.Range(clampedMinimumMultiplier, clampedMaximumMultiplier + 1);
+            _amount = Mathf.Max(1, baseAmount) * multiplier;
         }
 
         public void BindTargets(DroneHealth health, DroneGoldWallet wallet)
