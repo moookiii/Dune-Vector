@@ -845,7 +845,8 @@ namespace DuneVector
             Vector3 routeDirection = Quaternion.AngleAxis(routeTurn * Mathf.Rad2Deg, Vector3.up) * spawnDirection;
             float routeDistance = Random.Range(
                 Mathf.Min(_settings.MinimumRouteDistance, _settings.MaximumRouteDistance),
-                Mathf.Max(_settings.MinimumRouteDistance, _settings.MaximumRouteDistance));
+                Mathf.Max(_settings.MinimumRouteDistance, _settings.MaximumRouteDistance)) *
+                _settings.ConvoyRouteDistanceMultiplier;
             destination = start + (routeDirection * routeDistance);
             destination.y = _world.SampleHeightAtLocal(destination.x, destination.z) + _settings.FlightHeightAboveTerrain;
         }

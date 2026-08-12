@@ -2649,6 +2649,8 @@ namespace DuneVector
         [Range(0, 6)] public int ConvoyEscortCount;
         [Range(1, 10)] public int ConvoyAttackerCount;
         [Min(0f)] public float ConvoyEscortSpacing;
+        [Tooltip("Multiplier applied to the event route distance for moving convoy encounters.")]
+        [Min(0.01f)] public float ConvoyRouteDistanceMultiplier = 1f;
         [Range(0f, 1f)] public float ConvoyMinimumRewardFraction;
         [Min(0)] public int ConvoyMaximumReward;
 
