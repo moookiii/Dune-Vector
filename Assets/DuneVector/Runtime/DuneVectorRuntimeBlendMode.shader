@@ -2,7 +2,7 @@ Shader "Dune Vector/Runtime Blend Mode"
 {
     Properties
     {
-        [HDR] _BaseColor("Color", Color) = (1, 1, 1, 1)
+        [HDR] _BaseColor("Color", Color) = (1, 1, 1, 0.5)
         [Enum(UnityEngine.Rendering.BlendOp)] _BlendOperation("Blend Operation", Float) = 3
     }
 

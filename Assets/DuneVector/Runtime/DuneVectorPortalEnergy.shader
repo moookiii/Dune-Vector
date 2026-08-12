@@ -6,6 +6,7 @@ Shader "DuneVector/URP Portal Energy"
         _Opacity("Opacity", Range(0, 1)) = 0.8
         _Solidity("Solidity", Range(0, 1)) = 0
         _BloomIntensity("Bloom Intensity", Float) = 2
+        [Toggle] _EmissionEnabled("Emission Enabled", Float) = 1
         _CoreMode("Core Mode", Float) = 0
         _DistanceFade("Distance Fade", Range(0, 1)) = 1
         _DistanceBloomBoost("Distance Bloom Boost", Float) = 1
@@ -64,6 +65,7 @@ Shader "DuneVector/URP Portal Energy"
                 float _Opacity;
                 float _Solidity;
                 float _BloomIntensity;
+                float _EmissionEnabled;
                 float _CoreMode;
                 float _DistanceFade;
                 float _DistanceBloomBoost;
@@ -200,6 +202,7 @@ Shader "DuneVector/URP Portal Energy"
                 alpha = saturate(alpha * _PortalColor.a);
                 float3 energy = _PortalColor.rgb * pulse * _BloomIntensity * travelBrightness *
                     featureBrightness * _DistanceBloomBoost * _ActivationBloomBoost * particleTint;
+                energy = lerp(saturate(energy), energy, saturate(_EmissionEnabled));
 
                 // The colour is premultiplied by coverage either way; only the destination
                 // factor changes, so solidity decides how much background the stroke hides

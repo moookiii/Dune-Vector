@@ -340,7 +340,8 @@ namespace DuneVector
                 rings.FlightRingEmissionColor,
                 rings,
                 rings.FlightPortalSolidity,
-                rings.FlightPortalBlendOperation);
+                rings.FlightPortalBlendOperation,
+                rings.FlightPortalEmissionEnabled);
             UpperFlightRing = CreatePortal("Portal - Upper Flight Violet", rings.UpperFlightRingEmissionColor, rings, rings.UpperFlightPortalSolidity);
             HealthRing = CreatePortal("Portal - Health Green", rings.HealthRingEmissionColor, rings, rings.HealthPortalSolidity);
             HealthHeart = CreateLit(
@@ -951,7 +952,8 @@ namespace DuneVector
             Color color,
             RingTuning settings,
             float solidity,
-            BlendOp blendOperation = BlendOp.Add)
+            BlendOp blendOperation = BlendOp.Add,
+            bool emissionEnabled = true)
         {
             Shader shader = Shader.Find("DuneVector/URP Portal Energy");
             if (shader == null)
@@ -965,6 +967,7 @@ namespace DuneVector
             material.SetFloat("_Opacity", settings.PortalLineOpacity);
             material.SetFloat("_Solidity", Mathf.Clamp01(solidity));
             material.SetInt("_PortalBlendOp", (int)blendOperation);
+            material.SetFloat("_EmissionEnabled", emissionEnabled ? 1f : 0f);
             material.SetFloat("_BloomIntensity", settings.PortalBloomIntensity);
             material.SetFloat("_CoreMode", 0f);
             material.SetFloat("_DistanceFade", 1f);

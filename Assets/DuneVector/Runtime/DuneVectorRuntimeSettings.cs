@@ -4229,6 +4229,8 @@ namespace DuneVector
         [Range(0f, 1f)] public float PortalLineOpacity = 0.9f;
         [Tooltip("Blend operation used by first-layer blue flight portals. Reverse Subtract removes the portal energy colour from the background instead of adding it.")]
         public BlendOp FlightPortalBlendOperation = BlendOp.Add;
+        [Tooltip("When disabled, first-layer blue flight portals use a clamped non-HDR color so they do not contribute emissive bloom.")]
+        public bool FlightPortalEmissionEnabled = true;
 
         [Header("Portal Solidity")]
         [Tooltip("How much of the background a portal's strokes hide. 0 is a purely additive glow, which can only add light and so washes any hue towards white over bright sand. Raise it when the portal's colour needs to survive against a bright background. Empty space between the strokes stays transparent at any value.")]
@@ -7085,7 +7087,7 @@ namespace DuneVector
 
         [ColorUsage(false, true)]
         [Tooltip("Tint and alpha used by the cube's transparent shader.")]
-        public Color Color = Color.white;
+        public Color Color = new Color(1f, 1f, 1f, 0.5f);
     }
 
     [CreateAssetMenu(fileName = "Dune Vector Runtime Settings", menuName = "Dune Vector/Runtime Settings", order = 0)]
