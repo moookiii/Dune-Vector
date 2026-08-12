@@ -6370,6 +6370,8 @@ namespace DuneVector
 
         [Header("Camera")]
         [Min(0f)] public float CameraLookSensitivity = 0.085f;
+        [Tooltip("Maximum camera rotation speed from the controller right stick, in degrees per second.")]
+        [Min(0f)] public float ControllerLookSpeed;
         [Tooltip("Lowest mouse sensitivity the pause-menu slider can select.")]
         [Min(0.001f)] public float MinimumCameraLookSensitivity = 0.02f;
         [Tooltip("Highest mouse sensitivity the pause-menu slider can select.")]
@@ -6449,6 +6451,7 @@ namespace DuneVector
         public void ApplyTo(DroneCameraController camera)
         {
             camera.LookSensitivity = CameraLookSensitivity;
+            camera.ConfigureControllerLook(ControllerLookSpeed);
             camera.RotationSharpness = CameraRotationSharpness;
             camera.FollowingSharpness = CameraFollowSharpness;
             camera.Camera.nearClipPlane = CameraNearClipPlane;

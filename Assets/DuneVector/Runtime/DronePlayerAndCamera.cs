@@ -8,6 +8,7 @@ namespace DuneVector
     {
         public Vector2 Move;
         public Vector2 LookDelta;
+        public Vector2 LookRate;
         public float Scroll;
         public bool JumpPressed;
         public bool JumpHeld;
@@ -24,6 +25,7 @@ namespace DuneVector
         {
             Keyboard keyboard = Keyboard.current;
             Mouse mouse = Mouse.current;
+            Gamepad gamepad = Gamepad.current;
 
             Vector2 move = Vector2.zero;
             bool jumpPressed = false;
@@ -38,15 +40,26 @@ namespace DuneVector
                 boostHeld = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
             }
 
+            if (gamepad != null)
+            {
+                move += gamepad.leftStick.ReadValue();
+                jumpPressed |= gamepad.buttonSouth.wasPressedThisFrame;
+                jumpHeld |= gamepad.buttonSouth.isPressed;
+                boostHeld |= gamepad.buttonEast.isPressed;
+            }
+
+            bool gamepadFirePressed = gamepad != null && gamepad.buttonWest.wasPressedThisFrame;
+
             Current = new DroneRawInputFrame
             {
                 Move = Vector2.ClampMagnitude(move, 1f),
                 LookDelta = mouse != null ? mouse.delta.ReadValue() : Vector2.zero,
+                LookRate = gamepad != null ? gamepad.rightStick.ReadValue() : Vector2.zero,
                 Scroll = mouse != null ? mouse.scroll.ReadValue().y / 120f : 0f,
                 JumpPressed = jumpPressed,
                 JumpHeld = jumpHeld,
                 BoostHeld = boostHeld,
-                FirePressed = mouse != null && mouse.leftButton.wasPressedThisFrame,
+                FirePressed = (mouse != null && mouse.leftButton.wasPressedThisFrame) || gamepadFirePressed,
             };
         }
     }
@@ -111,7 +124,10 @@ namespace DuneVector
                 return;
             }
 
-            bool weaponInputAllowed = AutomatedInputEnabled || Cursor.lockState == CursorLockMode.Locked;
+            bool weaponInputAllowed = AutomatedInputEnabled ||
+                                      Cursor.lockState == CursorLockMode.Locked ||
+                                      (Gamepad.current != null &&
+                                       Gamepad.current.buttonWest.wasPressedThisFrame);
             if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
             {
                 Cursor.lockState = CursorLockMode.Locked;
@@ -157,7 +173,7 @@ namespace DuneVector
             Vector2 look = Cursor.lockState == CursorLockMode.Locked || AutomatedInputEnabled
                 ? raw.LookDelta
                 : Vector2.zero;
-            CharacterCamera.UpdateWithInput(Time.deltaTime, look, raw.Scroll);
+            CharacterCamera.UpdateWithInput(Time.deltaTime, look, raw.LookRate, raw.Scroll);
 
             if (AutomatedInputEnabled && raw.LookDelta.sqrMagnitude > 0f)
             {
@@ -287,6 +303,7 @@ namespace DuneVector
         [Range(-89f, 89f)] public float MinPitch = -18f;
         [Range(-89f, 89f)] public float MaxPitch = 58f;
         [Min(0f)] public float LookSensitivity = 0.085f;
+        public float ControllerLookSpeed { get; private set; }
         [Min(0f)] public float RotationSharpness = 30f;
 
         [Header("Obstruction")]
@@ -386,7 +403,21 @@ namespace DuneVector
             SnapToTarget();
         }
 
+        public void ConfigureControllerLook(float lookSpeed)
+        {
+            ControllerLookSpeed = Mathf.Max(0f, lookSpeed);
+        }
+
         public void UpdateWithInput(float deltaTime, Vector2 lookDelta, float scrollInput)
+        {
+            UpdateWithInput(deltaTime, lookDelta, Vector2.zero, scrollInput);
+        }
+
+        public void UpdateWithInput(
+            float deltaTime,
+            Vector2 lookDelta,
+            Vector2 lookRate,
+            float scrollInput)
         {
             if (FollowTransform == null || Camera == null)
             {
@@ -396,11 +427,16 @@ namespace DuneVector
             if (InvertX)
             {
                 lookDelta.x *= -1f;
+                lookRate.x *= -1f;
             }
             if (InvertY)
             {
                 lookDelta.y *= -1f;
+                lookRate.y *= -1f;
             }
+
+            Vector2 lookAngles = (lookDelta * LookSensitivity) +
+                                 (lookRate * ControllerLookSpeed * deltaTime);
 
             bool isFlying = SpeedSource != null && SpeedSource.CurrentMode == DroneTraversalMode.Flight;
             Quaternion desiredRotation;
@@ -411,9 +447,9 @@ namespace DuneVector
                     _flightTargetRotation = transform.rotation;
                 }
 
-                _flightTargetRotation = Quaternion.AngleAxis(lookDelta.x * LookSensitivity, Vector3.up) * _flightTargetRotation;
+                _flightTargetRotation = Quaternion.AngleAxis(lookAngles.x, Vector3.up) * _flightTargetRotation;
                 Vector3 pitchAxis = _flightTargetRotation * Vector3.right;
-                _flightTargetRotation = Quaternion.AngleAxis(-lookDelta.y * LookSensitivity, pitchAxis) * _flightTargetRotation;
+                _flightTargetRotation = Quaternion.AngleAxis(-lookAngles.y, pitchAxis) * _flightTargetRotation;
                 desiredRotation = _flightTargetRotation;
             }
             else
@@ -429,14 +465,14 @@ namespace DuneVector
                     _targetPitch = Mathf.Clamp(-Mathf.Asin(Mathf.Clamp(exitForward.y, -1f, 1f)) * Mathf.Rad2Deg, CurrentMinPitch, CurrentMaxPitch);
                 }
 
-                Quaternion yawRotation = Quaternion.AngleAxis(lookDelta.x * LookSensitivity, Vector3.up);
+                Quaternion yawRotation = Quaternion.AngleAxis(lookAngles.x, Vector3.up);
                 PlanarDirection = Vector3.ProjectOnPlane(yawRotation * PlanarDirection, Vector3.up).normalized;
                 if (PlanarDirection.sqrMagnitude < 0.001f)
                 {
                     PlanarDirection = Vector3.forward;
                 }
 
-                _targetPitch -= lookDelta.y * LookSensitivity;
+                _targetPitch -= lookAngles.y;
                 _targetPitch = Mathf.Clamp(_targetPitch, CurrentMinPitch, CurrentMaxPitch);
                 Quaternion planarRotation = Quaternion.LookRotation(PlanarDirection, Vector3.up);
                 desiredRotation = planarRotation * Quaternion.Euler(_targetPitch, 0f, 0f);
