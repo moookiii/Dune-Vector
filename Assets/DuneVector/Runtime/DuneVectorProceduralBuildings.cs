@@ -85,7 +85,8 @@ namespace DuneVector
 
         private void Update()
         {
-            if (_world == null || _settings == null)
+            if ((DuneTrainingRuntime.Enabled && !DuneTrainingRuntime.VisualEvaluation) ||
+                _world == null || _settings == null)
             {
                 return;
             }

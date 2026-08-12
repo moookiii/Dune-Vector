@@ -337,7 +337,8 @@ namespace DuneVector
 
         private void LateUpdate()
         {
-            if (_settings == null || !_settings.Enabled || Backend != DuneVectorInstanceRenderBackend.RenderMeshInstanced)
+            if ((DuneTrainingRuntime.Enabled && !DuneTrainingRuntime.VisualEvaluation) ||
+                _settings == null || !_settings.Enabled || Backend != DuneVectorInstanceRenderBackend.RenderMeshInstanced)
             {
                 return;
             }
