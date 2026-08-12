@@ -314,7 +314,7 @@ namespace DuneVector
 
         private void Save()
         {
-            if (DuneTrainingRuntime.Enabled && !DuneTrainingRuntime.VisualEvaluation)
+            if (DuneTrainingRuntime.Enabled)
             {
                 return;
             }
@@ -3364,7 +3364,7 @@ namespace DuneVector
 
         private void OnGUI()
         {
-            if (DuneTrainingRuntime.Enabled)
+            if (DuneTrainingRuntime.Enabled && !DuneTrainingRuntime.VisualEvaluation)
             {
                 return;
             }
