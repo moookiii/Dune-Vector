@@ -196,7 +196,7 @@ namespace DuneVector
         private void LateUpdate()
         {
             if (_drone == null || _camera == null || _settings == null || !_settings.Enabled
-                || (_courierGame != null && _courierGame.State == CourierRunState.Hub))
+                || (_courierGame != null && !_courierGame.AllowsPlayerCombatTargeting))
             {
                 SelectTarget(null);
                 return;

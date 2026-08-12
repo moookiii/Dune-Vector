@@ -351,6 +351,10 @@ namespace DuneVector
         }
 
         public CourierRunState State { get; private set; }
+        public bool AllowsPlayerCombatTargeting =>
+            State == CourierRunState.FreeRoam ||
+            State == CourierRunState.FindPackage ||
+            State == CourierRunState.Delivering;
         public CourierContract ActiveContract { get; private set; }
         public Transform ActiveObjective { get; private set; }
         public LogicalPosition ActiveObjectiveLogicalPosition { get; private set; }
