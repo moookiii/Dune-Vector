@@ -86,6 +86,7 @@ namespace DuneVector
             _settings = settings;
             _savePath = Path.Combine(Application.persistentDataPath, SaveFileName);
             _imageDirectory = Path.Combine(Application.persistentDataPath, ImageFolderName);
+            _data = new PhotographySaveData();
             if (DuneTrainingRuntime.Enabled)
             {
                 return;
