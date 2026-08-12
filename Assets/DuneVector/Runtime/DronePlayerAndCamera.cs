@@ -24,6 +24,10 @@ namespace DuneVector
     public sealed class DroneInput : MonoBehaviour
     {
         public DroneRawInputFrame Current { get; private set; }
+        private DroneTuning _tuning;
+        private bool _menuAxisEngaged;
+
+        public void Initialize(DroneTuning tuning) => _tuning = tuning;
 
         public void Capture()
         {
@@ -47,12 +51,17 @@ namespace DuneVector
             if (gamepad != null)
             {
                 move += gamepad.leftStick.ReadValue();
+                if (gamepad.leftTrigger.ReadValue() >= ControllerTriggerThreshold)
+                {
+                    move.y += 1f;
+                }
                 jumpPressed |= gamepad.buttonSouth.wasPressedThisFrame;
                 jumpHeld |= gamepad.buttonSouth.isPressed;
-                boostHeld |= gamepad.buttonEast.isPressed;
+                boostHeld |= gamepad.rightTrigger.ReadValue() >= ControllerTriggerThreshold;
             }
 
             bool gamepadFirePressed = gamepad != null && gamepad.buttonWest.wasPressedThisFrame;
+            float gamepadMenuNavigate = ReadGamepadMenuNavigate(gamepad);
 
             Current = new DroneRawInputFrame
             {
@@ -66,14 +75,42 @@ namespace DuneVector
                 FirePressed = (mouse != null && mouse.leftButton.wasPressedThisFrame) || gamepadFirePressed,
                 InteractPressed = (keyboard != null && keyboard.eKey.wasPressedThisFrame) ||
                                   (gamepad != null && gamepad.buttonNorth.wasPressedThisFrame),
-                MenuNavigate = keyboard != null
+                MenuNavigate = (keyboard != null
                     ? (keyboard.rightArrowKey.wasPressedThisFrame || keyboard.downArrowKey.wasPressedThisFrame ? 1f : 0f) -
                       (keyboard.leftArrowKey.wasPressedThisFrame || keyboard.upArrowKey.wasPressedThisFrame ? 1f : 0f)
-                    : 0f,
-                ConfirmPressed = keyboard != null &&
-                    (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame),
-                CancelPressed = keyboard != null && keyboard.escapeKey.wasPressedThisFrame,
+                    : 0f) + gamepadMenuNavigate,
+                ConfirmPressed = (keyboard != null &&
+                    (keyboard.enterKey.wasPressedThisFrame || keyboard.numpadEnterKey.wasPressedThisFrame)) ||
+                    (gamepad != null && gamepad.buttonSouth.wasPressedThisFrame),
+                CancelPressed = (keyboard != null && keyboard.escapeKey.wasPressedThisFrame) ||
+                                (gamepad != null && gamepad.buttonEast.wasPressedThisFrame),
             };
+        }
+
+        private float ControllerTriggerThreshold => _tuning != null ? _tuning.ControllerTriggerThreshold : 1f;
+
+        private float ReadGamepadMenuNavigate(Gamepad gamepad)
+        {
+            if (gamepad == null)
+            {
+                _menuAxisEngaged = false;
+                return 0f;
+            }
+
+            float axis = gamepad.dpad.ReadValue().y + gamepad.leftStick.ReadValue().y;
+            float deadzone = _tuning != null ? _tuning.ControllerMenuDeadzone : 1f;
+            if (Mathf.Abs(axis) < deadzone)
+            {
+                _menuAxisEngaged = false;
+                return 0f;
+            }
+            if (_menuAxisEngaged)
+            {
+                return 0f;
+            }
+
+            _menuAxisEngaged = true;
+            return axis < 0f ? 1f : -1f;
         }
     }
 

@@ -6381,6 +6381,12 @@ namespace DuneVector
         [Min(0.001f)] public float CameraNearClipPlane = 0.01f;
         [Min(0.01f)] public float CameraFarClipPlane = 10000f;
 
+        [Header("Controller Input")]
+        [Tooltip("Trigger pressure required for controller boost and forward-thrust actions.")]
+        [Range(0f, 1f)] public float ControllerTriggerThreshold;
+        [Tooltip("Stick or D-pad magnitude required before a controller menu navigation step is registered.")]
+        [Range(0f, 1f)] public float ControllerMenuDeadzone;
+
         [Header("Camera Anti-Aliasing (URP)")]
         public DuneVectorCameraAntiAliasingMode CameraAntiAliasingMode =
             DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing;
@@ -7115,8 +7121,10 @@ namespace DuneVector
         [Min(1)] public int EpisodeStepBudget = 12000;
 
         [Header("Stage 2 Ground Driving")]
-        [Min(10f)] public float Stage2MinimumRouteDistance = 120f;
-        [Min(10f)] public float Stage2MaximumRouteDistance = 250f;
+        [Min(10f)] public float Stage2MinimumRouteDistance = 60f;
+        [Min(10f)] public float Stage2MaximumRouteDistance = 120f;
+        [Min(1)] public int Stage2DivergenceStepBudget = 80;
+        [Min(0f)] public float Stage2DivergenceDistance = 20f;
 
         [Header("Observation Scales")]
         [Min(1f)] public float ObjectiveDistanceScale = 1500f;
@@ -7130,6 +7138,9 @@ namespace DuneVector
         [Min(0f)] public float HubPotentialScale = 0.0005f;
         [Min(0f)] public float ObjectivePotentialScale = 0.0008f;
         [Min(0f)] public float MaximumObjectivePotentialReward = 0.05f;
+        [Min(1f)] public float Stage2DistanceIncreasePenaltyMultiplier = 3f;
+        [Min(0f)] public float Stage2HeadingAlignmentReward = 0.00005f;
+        [Min(0f)] public float Stage2DivergencePenalty = 0.1f;
         [Min(0f)] public float ValidDeploymentReward = 0.02f;
 
         [Header("Gameplay Events")]

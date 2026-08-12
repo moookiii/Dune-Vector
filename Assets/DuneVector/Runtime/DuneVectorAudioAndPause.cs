@@ -1408,6 +1408,9 @@ namespace DuneVector
         private float _scale = 1f;
         private float _openFade;
         private float _uiAlpha = 1f;
+        private int _controllerSelection;
+        private bool _controllerNavigationEngaged;
+        private int _drawControllerIndex = -1;
         private readonly GUIContent _glyphContent = new GUIContent();
 
         private enum PauseButtonKind
@@ -1511,10 +1514,22 @@ namespace DuneVector
             {
                 return;
             }
-            if ((_health == null || !_health.IsDead) &&
-                Keyboard.current != null &&
-                Keyboard.current.escapeKey.wasPressedThisFrame)
+            Gamepad gamepad = Gamepad.current;
+            bool pausePressed = (Keyboard.current != null && Keyboard.current.escapeKey.wasPressedThisFrame) ||
+                                (gamepad != null && gamepad.startButton.wasPressedThisFrame);
+            if ((_health == null || !_health.IsDead) && pausePressed)
             {
+                HandlePauseBack();
+            }
+
+            if (IsPaused && gamepad != null)
+            {
+                HandleControllerMenu(gamepad);
+            }
+        }
+
+        private void HandlePauseBack()
+        {
                 if (IsPaused && (_showControls || _controlsFade > 0f))
                 {
                     _showControls = false;
@@ -1549,6 +1564,59 @@ namespace DuneVector
                 {
                     SetPaused(!IsPaused);
                 }
+        }
+
+        private void HandleControllerMenu(Gamepad gamepad)
+        {
+            if (_showControls || _showVideoSettings || _showMusicVisualizerSettings ||
+                _showShop || _showGallery || _showCompendium)
+            {
+                if (gamepad.buttonEast.wasPressedThisFrame)
+                {
+                    HandlePauseBack();
+                }
+                return;
+            }
+
+            float navigation = gamepad.dpad.ReadValue().y + gamepad.leftStick.ReadValue().y;
+            float deadzone = _playerTuning != null ? _playerTuning.ControllerMenuDeadzone : 1f;
+            if (Mathf.Abs(navigation) < deadzone)
+            {
+                _controllerNavigationEngaged = false;
+            }
+            else if (!_controllerNavigationEngaged)
+            {
+                _controllerNavigationEngaged = true;
+                int direction = navigation < 0f ? 1 : -1;
+                _controllerSelection = (_controllerSelection + direction + 10) % 10;
+            }
+
+            if (gamepad.buttonSouth.wasPressedThisFrame)
+            {
+                ActivateControllerSelection();
+            }
+        }
+
+        private void ActivateControllerSelection()
+        {
+            switch (_controllerSelection)
+            {
+                case 0: SetPaused(false); break;
+                case 1: _showGallery = true; break;
+                case 2: _showCompendium = true; _photography?.ShowCompendium(); break;
+                case 3: _showShop = true; _shopView?.Open(); break;
+                case 4:
+                    if (_courierGame != null && _courierGame.State != CourierRunState.Hub)
+                    {
+                        SetPaused(false);
+                        _courierGame.RequestReturnToHub();
+                    }
+                    break;
+                case 5: RestartRun(); break;
+                case 6: QuitGame(); break;
+                case 7: _showControls = true; break;
+                case 8: _showMusicVisualizerSettings = true; break;
+                case 9: _showVideoSettings = true; break;
             }
         }
 
@@ -1615,6 +1683,8 @@ namespace DuneVector
             if (paused)
             {
                 _openFade = 0f;
+                _controllerSelection = 0;
+                _controllerNavigationEngaged = true;
             }
             Time.timeScale = paused || DuneVectorMapHUD.IsWorldMapPausingGameplay
                 ? 0f
@@ -1757,6 +1827,7 @@ namespace DuneVector
 
         private void DrawMainPauseScreen(float scale)
         {
+            _drawControllerIndex = 0;
             Rect panel = CalculatePanelRect(scale);
             DrawPanelChrome(panel, scale);
 
@@ -1913,6 +1984,7 @@ namespace DuneVector
             }
 
             DrawFooterHint(content, "ESC  /  RETURN TO THE DESERT", scale);
+            _drawControllerIndex = -1;
         }
 
         private void DrawVideoSettingsScreen(float scale)
@@ -2984,7 +3056,10 @@ namespace DuneVector
         private bool DrawMenuButton(Rect rect, string label, PauseButtonKind kind, bool opensScreen = false)
         {
             bool interactive = GUI.enabled;
-            bool hovered = interactive && rect.Contains(Event.current.mousePosition);
+            bool controllerSelected = _drawControllerIndex >= 0 &&
+                                      _drawControllerIndex++ == _controllerSelection;
+            bool hovered = interactive &&
+                           (rect.Contains(Event.current.mousePosition) || controllerSelected);
             bool held = hovered && Mouse.current != null && Mouse.current.leftButton.isPressed;
 
             Color fill;

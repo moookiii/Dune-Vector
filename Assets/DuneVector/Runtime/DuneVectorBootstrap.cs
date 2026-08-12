@@ -596,6 +596,7 @@ namespace DuneVector
             GameObject playerObject = new GameObject("Player Input and Camera Driver");
             playerObject.transform.SetParent(transform, false);
             DroneInput input = playerObject.AddComponent<DroneInput>();
+            input.Initialize(PlayerTuning);
             Player = playerObject.AddComponent<DronePlayer>();
             Player.Character = Drone;
             Player.CharacterCamera = DroneCamera;
