@@ -796,6 +796,7 @@ namespace DuneVector
     {
         private const string ObjectiveHexagonResourcePath = "UI/ObjectiveIndicatorDoubleHexagon";
         private const string ObjectiveArrowResourcePath = "UI/ObjectiveIndicatorArrow";
+        private const string FlightRaceObjectiveResourcePath = "UI/FlightRaceObjectiveIcon";
 
         public bool Enabled = true;
         public bool RandomizeLocationsEachPlay = true;
@@ -882,6 +883,10 @@ namespace DuneVector
         [Range(0.25f, 2f)] public float ObjectiveIndicatorMaximumScale = 1.25f;
         public Texture2D ObjectiveIndicatorHexagonIcon;
         public Texture2D ObjectiveIndicatorArrowIcon;
+        [Tooltip("Objective icon used for timed express flight races.")]
+        public Texture2D FlightRaceObjectiveIndicatorIcon;
+        [Tooltip("Radius of the express flight-race objective icon in authored HUD pixels.")]
+        [Min(8f)] public float FlightRaceObjectiveIndicatorRadius = 40.5f;
         [Min(8f)] public float ObjectiveIndicatorHexagonRadius = 27f;
         [Min(4f)] public float ObjectiveIndicatorArrowLength = 22f;
         [Min(4f)] public float ObjectiveIndicatorArrowWidth = 21f;
@@ -914,6 +919,7 @@ namespace DuneVector
         {
             ObjectiveIndicatorHexagonIcon ??= Resources.Load<Texture2D>(ObjectiveHexagonResourcePath);
             ObjectiveIndicatorArrowIcon ??= Resources.Load<Texture2D>(ObjectiveArrowResourcePath);
+            FlightRaceObjectiveIndicatorIcon ??= Resources.Load<Texture2D>(FlightRaceObjectiveResourcePath);
         }
     }
 
@@ -2726,6 +2732,8 @@ namespace DuneVector
         public string HudRewardStatusFormat;
         public string HudFailureStatusLabel;
         [Min(8f)] public float ObjectiveMarkerSize;
+        [Tooltip("World-objective icon used for moving convoy attacks.")]
+        public Texture2D ConvoyObjectiveMarkerIcon;
         [Min(0f)] public float ObjectiveMarkerEdgePadding;
         [Min(80f)] public float ObjectiveMarkerLabelWidth;
         [Min(12f)] public float ObjectiveMarkerLabelHeight;

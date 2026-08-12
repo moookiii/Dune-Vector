@@ -4315,12 +4315,15 @@ namespace DuneVector
             }
             float distance = Vector3.Distance(_player.WorldCenter, ActiveObjective.position);
             string objectiveLabel = State == CourierRunState.FindPackage ? "PICKUP" : "DELIVER";
+            bool isFlightRace = ActiveContract.Has(CourierContractModifier.Express);
             _objectiveIndicator.Draw(
                 _camera,
                 ActiveObjective,
                 objectiveLabel,
                 distance,
-                _deliverySettings);
+                _deliverySettings,
+                isFlightRace ? _deliverySettings.FlightRaceObjectiveIndicatorIcon : null,
+                isFlightRace ? _deliverySettings.FlightRaceObjectiveIndicatorRadius : -1f);
         }
 
         private void DrawTeleportFade()

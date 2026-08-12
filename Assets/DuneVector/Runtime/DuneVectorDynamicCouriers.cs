@@ -1294,10 +1294,25 @@ namespace DuneVector
             float y = Mathf.Clamp(guiY, padding, Screen.height - padding);
 
             Color previousColor = GUI.color;
-            GUI.color = _eventColor;
-            GUI.DrawTexture(
-                new Rect(x - halfMarker, y - halfMarker, _settings.ObjectiveMarkerSize, _settings.ObjectiveMarkerSize),
-                Texture2D.whiteTexture);
+            Rect markerRect = new Rect(
+                x - halfMarker,
+                y - halfMarker,
+                _settings.ObjectiveMarkerSize,
+                _settings.ObjectiveMarkerSize);
+            if (_settings.ConvoyObjectiveMarkerIcon != null)
+            {
+                GUI.color = Color.white;
+                GUI.DrawTexture(
+                    markerRect,
+                    _settings.ConvoyObjectiveMarkerIcon,
+                    ScaleMode.ScaleToFit,
+                    true);
+            }
+            else
+            {
+                GUI.color = _eventColor;
+                GUI.DrawTexture(markerRect, Texture2D.whiteTexture);
+            }
             GUI.color = previousColor;
 
             float distance = Vector3.Distance(_player.WorldCenter, targetPosition);

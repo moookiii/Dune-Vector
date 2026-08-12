@@ -23,7 +23,9 @@ namespace DuneVector
             Transform target,
             string objectiveLabel,
             float distance,
-            DeliveryTuning settings)
+            DeliveryTuning settings,
+            Texture2D objectiveIcon = null,
+            float objectiveIconRadius = -1f)
         {
             if (camera == null || target == null || settings == null)
             {
@@ -41,7 +43,10 @@ namespace DuneVector
                 minimumScale,
                 maximumScale);
 
-            float radius = settings.ObjectiveIndicatorHexagonRadius * scale;
+            float authoredRadius = objectiveIcon != null && objectiveIconRadius > 0f
+                ? objectiveIconRadius
+                : settings.ObjectiveIndicatorHexagonRadius;
+            float radius = authoredRadius * scale;
             float arrowLength = settings.ObjectiveIndicatorArrowLength * scale;
             float arrowWidth = settings.ObjectiveIndicatorArrowWidth * scale;
             float arrowGap = settings.ObjectiveIndicatorArrowGap * scale;
@@ -115,13 +120,13 @@ namespace DuneVector
             Color iconColor = settings.ObjectiveIndicatorColor;
             iconColor.a *= iconVisibility;
             DrawIcon(
-                settings.ObjectiveIndicatorHexagonIcon,
+                objectiveIcon != null ? objectiveIcon : settings.ObjectiveIndicatorHexagonIcon,
                 hexagonRect,
                 iconShadowColor,
                 settings.ObjectiveIndicatorShadowOffset * scale,
                 0f);
             DrawIcon(
-                settings.ObjectiveIndicatorHexagonIcon,
+                objectiveIcon != null ? objectiveIcon : settings.ObjectiveIndicatorHexagonIcon,
                 hexagonRect,
                 iconColor,
                 Vector2.zero,
