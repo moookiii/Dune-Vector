@@ -4453,7 +4453,7 @@ namespace DuneVector
         [Range(0f, 1f)] public float HealthPickupFeedbackPopFraction = 0.18f;
         [Tooltip("Outline width in pixels drawn around the banner so it reads against bright sky. Set to 0 for no outline.")]
         [Range(0f, 6f)] public float HealthPickupFeedbackOutlineThickness = 1.25f;
-        public Color HealthPickupFeedbackOutlineColor = new Color(0.02f, 0.06f, 0.03f, 0.55f);
+        public Color HealthPickupFeedbackOutlineColor = new Color(0.02f, 0.06f, 0.03f, 0f);
         [Tooltip("Pixel offset of the banner's drop shadow. Set to zero for no shadow.")]
         public Vector2 HealthPickupFeedbackShadowOffset = new Vector2(0f, 2.5f);
         public Color HealthPickupFeedbackShadowColor = new Color(0f, 0f, 0f, 0.3f);
