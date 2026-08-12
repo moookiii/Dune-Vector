@@ -39,6 +39,8 @@ namespace DuneVector
         private float _previousHealth;
         private float _previousHubDistance;
         private float _previousObjectiveDistance;
+        private float _objectivePotentialReward;
+        private Transform _previousObjective;
         private int _previousFreeRoamStreak;
         private int _previousCompletedDeliveries;
         private FreeRoamDeliveryPhase _previousFreeRoamPhase;
@@ -88,6 +90,8 @@ namespace DuneVector
             _combatDefeats = 0;
             _trainingReturn = 0f;
             _unshapedReturn = 0f;
+            _objectivePotentialReward = 0f;
+            _previousObjective = null;
             Array.Clear(_previousActions, 0, _previousActions.Length);
             Array.Clear(_nextPulseStep, 0, _nextPulseStep.Length);
             CaptureBaseline();
@@ -369,8 +373,14 @@ namespace DuneVector
             Transform objective = ResolveActiveObjective(courier);
             if (!_evaluation && objective != null && _curriculumStage >= 2)
             {
+                if (objective != _previousObjective)
+                {
+                    _previousObjective = objective;
+                    _previousObjectiveDistance = float.NaN;
+                    _objectivePotentialReward = 0f;
+                }
                 float objectiveDistance = Vector3.Distance(_bootstrap.Drone.WorldCenter, objective.position);
-                AddPotentialDifference(_previousObjectiveDistance, objectiveDistance, _settings.ObjectivePotentialScale);
+                AddCappedObjectivePotential(_previousObjectiveDistance, objectiveDistance);
                 _previousObjectiveDistance = objectiveDistance;
             }
 
@@ -486,6 +496,7 @@ namespace DuneVector
             _previousRingActivations = GetTotalRingActivations();
             _previousHubDistance = float.NaN;
             _previousObjectiveDistance = float.NaN;
+            _previousObjective = ResolveActiveObjective(courier);
             _previousTarget = null;
             _previousTargetHealth = 0f;
         }
@@ -506,6 +517,22 @@ namespace DuneVector
             {
                 AddTrainingReward(Mathf.Clamp((previous - current) * scale, -0.01f, 0.01f), shaped: true);
             }
+        }
+
+        private void AddCappedObjectivePotential(float previous, float current)
+        {
+            if (float.IsNaN(previous) || float.IsInfinity(previous)) return;
+            float reward = Mathf.Clamp(
+                (previous - current) * _settings.ObjectivePotentialScale,
+                -0.01f,
+                0.01f);
+            if (reward > 0f)
+            {
+                reward = Mathf.Min(reward,
+                    Mathf.Max(0f, _settings.MaximumObjectivePotentialReward - _objectivePotentialReward));
+                _objectivePotentialReward += reward;
+            }
+            AddTrainingReward(reward, shaped: true);
         }
 
         private Transform ResolveActiveObjective(DuneVectorCourierGame courier)

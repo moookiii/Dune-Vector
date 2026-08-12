@@ -1880,10 +1880,15 @@ namespace DuneVector
         {
             int seed = random.Next();
             int difficulty = _settings.EvaluateRisk(completed);
-            float distance = Mathf.Lerp(
-                _settings.EvaluateMinimumRouteDistance(difficulty),
-                _settings.EvaluateMaximumRouteDistance(difficulty),
-                (float)random.NextDouble());
+            float minimumRouteDistance = _settings.EvaluateMinimumRouteDistance(difficulty);
+            float maximumRouteDistance = _settings.EvaluateMaximumRouteDistance(difficulty);
+            if (DuneTrainingRuntime.ControlledGroundStage && DuneVectorBootstrap.Instance != null)
+            {
+                PufferTrainingTuning training = DuneVectorBootstrap.Instance.PufferTraining;
+                minimumRouteDistance = Mathf.Max(10f, training.Stage2MinimumRouteDistance);
+                maximumRouteDistance = Mathf.Max(minimumRouteDistance, training.Stage2MaximumRouteDistance);
+            }
+            float distance = Mathf.Lerp(minimumRouteDistance, maximumRouteDistance, (float)random.NextDouble());
             CourierContractModifier gameplay = CourierContractModifier.None;
             CourierContractModifier display = CourierContractModifier.None;
             if (index != 0)

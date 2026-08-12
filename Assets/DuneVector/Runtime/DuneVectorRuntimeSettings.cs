@@ -7114,6 +7114,10 @@ namespace DuneVector
         [Min(0.01f)] public float HubStuckMinimumProgress = 0.5f;
         [Min(1)] public int EpisodeStepBudget = 12000;
 
+        [Header("Stage 2 Ground Driving")]
+        [Min(10f)] public float Stage2MinimumRouteDistance = 120f;
+        [Min(10f)] public float Stage2MaximumRouteDistance = 250f;
+
         [Header("Observation Scales")]
         [Min(1f)] public float ObjectiveDistanceScale = 1500f;
         [Min(1f)] public float HubDistanceScale = 40f;
@@ -7125,6 +7129,7 @@ namespace DuneVector
         [Header("Potential Shaping")]
         [Min(0f)] public float HubPotentialScale = 0.0005f;
         [Min(0f)] public float ObjectivePotentialScale = 0.0008f;
+        [Min(0f)] public float MaximumObjectivePotentialReward = 0.05f;
         [Min(0f)] public float ValidDeploymentReward = 0.02f;
 
         [Header("Gameplay Events")]
