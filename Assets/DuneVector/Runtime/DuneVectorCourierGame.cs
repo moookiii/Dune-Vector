@@ -1301,9 +1301,56 @@ namespace DuneVector
                 _hubSettings.PremiumVisualLocalPosition,
                 Quaternion.Euler(_hubSettings.PremiumVisualLocalEulerAngles));
             visual.transform.localScale = _hubSettings.PremiumVisualLocalScale;
+            ConfigurePremiumHubPerformance(visual.transform);
             BuildPremiumHubMeshColliders(visual.transform);
             CollectAuthoredHubScreenMaterials(visual.transform);
             return _hubSettings.ReplaceProceduralStructureVisuals;
+        }
+
+        private void ConfigurePremiumHubPerformance(Transform visualRoot)
+        {
+            if (visualRoot == null)
+            {
+                return;
+            }
+
+            Renderer[] renderers = visualRoot.GetComponentsInChildren<Renderer>(true);
+            for (int index = 0; index < renderers.Length; index++)
+            {
+                Renderer renderer = renderers[index];
+                if (renderer == null)
+                {
+                    continue;
+                }
+
+                renderer.shadowCastingMode = _hubSettings.PremiumVisualCastsShadows
+                    ? ShadowCastingMode.On
+                    : ShadowCastingMode.Off;
+                renderer.receiveShadows = _hubSettings.PremiumVisualReceivesShadows;
+                renderer.motionVectorGenerationMode = _hubSettings.PremiumVisualWritesMotionVectors
+                    ? MotionVectorGenerationMode.Object
+                    : MotionVectorGenerationMode.ForceNoMotion;
+                renderer.lightProbeUsage = _hubSettings.PremiumVisualUsesLightProbes
+                    ? LightProbeUsage.BlendProbes
+                    : LightProbeUsage.Off;
+                renderer.reflectionProbeUsage = _hubSettings.PremiumVisualUsesReflectionProbes
+                    ? ReflectionProbeUsage.BlendProbes
+                    : ReflectionProbeUsage.Off;
+            }
+
+            Cloth[] clothComponents = visualRoot.GetComponentsInChildren<Cloth>(true);
+            for (int index = 0; index < clothComponents.Length; index++)
+            {
+                Cloth cloth = clothComponents[index];
+                if (cloth == null)
+                {
+                    continue;
+                }
+
+                cloth.clothSolverFrequency = Mathf.Clamp(_hubSettings.ClothSolverFrequency, 1f, 120f);
+                cloth.enableContinuousCollision = _hubSettings.ClothContinuousCollision;
+                cloth.useVirtualParticles = _hubSettings.ClothVirtualParticles ? 1f : 0f;
+            }
         }
 
         /// <summary>

@@ -1402,6 +1402,17 @@ namespace DuneVector
         public bool PremiumVisualMeshCollisionEnabled = true;
         [Tooltip("When enabled, the authored visual shell replaces the primitive platform, braces, and pylons.")]
         public bool ReplaceProceduralStructureVisuals = true;
+        [Header("Premium Hub Performance")]
+        [Tooltip("Allows the authored premium hub to cast realtime shadows. Disable this for very dense hub meshes; receiving world shadows still preserves depth without redrawing the hub into every shadow cascade.")]
+        public bool PremiumVisualCastsShadows;
+        [Tooltip("Allows the authored premium hub to receive realtime shadows.")]
+        public bool PremiumVisualReceivesShadows = true;
+        [Tooltip("Writes motion vectors for the authored premium hub. A stationary hub normally does not need them.")]
+        public bool PremiumVisualWritesMotionVectors;
+        [Tooltip("Samples light probes for authored premium hub renderers.")]
+        public bool PremiumVisualUsesLightProbes;
+        [Tooltip("Samples reflection probes for authored premium hub renderers.")]
+        public bool PremiumVisualUsesReflectionProbes;
         [Min(8f)] public float PlatformRadius = 26f;
         [Min(0.5f)] public float PlatformThickness = 2.4f;
         [Tooltip("Hub-local standing spot for the contract terminal. Park it in front of the authored screen it reads from.")]
@@ -1432,6 +1443,12 @@ namespace DuneVector
         public bool ResetClothOnHubEntry = true;
         [Tooltip("Real-time delay before paused hub cloth is re-enabled. Keep this long enough for hub and player transforms to settle after spawning or teleporting.")]
         [Min(0f)] public float ClothResetDelaySeconds = 0.1f;
+        [Tooltip("Physics solver frequency for cloth beneath the authored hub. The source prefab uses 120 Hz, which is unnecessarily expensive for decorative banners.")]
+        [Range(1f, 120f)] public float ClothSolverFrequency = 30f;
+        [Tooltip("Uses continuous collision for hub cloth. Leave disabled for decorative banners that do not collide with fast-moving gameplay objects.")]
+        public bool ClothContinuousCollision;
+        [Tooltip("Adds virtual particles to hub cloth collision. Leave disabled unless the banners visibly need the extra collision samples.")]
+        public bool ClothVirtualParticles;
 
         [Header("Physical Terminals")]
         [Tooltip("Skips the primitive pedestal, screen, header, and masts so the authored hub's own consoles act as the terminals. The runtime keeps an invisible interaction anchor at each terminal position.")]
