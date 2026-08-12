@@ -39,6 +39,9 @@ namespace DuneVector
         private float _previousHealth;
         private float _previousHubDistance;
         private float _previousObjectiveDistance;
+        private float _bestObjectiveDistance;
+        private int _objectiveStepsWithoutProgress;
+        private bool _objectiveDiverged;
         private float _objectivePotentialReward;
         private Transform _previousObjective;
         private int _previousFreeRoamStreak;
@@ -91,6 +94,9 @@ namespace DuneVector
             _trainingReturn = 0f;
             _unshapedReturn = 0f;
             _objectivePotentialReward = 0f;
+            _bestObjectiveDistance = float.PositiveInfinity;
+            _objectiveStepsWithoutProgress = 0;
+            _objectiveDiverged = false;
             _previousObjective = null;
             Array.Clear(_previousActions, 0, _previousActions.Length);
             Array.Clear(_nextPulseStep, 0, _nextPulseStep.Length);
@@ -248,11 +254,15 @@ namespace DuneVector
                 _hubSteps++;
             }
 
-            if (ShouldEndEpisode(out bool hubTimeout))
+            if (ShouldEndEpisode(out bool hubTimeout, out bool stage2Failure))
             {
                 if (hubTimeout)
                 {
                     AddTrainingReward(-_settings.HubTimeoutPenalty, shaped: true);
+                }
+                else if (stage2Failure)
+                {
+                    AddTrainingReward(-_settings.Stage2DivergencePenalty, shaped: true);
                 }
                 PublishEpisodeMetrics();
                 EndEpisode();
@@ -374,16 +384,20 @@ namespace DuneVector
             }
 
             Transform objective = ResolveActiveObjective(courier);
-            if (!_evaluation && objective != null && _curriculumStage >= 2)
+            if (objective != null && _curriculumStage >= 2)
             {
                 if (objective != _previousObjective)
                 {
                     _previousObjective = objective;
                     _previousObjectiveDistance = float.NaN;
+                    _bestObjectiveDistance = float.PositiveInfinity;
+                    _objectiveStepsWithoutProgress = 0;
+                    _objectiveDiverged = false;
                     _objectivePotentialReward = 0f;
                 }
                 float objectiveDistance = Vector3.Distance(_bootstrap.Drone.WorldCenter, objective.position);
                 AddCappedObjectivePotential(_previousObjectiveDistance, objectiveDistance);
+                ScoreStage2ObjectiveTracking(objective.position, objectiveDistance);
                 _previousObjectiveDistance = objectiveDistance;
             }
 
@@ -454,11 +468,13 @@ namespace DuneVector
             _previousTargetHealth = target != null && target.IsValid ? target.NormalizedHealth : 0f;
         }
 
-        private bool ShouldEndEpisode(out bool hubTimeout)
+        private bool ShouldEndEpisode(out bool hubTimeout, out bool stage2Failure)
         {
             _hubStuck = !_deployed && _hubStepsWithoutProgress >= _settings.HubStuckStepBudget;
             hubTimeout = !_deployed && (_hubSteps >= _settings.HubStepBudget || _hubStuck);
-            if (hubTimeout || _episodeSteps >= _settings.EpisodeStepBudget ||
+            stage2Failure = _curriculumStage == 2 && _pickups == 0 &&
+                (_objectiveDiverged || _episodeSteps >= _settings.Stage2StepBudget);
+            if (hubTimeout || stage2Failure || _episodeSteps >= _settings.EpisodeStepBudget ||
                 (_bootstrap.DroneHealth != null && _bootstrap.DroneHealth.IsDead))
             {
                 return true;
@@ -485,6 +501,10 @@ namespace DuneVector
             stats.Add("Dune/unshaped_return", _unshapedReturn);
             stats.Add("Dune/shaped_training_return", _trainingReturn);
             stats.Add("Dune/curriculum_stage", _curriculumStage);
+            stats.Add("Dune/objective_min_distance", float.IsInfinity(_bestObjectiveDistance)
+                ? 0f
+                : _bestObjectiveDistance);
+            stats.Add("Dune/stage2_diverged", _objectiveDiverged ? 1f : 0f);
         }
 
         private void CaptureBaseline()
@@ -526,8 +546,12 @@ namespace DuneVector
         private void AddCappedObjectivePotential(float previous, float current)
         {
             if (float.IsNaN(previous) || float.IsInfinity(previous)) return;
+            float distanceDelta = previous - current;
+            float scale = distanceDelta < 0f
+                ? _settings.ObjectivePotentialScale * _settings.Stage2DistanceIncreasePenaltyMultiplier
+                : _settings.ObjectivePotentialScale;
             float reward = Mathf.Clamp(
-                (previous - current) * _settings.ObjectivePotentialScale,
+                distanceDelta * scale,
                 -0.01f,
                 0.01f);
             if (reward > 0f)
@@ -537,6 +561,45 @@ namespace DuneVector
                 _objectivePotentialReward += reward;
             }
             AddTrainingReward(reward, shaped: true);
+        }
+
+        private void ScoreStage2ObjectiveTracking(Vector3 objectivePosition, float objectiveDistance)
+        {
+            if (_curriculumStage != 2 || _bootstrap.CourierGame.State == CourierRunState.Hub)
+            {
+                return;
+            }
+
+            Vector3 toObjective = Vector3.ProjectOnPlane(
+                objectivePosition - _bootstrap.Drone.WorldCenter,
+                Vector3.up);
+            Vector3 velocity = _bootstrap.Drone.Motor != null
+                ? Vector3.ProjectOnPlane(_bootstrap.Drone.Motor.Velocity, Vector3.up)
+                : Vector3.zero;
+            if (toObjective.sqrMagnitude > 0.01f && velocity.sqrMagnitude > 0.01f)
+            {
+                float alignment = Vector3.Dot(toObjective.normalized, velocity.normalized);
+                float reward = alignment >= 0f
+                    ? alignment * _settings.Stage2HeadingAlignmentReward
+                    : alignment * _settings.Stage2WrongWayPenalty;
+                AddTrainingReward(reward, shaped: true);
+            }
+
+            if (objectiveDistance <= _bestObjectiveDistance - _settings.Stage2MinimumProgress)
+            {
+                _bestObjectiveDistance = objectiveDistance;
+                _objectiveStepsWithoutProgress = 0;
+            }
+            else if (objectiveDistance >= _bestObjectiveDistance + _settings.Stage2DivergenceDistance)
+            {
+                _objectiveStepsWithoutProgress++;
+                _objectiveDiverged = _objectiveStepsWithoutProgress >=
+                    _settings.Stage2DivergenceStepBudget;
+            }
+            else
+            {
+                _objectiveStepsWithoutProgress = 0;
+            }
         }
 
         private Transform ResolveActiveObjective(DuneVectorCourierGame courier)

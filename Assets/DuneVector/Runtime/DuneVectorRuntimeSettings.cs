@@ -7124,6 +7124,8 @@ namespace DuneVector
         [Min(10f)] public float Stage2MinimumRouteDistance = 60f;
         [Min(10f)] public float Stage2MaximumRouteDistance = 120f;
         [Min(10f)] public float Stage2MaximumPickupSpawnDistance = 120f;
+        [Min(1)] public int Stage2StepBudget = 2400;
+        [Min(0f)] public float Stage2MinimumProgress = 0.5f;
         [Min(1)] public int Stage2DivergenceStepBudget = 80;
         [Min(0f)] public float Stage2DivergenceDistance = 20f;
 
@@ -7140,7 +7142,8 @@ namespace DuneVector
         [Min(0f)] public float ObjectivePotentialScale = 0.0008f;
         [Min(0f)] public float MaximumObjectivePotentialReward = 0.05f;
         [Min(1f)] public float Stage2DistanceIncreasePenaltyMultiplier = 3f;
-        [Min(0f)] public float Stage2HeadingAlignmentReward = 0.00005f;
+        [Min(0f)] public float Stage2HeadingAlignmentReward = 0.00002f;
+        [Min(0f)] public float Stage2WrongWayPenalty = 0.00008f;
         [Min(0f)] public float Stage2DivergencePenalty = 0.1f;
         [Min(0f)] public float ValidDeploymentReward = 0.02f;
 
