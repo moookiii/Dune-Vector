@@ -24,6 +24,9 @@ namespace DuneVector
         private int _hubSteps;
         private int _stepsToDeploy;
         private bool _deployed;
+        private bool _hubStuck;
+        private int _hubStepsWithoutProgress;
+        private float _bestHubDistance;
         private int _pickups;
         private int _deliveries;
         private float _damageTaken;
@@ -73,6 +76,9 @@ namespace DuneVector
             _hubSteps = 0;
             _stepsToDeploy = 0;
             _deployed = false;
+            _hubStuck = false;
+            _hubStepsWithoutProgress = 0;
+            _bestHubDistance = float.PositiveInfinity;
             _pickups = 0;
             _deliveries = 0;
             _damageTaken = 0f;
@@ -346,6 +352,20 @@ namespace DuneVector
                 _previousHubDistance = hubDistance;
             }
 
+            if (!_deployed && courier.State == CourierRunState.Hub && courier.HubTerminalMenuKind == 0 &&
+                courier.TryGetHubInteractionObservation(out _, out _, out float stuckDistance, out _))
+            {
+                if (stuckDistance <= _bestHubDistance - _settings.HubStuckMinimumProgress)
+                {
+                    _bestHubDistance = stuckDistance;
+                    _hubStepsWithoutProgress = 0;
+                }
+                else
+                {
+                    _hubStepsWithoutProgress++;
+                }
+            }
+
             Transform objective = ResolveActiveObjective(courier);
             if (!_evaluation && objective != null && _curriculumStage >= 2)
             {
@@ -423,7 +443,8 @@ namespace DuneVector
 
         private bool ShouldEndEpisode(out bool hubTimeout)
         {
-            hubTimeout = !_deployed && _hubSteps >= _settings.HubStepBudget;
+            _hubStuck = !_deployed && _hubStepsWithoutProgress >= _settings.HubStuckStepBudget;
+            hubTimeout = !_deployed && (_hubSteps >= _settings.HubStepBudget || _hubStuck);
             if (hubTimeout || _episodeSteps >= _settings.EpisodeStepBudget ||
                 (_bootstrap.DroneHealth != null && _bootstrap.DroneHealth.IsDead))
             {
@@ -438,6 +459,7 @@ namespace DuneVector
             stats.Add("Dune/deployment_success", _deployed ? 1f : 0f);
             stats.Add("Dune/deployment_steps", _deployed ? _stepsToDeploy : _hubSteps);
             stats.Add("Dune/deployment_seconds", (_deployed ? _stepsToDeploy : _hubSteps) * _settings.FixedTickSeconds);
+            stats.Add("Dune/hub_stuck", _hubStuck ? 1f : 0f);
             stats.Add("Dune/pickup_success", _pickups > 0 ? 1f : 0f);
             stats.Add("Dune/delivery_success", _deliveries > 0 ? 1f : 0f);
             stats.Add("Dune/deliveries", _deliveries);

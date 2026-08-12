@@ -7110,6 +7110,8 @@ namespace DuneVector
         [Header("Deterministic Simulation")]
         [Min(0.001f)] public float FixedTickSeconds = 0.05f;
         [Min(1)] public int HubStepBudget = 600;
+        [Min(1)] public int HubStuckStepBudget = 200;
+        [Min(0.01f)] public float HubStuckMinimumProgress = 0.5f;
         [Min(1)] public int EpisodeStepBudget = 12000;
 
         [Header("Observation Scales")]
