@@ -2170,6 +2170,15 @@ namespace DuneVector
             float maximumLegDistance =
                 _settings.EvaluateMaximumRouteDistance(contract.Difficulty) /
                 Mathf.Max(1, contract.StopCount);
+            if (DuneTrainingRuntime.ControlledGroundStage && DuneVectorBootstrap.Instance != null)
+            {
+                PufferTrainingTuning training = DuneVectorBootstrap.Instance.PufferTraining;
+                minimumLegDistance = Mathf.Max(10f, training.Stage2MinimumRouteDistance) /
+                    Mathf.Max(1, contract.StopCount);
+                maximumLegDistance = Mathf.Max(
+                    minimumLegDistance,
+                    training.Stage2MaximumRouteDistance / Mathf.Max(1, contract.StopCount));
+            }
             for (int i = 0; i < contract.DeliveryPositions.Count; i++)
             {
                 LogicalPosition plannedDeliveryPosition = contract.DeliveryPositions[i];
