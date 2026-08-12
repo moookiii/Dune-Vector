@@ -2617,11 +2617,7 @@ namespace DuneVector
         [Min(1f)] public float MaximumSpawnDistance;
         [Min(1f)] public float MinimumRouteDistance;
         [Min(1f)] public float MaximumRouteDistance;
-        [Tooltip("Maximum distance the player may move from an offered rival before the race offer despawns.")]
-        [Min(1f)] public float OfferedEventDespawnDistance;
         [Min(0f)] public float ResultDisplayDuration;
-        [Tooltip("Relative selection weight for rival drone races.")]
-        [Min(0f)] public float RaceEventWeight;
         [Min(0f)] public float ConvoyEventWeight;
         [Tooltip("Allow convoy and rival courier events to spawn while the player is in free roam, outside an active delivery run.")]
         public bool EventsDuringFreeRoam = true;
@@ -2656,34 +2652,12 @@ namespace DuneVector
         [Header("Courier Flight")]
         [Min(0f)] public float FlightHeightAboveTerrain;
         [Min(0f)] public float CruiseSpeed;
-        [Tooltip("Cruise speed of the rival once a race is accepted.")]
-        [Min(0f)] public float RivalRaceSpeed;
         [Min(0f)] public float TurnSharpness;
         [Min(0.1f)] public float DestinationRadius;
         [Min(0f)] public float HoverAmplitude;
         [Min(0f)] public float HoverFrequency;
         [Min(0.1f)] public float VisualScale;
         [Min(1f)] public float MaximumCourierHealth;
-
-        [Header("Courier Race")]
-        [Tooltip("Distance at which the player can accept a rival's race offer.")]
-        [Min(1f)] public float ChallengeAcceptDistance;
-        public Key ChallengeAcceptKey;
-        [Tooltip("Multiplier applied to the shared event route distance for races.")]
-        [Min(0.01f)] public float RaceRouteDistanceMultiplier;
-        [Min(0)] public int RaceWinnerReward;
-        public string RaceCourierObjectName;
-        public string RaceOfferTitle;
-        public string RaceApproachStatus;
-        [Tooltip("{0} = configured acceptance key.")]
-        public string RaceAcceptPromptFormat;
-        public string RaceActiveTitle;
-        public string RaceActiveStatus;
-        [Tooltip("{0} = player metres to finish; {1} = rival metres to finish.")]
-        public string RaceProgressStatusFormat;
-        public string RaceWonResult;
-        public string RaceLostResult;
-        public string RaceLostAtFinishResult;
 
         [Header("Moving Convoy")]
         [Range(0, 6)] public int ConvoyEscortCount;
@@ -2762,17 +2736,15 @@ namespace DuneVector
         public string HudHullMeterLabel;
         [Tooltip("{0} = hull percentage.")]
         public string HudHullMeterFormat;
-        public string RaceProgressMeterLabel;
-        [Tooltip("{0} = player route progress percentage.")]
-        public string RaceProgressMeterFormat;
         [Tooltip("{0} = gold reward.")]
         public string HudRewardStatusFormat;
         public string HudFailureStatusLabel;
         [Min(8f)] public float ObjectiveMarkerSize;
         [Tooltip("World-objective icon used for moving convoy attacks.")]
         public Texture2D ConvoyObjectiveMarkerIcon;
-        [Tooltip("World-objective icon used for rival drone races.")]
-        public Texture2D RaceObjectiveMarkerIcon;
+        [Tooltip("Screen-space offset of the moving convoy icon drop shadow.")]
+        public Vector2 ConvoyObjectiveMarkerShadowOffset = new Vector2(5f, 7f);
+        [ColorUsage(false)] public Color ConvoyObjectiveMarkerShadowColor = new Color(0f, 0f, 0f, 0.78f);
         [Min(0f)] public float ObjectiveMarkerEdgePadding;
         [Min(80f)] public float ObjectiveMarkerLabelWidth;
         [Min(12f)] public float ObjectiveMarkerLabelHeight;
@@ -2785,7 +2757,6 @@ namespace DuneVector
         [ColorUsage(false)] public Color HudTrackColor;
         [ColorUsage(false)] public Color HudMeterDivisionColor;
         [ColorUsage(false)] public Color ConvoyHudColor;
-        [ColorUsage(false)] public Color RaceHudColor;
         [ColorUsage(false)] public Color SuccessHudColor;
         [ColorUsage(false)] public Color FailureHudColor;
     }

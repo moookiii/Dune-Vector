@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 
 namespace DuneVector
@@ -8,14 +7,12 @@ namespace DuneVector
     public enum DynamicCourierEventType
     {
         None,
-        CourierRace,
         MovingConvoy,
     }
 
     internal enum DynamicCourierEventPhase
     {
         Inactive,
-        Offered,
         Active,
         Result,
     }
@@ -98,11 +95,6 @@ namespace DuneVector
             _speed = Mathf.Max(0f, speed);
             _paused = paused;
             ReachedDestination = false;
-        }
-
-        public void SetPaused(bool paused)
-        {
-            _paused = paused;
         }
 
         public bool TakeDamage(float damage)
@@ -331,7 +323,6 @@ namespace DuneVector
         // when the event resolves.
         private float _phaseChangedAt;
         private float _hullNormalized;
-        private float _raceRouteDistance;
         private GUIStyle _titleStyle;
         private GUIStyle _bodyStyle;
         private GUIStyle _meterLabelStyle;
@@ -433,9 +424,6 @@ namespace DuneVector
 
             switch (ActiveEventType)
             {
-                case DynamicCourierEventType.CourierRace:
-                    UpdateRaceEvent();
-                    break;
                 case DynamicCourierEventType.MovingConvoy:
                     UpdateConvoyEvent();
                     break;
@@ -478,23 +466,14 @@ namespace DuneVector
 
         private void SpawnNextEvent()
         {
-            float raceWeight = Mathf.Max(0f, _settings.RaceEventWeight);
             float convoyWeight = Mathf.Max(0f, _settings.ConvoyEventWeight);
-            float totalWeight = raceWeight + convoyWeight;
-            if (totalWeight <= Mathf.Epsilon)
+            if (convoyWeight <= Mathf.Epsilon)
             {
                 ScheduleNextEvent();
                 return;
             }
 
-            if (Random.value * totalWeight < raceWeight)
-            {
-                SpawnRaceEvent();
-            }
-            else
-            {
-                SpawnConvoyEvent();
-            }
+            SpawnConvoyEvent();
         }
 
         private void UpdateAmbientCouriers(float deltaTime)
@@ -786,100 +765,13 @@ namespace DuneVector
             return Random.Range(Mathf.Min(a, b), Mathf.Max(a, b));
         }
 
-        private void SpawnRaceEvent()
-        {
-            ActiveEventType = DynamicCourierEventType.CourierRace;
-            _phase = DynamicCourierEventPhase.Offered;
-            _phaseChangedAt = Time.unscaledTime;
-            _hullNormalized = 0f;
-            BuildRoute(_settings.RaceRouteDistanceMultiplier, out Vector3 start, out _eventDestination);
-            _primaryCourier = SpawnCourier(
-                _settings.RaceCourierObjectName,
-                CourierDroneFaction.Rival,
-                start,
-                _eventDestination,
-                _settings.RivalRaceSpeed,
-                1f,
-                true);
-            _raceRouteDistance = Mathf.Max(
-                Mathf.Epsilon,
-                HorizontalDistance(start, _eventDestination));
-            _objectiveTarget = _primaryCourier.transform;
-            _eventTitle = _settings.RaceOfferTitle;
-            _eventStatus = _settings.RaceApproachStatus;
-            _eventColor = _settings.RaceHudColor;
-        }
-
-        private void UpdateRaceEvent()
-        {
-            if (_primaryCourier == null)
-            {
-                FinishEvent(false, _settings.RaceLostResult, 0);
-                return;
-            }
-
-            if (_phase == DynamicCourierEventPhase.Offered)
-            {
-                float distance = HorizontalDistance(_player.WorldCenter, _primaryCourier.transform.position);
-                if (distance > _settings.OfferedEventDespawnDistance)
-                {
-                    ClearEvent();
-                    ScheduleNextEvent();
-                    return;
-                }
-
-                if (distance <= _settings.ChallengeAcceptDistance)
-                {
-                    _eventStatus = string.Format(
-                        _settings.RaceAcceptPromptFormat,
-                        _settings.ChallengeAcceptKey.ToString().ToUpperInvariant());
-                    if (Keyboard.current != null && _settings.ChallengeAcceptKey != Key.None)
-                    {
-                        var acceptControl = Keyboard.current[_settings.ChallengeAcceptKey];
-                        if (acceptControl != null && acceptControl.wasPressedThisFrame)
-                        {
-                            _phase = DynamicCourierEventPhase.Active;
-                            _phaseChangedAt = Time.unscaledTime;
-                            _primaryCourier.SetPaused(false);
-                            _objectiveTarget = null;
-                            _eventTitle = _settings.RaceActiveTitle;
-                            _eventStatus = _settings.RaceActiveStatus;
-                        }
-                    }
-                }
-                else
-                {
-                    _eventStatus = _settings.RaceApproachStatus;
-                }
-                return;
-            }
-
-            float playerDistance = HorizontalDistance(_player.WorldCenter, _eventDestination);
-            _hullNormalized = Mathf.Clamp01(1f - (playerDistance / _raceRouteDistance));
-            if (playerDistance <= _settings.DestinationRadius)
-            {
-                FinishEvent(true, _settings.RaceWonResult, _settings.RaceWinnerReward);
-            }
-            else if (_primaryCourier.ReachedDestination)
-            {
-                FinishEvent(false, _settings.RaceLostAtFinishResult, 0);
-            }
-            else
-            {
-                _eventStatus = string.Format(
-                    _settings.RaceProgressStatusFormat,
-                    playerDistance,
-                    HorizontalDistance(_primaryCourier.transform.position, _eventDestination));
-            }
-        }
-
         private void SpawnConvoyEvent()
         {
             ActiveEventType = DynamicCourierEventType.MovingConvoy;
             _phase = DynamicCourierEventPhase.Active;
             _phaseChangedAt = Time.unscaledTime;
             _hullNormalized = 1f;
-            BuildRoute(_settings.ConvoyRouteDistanceMultiplier, out Vector3 start, out _eventDestination);
+            BuildRoute(out Vector3 start, out _eventDestination);
             _primaryCourier = SpawnCourier(
                 "Neutral Cargo Carrier",
                 CourierDroneFaction.Neutral,
@@ -938,7 +830,7 @@ namespace DuneVector
             }
         }
 
-        private void BuildRoute(float routeDistanceMultiplier, out Vector3 start, out Vector3 destination)
+        private void BuildRoute(out Vector3 start, out Vector3 destination)
         {
             Vector3 playerPosition = _player.WorldCenter;
             float spawnAngle = Random.value * Mathf.PI * 2f;
@@ -954,7 +846,7 @@ namespace DuneVector
             float routeDistance = Random.Range(
                 Mathf.Min(_settings.MinimumRouteDistance, _settings.MaximumRouteDistance),
                 Mathf.Max(_settings.MinimumRouteDistance, _settings.MaximumRouteDistance)) *
-                Mathf.Max(0.01f, routeDistanceMultiplier);
+                _settings.ConvoyRouteDistanceMultiplier;
             destination = start + (routeDirection * routeDistance);
             destination.y = _world.SampleHeightAtLocal(destination.x, destination.z) + _settings.FlightHeightAboveTerrain;
         }
@@ -1246,7 +1138,6 @@ namespace DuneVector
                 textShadowOffset);
 
             bool active = _phase == DynamicCourierEventPhase.Active;
-            bool activeRace = active && ActiveEventType == DynamicCourierEventType.CourierRace;
             float meterY = panel.yMax - _settings.HudMeterBottomPadding - _settings.HudMeterHeight;
             if (active)
             {
@@ -1257,16 +1148,14 @@ namespace DuneVector
                     _settings.HudMeterLabelHeight);
                 DuneVectorHudChrome.DrawLabel(
                     meterLabel,
-                    activeRace ? _settings.RaceProgressMeterLabel : _settings.HudHullMeterLabel,
+                    _settings.HudHullMeterLabel,
                     _meterLabelStyle,
                     Fade(Color.white, alpha),
                     textShadow,
                     textShadowOffset);
                 DuneVectorHudChrome.DrawLabel(
                     meterLabel,
-                    string.Format(
-                        activeRace ? _settings.RaceProgressMeterFormat : _settings.HudHullMeterFormat,
-                        Mathf.CeilToInt(_hullNormalized * 100f)),
+                    string.Format(_settings.HudHullMeterFormat, Mathf.CeilToInt(_hullNormalized * 100f)),
                     _meterValueStyle,
                     Fade(Color.white, alpha),
                     textShadow,
@@ -1387,11 +1276,6 @@ namespace DuneVector
             {
                 targetPosition = _objectiveTarget.position;
             }
-            else if (ActiveEventType == DynamicCourierEventType.CourierRace &&
-                     _phase == DynamicCourierEventPhase.Active)
-            {
-                targetPosition = _eventDestination;
-            }
             else
             {
                 return;
@@ -1415,11 +1299,16 @@ namespace DuneVector
                 y - halfMarker,
                 _settings.ObjectiveMarkerSize,
                 _settings.ObjectiveMarkerSize);
-            Texture2D markerIcon = ActiveEventType == DynamicCourierEventType.CourierRace
-                ? _settings.RaceObjectiveMarkerIcon
-                : _settings.ConvoyObjectiveMarkerIcon;
-            if (markerIcon != null)
+            if (_settings.ConvoyObjectiveMarkerIcon != null)
             {
+                Rect shadowRect = markerRect;
+                shadowRect.position += _settings.ConvoyObjectiveMarkerShadowOffset;
+                GUI.color = _settings.ConvoyObjectiveMarkerShadowColor;
+                GUI.DrawTexture(
+                    shadowRect,
+                    _settings.ConvoyObjectiveMarkerIcon,
+                    ScaleMode.ScaleToFit,
+                    true);
                 GUI.color = Color.white;
                 GUI.DrawTexture(
                     markerRect,
