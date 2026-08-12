@@ -4194,6 +4194,12 @@ namespace DuneVector
         [Tooltip("Seconds before the same flight ring can restore the flight meter again.")]
         [Min(0f)] public float FlightMeterRewardCooldown = 5f;
 
+        [Header("Quick Consecutive Flight Rings")]
+        [Tooltip("Maximum seconds allowed between two consecutive flight-ring passes to play the quick-pass FMOD event. Both blue first-layer and upper second-layer flight rings count.")]
+        [Min(0f)] public float QuickFlightRingMaximumInterval = 0.1f;
+        [Tooltip("FMOD one-shot played when two consecutive flight rings are passed within the maximum interval.")]
+        public string QuickFlightRingEvent = "event:/Okay";
+
         public float GetFlightRingAmountMultiplier(float flightMeterNormalized)
         {
             float meterBasedMultiplier = Mathf.Lerp(

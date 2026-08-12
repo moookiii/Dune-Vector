@@ -131,6 +131,7 @@ namespace DuneVector
         private bool _preferencesDirty;
         private bool _initialized;
         private DuneVectorCameraAntiAliasingMode _defaultAntiAliasingMode;
+        private float _lastFlightRingPassTime = float.NegativeInfinity;
 
         private void Awake()
         {
@@ -755,6 +756,17 @@ namespace DuneVector
         public void PlayFlightRingSwoosh(Vector3 position)
         {
             PlayConfiguredOneShot(_settings != null ? _settings.FlightRingSwooshEvent : null, position, "flight-ring swoosh");
+        }
+
+        public void RegisterFlightRingPass(Vector3 position, float maximumInterval, string quickPassEvent)
+        {
+            float passTime = Time.time;
+            if (passTime - _lastFlightRingPassTime < Mathf.Max(0f, maximumInterval))
+            {
+                PlayConfiguredOneShot(quickPassEvent, position, "quick consecutive flight rings");
+            }
+
+            _lastFlightRingPassTime = passTime;
         }
 
         public void PlayDeliveryRing(Vector3 position)

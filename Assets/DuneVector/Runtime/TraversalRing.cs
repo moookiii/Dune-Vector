@@ -475,7 +475,12 @@ namespace DuneVector
             {
                 if (IsFlightRing)
                 {
-                    DuneVectorAudioManager.Instance?.PlayFlightRingSwoosh(_cachedTransform.position);
+                    DuneVectorAudioManager audio = DuneVectorAudioManager.Instance;
+                    audio?.PlayFlightRingSwoosh(_cachedTransform.position);
+                    audio?.RegisterFlightRingPass(
+                        _cachedTransform.position,
+                        _ringTuning.QuickFlightRingMaximumInterval,
+                        _ringTuning.QuickFlightRingEvent);
                     float speedMultiplier = RingType == TraversalRingType.UpperFlight
                         ? _ringTuning.UpperFlightSpeedMultiplier
                         : 1f;
