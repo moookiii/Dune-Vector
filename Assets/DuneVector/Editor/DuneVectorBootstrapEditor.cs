@@ -131,6 +131,7 @@ namespace DuneVector.Editor
         private int _searchMatchCount;
         private SerializedProperty _player;
         private SerializedProperty _retroCrtScanlines;
+        private SerializedProperty _runtimeBlendModeCube;
         private SerializedProperty _bottomHud;
         private SerializedProperty _mapHud;
         private SerializedProperty _droneVisuals;
@@ -214,6 +215,7 @@ namespace DuneVector.Editor
             _searchField = new SearchField();
             _player = serializedObject.FindProperty("PlayerTuning");
             _retroCrtScanlines = serializedObject.FindProperty("RetroCrtScanlines");
+            _runtimeBlendModeCube = serializedObject.FindProperty("RuntimeBlendModeCube");
             _bottomHud = serializedObject.FindProperty("BottomHud");
             _mapHud = serializedObject.FindProperty("MapHud");
             _droneVisuals = serializedObject.FindProperty("DroneVisuals");
@@ -589,6 +591,10 @@ namespace DuneVector.Editor
 
         private void DrawWorldTab()
         {
+            DuneVectorSettingsInspector.DrawSection(
+                "Runtime Blend Mode Cube",
+                "Initial BlendOp and tint for the cube prefab whose shader operation can change during play.",
+                _runtimeBlendModeCube);
             DuneVectorSettingsInspector.DrawSection(
                 "Retro CRT Scanlines",
                 "Fullscreen scanline enablement, height, strength, and renderer material.",

@@ -7077,6 +7077,17 @@ namespace DuneVector
         public Material Material;
     }
 
+    [System.Serializable]
+    public sealed class RuntimeBlendModeCubeTuning
+    {
+        [Tooltip("Blend operation applied when a Runtime Blend Mode Cube first enables.")]
+        public BlendOp InitialBlendOperation = BlendOp.Min;
+
+        [ColorUsage(false, true)]
+        [Tooltip("Tint and alpha used by the cube's transparent shader.")]
+        public Color Color = Color.white;
+    }
+
     [CreateAssetMenu(fileName = "Dune Vector Runtime Settings", menuName = "Dune Vector/Runtime Settings", order = 0)]
     public sealed class DuneVectorRuntimeSettings : ScriptableObject
     {
@@ -7086,6 +7097,9 @@ namespace DuneVector
 
         [Tooltip("Fullscreen scanline presentation based on URP_RetroCRTShader-master.")]
         public RetroCrtScanlineTuning RetroCrtScanlines = new RetroCrtScanlineTuning();
+
+        [Tooltip("Initial shader state for the runtime-switchable blend-operation cube prefab.")]
+        public RuntimeBlendModeCubeTuning RuntimeBlendModeCube = new RuntimeBlendModeCubeTuning();
 
         [Tooltip("Movement, flight, boost, and camera controls for the drone.")]
         public DroneTuning PlayerTuning = new DroneTuning();
@@ -7358,6 +7372,7 @@ namespace DuneVector
         public void EnsureInitialized()
         {
             RetroCrtScanlines ??= new RetroCrtScanlineTuning();
+            RuntimeBlendModeCube ??= new RuntimeBlendModeCubeTuning();
             PlayerTuning ??= new DroneTuning();
             PlayerTuning.EnsureInitialized();
             CompassHud ??= new CompassHudTuning();
