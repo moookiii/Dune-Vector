@@ -584,9 +584,9 @@ namespace DuneVector
             if (!Enabled) return;
             Time.fixedDeltaTime = 0.05f;
             Time.maximumDeltaTime = 0.05f;
-            Time.captureDeltaTime = 0.05f;
+            Time.captureDeltaTime = VisualEvaluation ? 0f : 0.05f;
             QualitySettings.vSyncCount = 0;
-            Application.targetFrameRate = VisualEvaluation ? 20 : -1;
+            Application.targetFrameRate = VisualEvaluation ? 60 : -1;
             Application.runInBackground = true;
             AudioListener.pause = !VisualEvaluation;
         }
@@ -648,7 +648,7 @@ namespace DuneVector
             PufferTrainingTuning settings = bootstrap.PufferTraining;
             Time.fixedDeltaTime = settings.FixedTickSeconds;
             Time.maximumDeltaTime = settings.FixedTickSeconds;
-            Time.captureDeltaTime = settings.FixedTickSeconds;
+            Time.captureDeltaTime = DuneTrainingRuntime.VisualEvaluation ? 0f : settings.FixedTickSeconds;
 
             BehaviorParameters behavior = bootstrap.gameObject.AddComponent<BehaviorParameters>();
             behavior.BehaviorName = "DuneVector";
