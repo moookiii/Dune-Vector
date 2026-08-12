@@ -263,12 +263,15 @@ namespace DuneVector
             bool hubCurriculum = _curriculumStage == 1 &&
                 _bootstrap.CourierGame.State == CourierRunState.Hub;
             bool groundCurriculum = _curriculumStage == 2;
+            bool stage2FlightRecovery = groundCurriculum &&
+                _bootstrap.Drone.CurrentMode == DroneTraversalMode.Flight;
             DroneRawInputFrame command = new DroneRawInputFrame
             {
                 Move = Vector2.ClampMagnitude(new Vector2(continuous[0], continuous[1]), 1f),
                 LookDelta = new Vector2(continuous[2], continuous[3]),
                 JumpPressed = !hubCurriculum && !groundCurriculum && Pulse(continuous[4], 4),
-                JumpHeld = !hubCurriculum && !groundCurriculum && continuous[4] > 0f,
+                JumpHeld = (!hubCurriculum && !groundCurriculum || stage2FlightRecovery) &&
+                    continuous[4] > 0f,
                 BoostHeld = !hubCurriculum && !groundCurriculum && continuous[5] > 0f,
                 FirePressed = !hubCurriculum && !groundCurriculum && Pulse(continuous[6], 6),
                 InteractPressed = Pulse(continuous[7], 7),
@@ -460,7 +463,8 @@ namespace DuneVector
             {
                 return true;
             }
-            return _curriculumStage == 1 && _deployed;
+            return (_curriculumStage == 1 && _deployed) ||
+                (_curriculumStage == 2 && _pickups > 0);
         }
 
         private void PublishEpisodeMetrics()
