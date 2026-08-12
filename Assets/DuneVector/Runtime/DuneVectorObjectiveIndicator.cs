@@ -165,14 +165,27 @@ namespace DuneVector
                 _position.y + radius + textGap,
                 textWidth,
                 textHeight);
-            Color previousColor = GUI.color;
-            GUI.color = settings.ObjectiveIndicatorShadowColor;
-            Rect shadowRect = labelRect;
-            shadowRect.position += settings.ObjectiveIndicatorShadowOffset * scale;
-            GUI.Label(shadowRect, $"{objectiveLabel}  {distance:0} m", _labelStyle);
-            GUI.color = settings.ObjectiveIndicatorColor;
-            GUI.Label(labelRect, $"{objectiveLabel}  {distance:0} m", _labelStyle);
-            GUI.color = previousColor;
+            string labelText = $"{objectiveLabel}  {distance:0} m";
+            Vector2 labelShadowOffset = settings.ObjectiveIndicatorLabelShadowOffset * scale;
+            if (labelShadowOffset.sqrMagnitude > 0f)
+            {
+                Rect shadowRect = labelRect;
+                shadowRect.position += labelShadowOffset;
+                HudRestoreNotification.DrawOutlined(
+                    _labelStyle,
+                    shadowRect,
+                    labelText,
+                    settings.ObjectiveIndicatorLabelShadowColor,
+                    0f,
+                    Color.clear);
+            }
+            HudRestoreNotification.DrawOutlined(
+                _labelStyle,
+                labelRect,
+                labelText,
+                settings.ObjectiveIndicatorLabelColor,
+                settings.ObjectiveIndicatorLabelOutlineThickness * scale,
+                settings.ObjectiveIndicatorLabelOutlineColor);
         }
 
         private float EvaluateStartFlashVisibility(DeliveryTuning settings)

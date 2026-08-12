@@ -81,10 +81,31 @@ namespace DuneVector
                     ScaleAlpha(style.ShadowColor, Mathf.Min(fade, shadowFade)));
             }
 
-            float outline = Mathf.Max(0f, style.OutlineThickness);
-            if (outline > 0f)
+            DrawOutlined(
+                guiStyle,
+                rect,
+                text,
+                ScaleAlpha(style.TextColor, fade),
+                style.OutlineThickness,
+                ScaleAlpha(style.OutlineColor, fade));
+            GUI.matrix = previousMatrix;
+        }
+
+        /// <summary>
+        /// Draws <paramref name="text"/> with an even outline ringing it, so HUD copy stays legible
+        /// over bright sky and sand without needing a backing plate.
+        /// </summary>
+        public static void DrawOutlined(
+            GUIStyle guiStyle,
+            Rect rect,
+            string text,
+            Color textColor,
+            float outlineThickness,
+            Color outlineColor)
+        {
+            float outline = Mathf.Max(0f, outlineThickness);
+            if (outline > 0f && outlineColor.a > 0f)
             {
-                Color outlineColor = ScaleAlpha(style.OutlineColor, fade);
                 float diagonal = outline * 0.7071f;
                 DrawOffset(guiStyle, rect, text, outlineColor, outline, 0f);
                 DrawOffset(guiStyle, rect, text, outlineColor, -outline, 0f);
@@ -96,8 +117,7 @@ namespace DuneVector
                 DrawOffset(guiStyle, rect, text, outlineColor, -diagonal, -diagonal);
             }
 
-            DrawText(guiStyle, rect, text, ScaleAlpha(style.TextColor, fade));
-            GUI.matrix = previousMatrix;
+            DrawText(guiStyle, rect, text, textColor);
         }
 
         private static void DrawOffset(

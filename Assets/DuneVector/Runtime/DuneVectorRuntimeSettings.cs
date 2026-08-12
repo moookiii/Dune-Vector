@@ -894,7 +894,7 @@ namespace DuneVector
         [Min(0f)] public float ObjectiveIndicatorTextGap = 13f;
         [Min(12f)] public float ObjectiveIndicatorTextWidth = 300f;
         [Min(12f)] public float ObjectiveIndicatorTextHeight = 44f;
-        [Min(8)] public int ObjectiveIndicatorFontSize = 30;
+        [Min(8)] public int ObjectiveIndicatorFontSize = 24;
         [Min(0f)] public float ObjectiveIndicatorEdgePadding = 18f;
         [Min(0f)] public float ObjectiveIndicatorViewportHysteresis = 18f;
         [Min(0f)] public float ObjectiveIndicatorPositionSharpness = 14f;
@@ -908,6 +908,14 @@ namespace DuneVector
         public Vector2 ObjectiveIndicatorShadowOffset = new Vector2(2f, 3f);
         [ColorUsage(false)] public Color ObjectiveIndicatorColor = new Color(0.96f, 0.98f, 1f, 1f);
         [ColorUsage(false)] public Color ObjectiveIndicatorShadowColor = new Color(0f, 0f, 0f, 0.72f);
+        [Tooltip("Color of the PICKUP and DELIVER distance label. Alpha controls how strongly it reads against the scene.")]
+        public Color ObjectiveIndicatorLabelColor = new Color(0.7f, 0.93f, 1f, 0.85f);
+        [Tooltip("Outline width in pixels around the objective label, before screen scaling. Set to 0 for no outline.")]
+        [Range(0f, 6f)] public float ObjectiveIndicatorLabelOutlineThickness = 1.25f;
+        public Color ObjectiveIndicatorLabelOutlineColor = new Color(0.02f, 0.04f, 0.07f, 0.55f);
+        [Tooltip("Drop shadow offset for the objective label, before screen scaling. Set to zero for no shadow.")]
+        public Vector2 ObjectiveIndicatorLabelShadowOffset = new Vector2(0f, 2.5f);
+        public Color ObjectiveIndicatorLabelShadowColor = new Color(0f, 0f, 0f, 0.3f);
 
         [Header("Completion Message")]
         [ColorUsage(false)] public Color CompletionTextRed = new Color(1f, 0.55f, 0.68f);
