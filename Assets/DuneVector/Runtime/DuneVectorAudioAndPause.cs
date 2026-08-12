@@ -1800,7 +1800,7 @@ namespace DuneVector
                 y = DrawSectionHeader(content, y, "INPUT", scale);
                 DrawSliderRow(
                     new Rect(content.x, y, content.width, sliderRowHeight),
-                    "MOUSE SENSITIVITY",
+                    "CAMERA SENSITIVITY",
                     sensitivity.ToString("0.00", CultureInfo.InvariantCulture),
                     (sensitivity - minimumSensitivity) / sensitivityRange,
                     normalized => SetLookSensitivity(minimumSensitivity + (normalized * sensitivityRange)),
