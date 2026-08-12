@@ -7123,6 +7123,7 @@ namespace DuneVector
         [Header("Stage 2 Ground Driving")]
         [Min(10f)] public float Stage2MinimumRouteDistance = 60f;
         [Min(10f)] public float Stage2MaximumRouteDistance = 120f;
+        [Min(10f)] public float Stage2MaximumPickupSpawnDistance = 120f;
         [Min(1)] public int Stage2DivergenceStepBudget = 80;
         [Min(0f)] public float Stage2DivergenceDistance = 20f;
 

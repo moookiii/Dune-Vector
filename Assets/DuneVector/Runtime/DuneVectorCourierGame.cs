@@ -2080,7 +2080,10 @@ namespace DuneVector
             double objectiveDeltaZ = ActiveObjectiveLogicalPosition.Z - routeOrigin.Z;
             double objectiveDistance = Math.Sqrt(
                 (objectiveDeltaX * objectiveDeltaX) + (objectiveDeltaZ * objectiveDeltaZ));
-            double maximumPickupSpawnDistance = Math.Max(1.0, _settings.MaximumPickupSpawnDistance);
+            double maximumPickupSpawnDistance = DuneTrainingRuntime.ControlledGroundStage &&
+                DuneVectorBootstrap.Instance != null
+                ? Math.Max(10.0, DuneVectorBootstrap.Instance.PufferTraining.Stage2MaximumPickupSpawnDistance)
+                : Math.Max(1.0, _settings.MaximumPickupSpawnDistance);
             if (objectiveDistance > maximumPickupSpawnDistance)
             {
                 double insertionScale = maximumPickupSpawnDistance / objectiveDistance;
