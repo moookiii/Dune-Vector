@@ -539,7 +539,7 @@ namespace DuneVector.Editor
                 _photography);
             DuneVectorSettingsInspector.DrawSection(
                 "Dynamic Couriers & Convoys",
-                "Ambient neutral deliveries, moving convoy attacks, rewards, and faction colors.",
+                "Ambient neutral deliveries, rival drone races, moving convoy attacks, rewards, and faction colors.",
                 _dynamicCouriers);
             DuneVectorSettingsInspector.DrawSection(
                 "World Hub & Teleport",
