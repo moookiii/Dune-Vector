@@ -64,7 +64,8 @@ namespace DuneVector
                 JumpHeld = jumpHeld,
                 BoostHeld = boostHeld,
                 FirePressed = (mouse != null && mouse.leftButton.wasPressedThisFrame) || gamepadFirePressed,
-                InteractPressed = keyboard != null && keyboard.eKey.wasPressedThisFrame,
+                InteractPressed = (keyboard != null && keyboard.eKey.wasPressedThisFrame) ||
+                                  (gamepad != null && gamepad.buttonNorth.wasPressedThisFrame),
                 MenuNavigate = keyboard != null
                     ? (keyboard.rightArrowKey.wasPressedThisFrame || keyboard.downArrowKey.wasPressedThisFrame ? 1f : 0f) -
                       (keyboard.leftArrowKey.wasPressedThisFrame || keyboard.upArrowKey.wasPressedThisFrame ? 1f : 0f)
