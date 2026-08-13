@@ -132,7 +132,7 @@ namespace DuneVector
             float hubDistance = 0f;
             float interactionRadius = 0f;
             bool hubValid;
-            if (_curriculumStage == 1)
+            if (courier.State == CourierRunState.Hub)
             {
                 hubValid = courier.TryGetContractTerminalObservation(
                     out terminalPosition,
@@ -300,12 +300,13 @@ namespace DuneVector
             bool combatCurriculum = _curriculumStage >= 5;
             bool stage2FlightRecovery = groundCurriculum &&
                 _bootstrap.Drone.CurrentMode == DroneTraversalMode.Flight;
-            bool stage1ContractInteractValid = !hubCurriculum ||
+            bool contractHubCurriculum = _bootstrap.CourierGame.State == CourierRunState.Hub;
+            bool stage1ContractInteractValid = !contractHubCurriculum ||
                 (_bootstrap.CourierGame.HubTerminalMenuKind == 0 &&
                  _bootstrap.CourierGame.TryGetContractTerminalObservation(
                      out _, out float contractDistance, out float contractRadius) &&
                  contractDistance <= contractRadius);
-            bool stage1ContractConfirmValid = !hubCurriculum ||
+            bool stage1ContractConfirmValid = !contractHubCurriculum ||
                 _bootstrap.CourierGame.HubTerminalConfirmValid;
             DroneRawInputFrame command = new DroneRawInputFrame
             {
@@ -320,7 +321,7 @@ namespace DuneVector
                 InteractPressed = Pulse(discrete[7] != 0 && stage1ContractInteractValid, 7),
                 MenuNavigate = PulseSigned(discrete[8] - 1, 8),
                 ConfirmPressed = Pulse(discrete[9] != 0 && stage1ContractConfirmValid, 9),
-                CancelPressed = !hubCurriculum && Pulse(discrete[10] != 0, 10),
+                CancelPressed = !contractHubCurriculum && Pulse(discrete[10] != 0, 10),
             };
             if (command.FirePressed)
             {
@@ -720,7 +721,7 @@ namespace DuneVector
 
         private bool TryGetTrainingHubObjective(DuneVectorCourierGame courier, out float distance)
         {
-            if (_curriculumStage == 1)
+            if (courier.State == CourierRunState.Hub)
             {
                 return courier.TryGetContractTerminalObservation(out _, out distance, out _);
             }
