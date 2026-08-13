@@ -7129,6 +7129,10 @@ namespace DuneVector
         [Min(1)] public int Stage2DivergenceStepBudget = 80;
         [Min(0f)] public float Stage2DivergenceDistance = 20f;
 
+        [Header("Stage 3 Flight and Stage 4 Delivery")]
+        [Min(1)] public int Stage3StepBudget = 4800;
+        [Min(1)] public int Stage4StepBudget = 7200;
+
         [Header("Observation Scales")]
         [Min(1f)] public float ObjectiveDistanceScale = 1500f;
         [Min(1f)] public float HubDistanceScale = 40f;

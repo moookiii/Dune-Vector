@@ -1140,7 +1140,7 @@ namespace DuneVector
                 DesertAtlas = CourierGame.DesertAtlas;
                 PermanentUpgrades.BindAtlasGlyphMaterial(DesertAtlas, _materials);
 
-                if (!DuneTrainingRuntime.ControlledGroundStage)
+                if (!DuneTrainingRuntime.ControlledPreHazardStage)
                 {
                     GameObject encounterObject = new GameObject("Route Encounter Formation Director");
                     encounterObject.transform.SetParent(transform, false);
@@ -1168,7 +1168,7 @@ namespace DuneVector
 
         private void BuildEnemyGameplay()
         {
-            if (DuneTrainingRuntime.ControlledGroundStage)
+            if (DuneTrainingRuntime.ControlledPreHazardStage)
             {
                 return;
             }
@@ -1213,7 +1213,7 @@ namespace DuneVector
 
         private void BuildDynamicCourierGameplay()
         {
-            if (DuneTrainingRuntime.ControlledGroundStage)
+            if (DuneTrainingRuntime.ControlledPreHazardStage)
             {
                 return;
             }
@@ -1270,7 +1270,7 @@ namespace DuneVector
 
         private void BuildEnvironmentalHazards()
         {
-            if (DuneTrainingRuntime.ControlledGroundStage)
+            if (DuneTrainingRuntime.ControlledPreHazardStage)
             {
                 return;
             }

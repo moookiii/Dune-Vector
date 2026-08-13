@@ -15,6 +15,7 @@ namespace DuneVector
     {
         public const int ObservationCount = 92;
         public const int ActionCount = 11;
+        public static readonly int[] ActionBranches = { 7, 7, 7, 7, 2, 2, 2, 2, 3, 2, 2 };
 
         private DuneVectorBootstrap _bootstrap;
         private PufferTrainingTuning _settings;
@@ -51,10 +52,13 @@ namespace DuneVector
         private CourierRunState _previousRunState;
         private int _previousHubTerminalMenuKind;
         private int _previousRingActivations;
+        private int _rewardedRingActivations;
         private float _previousTargetHealth;
         private EnemyCombatTarget _previousTarget;
         private readonly float[] _previousActions = new float[ActionCount];
         private readonly int[] _nextPulseStep = new int[ActionCount];
+        private readonly Dictionary<TraversalRing, int> _observedRingActivations =
+            new Dictionary<TraversalRing, int>();
 
         public void Bind(DuneVectorBootstrap bootstrap, int curriculumStage, bool evaluation)
         {
@@ -102,6 +106,8 @@ namespace DuneVector
             _objectiveStepsWithoutProgress = 0;
             _objectiveDiverged = false;
             _previousObjective = null;
+            _rewardedRingActivations = 0;
+            _observedRingActivations.Clear();
             Array.Clear(_previousActions, 0, _previousActions.Length);
             Array.Clear(_nextPulseStep, 0, _nextPulseStep.Length);
             CaptureBaseline();
@@ -273,25 +279,27 @@ namespace DuneVector
                 return;
             }
 
-            ActionSegment<float> continuous = actions.ContinuousActions;
+            ActionSegment<int> discrete = actions.DiscreteActions;
             bool hubCurriculum = _curriculumStage == 1 &&
                 _bootstrap.CourierGame.State == CourierRunState.Hub;
             bool groundCurriculum = _curriculumStage == 2;
+            bool combatCurriculum = _curriculumStage >= 5;
             bool stage2FlightRecovery = groundCurriculum &&
                 _bootstrap.Drone.CurrentMode == DroneTraversalMode.Flight;
             DroneRawInputFrame command = new DroneRawInputFrame
             {
-                Move = Vector2.ClampMagnitude(new Vector2(continuous[0], continuous[1]), 1f),
-                LookDelta = new Vector2(continuous[2], continuous[3]),
-                JumpPressed = !hubCurriculum && !groundCurriculum && Pulse(continuous[4], 4),
+                Move = Vector2.ClampMagnitude(new Vector2(
+                    DecodeAxis(discrete[0]), DecodeAxis(discrete[1])), 1f),
+                LookDelta = new Vector2(DecodeAxis(discrete[2]), DecodeAxis(discrete[3])),
+                JumpPressed = !hubCurriculum && !groundCurriculum && Pulse(discrete[4] != 0, 4),
                 JumpHeld = (!hubCurriculum && !groundCurriculum || stage2FlightRecovery) &&
-                    continuous[4] > 0f,
-                BoostHeld = !hubCurriculum && !groundCurriculum && continuous[5] > 0f,
-                FirePressed = !hubCurriculum && !groundCurriculum && Pulse(continuous[6], 6),
-                InteractPressed = Pulse(continuous[7], 7),
-                MenuNavigate = PulseSigned(continuous[8], 8),
-                ConfirmPressed = Pulse(continuous[9], 9),
-                CancelPressed = Pulse(continuous[10], 10),
+                    discrete[4] != 0,
+                BoostHeld = !hubCurriculum && !groundCurriculum && discrete[5] != 0,
+                FirePressed = combatCurriculum && Pulse(discrete[6] != 0, 6),
+                InteractPressed = Pulse(discrete[7] != 0, 7),
+                MenuNavigate = PulseSigned(discrete[8] - 1, 8),
+                ConfirmPressed = Pulse(discrete[9] != 0, 9),
+                CancelPressed = Pulse(discrete[10] != 0, 10),
             };
             if (command.FirePressed)
             {
@@ -300,18 +308,27 @@ namespace DuneVector
             _bootstrap.Player.SetAutomatedInput(command);
         }
 
-        private bool Pulse(float value, int index)
+        private static float DecodeAxis(int value)
         {
-            bool active = value > 0f;
+            return Mathf.Clamp(value, 0, 6) / 3f - 1f;
+        }
+
+        private static int EncodeAxis(float value)
+        {
+            return Mathf.Clamp(Mathf.RoundToInt((Mathf.Clamp(value, -1f, 1f) + 1f) * 3f), 0, 6);
+        }
+
+        private bool Pulse(bool active, int index)
+        {
             bool rising = active && _previousActions[index] <= 0f;
             bool repeated = active && _episodeSteps >= _nextPulseStep[index];
-            _previousActions[index] = value;
+            _previousActions[index] = active ? 1f : 0f;
             if (!rising && !repeated) return false;
             _nextPulseStep[index] = _episodeSteps + 5;
             return true;
         }
 
-        private float PulseSigned(float value, int index)
+        private float PulseSigned(int value, int index)
         {
             if (Mathf.Abs(value) <= 0.1f)
             {
@@ -328,21 +345,21 @@ namespace DuneVector
 
         public override void Heuristic(in ActionBuffers actionsOut)
         {
-            ActionSegment<float> actions = actionsOut.ContinuousActions;
+            ActionSegment<int> actions = actionsOut.DiscreteActions;
             DroneRawInputFrame command = _bootstrap != null && _bootstrap.Player != null
                 ? _bootstrap.Player.InputSource.Current
                 : default;
-            actions[0] = command.Move.x;
-            actions[1] = command.Move.y;
-            actions[2] = Mathf.Clamp(command.LookDelta.x, -1f, 1f);
-            actions[3] = Mathf.Clamp(command.LookDelta.y, -1f, 1f);
-            actions[4] = command.JumpHeld || command.JumpPressed ? 1f : 0f;
-            actions[5] = command.BoostHeld ? 1f : 0f;
-            actions[6] = command.FirePressed ? 1f : 0f;
-            actions[7] = command.InteractPressed ? 1f : 0f;
-            actions[8] = command.MenuNavigate;
-            actions[9] = command.ConfirmPressed ? 1f : 0f;
-            actions[10] = command.CancelPressed ? 1f : 0f;
+            actions[0] = EncodeAxis(command.Move.x);
+            actions[1] = EncodeAxis(command.Move.y);
+            actions[2] = EncodeAxis(command.LookDelta.x);
+            actions[3] = EncodeAxis(command.LookDelta.y);
+            actions[4] = command.JumpHeld || command.JumpPressed ? 1 : 0;
+            actions[5] = command.BoostHeld ? 1 : 0;
+            actions[6] = command.FirePressed ? 1 : 0;
+            actions[7] = command.InteractPressed ? 1 : 0;
+            actions[8] = command.MenuNavigate < -0.1f ? 0 : command.MenuNavigate > 0.1f ? 2 : 1;
+            actions[9] = command.ConfirmPressed ? 1 : 0;
+            actions[10] = command.CancelPressed ? 1 : 0;
         }
 
         private void ScorePreviousAuthoritativeTick()
@@ -434,10 +451,12 @@ namespace DuneVector
             }
 
             int ringActivations = GetTotalRingActivations();
-            if (_curriculumStage >= 3 && ringActivations > _previousRingActivations)
+            int newRewardable = ConsumeNewRewardableRingActivations();
+            if (newRewardable > 0)
             {
-                AddTrainingReward((ringActivations - _previousRingActivations) * _settings.UsefulRingReward, shaped: false);
-                _unshapedReturn += ringActivations - _previousRingActivations;
+                _rewardedRingActivations += newRewardable;
+                AddTrainingReward(newRewardable * _settings.UsefulRingReward, shaped: false);
+                _unshapedReturn += newRewardable;
             }
 
             TrackCombat();
@@ -485,13 +504,20 @@ namespace DuneVector
             hubTimeout = !_deployed && (_hubSteps >= _settings.HubStepBudget || _hubStuck);
             stage2Failure = _curriculumStage == 2 && _pickups == 0 &&
                 (_objectiveDiverged || _episodeSteps >= _settings.Stage2StepBudget);
+            bool stage3Timeout = _curriculumStage == 3 &&
+                _episodeSteps >= _settings.Stage3StepBudget;
+            bool stage4Timeout = _curriculumStage == 4 &&
+                _episodeSteps >= _settings.Stage4StepBudget;
             if (hubTimeout || stage2Failure || _episodeSteps >= _settings.EpisodeStepBudget ||
+                stage3Timeout || stage4Timeout ||
                 (_bootstrap.DroneHealth != null && _bootstrap.DroneHealth.IsDead))
             {
                 return true;
             }
             return (_curriculumStage == 1 && _deployed) ||
-                (_curriculumStage == 2 && _pickups > 0);
+                (_curriculumStage == 2 && _pickups > 0) ||
+                (_curriculumStage == 3 && _pickups > 0 && _rewardedRingActivations > 0) ||
+                (_curriculumStage == 4 && _deliveries > 0);
         }
 
         private void PublishEpisodeMetrics()
@@ -513,6 +539,7 @@ namespace DuneVector
             stats.Add("Dune/unshaped_return", _unshapedReturn);
             stats.Add("Dune/shaped_training_return", _trainingReturn);
             stats.Add("Dune/curriculum_stage", _curriculumStage);
+            stats.Add("Dune/rewarded_ring_activations", _rewardedRingActivations);
             stats.Add("Dune/objective_min_distance", float.IsInfinity(_bestObjectiveDistance)
                 ? 0f
                 : _bestObjectiveDistance);
@@ -638,7 +665,7 @@ namespace DuneVector
             distance = float.PositiveInfinity;
             foreach (TraversalRing ring in TraversalRing.ActiveRings)
             {
-                if (ring == null || !ring.isActiveAndEnabled) continue;
+                if (ring == null || !ring.isActiveAndEnabled || !IsRingObservable(ring)) continue;
                 float candidate = Vector3.Distance(origin, ring.transform.position);
                 if (candidate < distance)
                 {
@@ -657,6 +684,41 @@ namespace DuneVector
                 if (ring != null) total += ring.ActivationCount;
             }
             return total;
+        }
+
+        private int ConsumeNewRewardableRingActivations()
+        {
+            int rewardable = 0;
+            foreach (TraversalRing ring in TraversalRing.ActiveRings)
+            {
+                if (ring == null) continue;
+                _observedRingActivations.TryGetValue(ring, out int previous);
+                int delta = Mathf.Max(0, ring.ActivationCount - previous);
+                _observedRingActivations[ring] = ring.ActivationCount;
+                if (delta > 0 && IsRingCurrentlyUseful(ring)) rewardable += delta;
+            }
+            return rewardable;
+        }
+
+        private bool IsRingCurrentlyUseful(TraversalRing ring)
+        {
+            if (_curriculumStage == 3)
+            {
+                return ring.RingType == TraversalRingType.Flight ||
+                    ring.RingType == TraversalRingType.UpperFlight;
+            }
+            return _curriculumStage >= 5 && _bootstrap.VesperKiteDirector != null &&
+                _bootstrap.VesperKiteDirector.ActivePilgrimCount > 0;
+        }
+
+        private bool IsRingObservable(TraversalRing ring)
+        {
+            if (_curriculumStage < 3) return false;
+            bool flightUtility = ring.RingType == TraversalRingType.Flight ||
+                ring.RingType == TraversalRingType.UpperFlight;
+            bool missileDefense = _bootstrap.VesperKiteDirector != null &&
+                _bootstrap.VesperKiteDirector.ActivePilgrimCount > 0;
+            return flightUtility || missileDefense;
         }
 
         private void AddCollisionProbes(VectorSensor sensor, DroneCharacterController drone, ref int count)
@@ -708,6 +770,8 @@ namespace DuneVector
         public static bool Evaluation => HasArgument("--dune-evaluation");
         public static bool VisualEvaluation => Evaluation && HasArgument("--dune-visual-evaluation");
         public static bool ControlledGroundStage => Enabled && ReadCurriculumStage() == 2;
+        public static bool ControlledPreHazardStage => Enabled && ReadCurriculumStage() >= 2 &&
+            ReadCurriculumStage() <= 4;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void ConfigureHeadlessRuntime()
@@ -786,7 +850,8 @@ namespace DuneVector
             behavior.BehaviorType = BehaviorType.Default;
             behavior.BrainParameters.VectorObservationSize = DuneVectorTrainingAgent.ObservationCount;
             behavior.BrainParameters.NumStackedVectorObservations = 1;
-            behavior.BrainParameters.ActionSpec = ActionSpec.MakeContinuous(DuneVectorTrainingAgent.ActionCount);
+            behavior.BrainParameters.ActionSpec = ActionSpec.MakeDiscrete(
+                DuneVectorTrainingAgent.ActionBranches);
 
             DuneVectorTrainingAgent agent = bootstrap.gameObject.AddComponent<DuneVectorTrainingAgent>();
             agent.Bind(bootstrap, DuneTrainingRuntime.ReadCurriculumStage(), DuneTrainingRuntime.Evaluation);

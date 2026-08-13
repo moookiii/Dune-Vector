@@ -735,6 +735,19 @@ namespace DuneVector
         private VesperKiteTuning _settings;
         private bool _gameplayActive = true;
 
+        public int ActivePilgrimCount
+        {
+            get
+            {
+                int count = 0;
+                for (int i = 0; i < _enemies.Count; i++)
+                {
+                    if (_enemies[i] != null) count += _enemies[i].ActivePilgrimCount;
+                }
+                return count;
+            }
+        }
+
         public void Initialize(
             DroneCharacterController player,
             DroneHealth playerHealth,

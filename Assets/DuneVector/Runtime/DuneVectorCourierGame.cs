@@ -669,7 +669,7 @@ namespace DuneVector
                 audio,
                 Progress.DeliveryMessageInputHintAcknowledged,
                 Progress.AcknowledgeDeliveryMessageInputHint);
-            if (!DuneTrainingRuntime.ControlledGroundStage)
+            if (!DuneTrainingRuntime.ControlledPreHazardStage)
             {
                 _sandAmbusherSystem = gameObject.AddComponent<DuneVectorSandAmbusherSystem>();
                 _sandAmbusherSystem.Initialize(_player, _health, _world, _settings);
@@ -1868,7 +1868,7 @@ namespace DuneVector
         {
             _offers.Clear();
             int completionTier = Progress != null ? Progress.CompletedDeliveries : 0;
-            int count = DuneTrainingRuntime.ControlledGroundStage
+            int count = DuneTrainingRuntime.ControlledPreHazardStage
                 ? 1
                 : Mathf.Clamp(_settings.OfferedContractCount, 5, 8);
             int batch = Mathf.FloorToInt(Time.unscaledTime / Mathf.Max(1f, _settings.ContractRefreshSeconds));
@@ -1908,7 +1908,7 @@ namespace DuneVector
             int difficulty = _settings.EvaluateRisk(completed);
             float minimumRouteDistance = _settings.EvaluateMinimumRouteDistance(difficulty);
             float maximumRouteDistance = _settings.EvaluateMaximumRouteDistance(difficulty);
-            if (DuneTrainingRuntime.ControlledGroundStage && DuneVectorBootstrap.Instance != null)
+            if (DuneTrainingRuntime.ControlledPreHazardStage && DuneVectorBootstrap.Instance != null)
             {
                 PufferTrainingTuning training = DuneVectorBootstrap.Instance.PufferTraining;
                 minimumRouteDistance = Mathf.Max(10f, training.Stage2MinimumRouteDistance);
@@ -2106,7 +2106,7 @@ namespace DuneVector
             double objectiveDeltaZ = ActiveObjectiveLogicalPosition.Z - routeOrigin.Z;
             double objectiveDistance = Math.Sqrt(
                 (objectiveDeltaX * objectiveDeltaX) + (objectiveDeltaZ * objectiveDeltaZ));
-            double maximumPickupSpawnDistance = DuneTrainingRuntime.ControlledGroundStage &&
+            double maximumPickupSpawnDistance = DuneTrainingRuntime.ControlledPreHazardStage &&
                 DuneVectorBootstrap.Instance != null
                 ? Math.Max(10.0, DuneVectorBootstrap.Instance.PufferTraining.Stage2MaximumPickupSpawnDistance)
                 : Math.Max(1.0, _settings.MaximumPickupSpawnDistance);
@@ -2123,7 +2123,7 @@ namespace DuneVector
             }
 
             routeOrigin = _world.ResolvePlayerSpawnAwayFromObstacles(routeOrigin, -pickupForward);
-            if (DuneTrainingRuntime.ControlledGroundStage)
+            if (DuneTrainingRuntime.ControlledPreHazardStage)
             {
                 double resolvedDeltaX = routeOrigin.X - ActiveObjectiveLogicalPosition.X;
                 double resolvedDeltaZ = routeOrigin.Z - ActiveObjectiveLogicalPosition.Z;
@@ -2210,7 +2210,7 @@ namespace DuneVector
             float maximumLegDistance =
                 _settings.EvaluateMaximumRouteDistance(contract.Difficulty) /
                 Mathf.Max(1, contract.StopCount);
-            if (DuneTrainingRuntime.ControlledGroundStage && DuneVectorBootstrap.Instance != null)
+            if (DuneTrainingRuntime.ControlledPreHazardStage && DuneVectorBootstrap.Instance != null)
             {
                 PufferTrainingTuning training = DuneVectorBootstrap.Instance.PufferTraining;
                 minimumLegDistance = Mathf.Max(10f, training.Stage2MinimumRouteDistance) /
