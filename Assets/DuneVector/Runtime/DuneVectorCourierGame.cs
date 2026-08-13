@@ -4156,6 +4156,19 @@ namespace DuneVector
             return found;
         }
 
+        public bool TryGetContractTerminalObservation(
+            out Vector3 terminalPosition,
+            out float distance,
+            out float interactionRadius)
+        {
+            terminalPosition = _terminal != null ? _terminal.position : Vector3.zero;
+            distance = _terminal != null && _player != null
+                ? Vector3.Distance(_player.WorldCenter, _terminal.position)
+                : float.PositiveInfinity;
+            interactionRadius = _hubSettings.TerminalInteractionRadius;
+            return State == CourierRunState.Hub && _terminal != null && _player != null;
+        }
+
         public bool TryGetSelectedHubOffer(out CourierContract offer)
         {
             if (!HubTerminalConfirmValid)

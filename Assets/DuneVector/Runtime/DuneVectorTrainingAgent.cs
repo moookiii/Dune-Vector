@@ -129,12 +129,24 @@ namespace DuneVector
             Vector3 terminalPosition = Vector3.zero;
             float hubDistance = 0f;
             float interactionRadius = 0f;
-            bool hubValid = courier.State == CourierRunState.Hub &&
-                courier.TryGetHubInteractionObservation(
-                    out terminalKind,
+            bool hubValid;
+            if (_curriculumStage == 1)
+            {
+                hubValid = courier.TryGetContractTerminalObservation(
                     out terminalPosition,
                     out hubDistance,
                     out interactionRadius);
+                terminalKind = hubValid ? 1 : 0;
+            }
+            else
+            {
+                hubValid = courier.State == CourierRunState.Hub &&
+                    courier.TryGetHubInteractionObservation(
+                        out terminalKind,
+                        out terminalPosition,
+                        out hubDistance,
+                        out interactionRadius);
+            }
             Add(sensor, hubValid ? 1f : 0f, ref count);
             AddOneHot(sensor, hubValid ? terminalKind - 1 : -1, 3, ref count);
             Vector3 hubRelative = hubValid
@@ -377,7 +389,7 @@ namespace DuneVector
                 _previousRunState == CourierRunState.Hub &&
                 courier.State == CourierRunState.TeleportingToDesert;
             if (!_terminalOpened && _previousHubTerminalMenuKind == 0 &&
-                courier.HubTerminalMenuKind != 0)
+                courier.HubTerminalMenuKind == 1)
             {
                 _terminalOpened = true;
                 AddTrainingReward(_settings.HubTerminalOpenedReward, shaped: true);
@@ -390,14 +402,14 @@ namespace DuneVector
             }
 
             if (!_evaluation && courier.State == CourierRunState.Hub && courier.HubTerminalMenuKind == 0 &&
-                courier.TryGetHubInteractionObservation(out _, out _, out float hubDistance, out _))
+                TryGetTrainingHubObjective(courier, out float hubDistance))
             {
                 AddPotentialDifference(_previousHubDistance, hubDistance, _settings.HubPotentialScale);
                 _previousHubDistance = hubDistance;
             }
 
             if (!_deployed && courier.State == CourierRunState.Hub && courier.HubTerminalMenuKind == 0 &&
-                courier.TryGetHubInteractionObservation(out _, out _, out float stuckDistance, out _))
+                TryGetTrainingHubObjective(courier, out float stuckDistance))
             {
                 if (stuckDistance <= _bestHubDistance - _settings.HubStuckMinimumProgress)
                 {
@@ -684,6 +696,15 @@ namespace DuneVector
                 if (ring != null) total += ring.ActivationCount;
             }
             return total;
+        }
+
+        private bool TryGetTrainingHubObjective(DuneVectorCourierGame courier, out float distance)
+        {
+            if (_curriculumStage == 1)
+            {
+                return courier.TryGetContractTerminalObservation(out _, out distance, out _);
+            }
+            return courier.TryGetHubInteractionObservation(out _, out _, out distance, out _);
         }
 
         private int ConsumeNewRewardableRingActivations()
