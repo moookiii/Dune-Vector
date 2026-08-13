@@ -27,6 +27,7 @@ namespace DuneVector
         private bool _deployed;
         private bool _terminalOpened;
         private bool _hubStuck;
+        private bool _wrongStage1Deployment;
         private int _hubStepsWithoutProgress;
         private float _bestHubDistance;
         private int _pickups;
@@ -90,6 +91,7 @@ namespace DuneVector
             _deployed = false;
             _terminalOpened = false;
             _hubStuck = false;
+            _wrongStage1Deployment = false;
             _hubStepsWithoutProgress = 0;
             _bestHubDistance = float.PositiveInfinity;
             _pickups = 0;
@@ -298,6 +300,13 @@ namespace DuneVector
             bool combatCurriculum = _curriculumStage >= 5;
             bool stage2FlightRecovery = groundCurriculum &&
                 _bootstrap.Drone.CurrentMode == DroneTraversalMode.Flight;
+            bool stage1ContractInteractValid = !hubCurriculum ||
+                (_bootstrap.CourierGame.HubTerminalMenuKind == 0 &&
+                 _bootstrap.CourierGame.TryGetContractTerminalObservation(
+                     out _, out float contractDistance, out float contractRadius) &&
+                 contractDistance <= contractRadius);
+            bool stage1ContractConfirmValid = !hubCurriculum ||
+                _bootstrap.CourierGame.HubTerminalConfirmValid;
             DroneRawInputFrame command = new DroneRawInputFrame
             {
                 Move = Vector2.ClampMagnitude(new Vector2(
@@ -308,10 +317,10 @@ namespace DuneVector
                     discrete[4] != 0,
                 BoostHeld = !hubCurriculum && !groundCurriculum && discrete[5] != 0,
                 FirePressed = combatCurriculum && Pulse(discrete[6] != 0, 6),
-                InteractPressed = Pulse(discrete[7] != 0, 7),
+                InteractPressed = Pulse(discrete[7] != 0 && stage1ContractInteractValid, 7),
                 MenuNavigate = PulseSigned(discrete[8] - 1, 8),
-                ConfirmPressed = Pulse(discrete[9] != 0, 9),
-                CancelPressed = Pulse(discrete[10] != 0, 10),
+                ConfirmPressed = Pulse(discrete[9] != 0 && stage1ContractConfirmValid, 9),
+                CancelPressed = !hubCurriculum && Pulse(discrete[10] != 0, 10),
             };
             if (command.FirePressed)
             {
@@ -396,9 +405,19 @@ namespace DuneVector
             }
             if (deploymentStarted)
             {
-                _deployed = true;
-                _stepsToDeploy = _hubSteps;
-                AddTrainingReward(_settings.ValidDeploymentReward, shaped: true);
+                bool validStage1Contract = _curriculumStage != 1 ||
+                    _previousHubTerminalMenuKind == 1;
+                if (validStage1Contract)
+                {
+                    _deployed = true;
+                    _stepsToDeploy = _hubSteps;
+                    AddTrainingReward(_settings.ValidDeploymentReward, shaped: true);
+                }
+                else
+                {
+                    _wrongStage1Deployment = true;
+                    AddTrainingReward(-_settings.HubTimeoutPenalty, shaped: true);
+                }
             }
 
             if (!_evaluation && courier.State == CourierRunState.Hub && courier.HubTerminalMenuKind == 0 &&
@@ -520,7 +539,8 @@ namespace DuneVector
                 _episodeSteps >= _settings.Stage3StepBudget;
             bool stage4Timeout = _curriculumStage == 4 &&
                 _episodeSteps >= _settings.Stage4StepBudget;
-            if (hubTimeout || stage2Failure || _episodeSteps >= _settings.EpisodeStepBudget ||
+            if (hubTimeout || _wrongStage1Deployment || stage2Failure ||
+                _episodeSteps >= _settings.EpisodeStepBudget ||
                 stage3Timeout || stage4Timeout ||
                 (_bootstrap.DroneHealth != null && _bootstrap.DroneHealth.IsDead))
             {
