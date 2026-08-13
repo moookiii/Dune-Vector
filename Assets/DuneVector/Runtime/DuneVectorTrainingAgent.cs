@@ -24,6 +24,7 @@ namespace DuneVector
         private int _hubSteps;
         private int _stepsToDeploy;
         private bool _deployed;
+        private bool _terminalOpened;
         private bool _hubStuck;
         private int _hubStepsWithoutProgress;
         private float _bestHubDistance;
@@ -48,6 +49,7 @@ namespace DuneVector
         private int _previousCompletedDeliveries;
         private FreeRoamDeliveryPhase _previousFreeRoamPhase;
         private CourierRunState _previousRunState;
+        private int _previousHubTerminalMenuKind;
         private int _previousRingActivations;
         private float _previousTargetHealth;
         private EnemyCombatTarget _previousTarget;
@@ -82,6 +84,7 @@ namespace DuneVector
             _hubSteps = 0;
             _stepsToDeploy = 0;
             _deployed = false;
+            _terminalOpened = false;
             _hubStuck = false;
             _hubStepsWithoutProgress = 0;
             _bestHubDistance = float.PositiveInfinity;
@@ -356,6 +359,12 @@ namespace DuneVector
             bool deploymentStarted = !_deployed &&
                 _previousRunState == CourierRunState.Hub &&
                 courier.State == CourierRunState.TeleportingToDesert;
+            if (!_terminalOpened && _previousHubTerminalMenuKind == 0 &&
+                courier.HubTerminalMenuKind != 0)
+            {
+                _terminalOpened = true;
+                AddTrainingReward(_settings.HubTerminalOpenedReward, shaped: true);
+            }
             if (deploymentStarted)
             {
                 _deployed = true;
@@ -446,6 +455,7 @@ namespace DuneVector
             _previousFreeRoamStreak = streak;
             _previousCompletedDeliveries = completed;
             _previousRunState = courier.State;
+            _previousHubTerminalMenuKind = courier.HubTerminalMenuKind;
             _previousRingActivations = ringActivations;
         }
 
@@ -491,6 +501,7 @@ namespace DuneVector
             stats.Add("Dune/deployment_steps", _deployed ? _stepsToDeploy : _hubSteps);
             stats.Add("Dune/deployment_seconds", (_deployed ? _stepsToDeploy : _hubSteps) * _settings.FixedTickSeconds);
             stats.Add("Dune/hub_stuck", _hubStuck ? 1f : 0f);
+            stats.Add("Dune/terminal_open_success", _terminalOpened ? 1f : 0f);
             stats.Add("Dune/pickup_success", _pickups > 0 ? 1f : 0f);
             stats.Add("Dune/delivery_success", _deliveries > 0 ? 1f : 0f);
             stats.Add("Dune/deliveries", _deliveries);
@@ -513,6 +524,7 @@ namespace DuneVector
             DuneVectorCourierGame courier = _bootstrap.CourierGame;
             _previousHealth = _bootstrap.DroneHealth != null ? _bootstrap.DroneHealth.CurrentHealth : 0f;
             _previousRunState = courier.State;
+            _previousHubTerminalMenuKind = courier.HubTerminalMenuKind;
             _previousFreeRoamPhase = courier.FreeRoamDeliveries != null
                 ? courier.FreeRoamDeliveries.Phase
                 : FreeRoamDeliveryPhase.Inactive;
