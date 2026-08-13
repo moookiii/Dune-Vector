@@ -1868,7 +1868,9 @@ namespace DuneVector
         {
             _offers.Clear();
             int completionTier = Progress != null ? Progress.CompletedDeliveries : 0;
-            int count = Mathf.Clamp(_settings.OfferedContractCount, 5, 8);
+            int count = DuneTrainingRuntime.ControlledGroundStage
+                ? 1
+                : Mathf.Clamp(_settings.OfferedContractCount, 5, 8);
             int batch = Mathf.FloorToInt(Time.unscaledTime / Mathf.Max(1f, _settings.ContractRefreshSeconds));
             System.Random random = new System.Random(unchecked(
                 _world.WorldSeed ^ _settings.ContractSeedOffset ^ (completionTier * 486187739) ^ batch ^
