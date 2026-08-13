@@ -68,6 +68,10 @@ UPGRADE_AXIS = 0.0
 # A 2 m texture repeat keeps the Unity materials at a predictable scale.
 UV_SCALE = 0.5
 
+# Triangle ceiling for the exported hub. Enforced after the per-material merge
+# by collapse-decimating the render meshes; see `enforce_triangle_budget`.
+TRIANGLE_BUDGET = 70000
+
 EXPORT_COLLECTION = "SunspireExchange"
 PREVIEW_COLLECTION = "Preview Rig"
 
@@ -1667,6 +1671,74 @@ def merge_by_material(collection):
             bpy.data.meshes.remove(old_mesh)
 
 
+def mesh_triangle_count(mesh):
+    return sum(max(0, len(polygon.vertices) - 2) for polygon in mesh.polygons)
+
+
+def enforce_triangle_budget(collection, budget=TRIANGLE_BUDGET, max_passes=4):
+    """Collapse-decimate the merged render meshes until the export fits `budget`.
+
+    Run after `merge_by_material`, so each material family is one mesh and the
+    decimator can spend the budget across a whole family instead of per prop.
+    Collider sources are never touched: Unity sizes its box colliders from their
+    bounds, so their triangles are subtracted from the budget up front and the
+    render meshes get whatever is left.
+
+    Collapse never lands exactly on the requested ratio, so this iterates: each
+    pass measures the real result and re-aims, stopping as soon as the total is
+    under budget or `max_passes` is spent.
+    """
+    def split():
+        renders, colliders = [], []
+        for obj in collection.objects:
+            if obj.type != 'MESH':
+                continue
+            (colliders if obj.name.startswith(COLLIDER_PREFIXES) else renders).append(obj)
+        return renders, colliders
+
+    renders, colliders = split()
+    collider_triangles = sum(mesh_triangle_count(obj.data) for obj in colliders)
+    report = {
+        "budget": budget,
+        "collider_triangles": collider_triangles,
+        "before": sum(mesh_triangle_count(obj.data) for obj in renders) + collider_triangles,
+        "passes": [],
+    }
+
+    for _ in range(max_passes):
+        render_triangles = sum(mesh_triangle_count(obj.data) for obj in renders)
+        if render_triangles + collider_triangles <= budget:
+            break
+
+        allowance = max(budget - collider_triangles, 1)
+        ratio = min(0.99, max(0.01, allowance / float(render_triangles)))
+        report["passes"].append({
+            "triangles": render_triangles + collider_triangles,
+            "ratio": ratio,
+        })
+
+        for obj in renders:
+            modifier = obj.modifiers.new("BudgetDecimate", 'DECIMATE')
+            modifier.decimate_type = 'COLLAPSE'
+            modifier.use_collapse_triangulate = True
+            modifier.ratio = ratio
+
+        bpy.context.view_layer.update()
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        for obj in renders:
+            baked = bpy.data.meshes.new_from_object(obj.evaluated_get(depsgraph))
+            obj.modifiers.clear()
+            old_mesh = obj.data
+            obj.data = baked
+            if old_mesh.users == 0:
+                bpy.data.meshes.remove(old_mesh)
+
+    report["after"] = (sum(mesh_triangle_count(obj.data) for obj in renders)
+                       + collider_triangles)
+    report["within_budget"] = report["after"] <= budget
+    return report
+
+
 # ---------------------------------------------------------------------------
 # UV unwrap for texture painting.
 
@@ -1815,7 +1887,10 @@ def build_preview_rig(collection):
         scene.world = bpy.data.worlds.new("World")
     scene.world.use_nodes = True
     scene.world.node_tree.nodes["Background"].inputs[0].default_value = (0.020, 0.026, 0.042, 1.0)
-    scene.render.engine = 'BLENDER_EEVEE'
+    # EEVEE's enum identifier changed to BLENDER_EEVEE_NEXT in Blender 4.2.
+    engines = scene.render.bl_rna.properties["engine"].enum_items.keys()
+    scene.render.engine = ('BLENDER_EEVEE' if 'BLENDER_EEVEE' in engines
+                           else 'BLENDER_EEVEE_NEXT')
     scene.render.resolution_x = 1600
     scene.render.resolution_y = 900
     scene.render.resolution_percentage = 100
@@ -1896,7 +1971,7 @@ def evaluated_triangle_count(collection):
 # ---------------------------------------------------------------------------
 # Entry point.
 
-def build(export=True, unwrap=True):
+def build(export=True, unwrap=True, triangle_budget=TRIANGLE_BUDGET):
     """Build the hub. `unwrap=True` swaps the world-space tiling UVs for a
     packed per-material unwrap; see `unwrap_for_painting` for why that is off by
     default on an asset this large."""
@@ -1921,6 +1996,7 @@ def build(export=True, unwrap=True):
     authored_objects = len(export_collection.objects)
     bpy.context.view_layer.update()
     merge_by_material(export_collection)
+    budget_report = enforce_triangle_budget(export_collection, budget=triangle_budget)
     unwrap_report = unwrap_for_painting(export_collection) if unwrap else None
 
     build_preview_rig(preview_collection)
@@ -1939,6 +2015,7 @@ def build(export=True, unwrap=True):
         "objects": len(export_collection.objects),
         "object_names": sorted(obj.name for obj in export_collection.objects),
         "triangles": triangles,
+        "triangle_budget": budget_report,
         "unwrap": unwrap_report,
         "export_error": export_error,
         "materials": sorted(material.name for material in mats.values()),
