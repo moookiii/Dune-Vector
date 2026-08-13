@@ -2123,6 +2123,20 @@ namespace DuneVector
             }
 
             routeOrigin = _world.ResolvePlayerSpawnAwayFromObstacles(routeOrigin, -pickupForward);
+            if (DuneTrainingRuntime.ControlledGroundStage)
+            {
+                double resolvedDeltaX = routeOrigin.X - ActiveObjectiveLogicalPosition.X;
+                double resolvedDeltaZ = routeOrigin.Z - ActiveObjectiveLogicalPosition.Z;
+                double resolvedDistance = Math.Sqrt(
+                    (resolvedDeltaX * resolvedDeltaX) + (resolvedDeltaZ * resolvedDeltaZ));
+                if (resolvedDistance > maximumPickupSpawnDistance)
+                {
+                    double boundedScale = maximumPickupSpawnDistance / resolvedDistance;
+                    routeOrigin = new LogicalPosition(
+                        ActiveObjectiveLogicalPosition.X + (resolvedDeltaX * boundedScale),
+                        ActiveObjectiveLogicalPosition.Z + (resolvedDeltaZ * boundedScale));
+                }
+            }
             insertionHeight =
                 (float)_world.HeightField.SampleHeight(routeOrigin.X, routeOrigin.Z) +
                 _hubSettings.DesertInsertionHeight;
