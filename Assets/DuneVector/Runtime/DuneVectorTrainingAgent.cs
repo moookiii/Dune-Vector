@@ -901,11 +901,6 @@ namespace DuneVector
 
         public static float ReadStage2DistanceScale()
         {
-            if (Evaluation)
-            {
-                return 1f;
-            }
-
             string[] arguments = Environment.GetCommandLineArgs();
             for (int i = 0; i < arguments.Length - 1; i++)
             {
@@ -922,7 +917,7 @@ namespace DuneVector
                     return Mathf.Clamp01(scale);
                 }
             }
-            return 0f;
+            return Evaluation ? 1f : 0f;
         }
     }
 
