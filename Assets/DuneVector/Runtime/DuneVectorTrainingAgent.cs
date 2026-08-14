@@ -48,6 +48,7 @@ namespace DuneVector
         private float _bestObjectiveDistance;
         private int _objectiveStepsWithoutProgress;
         private bool _objectiveDiverged;
+        private bool _objectiveNoProgress;
         private float _objectivePotentialReward;
         private Transform _previousObjective;
         private int _previousFreeRoamStreak;
@@ -113,6 +114,7 @@ namespace DuneVector
             _bestObjectiveDistance = float.PositiveInfinity;
             _objectiveStepsWithoutProgress = 0;
             _objectiveDiverged = false;
+            _objectiveNoProgress = false;
             _previousObjective = null;
             _rewardedRingActivations = 0;
             _observedRingActivations.Clear();
@@ -289,14 +291,17 @@ namespace DuneVector
                 _hubTimedOut = hubTimeout && !_hubStuck;
                 _stage2TimedOut = stage2Failure &&
                     _episodeSteps >= _settings.Stage2StepBudget;
-                _postDeploymentStuck = _deployed && _stage2TimedOut && !_objectiveDiverged;
+                _postDeploymentStuck = _deployed && stage2Failure &&
+                    (_objectiveNoProgress || (_stage2TimedOut && !_objectiveDiverged));
                 if (hubTimeout)
                 {
                     AddTrainingReward(-_settings.HubTimeoutPenalty, shaped: true);
                 }
                 else if (stage2Failure)
                 {
-                    AddTrainingReward(-_settings.Stage2DivergencePenalty, shaped: true);
+                    AddTrainingReward(-(_objectiveNoProgress
+                        ? _settings.Stage2NoProgressPenalty
+                        : _settings.Stage2DivergencePenalty), shaped: true);
                 }
                 PublishEpisodeMetrics();
                 EndEpisode();
@@ -462,6 +467,7 @@ namespace DuneVector
                     _bestObjectiveDistance = float.PositiveInfinity;
                     _objectiveStepsWithoutProgress = 0;
                     _objectiveDiverged = false;
+                    _objectiveNoProgress = false;
                     _objectivePotentialReward = 0f;
                 }
                 float objectiveDistance = Vector3.Distance(_bootstrap.Drone.WorldCenter, objective.position);
@@ -545,7 +551,8 @@ namespace DuneVector
             _hubStuck = !_deployed && _hubStepsWithoutProgress >= _settings.HubStuckStepBudget;
             hubTimeout = !_deployed && (_hubSteps >= _settings.HubStepBudget || _hubStuck);
             stage2Failure = _curriculumStage == 2 && _pickups == 0 &&
-                (_objectiveDiverged || _episodeSteps >= _settings.Stage2StepBudget);
+                (_objectiveDiverged || _objectiveNoProgress ||
+                    _episodeSteps >= _settings.Stage2StepBudget);
             bool stage3Timeout = _curriculumStage == 3 &&
                 _episodeSteps >= _settings.Stage3StepBudget;
             bool stage4Timeout = _curriculumStage == 4 &&
@@ -595,6 +602,7 @@ namespace DuneVector
                 ? 0f
                 : _bestObjectiveDistance);
             stats.Add("Dune/stage2_diverged", _objectiveDiverged ? 1f : 0f);
+            stats.Add("Dune/stage2_no_progress", _objectiveNoProgress ? 1f : 0f);
             stats.Add("Dune/stage2_timeout", _stage2TimedOut ? 1f : 0f);
             stats.Add("Dune/post_deployment_stuck", verifiedPostDeploymentStuck ? 1f : 0f);
         }
@@ -682,6 +690,7 @@ namespace DuneVector
             {
                 _bestObjectiveDistance = objectiveDistance;
                 _objectiveStepsWithoutProgress = 0;
+                _objectiveNoProgress = false;
             }
             else if (objectiveDistance >= _bestObjectiveDistance + _settings.Stage2DivergenceDistance)
             {
@@ -691,7 +700,9 @@ namespace DuneVector
             }
             else
             {
-                _objectiveStepsWithoutProgress = 0;
+                _objectiveStepsWithoutProgress++;
+                _objectiveNoProgress = _objectiveStepsWithoutProgress >=
+                    _settings.Stage2NoProgressStepBudget;
             }
         }
 
