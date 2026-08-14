@@ -29,7 +29,7 @@ namespace DuneVector
         [Serializable]
         private sealed class AudioPreferencesData
         {
-            public int Version = 16;
+            public int Version = 17;
             public float MusicVolume;
             public float SoundEffectsVolume;
             public float DialogueVolume;
@@ -47,6 +47,8 @@ namespace DuneVector
             public bool VisualizerFovEnabled;
             public int MusicVisualizerEffectMask;
             public float LookSensitivity;
+            public bool FrameRateCapped = true;
+            public int FrameRateLimit;
         }
 
         public float MusicVolume { get; private set; }
@@ -69,6 +71,8 @@ namespace DuneVector
         // records a player override. Zero means "no override stored yet".
         public float LookSensitivity { get; private set; }
         public bool HasStoredLookSensitivity => LookSensitivity > 0f;
+        public bool FrameRateCapped { get; private set; } = true;
+        public int FrameRateLimit { get; private set; }
         public event Action<MusicVisualizerMode> MusicVisualizerModeChanged;
         public event Action<MusicVisualEffectGroups> MusicVisualizerEffectsChanged;
         public event Action<bool> VisualizerFovEnabledChanged;
@@ -102,6 +106,7 @@ namespace DuneVector
         }
 
         private AudioTuning _settings;
+        private RuntimePerformanceTuning _performanceSettings;
         private MusicReactiveSkyTuning _musicReactiveSettings;
         private EventInstance _musicInstance;
         private MusicTimelineCallbackBridge _timelineBridge;
@@ -154,12 +159,14 @@ namespace DuneVector
 
         public void Initialize(
             AudioTuning settings,
+            RuntimePerformanceTuning performanceSettings,
             MusicReactiveSkyTuning musicReactiveSettings,
             DroneHealth health,
             DroneCharacterController drone,
             DuneVectorCameraAntiAliasingMode defaultAntiAliasingMode)
         {
             _settings = settings;
+            _performanceSettings = performanceSettings;
             _musicReactiveSettings = musicReactiveSettings;
             _defaultAntiAliasingMode = defaultAntiAliasingMode;
             if (_settings == null)
@@ -173,6 +180,7 @@ namespace DuneVector
             BindDrone(drone);
             if (_initialized)
             {
+                ApplyFrameRatePreference();
                 enabled = true;
                 return;
             }
@@ -180,6 +188,7 @@ namespace DuneVector
             _initialized = true;
             _preferencesPath = Path.Combine(Application.persistentDataPath, AudioPreferencesFileName);
             LoadStoredVolumes();
+            ApplyFrameRatePreference();
 
             _hasMasterBus = TryGetBus(_settings.MasterBusPath, out _masterBus);
             if (_hasMasterBus && _masterBus.getVolume(out _masterFullVolume) == FMOD.RESULT.OK)
@@ -651,6 +660,46 @@ namespace DuneVector
             FlushPreferences();
         }
 
+        public void SetFrameRateCapped(bool capped)
+        {
+            if (FrameRateCapped == capped)
+            {
+                return;
+            }
+
+            FrameRateCapped = capped;
+            ApplyFrameRatePreference();
+            _preferencesDirty = true;
+            FlushPreferences();
+        }
+
+        public void SetFrameRateLimit(int frameRate)
+        {
+            int clamped = ClampFrameRateLimit(frameRate);
+            if (FrameRateLimit == clamped)
+            {
+                return;
+            }
+
+            FrameRateLimit = clamped;
+            ApplyFrameRatePreference();
+            _preferencesDirty = true;
+            FlushPreferences();
+        }
+
+        private int ClampFrameRateLimit(int frameRate)
+        {
+            PauseMenuVisualTuning tuning = _settings != null ? _settings.PauseMenu : null;
+            int minimum = tuning != null ? Mathf.Max(1, tuning.MinimumFrameRateLimit) : 1;
+            int maximum = tuning != null ? Mathf.Max(minimum, tuning.MaximumFrameRateLimit) : minimum;
+            return Mathf.Clamp(frameRate, minimum, maximum);
+        }
+
+        private void ApplyFrameRatePreference()
+        {
+            Application.targetFrameRate = FrameRateCapped ? ClampFrameRateLimit(FrameRateLimit) : -1;
+        }
+
         // Bloom authoring lives on PauseMenuVisualTuning; before it binds there is no
         // authored range to clamp against, so the raw value passes through untouched.
         public float MinimumBloomIntensity => _settings != null && _settings.PauseMenu != null
@@ -721,6 +770,12 @@ namespace DuneVector
             BloomEnabled = defaults != null && defaults.DefaultBloomEnabled;
             BloomIntensity = DefaultBloomIntensity;
             LensFlareEnabled = defaults != null && defaults.DefaultLensFlareEnabled;
+            int defaultFrameRate = _performanceSettings != null
+                ? _performanceSettings.TargetFrameRate
+                : defaults != null ? defaults.MinimumFrameRateLimit : 1;
+            FrameRateCapped = defaultFrameRate > 0;
+            FrameRateLimit = ClampFrameRateLimit(defaultFrameRate);
+            ApplyFrameRatePreference();
             AntiAliasingMode = _defaultAntiAliasingMode == DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing
                 ? DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing
                 : _defaultAntiAliasingMode;
@@ -1199,6 +1254,11 @@ namespace DuneVector
             BloomIntensity = DefaultBloomIntensity;
             LensFlareEnabled = _settings.PauseMenu != null
                 && _settings.PauseMenu.DefaultLensFlareEnabled;
+            int defaultFrameRate = _performanceSettings != null
+                ? _performanceSettings.TargetFrameRate
+                : defaults != null ? defaults.MinimumFrameRateLimit : 1;
+            FrameRateCapped = defaultFrameRate > 0;
+            FrameRateLimit = ClampFrameRateLimit(defaultFrameRate);
             AntiAliasingMode = _defaultAntiAliasingMode == DuneVectorCameraAntiAliasingMode.TemporalAntiAliasing
                 ? DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing
                 : _defaultAntiAliasingMode;
@@ -1210,7 +1270,7 @@ namespace DuneVector
             try
             {
                 AudioPreferencesData stored = JsonUtility.FromJson<AudioPreferencesData>(File.ReadAllText(_preferencesPath));
-                if (stored != null && stored.Version >= 1 && stored.Version <= 16)
+                if (stored != null && stored.Version >= 1 && stored.Version <= 17)
                 {
                     MusicVolume = Mathf.Clamp01(stored.MusicVolume);
                     SoundEffectsVolume = Mathf.Clamp01(stored.SoundEffectsVolume);
@@ -1269,6 +1329,11 @@ namespace DuneVector
                     {
                         LookSensitivity = Mathf.Max(0f, stored.LookSensitivity);
                     }
+                    if (stored.Version >= 17)
+                    {
+                        FrameRateCapped = stored.FrameRateCapped;
+                        FrameRateLimit = ClampFrameRateLimit(stored.FrameRateLimit);
+                    }
                     if (VisualizerMode == MusicVisualizerMode.NoFlash)
                     {
                         VisualizerEffectMask &= ~PauseMenuVisualTuning.FlashMusicVisualizerEffects;
@@ -1316,6 +1381,8 @@ namespace DuneVector
                     VisualizerFovEnabled = VisualizerFovEnabled,
                     MusicVisualizerEffectMask = (int)VisualizerEffectMask,
                     LookSensitivity = LookSensitivity,
+                    FrameRateCapped = FrameRateCapped,
+                    FrameRateLimit = FrameRateLimit,
                 };
                 File.WriteAllText(_preferencesPath, JsonUtility.ToJson(stored));
                 _preferencesDirty = false;
@@ -2017,6 +2084,43 @@ namespace DuneVector
                 DuneVectorCameraAntiAliasingMode.SubpixelMorphologicalAntiAliasing);
             y += buttonHeight + (gap * 2f);
 
+            y = DrawSectionHeader(content, y, _visuals.VideoFrameRateSectionLabel, scale);
+
+            bool frameRateCapped = _audio == null || _audio.FrameRateCapped;
+            bool previousEnabled = GUI.enabled;
+            GUI.enabled = previousEnabled && _audio != null;
+            string frameRateStateLabel = frameRateCapped
+                ? _visuals.VideoEffectEnabledLabel
+                : _visuals.VideoEffectDisabledLabel;
+            if (DrawToggleRow(
+                    new Rect(content.x, y, content.width, buttonHeight),
+                    _visuals.VideoFrameRateCapLabel,
+                    frameRateStateLabel,
+                    frameRateCapped))
+            {
+                _audio.SetFrameRateCapped(!frameRateCapped);
+            }
+            GUI.enabled = previousEnabled;
+            y += buttonHeight + gap;
+
+            int minimumFrameRate = Mathf.Max(1, _visuals.MinimumFrameRateLimit);
+            int maximumFrameRate = Mathf.Max(minimumFrameRate, _visuals.MaximumFrameRateLimit);
+            int frameRateLimit = _audio != null
+                ? _audio.FrameRateLimit
+                : maximumFrameRate;
+            float frameRateRange = Mathf.Max(1f, maximumFrameRate - minimumFrameRate);
+            float frameRateNormalized = Mathf.Clamp01((frameRateLimit - minimumFrameRate) / frameRateRange);
+            float sliderRowHeight = _visuals.SliderRowHeight * scale;
+            DrawSliderRow(
+                new Rect(content.x, y, content.width, sliderRowHeight),
+                _visuals.VideoFrameRateLimitLabel,
+                $"{frameRateLimit} FPS",
+                frameRateNormalized,
+                normalized => _audio?.SetFrameRateLimit(
+                    Mathf.RoundToInt(minimumFrameRate + (normalized * frameRateRange))),
+                scale);
+            y += sliderRowHeight + gap;
+
             y = DrawSectionHeader(content, y, _visuals.VideoSettingsSectionLabel, scale);
 
             DrawVideoToggle(
@@ -2075,7 +2179,6 @@ namespace DuneVector
                 _visuals.BloomIntensityDisplayMinimum,
                 _visuals.BloomIntensityDisplayMaximum,
                 bloomNormalized);
-            float sliderRowHeight = _visuals.SliderRowHeight * scale;
             DrawSliderRow(
                 new Rect(content.x, y, content.width, sliderRowHeight),
                 _visuals.VideoBloomIntensityLabel,

@@ -5867,6 +5867,13 @@ namespace DuneVector
         public string VideoAntiAliasingOffLabel = "OFF";
         public string VideoAntiAliasingSmaaLabel = "SMAA";
         public string VideoAntiAliasingTaaLabel = "TAA";
+        public string VideoFrameRateSectionLabel = "FRAME RATE";
+        public string VideoFrameRateCapLabel = "CAPPED FPS";
+        public string VideoFrameRateLimitLabel = "MAX FPS";
+        [Tooltip("Lowest frame-rate cap offered by the video settings slider.")]
+        [Min(1)] public int MinimumFrameRateLimit = 1;
+        [Tooltip("Highest frame-rate cap offered by the video settings slider.")]
+        [Min(1)] public int MaximumFrameRateLimit = 320;
         public string VideoChromaticAberrationLabel = "CHROMATIC ABERRATION";
         public string VideoLensDistortionLabel = "LENS DISTORTION";
         public string VideoCrtLinesLabel = "CRT LINES";

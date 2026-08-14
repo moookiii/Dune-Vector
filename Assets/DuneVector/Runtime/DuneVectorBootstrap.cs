@@ -660,6 +660,7 @@ namespace DuneVector
                 AudioManager = DuneVectorAudioManager.Instance;
                 AudioManager.Initialize(
                     AudioSettings,
+                    RuntimeSettings.Performance,
                     RuntimeSettings.MusicReactiveSky,
                     DroneHealth,
                     Drone,
@@ -673,6 +674,7 @@ namespace DuneVector
             AudioManager = audioObject.AddComponent<DuneVectorAudioManager>();
             AudioManager.Initialize(
                 AudioSettings,
+                RuntimeSettings.Performance,
                 RuntimeSettings.MusicReactiveSky,
                 DroneHealth,
                 Drone,
