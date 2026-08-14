@@ -341,6 +341,7 @@ namespace DuneVector
     {
         public LogicalPosition LogicalPosition;
         public double LogicalHeight;
+        public float ActivationRadius => _innerRadius;
 
         private DroneCharacterController _player;
         private Action _onCrossed;

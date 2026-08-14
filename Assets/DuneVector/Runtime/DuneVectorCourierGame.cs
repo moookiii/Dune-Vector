@@ -1871,7 +1871,11 @@ namespace DuneVector
             int count = DuneTrainingRuntime.ControlledPreHazardStage
                 ? 1
                 : Mathf.Clamp(_settings.OfferedContractCount, 5, 8);
-            int batch = Mathf.FloorToInt(Time.unscaledTime / Mathf.Max(1f, _settings.ContractRefreshSeconds));
+            // Wall-clock startup time differs substantially between visual and headless builds.
+            // Do not let that select a different contract for the same training/evaluation seed.
+            int batch = DuneTrainingRuntime.Enabled
+                ? 0
+                : Mathf.FloorToInt(Time.unscaledTime / Mathf.Max(1f, _settings.ContractRefreshSeconds));
             System.Random random = new System.Random(unchecked(
                 _world.WorldSeed ^ _settings.ContractSeedOffset ^ (completionTier * 486187739) ^ batch ^
                 _paidOfferRefreshIndex));
@@ -2102,41 +2106,9 @@ namespace DuneVector
             _desertRotation = Quaternion.LookRotation(pickupForward, Vector3.up);
             BuildPickupObjective();
 
-            double objectiveDeltaX = ActiveObjectiveLogicalPosition.X - routeOrigin.X;
-            double objectiveDeltaZ = ActiveObjectiveLogicalPosition.Z - routeOrigin.Z;
-            double objectiveDistance = Math.Sqrt(
-                (objectiveDeltaX * objectiveDeltaX) + (objectiveDeltaZ * objectiveDeltaZ));
-            double maximumPickupSpawnDistance = DuneTrainingRuntime.ControlledPreHazardStage &&
-                DuneVectorBootstrap.Instance != null
-                ? Math.Max(10.0, DuneVectorBootstrap.Instance.PufferTraining.Stage2MaximumPickupSpawnDistance)
-                : Math.Max(1.0, _settings.MaximumPickupSpawnDistance);
-            if (objectiveDistance > maximumPickupSpawnDistance)
-            {
-                double insertionScale = maximumPickupSpawnDistance / objectiveDistance;
-                routeOrigin = new LogicalPosition(
-                    ActiveObjectiveLogicalPosition.X - (objectiveDeltaX * insertionScale),
-                    ActiveObjectiveLogicalPosition.Z - (objectiveDeltaZ * insertionScale));
-                insertionHeight =
-                    (float)_world.HeightField.SampleHeight(routeOrigin.X, routeOrigin.Z) +
-                    _hubSettings.DesertInsertionHeight;
-                _desertSpawn = _world.LogicalToLocal(routeOrigin.X, insertionHeight, routeOrigin.Z);
-            }
-
+            routeOrigin = ConstrainStage2SpawnOutsidePickupZone(routeOrigin, -pickupForward);
             routeOrigin = _world.ResolvePlayerSpawnAwayFromObstacles(routeOrigin, -pickupForward);
-            if (DuneTrainingRuntime.ControlledPreHazardStage)
-            {
-                double resolvedDeltaX = routeOrigin.X - ActiveObjectiveLogicalPosition.X;
-                double resolvedDeltaZ = routeOrigin.Z - ActiveObjectiveLogicalPosition.Z;
-                double resolvedDistance = Math.Sqrt(
-                    (resolvedDeltaX * resolvedDeltaX) + (resolvedDeltaZ * resolvedDeltaZ));
-                if (resolvedDistance > maximumPickupSpawnDistance)
-                {
-                    double boundedScale = maximumPickupSpawnDistance / resolvedDistance;
-                    routeOrigin = new LogicalPosition(
-                        ActiveObjectiveLogicalPosition.X + (resolvedDeltaX * boundedScale),
-                        ActiveObjectiveLogicalPosition.Z + (resolvedDeltaZ * boundedScale));
-                }
-            }
+            routeOrigin = ConstrainStage2SpawnOutsidePickupZone(routeOrigin, -pickupForward);
             insertionHeight =
                 (float)_world.HeightField.SampleHeight(routeOrigin.X, routeOrigin.Z) +
                 _hubSettings.DesertInsertionHeight;
@@ -3033,6 +3005,9 @@ namespace DuneVector
                     -(_desertRotation * Vector3.forward));
                 _buildings.ReservePlayerDeployment(resolved);
             }
+            resolved = ConstrainStage2SpawnOutsidePickupZone(
+                resolved,
+                -(_desertRotation * Vector3.forward));
             if (resolved.X == original.X && resolved.Z == original.Z)
             {
                 return;
@@ -3056,6 +3031,51 @@ namespace DuneVector
             {
                 ProtectContractObjectivesFromWind();
             }
+        }
+
+        private LogicalPosition ConstrainStage2SpawnOutsidePickupZone(
+            LogicalPosition candidate,
+            Vector3 fallbackAwayDirection)
+        {
+            if (!DuneTrainingRuntime.ControlledPreHazardStage ||
+                _objectiveRing == null ||
+                DuneVectorBootstrap.Instance == null)
+            {
+                return candidate;
+            }
+
+            PufferTrainingTuning training = DuneVectorBootstrap.Instance.PufferTraining;
+            double minimumDistance = _objectiveRing.ActivationRadius +
+                Math.Max(10.0, training.Stage2MinimumRouteDistance);
+            double maximumDistance = _objectiveRing.ActivationRadius +
+                Math.Max(training.Stage2MinimumRouteDistance, training.Stage2MaximumRouteDistance);
+            LogicalPosition center = _objectiveRing.LogicalPosition;
+            double deltaX = candidate.X - center.X;
+            double deltaZ = candidate.Z - center.Z;
+            double distance = Math.Sqrt((deltaX * deltaX) + (deltaZ * deltaZ));
+            if (distance >= minimumDistance && distance <= maximumDistance)
+            {
+                return candidate;
+            }
+
+            if (distance < 0.001)
+            {
+                Vector3 away = Vector3.ProjectOnPlane(fallbackAwayDirection, Vector3.up).normalized;
+                if (away.sqrMagnitude < 0.001f)
+                {
+                    away = Vector3.back;
+                }
+                deltaX = away.x;
+                deltaZ = away.z;
+                distance = 1.0;
+            }
+
+            double boundedDistance = Math.Max(minimumDistance, Math.Min(maximumDistance, distance));
+            double scale = boundedDistance / distance;
+            LogicalPosition constrained = new LogicalPosition(
+                center.X + (deltaX * scale),
+                center.Z + (deltaZ * scale));
+            return constrained;
         }
 
         private void FinishReturnToHub()
