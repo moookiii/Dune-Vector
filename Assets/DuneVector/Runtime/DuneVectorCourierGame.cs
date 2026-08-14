@@ -1915,8 +1915,19 @@ namespace DuneVector
             if (DuneTrainingRuntime.ControlledPreHazardStage && DuneVectorBootstrap.Instance != null)
             {
                 PufferTrainingTuning training = DuneVectorBootstrap.Instance.PufferTraining;
-                minimumRouteDistance = Mathf.Max(10f, training.Stage2MinimumRouteDistance);
-                maximumRouteDistance = Mathf.Max(minimumRouteDistance, training.Stage2MaximumRouteDistance);
+                float controlledMinimum = Mathf.Max(10f, training.Stage2MinimumRouteDistance);
+                float controlledMaximum = Mathf.Max(controlledMinimum, training.Stage2MaximumRouteDistance);
+                if (DuneTrainingRuntime.ControlledGroundStage)
+                {
+                    float distanceScale = DuneTrainingRuntime.ReadStage2DistanceScale();
+                    minimumRouteDistance = Mathf.Lerp(controlledMinimum, minimumRouteDistance, distanceScale);
+                    maximumRouteDistance = Mathf.Lerp(controlledMaximum, maximumRouteDistance, distanceScale);
+                }
+                else
+                {
+                    minimumRouteDistance = controlledMinimum;
+                    maximumRouteDistance = controlledMaximum;
+                }
             }
             float distance = Mathf.Lerp(minimumRouteDistance, maximumRouteDistance, (float)random.NextDouble());
             CourierContractModifier gameplay = CourierContractModifier.None;
@@ -2185,11 +2196,22 @@ namespace DuneVector
             if (DuneTrainingRuntime.ControlledPreHazardStage && DuneVectorBootstrap.Instance != null)
             {
                 PufferTrainingTuning training = DuneVectorBootstrap.Instance.PufferTraining;
-                minimumLegDistance = Mathf.Max(10f, training.Stage2MinimumRouteDistance) /
+                float controlledMinimum = Mathf.Max(10f, training.Stage2MinimumRouteDistance) /
                     Mathf.Max(1, contract.StopCount);
-                maximumLegDistance = Mathf.Max(
-                    minimumLegDistance,
+                float controlledMaximum = Mathf.Max(
+                    controlledMinimum,
                     training.Stage2MaximumRouteDistance / Mathf.Max(1, contract.StopCount));
+                if (DuneTrainingRuntime.ControlledGroundStage)
+                {
+                    float distanceScale = DuneTrainingRuntime.ReadStage2DistanceScale();
+                    minimumLegDistance = Mathf.Lerp(controlledMinimum, minimumLegDistance, distanceScale);
+                    maximumLegDistance = Mathf.Lerp(controlledMaximum, maximumLegDistance, distanceScale);
+                }
+                else
+                {
+                    minimumLegDistance = controlledMinimum;
+                    maximumLegDistance = controlledMaximum;
+                }
             }
             for (int i = 0; i < contract.DeliveryPositions.Count; i++)
             {
@@ -3047,8 +3069,16 @@ namespace DuneVector
             PufferTrainingTuning training = DuneVectorBootstrap.Instance.PufferTraining;
             double minimumDistance = _objectiveRing.ActivationRadius +
                 Math.Max(10.0, training.Stage2MinimumRouteDistance);
-            double maximumDistance = _objectiveRing.ActivationRadius +
+            double controlledMaximumDistance = _objectiveRing.ActivationRadius +
                 Math.Max(training.Stage2MinimumRouteDistance, training.Stage2MaximumRouteDistance);
+            double maximumDistance = controlledMaximumDistance;
+            if (DuneTrainingRuntime.ControlledGroundStage)
+            {
+                maximumDistance = Mathf.Lerp(
+                    (float)controlledMaximumDistance,
+                    Mathf.Max((float)minimumDistance, _settings.MaximumPickupSpawnDistance),
+                    DuneTrainingRuntime.ReadStage2DistanceScale());
+            }
             LogicalPosition center = _objectiveRing.LogicalPosition;
             double deltaX = candidate.X - center.X;
             double deltaZ = candidate.Z - center.Z;

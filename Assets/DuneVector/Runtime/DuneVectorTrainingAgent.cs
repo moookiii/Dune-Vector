@@ -572,6 +572,9 @@ namespace DuneVector
             stats.Add("Dune/unshaped_return", _unshapedReturn);
             stats.Add("Dune/shaped_training_return", _trainingReturn);
             stats.Add("Dune/curriculum_stage", _curriculumStage);
+            stats.Add("Dune/stage2_distance_scale", _curriculumStage == 2
+                ? DuneTrainingRuntime.ReadStage2DistanceScale()
+                : 0f);
             stats.Add("Dune/rewarded_ring_activations", _rewardedRingActivations);
             stats.Add("Dune/objective_min_distance", float.IsInfinity(_bestObjectiveDistance)
                 ? 0f
@@ -866,6 +869,32 @@ namespace DuneVector
                     int.TryParse(arguments[i + 1], out int seed)) return seed;
             }
             return fallback;
+        }
+
+        public static float ReadStage2DistanceScale()
+        {
+            if (Evaluation)
+            {
+                return 1f;
+            }
+
+            string[] arguments = Environment.GetCommandLineArgs();
+            for (int i = 0; i < arguments.Length - 1; i++)
+            {
+                if (string.Equals(
+                        arguments[i],
+                        "--dune-stage2-distance-scale",
+                        StringComparison.OrdinalIgnoreCase) &&
+                    float.TryParse(
+                        arguments[i + 1],
+                        System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture,
+                        out float scale))
+                {
+                    return Mathf.Clamp01(scale);
+                }
+            }
+            return 0f;
         }
     }
 
