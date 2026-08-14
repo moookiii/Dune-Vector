@@ -2929,6 +2929,7 @@ namespace DuneVector
                 if (!toHub)
                 {
                     EnsureDesertSpawnClearOfObstacles();
+                    _world.PreparePlayerTeleportDestination(LocalToLogical(_desertSpawn));
                     PublishDesertSpawnClearance();
                     _world.RemoveEnemiesInsidePlayerSpawnClearance();
                 }

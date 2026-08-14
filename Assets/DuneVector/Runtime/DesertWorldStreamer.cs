@@ -406,6 +406,21 @@ namespace DuneVector
             return (float)HeightField.SampleHeight(OriginOffsetX + localX, OriginOffsetZ + localZ);
         }
 
+        /// <summary>
+        /// Synchronously prepares solid terrain at a teleport destination. Streaming normally
+        /// follows the player's current chunk, so a long-distance deployment can otherwise place
+        /// the motor at its destination before that chunk's collider becomes active.
+        /// </summary>
+        public void PreparePlayerTeleportDestination(LogicalPosition logicalPosition)
+        {
+            Vector2Int coordinate = LogicalToChunk(logicalPosition.X, logicalPosition.Z);
+            GenerateChunkImmediate(coordinate, false);
+            if (_chunks.TryGetValue(coordinate, out DesertChunk chunk))
+            {
+                chunk.SetCollisionActive(true);
+            }
+        }
+
         public Vector3 SampleNormalAtLocal(float localX, float localZ)
         {
             return HeightField.SampleNormal(OriginOffsetX + localX, OriginOffsetZ + localZ);
