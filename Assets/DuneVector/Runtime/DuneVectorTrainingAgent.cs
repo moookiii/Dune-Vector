@@ -195,9 +195,10 @@ namespace DuneVector
                 ? Vector3.Distance(drone.WorldCenter, objective.position)
                 : 0f;
             Add(sensor, objectiveValid ? 1f : 0f, ref count);
-            AddVector(sensor, objectiveValid
-                ? ToCommandLocal(objective.position - drone.WorldCenter) / Mathf.Max(1f, _settings.ObjectiveDistanceScale)
-                : Vector3.zero, ref count);
+            Vector3 objectiveDirection = objectiveValid
+                ? ToCommandLocal(objective.position - drone.WorldCenter).normalized
+                : Vector3.zero;
+            AddVector(sensor, objectiveDirection, ref count);
             Add(sensor, objectiveValid
                 ? NormalizeDistance(objectiveDistance, _settings.ObjectiveDistanceScale)
                 : 0f, ref count);
