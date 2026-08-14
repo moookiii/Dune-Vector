@@ -852,7 +852,10 @@ namespace DuneVector
             if (!Enabled) return;
             Time.fixedDeltaTime = 0.05f;
             Time.maximumDeltaTime = 0.05f;
-            Time.captureDeltaTime = VisualEvaluation ? 0f : 0.05f;
+            // Keep the authoritative tick schedule identical in visual and headless
+            // evaluation. Presentation may differ, but it must not change the policy
+            // trajectory for the same seed and checkpoint.
+            Time.captureDeltaTime = 0.05f;
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = VisualEvaluation ? 60 : -1;
             Application.runInBackground = true;
@@ -937,7 +940,7 @@ namespace DuneVector
             PufferTrainingTuning settings = bootstrap.PufferTraining;
             Time.fixedDeltaTime = settings.FixedTickSeconds;
             Time.maximumDeltaTime = settings.FixedTickSeconds;
-            Time.captureDeltaTime = DuneTrainingRuntime.VisualEvaluation ? 0f : settings.FixedTickSeconds;
+            Time.captureDeltaTime = settings.FixedTickSeconds;
 
             BehaviorParameters behavior = bootstrap.gameObject.AddComponent<BehaviorParameters>();
             behavior.BehaviorName = "DuneVector";
