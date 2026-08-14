@@ -566,10 +566,14 @@ namespace DuneVector
         private void PublishEpisodeMetrics()
         {
             StatsRecorder stats = Academy.Instance.StatsRecorder;
+            bool endedInHub = _bootstrap.CourierGame.State == CourierRunState.Hub;
+            bool verifiedHubStuck = _hubStuck && !_deployed && endedInHub;
+            bool verifiedPostDeploymentStuck = _postDeploymentStuck && _deployed && !endedInHub;
             stats.Add("Dune/deployment_success", _deployed ? 1f : 0f);
             stats.Add("Dune/deployment_steps", _deployed ? _stepsToDeploy : _hubSteps);
             stats.Add("Dune/deployment_seconds", (_deployed ? _stepsToDeploy : _hubSteps) * _settings.FixedTickSeconds);
-            stats.Add("Dune/hub_stuck", _hubStuck ? 1f : 0f);
+            stats.Add("Dune/ended_in_hub", endedInHub ? 1f : 0f);
+            stats.Add("Dune/hub_stuck", verifiedHubStuck ? 1f : 0f);
             stats.Add("Dune/hub_timeout", _hubTimedOut ? 1f : 0f);
             stats.Add("Dune/terminal_open_success", _terminalOpened ? 1f : 0f);
             stats.Add("Dune/pickup_success", _pickups > 0 ? 1f : 0f);
@@ -592,7 +596,7 @@ namespace DuneVector
                 : _bestObjectiveDistance);
             stats.Add("Dune/stage2_diverged", _objectiveDiverged ? 1f : 0f);
             stats.Add("Dune/stage2_timeout", _stage2TimedOut ? 1f : 0f);
-            stats.Add("Dune/post_deployment_stuck", _postDeploymentStuck ? 1f : 0f);
+            stats.Add("Dune/post_deployment_stuck", verifiedPostDeploymentStuck ? 1f : 0f);
         }
 
         private void CaptureBaseline()
