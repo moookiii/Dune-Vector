@@ -1407,6 +1407,8 @@ namespace DuneVector
         [Tooltip("Hub-local standing spot for the contract terminal. Park it in front of the authored screen it reads from.")]
         public Vector3 ContractTerminalLocalPosition = new Vector3(0f, 0f, 16.5f);
         public Vector3 ContractTerminalLocalEulerAngles = Vector3.zero;
+        [Tooltip("Maximum distance in meters at which the centered prompt for the nearest hub terminal is visible.")]
+        [Min(0f)] public float TerminalPromptVisibilityRadius = 5f;
         [Min(1f)] public float TerminalInteractionRadius = 6f;
         public Vector3 ArchiveTerminalLocalPosition = new Vector3(16.5f, 0f, 0f);
         public Vector3 ArchiveTerminalLocalEulerAngles = new Vector3(0f, 90f, 0f);

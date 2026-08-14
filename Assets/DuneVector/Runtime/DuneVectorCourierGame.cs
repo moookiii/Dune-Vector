@@ -4066,32 +4066,35 @@ namespace DuneVector
             {
                 return;
             }
-            string terminalName;
-            switch (mode)
+            if (distance <= _hubSettings.TerminalPromptVisibilityRadius)
             {
-                case HubTerminalMode.MessageArchive:
-                    terminalName = _hubSettings.ArchiveTerminalName;
-                    break;
-                case HubTerminalMode.FreeRoam:
-                    terminalName = _hubSettings.FreeRoamTerminalName;
-                    break;
-                default:
-                    terminalName = _hubSettings.ContractTerminalName;
-                    break;
+                string terminalName;
+                switch (mode)
+                {
+                    case HubTerminalMode.MessageArchive:
+                        terminalName = _hubSettings.ArchiveTerminalName;
+                        break;
+                    case HubTerminalMode.FreeRoam:
+                        terminalName = _hubSettings.FreeRoamTerminalName;
+                        break;
+                    default:
+                        terminalName = _hubSettings.ContractTerminalName;
+                        break;
+                }
+                string prompt = distance <= interactionRadius
+                    ? mode == HubTerminalMode.FreeRoam
+                        ? _hubSettings.FreeRoamTerminalNearbyPrompt
+                        : FormatDesignerText(_hubSettings.TerminalNearbyPromptFormat, terminalName)
+                    : FormatDesignerText(_hubSettings.TerminalDistancePromptFormat, terminalName, distance);
+                float promptWidth = Mathf.Min(_hubSettings.TerminalPromptWidth, Screen.width);
+                float promptHeight = _hubSettings.TerminalPromptHeight;
+                Rect promptRect = new Rect(
+                    (Screen.width - promptWidth) * 0.5f,
+                    (Screen.height * 0.5f) + _hubSettings.TerminalPromptVerticalOffset - (promptHeight * 0.5f),
+                    promptWidth,
+                    promptHeight);
+                DrawTerminalPrompt(promptRect, prompt, distance <= interactionRadius);
             }
-            string prompt = distance <= interactionRadius
-                ? mode == HubTerminalMode.FreeRoam
-                    ? _hubSettings.FreeRoamTerminalNearbyPrompt
-                    : FormatDesignerText(_hubSettings.TerminalNearbyPromptFormat, terminalName)
-                : FormatDesignerText(_hubSettings.TerminalDistancePromptFormat, terminalName, distance);
-            float promptWidth = Mathf.Min(_hubSettings.TerminalPromptWidth, Screen.width);
-            float promptHeight = _hubSettings.TerminalPromptHeight;
-            Rect promptRect = new Rect(
-                (Screen.width - promptWidth) * 0.5f,
-                (Screen.height * 0.5f) + _hubSettings.TerminalPromptVerticalOffset - (promptHeight * 0.5f),
-                promptWidth,
-                promptHeight);
-            DrawTerminalPrompt(promptRect, prompt, distance <= interactionRadius);
             GUI.Label(new Rect(24f, 24f, 360f, 86f),
                 $"COURIER AERIE\nDELIVERIES  {Progress.CompletedDeliveries}\nCONTRACT GOLD  {Progress.TotalContractGold:N0}", _hudBodyStyle);
         }
