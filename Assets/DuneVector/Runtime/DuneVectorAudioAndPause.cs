@@ -143,6 +143,7 @@ namespace DuneVector
         private bool _initialized;
         private DuneVectorCameraAntiAliasingMode _defaultAntiAliasingMode;
         private float _lastFlightRingPassTime = float.NegativeInfinity;
+        private float _lastVesperMissileAlertTime = float.NegativeInfinity;
 
         private void Awake()
         {
@@ -846,12 +847,19 @@ namespace DuneVector
             PlayConfiguredOneShot(eventPath, position, "strike ring lock alert");
         }
 
-        public void PlayVesperMissileAlert(Vector3 position)
+        public void PlayVesperMissileAlert(Vector3 position, float cooldown)
         {
+            float alertTime = Time.time;
+            if (alertTime - _lastVesperMissileAlertTime < Mathf.Max(0f, cooldown))
+            {
+                return;
+            }
+
             PlayConfiguredOneShot(
                 _settings != null ? _settings.VesperMissileAlertEvent : null,
                 position,
                 "vesper missile alert");
+            _lastVesperMissileAlertTime = alertTime;
         }
 
         public void BindLockOnController(DroneLockOnController lockOnController)

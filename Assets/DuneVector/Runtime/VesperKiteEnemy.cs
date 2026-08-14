@@ -435,7 +435,9 @@ namespace DuneVector
             combatTarget.SetPriorityTarget(settings.PrioritizePilgrimsForTargeting);
 
             CreateTether();
-            DuneVectorAudioManager.Instance?.PlayVesperMissileAlert(_cachedTransform.position);
+            DuneVectorAudioManager.Instance?.PlayVesperMissileAlert(
+                _cachedTransform.position,
+                settings.MissileAlertCooldown);
             DuneVectorPortalEvents.PlayerCrossed += HandlePortalCrossing;
         }
 

@@ -3366,6 +3366,8 @@ namespace DuneVector
         [Tooltip("Rank at which pilgrims per procession reaches its ceiling value.")]
         [Min(1)] public int PilgrimCountRankCeiling = 20;
         [Range(1, 16)] public int MaximumActivePilgrims = 6;
+        [Tooltip("Minimum time in seconds between Vesper missile alert sounds.")]
+        [Min(0f)] public float MissileAlertCooldown = 1f;
         [Min(0f)] public float PilgrimSpawnRadius = 4.2f;
         [Min(0f)] public float PilgrimSpawnForwardOffset = 1.2f;
         [Min(0.1f)] public float PilgrimInitialSpeed = 4f;
