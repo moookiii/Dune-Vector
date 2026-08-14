@@ -141,8 +141,7 @@ namespace DuneVector
 
         private void Start()
         {
-            Cursor.lockState = InputEnabled ? CursorLockMode.Locked : CursorLockMode.None;
-            Cursor.visible = !InputEnabled;
+            ApplyGameplayCursorState();
         }
 
         private void Update()
@@ -173,6 +172,8 @@ namespace DuneVector
                 return;
             }
 
+            ApplyGameplayCursorState();
+
             if (_hazardControlLockTimeRemaining > 0f)
             {
                 _hazardControlLockTimeRemaining = Mathf.Max(
@@ -186,12 +187,6 @@ namespace DuneVector
                                       Cursor.lockState == CursorLockMode.Locked ||
                                       (Gamepad.current != null &&
                                        Gamepad.current.buttonWest.wasPressedThisFrame);
-            if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
-            {
-                Cursor.lockState = CursorLockMode.Locked;
-                Cursor.visible = false;
-            }
-
             DroneRawInputFrame raw = CurrentCommand;
             Stamina?.Tick(raw.BoostHeld, Time.deltaTime);
             DroneControlInput characterInput = new DroneControlInput
@@ -284,6 +279,22 @@ namespace DuneVector
                 CaptureDisabledMovementRotation();
                 ClearCharacterInput();
             }
+        }
+
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (hasFocus && InputEnabled &&
+                (Health == null || !Health.IsDead) &&
+                !DuneVectorMapHUD.IsWorldMapOpen)
+            {
+                ApplyGameplayCursorState();
+            }
+        }
+
+        private void ApplyGameplayCursorState()
+        {
+            Cursor.lockState = InputEnabled ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !InputEnabled;
         }
 
         public void SetDisabledFlightStopEnabled(bool enabled)
