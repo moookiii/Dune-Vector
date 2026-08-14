@@ -584,7 +584,12 @@ namespace DuneVector
             stats.Add("Dune/hub_stuck", verifiedHubStuck ? 1f : 0f);
             stats.Add("Dune/hub_timeout", _hubTimedOut ? 1f : 0f);
             stats.Add("Dune/terminal_open_success", _terminalOpened ? 1f : 0f);
-            stats.Add("Dune/pickup_success", _pickups > 0 ? 1f : 0f);
+            // Stage 1 deliberately has no pickup objective. Omitting this metric
+            // prevents rehearsal episodes from being averaged as pickup failures.
+            if (_curriculumStage >= 2)
+            {
+                stats.Add("Dune/pickup_success", _pickups > 0 ? 1f : 0f);
+            }
             stats.Add("Dune/delivery_success", _deliveries > 0 ? 1f : 0f);
             stats.Add("Dune/deliveries", _deliveries);
             stats.Add("Dune/damage_taken", _damageTaken);
