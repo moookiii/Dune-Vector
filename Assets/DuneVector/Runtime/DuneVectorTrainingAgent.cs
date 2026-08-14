@@ -27,6 +27,9 @@ namespace DuneVector
         private bool _deployed;
         private bool _terminalOpened;
         private bool _hubStuck;
+        private bool _hubTimedOut;
+        private bool _stage2TimedOut;
+        private bool _postDeploymentStuck;
         private bool _wrongStage1Deployment;
         private int _hubStepsWithoutProgress;
         private float _bestHubDistance;
@@ -91,6 +94,9 @@ namespace DuneVector
             _deployed = false;
             _terminalOpened = false;
             _hubStuck = false;
+            _hubTimedOut = false;
+            _stage2TimedOut = false;
+            _postDeploymentStuck = false;
             _wrongStage1Deployment = false;
             _hubStepsWithoutProgress = 0;
             _bestHubDistance = float.PositiveInfinity;
@@ -280,6 +286,10 @@ namespace DuneVector
 
             if (ShouldEndEpisode(out bool hubTimeout, out bool stage2Failure))
             {
+                _hubTimedOut = hubTimeout && !_hubStuck;
+                _stage2TimedOut = stage2Failure &&
+                    _episodeSteps >= _settings.Stage2StepBudget;
+                _postDeploymentStuck = _deployed && _stage2TimedOut && !_objectiveDiverged;
                 if (hubTimeout)
                 {
                     AddTrainingReward(-_settings.HubTimeoutPenalty, shaped: true);
@@ -560,6 +570,7 @@ namespace DuneVector
             stats.Add("Dune/deployment_steps", _deployed ? _stepsToDeploy : _hubSteps);
             stats.Add("Dune/deployment_seconds", (_deployed ? _stepsToDeploy : _hubSteps) * _settings.FixedTickSeconds);
             stats.Add("Dune/hub_stuck", _hubStuck ? 1f : 0f);
+            stats.Add("Dune/hub_timeout", _hubTimedOut ? 1f : 0f);
             stats.Add("Dune/terminal_open_success", _terminalOpened ? 1f : 0f);
             stats.Add("Dune/pickup_success", _pickups > 0 ? 1f : 0f);
             stats.Add("Dune/delivery_success", _deliveries > 0 ? 1f : 0f);
@@ -580,6 +591,8 @@ namespace DuneVector
                 ? 0f
                 : _bestObjectiveDistance);
             stats.Add("Dune/stage2_diverged", _objectiveDiverged ? 1f : 0f);
+            stats.Add("Dune/stage2_timeout", _stage2TimedOut ? 1f : 0f);
+            stats.Add("Dune/post_deployment_stuck", _postDeploymentStuck ? 1f : 0f);
         }
 
         private void CaptureBaseline()
