@@ -346,7 +346,7 @@ namespace DuneVector
                     this);
             }
             RuntimeSettings.EnsureInitialized();
-            if (headlessTraining)
+            if (DuneTrainingRuntime.Enabled)
             {
                 DuneGeneration.WorldSeed = DuneTrainingRuntime.ReadWorldSeed(DuneGeneration.WorldSeed);
             }
