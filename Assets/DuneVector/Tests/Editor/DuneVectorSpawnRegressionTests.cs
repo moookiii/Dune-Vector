@@ -9,6 +9,7 @@ namespace DuneVector.Tests
     public sealed class DuneVectorSpawnRegressionTests
     {
         private const int RegressionWorldSeed = 47169;
+        private const int PortalRegressionWorldSeed = 49109;
         private const float Stage2DistanceScale = 0.2f;
         private const string RuntimeSettingsPath =
             "Assets/DuneVector/ScriptableObjects/Dune Vector Runtime Settings.asset";
@@ -54,7 +55,87 @@ namespace DuneVector.Tests
             }
             finally
             {
-                materials?.Dispose();
+                UnityEngine.Object.DestroyImmediate(worldObject);
+            }
+        }
+
+        [Test]
+        public void Seed49109DeploymentRechecksPortalClearanceAfterStreaming()
+        {
+            DuneVectorRuntimeSettings settings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            Assert.That(settings, Is.Not.Null);
+
+            GameObject worldObject = new GameObject("Seed 49109 Portal Spawn Regression World");
+            DuneVectorMaterials materials = null;
+            try
+            {
+                DesertWorldStreamer world = worldObject.AddComponent<DesertWorldStreamer>();
+                ConfigureWorld(world, settings, PortalRegressionWorldSeed);
+                materials = new DuneVectorMaterials(settings);
+                world.Initialize(materials);
+
+                LogicalPosition routeOrigin = ResolveRouteOrigin(
+                    settings.Contracts,
+                    PortalRegressionWorldSeed);
+                LogicalPosition initialResolution = world.ResolvePlayerSpawnAwayFromObstacles(
+                    routeOrigin,
+                    Vector3.back);
+                Assert.That(initialResolution.X, Is.EqualTo(routeOrigin.X).Within(0.001d));
+                Assert.That(initialResolution.Z, Is.EqualTo(routeOrigin.Z).Within(0.001d));
+
+                int latePortalHandle = DuneVectorWorldOccupancy.Register(
+                    routeOrigin.X,
+                    routeOrigin.Z,
+                    settings.Rings.PortalMinimumVisualRadius,
+                    WorldOccupancyKind.Portal);
+
+                bool prepared;
+                LogicalPosition resolvedPosition;
+                Vector3 supportedPosition;
+                try
+                {
+                    prepared = world.TryPreparePlayerTeleportDestinationClearOfObstacles(
+                        routeOrigin,
+                        Vector3.back,
+                        settings.WorldHub.DesertInsertionHeight,
+                        settings.WorldHub.DeploymentMaximumGroundSlope,
+                        settings.WorldHub.DeploymentGroundRetryCount,
+                        out resolvedPosition,
+                        out supportedPosition);
+                }
+                finally
+                {
+                    DuneVectorWorldOccupancy.Release(latePortalHandle);
+                }
+
+                Assert.That(prepared, Is.True, "Seed 49109 must find a supported portal-clear deployment point.");
+                Assert.That(
+                    Math.Abs(resolvedPosition.X - routeOrigin.X) > 0.001d ||
+                    Math.Abs(resolvedPosition.Z - routeOrigin.Z) > 0.001d,
+                    Is.True,
+                    "The regression setup must reproduce the portal forcing seed 49109 away from its initial point.");
+                double portalDeltaX = resolvedPosition.X - routeOrigin.X;
+                double portalDeltaZ = resolvedPosition.Z - routeOrigin.Z;
+                double requiredPortalClearance = settings.Rings.PortalMinimumVisualRadius +
+                    settings.Rings.MinimumDroneSpawnSeparation;
+                Assert.That(
+                    Math.Sqrt((portalDeltaX * portalDeltaX) + (portalDeltaZ * portalDeltaZ)),
+                    Is.GreaterThanOrEqualTo(requiredPortalClearance - 0.001d));
+                LogicalPosition clearanceCheck = world.ResolvePlayerSpawnAwayFromObstacles(
+                    resolvedPosition,
+                    Vector3.back);
+                Assert.That(clearanceCheck.X, Is.EqualTo(resolvedPosition.X).Within(0.001d));
+                Assert.That(clearanceCheck.Z, Is.EqualTo(resolvedPosition.Z).Within(0.001d));
+                Assert.That(
+                    world.HasPreparedTerrainSupport(
+                        supportedPosition,
+                        settings.WorldHub.DeploymentGroundSupportDistance,
+                        settings.WorldHub.DeploymentMaximumGroundSlope),
+                    Is.True);
+            }
+            finally
+            {
                 UnityEngine.Object.DestroyImmediate(worldObject);
             }
         }
@@ -63,14 +144,26 @@ namespace DuneVector.Tests
             DesertWorldStreamer world,
             DuneVectorRuntimeSettings settings)
         {
-            world.WorldSeed = RegressionWorldSeed;
+            ConfigureWorld(world, settings, RegressionWorldSeed);
+        }
+
+        private static void ConfigureWorld(
+            DesertWorldStreamer world,
+            DuneVectorRuntimeSettings settings,
+            int worldSeed)
+        {
+            world.WorldSeed = worldSeed;
             world.Dunes = JsonUtility.FromJson<DuneFieldSettings>(
                 JsonUtility.ToJson(settings.DuneGeneration));
-            world.Dunes.WorldSeed = RegressionWorldSeed;
+            world.Dunes.WorldSeed = worldSeed;
             world.ChunkSize = settings.DuneChunkSize;
             world.ChunkResolution = settings.DuneMeshResolution;
             world.CollisionMeshResolution = settings.WorldStreaming.CollisionMeshResolution;
-            world.Rings = settings.Rings;
+            world.Rings = JsonUtility.FromJson<RingTuning>(JsonUtility.ToJson(settings.Rings));
+            world.Rings.GroundRingDensityPerChunk = 0f;
+            world.Rings.AerialRingDensityPerChunk = 0f;
+            world.Rings.HealthRingDensityPerChunk = 0f;
+            world.Rings.CoinRingDensityPerChunk = 0f;
             world.Clouds = settings.Clouds;
             world.Shrubs = settings.DesertShrubs;
             world.Landmarks = settings.Landmarks;
@@ -79,7 +172,10 @@ namespace DuneVector.Tests
             world.DarkPyramids = settings.DarkPyramids;
             world.Pyramid2 = settings.Pyramid2;
             world.Geoglyphs = settings.Geoglyphs;
-            world.GroundExploders = settings.GroundExploders;
+            // These tests exercise terrain and portal placement only.
+            world.GroundExploders = JsonUtility.FromJson<GroundExploderTuning>(
+                JsonUtility.ToJson(settings.GroundExploders));
+            world.GroundExploders.Enabled = false;
         }
 
         private static LogicalPosition ResolveStage2RouteOrigin(CourierContractTuning contracts)
@@ -87,7 +183,14 @@ namespace DuneVector.Tests
             // Stage 2's distance scale changes the delivery leg, not the insertion origin. Keeping
             // the constant here records the complete evaluation reproduction alongside the seed.
             Assert.That(Stage2DistanceScale, Is.EqualTo(0.2f));
-            var offerRandom = new System.Random(RegressionWorldSeed ^ contracts.ContractSeedOffset);
+            return ResolveRouteOrigin(contracts, RegressionWorldSeed);
+        }
+
+        private static LogicalPosition ResolveRouteOrigin(
+            CourierContractTuning contracts,
+            int worldSeed)
+        {
+            var offerRandom = new System.Random(worldSeed ^ contracts.ContractSeedOffset);
             int contractSeed = offerRandom.Next();
             var routeRandom = new System.Random(contractSeed);
             double angle = routeRandom.NextDouble() * Math.PI * 2.0;

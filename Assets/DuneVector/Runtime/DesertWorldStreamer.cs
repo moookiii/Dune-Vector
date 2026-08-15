@@ -135,11 +135,6 @@ namespace DuneVector
             float cactusClearance = Cacti != null
                 ? Mathf.Max(0f, Cacti.DroneSpawnClearance)
                 : 0f;
-            if (TraversalRing.ActiveRings.Count == 0 && cactusClearance <= 0f)
-            {
-                return desiredPosition;
-            }
-
             Vector2 candidate = new Vector2((float)desiredPosition.X, (float)desiredPosition.Z);
             Vector2 fallbackDirection = new Vector2(preferredDirection.x, preferredDirection.z);
             fallbackDirection = fallbackDirection.sqrMagnitude > Mathf.Epsilon
@@ -147,6 +142,29 @@ namespace DuneVector
                 : Vector2.right;
             bool adjusted = false;
             int maximumPasses = TraversalRing.ActiveRings.Count + 1;
+            for (int pass = 0; pass < maximumPasses; pass++)
+            {
+                if (!DuneVectorWorldOccupancy.TryGetNearestOverlap(
+                        candidate.x,
+                        candidate.y,
+                        clearance,
+                        WorldOccupancyKind.Portal,
+                        out double portalX,
+                        out double portalZ,
+                        out float portalRadius))
+                {
+                    break;
+                }
+
+                Vector2 portalPosition = new Vector2((float)portalX, (float)portalZ);
+                Vector2 delta = candidate - portalPosition;
+                Vector2 direction = delta.sqrMagnitude > Mathf.Epsilon
+                    ? delta.normalized
+                    : fallbackDirection;
+                candidate = portalPosition + (direction * (portalRadius + clearance));
+                adjusted = true;
+            }
+
             for (int pass = 0; pass < maximumPasses; pass++)
             {
                 bool moved = false;
@@ -456,6 +474,54 @@ namespace DuneVector
                 supportedLocalPosition,
                 surfaceClearance,
                 maximumSlope);
+        }
+
+        /// <summary>
+        /// Prepares a teleport destination and rechecks its obstacle clearance after streaming.
+        /// Destination chunk generation can create portals that did not exist during the initial
+        /// placement pass, so the point must be allowed to settle before it is accepted.
+        /// </summary>
+        public bool TryPreparePlayerTeleportDestinationClearOfObstacles(
+            LogicalPosition logicalPosition,
+            Vector3 preferredDirection,
+            float surfaceClearance,
+            float maximumSlope,
+            int maximumPasses,
+            out LogicalPosition resolvedLogicalPosition,
+            out Vector3 supportedLocalPosition)
+        {
+            LogicalPosition candidate = logicalPosition;
+            int passCount = Mathf.Max(1, maximumPasses);
+            for (int pass = 0; pass < passCount; pass++)
+            {
+                resolvedLogicalPosition = ResolvePlayerSpawnAwayFromObstacles(
+                    candidate,
+                    preferredDirection);
+                if (!TryPreparePlayerTeleportDestination(
+                        resolvedLogicalPosition,
+                        surfaceClearance,
+                        maximumSlope,
+                        out supportedLocalPosition))
+                {
+                    return false;
+                }
+
+                LogicalPosition streamedResolution = ResolvePlayerSpawnAwayFromObstacles(
+                    resolvedLogicalPosition,
+                    preferredDirection);
+                double deltaX = streamedResolution.X - resolvedLogicalPosition.X;
+                double deltaZ = streamedResolution.Z - resolvedLogicalPosition.Z;
+                if ((deltaX * deltaX) + (deltaZ * deltaZ) <= double.Epsilon)
+                {
+                    return true;
+                }
+
+                candidate = streamedResolution;
+            }
+
+            resolvedLogicalPosition = default;
+            supportedLocalPosition = default;
+            return false;
         }
 
         private bool TrySamplePreparedTerrainSurface(

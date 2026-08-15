@@ -3047,12 +3047,38 @@ namespace DuneVector
                         requested.Z + (Math.Sin(angle) * radius));
                 }
 
-                LogicalPosition resolved = ResolveDesertDeploymentCandidate(candidate, fallbackDirection);
-                if (!_world.TryPreparePlayerTeleportDestination(
+                LogicalPosition resolved = candidate;
+                Vector3 supportedSpawn = default;
+                bool destinationReady = false;
+                for (int clearancePass = 0; clearancePass < attemptCount; clearancePass++)
+                {
+                    resolved = ResolveDesertDeploymentCandidate(resolved, fallbackDirection);
+                    if (!_world.TryPreparePlayerTeleportDestinationClearOfObstacles(
+                            resolved,
+                            fallbackDirection,
+                            _hubSettings.DesertInsertionHeight,
+                            _hubSettings.DeploymentMaximumGroundSlope,
+                            attemptCount,
+                            out resolved,
+                            out supportedSpawn))
+                    {
+                        break;
+                    }
+
+                    LogicalPosition verified = ResolveDesertDeploymentCandidate(
                         resolved,
-                        _hubSettings.DesertInsertionHeight,
-                        _hubSettings.DeploymentMaximumGroundSlope,
-                        out Vector3 supportedSpawn))
+                        fallbackDirection);
+                    double deltaX = verified.X - resolved.X;
+                    double deltaZ = verified.Z - resolved.Z;
+                    if ((deltaX * deltaX) + (deltaZ * deltaZ) <= double.Epsilon)
+                    {
+                        destinationReady = true;
+                        break;
+                    }
+
+                    resolved = verified;
+                }
+                if (!destinationReady)
                 {
                     continue;
                 }
