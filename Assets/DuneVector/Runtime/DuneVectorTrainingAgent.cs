@@ -46,6 +46,7 @@ namespace DuneVector
         private float _previousHubDistance;
         private float _previousObjectiveDistance;
         private float _bestObjectiveDistance;
+        private float _pickupObjectiveMinDistance;
         private int _objectiveStepsWithoutProgress;
         private bool _objectiveDiverged;
         private bool _objectiveNoProgress;
@@ -115,6 +116,7 @@ namespace DuneVector
             _unshapedReturn = 0f;
             _objectivePotentialReward = 0f;
             _bestObjectiveDistance = float.PositiveInfinity;
+            _pickupObjectiveMinDistance = float.PositiveInfinity;
             _objectiveStepsWithoutProgress = 0;
             _objectiveDiverged = false;
             _objectiveNoProgress = false;
@@ -462,6 +464,29 @@ namespace DuneVector
                 }
             }
 
+            FreeRoamDeliveryPhase phase = courier.FreeRoamDeliveries != null
+                ? courier.FreeRoamDeliveries.Phase
+                : FreeRoamDeliveryPhase.Inactive;
+            int contractPickupSequence = courier.PickupSequence;
+            int freeRoamPickupSequence = courier.FreeRoamDeliveries != null
+                ? courier.FreeRoamDeliveries.PickupSequence
+                : 0;
+            bool authoritativePickup = contractPickupSequence > _previousContractPickupSequence ||
+                freeRoamPickupSequence > _previousFreeRoamPickupSequence;
+            bool pickupCompleted = authoritativePickup ||
+                (_previousFreeRoamPhase == FreeRoamDeliveryPhase.Pickup &&
+                    phase == FreeRoamDeliveryPhase.Deliver) ||
+                (_previousRunState == CourierRunState.FindPackage &&
+                    courier.State == CourierRunState.Delivering);
+            if (pickupCompleted && !float.IsInfinity(_bestObjectiveDistance))
+            {
+                // The active objective switches to the delivery destination on the
+                // pickup tick. Preserve the completed pickup approach before the
+                // objective-change reset below so evaluation reports comparable
+                // pickup geometry rather than distance to the next destination.
+                _pickupObjectiveMinDistance = _bestObjectiveDistance;
+            }
+
             Transform objective = ResolveActiveObjective(courier);
             if (objective != null && _curriculumStage >= 2)
             {
@@ -481,18 +506,7 @@ namespace DuneVector
                 _previousObjectiveDistance = objectiveDistance;
             }
 
-            FreeRoamDeliveryPhase phase = courier.FreeRoamDeliveries != null
-                ? courier.FreeRoamDeliveries.Phase
-                : FreeRoamDeliveryPhase.Inactive;
-            int contractPickupSequence = courier.PickupSequence;
-            int freeRoamPickupSequence = courier.FreeRoamDeliveries != null
-                ? courier.FreeRoamDeliveries.PickupSequence
-                : 0;
-            bool authoritativePickup = contractPickupSequence > _previousContractPickupSequence ||
-                freeRoamPickupSequence > _previousFreeRoamPickupSequence;
-            if (authoritativePickup ||
-                (_previousFreeRoamPhase == FreeRoamDeliveryPhase.Pickup && phase == FreeRoamDeliveryPhase.Deliver) ||
-                (_previousRunState == CourierRunState.FindPackage && courier.State == CourierRunState.Delivering))
+            if (pickupCompleted)
             {
                 _pickups++;
                 AddTrainingReward(_settings.PickupReward, shaped: false);
@@ -617,9 +631,13 @@ namespace DuneVector
                 ? DuneTrainingRuntime.ReadStage2DistanceScale()
                 : 0f);
             stats.Add("Dune/rewarded_ring_activations", _rewardedRingActivations);
-            stats.Add("Dune/objective_min_distance", float.IsInfinity(_bestObjectiveDistance)
+            float reportedObjectiveMinDistance = _pickups > 0 &&
+                !float.IsInfinity(_pickupObjectiveMinDistance)
+                    ? _pickupObjectiveMinDistance
+                    : _bestObjectiveDistance;
+            stats.Add("Dune/objective_min_distance", float.IsInfinity(reportedObjectiveMinDistance)
                 ? 0f
-                : _bestObjectiveDistance);
+                : reportedObjectiveMinDistance);
             stats.Add("Dune/stage2_diverged", _objectiveDiverged ? 1f : 0f);
             stats.Add("Dune/stage2_no_progress", _objectiveNoProgress ? 1f : 0f);
             stats.Add("Dune/stage2_timeout", _stage2TimedOut ? 1f : 0f);
