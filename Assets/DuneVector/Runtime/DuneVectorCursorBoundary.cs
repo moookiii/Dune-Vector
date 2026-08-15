@@ -9,6 +9,7 @@ namespace DuneVector
     /// client area. Borderless fullscreen can otherwise let the native pointer
     /// cross onto another display even while Unity reports a Locked cursor.
     /// </summary>
+    [DefaultExecutionOrder(32000)]
     internal sealed class DuneVectorCursorBoundary : MonoBehaviour
     {
 #if UNITY_STANDALONE_WIN && !UNITY_EDITOR
