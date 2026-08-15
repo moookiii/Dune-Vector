@@ -690,6 +690,18 @@ namespace DuneVector
                     ? alignment * _settings.Stage2HeadingAlignmentReward
                     : alignment * _settings.Stage2WrongWayPenalty;
                 AddTrainingReward(reward, shaped: true);
+
+                // A broad heading reward is useful over long routes, but by itself a
+                // policy can collect it while passing beside the pickup. Close to the
+                // objective, explicitly charge for lateral or wrong-way velocity so
+                // the final steering correction is learned before an overshoot.
+                if (objectiveDistance <= _settings.Stage2NearObjectiveDistance)
+                {
+                    float misalignment = 1f - Mathf.Clamp01(alignment);
+                    AddTrainingReward(
+                        -misalignment * _settings.Stage2NearObjectiveMisalignmentPenalty,
+                        shaped: true);
+                }
             }
 
             if (objectiveDistance <= _bestObjectiveDistance - _settings.Stage2MinimumProgress)
