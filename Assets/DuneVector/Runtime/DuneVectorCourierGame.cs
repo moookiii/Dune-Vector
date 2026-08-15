@@ -1771,6 +1771,7 @@ namespace DuneVector
         {
             BeginHubClothReset();
             _health.SetDamageImmune(true);
+            _player.RestoreRunningFlightMeter();
             CleanupContractObjects();
             // Returning to the hub ends the free-roam run and breaks any delivery streak.
             _freeRoamDeliveries?.EndDeployment();
@@ -2030,6 +2031,7 @@ namespace DuneVector
                 CompleteContractInstantlyWithoutPayout(contract);
                 return;
             }
+            _player.BeginContractFlightMeter();
             ActiveContract = contract;
             PrepareRoute(contract);
             SetTerminalOpen(false);

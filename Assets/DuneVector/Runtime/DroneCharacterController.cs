@@ -222,6 +222,8 @@ namespace DuneVector
         private bool _flightMeterSaveDirty;
         private float _flightMeterAutosaveTimeRemaining;
         private string _flightMeterSavePath;
+        private bool _usingContractFlightMeter;
+        private float _runningFlightTimeRemaining;
 
         private Vector3 _visualBaseLocalPosition;
         private Vector3 _lastVisualForward;
@@ -541,6 +543,32 @@ namespace DuneVector
             {
                 FlightTimeRemaining = Mathf.Min(FlightTimeRemaining, FlightDuration);
             }
+        }
+
+        public void BeginContractFlightMeter()
+        {
+            if (_usingContractFlightMeter)
+            {
+                return;
+            }
+
+            // Flush the exploration reserve before switching to the temporary contract meter.
+            // Contract ring rewards and flight usage must never overwrite the running reserve.
+            SaveFlightMeter();
+            _runningFlightTimeRemaining = Mathf.Clamp(FlightTimeRemaining, 0f, FlightDuration);
+            _usingContractFlightMeter = true;
+            FlightTimeRemaining = 0f;
+        }
+
+        public void RestoreRunningFlightMeter()
+        {
+            if (!_usingContractFlightMeter)
+            {
+                return;
+            }
+
+            _usingContractFlightMeter = false;
+            FlightTimeRemaining = Mathf.Clamp(_runningFlightTimeRemaining, 0f, FlightDuration);
         }
 
         public void ConfigureFlightLandingVisual(
@@ -1142,7 +1170,7 @@ namespace DuneVector
 
         private void MarkFlightMeterDirty()
         {
-            if (!_flightMeterInitialized)
+            if (!_flightMeterInitialized || _usingContractFlightMeter)
             {
                 return;
             }
@@ -1171,7 +1199,10 @@ namespace DuneVector
                 _flightMeterSaveDirty = false;
                 return;
             }
-            if (!_flightMeterInitialized || !_flightMeterSaveDirty || string.IsNullOrEmpty(_flightMeterSavePath))
+            if (_usingContractFlightMeter ||
+                !_flightMeterInitialized ||
+                !_flightMeterSaveDirty ||
+                string.IsNullOrEmpty(_flightMeterSavePath))
             {
                 return;
             }
