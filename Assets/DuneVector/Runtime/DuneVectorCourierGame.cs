@@ -4550,7 +4550,26 @@ namespace DuneVector
             return color;
         }
 
-        private float ContractHudScale => _settings == null ? 1f : Mathf.Clamp(_settings.HudScale, 0.4f, 2f);
+        /// <summary>
+        /// Responsive scale for the top-left contract panel, derived the same way as the bottom HUD
+        /// panels so both read at one size on any viewport, then multiplied by the authored HudScale.
+        /// </summary>
+        private float ContractHudScale
+        {
+            get
+            {
+                if (_settings == null)
+                {
+                    return 1f;
+                }
+                float widthScale = Screen.width / Mathf.Max(1f, _settings.HudReferenceWidth);
+                float heightScale = Screen.height / Mathf.Max(1f, _settings.HudReferenceHeight);
+                float minimum = Mathf.Min(_settings.HudMinimumScale, _settings.HudMaximumScale);
+                float maximum = Mathf.Max(_settings.HudMinimumScale, _settings.HudMaximumScale);
+                float responsive = Mathf.Clamp(Mathf.Min(widthScale, heightScale), minimum, maximum);
+                return responsive * Mathf.Clamp(_settings.HudScale, 0.4f, 2f);
+            }
+        }
 
         public bool TryGetVisibleContractPanelRect(out Rect panel)
         {

@@ -1321,8 +1321,14 @@ namespace DuneVector
 
         [Header("Contract HUD")]
         // Uniform multiplier over the whole panel (chrome and text) so the top-left overlays can be
-        // sized against the rest of the HUD without retuning every offset below.
-        [Range(0.4f, 2f)] public float HudScale = 0.78f;
+        // sized against the rest of the HUD without retuning every offset below. It multiplies the
+        // responsive scale below, so 1 means "the same size as the bottom HUD panels".
+        [Range(0.4f, 2f)] public float HudScale = 1f;
+        [Tooltip("Viewport the contract HUD is authored against. Matches the bottom HUD reference so the top-left panel grows and shrinks with the rest of the HUD.")]
+        [Min(320f)] public float HudReferenceWidth = 1600f;
+        [Min(240f)] public float HudReferenceHeight = 900f;
+        [Range(0.25f, 2f)] public float HudMinimumScale = 0.58f;
+        [Range(0.25f, 2f)] public float HudMaximumScale = 1.15f;
         [Min(160f)] public float HudWidth = 330f;
         [Min(60f)] public float HudHeight = 128f;
         [Min(0f)] public float HudLeft = 24f;
@@ -1356,11 +1362,11 @@ namespace DuneVector
         [ColorUsage(false)] public Color HudTrackColor = new Color(0.04f, 0.07f, 0.1f, 0.9f);
 
         [Header("Contract HUD Multi-Drop Route")]
-        [Min(8)] public int HudLabelFontSize = 10;
+        [Min(8)] public int HudLabelFontSize = 12;
         [Min(1f)] public float HudRouteBarHeight = 7f;
         [Min(0f)] public float HudRouteBarGap = 3f;
         [Min(0f)] public float HudRouteBarTopPadding = 4f;
-        [Min(0f)] public float HudRouteBarLabelHeight = 13f;
+        [Min(0f)] public float HudRouteBarLabelHeight = 16f;
         [Min(0f)] public float HudRouteCurrentPulseSpeed = 4.2f;
         [Range(0f, 1f)] public float HudRouteCurrentPulseAmount = 0.45f;
         [ColorUsage(false)] public Color HudRouteCompletedColor = new Color(0.22f, 0.95f, 0.64f, 1f);
