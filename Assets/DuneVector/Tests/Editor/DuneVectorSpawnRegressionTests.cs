@@ -8,19 +8,19 @@ namespace DuneVector.Tests
 {
     public sealed class DuneVectorSpawnRegressionTests
     {
-        private const int RegressionWorldSeed = 47173;
+        private const int RegressionWorldSeed = 47169;
         private const float Stage2DistanceScale = 0.2f;
         private const string RuntimeSettingsPath =
             "Assets/DuneVector/ScriptableObjects/Dune Vector Runtime Settings.asset";
 
         [Test]
-        public void Seed47173Stage2DeploymentResolvesActiveColliderSupport()
+        public void Seed47169Stage2DeploymentResolvesActiveColliderSupport()
         {
             DuneVectorRuntimeSettings settings =
                 AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
             Assert.That(settings, Is.Not.Null);
 
-            GameObject worldObject = new GameObject("Seed 47173 Spawn Regression World");
+            GameObject worldObject = new GameObject("Seed 47169 Spawn Regression World");
             DuneVectorMaterials materials = null;
             try
             {
@@ -42,7 +42,7 @@ namespace DuneVector.Tests
                     settings.WorldHub.DeploymentMaximumGroundSlope,
                     out Vector3 supportedPosition);
 
-                Assert.That(prepared, Is.True, "Seed 47173 must resolve final collider support before deployment.");
+                Assert.That(prepared, Is.True, "Seed 47169 must resolve final collider support before deployment.");
                 Assert.That(world.IsVisualTerrainReady(routeOrigin), Is.True);
                 Assert.That(
                     world.HasPreparedTerrainSupport(
