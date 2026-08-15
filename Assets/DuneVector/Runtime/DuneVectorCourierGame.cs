@@ -2280,11 +2280,11 @@ namespace DuneVector
                 pickupRingHeight,
                 true,
                 HandlePackagePickup);
-            // Navigation, UI, and training observations must target the same
-            // fitted landmark zone that actually completes pickup. Large landmark
-            // bounds can move that zone far from the authored package socket.
-            ActiveObjective = _objectiveRing.transform;
-            ActiveObjectiveLogicalPosition = _objectiveRing.LogicalPosition;
+            // The package socket is the accessible navigation marker. Fitted
+            // landmark pickup zones can surround obstructing geometry, so their
+            // center is not necessarily a drivable target.
+            ActiveObjective = _package;
+            ActiveObjectiveLogicalPosition = objectiveLogical;
         }
 
         private void ProtectContractObjectivesFromWind()

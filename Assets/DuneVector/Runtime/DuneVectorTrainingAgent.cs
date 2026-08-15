@@ -881,11 +881,48 @@ namespace DuneVector
             {
                 float angle = -90f + (i * 30f);
                 Vector3 direction = frame * Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
-                bool hit = Physics.Raycast(origin, direction, out RaycastHit hitInfo, distance, -1, QueryTriggerInteraction.Ignore);
+                bool hit = TryProbeObstacle(origin, direction, distance, drone, out RaycastHit hitInfo);
                 Add(sensor, hit ? 1f - Mathf.Clamp01(hitInfo.distance / distance) : 0f, ref count);
             }
-            bool ground = Physics.Raycast(origin, Vector3.down, out RaycastHit groundHit, distance, -1, QueryTriggerInteraction.Ignore);
+            bool ground = TryProbeObstacle(origin, Vector3.down, distance, drone, out RaycastHit groundHit);
             Add(sensor, ground ? 1f - Mathf.Clamp01(groundHit.distance / distance) : 0f, ref count);
+        }
+
+        private bool TryProbeObstacle(
+            Vector3 origin,
+            Vector3 direction,
+            float distance,
+            DroneCharacterController drone,
+            out RaycastHit nearest)
+        {
+            nearest = default;
+            float nearestDistance = float.PositiveInfinity;
+            RaycastHit[] hits = Physics.RaycastAll(
+                origin,
+                direction,
+                distance,
+                -1,
+                QueryTriggerInteraction.Ignore);
+            Transform droneRoot = drone != null ? drone.transform : null;
+            Transform playerRoot = _bootstrap.Player != null ? _bootstrap.Player.transform : null;
+            for (int i = 0; i < hits.Length; i++)
+            {
+                Transform candidate = hits[i].collider != null
+                    ? hits[i].collider.transform
+                    : null;
+                if (candidate == null ||
+                    (droneRoot != null && (candidate == droneRoot || candidate.IsChildOf(droneRoot))) ||
+                    (playerRoot != null && (candidate == playerRoot || candidate.IsChildOf(playerRoot))))
+                {
+                    continue;
+                }
+                if (hits[i].distance < nearestDistance)
+                {
+                    nearestDistance = hits[i].distance;
+                    nearest = hits[i];
+                }
+            }
+            return !float.IsInfinity(nearestDistance);
         }
 
         private static int ResolveEpisodePhase(DuneVectorCourierGame courier)
