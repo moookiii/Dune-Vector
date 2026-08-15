@@ -1,0 +1,21 @@
+{
+    "name": "DuneVector.SpawnRegressionTests",
+    "rootNamespace": "DuneVector.Tests",
+    "references": [
+        "DuneVector.Runtime"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

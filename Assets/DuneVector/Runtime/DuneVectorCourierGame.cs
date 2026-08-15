@@ -2927,17 +2927,24 @@ namespace DuneVector
             float vanishAt = build + (fade * 0.5f);
             if (!_teleportMoved && _teleportTimer >= vanishAt)
             {
-                _teleportMoved = true;
                 if (!toHub)
                 {
-                    EnsureDesertSpawnClearOfObstacles();
-                    _world.PreparePlayerTeleportDestination(LocalToLogical(_desertSpawn));
+                    if (!TryPlacePlayerAtSupportedDesertSpawn())
+                    {
+                        // Remain vanished with input disabled and retry next frame. Simulation must
+                        // never resume at an unverified desert position.
+                        return;
+                    }
                     PublishDesertSpawnClearance();
                     _world.RemoveEnemiesInsidePlayerSpawnClearance();
                 }
+                _teleportMoved = true;
                 Vector3 position = toHub ? _hubSpawn : _desertSpawn;
                 Quaternion rotation = toHub ? Quaternion.identity : _desertRotation;
-                _player.Motor.SetPositionAndRotation(position, rotation, true);
+                if (toHub)
+                {
+                    _player.Motor.SetPositionAndRotation(position, rotation, true);
+                }
                 _health.SetDamageImmune(toHub);
                 _player.ResetTraversalAfterTeleport(rotation * Vector3.forward);
                 PinCameraToPlayer(rotation * Vector3.forward);
@@ -3011,50 +3018,96 @@ namespace DuneVector
             DuneVectorEnemySpawnClearance.SetSpawnPoint(spawnLogical.X, spawnLogical.Z);
         }
 
-        private void EnsureDesertSpawnClearOfObstacles()
+        private bool TryPlacePlayerAtSupportedDesertSpawn()
         {
-            LogicalPosition original = LocalToLogical(_desertSpawn);
+            LogicalPosition requested = LocalToLogical(_desertSpawn);
+            Vector3 fallbackDirection = -(_desertRotation * Vector3.forward);
+            int attemptCount = Mathf.Max(1, _hubSettings.DeploymentGroundRetryCount);
+            int deploymentSeed = ActiveContract != null ? ActiveContract.Seed : _world.WorldSeed;
+            for (int attempt = 0; attempt < attemptCount; attempt++)
+            {
+                LogicalPosition candidate = requested;
+                if (attempt > 0)
+                {
+                    float angle = DuneVectorMath.HashRange(
+                        deploymentSeed,
+                        attempt,
+                        _world.WorldSeed,
+                        991,
+                        0f,
+                        Mathf.PI * 2f);
+                    float radius = Mathf.Max(0.1f, _hubSettings.DeploymentGroundRetrySpacing) * attempt;
+                    candidate = new LogicalPosition(
+                        requested.X + (Math.Cos(angle) * radius),
+                        requested.Z + (Math.Sin(angle) * radius));
+                }
+
+                LogicalPosition resolved = ResolveDesertDeploymentCandidate(candidate, fallbackDirection);
+                if (!_world.TryPreparePlayerTeleportDestination(
+                        resolved,
+                        _hubSettings.DesertInsertionHeight,
+                        _hubSettings.DeploymentMaximumGroundSlope,
+                        out Vector3 supportedSpawn))
+                {
+                    continue;
+                }
+
+                _desertSpawn = supportedSpawn;
+                FaceDesertSpawnTowardPackage();
+                _player.Motor.BaseVelocity = Vector3.zero;
+                _player.Motor.SetPositionAndRotation(_desertSpawn, _desertRotation, true);
+                Physics.SyncTransforms();
+                if (!_world.HasPreparedTerrainSupport(
+                        _player.Motor.TransientPosition,
+                        _hubSettings.DeploymentGroundSupportDistance,
+                        _hubSettings.DeploymentMaximumGroundSlope))
+                {
+                    continue;
+                }
+
+                _buildings?.ReservePlayerDeployment(resolved);
+                if (ActiveContract != null)
+                {
+                    ProtectContractObjectivesFromWind();
+                }
+                return true;
+            }
+
+            _player.Motor.BaseVelocity = Vector3.zero;
+            _player.Motor.SetPositionAndRotation(_hubSpawn, Quaternion.identity, true);
+            Physics.SyncTransforms();
+            return false;
+        }
+
+        private LogicalPosition ResolveDesertDeploymentCandidate(
+            LogicalPosition candidate,
+            Vector3 fallbackDirection)
+        {
             LogicalPosition resolved = _world.ResolvePlayerSpawnAwayFromObstacles(
-                original,
-                -(_desertRotation * Vector3.forward));
+                candidate,
+                fallbackDirection);
             if (_dustDevils != null)
             {
-                resolved = _dustDevils.ResolvePlayerDeployment(
-                    resolved,
-                    -(_desertRotation * Vector3.forward));
+                resolved = _dustDevils.ResolvePlayerDeployment(resolved, fallbackDirection);
             }
             if (_buildings != null)
             {
-                resolved = _buildings.ResolvePlayerDeployment(
-                    resolved,
-                    -(_desertRotation * Vector3.forward));
-                _buildings.ReservePlayerDeployment(resolved);
+                resolved = _buildings.ResolvePlayerDeployment(resolved, fallbackDirection);
             }
-            resolved = ConstrainStage2SpawnOutsidePickupZone(
-                resolved,
-                -(_desertRotation * Vector3.forward));
-            if (resolved.X == original.X && resolved.Z == original.Z)
+            return ConstrainStage2SpawnOutsidePickupZone(resolved, fallbackDirection);
+        }
+
+        private void FaceDesertSpawnTowardPackage()
+        {
+            if (_package == null)
             {
                 return;
             }
 
-            float insertionHeight =
-                (float)_world.HeightField.SampleHeight(resolved.X, resolved.Z) +
-                _hubSettings.DesertInsertionHeight;
-            _desertSpawn = _world.LogicalToLocal(resolved.X, insertionHeight, resolved.Z);
-            if (_package != null)
+            Vector3 pickupForward = Vector3.ProjectOnPlane(_package.position - _desertSpawn, Vector3.up);
+            if (pickupForward.sqrMagnitude > 0.001f)
             {
-                Vector3 pickupForward = Vector3.ProjectOnPlane(
-                    _package.position - _desertSpawn,
-                    Vector3.up);
-                if (pickupForward.sqrMagnitude > 0.001f)
-                {
-                    _desertRotation = Quaternion.LookRotation(pickupForward.normalized, Vector3.up);
-                }
-            }
-            if (ActiveContract != null)
-            {
-                ProtectContractObjectivesFromWind();
+                _desertRotation = Quaternion.LookRotation(pickupForward.normalized, Vector3.up);
             }
         }
 

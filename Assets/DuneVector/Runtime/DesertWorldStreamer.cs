@@ -407,11 +407,16 @@ namespace DuneVector
         }
 
         /// <summary>
-        /// Synchronously prepares solid terrain at a teleport destination. Streaming normally
-        /// follows the player's current chunk, so a long-distance deployment can otherwise place
-        /// the motor at its destination before that chunk's collider becomes active.
+        /// Synchronously prepares solid terrain at a teleport destination and resolves the
+        /// authoritative collider surface. Streaming normally follows the player's current chunk,
+        /// so a long-distance deployment can otherwise reach a staged, inactive chunk before its
+        /// collider participates in physics.
         /// </summary>
-        public void PreparePlayerTeleportDestination(LogicalPosition logicalPosition)
+        public bool TryPreparePlayerTeleportDestination(
+            LogicalPosition logicalPosition,
+            float surfaceClearance,
+            float maximumSlope,
+            out Vector3 supportedLocalPosition)
         {
             Vector2Int coordinate = LogicalToChunk(logicalPosition.X, logicalPosition.Z);
             // Prepare the full neighborhood because a capsule placed on a chunk
@@ -424,11 +429,110 @@ namespace DuneVector
                     GenerateChunkImmediate(prepared, false);
                     if (_chunks.TryGetValue(prepared, out DesertChunk chunk))
                     {
-                        chunk.SetCollisionActive(true);
+                        // A preloaded chunk can still be staged with its root inactive. Enabling
+                        // only its MeshCollider does not put that collider into the physics scene.
+                        chunk.SetTeleportCollisionActive();
                     }
                 }
             }
             Physics.SyncTransforms();
+
+            if (!TrySamplePreparedTerrainSurface(
+                    coordinate,
+                    logicalPosition,
+                    maximumSlope,
+                    out float surfaceHeight))
+            {
+                supportedLocalPosition = default;
+                return false;
+            }
+
+            supportedLocalPosition = LogicalToLocal(
+                logicalPosition.X,
+                surfaceHeight + Mathf.Max(0f, surfaceClearance),
+                logicalPosition.Z);
+            return HasPreparedTerrainSupport(
+                coordinate,
+                supportedLocalPosition,
+                surfaceClearance,
+                maximumSlope);
+        }
+
+        private bool TrySamplePreparedTerrainSurface(
+            Vector2Int centerCoordinate,
+            LogicalPosition logicalPosition,
+            float maximumSlope,
+            out float surfaceHeight)
+        {
+            Vector3 localPosition = LogicalToLocal(logicalPosition.X, 0f, logicalPosition.Z);
+            surfaceHeight = float.NegativeInfinity;
+            bool found = false;
+            for (int z = -1; z <= 1; z++)
+            {
+                for (int x = -1; x <= 1; x++)
+                {
+                    Vector2Int coordinate = centerCoordinate + new Vector2Int(x, z);
+                    if (!_chunks.TryGetValue(coordinate, out DesertChunk chunk) ||
+                        !chunk.TrySampleCollisionSurface(
+                            localPosition.x,
+                            localPosition.z,
+                            maximumSlope,
+                            out float hitHeight))
+                    {
+                        continue;
+                    }
+
+                    surfaceHeight = found ? Mathf.Max(surfaceHeight, hitHeight) : hitHeight;
+                    found = true;
+                }
+            }
+            return found;
+        }
+
+        private bool HasPreparedTerrainSupport(
+            Vector2Int centerCoordinate,
+            Vector3 supportedLocalPosition,
+            float surfaceClearance,
+            float maximumSlope)
+        {
+            LogicalPosition logicalPosition = new LogicalPosition(
+                OriginOffsetX + supportedLocalPosition.x,
+                OriginOffsetZ + supportedLocalPosition.z);
+            if (!TrySamplePreparedTerrainSurface(
+                    centerCoordinate,
+                    logicalPosition,
+                    maximumSlope,
+                    out float surfaceHeight))
+            {
+                return false;
+            }
+
+            float expectedHeight = surfaceHeight + Mathf.Max(0f, surfaceClearance);
+            return Mathf.Abs(supportedLocalPosition.y - expectedHeight) <=
+                Mathf.Max(Physics.defaultContactOffset, Mathf.Epsilon);
+        }
+
+        public bool HasPreparedTerrainSupport(
+            Vector3 localPosition,
+            float maximumDistance,
+            float maximumSlope)
+        {
+            LogicalPosition logicalPosition = new LogicalPosition(
+                OriginOffsetX + localPosition.x,
+                OriginOffsetZ + localPosition.z);
+            Vector2Int coordinate = LogicalToChunk(logicalPosition.X, logicalPosition.Z);
+            if (!TrySamplePreparedTerrainSurface(
+                    coordinate,
+                    logicalPosition,
+                    maximumSlope,
+                    out float surfaceHeight))
+            {
+                return false;
+            }
+
+            float verticalClearance = localPosition.y - surfaceHeight;
+            return verticalClearance >= -Physics.defaultContactOffset &&
+                verticalClearance <= Mathf.Max(0.1f, maximumDistance);
         }
 
         public Vector3 SampleNormalAtLocal(float localX, float localZ)
@@ -1831,6 +1935,7 @@ namespace DuneVector
         {
             using (DesertWorldStreamer.Markers.ColliderAssignment.Auto())
             {
+                Physics.BakeMesh(_collisionMesh.GetEntityId(), false);
                 _terrainCollider = Root.gameObject.AddComponent<MeshCollider>();
                 _terrainCollider.sharedMesh = _collisionMesh;
                 // Ground-bound enemies probe for solid meshes to steer around; the
@@ -2208,6 +2313,44 @@ namespace DuneVector
             {
                 _terrainCollider.enabled = active;
             }
+        }
+
+        public void SetTeleportCollisionActive()
+        {
+            SetPresentationActive(true);
+            SetCollisionActive(true);
+        }
+
+        public bool TrySampleCollisionSurface(
+            float localX,
+            float localZ,
+            float maximumSlope,
+            out float height)
+        {
+            height = 0f;
+            if (_terrainCollider == null || !_terrainCollider.enabled ||
+                !_terrainCollider.gameObject.activeInHierarchy)
+            {
+                return false;
+            }
+
+            Bounds bounds = _terrainCollider.bounds;
+            float rayPadding = Mathf.Max(Physics.defaultContactOffset, Mathf.Epsilon);
+            Ray ray = new Ray(
+                new Vector3(localX, bounds.max.y + rayPadding, localZ),
+                Vector3.down);
+            if (!_terrainCollider.Raycast(ray, out RaycastHit hit, bounds.size.y + (rayPadding * 2f)))
+            {
+                return false;
+            }
+
+            if (Vector3.Angle(hit.normal, Vector3.up) > Mathf.Clamp(maximumSlope, 0f, 89f))
+            {
+                return false;
+            }
+
+            height = hit.point.y;
+            return true;
         }
 
         public void SetShadowCastingActive(bool active)

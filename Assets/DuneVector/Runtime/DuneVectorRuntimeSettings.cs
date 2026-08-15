@@ -1465,6 +1465,16 @@ namespace DuneVector
 
         [Tooltip("Small vertical clearance above the sampled desert surface used for contract and free-roam deployment. Keep this near zero so the drone starts grounded instead of falling into place.")]
         [Min(0f)] public float DesertInsertionHeight = 0.08f;
+
+        [Header("Desert Deployment Safety")]
+        [Tooltip("Maximum terrain slope accepted below a desert deployment point.")]
+        [Range(0f, 89f)] public float DeploymentMaximumGroundSlope = 55f;
+        [Tooltip("Maximum distance from the placed drone origin to its supporting terrain collider.")]
+        [Min(0.1f)] public float DeploymentGroundSupportDistance = 3f;
+        [Tooltip("Number of deterministic alternate game spawn points tried when terrain support cannot be proven. The original point is included.")]
+        [Min(1)] public int DeploymentGroundRetryCount = 8;
+        [Tooltip("Additional horizontal radius used for each deterministic deployment retry.")]
+        [Min(0.1f)] public float DeploymentGroundRetrySpacing = 8f;
         [Min(0.1f)] public float TeleportBuildDuration = 1.15f;
         [Min(0.1f)] public float TeleportFadeDuration = 0.45f;
         [Min(0.1f)] public float TeleportRebuildDuration = 0.8f;
