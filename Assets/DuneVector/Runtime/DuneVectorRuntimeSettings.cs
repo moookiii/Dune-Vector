@@ -7161,7 +7161,7 @@ namespace DuneVector
         [Min(0f)] public float Stage2HeadingAlignmentReward = 0.00002f;
         [Min(0f)] public float Stage2WrongWayPenalty = 0.00008f;
         [Min(0f)] public float Stage2NearObjectiveDistance = 250f;
-        [Min(0f)] public float Stage2NearObjectiveMisalignmentPenalty = 0.0005f;
+        [Min(0f)] public float Stage2NearObjectiveMisalignmentPenalty = 0.0015f;
         [Min(0f)] public float Stage2DivergencePenalty = 0.1f;
         [Min(0f)] public float Stage2NoProgressPenalty = 0.1f;
         [Min(0f)] public float HubTerminalOpenedReward = 0.005f;
