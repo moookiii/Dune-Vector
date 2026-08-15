@@ -488,19 +488,24 @@ namespace DuneVector
         {
             _activated = true;
             _visual = null;
+            Vector3 activationPosition = transform.position;
+
+            // Complete the authoritative gameplay action before presentation or
+            // broadcast callbacks. A portal-event subscriber must never be able
+            // to play the pickup sound and then prevent the package state change.
+            _onCrossed?.Invoke();
             if (_isPickup || !_playDeliveryAudio)
             {
-                DuneVectorAudioManager.Instance?.PlayFlightRingSwoosh(transform.position);
+                DuneVectorAudioManager.Instance?.PlayFlightRingSwoosh(activationPosition);
             }
             else
             {
-                DuneVectorAudioManager.Instance?.PlayDeliveryRing(transform.position);
+                DuneVectorAudioManager.Instance?.PlayDeliveryRing(activationPosition);
             }
             DuneVectorPortalEvents.NotifyPlayerCrossed(
-                transform.position,
+                activationPosition,
                 crossingDirection,
                 _player);
-            _onCrossed?.Invoke();
         }
 
     }

@@ -53,6 +53,9 @@ namespace DuneVector
         private Transform _previousObjective;
         private int _previousFreeRoamStreak;
         private int _previousCompletedDeliveries;
+        private int _previousContractPickupSequence;
+        private int _previousFreeRoamPickupSequence;
+        private int _stage2HazardRecoveryStepsRemaining;
         private FreeRoamDeliveryPhase _previousFreeRoamPhase;
         private CourierRunState _previousRunState;
         private int _previousHubTerminalMenuKind;
@@ -115,6 +118,7 @@ namespace DuneVector
             _objectiveStepsWithoutProgress = 0;
             _objectiveDiverged = false;
             _objectiveNoProgress = false;
+            _stage2HazardRecoveryStepsRemaining = 0;
             _previousObjective = null;
             _rewardedRingActivations = 0;
             _observedRingActivations.Clear();
@@ -480,7 +484,14 @@ namespace DuneVector
             FreeRoamDeliveryPhase phase = courier.FreeRoamDeliveries != null
                 ? courier.FreeRoamDeliveries.Phase
                 : FreeRoamDeliveryPhase.Inactive;
-            if ((_previousFreeRoamPhase == FreeRoamDeliveryPhase.Pickup && phase == FreeRoamDeliveryPhase.Deliver) ||
+            int contractPickupSequence = courier.PickupSequence;
+            int freeRoamPickupSequence = courier.FreeRoamDeliveries != null
+                ? courier.FreeRoamDeliveries.PickupSequence
+                : 0;
+            bool authoritativePickup = contractPickupSequence > _previousContractPickupSequence ||
+                freeRoamPickupSequence > _previousFreeRoamPickupSequence;
+            if (authoritativePickup ||
+                (_previousFreeRoamPhase == FreeRoamDeliveryPhase.Pickup && phase == FreeRoamDeliveryPhase.Deliver) ||
                 (_previousRunState == CourierRunState.FindPackage && courier.State == CourierRunState.Delivering))
             {
                 _pickups++;
@@ -522,6 +533,8 @@ namespace DuneVector
             _previousFreeRoamPhase = phase;
             _previousFreeRoamStreak = streak;
             _previousCompletedDeliveries = completed;
+            _previousContractPickupSequence = contractPickupSequence;
+            _previousFreeRoamPickupSequence = freeRoamPickupSequence;
             _previousRunState = courier.State;
             _previousHubTerminalMenuKind = courier.HubTerminalMenuKind;
             _previousRingActivations = ringActivations;
@@ -624,6 +637,10 @@ namespace DuneVector
                 : FreeRoamDeliveryPhase.Inactive;
             _previousFreeRoamStreak = courier.FreeRoamDeliveries != null ? courier.FreeRoamDeliveries.Streak : 0;
             _previousCompletedDeliveries = courier.Progress != null ? courier.Progress.CompletedDeliveries : 0;
+            _previousContractPickupSequence = courier.PickupSequence;
+            _previousFreeRoamPickupSequence = courier.FreeRoamDeliveries != null
+                ? courier.FreeRoamDeliveries.PickupSequence
+                : 0;
             _previousRingActivations = GetTotalRingActivations();
             _previousHubDistance = float.NaN;
             _previousObjectiveDistance = float.NaN;
@@ -704,11 +721,34 @@ namespace DuneVector
                 }
             }
 
+            bool hazardDisruption = _bootstrap.DustDevilSystem != null &&
+                (_bootstrap.DustDevilSystem.IsControlDisruptionActive ||
+                 _bootstrap.DustDevilSystem.CurrentPlayerSample.Influence >=
+                    _settings.Stage2HazardRecoveryInfluenceThreshold);
+            if (hazardDisruption)
+            {
+                _stage2HazardRecoveryStepsRemaining = _settings.Stage2HazardRecoveryGraceSteps;
+                _objectiveStepsWithoutProgress = 0;
+                _objectiveDiverged = false;
+                _objectiveNoProgress = false;
+            }
+            else if (_stage2HazardRecoveryStepsRemaining > 0)
+            {
+                _stage2HazardRecoveryStepsRemaining--;
+                _objectiveStepsWithoutProgress = 0;
+                _objectiveDiverged = false;
+                _objectiveNoProgress = false;
+            }
+
             if (objectiveDistance <= _bestObjectiveDistance - _settings.Stage2MinimumProgress)
             {
                 _bestObjectiveDistance = objectiveDistance;
                 _objectiveStepsWithoutProgress = 0;
                 _objectiveNoProgress = false;
+            }
+            else if (_stage2HazardRecoveryStepsRemaining > 0 || hazardDisruption)
+            {
+                return;
             }
             else if (objectiveDistance >= _bestObjectiveDistance + _settings.Stage2DivergenceDistance)
             {

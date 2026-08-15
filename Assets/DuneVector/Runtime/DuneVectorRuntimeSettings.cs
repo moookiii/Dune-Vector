@@ -7140,6 +7140,10 @@ namespace DuneVector
         [Min(1)] public int Stage2NoProgressStepBudget = 300;
         [Min(1)] public int Stage2DivergenceStepBudget = 80;
         [Min(0f)] public float Stage2DivergenceDistance = 20f;
+        [Tooltip("Authoritative ticks granted after tornado control disruption before Stage 2 no-progress or divergence termination resumes.")]
+        [Min(0)] public int Stage2HazardRecoveryGraceSteps = 400;
+        [Tooltip("Dust-devil influence that starts the Stage 2 hazard recovery grace window.")]
+        [Range(0f, 1f)] public float Stage2HazardRecoveryInfluenceThreshold = 0.05f;
 
         [Header("Stage 3 Flight and Stage 4 Delivery")]
         [Min(1)] public int Stage3StepBudget = 4800;

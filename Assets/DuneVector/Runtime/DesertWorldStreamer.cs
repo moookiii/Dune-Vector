@@ -414,11 +414,21 @@ namespace DuneVector
         public void PreparePlayerTeleportDestination(LogicalPosition logicalPosition)
         {
             Vector2Int coordinate = LogicalToChunk(logicalPosition.X, logicalPosition.Z);
-            GenerateChunkImmediate(coordinate, false);
-            if (_chunks.TryGetValue(coordinate, out DesertChunk chunk))
+            // Prepare the full neighborhood because a capsule placed on a chunk
+            // boundary can contact an adjacent collider on its first physics tick.
+            for (int z = -1; z <= 1; z++)
             {
-                chunk.SetCollisionActive(true);
+                for (int x = -1; x <= 1; x++)
+                {
+                    Vector2Int prepared = coordinate + new Vector2Int(x, z);
+                    GenerateChunkImmediate(prepared, false);
+                    if (_chunks.TryGetValue(prepared, out DesertChunk chunk))
+                    {
+                        chunk.SetCollisionActive(true);
+                    }
+                }
             }
+            Physics.SyncTransforms();
         }
 
         public Vector3 SampleNormalAtLocal(float localX, float localZ)

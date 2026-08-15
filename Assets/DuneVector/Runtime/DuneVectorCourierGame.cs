@@ -412,6 +412,7 @@ namespace DuneVector
             _hubTerminalSelectedIndex >= 0 &&
             _hubTerminalSelectedIndex < _offers.Count;
         public bool IsDeploymentTransition => State == CourierRunState.TeleportingToDesert;
+        public int PickupSequence { get; private set; }
         public static bool IsGameplayHudSuppressed
         {
             get
@@ -2400,6 +2401,7 @@ namespace DuneVector
                 _objectiveRing = null;
             }
             State = CourierRunState.Delivering;
+            PickupSequence++;
             CargoIntegrity = 100f;
             ExpressTimeRemaining = ActiveContract.TimeLimit;
             _unknownRevealTimer = _settings.UnknownRevealDelay;

@@ -216,6 +216,7 @@ namespace DuneVector
     {
         public FreeRoamDeliveryPhase Phase { get; private set; } = FreeRoamDeliveryPhase.Inactive;
         public int Streak { get; private set; }
+        public int PickupSequence { get; private set; }
 
         /// <summary>True while the current leg rolled the escalated route.</summary>
         public bool IsHardRoute { get; private set; }
@@ -370,6 +371,7 @@ namespace DuneVector
             _package.SetParent(carryParent, false);
             _package.localPosition = _contractSettings.CarriedPackageOffset;
             _package.localRotation = Quaternion.Euler(0f, 18f, 0f);
+            PickupSequence++;
             BeginDeliveryLeg();
         }
 
