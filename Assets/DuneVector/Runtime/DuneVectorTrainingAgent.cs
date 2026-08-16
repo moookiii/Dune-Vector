@@ -935,22 +935,67 @@ namespace DuneVector
         private void ScoreStage3LookAction(Vector2 lookCommand)
         {
             if (_curriculumStage != 3 || _evaluation ||
-                !_bootstrap.CourierGame.IsCarryingCargo ||
-                _stage3SelectedRingActivated || _stage3SelectedRing == null)
+                !_bootstrap.CourierGame.IsCarryingCargo)
             {
                 return;
             }
 
-            Vector3 local = ToCommandLocal(
-                _stage3SelectedRing.transform.position - _bootstrap.Drone.WorldCenter);
-            float planarDistance = new Vector2(local.x, local.z).magnitude;
-            float yawError = Mathf.Atan2(local.x, local.z) / Mathf.PI;
-            float pitchError = -Mathf.Atan2(local.y, Mathf.Max(0.01f, planarDistance)) / Mathf.PI;
-            ScoreStage3LookAxis(lookCommand.x, yawError);
-            ScoreStage3LookAxis(lookCommand.y, pitchError);
+            // Before the selected ring is crossed the look target is that ring. After
+            // it is crossed the delivery objective is the target, so the same steering
+            // shaping keeps guiding the post-ring leg instead of leaving full-rate yaw
+            // completely unshaped.
+            Transform lookTarget = !_stage3SelectedRingActivated
+                ? (_stage3SelectedRing != null ? _stage3SelectedRing.transform : null)
+                : ResolveActiveObjective(_bootstrap.CourierGame);
+            if (lookTarget == null)
+            {
+                return;
+            }
+
+            Vector3 toTarget = lookTarget.position - _bootstrap.Drone.WorldCenter;
+            Vector3 planarToTarget = Vector3.ProjectOnPlane(toTarget, Vector3.up);
+            if (planarToTarget.sqrMagnitude <= 0.01f)
+            {
+                return;
+            }
+
+            // Yaw error must be measured in the planar heading frame, not the pitched
+            // camera frame. In camera-local coordinates a pitched camera shrinks (and
+            // past vertical flips) the forward component, which inflates and can invert
+            // the apparent bearing to a ring that is straight ahead. That inflated error
+            // is what paid for a saturated one-sided yaw hold and made the drone orbit.
+            Quaternion lookRotation = _bootstrap.DroneCamera != null
+                ? _bootstrap.DroneCamera.transform.rotation
+                : _bootstrap.Drone.transform.rotation;
+            Vector3 lookForward = lookRotation * Vector3.forward;
+            Vector3 planarForward = Vector3.ProjectOnPlane(lookForward, Vector3.up);
+            if (planarForward.sqrMagnitude <= 0.0001f)
+            {
+                planarForward = Vector3.ProjectOnPlane(lookRotation * Vector3.up, Vector3.up);
+                if (planarForward.sqrMagnitude <= 0.0001f)
+                {
+                    return;
+                }
+            }
+
+            float yawErrorDegrees = Vector3.SignedAngle(
+                planarForward, planarToTarget, Vector3.up);
+
+            // Positive look y raises the view, so the pitch error is how far the target
+            // sits above the current look direction. The previous expression used the
+            // negated camera-local elevation, which rewarded pitching away from rings
+            // until the grounded clamp parked the view at the ground.
+            float targetElevation = Mathf.Atan2(
+                toTarget.y, Mathf.Max(0.01f, planarToTarget.magnitude)) * Mathf.Rad2Deg;
+            float lookElevation = Mathf.Asin(
+                Mathf.Clamp(lookForward.normalized.y, -1f, 1f)) * Mathf.Rad2Deg;
+            float pitchErrorDegrees = targetElevation - lookElevation;
+
+            ScoreStage3LookAxis(lookCommand.x, yawErrorDegrees);
+            ScoreStage3LookAxis(lookCommand.y, pitchErrorDegrees);
         }
 
-        private void ScoreStage3LookAxis(float command, float error)
+        private void ScoreStage3LookAxis(float command, float errorDegrees)
         {
             float commandMagnitude = Mathf.Abs(command);
             if (commandMagnitude <= 0.001f)
@@ -958,6 +1003,7 @@ namespace DuneVector
                 return;
             }
 
+            float error = Mathf.Clamp(errorDegrees / 180f, -1f, 1f);
             float errorMagnitude = Mathf.Abs(error);
             if (errorMagnitude <= _settings.Stage3LookAlignmentDeadZone)
             {
@@ -967,12 +1013,37 @@ namespace DuneVector
                 return;
             }
 
-            float agreement = Mathf.Sign(command) * Mathf.Sign(error);
-            float scale = Mathf.Clamp01(errorMagnitude) * commandMagnitude;
-            float reward = agreement > 0f
-                ? scale * _settings.Stage3LookTowardRingReward
-                : -scale * _settings.Stage3LookAwayFromRingPenalty;
-            AddTrainingReward(reward, shaped: true);
+            // A held look command turns ControllerLookSpeed * FixedTickSeconds degrees
+            // per authoritative tick. Paying the full toward-target reward for a
+            // full-deflection command when only a little residual error remains trains a
+            // bang-bang policy that oversteers every tick and never settles, so credit
+            // only the deflection the remaining error can absorb and charge the rest.
+            float turnPerTick = Mathf.Max(
+                0.01f,
+                (_bootstrap.DroneCamera != null ? _bootstrap.DroneCamera.ControllerLookSpeed : 180f) *
+                _settings.FixedTickSeconds);
+            float usefulCommand = Mathf.Min(
+                commandMagnitude,
+                Mathf.Clamp01(Mathf.Abs(errorDegrees) / turnPerTick));
+
+            if (Mathf.Sign(command) * Mathf.Sign(error) > 0f)
+            {
+                AddTrainingReward(
+                    errorMagnitude * usefulCommand * _settings.Stage3LookTowardRingReward,
+                    shaped: true);
+                float overshoot = commandMagnitude - usefulCommand;
+                if (overshoot > 0f)
+                {
+                    AddTrainingReward(
+                        -overshoot * _settings.Stage3LookAwayFromRingPenalty,
+                        shaped: true);
+                }
+                return;
+            }
+
+            AddTrainingReward(
+                -errorMagnitude * commandMagnitude * _settings.Stage3LookAwayFromRingPenalty,
+                shaped: true);
         }
 
         private void ScoreStage2ObjectiveTracking(Vector3 objectivePosition, float objectiveDistance)
