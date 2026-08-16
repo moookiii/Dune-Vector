@@ -342,7 +342,7 @@ namespace DuneVector
                         : _settings.Stage2DivergencePenalty), shaped: true);
                 }
                 else if (_curriculumStage == 3 &&
-                    (_episodeSteps >= _settings.Stage3StepBudget ||
+                    (_episodeSteps >= GetStage3StepBudget() ||
                      (_stage3SelectedRingActivated &&
                       _stage3PostRingStepsWithoutProgress >=
                         _settings.Stage3PostRingNoProgressStepBudget)) &&
@@ -630,7 +630,7 @@ namespace DuneVector
                 (_objectiveDiverged || _objectiveNoProgress ||
                     _episodeSteps >= _settings.Stage2StepBudget);
             bool stage3Timeout = _curriculumStage == 3 &&
-                (_episodeSteps >= _settings.Stage3StepBudget ||
+                (_episodeSteps >= GetStage3StepBudget() ||
                  (_stage3SelectedRingActivated &&
                   _stage3PostRingStepsWithoutProgress >=
                     _settings.Stage3PostRingNoProgressStepBudget));
@@ -647,6 +647,14 @@ namespace DuneVector
                 (_curriculumStage == 2 && _pickups > 0) ||
                 (_curriculumStage == 3 && IsStage3Success()) ||
                 (_curriculumStage == 4 && _deliveries > 0);
+        }
+
+        private int GetStage3StepBudget()
+        {
+            int trainingBudget = Mathf.Max(1, _settings.Stage3StepBudget);
+            return _evaluation
+                ? Mathf.Min(trainingBudget, Mathf.Max(1, _settings.Stage3EvaluationStepBudget))
+                : trainingBudget;
         }
 
         private void PublishEpisodeMetrics()
