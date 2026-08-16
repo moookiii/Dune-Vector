@@ -445,7 +445,10 @@ namespace DuneVector
             float bestVisiblePercentage = 0f;
             float bestSelectionScore = float.NegativeInfinity;
             bool bestIsPreferredGlyph = false;
-            bool allowGlyphSubjects = _character == null || !_character.IsStableGrounded;
+            bool allowGlyphSubjects = AllowsGlyphSubjects(
+                _character != null,
+                _character != null && _character.CurrentMode == DroneTraversalMode.Flight,
+                _character != null && _character.IsStableGrounded);
             if (allowGlyphSubjects &&
                 _world != null &&
                 _geoglyphs?.Placements != null &&
@@ -621,6 +624,17 @@ namespace DuneVector
             return sizeScore * Mathf.Max(0f, _settings.SubjectSelectionSizeWeight) +
                 foregroundScore * Mathf.Max(0f, _settings.SubjectSelectionForegroundWeight) +
                 centerScore * Mathf.Max(0f, _settings.SubjectSelectionCenterWeight);
+        }
+
+        private static bool AllowsGlyphSubjects(
+            bool hasCharacter,
+            bool isInFlightMode,
+            bool isStableGrounded)
+        {
+            // Kinematic grounding can remain stable for a frame while flight begins or while the
+            // drone skims the sand. Flight mode is authoritative for photography: an actively
+            // flying player must not lose the airborne glyph-priority tier to stale ground contact.
+            return !hasCharacter || isInFlightMode || !isStableGrounded;
         }
 
         private bool IsFullyFramed(Rect bounds)
