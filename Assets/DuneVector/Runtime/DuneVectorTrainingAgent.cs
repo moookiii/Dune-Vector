@@ -377,7 +377,12 @@ namespace DuneVector
             {
                 Move = Vector2.ClampMagnitude(new Vector2(
                     DecodeAxis(discrete[0]), DecodeAxis(discrete[1])), 1f),
-                LookDelta = new Vector2(DecodeAxis(discrete[2]), DecodeAxis(discrete[3])),
+                // The policy's yaw/pitch branches are normalized held controls, matching
+                // a controller right stick. LookDelta is a one-frame mouse-pixel delta;
+                // feeding [-1, 1] into it limited the agent to 0.185 degrees per tick.
+                // LookRate instead applies the configured 180 degrees/second controller
+                // turn rate through the same authoritative player input command path.
+                LookRate = new Vector2(DecodeAxis(discrete[2]), DecodeAxis(discrete[3])),
                 JumpPressed = !hubCurriculum && !groundCurriculum && Pulse(discrete[4] != 0, 4),
                 JumpHeld = (!hubCurriculum && !groundCurriculum || stage2FlightRecovery) &&
                     discrete[4] != 0,
