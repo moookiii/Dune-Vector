@@ -67,6 +67,13 @@ namespace DuneVector
         private float _stage3RingPotentialReward;
         private float _stage3RingMinDistance;
         private bool _stage3TimedOut;
+        private TraversalRing _stage3SelectedRing;
+        private bool _stage3SelectedRingActivated;
+        private float _stage3DeliveryDistanceAtRing;
+        private float _stage3BestDeliveryDistanceAfterRing;
+        private float _stage3DeliveryProgress;
+        private float _stage3DeliveryPotentialReward;
+        private bool _stage3DeliveryProgressRewarded;
         private float _previousTargetHealth;
         private EnemyCombatTarget _previousTarget;
         private readonly float[] _previousActions = new float[ActionCount];
@@ -133,6 +140,13 @@ namespace DuneVector
             _stage3RingPotentialReward = 0f;
             _stage3RingMinDistance = float.PositiveInfinity;
             _stage3TimedOut = false;
+            _stage3SelectedRing = null;
+            _stage3SelectedRingActivated = false;
+            _stage3DeliveryDistanceAtRing = float.NaN;
+            _stage3BestDeliveryDistanceAfterRing = float.PositiveInfinity;
+            _stage3DeliveryProgress = 0f;
+            _stage3DeliveryPotentialReward = 0f;
+            _stage3DeliveryProgressRewarded = false;
             _observedRingActivations.Clear();
             Array.Clear(_previousActions, 0, _previousActions.Length);
             Array.Clear(_nextPulseStep, 0, _nextPulseStep.Length);
@@ -247,7 +261,10 @@ namespace DuneVector
             Add(sensor, drone.IsRingBoosting ? 1f : 0f, ref count);
             Add(sensor, player.IsHazardControlLocked ? 1f : 0f, ref count);
 
-            TraversalRing nearestRing = FindNearestUsefulRing(drone.WorldCenter, out float ringDistance);
+            TraversalRing nearestRing = FindStage3RouteRing(
+                drone.WorldCenter,
+                objective,
+                out float ringDistance);
             bool ringValid = nearestRing != null;
             Add(sensor, ringValid ? 1f : 0f, ref count);
             AddVector(sensor, ringValid
@@ -322,7 +339,7 @@ namespace DuneVector
                 }
                 else if (_curriculumStage == 3 &&
                     _episodeSteps >= _settings.Stage3StepBudget &&
-                    (_pickups == 0 || _rewardedRingActivations == 0))
+                    !IsStage3Success())
                 {
                     _stage3TimedOut = true;
                     AddTrainingReward(-_settings.Stage3TimeoutPenalty, shaped: true);
@@ -524,6 +541,7 @@ namespace DuneVector
             }
 
             ScoreStage3RingProgress();
+            ScoreStage3DeliveryProgress(objective);
 
             if (pickupCompleted)
             {
@@ -616,7 +634,7 @@ namespace DuneVector
             }
             return (_curriculumStage == 1 && _deployed) ||
                 (_curriculumStage == 2 && _pickups > 0) ||
-                (_curriculumStage == 3 && _pickups > 0 && _rewardedRingActivations > 0) ||
+                (_curriculumStage == 3 && IsStage3Success()) ||
                 (_curriculumStage == 4 && _deliveries > 0);
         }
 
@@ -654,7 +672,10 @@ namespace DuneVector
                 : 0f);
             stats.Add("Dune/rewarded_ring_activations", _rewardedRingActivations);
             stats.Add("Dune/stage3_success", _curriculumStage == 3 &&
-                _pickups > 0 && _rewardedRingActivations > 0 ? 1f : 0f);
+                IsStage3Success() ? 1f : 0f);
+            stats.Add("Dune/stage3_selected_ring_activated",
+                _stage3SelectedRingActivated ? 1f : 0f);
+            stats.Add("Dune/stage3_delivery_progress", _stage3DeliveryProgress);
             stats.Add("Dune/stage3_timeout", _stage3TimedOut ? 1f : 0f);
             stats.Add("Dune/stage3_ring_min_distance", float.IsInfinity(_stage3RingMinDistance)
                 ? 0f
@@ -741,8 +762,10 @@ namespace DuneVector
                 return;
             }
 
-            TraversalRing ring = FindNearestUsefulRing(
+            Transform delivery = ResolveActiveObjective(_bootstrap.CourierGame);
+            TraversalRing ring = FindStage3RouteRing(
                 _bootstrap.Drone.WorldCenter,
+                delivery,
                 out float distance);
             if (ring == null)
             {
@@ -775,6 +798,47 @@ namespace DuneVector
             }
             AddTrainingReward(reward, shaped: true);
             _previousStage3RingDistance = distance;
+        }
+
+        private void ScoreStage3DeliveryProgress(Transform objective)
+        {
+            if (_curriculumStage != 3 || !_stage3SelectedRingActivated ||
+                objective == null || !_bootstrap.CourierGame.IsCarryingCargo)
+            {
+                return;
+            }
+
+            float distance = Vector3.Distance(_bootstrap.Drone.WorldCenter, objective.position);
+            if (float.IsNaN(_stage3DeliveryDistanceAtRing))
+            {
+                _stage3DeliveryDistanceAtRing = distance;
+                _stage3BestDeliveryDistanceAfterRing = distance;
+                return;
+            }
+
+            float previousBest = _stage3BestDeliveryDistanceAfterRing;
+            _stage3BestDeliveryDistanceAfterRing = Mathf.Min(previousBest, distance);
+            _stage3DeliveryProgress = Mathf.Max(
+                0f,
+                _stage3DeliveryDistanceAtRing - _stage3BestDeliveryDistanceAfterRing);
+            float delta = previousBest - _stage3BestDeliveryDistanceAfterRing;
+            if (delta > 0f)
+            {
+                float reward = Mathf.Min(
+                    delta * _settings.Stage3DeliveryPotentialScale,
+                    Mathf.Max(0f,
+                        _settings.MaximumStage3DeliveryPotentialReward -
+                        _stage3DeliveryPotentialReward));
+                _stage3DeliveryPotentialReward += reward;
+                AddTrainingReward(reward, shaped: true);
+            }
+
+            if (!_stage3DeliveryProgressRewarded &&
+                _stage3DeliveryProgress >= _settings.Stage3RequiredDeliveryProgress)
+            {
+                _stage3DeliveryProgressRewarded = true;
+                AddTrainingReward(_settings.Stage3DeliveryProgressReward, shaped: true);
+            }
         }
 
         private void ScoreStage2ObjectiveTracking(Vector3 objectivePosition, float objectiveDistance)
@@ -871,21 +935,65 @@ namespace DuneVector
             return Quaternion.Inverse(rotation) * worldVector;
         }
 
-        private TraversalRing FindNearestUsefulRing(Vector3 origin, out float distance)
+        private TraversalRing FindStage3RouteRing(
+            Vector3 origin,
+            Transform objective,
+            out float distance)
         {
+            if (_curriculumStage == 3)
+            {
+                if (!_bootstrap.CourierGame.IsCarryingCargo || objective == null)
+                {
+                    distance = float.PositiveInfinity;
+                    return null;
+                }
+                if (_stage3SelectedRing != null &&
+                    _stage3SelectedRing.isActiveAndEnabled &&
+                    !_stage3SelectedRingActivated)
+                {
+                    distance = Vector3.Distance(origin, _stage3SelectedRing.transform.position);
+                    return _stage3SelectedRing;
+                }
+            }
+
             TraversalRing nearest = null;
             distance = float.PositiveInfinity;
+            float bestScore = float.PositiveInfinity;
+            float directDistance = objective != null
+                ? Vector3.Distance(origin, objective.position)
+                : 0f;
             foreach (TraversalRing ring in TraversalRing.ActiveRings)
             {
                 if (ring == null || !ring.isActiveAndEnabled || !IsRingObservable(ring)) continue;
                 float candidate = Vector3.Distance(origin, ring.transform.position);
-                if (candidate < distance)
+                float score = candidate;
+                if (_curriculumStage == 3 && objective != null)
                 {
+                    float detour = candidate +
+                        Vector3.Distance(ring.transform.position, objective.position) -
+                        directDistance;
+                    if (detour > _settings.Stage3MaximumRingDetour) continue;
+                    score = candidate + Mathf.Max(0f, detour);
+                }
+                if (score < bestScore)
+                {
+                    bestScore = score;
                     nearest = ring;
                     distance = candidate;
                 }
             }
+            if (_curriculumStage == 3 && nearest != null)
+            {
+                _stage3SelectedRing = nearest;
+            }
             return nearest;
+        }
+
+        private bool IsStage3Success()
+        {
+            return _pickups > 0 &&
+                _stage3SelectedRingActivated &&
+                _stage3DeliveryProgress >= _settings.Stage3RequiredDeliveryProgress;
         }
 
         private int GetTotalRingActivations()
@@ -916,7 +1024,18 @@ namespace DuneVector
                 _observedRingActivations.TryGetValue(ring, out int previous);
                 int delta = Mathf.Max(0, ring.ActivationCount - previous);
                 _observedRingActivations[ring] = ring.ActivationCount;
-                if (delta > 0 && IsRingCurrentlyUseful(ring)) rewardable += delta;
+                if (delta > 0 && IsRingCurrentlyUseful(ring))
+                {
+                    if (_curriculumStage != 3 || ring == _stage3SelectedRing)
+                    {
+                        rewardable += delta;
+                        if (_curriculumStage == 3)
+                        {
+                            _stage3SelectedRingActivated = true;
+                            _stage3DeliveryDistanceAtRing = float.NaN;
+                        }
+                    }
+                }
             }
             return rewardable;
         }

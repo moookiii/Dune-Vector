@@ -7166,6 +7166,13 @@ namespace DuneVector
         [Min(0f)] public float Stage3RingPotentialScale = 0.0005f;
         [Min(0f)] public float MaximumStage3RingPotentialReward = 0.1f;
         [Min(0f)] public float Stage3UsefulRingReward = 0.2f;
+        [Tooltip("Maximum extra route distance allowed when selecting a flight ring between the drone and delivery.")]
+        [Min(0f)] public float Stage3MaximumRingDetour = 300f;
+        [Tooltip("Delivery distance the drone must recover after activating its selected ring before Stage 3 succeeds.")]
+        [Min(0f)] public float Stage3RequiredDeliveryProgress = 40f;
+        [Min(0f)] public float Stage3DeliveryPotentialScale = 0.0008f;
+        [Min(0f)] public float MaximumStage3DeliveryPotentialReward = 0.12f;
+        [Min(0f)] public float Stage3DeliveryProgressReward = 0.15f;
         [Min(0f)] public float Stage3TimeoutPenalty = 0.15f;
         [Min(1)] public int Stage4StepBudget = 7200;
 
