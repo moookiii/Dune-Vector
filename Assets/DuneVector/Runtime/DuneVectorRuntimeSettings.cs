@@ -7167,8 +7167,8 @@ namespace DuneVector
 
         [Header("Stage 3 Flight and Stage 4 Delivery")]
         [Min(1)] public int Stage3StepBudget = 4800;
-        [Tooltip("Maximum authoritative ticks used by held-out Stage 3 checkpoint evaluation. Training keeps the full Stage 3 Step Budget.")]
-        [Min(1)] public int Stage3EvaluationStepBudget = 600;
+        [Tooltip("Maximum authoritative ticks used by held-out Stage 3 checkpoint evaluation.")]
+        [Min(1)] public int Stage3EvaluationStepBudget = 4800;
         [Min(0f)] public float Stage3RingPotentialScale = 0.0005f;
         [Min(0f)] public float MaximumStage3RingPotentialReward = 0.1f;
         [Min(0f)] public float Stage3UsefulRingReward = 0.2f;
@@ -7176,6 +7176,8 @@ namespace DuneVector
         [Min(0f)] public float Stage3MaximumRingDetour = 300f;
         [Min(0f)] public float Stage3RouteHeadingAlignmentReward = 0.00005f;
         [Min(0f)] public float Stage3RouteWrongWayPenalty = 0.0008f;
+        [Min(1f)] public float Stage3NearRingApproachDistance = 30f;
+        [Min(1f)] public float Stage3NearRingHeadingMultiplier = 4f;
         [Tooltip("Delivery distance the drone must recover after activating its selected ring before Stage 3 succeeds.")]
         [Min(0f)] public float Stage3RequiredDeliveryProgress = 40f;
         [Tooltip("Ticks allowed after the selected ring without meaningful delivery progress.")]

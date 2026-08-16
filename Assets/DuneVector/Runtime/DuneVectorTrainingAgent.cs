@@ -69,6 +69,7 @@ namespace DuneVector
         private bool _stage3TimedOut;
         private TraversalRing _stage3SelectedRing;
         private bool _stage3SelectedRingActivated;
+        private bool _stage3SelectedRingActivationPending;
         private float _stage3DeliveryDistanceAtRing;
         private float _stage3BestDeliveryDistanceAfterRing;
         private float _previousStage3DeliveryDistance;
@@ -142,8 +143,9 @@ namespace DuneVector
             _stage3RingPotentialReward = 0f;
             _stage3RingMinDistance = float.PositiveInfinity;
             _stage3TimedOut = false;
-            _stage3SelectedRing = null;
+            SetStage3SelectedRing(null);
             _stage3SelectedRingActivated = false;
+            _stage3SelectedRingActivationPending = false;
             _stage3DeliveryDistanceAtRing = float.NaN;
             _stage3BestDeliveryDistanceAfterRing = float.PositiveInfinity;
             _previousStage3DeliveryDistance = float.NaN;
@@ -900,10 +902,15 @@ namespace DuneVector
             }
 
             float alignment = Vector3.Dot(toTarget.normalized, velocity.normalized);
+            float multiplier = !_stage3SelectedRingActivated &&
+                _stage3SelectedRing != null &&
+                toTarget.magnitude <= _settings.Stage3NearRingApproachDistance
+                    ? _settings.Stage3NearRingHeadingMultiplier
+                    : 1f;
             float reward = alignment >= 0f
                 ? alignment * _settings.Stage3RouteHeadingAlignmentReward
                 : alignment * _settings.Stage3RouteWrongWayPenalty;
-            AddTrainingReward(reward, shaped: true);
+            AddTrainingReward(reward * multiplier, shaped: true);
         }
 
         private void ScoreStage2ObjectiveTracking(Vector3 objectivePosition, float objectiveDistance)
@@ -1049,9 +1056,32 @@ namespace DuneVector
             }
             if (_curriculumStage == 3 && nearest != null)
             {
-                _stage3SelectedRing = nearest;
+                SetStage3SelectedRing(nearest);
             }
             return nearest;
+        }
+
+        private void SetStage3SelectedRing(TraversalRing ring)
+        {
+            if (_stage3SelectedRing == ring) return;
+            if (_stage3SelectedRing != null)
+            {
+                _stage3SelectedRing.Activated -= HandleStage3SelectedRingActivated;
+            }
+            _stage3SelectedRing = ring;
+            _stage3SelectedRingActivationPending = false;
+            if (_stage3SelectedRing != null)
+            {
+                _stage3SelectedRing.Activated += HandleStage3SelectedRingActivated;
+            }
+        }
+
+        private void HandleStage3SelectedRingActivated(TraversalRing ring)
+        {
+            if (ring == _stage3SelectedRing && !_stage3SelectedRingActivated)
+            {
+                _stage3SelectedRingActivationPending = true;
+            }
         }
 
         private bool IsStage3Success()
@@ -1083,6 +1113,14 @@ namespace DuneVector
         private int ConsumeNewRewardableRingActivations()
         {
             int rewardable = 0;
+            if (_stage3SelectedRingActivationPending && _stage3SelectedRing != null)
+            {
+                _stage3SelectedRingActivationPending = false;
+                _observedRingActivations[_stage3SelectedRing] =
+                    _stage3SelectedRing.ActivationCount;
+                MarkStage3SelectedRingActivated();
+                rewardable++;
+            }
             foreach (TraversalRing ring in TraversalRing.ActiveRings)
             {
                 if (ring == null) continue;
@@ -1096,15 +1134,26 @@ namespace DuneVector
                         rewardable += delta;
                         if (_curriculumStage == 3)
                         {
-                            _stage3SelectedRingActivated = true;
-                            _stage3DeliveryDistanceAtRing = float.NaN;
-                            _previousStage3DeliveryDistance = float.NaN;
-                            _stage3PostRingStepsWithoutProgress = 0;
+                            MarkStage3SelectedRingActivated();
                         }
                     }
                 }
             }
             return rewardable;
+        }
+
+        private void MarkStage3SelectedRingActivated()
+        {
+            if (_stage3SelectedRingActivated) return;
+            _stage3SelectedRingActivated = true;
+            _stage3DeliveryDistanceAtRing = float.NaN;
+            _previousStage3DeliveryDistance = float.NaN;
+            _stage3PostRingStepsWithoutProgress = 0;
+        }
+
+        private void OnDestroy()
+        {
+            SetStage3SelectedRing(null);
         }
 
         private bool IsRingCurrentlyUseful(TraversalRing ring)
