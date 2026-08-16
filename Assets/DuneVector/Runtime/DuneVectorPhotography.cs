@@ -408,6 +408,10 @@ namespace DuneVector
         private readonly DesertAtlasTuning _atlas;
         private readonly PhotographyTuning _settings;
         private readonly List<Vector3> _worldSamples = new List<Vector3>(40);
+        private readonly Dictionary<string, GeoglyphArtworkPlacement> _artworkBySiteId =
+            new Dictionary<string, GeoglyphArtworkPlacement>(StringComparer.Ordinal);
+        private readonly Dictionary<string, string> _displayNameBySubjectId =
+            new Dictionary<string, string>(StringComparer.Ordinal);
         private int _centerSampleIndex;
 
         public DuneVectorSubjectDetector(
@@ -424,6 +428,7 @@ namespace DuneVector
             _geoglyphs = geoglyphs;
             _atlas = atlas;
             _settings = settings;
+            BuildLookupCaches();
         }
 
         public SubjectDetectionResult Detect()
@@ -437,6 +442,7 @@ namespace DuneVector
             PhotographableSubject bestSubject = default;
             Rect bestBounds = default;
             float bestCoverage = -1f;
+            float bestVisiblePercentage = 0f;
             float bestSelectionScore = float.NegativeInfinity;
             bool bestIsPreferredGlyph = false;
             bool allowGlyphSubjects = _character == null || !_character.IsStableGrounded;
@@ -475,14 +481,15 @@ namespace DuneVector
                     {
                         continue;
                     }
-                    if (CalculateVisiblePercentage(site) <
-                        _settings.SubjectDetectionMinimumVisiblePercentage)
+                    float candidateVisiblePercentage = CalculateVisiblePercentage(site);
+                    if (candidateVisiblePercentage < _settings.SubjectDetectionMinimumVisiblePercentage)
                     {
                         continue;
                     }
                     bestBounds = bounds;
                     bestCoverage = coverage;
                     bestSelectionScore = selectionScore;
+                    bestVisiblePercentage = candidateVisiblePercentage;
                     bestIsPreferredGlyph = isPreferredGlyph;
                     bestSubject = new PhotographableSubject(site, artwork);
                     found = true;
@@ -520,14 +527,15 @@ namespace DuneVector
                 {
                     continue;
                 }
-                if (marker.CalculateVisiblePercentage(_camera, _settings) <
-                    _settings.SubjectDetectionMinimumVisiblePercentage)
+                float candidateVisiblePercentage = marker.CalculateVisiblePercentage(_camera, _settings);
+                if (candidateVisiblePercentage < _settings.SubjectDetectionMinimumVisiblePercentage)
                 {
                     continue;
                 }
                 bestBounds = markerBounds;
                 bestCoverage = markerCoverage;
                 bestSelectionScore = selectionScore;
+                bestVisiblePercentage = candidateVisiblePercentage;
                 bestIsPreferredGlyph = false;
                 bestSubject = new PhotographableSubject(marker, displayName);
                 found = true;
@@ -540,8 +548,7 @@ namespace DuneVector
             bool valid;
             if (bestSubject.Category == PhotographableSubjectCategory.Glyph)
             {
-                BuildSamples(bestSubject.AtlasSite, bestSubject.Artwork);
-                visiblePercentage = CalculateVisiblePercentage(bestSubject.AtlasSite);
+                visiblePercentage = bestVisiblePercentage;
                 DesertAtlasSiteDefinition definition = bestSubject.AtlasSite;
                 float minimumCoverage = Mathf.Min(
                     definition.MinimumPhotoScreenCoverage,
@@ -561,9 +568,7 @@ namespace DuneVector
             }
             else
             {
-                visiblePercentage = bestSubject.Marker != null
-                    ? bestSubject.Marker.CalculateVisiblePercentage(_camera, _settings)
-                    : 0f;
+                visiblePercentage = bestVisiblePercentage;
                 float minimumCoverage = Mathf.Min(
                     _settings.CompendiumMinimumPhotoScreenCoverage,
                     _settings.CompendiumMaximumPhotoScreenCoverage);
@@ -580,21 +585,31 @@ namespace DuneVector
 
         private bool TryResolveDisplayName(string subjectId, out string displayName)
         {
-            if (_settings?.CompendiumEntries != null)
+            return _displayNameBySubjectId.TryGetValue(subjectId ?? string.Empty, out displayName);
+        }
+
+        private void BuildLookupCaches()
+        {
+            _artworkBySiteId.Clear();
+            if (_atlas?.Sites != null && _geoglyphs?.Placements != null)
             {
-                for (int i = 0; i < _settings.CompendiumEntries.Count; i++)
+                for (int i = 0; i < _atlas.Sites.Count; i++)
                 {
-                    CompendiumEntryDefinition definition = _settings.CompendiumEntries[i];
-                    if (definition != null &&
-                        string.Equals(definition.SubjectId, subjectId, StringComparison.Ordinal))
-                    {
-                        displayName = definition.DisplayName;
-                        return true;
-                    }
+                    DesertAtlasSiteDefinition site = _atlas.Sites[i];
+                    if (site == null || string.IsNullOrWhiteSpace(site.PersistentId)) continue;
+                    GeoglyphArtworkPlacement artwork = FindClosestArtwork(site);
+                    if (artwork != null) _artworkBySiteId[site.PersistentId] = artwork;
                 }
             }
-            displayName = string.Empty;
-            return false;
+
+            _displayNameBySubjectId.Clear();
+            if (_settings?.CompendiumEntries == null) return;
+            for (int i = 0; i < _settings.CompendiumEntries.Count; i++)
+            {
+                CompendiumEntryDefinition definition = _settings.CompendiumEntries[i];
+                if (definition == null || string.IsNullOrEmpty(definition.SubjectId)) continue;
+                _displayNameBySubjectId[definition.SubjectId] = definition.DisplayName;
+            }
         }
 
         private float CalculateSelectionScore(float depth, float coverage, float centerPriority)
@@ -635,6 +650,13 @@ namespace DuneVector
         }
 
         private GeoglyphArtworkPlacement FindArtwork(DesertAtlasSiteDefinition site)
+        {
+            if (site == null || string.IsNullOrEmpty(site.PersistentId)) return null;
+            _artworkBySiteId.TryGetValue(site.PersistentId, out GeoglyphArtworkPlacement artwork);
+            return artwork;
+        }
+
+        private GeoglyphArtworkPlacement FindClosestArtwork(DesertAtlasSiteDefinition site)
         {
             GeoglyphArtworkPlacement closest = null;
             float closestDistance = float.PositiveInfinity;
