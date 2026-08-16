@@ -2565,8 +2565,9 @@ namespace DuneVector
                     _settings.GlyphDiscoveryBorderColor,
                     _settings.GlyphDiscoveryBorderColor.a * progress));
             string continuePrompt = _settings.GlyphDiscoveryContinuePrompt;
+            string trackedContinuePrompt = TrackText(continuePrompt);
             float continueTextWidth = _glyphDiscoveryContinueStyle
-                .CalcSize(new GUIContent(continuePrompt)).x;
+                .CalcSize(new GUIContent(trackedContinuePrompt)).x;
             float commandWidth = Mathf.Min(
                 footer.width,
                 Mathf.Max(
@@ -2628,7 +2629,7 @@ namespace DuneVector
             }
             DrawLabel(
                 command,
-                TrackText(continuePrompt),
+                trackedContinuePrompt,
                 _glyphDiscoveryContinueStyle,
                 WithAlpha(
                     _settings.GlyphDiscoveryPrimaryTextColor,
