@@ -15,6 +15,48 @@ namespace DuneVector.Tests
             "Assets/DuneVector/ScriptableObjects/Dune Vector Runtime Settings.asset";
 
         [Test]
+        public void FullyFramedAirborneGlyphOutranksHigherScoringOrdinarySubject()
+        {
+            Assert.That(
+                InvokeSubjectSelectionReplacement(
+                    candidateIsPreferredGlyph: true,
+                    candidateScore: 0.2f,
+                    foundSelection: true,
+                    selectionIsPreferredGlyph: false,
+                    selectionScore: 1f),
+                Is.True);
+            Assert.That(
+                InvokeSubjectSelectionReplacement(
+                    candidateIsPreferredGlyph: false,
+                    candidateScore: 1f,
+                    foundSelection: true,
+                    selectionIsPreferredGlyph: true,
+                    selectionScore: 0.2f),
+                Is.False);
+        }
+
+        [Test]
+        public void ExistingCameraScoreStillChoosesWithinSamePriorityTier()
+        {
+            Assert.That(
+                InvokeSubjectSelectionReplacement(
+                    candidateIsPreferredGlyph: false,
+                    candidateScore: 0.8f,
+                    foundSelection: true,
+                    selectionIsPreferredGlyph: false,
+                    selectionScore: 0.7f),
+                Is.True);
+            Assert.That(
+                InvokeSubjectSelectionReplacement(
+                    candidateIsPreferredGlyph: true,
+                    candidateScore: 0.6f,
+                    foundSelection: true,
+                    selectionIsPreferredGlyph: true,
+                    selectionScore: 0.7f),
+                Is.False);
+        }
+
+        [Test]
         public void Seed47169Stage2DeploymentResolvesActiveColliderSupport()
         {
             DuneVectorRuntimeSettings settings =
@@ -215,6 +257,32 @@ namespace DuneVector.Tests
                 BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(generateChunk, Is.Not.Null);
             generateChunk.Invoke(world, new object[] { coordinate, true, true });
+        }
+
+        private static bool InvokeSubjectSelectionReplacement(
+            bool candidateIsPreferredGlyph,
+            float candidateScore,
+            bool foundSelection,
+            bool selectionIsPreferredGlyph,
+            float selectionScore)
+        {
+            Type detectorType = typeof(PhotographyTuning).Assembly.GetType(
+                "DuneVector.DuneVectorSubjectDetector");
+            Assert.That(detectorType, Is.Not.Null);
+            MethodInfo method = detectorType.GetMethod(
+                "ShouldReplaceSelection",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(method, Is.Not.Null);
+            return (bool)method.Invoke(
+                null,
+                new object[]
+                {
+                    candidateIsPreferredGlyph,
+                    candidateScore,
+                    foundSelection,
+                    selectionIsPreferredGlyph,
+                    selectionScore,
+                });
         }
     }
 }

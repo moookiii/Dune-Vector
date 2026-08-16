@@ -273,6 +273,8 @@ namespace DuneVector
         [Range(0f, 1f)] public float GlyphRequiredVisiblePercentage = 0.5f;
 
         [Header("Subject Selection")]
+        [Tooltip("While airborne, prefer a fully framed, readable glyph over ordinary photographable subjects. Subject selection weights still choose between candidates in the same priority tier.")]
+        public bool PrioritizeFullyFramedAirborneGlyphs = true;
         [Tooltip("Influence of a subject's on-screen size when choosing which visible subject to frame.")]
         [Min(0f)] public float SubjectSelectionSizeWeight = 0.65f;
         [Tooltip("Influence of a subject being close to the camera when choosing which visible subject to frame.")]

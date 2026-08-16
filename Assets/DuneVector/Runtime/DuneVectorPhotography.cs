@@ -438,6 +438,7 @@ namespace DuneVector
             Rect bestBounds = default;
             float bestCoverage = -1f;
             float bestSelectionScore = float.NegativeInfinity;
+            bool bestIsPreferredGlyph = false;
             bool allowGlyphSubjects = _character == null || !_character.IsStableGrounded;
             if (allowGlyphSubjects &&
                 _world != null &&
@@ -460,7 +461,17 @@ namespace DuneVector
                         continue;
                     }
                     float selectionScore = CalculateSelectionScore(depth, coverage, priority);
-                    if (selectionScore <= bestSelectionScore)
+                    bool candidateFullyFramed = IsFullyFramed(bounds);
+                    bool isPreferredGlyph = _settings.PrioritizeFullyFramedAirborneGlyphs &&
+                        candidateFullyFramed &&
+                        Vector3.Dot(_camera.transform.forward.normalized, Vector3.down) >=
+                            site.MinimumPhotoReadableAngle;
+                    if (!ShouldReplaceSelection(
+                            isPreferredGlyph,
+                            selectionScore,
+                            found,
+                            bestIsPreferredGlyph,
+                            bestSelectionScore))
                     {
                         continue;
                     }
@@ -472,6 +483,7 @@ namespace DuneVector
                     bestBounds = bounds;
                     bestCoverage = coverage;
                     bestSelectionScore = selectionScore;
+                    bestIsPreferredGlyph = isPreferredGlyph;
                     bestSubject = new PhotographableSubject(site, artwork);
                     found = true;
                 }
@@ -499,7 +511,12 @@ namespace DuneVector
                     new Vector2(Screen.width * 0.5f, Screen.height * 0.5f)) /
                     Mathf.Max(1f, Screen.height);
                 float selectionScore = CalculateSelectionScore(markerDepth, markerCoverage, centerPriority);
-                if (selectionScore <= bestSelectionScore)
+                if (!ShouldReplaceSelection(
+                        false,
+                        selectionScore,
+                        found,
+                        bestIsPreferredGlyph,
+                        bestSelectionScore))
                 {
                     continue;
                 }
@@ -511,15 +528,13 @@ namespace DuneVector
                 bestBounds = markerBounds;
                 bestCoverage = markerCoverage;
                 bestSelectionScore = selectionScore;
+                bestIsPreferredGlyph = false;
                 bestSubject = new PhotographableSubject(marker, displayName);
                 found = true;
             }
             if (!found) return default;
 
-            bool fullyFramed = bestBounds.xMin >= Screen.width * _settings.ViewportEdgePadding &&
-                bestBounds.xMax <= Screen.width * (1f - _settings.ViewportEdgePadding) &&
-                bestBounds.yMin >= Screen.height * _settings.ViewportEdgePadding &&
-                bestBounds.yMax <= Screen.height * (1f - _settings.ViewportEdgePadding);
+            bool fullyFramed = IsFullyFramed(bestBounds);
 
             float visiblePercentage;
             bool valid;
@@ -591,6 +606,32 @@ namespace DuneVector
             return sizeScore * Mathf.Max(0f, _settings.SubjectSelectionSizeWeight) +
                 foregroundScore * Mathf.Max(0f, _settings.SubjectSelectionForegroundWeight) +
                 centerScore * Mathf.Max(0f, _settings.SubjectSelectionCenterWeight);
+        }
+
+        private bool IsFullyFramed(Rect bounds)
+        {
+            return bounds.xMin >= Screen.width * _settings.ViewportEdgePadding &&
+                bounds.xMax <= Screen.width * (1f - _settings.ViewportEdgePadding) &&
+                bounds.yMin >= Screen.height * _settings.ViewportEdgePadding &&
+                bounds.yMax <= Screen.height * (1f - _settings.ViewportEdgePadding);
+        }
+
+        private static bool ShouldReplaceSelection(
+            bool candidateIsPreferredGlyph,
+            float candidateScore,
+            bool foundSelection,
+            bool selectionIsPreferredGlyph,
+            float selectionScore)
+        {
+            if (!foundSelection)
+            {
+                return true;
+            }
+            if (candidateIsPreferredGlyph != selectionIsPreferredGlyph)
+            {
+                return candidateIsPreferredGlyph;
+            }
+            return candidateScore > selectionScore;
         }
 
         private GeoglyphArtworkPlacement FindArtwork(DesertAtlasSiteDefinition site)
