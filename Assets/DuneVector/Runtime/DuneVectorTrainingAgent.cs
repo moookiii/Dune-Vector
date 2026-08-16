@@ -71,7 +71,9 @@ namespace DuneVector
         private bool _stage3SelectedRingActivated;
         private float _stage3DeliveryDistanceAtRing;
         private float _stage3BestDeliveryDistanceAfterRing;
+        private float _previousStage3DeliveryDistance;
         private float _stage3DeliveryProgress;
+        private int _stage3PostRingStepsWithoutProgress;
         private float _stage3DeliveryPotentialReward;
         private bool _stage3DeliveryProgressRewarded;
         private float _previousTargetHealth;
@@ -144,7 +146,9 @@ namespace DuneVector
             _stage3SelectedRingActivated = false;
             _stage3DeliveryDistanceAtRing = float.NaN;
             _stage3BestDeliveryDistanceAfterRing = float.PositiveInfinity;
+            _previousStage3DeliveryDistance = float.NaN;
             _stage3DeliveryProgress = 0f;
+            _stage3PostRingStepsWithoutProgress = 0;
             _stage3DeliveryPotentialReward = 0f;
             _stage3DeliveryProgressRewarded = false;
             _observedRingActivations.Clear();
@@ -338,7 +342,10 @@ namespace DuneVector
                         : _settings.Stage2DivergencePenalty), shaped: true);
                 }
                 else if (_curriculumStage == 3 &&
-                    _episodeSteps >= _settings.Stage3StepBudget &&
+                    (_episodeSteps >= _settings.Stage3StepBudget ||
+                     (_stage3SelectedRingActivated &&
+                      _stage3PostRingStepsWithoutProgress >=
+                        _settings.Stage3PostRingNoProgressStepBudget)) &&
                     !IsStage3Success())
                 {
                     _stage3TimedOut = true;
@@ -541,6 +548,7 @@ namespace DuneVector
             }
 
             ScoreStage3RingProgress();
+            ScoreStage3RouteHeading(objective);
             ScoreStage3DeliveryProgress(objective);
 
             if (pickupCompleted)
@@ -622,7 +630,10 @@ namespace DuneVector
                 (_objectiveDiverged || _objectiveNoProgress ||
                     _episodeSteps >= _settings.Stage2StepBudget);
             bool stage3Timeout = _curriculumStage == 3 &&
-                _episodeSteps >= _settings.Stage3StepBudget;
+                (_episodeSteps >= _settings.Stage3StepBudget ||
+                 (_stage3SelectedRingActivated &&
+                  _stage3PostRingStepsWithoutProgress >=
+                    _settings.Stage3PostRingNoProgressStepBudget));
             bool stage4Timeout = _curriculumStage == 4 &&
                 _episodeSteps >= _settings.Stage4StepBudget;
             if (hubTimeout || _wrongStage1Deployment || stage2Failure ||
@@ -677,6 +688,8 @@ namespace DuneVector
                 _stage3SelectedRingActivated ? 1f : 0f);
             stats.Add("Dune/stage3_delivery_progress", _stage3DeliveryProgress);
             stats.Add("Dune/stage3_timeout", _stage3TimedOut ? 1f : 0f);
+            stats.Add("Dune/stage3_post_ring_no_progress_steps",
+                _stage3PostRingStepsWithoutProgress);
             stats.Add("Dune/stage3_ring_min_distance", float.IsInfinity(_stage3RingMinDistance)
                 ? 0f
                 : _stage3RingMinDistance);
@@ -813,7 +826,19 @@ namespace DuneVector
             {
                 _stage3DeliveryDistanceAtRing = distance;
                 _stage3BestDeliveryDistanceAfterRing = distance;
+                _previousStage3DeliveryDistance = distance;
                 return;
+            }
+
+            float signedDelta = _previousStage3DeliveryDistance - distance;
+            _previousStage3DeliveryDistance = distance;
+            if (signedDelta >= _settings.Stage3MinimumDeliveryProgressPerTick)
+            {
+                _stage3PostRingStepsWithoutProgress = 0;
+            }
+            else
+            {
+                _stage3PostRingStepsWithoutProgress++;
             }
 
             float previousBest = _stage3BestDeliveryDistanceAfterRing;
@@ -821,17 +846,20 @@ namespace DuneVector
             _stage3DeliveryProgress = Mathf.Max(
                 0f,
                 _stage3DeliveryDistanceAtRing - _stage3BestDeliveryDistanceAfterRing);
-            float delta = previousBest - _stage3BestDeliveryDistanceAfterRing;
-            if (delta > 0f)
+            float reward = Mathf.Clamp(
+                signedDelta * _settings.Stage3DeliveryPotentialScale,
+                -0.01f,
+                0.01f);
+            if (reward > 0f)
             {
-                float reward = Mathf.Min(
-                    delta * _settings.Stage3DeliveryPotentialScale,
+                reward = Mathf.Min(
+                    reward,
                     Mathf.Max(0f,
                         _settings.MaximumStage3DeliveryPotentialReward -
                         _stage3DeliveryPotentialReward));
                 _stage3DeliveryPotentialReward += reward;
-                AddTrainingReward(reward, shaped: true);
             }
+            AddTrainingReward(reward, shaped: true);
 
             if (!_stage3DeliveryProgressRewarded &&
                 _stage3DeliveryProgress >= _settings.Stage3RequiredDeliveryProgress)
@@ -839,6 +867,35 @@ namespace DuneVector
                 _stage3DeliveryProgressRewarded = true;
                 AddTrainingReward(_settings.Stage3DeliveryProgressReward, shaped: true);
             }
+        }
+
+        private void ScoreStage3RouteHeading(Transform deliveryObjective)
+        {
+            if (_curriculumStage != 3 || !_bootstrap.CourierGame.IsCarryingCargo ||
+                deliveryObjective == null)
+            {
+                return;
+            }
+
+            Vector3 target = !_stage3SelectedRingActivated && _stage3SelectedRing != null
+                ? _stage3SelectedRing.transform.position
+                : deliveryObjective.position;
+            Vector3 toTarget = Vector3.ProjectOnPlane(
+                target - _bootstrap.Drone.WorldCenter,
+                Vector3.up);
+            Vector3 velocity = _bootstrap.Drone.Motor != null
+                ? Vector3.ProjectOnPlane(_bootstrap.Drone.Motor.Velocity, Vector3.up)
+                : Vector3.zero;
+            if (toTarget.sqrMagnitude <= 0.01f || velocity.sqrMagnitude <= 0.01f)
+            {
+                return;
+            }
+
+            float alignment = Vector3.Dot(toTarget.normalized, velocity.normalized);
+            float reward = alignment >= 0f
+                ? alignment * _settings.Stage3RouteHeadingAlignmentReward
+                : alignment * _settings.Stage3RouteWrongWayPenalty;
+            AddTrainingReward(reward, shaped: true);
         }
 
         private void ScoreStage2ObjectiveTracking(Vector3 objectivePosition, float objectiveDistance)
@@ -1033,6 +1090,8 @@ namespace DuneVector
                         {
                             _stage3SelectedRingActivated = true;
                             _stage3DeliveryDistanceAtRing = float.NaN;
+                            _previousStage3DeliveryDistance = float.NaN;
+                            _stage3PostRingStepsWithoutProgress = 0;
                         }
                     }
                 }
