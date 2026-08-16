@@ -354,7 +354,7 @@ namespace DuneVector
 
             QualitySettings.vSyncCount = headlessTraining ? 0 : Mathf.Clamp(RuntimeSettings.Performance.VSyncCount, 0, 4);
             Application.targetFrameRate = headlessTraining
-                ? (DuneTrainingRuntime.EvaluationParity ? 60 : -1)
+                ? -1
                 : Mathf.Clamp(RuntimeSettings.Performance.TargetFrameRate, -1, 360);
             if (Debug.isDebugBuild)
             {

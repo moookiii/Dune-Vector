@@ -1160,7 +1160,7 @@ namespace DuneVector
             Time.maximumDeltaTime = 0.05f;
             Time.captureDeltaTime = EvaluationParity ? 0f : 0.05f;
             QualitySettings.vSyncCount = 0;
-            Application.targetFrameRate = EvaluationParity ? 60 : -1;
+            Application.targetFrameRate = VisualEvaluation ? 60 : -1;
             Application.runInBackground = true;
             AudioListener.pause = !VisualEvaluation;
         }
