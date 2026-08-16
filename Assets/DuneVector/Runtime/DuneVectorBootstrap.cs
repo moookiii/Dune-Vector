@@ -353,7 +353,9 @@ namespace DuneVector
             ApplyRetroCrtScanlines();
 
             QualitySettings.vSyncCount = headlessTraining ? 0 : Mathf.Clamp(RuntimeSettings.Performance.VSyncCount, 0, 4);
-            Application.targetFrameRate = headlessTraining ? -1 : Mathf.Clamp(RuntimeSettings.Performance.TargetFrameRate, -1, 360);
+            Application.targetFrameRate = headlessTraining
+                ? (DuneTrainingRuntime.EvaluationParity ? 60 : -1)
+                : Mathf.Clamp(RuntimeSettings.Performance.TargetFrameRate, -1, 360);
             if (Debug.isDebugBuild)
             {
                 Application.runInBackground = RuntimeSettings.Performance.RunDevelopmentBuildsInBackground;
