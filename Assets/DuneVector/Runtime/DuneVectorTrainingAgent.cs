@@ -58,6 +58,7 @@ namespace DuneVector
         private int _previousFreeRoamPickupSequence;
         private int _baselineContractPickupSequence;
         private int _baselineFreeRoamPickupSequence;
+        private bool _authoritativePickupObserved;
         private int _stage2HazardRecoveryStepsRemaining;
         private FreeRoamDeliveryPhase _previousFreeRoamPhase;
         private CourierRunState _previousRunState;
@@ -123,6 +124,7 @@ namespace DuneVector
             _hubStepsWithoutProgress = 0;
             _bestHubDistance = float.PositiveInfinity;
             _pickups = 0;
+            _authoritativePickupObserved = false;
             _deliveries = 0;
             _damageTaken = 0f;
             _deaths = 0;
@@ -525,6 +527,9 @@ namespace DuneVector
             int freeRoamPickupSequence = courier.FreeRoamDeliveries != null
                 ? courier.FreeRoamDeliveries.PickupSequence
                 : 0;
+            _authoritativePickupObserved |= courier.IsCarryingCargo ||
+                courier.State == CourierRunState.Delivering ||
+                phase == FreeRoamDeliveryPhase.Deliver;
             bool authoritativePickup = contractPickupSequence > _previousContractPickupSequence ||
                 freeRoamPickupSequence > _previousFreeRoamPickupSequence;
             bool pickupCompleted = authoritativePickup ||
@@ -1116,6 +1121,7 @@ namespace DuneVector
                 ? courier.FreeRoamDeliveries.PickupSequence
                 : 0;
             return _pickups > 0 ||
+                _authoritativePickupObserved ||
                 courier.IsCarryingCargo ||
                 courier.PickupSequence > _baselineContractPickupSequence ||
                 freeRoamPickupSequence > _baselineFreeRoamPickupSequence;
