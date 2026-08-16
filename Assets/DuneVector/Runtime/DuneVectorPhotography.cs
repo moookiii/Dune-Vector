@@ -1691,6 +1691,18 @@ namespace DuneVector
                 return;
             }
 
+            // Capture the camera pose and portal billboards from the frame the player actually
+            // composed. Applying this frame's mouse delta first moves the camera during Update,
+            // while streamed portal billboards do not refit to that camera until LateUpdate. A
+            // manual render in between therefore photographs portals from a mismatched pose.
+            // Handling the shutter before camera motion preserves the last presented world frame
+            // and keeps every portal identical to what was visible when the button was pressed.
+            if (mouse != null && mouse.leftButton.wasPressedThisFrame)
+            {
+                CapturePhotograph();
+                return;
+            }
+
             Vector2 look = mouse != null ? mouse.delta.ReadValue() : Vector2.zero;
             float scroll = mouse != null ? mouse.scroll.ReadValue().y / 120f : 0f;
             _cameraController.UpdateWithInput(Time.unscaledDeltaTime, look, 0f);
@@ -1745,10 +1757,6 @@ namespace DuneVector
                 _hasAnimatedBounds = false;
             }
 
-            if (mouse != null && mouse.leftButton.wasPressedThisFrame)
-            {
-                CapturePhotograph();
-            }
         }
 
         private void EnterCameraMode()
