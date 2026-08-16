@@ -56,6 +56,8 @@ namespace DuneVector
         private int _previousCompletedDeliveries;
         private int _previousContractPickupSequence;
         private int _previousFreeRoamPickupSequence;
+        private int _baselineContractPickupSequence;
+        private int _baselineFreeRoamPickupSequence;
         private int _stage2HazardRecoveryStepsRemaining;
         private FreeRoamDeliveryPhase _previousFreeRoamPhase;
         private CourierRunState _previousRunState;
@@ -685,7 +687,7 @@ namespace DuneVector
             // prevents rehearsal episodes from being averaged as pickup failures.
             if (_curriculumStage >= 2)
             {
-                stats.Add("Dune/pickup_success", _pickups > 0 ? 1f : 0f);
+                stats.Add("Dune/pickup_success", HasAuthoritativePickup() ? 1f : 0f);
             }
             stats.Add("Dune/delivery_success", _deliveries > 0 ? 1f : 0f);
             stats.Add("Dune/deliveries", _deliveries);
@@ -740,6 +742,8 @@ namespace DuneVector
             _previousFreeRoamPickupSequence = courier.FreeRoamDeliveries != null
                 ? courier.FreeRoamDeliveries.PickupSequence
                 : 0;
+            _baselineContractPickupSequence = _previousContractPickupSequence;
+            _baselineFreeRoamPickupSequence = _previousFreeRoamPickupSequence;
             _previousRingActivations = GetTotalRingActivations();
             _previousHubDistance = float.NaN;
             _previousObjectiveDistance = float.NaN;
@@ -1095,9 +1099,26 @@ namespace DuneVector
 
         private bool IsStage3Success()
         {
-            return _pickups > 0 &&
+            return HasAuthoritativePickup() &&
                 _stage3SelectedRingActivated &&
                 _stage3DeliveryProgress >= _settings.Stage3RequiredDeliveryProgress;
+        }
+
+        private bool HasAuthoritativePickup()
+        {
+            DuneVectorCourierGame courier = _bootstrap != null ? _bootstrap.CourierGame : null;
+            if (courier == null)
+            {
+                return _pickups > 0;
+            }
+
+            int freeRoamPickupSequence = courier.FreeRoamDeliveries != null
+                ? courier.FreeRoamDeliveries.PickupSequence
+                : 0;
+            return _pickups > 0 ||
+                courier.IsCarryingCargo ||
+                courier.PickupSequence > _baselineContractPickupSequence ||
+                freeRoamPickupSequence > _baselineFreeRoamPickupSequence;
         }
 
         private int GetTotalRingActivations()
