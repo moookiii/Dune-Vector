@@ -1441,7 +1441,7 @@ namespace DuneVector
             foreach (Camera camera in UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None))
             {
                 camera.enabled = false;
-                UnityEngine.Object.Destroy(camera);
+                camera.gameObject.SetActive(false);
             }
             foreach (AudioListener listener in UnityEngine.Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None))
             {
@@ -1462,6 +1462,10 @@ namespace DuneVector
             {
                 animator.enabled = false;
             }
+            foreach (Cloth cloth in UnityEngine.Object.FindObjectsByType<Cloth>(FindObjectsSortMode.None))
+            {
+                cloth.enabled = false;
+            }
             foreach (ParticleSystem particles in UnityEngine.Object.FindObjectsByType<ParticleSystem>(FindObjectsSortMode.None))
             {
                 particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
@@ -1471,8 +1475,8 @@ namespace DuneVector
             }
             foreach (Renderer renderer in UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
             {
+                renderer.enabled = false;
                 renderer.forceRenderingOff = true;
-                UnityEngine.Object.Destroy(renderer);
             }
             foreach (Behaviour behaviour in UnityEngine.Object.FindObjectsByType<Behaviour>(FindObjectsSortMode.None))
             {
@@ -1514,12 +1518,13 @@ namespace DuneVector
                 if (behaviour == null || behaviour == bootstrap || behaviour == agent ||
                     behaviour == requester || behaviour is DuneTrainingDriver ||
                     behaviour is DuneHeadlessPresentationGuard || behaviour is DronePlayer ||
-                    behaviour is DroneCharacterController)
+                    behaviour is DroneCharacterController || behaviour is BehaviorParameters)
                 {
                     continue;
                 }
                 string fullName = behaviour.GetType().FullName ?? string.Empty;
-                if (fullName == "KinematicCharacterController.KinematicCharacterMotor")
+                if (fullName.StartsWith("Unity.MLAgents.", StringComparison.Ordinal) ||
+                    fullName == "KinematicCharacterController.KinematicCharacterMotor")
                 {
                     continue;
                 }

@@ -369,7 +369,6 @@ namespace DuneVector
     }
 
     [DisallowMultipleComponent]
-    [RequireComponent(typeof(Camera))]
     public sealed class DroneCameraController : MonoBehaviour
     {
         [Header("Framing")]

@@ -6491,8 +6491,11 @@ namespace DuneVector
             camera.ConfigureControllerLook(ControllerLookSpeed);
             camera.RotationSharpness = CameraRotationSharpness;
             camera.FollowingSharpness = CameraFollowSharpness;
-            camera.Camera.nearClipPlane = CameraNearClipPlane;
-            camera.Camera.farClipPlane = Mathf.Max(CameraNearClipPlane, CameraFarClipPlane);
+            if (camera.Camera != null)
+            {
+                camera.Camera.nearClipPlane = CameraNearClipPlane;
+                camera.Camera.farClipPlane = Mathf.Max(CameraNearClipPlane, CameraFarClipPlane);
+            }
         }
     }
 

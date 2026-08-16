@@ -536,6 +536,11 @@ namespace DuneVector
                 HealthSettings.DamageInvulnerability,
                 HealthSettings.DebugInfiniteHealth);
             bool headlessTraining = DuneTrainingRuntime.Enabled && !DuneTrainingRuntime.VisualEvaluation;
+            if (headlessTraining && SceneCamera != null)
+            {
+                SceneCamera.enabled = false;
+                SceneCamera.gameObject.SetActive(false);
+            }
             Transform visualRoot;
             if (headlessTraining)
             {

@@ -25,8 +25,11 @@ namespace DuneVector.Editor
                 scenes = new[] { ScenePath },
                 locationPathName = OutputPath,
                 target = BuildTarget.StandaloneWindows64,
-                subtarget = (int)StandaloneBuildSubtarget.Server,
-                options = BuildOptions.CleanBuildCache,
+                // The stripped runtime and -nographics launch flags provide the
+                // headless training contract without requiring Unity's optional
+                // Windows Dedicated Server editor module.
+                subtarget = (int)StandaloneBuildSubtarget.Player,
+                options = BuildOptions.None,
             };
             BuildReport report = BuildPipeline.BuildPlayer(options);
             if (report.summary.result != BuildResult.Succeeded)
@@ -36,7 +39,7 @@ namespace DuneVector.Editor
                     $"({report.summary.totalErrors} errors, {report.summary.totalWarnings} warnings).");
             }
 
-            Debug.Log($"Built dedicated-server training player at {Path.GetFullPath(OutputPath)}");
+            Debug.Log($"Built stripped headless training player at {Path.GetFullPath(OutputPath)}");
         }
     }
 }
