@@ -216,7 +216,8 @@ namespace DuneVector
             }
             ambusher.Emergence?.Burst();
             ambusher.Visual?.BeginEmergence();
-            if (!string.IsNullOrWhiteSpace(_settings.SandAmbusherEmergenceEvent))
+            if (!DuneTrainingRuntime.HeadlessPresentation &&
+                !string.IsNullOrWhiteSpace(_settings.SandAmbusherEmergenceEvent))
             {
                 Vector3 emergencePosition = ambusher.Emergence != null
                     ? ambusher.Emergence.transform.position

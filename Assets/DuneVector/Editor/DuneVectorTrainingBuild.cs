@@ -25,7 +25,7 @@ namespace DuneVector.Editor
                 scenes = new[] { ScenePath },
                 locationPathName = OutputPath,
                 target = BuildTarget.StandaloneWindows64,
-                subtarget = (int)StandaloneBuildSubtarget.Player,
+                subtarget = (int)StandaloneBuildSubtarget.Server,
                 options = BuildOptions.CleanBuildCache,
             };
             BuildReport report = BuildPipeline.BuildPlayer(options);
@@ -36,7 +36,7 @@ namespace DuneVector.Editor
                     $"({report.summary.totalErrors} errors, {report.summary.totalWarnings} warnings).");
             }
 
-            Debug.Log($"Built headless-capable training player at {Path.GetFullPath(OutputPath)}");
+            Debug.Log($"Built dedicated-server training player at {Path.GetFullPath(OutputPath)}");
         }
     }
 }

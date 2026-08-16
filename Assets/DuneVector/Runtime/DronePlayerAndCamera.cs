@@ -470,7 +470,10 @@ namespace DuneVector
             {
                 Camera = GetComponent<Camera>();
             }
-            Camera.fieldOfView = BaseFieldOfView;
+            if (Camera != null)
+            {
+                Camera.fieldOfView = BaseFieldOfView;
+            }
             _gameplayFieldOfView = BaseFieldOfView;
             TargetDistance = Mathf.Clamp(DefaultDistance, MinDistance, MaxDistance);
             _currentDistance = TargetDistance;
@@ -511,7 +514,7 @@ namespace DuneVector
             Vector2 lookRate,
             float scrollInput)
         {
-            if (FollowTransform == null || Camera == null)
+            if (FollowTransform == null)
             {
                 return;
             }
@@ -571,6 +574,16 @@ namespace DuneVector
             }
             _wasFlying = isFlying;
             transform.rotation = Quaternion.Slerp(transform.rotation, desiredRotation, DuneVectorMath.Sharpness(RotationSharpness, deltaTime));
+
+            // Headless training deliberately has no Camera component. The command
+            // frame must still consume the exact production look/yaw/pitch path,
+            // because DronePlayer uses this transform as its movement frame.
+            if (Camera == null)
+            {
+                _currentFollowPosition = FollowTransform.position;
+                transform.position = _currentFollowPosition;
+                return;
+            }
 
             if (!_photographyModeActive)
             {

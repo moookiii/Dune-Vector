@@ -350,7 +350,10 @@ namespace DuneVector
             {
                 DuneGeneration.WorldSeed = DuneTrainingRuntime.ReadWorldSeed(DuneGeneration.WorldSeed);
             }
-            ApplyRetroCrtScanlines();
+            if (!headlessTraining)
+            {
+                ApplyRetroCrtScanlines();
+            }
 
             QualitySettings.vSyncCount = headlessTraining ? 0 : Mathf.Clamp(RuntimeSettings.Performance.VSyncCount, 0, 4);
             Application.targetFrameRate = headlessTraining
@@ -380,10 +383,16 @@ namespace DuneVector
             _materials.ConfigureStormPyramid(StormPyramids);
             _materials.ConfigurePlayerStrikeOrb(PlayerStrikeOrbs);
 
-            DuneVectorSpatialInstancing spatialInstancing = gameObject.AddComponent<DuneVectorSpatialInstancing>();
-            spatialInstancing.Initialize(RuntimeSettings.SpatialGpuInstancing);
+            if (!headlessTraining)
+            {
+                DuneVectorSpatialInstancing spatialInstancing = gameObject.AddComponent<DuneVectorSpatialInstancing>();
+                spatialInstancing.Initialize(RuntimeSettings.SpatialGpuInstancing);
+            }
 
-            BuildEnvironment();
+            if (!headlessTraining)
+            {
+                BuildEnvironment();
+            }
             BuildWorld();
             BuildDroneAndCamera();
             BuildWindFields();
@@ -392,13 +401,19 @@ namespace DuneVector
                 BuildAudio();
                 BuildMusicReactiveSky();
             }
-            BuildWeather();
-            BuildInterface();
+            if (!headlessTraining)
+            {
+                BuildWeather();
+                BuildInterface();
+            }
             BuildEnemyGameplay();
             BuildDeliveryGameplay();
             // Buildings reject placements that overlap landmarks, so the landmark
             // director created by BuildDeliveryGameplay has to exist first.
-            BuildProceduralBuildings();
+            if (!headlessTraining)
+            {
+                BuildProceduralBuildings();
+            }
             BuildDustDevils();
             BuildDynamicCourierGameplay();
             BuildDroneWeapon();
@@ -520,11 +535,22 @@ namespace DuneVector
                 HealthSettings.MaximumHealth,
                 HealthSettings.DamageInvulnerability,
                 HealthSettings.DebugInfiniteHealth);
-            Transform visualRoot = DuneVectorVisuals.CreateDroneVisual(
-                droneObject.transform,
-                _materials,
-                CourierDroneFaction.Player,
-                DroneVisuals);
+            bool headlessTraining = DuneTrainingRuntime.Enabled && !DuneTrainingRuntime.VisualEvaluation;
+            Transform visualRoot;
+            if (headlessTraining)
+            {
+                GameObject commandVisualRoot = new GameObject("Headless Drone Presentation Anchor");
+                commandVisualRoot.transform.SetParent(droneObject.transform, false);
+                visualRoot = commandVisualRoot.transform;
+            }
+            else
+            {
+                visualRoot = DuneVectorVisuals.CreateDroneVisual(
+                    droneObject.transform,
+                    _materials,
+                    CourierDroneFaction.Player,
+                    DroneVisuals);
+            }
             visualRoot.localPosition = Vector3.up * PlayerTuning.GroundVisualHeight;
 
             GameObject cameraTargetObject = new GameObject("CameraTarget");
@@ -538,36 +564,41 @@ namespace DuneVector
             boostSpeedModifier.Initialize(PlayerTuning.StaminaBoost);
             Drone.BindStaminaBoost(stamina, boostSpeedModifier);
 
-            GameObject cameraObject = SceneCamera != null
+            GameObject cameraObject = !headlessTraining && SceneCamera != null
                 ? SceneCamera.gameObject
-                : new GameObject("Dune Vector Camera");
+                : new GameObject(headlessTraining ? "Headless Drone Command Frame" : "Dune Vector Camera");
             cameraObject.tag = "MainCamera";
-            Camera camera = SceneCamera != null ? SceneCamera : cameraObject.AddComponent<Camera>();
+            Camera camera = headlessTraining
+                ? null
+                : SceneCamera != null ? SceneCamera : cameraObject.AddComponent<Camera>();
             SceneCamera = camera;
-            camera.clearFlags = CameraClearFlags.Skybox;
-            camera.allowHDR = true;
-            camera.nearClipPlane = PlayerTuning.CameraNearClipPlane;
-            camera.farClipPlane = Mathf.Max(PlayerTuning.CameraNearClipPlane, PlayerTuning.CameraFarClipPlane);
-            if (cameraObject.GetComponent<StudioListener>() == null)
+            if (!headlessTraining)
             {
-                cameraObject.AddComponent<StudioListener>();
-            }
-            UniversalAdditionalCameraData cameraData = cameraObject.GetComponent<UniversalAdditionalCameraData>();
-            if (cameraData == null)
-            {
-                cameraData = cameraObject.AddComponent<UniversalAdditionalCameraData>();
-            }
-            cameraData.renderPostProcessing = true;
-            cameraData.requiresColorTexture = true;
-            cameraData.requiresDepthTexture = true;
-            ConfigureCameraAntiAliasing(cameraData, PlayerTuning);
+                camera.clearFlags = CameraClearFlags.Skybox;
+                camera.allowHDR = true;
+                camera.nearClipPlane = PlayerTuning.CameraNearClipPlane;
+                camera.farClipPlane = Mathf.Max(PlayerTuning.CameraNearClipPlane, PlayerTuning.CameraFarClipPlane);
+                if (cameraObject.GetComponent<StudioListener>() == null)
+                {
+                    cameraObject.AddComponent<StudioListener>();
+                }
+                UniversalAdditionalCameraData cameraData = cameraObject.GetComponent<UniversalAdditionalCameraData>();
+                if (cameraData == null)
+                {
+                    cameraData = cameraObject.AddComponent<UniversalAdditionalCameraData>();
+                }
+                cameraData.renderPostProcessing = true;
+                cameraData.requiresColorTexture = true;
+                cameraData.requiresDepthTexture = true;
+                ConfigureCameraAntiAliasing(cameraData, PlayerTuning);
 
-            LensFlareComponentSRP lensFlare = cameraObject.GetComponent<LensFlareComponentSRP>();
-            if (lensFlare == null)
-            {
-                lensFlare = cameraObject.AddComponent<LensFlareComponentSRP>();
+                LensFlareComponentSRP lensFlare = cameraObject.GetComponent<LensFlareComponentSRP>();
+                if (lensFlare == null)
+                {
+                    lensFlare = cameraObject.AddComponent<LensFlareComponentSRP>();
+                }
+                lensFlare.lensFlareData = RuntimeSettings.RuntimeCameraLensFlare;
             }
-            lensFlare.lensFlareData = RuntimeSettings.RuntimeCameraLensFlare;
 
             DroneCamera = cameraObject.GetComponent<DroneCameraController>();
             if (DroneCamera == null)
@@ -580,20 +611,23 @@ namespace DuneVector
             DroneCamera.IgnoredColliders.Add(motor.Capsule);
             DroneCamera.SetFollowTransform(cameraTargetObject.transform);
 
-            DroneBoostRingTrail boostRingTrail = droneObject.AddComponent<DroneBoostRingTrail>();
-            boostRingTrail.Initialize(
-                Drone,
-                camera,
-                _materials.BoostRing,
-                Rings,
-                BoostRingTrail);
-
-            DroneFlightSwooshRenderer flightSwooshes = cameraObject.GetComponent<DroneFlightSwooshRenderer>();
-            if (flightSwooshes == null)
+            if (!headlessTraining)
             {
-                flightSwooshes = cameraObject.AddComponent<DroneFlightSwooshRenderer>();
+                DroneBoostRingTrail boostRingTrail = droneObject.AddComponent<DroneBoostRingTrail>();
+                boostRingTrail.Initialize(
+                    Drone,
+                    camera,
+                    _materials.BoostRing,
+                    Rings,
+                    BoostRingTrail);
+
+                DroneFlightSwooshRenderer flightSwooshes = cameraObject.GetComponent<DroneFlightSwooshRenderer>();
+                if (flightSwooshes == null)
+                {
+                    flightSwooshes = cameraObject.AddComponent<DroneFlightSwooshRenderer>();
+                }
+                flightSwooshes.Initialize(Drone, camera, FlightSwooshes);
             }
-            flightSwooshes.Initialize(Drone, camera, FlightSwooshes);
 
             GameObject playerObject = new GameObject("Player Input and Camera Driver");
             playerObject.transform.SetParent(transform, false);

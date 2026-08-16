@@ -1268,9 +1268,18 @@ namespace DuneVector
 
     public static class DuneTrainingRuntime
     {
+        public enum BenchmarkLayer
+        {
+            Normal,
+            NoPhysics,
+            PhysicsOnly,
+        }
+
         public static bool Enabled => HasArgument("--dune-training");
         public static bool Evaluation => HasArgument("--dune-evaluation");
         public static bool VisualEvaluation => Evaluation && HasArgument("--dune-visual-evaluation");
+        public static bool HeadlessPresentation => Enabled && !VisualEvaluation;
+        public static BenchmarkLayer ActiveBenchmarkLayer => ReadBenchmarkLayer();
         public static bool ControlledGroundStage => Enabled && ReadCurriculumStage() == 2;
         public static bool ControlledPreHazardStage => Enabled && ReadCurriculumStage() >= 2 &&
             ReadCurriculumStage() <= 4;
@@ -1286,12 +1295,20 @@ namespace DuneVector
             Application.targetFrameRate = VisualEvaluation ? 60 : -1;
             Application.runInBackground = true;
             AudioListener.pause = !VisualEvaluation;
+            if (ActiveBenchmarkLayer == BenchmarkLayer.NoPhysics)
+            {
+                Physics.simulationMode = SimulationMode.Script;
+            }
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         private static void CreateTrainingDriver()
         {
             if (!Enabled) return;
+            if (HeadlessPresentation && DuneVectorBootstrap.Instance != null)
+            {
+                DuneTrainingDriver.DisablePresentation(DuneVectorBootstrap.Instance);
+            }
             GameObject driver = new GameObject("Dune Vector Headless Training Driver");
             UnityEngine.Object.DontDestroyOnLoad(driver);
             driver.AddComponent<DuneTrainingDriver>();
@@ -1348,6 +1365,25 @@ namespace DuneVector
             }
             return Evaluation ? 1f : 0f;
         }
+
+        private static BenchmarkLayer ReadBenchmarkLayer()
+        {
+            string[] arguments = Environment.GetCommandLineArgs();
+            for (int i = 0; i < arguments.Length - 1; i++)
+            {
+                if (!string.Equals(arguments[i], "--dune-benchmark-layer", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                return arguments[i + 1].ToLowerInvariant() switch
+                {
+                    "no-physics" => BenchmarkLayer.NoPhysics,
+                    "physics-only" => BenchmarkLayer.PhysicsOnly,
+                    _ => BenchmarkLayer.Normal,
+                };
+            }
+            return BenchmarkLayer.Normal;
+        }
     }
 
     [DefaultExecutionOrder(2000)]
@@ -1388,26 +1424,56 @@ namespace DuneVector
             if (!DuneTrainingRuntime.VisualEvaluation)
             {
                 DisablePresentation(bootstrap);
+                gameObject.AddComponent<DuneHeadlessPresentationGuard>();
+            }
+            if (DuneTrainingRuntime.ActiveBenchmarkLayer == DuneTrainingRuntime.BenchmarkLayer.PhysicsOnly)
+            {
+                DisableNonPhysicsGameplay(bootstrap, agent, requester);
             }
         }
 
-        private static void DisablePresentation(DuneVectorBootstrap bootstrap)
+        internal static void DisablePresentation(DuneVectorBootstrap bootstrap)
         {
             foreach (DuneVectorSpatialInstancing instancing in UnityEngine.Object.FindObjectsByType<DuneVectorSpatialInstancing>())
                 instancing.enabled = false;
             foreach (DuneVectorProceduralBuildingDirector buildings in UnityEngine.Object.FindObjectsByType<DuneVectorProceduralBuildingDirector>())
                 buildings.enabled = false;
-            foreach (Camera camera in UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None)) camera.enabled = false;
-            foreach (AudioListener listener in UnityEngine.Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None)) listener.enabled = false;
-            foreach (AudioSource source in UnityEngine.Object.FindObjectsByType<AudioSource>(FindObjectsSortMode.None)) source.enabled = false;
-            foreach (Canvas canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None)) canvas.enabled = false;
+            foreach (Camera camera in UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None))
+            {
+                camera.enabled = false;
+                UnityEngine.Object.Destroy(camera);
+            }
+            foreach (AudioListener listener in UnityEngine.Object.FindObjectsByType<AudioListener>(FindObjectsSortMode.None))
+            {
+                listener.enabled = false;
+                UnityEngine.Object.Destroy(listener);
+            }
+            foreach (AudioSource source in UnityEngine.Object.FindObjectsByType<AudioSource>(FindObjectsSortMode.None))
+            {
+                source.enabled = false;
+                UnityEngine.Object.Destroy(source);
+            }
+            foreach (Canvas canvas in UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None))
+            {
+                canvas.enabled = false;
+                UnityEngine.Object.Destroy(canvas);
+            }
+            foreach (Animator animator in UnityEngine.Object.FindObjectsByType<Animator>(FindObjectsSortMode.None))
+            {
+                animator.enabled = false;
+            }
             foreach (ParticleSystem particles in UnityEngine.Object.FindObjectsByType<ParticleSystem>(FindObjectsSortMode.None))
             {
                 particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
                 ParticleSystemRenderer particleRenderer = particles.GetComponent<ParticleSystemRenderer>();
                 if (particleRenderer != null) particleRenderer.forceRenderingOff = true;
+                UnityEngine.Object.Destroy(particles);
             }
-            foreach (Renderer renderer in UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None)) renderer.forceRenderingOff = true;
+            foreach (Renderer renderer in UnityEngine.Object.FindObjectsByType<Renderer>(FindObjectsSortMode.None))
+            {
+                renderer.forceRenderingOff = true;
+                UnityEngine.Object.Destroy(renderer);
+            }
             foreach (Behaviour behaviour in UnityEngine.Object.FindObjectsByType<Behaviour>(FindObjectsSortMode.None))
             {
                 if (behaviour == null || behaviour == bootstrap || behaviour is DuneVectorTrainingAgent ||
@@ -1415,14 +1481,95 @@ namespace DuneVector
                     behaviour is DronePlayer || behaviour is DroneCameraController ||
                     behaviour is DuneVectorCourierGame) continue;
                 string fullName = behaviour.GetType().FullName ?? string.Empty;
-                if (fullName.StartsWith("FMODUnity.", StringComparison.Ordinal) ||
-                    fullName.EndsWith("HUD", StringComparison.Ordinal) ||
-                    fullName.Contains("Overlay", StringComparison.Ordinal) ||
-                    fullName.Contains("Swoosh", StringComparison.Ordinal) ||
-                    fullName.Contains("MusicReactive", StringComparison.Ordinal))
+                if (IsPresentationBehaviour(fullName))
                 {
                     behaviour.enabled = false;
                 }
+            }
+        }
+
+        private static bool IsPresentationBehaviour(string fullName)
+        {
+            return fullName.StartsWith("FMODUnity.", StringComparison.Ordinal) ||
+                fullName.StartsWith("UnityEngine.EventSystems.", StringComparison.Ordinal) ||
+                fullName.StartsWith("UnityEngine.VFX.", StringComparison.Ordinal) ||
+                fullName.EndsWith("HUD", StringComparison.Ordinal) ||
+                fullName.Contains("Visual", StringComparison.Ordinal) ||
+                fullName.Contains("Overlay", StringComparison.Ordinal) ||
+                fullName.Contains("Swoosh", StringComparison.Ordinal) ||
+                fullName.Contains("Music", StringComparison.Ordinal) ||
+                fullName.Contains("Photography", StringComparison.Ordinal) ||
+                fullName.Contains("Renderer", StringComparison.Ordinal) ||
+                fullName.Contains("Cloud", StringComparison.Ordinal) ||
+                fullName.Contains("Sky", StringComparison.Ordinal);
+        }
+
+        private static void DisableNonPhysicsGameplay(
+            DuneVectorBootstrap bootstrap,
+            DuneVectorTrainingAgent agent,
+            DecisionRequester requester)
+        {
+            foreach (MonoBehaviour behaviour in UnityEngine.Object.FindObjectsByType<MonoBehaviour>(FindObjectsSortMode.None))
+            {
+                if (behaviour == null || behaviour == bootstrap || behaviour == agent ||
+                    behaviour == requester || behaviour is DuneTrainingDriver ||
+                    behaviour is DuneHeadlessPresentationGuard || behaviour is DronePlayer ||
+                    behaviour is DroneCharacterController)
+                {
+                    continue;
+                }
+                string fullName = behaviour.GetType().FullName ?? string.Empty;
+                if (fullName == "KinematicCharacterController.KinematicCharacterMotor")
+                {
+                    continue;
+                }
+                behaviour.enabled = false;
+            }
+        }
+    }
+
+    [DefaultExecutionOrder(32000)]
+    internal sealed class DuneHeadlessPresentationGuard : MonoBehaviour
+    {
+        private int _nextScrubFrame;
+
+        private IEnumerator Start()
+        {
+            yield return null;
+            ScrubAndAudit();
+        }
+
+        private void LateUpdate()
+        {
+            if (Time.frameCount < _nextScrubFrame)
+            {
+                return;
+            }
+            ScrubAndAudit();
+        }
+
+        private void ScrubAndAudit()
+        {
+            _nextScrubFrame = Time.frameCount + 64;
+            DuneVectorBootstrap bootstrap = DuneVectorBootstrap.Instance;
+            if (bootstrap == null)
+            {
+                return;
+            }
+            DuneTrainingDriver.DisablePresentation(bootstrap);
+            int cameras = UnityEngine.Object.FindObjectsByType<Camera>(FindObjectsSortMode.None).Length;
+            int canvases = UnityEngine.Object.FindObjectsByType<Canvas>(FindObjectsSortMode.None).Length;
+            int particles = UnityEngine.Object.FindObjectsByType<ParticleSystem>(FindObjectsSortMode.None).Length;
+            int audioSources = UnityEngine.Object.FindObjectsByType<AudioSource>(FindObjectsSortMode.None).Length;
+            if (cameras + canvases + particles + audioSources > 0)
+            {
+                Debug.LogWarning(
+                    $"Dune headless presentation scrub pending: cameras={cameras}, canvases={canvases}, " +
+                    $"particles={particles}, audioSources={audioSources}");
+            }
+            else if (Time.frameCount < 128)
+            {
+                Debug.Log("DUNE_HEADLESS_AUDIT cameras=0 canvases=0 particles=0 audio_sources=0");
             }
         }
     }

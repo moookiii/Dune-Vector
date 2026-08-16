@@ -158,7 +158,8 @@ namespace DuneVector
             SetState(GroundExploderState.Exploding);
             bool spawnedPrefabExplosion = SpawnExplosionPrefabs();
             _visual?.EnterExplosion(!spawnedPrefabExplosion);
-            if (!string.IsNullOrWhiteSpace(_settings.ExplosionEvent))
+            if (!DuneTrainingRuntime.HeadlessPresentation &&
+                !string.IsNullOrWhiteSpace(_settings.ExplosionEvent))
             {
                 RuntimeManager.PlayOneShot(_settings.ExplosionEvent, transform.position);
             }
@@ -324,7 +325,8 @@ namespace DuneVector
                 _flash.localScale = Vector3.zero;
             }
 
-            if (!string.IsNullOrWhiteSpace(settings.ExplosionEvent))
+            if (!DuneTrainingRuntime.HeadlessPresentation &&
+                !string.IsNullOrWhiteSpace(settings.ExplosionEvent))
             {
                 RuntimeManager.PlayOneShot(settings.ExplosionEvent, transform.position);
             }

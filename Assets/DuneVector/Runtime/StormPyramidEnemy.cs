@@ -999,7 +999,8 @@ namespace DuneVector
 
         private void PlayWarningAudio()
         {
-            if (string.IsNullOrWhiteSpace(_settings.GroundWarningAudioEvent))
+            if (DuneTrainingRuntime.HeadlessPresentation ||
+                string.IsNullOrWhiteSpace(_settings.GroundWarningAudioEvent))
             {
                 return;
             }
@@ -1772,7 +1773,8 @@ namespace DuneVector
             _settings = settings;
             _elapsed = 0f;
 
-            if (!string.IsNullOrWhiteSpace(_settings.FlyThroughExplosionEvent))
+            if (!DuneTrainingRuntime.HeadlessPresentation &&
+                !string.IsNullOrWhiteSpace(_settings.FlyThroughExplosionEvent))
             {
                 RuntimeManager.PlayOneShot(_settings.FlyThroughExplosionEvent, transform.position);
             }

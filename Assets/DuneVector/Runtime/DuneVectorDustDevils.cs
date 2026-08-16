@@ -184,7 +184,10 @@ namespace DuneVector
             _world = world;
             _courierGame = courierGame;
             _settings = settings;
-            _funnelPrefab = LoadFunnelPrefab(settings.PrefabResourcePath);
+            if (!DuneTrainingRuntime.Enabled || DuneTrainingRuntime.VisualEvaluation)
+            {
+                _funnelPrefab = LoadFunnelPrefab(settings.PrefabResourcePath);
+            }
             _world.WorldShifted += HandleWorldShift;
             RefreshStreaming(true);
             _player.BindDustDevils(this, settings);
@@ -366,7 +369,10 @@ namespace DuneVector
             CurrentPlayerSample = Sample(_player.WorldCenter);
             TickControlDisruption();
             TickCargoHazard(Time.deltaTime);
-            TickVisuals();
+            if (!DuneTrainingRuntime.Enabled || DuneTrainingRuntime.VisualEvaluation)
+            {
+                TickVisuals();
+            }
         }
 
         private void TickControlDisruption()

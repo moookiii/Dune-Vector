@@ -187,11 +187,15 @@ namespace DuneVector
             _world = world;
             _settings = settings;
             _combinedWindSeed = unchecked(world.WorldSeed ^ settings.WindSeed);
-            _particleTexture = CreateSoftParticleTexture(
-                _settings.ParticleEdgeFalloff,
-                _settings.ParticleTransparentSideAlpha,
-                _settings.ParticleSolidSideAlpha);
-            _particleMaterial = CreateParticleMaterial(_particleTexture);
+            bool buildPresentation = !DuneTrainingRuntime.Enabled || DuneTrainingRuntime.VisualEvaluation;
+            if (buildPresentation)
+            {
+                _particleTexture = CreateSoftParticleTexture(
+                    _settings.ParticleEdgeFalloff,
+                    _settings.ParticleTransparentSideAlpha,
+                    _settings.ParticleSolidSideAlpha);
+                _particleMaterial = CreateParticleMaterial(_particleTexture);
+            }
 
             if (_settings.ProceduralPlacementEnabled)
             {
@@ -208,15 +212,18 @@ namespace DuneVector
                 }
             }
 
-            Vector3 interactionSize = Vector3.one * (_settings.InteractionRadius * 2f);
-            _playerInteraction = CreateParticleLayer(
-                transform,
-                "Drone Wind Interaction",
-                _settings.InteractionParticleBudget,
-                interactionSize,
-                _settings.InteractionStreakLength,
-                _settings.StreamlineColor,
-                Vector3.zero);
+            if (buildPresentation)
+            {
+                Vector3 interactionSize = Vector3.one * (_settings.InteractionRadius * 2f);
+                _playerInteraction = CreateParticleLayer(
+                    transform,
+                    "Drone Wind Interaction",
+                    _settings.InteractionParticleBudget,
+                    interactionSize,
+                    _settings.InteractionStreakLength,
+                    _settings.StreamlineColor,
+                    Vector3.zero);
+            }
 
             _world.WorldShifted += HandleWorldShift;
             RepositionFields();
@@ -323,8 +330,11 @@ namespace DuneVector
                 }
             }
             CurrentPlayerSample = Sample(_player.WorldCenter, Time.time);
-            UpdatePlayerInteraction();
-            UpdateLod();
+            if (!DuneTrainingRuntime.Enabled || DuneTrainingRuntime.VisualEvaluation)
+            {
+                UpdatePlayerInteraction();
+                UpdateLod();
+            }
         }
 
         private void UpdatePlayerInteraction()
@@ -545,7 +555,9 @@ namespace DuneVector
                 Direction = direction,
                 TurbulenceOffset = CreateTurbulenceOffset(definition, _fields.Count),
             };
-            field.Streamlines = CreateParticleLayer(
+            if (!DuneTrainingRuntime.Enabled || DuneTrainingRuntime.VisualEvaluation)
+            {
+                field.Streamlines = CreateParticleLayer(
                 rootObject.transform,
                 "Air Streamlines",
                 _settings.StreamlineParticleBudget,
@@ -553,7 +565,7 @@ namespace DuneVector
                 _settings.StreamlineLength,
                 _settings.StreamlineColor,
                 direction * definition.Force * _settings.AirflowVisualSpeedMultiplier);
-            ApplyFieldParticleSeed(field.Streamlines, definition, 9401);
+                ApplyFieldParticleSeed(field.Streamlines, definition, 9401);
 
             Vector3 surfaceSize = new Vector3(definition.Size.x, _settings.SurfaceLayerHeight, definition.Size.z);
             Vector3 surfaceDirection = Vector3.ProjectOnPlane(direction, Vector3.up);
@@ -561,7 +573,7 @@ namespace DuneVector
             {
                 surfaceDirection = definition.Type == WindFieldType.Downdraft ? Vector3.right : Vector3.forward;
             }
-            field.SurfaceSand = CreateParticleLayer(
+                field.SurfaceSand = CreateParticleLayer(
                 rootObject.transform,
                 "Surface Sand",
                 _settings.SurfaceParticleBudget,
@@ -573,7 +585,8 @@ namespace DuneVector
             field.SurfaceSand.transform.localPosition = Vector3.down * Mathf.Max(
                 0f,
                 (definition.Size.y * 0.5f) - (_settings.SurfaceLayerHeight * 0.5f));
-            ConfigureVerticalSurfaceFlow(field.SurfaceSand, definition);
+                ConfigureVerticalSurfaceFlow(field.SurfaceSand, definition);
+            }
             _fields.Add(field);
             return field;
         }
