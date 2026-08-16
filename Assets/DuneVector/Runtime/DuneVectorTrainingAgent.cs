@@ -381,6 +381,7 @@ namespace DuneVector
                 DecodeAxis(discrete[2]), DecodeAxis(discrete[3]));
             bool useStage3RingSteering = _curriculumStage >= 3 &&
                 _bootstrap.CourierGame.IsCarryingCargo;
+            ScoreStage3LookAction(lookCommand);
             DroneRawInputFrame command = new DroneRawInputFrame
             {
                 Move = Vector2.ClampMagnitude(new Vector2(
@@ -929,6 +930,49 @@ namespace DuneVector
                 ? alignment * _settings.Stage3RouteHeadingAlignmentReward
                 : alignment * _settings.Stage3RouteWrongWayPenalty;
             AddTrainingReward(reward * multiplier, shaped: true);
+        }
+
+        private void ScoreStage3LookAction(Vector2 lookCommand)
+        {
+            if (_curriculumStage != 3 || _evaluation ||
+                !_bootstrap.CourierGame.IsCarryingCargo ||
+                _stage3SelectedRingActivated || _stage3SelectedRing == null)
+            {
+                return;
+            }
+
+            Vector3 local = ToCommandLocal(
+                _stage3SelectedRing.transform.position - _bootstrap.Drone.WorldCenter);
+            float planarDistance = new Vector2(local.x, local.z).magnitude;
+            float yawError = Mathf.Atan2(local.x, local.z) / Mathf.PI;
+            float pitchError = -Mathf.Atan2(local.y, Mathf.Max(0.01f, planarDistance)) / Mathf.PI;
+            ScoreStage3LookAxis(lookCommand.x, yawError);
+            ScoreStage3LookAxis(lookCommand.y, pitchError);
+        }
+
+        private void ScoreStage3LookAxis(float command, float error)
+        {
+            float commandMagnitude = Mathf.Abs(command);
+            if (commandMagnitude <= 0.001f)
+            {
+                return;
+            }
+
+            float errorMagnitude = Mathf.Abs(error);
+            if (errorMagnitude <= _settings.Stage3LookAlignmentDeadZone)
+            {
+                AddTrainingReward(
+                    -commandMagnitude * _settings.Stage3LookAwayFromRingPenalty,
+                    shaped: true);
+                return;
+            }
+
+            float agreement = Mathf.Sign(command) * Mathf.Sign(error);
+            float scale = Mathf.Clamp01(errorMagnitude) * commandMagnitude;
+            float reward = agreement > 0f
+                ? scale * _settings.Stage3LookTowardRingReward
+                : -scale * _settings.Stage3LookAwayFromRingPenalty;
+            AddTrainingReward(reward, shaped: true);
         }
 
         private void ScoreStage2ObjectiveTracking(Vector3 objectivePosition, float objectiveDistance)

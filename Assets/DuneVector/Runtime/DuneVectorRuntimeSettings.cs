@@ -7179,6 +7179,12 @@ namespace DuneVector
         [Min(0f)] public float Stage3MaximumRingDetour = 300f;
         [Min(0f)] public float Stage3RouteHeadingAlignmentReward = 0.00005f;
         [Min(0f)] public float Stage3RouteWrongWayPenalty = 0.0008f;
+        [Tooltip("Per-tick reward scale for yaw/pitch commands that reduce the selected ring's local angular error.")]
+        [Min(0f)] public float Stage3LookTowardRingReward = 0.0002f;
+        [Tooltip("Per-tick penalty scale for yaw/pitch commands away from the selected ring, including continued turning once aligned.")]
+        [Min(0f)] public float Stage3LookAwayFromRingPenalty = 0.0006f;
+        [Tooltip("Normalized yaw/pitch error treated as aligned when shaping selected-ring look commands.")]
+        [Range(0f, 1f)] public float Stage3LookAlignmentDeadZone = 0.04f;
         [Min(1f)] public float Stage3NearRingApproachDistance = 30f;
         [Min(1f)] public float Stage3NearRingHeadingMultiplier = 4f;
         [Tooltip("Delivery distance the drone must recover after activating its selected ring before Stage 3 succeeds.")]
