@@ -391,7 +391,7 @@ namespace DuneVector
         public string GlyphDiscoveryMetadataFormat = "GLYPH {0:000}  /  AERIAL GEOGLYPH";
         public string GlyphDiscoveryEntryFormat = "ENTRY {0:000}";
         public string GlyphDiscoveryArchivedLabel = "ARCHIVED";
-        public string GlyphDiscoveryContinuePrompt = "CONTINUE  [LMB]  >";
+        public string GlyphDiscoveryContinuePrompt = "CONTINUE  [LMB]";
         [Min(240f)] public float GlyphDiscoveryPanelWidth = 900f;
         [Min(120f)] public float GlyphDiscoveryPanelHeight = 300f;
         [Min(0f)] public float GlyphDiscoveryPanelBottomOffset = 56f;
