@@ -373,16 +373,20 @@ namespace DuneVector
                  contractDistance <= contractRadius);
             bool stage1ContractConfirmValid = !contractHubCurriculum ||
                 _bootstrap.CourierGame.HubTerminalConfirmValid;
+            Vector2 lookCommand = new Vector2(
+                DecodeAxis(discrete[2]), DecodeAxis(discrete[3]));
+            bool useStage3RingSteering = _curriculumStage >= 3 &&
+                _bootstrap.CourierGame.IsCarryingCargo;
             DroneRawInputFrame command = new DroneRawInputFrame
             {
                 Move = Vector2.ClampMagnitude(new Vector2(
                     DecodeAxis(discrete[0]), DecodeAxis(discrete[1])), 1f),
-                // The policy's yaw/pitch branches are normalized held controls, matching
-                // a controller right stick. LookDelta is a one-frame mouse-pixel delta;
-                // feeding [-1, 1] into it limited the agent to 0.185 degrees per tick.
-                // LookRate instead applies the configured 180 degrees/second controller
-                // turn rate through the same authoritative player input command path.
-                LookRate = new Vector2(DecodeAxis(discrete[2]), DecodeAxis(discrete[3])),
+                // Preserve the established Stage 1/2 checkpoint semantics through
+                // deployment and pickup. Once Stage 3's genuinely new ring-routing
+                // phase begins, interpret the same normalized policy branches as a
+                // held controller stick so the agent can turn at the configured rate.
+                LookDelta = useStage3RingSteering ? Vector2.zero : lookCommand,
+                LookRate = useStage3RingSteering ? lookCommand : Vector2.zero,
                 JumpPressed = !hubCurriculum && !groundCurriculum && Pulse(discrete[4] != 0, 4),
                 JumpHeld = (!hubCurriculum && !groundCurriculum || stage2FlightRecovery) &&
                     discrete[4] != 0,
