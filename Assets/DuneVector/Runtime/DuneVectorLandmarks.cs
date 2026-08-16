@@ -2329,6 +2329,11 @@ namespace DuneVector
 
                 // Keep the prefab's authored root scale as the final placement operation.
                 harvester.transform.localScale = prefabScale;
+
+                if (_settings.HarvesterGenerateMeshColliders)
+                {
+                    AddMissingMeshColliders(harvester);
+                }
             }
             BuildDebrisTrail(root, "Harvester Field Debris", seed + 79, _settings.HarvesterDebrisCount,
                 fieldRadius, _settings.HarvesterRingThickness * 2.5f, Vector3.forward,

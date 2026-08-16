@@ -1879,6 +1879,8 @@ namespace DuneVector
         public string HarvesterResourcePath = "turbine/turbinePrefab";
         [Tooltip("Name of the turbine child rotated independently for blade variation.")]
         public string HarvesterWingsTransformName = "Wings";
+        [Tooltip("Adds mesh colliders to turbine meshes that do not already have a collider.")]
+        public bool HarvesterGenerateMeshColliders = true;
         [Range(1, 30)] public int HarvesterCount;
         [Min(2f)] public float HarvesterRingRadius;
         [Min(0.1f)] public float HarvesterRingThickness;
