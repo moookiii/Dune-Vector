@@ -78,6 +78,9 @@ namespace DuneVector
         private float _previousStage3DeliveryDistance;
         private float _stage3DeliveryProgress;
         private int _stage3PostRingStepsWithoutProgress;
+        private TraversalRing _stage3RingApproachRing;
+        private float _stage3RingApproachBestDistance;
+        private int _stage3RingApproachStepsWithoutProgress;
         private float _stage3DeliveryPotentialReward;
         private bool _stage3DeliveryProgressRewarded;
         private float _previousTargetHealth;
@@ -155,6 +158,9 @@ namespace DuneVector
             _previousStage3DeliveryDistance = float.NaN;
             _stage3DeliveryProgress = 0f;
             _stage3PostRingStepsWithoutProgress = 0;
+            _stage3RingApproachRing = null;
+            _stage3RingApproachBestDistance = float.PositiveInfinity;
+            _stage3RingApproachStepsWithoutProgress = 0;
             _stage3DeliveryPotentialReward = 0f;
             _stage3DeliveryProgressRewarded = false;
             _observedRingActivations.Clear();
@@ -347,12 +353,7 @@ namespace DuneVector
                         ? _settings.Stage2NoProgressPenalty
                         : _settings.Stage2DivergencePenalty), shaped: true);
                 }
-                else if (_curriculumStage == 3 &&
-                    (_episodeSteps >= GetStage3StepBudget() ||
-                     (_stage3SelectedRingActivated &&
-                      _stage3PostRingStepsWithoutProgress >=
-                        _settings.Stage3PostRingNoProgressStepBudget)) &&
-                    !IsStage3Success())
+                else if (IsStage3Timeout() && !IsStage3Success())
                 {
                     _stage3TimedOut = true;
                     AddTrainingReward(-_settings.Stage3TimeoutPenalty, shaped: true);
@@ -566,6 +567,7 @@ namespace DuneVector
                 _previousObjectiveDistance = objectiveDistance;
             }
 
+            TrackStage3RingApproach();
             ScoreStage3RingProgress();
             ScoreStage3RouteHeading(objective);
             ScoreStage3DeliveryProgress(objective);
@@ -648,11 +650,7 @@ namespace DuneVector
             stage2Failure = _curriculumStage == 2 && _pickups == 0 &&
                 (_objectiveDiverged || _objectiveNoProgress ||
                     _episodeSteps >= _settings.Stage2StepBudget);
-            bool stage3Timeout = _curriculumStage == 3 &&
-                (_episodeSteps >= GetStage3StepBudget() ||
-                 (_stage3SelectedRingActivated &&
-                  _stage3PostRingStepsWithoutProgress >=
-                    _settings.Stage3PostRingNoProgressStepBudget));
+            bool stage3Timeout = IsStage3Timeout();
             bool stage4Timeout = _curriculumStage == 4 &&
                 _episodeSteps >= _settings.Stage4StepBudget;
             if (hubTimeout || _wrongStage1Deployment || stage2Failure ||
@@ -717,6 +715,8 @@ namespace DuneVector
             stats.Add("Dune/stage3_timeout", _stage3TimedOut ? 1f : 0f);
             stats.Add("Dune/stage3_post_ring_no_progress_steps",
                 _stage3PostRingStepsWithoutProgress);
+            stats.Add("Dune/stage3_ring_approach_no_progress_steps",
+                _stage3RingApproachStepsWithoutProgress);
             stats.Add("Dune/stage3_ring_min_distance", float.IsInfinity(_stage3RingMinDistance)
                 ? 0f
                 : _stage3RingMinDistance);
@@ -796,6 +796,78 @@ namespace DuneVector
             AddTrainingReward(reward, shaped: true);
         }
 
+        /// <summary>
+        /// Tracks how long the drone has been carrying cargo without closing on its
+        /// selected ring. Unlike the reward shaping this runs during evaluation too,
+        /// because a policy that never approaches a ring otherwise has no exit before
+        /// the full Stage 3 horizon and burns the entire budget on a decided failure.
+        /// </summary>
+        private void TrackStage3RingApproach()
+        {
+            if (_curriculumStage != 3 || _stage3SelectedRingActivated ||
+                !_bootstrap.CourierGame.IsCarryingCargo ||
+                _bootstrap.CourierGame.State == CourierRunState.Hub)
+            {
+                _stage3RingApproachStepsWithoutProgress = 0;
+                return;
+            }
+
+            TraversalRing ring = FindStage3RouteRing(
+                _bootstrap.Drone.WorldCenter,
+                ResolveActiveObjective(_bootstrap.CourierGame),
+                out float distance);
+            if (ring == null)
+            {
+                // No reachable ring is selected, so there is nothing to fail to
+                // approach. Leave the episode to the authoritative horizon.
+                _stage3RingApproachRing = null;
+                _stage3RingApproachBestDistance = float.PositiveInfinity;
+                _stage3RingApproachStepsWithoutProgress = 0;
+                return;
+            }
+
+            _stage3RingMinDistance = Mathf.Min(_stage3RingMinDistance, distance);
+            if (ring != _stage3RingApproachRing)
+            {
+                _stage3RingApproachRing = ring;
+                _stage3RingApproachBestDistance = distance;
+                _stage3RingApproachStepsWithoutProgress = 0;
+                return;
+            }
+
+            // Progress is measured against the best distance achieved, not the previous
+            // tick. A drone orbiting at a fixed radius closes on the ring for half of
+            // every lap, so a previous-tick comparison would keep rearming the counter
+            // and never fire on the exact failure this is meant to catch.
+            if (distance <= _stage3RingApproachBestDistance - _settings.Stage3MinimumRingProgressPerTick)
+            {
+                _stage3RingApproachBestDistance = distance;
+                _stage3RingApproachStepsWithoutProgress = 0;
+                return;
+            }
+
+            _stage3RingApproachStepsWithoutProgress++;
+        }
+
+        private bool IsStage3Timeout()
+        {
+            if (_curriculumStage != 3)
+            {
+                return false;
+            }
+            if (_episodeSteps >= GetStage3StepBudget())
+            {
+                return true;
+            }
+            if (_stage3SelectedRingActivated)
+            {
+                return _stage3PostRingStepsWithoutProgress >=
+                    _settings.Stage3PostRingNoProgressStepBudget;
+            }
+            return _stage3RingApproachStepsWithoutProgress >=
+                _settings.Stage3RingApproachNoProgressStepBudget;
+        }
+
         private void ScoreStage3RingProgress()
         {
             if (_curriculumStage != 3 || _evaluation || _rewardedRingActivations > 0 ||
@@ -816,7 +888,8 @@ namespace DuneVector
                 return;
             }
 
-            _stage3RingMinDistance = Mathf.Min(_stage3RingMinDistance, distance);
+            // TrackStage3RingApproach owns the minimum-distance metric so it is also
+            // recorded during evaluation, where this shaping does not run.
             if (ring != _previousStage3Ring)
             {
                 _previousStage3Ring = ring;

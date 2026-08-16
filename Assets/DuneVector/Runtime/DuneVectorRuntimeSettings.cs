@@ -7192,6 +7192,10 @@ namespace DuneVector
         [Tooltip("Ticks allowed after the selected ring without meaningful delivery progress.")]
         [Min(1)] public int Stage3PostRingNoProgressStepBudget = 600;
         [Min(0f)] public float Stage3MinimumDeliveryProgressPerTick = 0.05f;
+        [Tooltip("Ticks allowed while carrying cargo without closing on the selected ring, before the selected ring is activated.")]
+        [Min(1)] public int Stage3RingApproachNoProgressStepBudget = 600;
+        [Tooltip("Distance the drone must close on its selected ring for an approach tick to count as progress.")]
+        [Min(0f)] public float Stage3MinimumRingProgressPerTick = 0.05f;
         [Min(0f)] public float Stage3DeliveryPotentialScale = 0.0008f;
         [Min(0f)] public float MaximumStage3DeliveryPotentialReward = 0.12f;
         [Min(0f)] public float Stage3DeliveryProgressReward = 0.15f;
