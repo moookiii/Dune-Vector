@@ -532,7 +532,10 @@ namespace DuneVector
                 _flightMeterSavePath = Path.Combine(Application.persistentDataPath, FlightMeterSaveFileName);
                 if (DuneTrainingRuntime.Enabled)
                 {
-                    FlightTimeRemaining = FlightDuration;
+                    // Every training/evaluation episode begins from the same
+                    // fresh-save hub state. Contracts earn their temporary
+                    // reserve from ground-level flight rings.
+                    FlightTimeRemaining = 0f;
                 }
                 else
                 {
