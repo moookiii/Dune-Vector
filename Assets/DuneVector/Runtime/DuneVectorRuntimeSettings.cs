@@ -7163,6 +7163,10 @@ namespace DuneVector
 
         [Header("Stage 3 Flight and Stage 4 Delivery")]
         [Min(1)] public int Stage3StepBudget = 4800;
+        [Min(0f)] public float Stage3RingPotentialScale = 0.0005f;
+        [Min(0f)] public float MaximumStage3RingPotentialReward = 0.1f;
+        [Min(0f)] public float Stage3UsefulRingReward = 0.2f;
+        [Min(0f)] public float Stage3TimeoutPenalty = 0.15f;
         [Min(1)] public int Stage4StepBudget = 7200;
 
         [Header("Observation Scales")]
