@@ -1146,8 +1146,6 @@ namespace DuneVector
         public static bool Enabled => HasArgument("--dune-training");
         public static bool Evaluation => HasArgument("--dune-evaluation");
         public static bool VisualEvaluation => Evaluation && HasArgument("--dune-visual-evaluation");
-        public static bool EvaluationParity => Evaluation &&
-            (VisualEvaluation || HasArgument("--dune-evaluation-parity"));
         public static bool ControlledGroundStage => Enabled && ReadCurriculumStage() == 2;
         public static bool ControlledPreHazardStage => Enabled && ReadCurriculumStage() >= 2 &&
             ReadCurriculumStage() <= 4;
@@ -1158,7 +1156,7 @@ namespace DuneVector
             if (!Enabled) return;
             Time.fixedDeltaTime = 0.05f;
             Time.maximumDeltaTime = 0.05f;
-            Time.captureDeltaTime = EvaluationParity ? 0f : 0.05f;
+            Time.captureDeltaTime = VisualEvaluation ? 0f : 0.05f;
             QualitySettings.vSyncCount = 0;
             Application.targetFrameRate = VisualEvaluation ? 60 : -1;
             Application.runInBackground = true;
@@ -1243,7 +1241,7 @@ namespace DuneVector
             PufferTrainingTuning settings = bootstrap.PufferTraining;
             Time.fixedDeltaTime = settings.FixedTickSeconds;
             Time.maximumDeltaTime = settings.FixedTickSeconds;
-            Time.captureDeltaTime = DuneTrainingRuntime.EvaluationParity
+            Time.captureDeltaTime = DuneTrainingRuntime.VisualEvaluation
                 ? 0f
                 : settings.FixedTickSeconds;
 
