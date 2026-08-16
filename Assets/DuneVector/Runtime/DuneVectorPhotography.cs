@@ -1795,6 +1795,29 @@ namespace DuneVector
 
         }
 
+        private void LateUpdate()
+        {
+            if (_cameraModeActive && Application.isFocused)
+            {
+                ApplyCameraModeCursorState();
+            }
+        }
+
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (hasFocus && _cameraModeActive)
+            {
+                ApplyCameraModeCursorState();
+            }
+        }
+
+        private void ApplyCameraModeCursorState()
+        {
+            bool needsPointer = _presentationState == CameraPresentationState.ReplacePrompt;
+            Cursor.lockState = needsPointer ? CursorLockMode.None : CursorLockMode.Locked;
+            Cursor.visible = needsPointer;
+        }
+
         private void EnterCameraMode()
         {
             _cameraModeActive = true;
@@ -1806,8 +1829,7 @@ namespace DuneVector
             _cameraController.SetPhotographyMode(true, _settings.CameraDistance, _settings.CameraHeight, _settings.MinPitch, _settings.MaxPitch);
             HidePlayerRenderers();
             EnableCameraFilmGrain();
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            ApplyCameraModeCursorState();
             _detection = default;
             _animatedAccentColor = _settings.NeutralColor;
             _targetStateBlend = 0f;
@@ -1888,8 +1910,7 @@ namespace DuneVector
             {
                 _presentationState = CameraPresentationState.ReplacePrompt;
                 BeginIdentificationPause();
-                Cursor.lockState = CursorLockMode.None;
-                Cursor.visible = true;
+                ApplyCameraModeCursorState();
             }
         }
 
@@ -1935,8 +1956,7 @@ namespace DuneVector
         {
             EndIdentificationPause();
             _presentationState = CameraPresentationState.Live;
-            Cursor.lockState = CursorLockMode.Locked;
-            Cursor.visible = false;
+            ApplyCameraModeCursorState();
             ReleaseCapturedTexture();
             _pendingPhotograph = null;
             _identifiedGlyphAwaitingContinue = false;
