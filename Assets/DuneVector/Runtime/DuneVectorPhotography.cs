@@ -485,7 +485,10 @@ namespace DuneVector
                         continue;
                     }
                     float candidateVisiblePercentage = CalculateVisiblePercentage(site);
-                    if (candidateVisiblePercentage < _settings.SubjectDetectionMinimumVisiblePercentage)
+                    float candidateMinimumVisibility = isPreferredGlyph
+                        ? GetRequiredGlyphVisibility(site)
+                        : _settings.SubjectDetectionMinimumVisiblePercentage;
+                    if (candidateVisiblePercentage < candidateMinimumVisibility)
                     {
                         continue;
                     }
@@ -560,9 +563,7 @@ namespace DuneVector
                     definition.MinimumPhotoScreenCoverage,
                     definition.MaximumPhotoScreenCoverage);
                 float readableAngle = Vector3.Dot(_camera.transform.forward.normalized, Vector3.down);
-                float requiredVisibility = definition.AllowPartialPhotoOcclusion
-                    ? definition.RequiredPhotoVisiblePercentage
-                    : _settings.GlyphRequiredVisiblePercentage;
+                float requiredVisibility = GetRequiredGlyphVisibility(definition);
                 valid = fullyFramed &&
                     bestCoverage >= minimumCoverage &&
                     bestCoverage <= maximumCoverage &&
@@ -635,6 +636,13 @@ namespace DuneVector
             // drone skims the sand. Flight mode is authoritative for photography: an actively
             // flying player must not lose the airborne glyph-priority tier to stale ground contact.
             return !hasCharacter || isInFlightMode || !isStableGrounded;
+        }
+
+        private float GetRequiredGlyphVisibility(DesertAtlasSiteDefinition definition)
+        {
+            return definition.AllowPartialPhotoOcclusion
+                ? Mathf.Clamp01(definition.RequiredPhotoVisiblePercentage)
+                : Mathf.Clamp01(_settings.GlyphRequiredVisiblePercentage);
         }
 
         private bool IsFullyFramed(Rect bounds)
