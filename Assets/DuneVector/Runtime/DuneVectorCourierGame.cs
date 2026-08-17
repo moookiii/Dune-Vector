@@ -397,6 +397,28 @@ namespace DuneVector
         public bool IsTerminalOpen => _hubTerminalMode != HubTerminalMode.None;
         public bool IsDeliveryMessageOpen => _messagePresenter != null && _messagePresenter.IsOpen;
         public Vector3 HubSpawnPosition => _hubSpawn;
+
+        /// <summary>
+        /// Hub spawn heading. A fixed heading made every episode solvable by the same
+        /// opening turn, because the contract terminal always sits the same few degrees
+        /// off the spawn forward. Training then learned that one turn instead of learning
+        /// to steer onto the terminal bearing, which shows up later as a constant lateral
+        /// lean in the desert. Under training and evaluation the heading is randomized per
+        /// spawn, derived from the world seed and a spawn counter so runs stay
+        /// reproducible. Normal play keeps the authored heading.
+        /// </summary>
+        private Quaternion NextHubSpawnRotation()
+        {
+            if (!DuneTrainingRuntime.Enabled)
+            {
+                return Quaternion.identity;
+            }
+            int worldSeed = _world != null ? _world.WorldSeed : 0;
+            int mixed = (worldSeed * 73856093) ^ (++_hubSpawnSequence * 19349663);
+            float yaw = (Mathf.Abs(mixed % 3600)) / 10f;
+            _hubSpawnRotation = Quaternion.Euler(0f, yaw, 0f);
+            return _hubSpawnRotation;
+        }
         public Vector3 HubFloorPosition => _hubSpawn - (Vector3.up * _hubSettings.PlayerSpawnHeight);
         public Transform ContractTerminal => _terminal;
         public Transform MessageArchiveTerminal => _messageArchiveTerminal;
@@ -489,6 +511,8 @@ namespace DuneVector
         private Transform _upgradeEnergyOrbit;
         private Coroutine _hubClothResetCoroutine;
         private Vector3 _hubSpawn;
+        private int _hubSpawnSequence;
+        private Quaternion _hubSpawnRotation = Quaternion.identity;
         // Counts down while the follow camera is pinned to the drone after a teleport, so the
         // camera cannot smooth in from where the drone came from.
         private float _cameraPinSecondsRemaining;
@@ -638,7 +662,17 @@ namespace DuneVector
             _health = health;
             _world = world;
             _camera = camera;
+            // Headless training deactivates every Camera, so a Camera-based lookup finds
+            // nothing and the null-conditional snap in PinCameraToPlayer silently no-ops.
+            // The command frame still exists headless and is both the movement frame and
+            // the frame the observation reports objective bearings in, so a deployment
+            // teleport must re-anchor it on every path. Fall back to the reference held by
+            // the player, which does not depend on the camera being active.
             _cameraController = camera != null ? camera.GetComponent<DroneCameraController>() : null;
+            if (_cameraController == null && playerInput != null)
+            {
+                _cameraController = playerInput.CharacterCamera;
+            }
             _materials = materials;
             _wallet = wallet;
             _permanentUpgrades = permanentUpgrades;
@@ -1789,13 +1823,13 @@ namespace DuneVector
             }
             if (placePlayerAtSpawn)
             {
-                _player.Motor.SetPositionAndRotation(_hubSpawn, Quaternion.identity, true);
+                _player.Motor.SetPositionAndRotation(_hubSpawn, NextHubSpawnRotation(), true);
                 // An immediate hub restore must complete its floating-origin shift before the
                 // camera is snapped. Deferring this rebase to the streamer's LateUpdate leaves
                 // the follow camera in the old desert frame for a visible cross-world sweep.
                 _world.RebaseAroundPlayerIfNeeded();
                 _player.ResetTraversalAfterTeleport(Vector3.forward);
-                PinCameraToPlayer(Vector3.forward);
+                PinCameraToPlayer(_hubSpawnRotation * Vector3.forward);
             }
             SetCombatSystemsActive(false);
             _stormDirector?.SetHubLightningActive();
@@ -2888,10 +2922,10 @@ namespace DuneVector
             _teleportMoved = true;
             _returnStartsVanished = true;
             _playerInput.SetInputEnabled(false);
-            _player.Motor.SetPositionAndRotation(_hubSpawn, Quaternion.identity, true);
+            _player.Motor.SetPositionAndRotation(_hubSpawn, NextHubSpawnRotation(), true);
             _health.SetDamageImmune(true);
             _player.ResetTraversalAfterTeleport(Vector3.forward);
-            PinCameraToPlayer(Vector3.forward);
+            PinCameraToPlayer(_hubSpawnRotation * Vector3.forward);
             CreateTeleportParticles();
             RecenterTeleportParticles(_hubSpawn);
         }
@@ -3105,7 +3139,7 @@ namespace DuneVector
             }
 
             _player.Motor.BaseVelocity = Vector3.zero;
-            _player.Motor.SetPositionAndRotation(_hubSpawn, Quaternion.identity, true);
+            _player.Motor.SetPositionAndRotation(_hubSpawn, NextHubSpawnRotation(), true);
             Physics.SyncTransforms();
             return false;
         }

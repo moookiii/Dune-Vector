@@ -44,6 +44,9 @@ namespace DuneVector
         private float _unshapedReturn;
         private float _previousHealth;
         private float _previousHubDistance;
+        private float _previousHubHeadingError;
+        private float _bestHubHeadingError;
+        private float _hubHeadingProgressReward;
         private float _previousObjectiveDistance;
         private float _bestObjectiveDistance;
         private float _pickupObjectiveMinDistance;
@@ -126,6 +129,8 @@ namespace DuneVector
             _wrongStage1Deployment = false;
             _hubStepsWithoutProgress = 0;
             _bestHubDistance = float.PositiveInfinity;
+            _bestHubHeadingError = float.PositiveInfinity;
+            _hubHeadingProgressReward = 0f;
             _pickups = 0;
             _authoritativePickupObserved = false;
             _deliveries = 0;
@@ -408,6 +413,23 @@ namespace DuneVector
                 _shots++;
             }
             _bootstrap.Player.SetAutomatedInput(command);
+            if (DuneTrainingRuntime.FrameTrace)
+            {
+                Transform frame = _bootstrap.DroneCamera != null
+                    ? _bootstrap.DroneCamera.transform
+                    : null;
+                Vector3 position = _bootstrap.Drone.WorldCenter;
+                UnityEngine.Debug.Log(string.Format(
+                    "DUNE_FRAME_TRACE step={0} visual={1} bodyYaw={2:F3} frameYaw={3:F3} " +
+                    "frameNull={4} cameraNull={5} px={6:F2} pz={7:F2}",
+                    _episodeSteps,
+                    DuneTrainingRuntime.VisualEvaluation ? 1 : 0,
+                    _bootstrap.Drone.transform.eulerAngles.y,
+                    frame != null ? frame.eulerAngles.y : -1f,
+                    frame == null ? 1 : 0,
+                    (_bootstrap.DroneCamera != null && _bootstrap.DroneCamera.Camera == null) ? 1 : 0,
+                    position.x, position.z));
+            }
         }
 
         private static float DecodeAxis(int value)
@@ -508,12 +530,42 @@ namespace DuneVector
                 _previousHubDistance = hubDistance;
             }
 
+            if (!_evaluation && _curriculumStage == 1 &&
+                courier.State == CourierRunState.Hub && courier.HubTerminalMenuKind == 0 &&
+                TryGetTrainingHubHeadingError(courier, out float hubHeadingError))
+            {
+                if (!float.IsNaN(_previousHubHeadingError) && !float.IsInfinity(_previousHubHeadingError))
+                {
+                    float headingReward = Mathf.Clamp(
+                        (_previousHubHeadingError - hubHeadingError) *
+                        _settings.Stage1HubHeadingPotentialScale,
+                        -0.01f,
+                        0.01f);
+                    AddTrainingReward(headingReward, shaped: true);
+                    _hubHeadingProgressReward += headingReward;
+                }
+                _previousHubHeadingError = hubHeadingError;
+            }
+
             if (!_deployed && courier.State == CourierRunState.Hub && courier.HubTerminalMenuKind == 0 &&
                 TryGetTrainingHubObjective(courier, out float stuckDistance))
             {
-                if (stuckDistance <= _bestHubDistance - _settings.HubStuckMinimumProgress)
+                bool distanceProgress =
+                    stuckDistance <= _bestHubDistance - _settings.HubStuckMinimumProgress;
+                bool headingProgress = _curriculumStage == 1 &&
+                    TryGetTrainingHubHeadingError(courier, out float stuckHeadingError) &&
+                    stuckHeadingError <= _bestHubHeadingError -
+                        _settings.Stage1HubStuckMinimumHeadingProgressDegrees;
+                if (distanceProgress || headingProgress)
                 {
                     _bestHubDistance = stuckDistance;
+                    if (_curriculumStage == 1 &&
+                        TryGetTrainingHubHeadingError(courier, out float improvedHeadingError))
+                    {
+                        _bestHubHeadingError = Mathf.Min(
+                            _bestHubHeadingError,
+                            improvedHeadingError);
+                    }
                     _hubStepsWithoutProgress = 0;
                 }
                 else
@@ -563,7 +615,7 @@ namespace DuneVector
                 }
                 float objectiveDistance = Vector3.Distance(_bootstrap.Drone.WorldCenter, objective.position);
                 AddCappedObjectivePotential(_previousObjectiveDistance, objectiveDistance);
-                ScoreStage2ObjectiveTracking(objective.position, objectiveDistance);
+                TrackObjectiveApproach(objective.position, objectiveDistance);
                 _previousObjectiveDistance = objectiveDistance;
             }
 
@@ -686,6 +738,7 @@ namespace DuneVector
             stats.Add("Dune/ended_in_hub", endedInHub ? 1f : 0f);
             stats.Add("Dune/hub_stuck", verifiedHubStuck ? 1f : 0f);
             stats.Add("Dune/hub_timeout", _hubTimedOut ? 1f : 0f);
+            stats.Add("Dune/hub_heading_progress_reward", _hubHeadingProgressReward);
             stats.Add("Dune/terminal_open_success", _terminalOpened ? 1f : 0f);
             // Stage 1 deliberately has no pickup objective. Omitting this metric
             // prevents rehearsal episodes from being averaged as pickup failures.
@@ -752,6 +805,7 @@ namespace DuneVector
             _baselineFreeRoamPickupSequence = _previousFreeRoamPickupSequence;
             _previousRingActivations = GetTotalRingActivations();
             _previousHubDistance = float.NaN;
+            _previousHubHeadingError = float.NaN;
             _previousObjectiveDistance = float.NaN;
             _previousObjective = ResolveActiveObjective(courier);
             _previousTarget = null;
@@ -858,6 +912,16 @@ namespace DuneVector
             if (_episodeSteps >= GetStage3StepBudget())
             {
                 return true;
+            }
+            if (!HasAuthoritativePickup())
+            {
+                // Both ring trackers are gated on carrying cargo, so an episode that
+                // never reaches the pickup can arm neither and runs the entire horizon.
+                // Stage 2 catches this with its own no-progress abort, but that abort is
+                // gated to curriculum stage 2, so Stage 3 inherited nothing. With pickup
+                // well under half, that gap is most of the evaluation budget.
+                return _deployed && _objectiveStepsWithoutProgress >=
+                    _settings.Stage3PrePickupNoProgressStepBudget;
             }
             if (_stage3SelectedRingActivated)
             {
@@ -1119,9 +1183,17 @@ namespace DuneVector
                 shaped: true);
         }
 
-        private void ScoreStage2ObjectiveTracking(Vector3 objectivePosition, float objectiveDistance)
+        /// <summary>
+        /// Scores Stage 2 heading shaping and maintains the objective approach counter
+        /// that pre-pickup termination reads. The shaping stays Stage 2 only, because
+        /// later stages route through rings and must not be charged for the detour.
+        /// The counter runs for every objective-bearing stage: it is the only signal
+        /// that distinguishes a decided pre-pickup failure from an episode still
+        /// working, and Stage 3 previously had no such signal at all.
+        /// </summary>
+        private void TrackObjectiveApproach(Vector3 objectivePosition, float objectiveDistance)
         {
-            if (_curriculumStage != 2 || _bootstrap.CourierGame.State == CourierRunState.Hub)
+            if (_curriculumStage < 2 || _bootstrap.CourierGame.State == CourierRunState.Hub)
             {
                 return;
             }
@@ -1132,7 +1204,8 @@ namespace DuneVector
             Vector3 velocity = _bootstrap.Drone.Motor != null
                 ? Vector3.ProjectOnPlane(_bootstrap.Drone.Motor.Velocity, Vector3.up)
                 : Vector3.zero;
-            if (toObjective.sqrMagnitude > 0.01f && velocity.sqrMagnitude > 0.01f)
+            if (_curriculumStage == 2 &&
+                toObjective.sqrMagnitude > 0.01f && velocity.sqrMagnitude > 0.01f)
             {
                 float alignment = Vector3.Dot(toObjective.normalized, velocity.normalized);
                 float reward = alignment >= 0f
@@ -1334,6 +1407,33 @@ namespace DuneVector
             return courier.TryGetHubInteractionObservation(out _, out _, out distance, out _);
         }
 
+        private bool TryGetTrainingHubHeadingError(
+            DuneVectorCourierGame courier,
+            out float headingErrorDegrees)
+        {
+            headingErrorDegrees = 0f;
+            if (!courier.TryGetContractTerminalObservation(
+                out Vector3 terminalPosition,
+                out _,
+                out _))
+            {
+                return false;
+            }
+
+            Vector3 local = ToCommandLocal(terminalPosition - _bootstrap.Drone.WorldCenter);
+            Vector2 planar = new Vector2(local.x, local.z);
+            if (planar.sqrMagnitude <= 0.000001f)
+            {
+                return false;
+            }
+            float absoluteBearing = Mathf.Abs(
+                Mathf.Atan2(planar.x, planar.y) * Mathf.Rad2Deg);
+            headingErrorDegrees = Mathf.Max(
+                0f,
+                absoluteBearing - _settings.Stage1HubHeadingDeadZoneDegrees);
+            return true;
+        }
+
         private int ConsumeNewRewardableRingActivations()
         {
             int rewardable = 0;
@@ -1493,6 +1593,12 @@ namespace DuneVector
         public static bool Enabled => HasArgument("--dune-training");
         public static bool Evaluation => HasArgument("--dune-evaluation");
         public static bool VisualEvaluation => Evaluation && HasArgument("--dune-visual-evaluation");
+
+        // Temporary diagnostic: set DUNE_FRAME_TRACE=1 to log the command frame and
+        // drone body orientation every decision, so the headless and visual paths can
+        // be compared tick by tick.
+        public static bool FrameTrace =>
+            Environment.GetEnvironmentVariable("DUNE_FRAME_TRACE") == "1";
         public static bool HeadlessPresentation => Enabled && !VisualEvaluation;
         public static BenchmarkLayer ActiveBenchmarkLayer => ReadBenchmarkLayer();
         public static bool ControlledGroundStage => Enabled && ReadCurriculumStage() == 2;

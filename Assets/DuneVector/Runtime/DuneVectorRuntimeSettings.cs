@@ -7194,6 +7194,8 @@ namespace DuneVector
         [Min(0f)] public float Stage3MinimumDeliveryProgressPerTick = 0.05f;
         [Tooltip("Ticks allowed while carrying cargo without closing on the selected ring, before the selected ring is activated.")]
         [Min(1)] public int Stage3RingApproachNoProgressStepBudget = 600;
+        [Tooltip("Ticks allowed after deployment without closing on the pickup objective, before cargo is carried. Stage 3's ring trackers cannot arm until pickup, so this is the only pre-pickup exit the stage has.")]
+        [Min(1)] public int Stage3PrePickupNoProgressStepBudget = 600;
         [Tooltip("Distance the drone must close on its selected ring for an approach tick to count as progress.")]
         [Min(0f)] public float Stage3MinimumRingProgressPerTick = 0.05f;
         [Min(0f)] public float Stage3DeliveryPotentialScale = 0.0008f;
@@ -7212,6 +7214,12 @@ namespace DuneVector
 
         [Header("Potential Shaping")]
         [Min(0f)] public float HubPotentialScale = 0.0005f;
+        [Tooltip("Stage 1 reward per degree of reduced absolute terminal bearing. This gives rotation an immediate learning signal before distance changes.")]
+        [Min(0f)] public float Stage1HubHeadingPotentialScale = 0.0005f;
+        [Tooltip("Terminal-bearing error below this angle is treated as aligned for Stage 1 heading shaping.")]
+        [Range(0f, 45f)] public float Stage1HubHeadingDeadZoneDegrees = 5f;
+        [Tooltip("Heading improvement that resets the Stage 1 hub no-progress counter while the drone rotates in place.")]
+        [Min(0.1f)] public float Stage1HubStuckMinimumHeadingProgressDegrees = 2f;
         [Min(0f)] public float ObjectivePotentialScale = 0.0008f;
         [Min(0f)] public float MaximumObjectivePotentialReward = 0.2f;
         [Min(1f)] public float Stage2DistanceIncreasePenaltyMultiplier = 1.5f;
