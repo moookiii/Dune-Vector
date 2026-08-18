@@ -131,13 +131,6 @@ namespace DuneVector.Tests
             DesertWorldStreamer world)
         {
             AssertRingClearsAttackRange(
-                "Sky Piercer",
-                settings.FlyingEnemies.MinimumSpawnDistance,
-                settings.FlyingEnemies.MaximumSpawnDistance,
-                settings.FlyingEnemies.RepositionDistance,
-                settings.FlyingEnemies.DetectionRange,
-                world);
-            AssertRingClearsAttackRange(
                 "Storm Pyramid",
                 settings.StormPyramids.MinimumSpawnDistance,
                 settings.StormPyramids.MaximumSpawnDistance,

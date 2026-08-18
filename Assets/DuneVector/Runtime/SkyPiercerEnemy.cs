@@ -157,16 +157,7 @@ namespace DuneVector
 
             bool canReposition = CurrentState != SkyPiercerState.AttackDive
                 && CurrentState != SkyPiercerState.StuckInGround;
-            float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
-                _settings.MinimumSpawnDistance,
-                _settings.DetectionRange,
-                _world);
-            float repositionDistance = DuneVectorEnemyEngagementRing.ResolveRepositionDistance(
-                _settings.RepositionDistance,
-                DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
-                    minimumDistance,
-                    _settings.MinimumSpawnDistance,
-                    _settings.MaximumSpawnDistance));
+            float repositionDistance = _settings.RepositionDistance;
             if (canReposition
                 && (_cachedTransform.position - playerPosition).sqrMagnitude > repositionDistance * repositionDistance)
             {
@@ -338,16 +329,9 @@ namespace DuneVector
         private void RepositionNearPlayer(Vector3 playerPosition)
         {
             float angle = ((_identity * 137.5f) + (Time.time * 9f)) * Mathf.Deg2Rad;
-            float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
-                _settings.MinimumSpawnDistance,
-                _settings.DetectionRange,
-                _world);
             float distance = Mathf.Lerp(
-                minimumDistance,
-                DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
-                    minimumDistance,
-                    _settings.MinimumSpawnDistance,
-                    _settings.MaximumSpawnDistance),
+                _settings.MinimumSpawnDistance,
+                Mathf.Max(_settings.MinimumSpawnDistance, _settings.MaximumSpawnDistance),
                 Mathf.Repeat((_identity * 0.413f) + 0.27f, 1f));
             Vector3 position = playerPosition + new Vector3(Mathf.Cos(angle) * distance, 0f, Mathf.Sin(angle) * distance);
             position.y = _world.SampleHeightAtLocal(position.x, position.z) + _settings.HoverHeight;
@@ -407,16 +391,11 @@ namespace DuneVector
             for (int i = 0; i < count; i++)
             {
                 float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
-                float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
-                    settings.MinimumSpawnDistance,
-                    settings.DetectionRange,
-                    world);
+                float minimumDistance = DuneVectorEnemySpawnClearance.ApplyMinimumDistance(
+                    settings.MinimumSpawnDistance);
                 float distance = Mathf.Lerp(
                     minimumDistance,
-                    DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
-                        minimumDistance,
-                        settings.MinimumSpawnDistance,
-                        settings.MaximumSpawnDistance),
+                    Mathf.Max(minimumDistance, settings.MaximumSpawnDistance),
                     (float)random.NextDouble());
                 Vector3 playerPosition = player.WorldCenter;
                 Vector3 spawnPosition = playerPosition + new Vector3(Mathf.Cos(angle) * distance, 0f, Mathf.Sin(angle) * distance);
@@ -469,16 +448,11 @@ namespace DuneVector
             for (int i = 0; i < bonusCount; i++)
             {
                 float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
-                float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
-                    _settings.MinimumSpawnDistance,
-                    _settings.DetectionRange,
-                    _world);
+                float minimumDistance = DuneVectorEnemySpawnClearance.ApplyMinimumDistance(
+                    _settings.MinimumSpawnDistance);
                 float distance = Mathf.Lerp(
                     minimumDistance,
-                    DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
-                        minimumDistance,
-                        _settings.MinimumSpawnDistance,
-                        _settings.MaximumSpawnDistance),
+                    Mathf.Max(minimumDistance, _settings.MaximumSpawnDistance),
                     (float)random.NextDouble());
                 Vector3 playerPosition = _player.WorldCenter;
                 Vector3 spawnPosition = playerPosition + new Vector3(
