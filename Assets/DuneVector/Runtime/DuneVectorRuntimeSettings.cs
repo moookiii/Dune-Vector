@@ -3070,7 +3070,7 @@ namespace DuneVector
         public Vector3 PrefabLocalScale = Vector3.one;
 
         [Header("Spawning")]
-        [Range(1, 10)] public int EnemyCount = 2;
+        [Range(1, 20)] public int EnemyCount = 20;
         [Min(20f)] public float MinimumSpawnDistance = 90f;
         [Min(20f)] public float MaximumSpawnDistance = 180f;
         [Min(50f)] public float RepositionDistance = 360f;
@@ -3286,7 +3286,7 @@ namespace DuneVector
         [Min(0)] public int GoldReward = 55;
 
         [Header("Spawning")]
-        [Range(1, 10)] public int EnemyCount = 2;
+        [Range(1, 20)] public int EnemyCount = 20;
         [Min(20f)] public float MinimumSpawnDistance = 120f;
         [Min(20f)] public float MaximumSpawnDistance = 240f;
         [Min(50f)] public float RepositionDistance = 390f;
