@@ -2923,10 +2923,7 @@ namespace DuneVector
 
             if (_orbSettings.Enabled)
             {
-                int bonusCount = Mathf.Max(
-                    0,
-                    _orbSettings.EvaluateEnemyCount(DuneVectorContractRisk.CurrentRisk) -
-                    Mathf.Max(1, _orbSettings.EnemyCount));
+                int bonusCount = Mathf.CeilToInt(Mathf.Max(1, _orbSettings.EnemyCount) * bonusMultiplier);
                 for (int i = 0; i < bonusCount; i++)
                 {
                     PlayerStrikeOrbEnemy enemy = SpawnOrbEnemy(
