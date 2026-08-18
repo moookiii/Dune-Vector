@@ -131,6 +131,13 @@ namespace DuneVector.Tests
             DesertWorldStreamer world)
         {
             AssertRingClearsAttackRange(
+                "Sky Piercer",
+                settings.FlyingEnemies.MinimumSpawnDistance,
+                settings.FlyingEnemies.MaximumSpawnDistance,
+                settings.FlyingEnemies.RepositionDistance,
+                settings.FlyingEnemies.DetectionRange,
+                world);
+            AssertRingClearsAttackRange(
                 "Storm Pyramid",
                 settings.StormPyramids.MinimumSpawnDistance,
                 settings.StormPyramids.MaximumSpawnDistance,
@@ -144,6 +151,13 @@ namespace DuneVector.Tests
                 settings.PlayerStrikeOrbs.RepositionDistance,
                 settings.PlayerStrikeOrbs.EvaluateDetectionRange(
                     settings.PlayerStrikeOrbs.DetectionRangeRankCeiling),
+                world);
+            AssertRingClearsAttackRange(
+                "Vesper Kite",
+                settings.VesperKites.MinimumSpawnDistance,
+                settings.VesperKites.MaximumSpawnDistance,
+                settings.VesperKites.RepositionDistance,
+                settings.VesperKites.DetectionRange,
                 world);
         }
 
