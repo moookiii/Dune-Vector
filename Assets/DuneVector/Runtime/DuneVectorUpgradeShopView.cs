@@ -464,8 +464,8 @@ namespace DuneVector
             bool maximum = currentTier >= maximumTier;
             float currentValue = _upgrades.GetCurrentValue(definition.Id);
             float nextValue = _upgrades.GetNextValue(definition.Id);
-            string currentLabel = $"CURRENT  {FormatUpgradeValue(definition, currentValue, false)}";
-            string nextLabel = maximum ? "CAPACITY COMPLETE" : $"NEXT  {FormatUpgradeValue(definition, nextValue, true)}";
+            string currentLabel = $"CURRENT  {FormatValue(definition, currentValue)}";
+            string nextLabel = maximum ? "CAPACITY COMPLETE" : $"NEXT  {FormatValue(definition, nextValue)}";
             Color previousValueColor = _valueStyle.normal.textColor;
             if (recent)
             {
@@ -930,20 +930,6 @@ namespace DuneVector
             };
         }
 
-        private string FormatUpgradeValue(DroneUpgradeDefinition definition, float value, bool nextTier)
-        {
-            string formattedValue = FormatValue(definition, value);
-            if (definition.Id != DroneUpgradeId.EnergyShotCooldown)
-            {
-                return formattedValue;
-            }
-
-            float projectileSpeed = nextTier
-                ? _upgrades.GetNextEnergyProjectileSpeed()
-                : _upgrades.GetCurrentEnergyProjectileSpeed();
-            return $"{formattedValue} / {projectileSpeed:0} M/S";
-        }
-
         private void DrawPanelShadow(Rect panel, float scale)
         {
             float offset = _visuals.ShadowOffset * scale;
@@ -1195,26 +1181,6 @@ namespace DuneVector
                     canvas.Polyline((0.17f, 0.29f), (0.42f, 0.5f), (0.17f, 0.71f));
                     canvas.Polyline((0.42f, 0.29f), (0.67f, 0.5f), (0.42f, 0.71f));
                     canvas.Line(0.7f, 0.5f, 0.88f, 0.5f);
-                    break;
-                case DroneUpgradeId.EnergyShotDamage:
-                    canvas.Circle(0.48f, 0.5f, 0.16f);
-                    canvas.Line(0.1f, 0.5f, 0.3f, 0.5f);
-                    canvas.Line(0.66f, 0.5f, 0.9f, 0.5f);
-                    canvas.Line(0.48f, 0.14f, 0.48f, 0.3f);
-                    canvas.Line(0.48f, 0.7f, 0.48f, 0.86f);
-                    canvas.Line(0.24f, 0.25f, 0.34f, 0.36f);
-                    canvas.Line(0.62f, 0.64f, 0.74f, 0.76f);
-                    break;
-                case DroneUpgradeId.EnergyShotCooldown:
-                    canvas.Circle(0.5f, 0.52f, 0.3f);
-                    canvas.Line(0.5f, 0.52f, 0.5f, 0.31f);
-                    canvas.Line(0.5f, 0.52f, 0.67f, 0.62f);
-                    canvas.Polyline((0.67f, 0.13f), (0.84f, 0.2f), (0.75f, 0.35f));
-                    break;
-                case DroneUpgradeId.LockOnSpeed:
-                    canvas.CornerBrackets(0.2f, 0.2f, 0.8f, 0.8f, 0.18f);
-                    canvas.Circle(0.5f, 0.5f, 0.1f);
-                    canvas.Line(0.5f, 0.1f, 0.5f, 0.28f);
                     break;
                 case DroneUpgradeId.GroundMaximumSpeed:
                     canvas.Line(0.1f, 0.35f, 0.46f, 0.35f);

@@ -331,7 +331,6 @@ namespace DuneVector
         private readonly DroneUpgradePurchaseValidator _purchaseValidator = new DroneUpgradePurchaseValidator();
         private readonly Dictionary<DroneUpgradeId, float> _tierZeroValues = new Dictionary<DroneUpgradeId, float>();
         private DronePermanentUpgradeTuning _tuning;
-        private EnergyLauncherTuning _energyLauncherTuning;
         private DroneUpgradeSaveRepository _saveRepository;
         private DroneUpgradeStatApplicator _statApplicator;
         private DuneVectorDesertAtlas _desertAtlas;
@@ -352,7 +351,6 @@ namespace DuneVector
 
             runtimeSettings.EnsureInitialized();
             _tuning = runtimeSettings.PermanentUpgrades;
-            _energyLauncherTuning = runtimeSettings.EnergyLauncher;
             Wallet = wallet;
             _saveRepository = new DroneUpgradeSaveRepository(this);
             _statApplicator = new DroneUpgradeStatApplicator(drone, health, stamina, boostSpeed);
@@ -405,35 +403,6 @@ namespace DuneVector
         public float GetMaximumTierValue(DroneUpgradeId id)
         {
             return GetValueAtTier(id, GetMaximumTier(id));
-        }
-
-        public float GetCurrentEnergyProjectileSpeed()
-        {
-            return GetEnergyProjectileSpeedAtTier(GetPurchasedTier(DroneUpgradeId.EnergyShotCooldown));
-        }
-
-        public float GetNextEnergyProjectileSpeed()
-        {
-            int tier = GetPurchasedTier(DroneUpgradeId.EnergyShotCooldown);
-            return GetEnergyProjectileSpeedAtTier(
-                Mathf.Min(GetMaximumTier(DroneUpgradeId.EnergyShotCooldown), tier + 1));
-        }
-
-        public float GetEnergyProjectileSpeedAtTier(int tier)
-        {
-            if (_energyLauncherTuning == null)
-            {
-                return 0f;
-            }
-
-            DroneUpgradeDefinition definition = GetDefinition(DroneUpgradeId.EnergyShotCooldown);
-            float progress = definition != null
-                ? definition.EvaluateProgress(tier)
-                : 0f;
-            float maximumMultiplier = Mathf.Max(
-                1f,
-                _energyLauncherTuning.ProjectileSpeedAtMaximumFireRateTierMultiplier);
-            return _energyLauncherTuning.ProjectileSpeed * Mathf.Lerp(1f, maximumMultiplier, progress);
         }
 
         public float GetValueAtTier(DroneUpgradeId id, int tier)
@@ -700,9 +669,6 @@ namespace DuneVector
             _tierZeroValues[DroneUpgradeId.MaximumHealth] = settings.HealthSettings.MaximumHealth;
             _tierZeroValues[DroneUpgradeId.MaximumStamina] = settings.PlayerTuning.StaminaBoost.MaxStamina;
             _tierZeroValues[DroneUpgradeId.BoostMaximumSpeed] = settings.PlayerTuning.StaminaBoost.BoostMaximumSpeed;
-            _tierZeroValues[DroneUpgradeId.EnergyShotDamage] = settings.EnergyLauncher.Damage;
-            _tierZeroValues[DroneUpgradeId.EnergyShotCooldown] = settings.EnergyLauncher.FireCooldown;
-            _tierZeroValues[DroneUpgradeId.LockOnSpeed] = settings.EnergyLauncher.AcquisitionTime;
             _tierZeroValues[DroneUpgradeId.GroundMaximumSpeed] = settings.PlayerTuning.MaxGroundSpeed;
             _tierZeroValues[DroneUpgradeId.GroundAcceleration] = settings.PlayerTuning.GroundMovementSharpness;
             _tierZeroValues[DroneUpgradeId.GroundHandling] = settings.PlayerTuning.GroundSteeringSharpness;

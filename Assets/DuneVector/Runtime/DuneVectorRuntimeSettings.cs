@@ -2872,7 +2872,7 @@ namespace DuneVector
         [Min(0f)] public float MinimumLockDistance = 15f;
         [Tooltip("Full angle of the view-centered targeting cone. Targets behind the camera are always rejected.")]
         [Range(1f, 179f)] public float LockConeAngle = 34f;
-        [Min(0f)] public float AcquisitionTime = 0.55f;
+        [Min(0f)] public float AcquisitionTime = 0.25f;
         [Tooltip("Brief time that TARGET DETECTED is shown before acquisition begins.")]
         [Min(0f)] public float TargetDetectedDuration = 0.12f;
         [Tooltip("Grace time before an acquired target outside the cone or range is released.")]
@@ -2885,13 +2885,11 @@ namespace DuneVector
         [Range(0f, 0.5f)] public float DistanceScoreWeight = 0.08f;
 
         [Header("Energy Shot")]
-        [Min(1f)] public float ProjectileSpeed = 155f;
-        [Tooltip("Projectile speed multiplier reached at the maximum Energy Shot Cooldown upgrade tier. Intermediate tiers use the upgrade's progression curve.")]
-        [Min(1f)] public float ProjectileSpeedAtMaximumFireRateTierMultiplier = 1.75f;
+        [Min(1f)] public float ProjectileSpeed = 271.25f;
         [Tooltip("Maximum homing direction change in degrees per second.")]
         [Min(0f)] public float HomingTurnStrength = 430f;
-        [Min(0f)] public float Damage = 45f;
-        [Min(0f)] public float FireCooldown = 0.22f;
+        [Min(0f)] public float Damage = 90f;
+        [Min(0f)] public float FireCooldown = 0.13f;
         [Min(0.05f)] public float ProjectileLifetime = 3f;
         [Min(0.01f)] public float ProjectileHitRadius = 0.32f;
         [Tooltip("Maximum look-ahead time used to lead a moving locked target.")]

@@ -6,18 +6,15 @@ namespace DuneVector
 {
     public enum DroneUpgradeId
     {
-        MaximumHealth,
-        MaximumStamina,
-        BoostMaximumSpeed,
-        EnergyShotDamage,
-        EnergyShotCooldown,
-        LockOnSpeed,
-        GroundMaximumSpeed,
-        GroundAcceleration,
-        GroundHandling,
-        FlightMaximumSpeed,
-        FlightAcceleration,
-        FlightHandling,
+        MaximumHealth = 0,
+        MaximumStamina = 1,
+        BoostMaximumSpeed = 2,
+        GroundMaximumSpeed = 6,
+        GroundAcceleration = 7,
+        GroundHandling = 8,
+        FlightMaximumSpeed = 9,
+        FlightAcceleration = 10,
+        FlightHandling = 11,
     }
 
     public enum DroneUpgradeGroup
@@ -365,9 +362,6 @@ namespace DuneVector
                 Create(DroneUpgradeId.MaximumHealth, DroneUpgradeGroup.Core, "Maximum Health", DroneUpgradeValueFormat.WholeNumber, 2f, 0.82f, 90, 1.19f),
                 Create(DroneUpgradeId.MaximumStamina, DroneUpgradeGroup.Core, "Maximum Stamina", DroneUpgradeValueFormat.WholeNumber, 1.75f, 0.78f, 75, 1.18f),
                 Create(DroneUpgradeId.BoostMaximumSpeed, DroneUpgradeGroup.Core, "Boost Speed", DroneUpgradeValueFormat.WholeNumber, 1.3f, 1.12f, 120, 1.2f),
-                Create(DroneUpgradeId.EnergyShotDamage, DroneUpgradeGroup.Core, "Energy Shot Damage", DroneUpgradeValueFormat.OneDecimal, 2f, 0.95f, 120, 1.21f),
-                Create(DroneUpgradeId.EnergyShotCooldown, DroneUpgradeGroup.Core, "Fire Rate + Beam Speed", DroneUpgradeValueFormat.TwoDecimalSeconds, 0.58f, 0.72f, 150, 1.21f),
-                Create(DroneUpgradeId.LockOnSpeed, DroneUpgradeGroup.Core, "Lock-On Speed", DroneUpgradeValueFormat.TwoDecimalSeconds, 0.45f, 0.7f, 145, 1.2f),
                 Create(DroneUpgradeId.GroundMaximumSpeed, DroneUpgradeGroup.Ground, "Maximum Speed", DroneUpgradeValueFormat.OneDecimal, 1.5f, 1.08f, 90, 1.19f),
                 Create(DroneUpgradeId.GroundAcceleration, DroneUpgradeGroup.Ground, "Acceleration", DroneUpgradeValueFormat.OneDecimal, 1.7f, 0.88f, 75, 1.18f),
                 Create(DroneUpgradeId.GroundHandling, DroneUpgradeGroup.Ground, "Handling", DroneUpgradeValueFormat.OneDecimal, 1.55f, 0.8f, 80, 1.18f),

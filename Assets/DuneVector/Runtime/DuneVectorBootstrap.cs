@@ -1296,7 +1296,7 @@ namespace DuneVector
             TargetDetector = weaponObject.AddComponent<DroneTargetDetector>();
             TargetDetector.Initialize(Drone, DroneCamera.Camera, EnergyLauncherSettings, CourierGame);
             LockOnController = weaponObject.AddComponent<DroneLockOnController>();
-            LockOnController.Initialize(TargetDetector, EnergyLauncherSettings, PermanentUpgrades);
+            LockOnController.Initialize(TargetDetector, EnergyLauncherSettings);
             AudioManager?.BindLockOnController(LockOnController);
             EnergyLauncher = weaponObject.AddComponent<DroneEnergyLauncher>();
             EnergyLauncher.Initialize(
@@ -1305,8 +1305,7 @@ namespace DuneVector
                 World,
                 AudioManager,
                 LockOnController,
-                EnergyLauncherSettings,
-                PermanentUpgrades);
+                EnergyLauncherSettings);
             LockOnHUD = weaponObject.AddComponent<DroneLockOnHUD>();
             LockOnHUD.Initialize(Drone, DroneCamera.Camera, LockOnController, EnergyLauncherSettings);
             Player.EnergyLauncher = EnergyLauncher;
