@@ -503,6 +503,7 @@ namespace DuneVector
             World.Landmarks = Contracts.Enabled && WorldHubSettings.Enabled ? LandmarkSettings : null;
             World.GroundExploders = GroundExploders;
             DuneVectorEnemySpawnClearance.Configure(EnemySpawnSafety);
+            DuneVectorEnemyEngagementRing.Configure(EnemySpawnSafety);
             World.Initialize(_materials);
         }
 

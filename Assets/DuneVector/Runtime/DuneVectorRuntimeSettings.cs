@@ -2063,6 +2063,12 @@ namespace DuneVector
         [Header("Player Deployment Clearance")]
         [Tooltip("Radius around the drone's contract or free roam deployment point that must stay free of enemies. Enemies inside the radius are never placed there, and any that already exist are removed when the drone arrives.")]
         [Min(0f)] public float PlayerSpawnClearanceRadius = 20f;
+
+        [Header("Attack Range Clearance")]
+        [Tooltip("Multiplies an enemy's own attack range to set the closest it may be placed around the drone. Enemies live in a bubble around the drone, so a value below 1 lets them appear already inside their engagement envelope and they never get to use their full range. 1 places them exactly on the edge of it; higher values give them room to close the distance first.")]
+        [Min(0.1f)] public float EnemyAttackRangeMargin = 1.2f;
+        [Tooltip("Multiplies an enemy's outer placement ring to set the distance at which it is repositioned back around the drone. Must stay above 1 or an enemy placed on its outer ring is immediately repositioned again.")]
+        [Min(1f)] public float EnemyRepositionHeadroom = 1.15f;
     }
 
     [System.Serializable]

@@ -102,6 +102,79 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void PlayerRelativeEnemyRingsStayOutsideTheirOwnAttackRange()
+        {
+            DuneVectorRuntimeSettings settings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            Assert.That(settings, Is.Not.Null);
+
+            DuneVectorEnemySpawnClearance.Clear();
+            DuneVectorEnemyEngagementRing.Configure(settings.EnemySpawnSafety);
+
+            try
+            {
+                AssertAuthoredRings(settings);
+            }
+            finally
+            {
+                DuneVectorEnemyEngagementRing.ResetToDefaults();
+            }
+        }
+
+        private static void AssertAuthoredRings(DuneVectorRuntimeSettings settings)
+        {
+            AssertRingClearsAttackRange(
+                "Storm Pyramid",
+                settings.StormPyramids.MinimumSpawnDistance,
+                settings.StormPyramids.MaximumSpawnDistance,
+                settings.StormPyramids.RepositionDistance,
+                settings.StormPyramids.DetectionRange);
+            AssertRingClearsAttackRange(
+                "Strike Ring",
+                settings.PlayerStrikeOrbs.MinimumSpawnDistance,
+                settings.PlayerStrikeOrbs.MaximumSpawnDistance,
+                settings.PlayerStrikeOrbs.RepositionDistance,
+                settings.PlayerStrikeOrbs.EvaluateDetectionRange(
+                    settings.PlayerStrikeOrbs.DetectionRangeRankCeiling));
+        }
+
+        private static void AssertRingClearsAttackRange(
+            string enemyName,
+            float authoredMinimum,
+            float authoredMaximum,
+            float authoredRepositionDistance,
+            float attackRange)
+        {
+            float minimum = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
+                authoredMinimum,
+                attackRange);
+            float maximum = DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
+                minimum,
+                authoredMinimum,
+                authoredMaximum);
+            float repositionDistance = DuneVectorEnemyEngagementRing.ResolveRepositionDistance(
+                authoredRepositionDistance,
+                maximum);
+
+            Assert.That(
+                minimum,
+                Is.GreaterThan(attackRange),
+                $"{enemyName} must appear outside its own attack range so it can engage from full range.");
+            Assert.That(
+                maximum,
+                Is.GreaterThanOrEqualTo(minimum),
+                $"{enemyName} must keep a non-inverted spawn band.");
+            Assert.That(
+                maximum - minimum,
+                Is.EqualTo(Mathf.Max(0f, authoredMaximum - authoredMinimum)).Within(0.001f),
+                $"{enemyName} must keep its authored spawn band width after the ring is pushed out.");
+            Assert.That(
+                repositionDistance,
+                Is.GreaterThan(maximum),
+                $"{enemyName} must not reposition an enemy that was just placed on its outer ring.");
+        }
+
+        [Test]
         public void Seed49109DeploymentRechecksPortalClearanceAfterStreaming()
         {
             DuneVectorRuntimeSettings settings =
