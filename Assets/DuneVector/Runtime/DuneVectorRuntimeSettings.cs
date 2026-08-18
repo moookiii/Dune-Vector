@@ -1494,6 +1494,8 @@ namespace DuneVector
         public string ArchiveTerminalName = "MESSAGE ARCHIVE";
         public string FreeRoamTerminalName = "FREE ROAM TERMINAL";
         public string FreeRoamTerminalNearbyPrompt = "PRESS E — DEPLOY TO FREE ROAM";
+        [Tooltip("Replaces the free roam prompt once at least one risk has been played and the terminal opens the risk selector instead of deploying immediately.")]
+        public string FreeRoamTerminalRiskSelectPrompt = "PRESS E — SELECT FREE ROAM RISK";
         public string TerminalNearbyPromptFormat = "PRESS E — OPEN {0}";
         public string TerminalDistancePromptFormat = "{0}  {1:0} m";
 
@@ -1590,6 +1592,18 @@ namespace DuneVector
         [Min(0f)] public float TerminalContractOrderPipGap = 3f;
         [Range(1, 50)] public int TerminalRiskPipsPerRow = 10;
         [Min(0f)] public float TerminalRiskPipRowGap = 3f;
+
+        [Header("Free Roam Risk Selector")]
+        public string FreeRoamTerminalSubtitle = "COURIER AERIE  /  OPEN DESERT";
+        public string FreeRoamTerminalTitle = "SELECT DEPLOYMENT RISK";
+        public string FreeRoamTerminalFooter = "THE DESERT HOLDS THE SELECTED RISK FOR THE WHOLE DEPLOYMENT";
+        [Tooltip("Header line under the title. {0} is the highest risk played, {1} is the wallet balance.")]
+        public string FreeRoamTerminalMetaFormat = "RISKS UNLOCKED  {0:00}      WALLET  {1:N0} GOLD";
+        [Tooltip("Payout line on each risk tile. {0} is the delivery gold multiplier at that risk.")]
+        public string FreeRoamRiskTilePayoutFormat = "{0:0.0}x DELIVERY GOLD";
+        [Range(2, 10)] public int FreeRoamRiskColumns = 5;
+        [Min(40f)] public float FreeRoamRiskTileHeight = 92f;
+        [Min(0f)] public float FreeRoamRiskTileGap = 12f;
         [Min(0f)] public float TerminalPanelBorderThickness = 2f;
         public Vector2 TerminalPanelShadowOffset = new Vector2(12f, 14f);
         [Min(180f)] public float TerminalTooltipWidth = 360f;
@@ -7001,6 +7015,9 @@ namespace DuneVector
         [Tooltip("Streak tiers, lowest first. The highest tier whose Minimum Streak is met sets the payout multiplier.")]
         public List<FreeRoamStreakTier> StreakTiers = new List<FreeRoamStreakTier>();
 
+        [Tooltip("Delivery gold is multiplied by 1 plus the running risk times this value, so risk 5 pays double at 0.2.")]
+        [Min(0f)] public float RiskGoldMultiplierPerRisk = 0.2f;
+
         [Header("Streak Counter HUD")]
         [Tooltip("Pixel gap between the lowest right-hand HUD panel (gold, or the upper-flight-layer " +
                  "tracker while it is showing) and the top of the streak counter.")]
@@ -7172,9 +7189,20 @@ namespace DuneVector
             return Mathf.Max(0, risk);
         }
 
-        public int EvaluateDeliveryGold(int streak)
+        /// <summary>
+        /// Streak tier and running risk both pay. The risk term is the reason a player picks a
+        /// harder desert from the free roam terminal, so it multiplies the tier payout rather
+        /// than replacing it.
+        /// </summary>
+        public int EvaluateDeliveryGold(int streak, int risk)
         {
-            return Mathf.Max(0, Mathf.RoundToInt(BaseDeliveryGold * EvaluateTier(streak).GoldMultiplier));
+            float goldMultiplier = EvaluateTier(streak).GoldMultiplier * EvaluateRiskGoldMultiplier(risk);
+            return Mathf.Max(0, Mathf.RoundToInt(BaseDeliveryGold * goldMultiplier));
+        }
+
+        public float EvaluateRiskGoldMultiplier(int risk)
+        {
+            return 1f + (Mathf.Max(0, risk) * Mathf.Max(0f, RiskGoldMultiplierPerRisk));
         }
 
         /// <summary>

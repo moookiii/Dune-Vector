@@ -223,6 +223,12 @@ namespace DuneVector
 
         /// <summary>Contract risk the current leg applies to enemies.</summary>
         public int RouteRisk { get; private set; }
+
+        /// <summary>
+        /// Risk the player chose at the free roam terminal, or zero when the deployment predates
+        /// any unlocked risk and the streak curve is left to drive escalation on its own.
+        /// </summary>
+        public int DeploymentRisk { get; private set; }
         public bool IsCarryingCargo => Phase == FreeRoamDeliveryPhase.Deliver && _package != null;
         public Transform ActiveObjective { get; private set; }
         public LogicalPosition ActiveObjectiveLogicalPosition { get; private set; }
@@ -295,13 +301,14 @@ namespace DuneVector
         /// Starts a fresh free-roam run. Every landmark used during the previous deployment is
         /// forgotten and the streak restarts at zero.
         /// </summary>
-        public void BeginDeployment()
+        public void BeginDeployment(int deploymentRisk)
         {
             if (_settings == null || !_settings.Enabled)
             {
                 return;
             }
 
+            DeploymentRisk = Mathf.Max(0, deploymentRisk);
             ClearRuntimeObjects();
             _usedLandmarkIds.Clear();
             Streak = 0;
@@ -314,6 +321,7 @@ namespace DuneVector
         {
             ClearRuntimeObjects();
             Phase = FreeRoamDeliveryPhase.Inactive;
+            DeploymentRisk = 0;
             Streak = 0;
             _streakPunchTimer = 0f;
         }
@@ -415,7 +423,7 @@ namespace DuneVector
                 ? _zoneRing.transform.position
                 : _player.WorldCenter;
             Streak++;
-            int reward = _settings.EvaluateDeliveryGold(Streak);
+            int reward = _settings.EvaluateDeliveryGold(Streak, RouteRisk);
             _lastRewardGold = reward;
             _wallet?.AddGold(reward);
             _progress?.RecordFreeRoamDelivery(reward, Streak);
@@ -497,12 +505,19 @@ namespace DuneVector
         /// enemies both climb with the streak, so an unbroken run drifts toward longer routes
         /// through the authored dangerous landmarks without ever changing the default 100m feel
         /// at a low streak.
+        ///
+        /// A risk chosen at the free roam terminal overrides that curve outright: the player
+        /// picked the desert they wanted, so every leg holds it instead of drifting off the
+        /// selection as the streak climbs. Hard routes still roll for their longer legs and
+        /// dangerous landmarks, they just no longer move the risk.
         /// </summary>
         private void RollRouteEscalation()
         {
             double roll = _random != null ? _random.NextDouble() : UnityEngine.Random.value;
             IsHardRoute = roll < _settings.EvaluateHardRouteChance(Streak);
-            RouteRisk = _settings.EvaluateRouteRisk(Streak, IsHardRoute);
+            RouteRisk = DeploymentRisk > 0
+                ? DeploymentRisk
+                : _settings.EvaluateRouteRisk(Streak, IsHardRoute);
             DuneVectorContractRisk.Configure(_contractSettings, RouteRisk);
         }
 
@@ -783,8 +798,8 @@ namespace DuneVector
 
             string multiplierText = $"{Streak}x";
             string labelText = IsHardRoute && !string.IsNullOrEmpty(_settings.HardRoutePrefix)
-                ? $"{tier.Label}  •  {_settings.EvaluateDeliveryGold(Streak)} GOLD PER DROP  •  {_settings.HardRoutePrefix}"
-                : $"{tier.Label}  •  {_settings.EvaluateDeliveryGold(Streak)} GOLD PER DROP";
+                ? $"{tier.Label}  •  {_settings.EvaluateDeliveryGold(Streak, RouteRisk)} GOLD PER DROP  •  {_settings.HardRoutePrefix}"
+                : $"{tier.Label}  •  {_settings.EvaluateDeliveryGold(Streak, RouteRisk)} GOLD PER DROP";
             DrawShadowedLabel(multiplierRect, multiplierText, _multiplierStyle, tier.Color);
             DrawShadowedLabel(labelRect, labelText, _labelStyle, _settings.StreakLabelColor);
             if (punch > 0f && _lastRewardGold > 0)

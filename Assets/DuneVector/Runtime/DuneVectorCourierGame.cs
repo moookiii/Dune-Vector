@@ -109,11 +109,12 @@ namespace DuneVector
         [Serializable]
         private sealed class SaveData
         {
-            public int Version = 7;
+            public int Version = 8;
             public int CompletedDeliveries;
             public int FailedDeliveries;
             public int TotalContractGold;
             public int HighestDifficulty;
+            public int HighestRiskPlayed;
             public int FreeRoamDeliveries;
             public int TotalFreeRoamGold;
             public int HighestFreeRoamStreak;
@@ -129,6 +130,13 @@ namespace DuneVector
         public int FailedDeliveries { get; private set; }
         public int TotalContractGold { get; private set; }
         public int HighestDifficulty { get; private set; }
+
+        /// <summary>
+        /// Highest risk the courier has actually deployed on, contract or free roam. Free roam
+        /// reads this to decide which risks the player may redeploy into, so a risk becomes
+        /// selectable the moment it is flown rather than only once it is survived.
+        /// </summary>
+        public int HighestRiskPlayed { get; private set; }
         public int FreeRoamDeliveries { get; private set; }
         public int TotalFreeRoamGold { get; private set; }
         public int HighestFreeRoamStreak { get; private set; }
@@ -163,6 +171,18 @@ namespace DuneVector
             {
                 PendingDeliveryMessageIndex = NextDeliveryMessageIndex;
             }
+            Save();
+            Changed?.Invoke();
+        }
+
+        public void RecordRiskPlayed(int risk)
+        {
+            if (risk <= HighestRiskPlayed)
+            {
+                return;
+            }
+
+            HighestRiskPlayed = risk;
             Save();
             Changed?.Invoke();
         }
@@ -264,6 +284,7 @@ namespace DuneVector
             FailedDeliveries = 0;
             TotalContractGold = 0;
             HighestDifficulty = 0;
+            HighestRiskPlayed = 0;
             FreeRoamDeliveries = 0;
             TotalFreeRoamGold = 0;
             HighestFreeRoamStreak = 0;
@@ -294,6 +315,11 @@ namespace DuneVector
                 FailedDeliveries = Mathf.Max(0, data.FailedDeliveries);
                 TotalContractGold = Mathf.Max(0, data.TotalContractGold);
                 HighestDifficulty = Mathf.Max(0, data.HighestDifficulty);
+                // Saves that predate the risk selector never tracked deployments, so the highest
+                // completed risk is the best evidence of what was flown.
+                HighestRiskPlayed = data.Version >= 8
+                    ? Mathf.Max(0, data.HighestRiskPlayed)
+                    : HighestDifficulty;
                 if (data.Version >= 2)
                 {
                     NextDeliveryMessageIndex = Mathf.Max(0, data.NextDeliveryMessageIndex);
@@ -350,6 +376,7 @@ namespace DuneVector
                     FailedDeliveries = FailedDeliveries,
                     TotalContractGold = TotalContractGold,
                     HighestDifficulty = HighestDifficulty,
+                    HighestRiskPlayed = HighestRiskPlayed,
                     FreeRoamDeliveries = FreeRoamDeliveries,
                     TotalFreeRoamGold = TotalFreeRoamGold,
                     HighestFreeRoamStreak = HighestFreeRoamStreak,
@@ -427,7 +454,30 @@ namespace DuneVector
         public int ArchivedMessageCount => GetArchivedMessageCount();
         public int HubTerminalMenuKind => (int)_hubTerminalMode;
         public int HubTerminalSelectedIndex => _hubTerminalSelectedIndex;
-        public int HubTerminalChoiceCount => _hubTerminalMode == HubTerminalMode.Contracts ? _offers.Count : 0;
+        public int HubTerminalChoiceCount =>
+            _hubTerminalMode == HubTerminalMode.Contracts
+                ? _offers.Count
+                : _hubTerminalMode == HubTerminalMode.FreeRoam
+                    ? UnlockedFreeRoamRiskCount
+                    : 0;
+
+        /// <summary>
+        /// Risk the free roam terminal deploys at while nothing has been played yet. Contracts
+        /// start at risk 1, so free roam without a selection matches the first contract desert.
+        /// </summary>
+        private const int DefaultFreeRoamRisk = 1;
+
+        /// <summary>
+        /// Every risk the courier has already flown, lowest first. The selector exists once this
+        /// is non-empty; before then the free roam terminal deploys on contact as it always did.
+        /// </summary>
+        public int UnlockedFreeRoamRiskCount => Progress != null
+            ? Mathf.Clamp(Progress.HighestRiskPlayed, 0, Mathf.Max(1, _settings.MaximumRisk))
+            : 0;
+        public bool IsFreeRoamRiskSelectionUnlocked => UnlockedFreeRoamRiskCount > 0;
+
+        /// <summary>Risk chosen for the last free roam deployment, or zero when none was chosen.</summary>
+        public int SelectedFreeRoamRisk => _freeRoamRisk;
         public bool HubTerminalConfirmValid =>
             State == CourierRunState.Hub &&
             _hubTerminalMode == HubTerminalMode.Contracts &&
@@ -537,6 +587,8 @@ namespace DuneVector
         private bool _infiniteHealthBeforeDeliveryMessage;
         private HubTerminalMode _hubTerminalMode;
         private int _hubTerminalSelectedIndex;
+        private int _freeRoamRisk;
+        private Vector2 _freeRoamRiskScrollPosition;
         private bool _unknownRevealed;
         private bool _wasGrounded;
         private float _minimumAirVerticalSpeed;
@@ -818,13 +870,28 @@ namespace DuneVector
             return true;
         }
 
+        /// <summary>
+        /// Deploys without a chosen risk. The streak escalation curve then drives the desert, which
+        /// is how free roam behaved before any risk was unlocked in the terminal.
+        /// </summary>
         public bool StartFreeRoam()
+        {
+            return StartFreeRoam(0);
+        }
+
+        /// <summary>
+        /// Deploys to free roam with the desert pinned at <paramref name="risk"/>. Risks above the
+        /// highest one the courier has played are not selectable, so the terminal can never send
+        /// the drone somewhere the contract board has not already been.
+        /// </summary>
+        public bool StartFreeRoam(int risk)
         {
             if (State != CourierRunState.Hub)
             {
                 return false;
             }
 
+            _freeRoamRisk = risk > 0 ? ClampFreeRoamRisk(risk) : 0;
             ActiveContract = null;
             CleanupContractObjects();
             _freeRoamDeliveries?.EndDeployment();
@@ -1028,11 +1095,28 @@ namespace DuneVector
                 return;
             }
 
+            if (_hubTerminalMode == HubTerminalMode.FreeRoam)
+            {
+                int riskCount = UnlockedFreeRoamRiskCount;
+                if (riskCount > 0 && Mathf.Abs(command.MenuNavigate) > 0.5f)
+                {
+                    int direction = command.MenuNavigate > 0f ? 1 : -1;
+                    _hubTerminalSelectedIndex =
+                        (_hubTerminalSelectedIndex + direction + riskCount) % riskCount;
+                }
+                if (command.ConfirmPressed && riskCount > 0)
+                {
+                    StartFreeRoam(_hubTerminalSelectedIndex + 1);
+                }
+                _playerInput?.ConsumeContextualActions();
+                return;
+            }
+
             if (_hubTerminalMode == HubTerminalMode.None && command.InteractPressed &&
                 TryGetNearestHubTerminal(out HubTerminalMode mode, out _, out float distance, out float radius) &&
                 distance <= radius)
             {
-                if (mode == HubTerminalMode.FreeRoam)
+                if (mode == HubTerminalMode.FreeRoam && !IsFreeRoamRiskSelectionUnlocked)
                 {
                     StartFreeRoam();
                 }
@@ -3026,15 +3110,22 @@ namespace DuneVector
             {
                 bool isFreeRoam = ActiveContract == null;
                 State = isFreeRoam ? CourierRunState.FreeRoam : CourierRunState.FindPackage;
-                int risk = ActiveContract != null ? ActiveContract.Difficulty : 1;
+                int risk = ActiveContract != null
+                    ? ActiveContract.Difficulty
+                    : _freeRoamRisk > 0
+                        ? ClampFreeRoamRisk(_freeRoamRisk)
+                        : DefaultFreeRoamRisk;
                 DuneVectorContractRisk.Configure(_settings, risk);
+                // Playing a risk is what unlocks it in the free roam selector, so it is recorded
+                // at deployment rather than on completion.
+                Progress?.RecordRiskPlayed(risk);
                 _sandAmbusherSystem?.BeginContract(risk, ActiveContract != null ? ActiveContract.Seed : 0);
                 EndDeliveryMessageSafety();
                 SetCombatSystemsActive(true);
                 _playerInput.SetInputEnabled(true);
                 ShowStatus(
                     isFreeRoam
-                        ? "FREE ROAM DEPLOYED"
+                        ? $"FREE ROAM DEPLOYED — RISK {risk}"
                         : risk >= Mathf.Max(1, _settings.SandAmbusherMinimumRisk)
                         ? $"RISK {risk} // SAND AMBUSHERS ACTIVE"
                         : "CONTRACT DEPLOYED — LOCATE CARGO",
@@ -3042,7 +3133,7 @@ namespace DuneVector
                 if (isFreeRoam)
                 {
                     // Runs after the deployment banner so the first pickup callout replaces it.
-                    _freeRoamDeliveries?.BeginDeployment();
+                    _freeRoamDeliveries?.BeginDeployment(_freeRoamRisk);
                 }
             }
         }
@@ -3282,6 +3373,12 @@ namespace DuneVector
             SetHubTerminalMode(open ? HubTerminalMode.Contracts : HubTerminalMode.None);
         }
 
+        private int ClampFreeRoamRisk(int risk)
+        {
+            int highestSelectable = Mathf.Max(DefaultFreeRoamRisk, UnlockedFreeRoamRiskCount);
+            return Mathf.Clamp(risk, DefaultFreeRoamRisk, highestSelectable);
+        }
+
         private void SetHubTerminalMode(HubTerminalMode mode)
         {
             _hubTerminalMode = mode;
@@ -3289,9 +3386,22 @@ namespace DuneVector
             {
                 _hubTerminalSelectedIndex = Mathf.Clamp(_hubTerminalSelectedIndex, 0, Mathf.Max(0, _offers.Count - 1));
             }
+            else if (mode == HubTerminalMode.FreeRoam)
+            {
+                // Opening the selector lands on the risk the courier deployed at last, so
+                // redeploying into the same desert is a confirm rather than a re-navigation.
+                _hubTerminalSelectedIndex = Mathf.Clamp(
+                    ClampFreeRoamRisk(_freeRoamRisk) - 1,
+                    0,
+                    Mathf.Max(0, UnlockedFreeRoamRiskCount - 1));
+            }
             if (mode != HubTerminalMode.MessageArchive)
             {
                 _archiveScrollPosition = Vector2.zero;
+            }
+            if (mode != HubTerminalMode.FreeRoam)
+            {
+                _freeRoamRiskScrollPosition = Vector2.zero;
             }
             if (State != CourierRunState.Hub)
             {
@@ -3607,6 +3717,10 @@ namespace DuneVector
             {
                 DrawMessageArchiveTerminal();
             }
+            else if (_hubTerminalMode == HubTerminalMode.FreeRoam && State == CourierRunState.Hub)
+            {
+                DrawFreeRoamTerminal();
+            }
             else if (State == CourierRunState.Hub && !IsGameplayHudSuppressed)
             {
                 if (_messagePresenter == null || !_messagePresenter.IsOpen)
@@ -3794,6 +3908,166 @@ namespace DuneVector
             {
                 AcceptContract(selectedOffer);
             }
+        }
+
+        /// <summary>
+        /// Risk board for free roam. Every risk the courier has already deployed on is offered as
+        /// its own tile with the delivery payout it pays, and the chosen one pins the desert for
+        /// the whole deployment. The panel reuses the contract terminal's chrome and scale so the
+        /// two hub screens read as the same machine.
+        /// </summary>
+        private void DrawFreeRoamTerminal()
+        {
+            GUI.depth = -1100;
+            Color previousBackground = GUI.backgroundColor;
+            Matrix4x4 previousMatrix = GUI.matrix;
+            DrawSolidRect(new Rect(0f, 0f, Screen.width, Screen.height), _hubSettings.TerminalBackdropColor);
+
+            float minimumScale = Mathf.Min(_hubSettings.TerminalMinimumScale, _hubSettings.TerminalMaximumScale);
+            float maximumScale = Mathf.Max(_hubSettings.TerminalMinimumScale, _hubSettings.TerminalMaximumScale);
+            float scale = Mathf.Clamp(
+                Mathf.Min(
+                    Screen.width / Mathf.Max(1f, _hubSettings.TerminalReferenceWidth),
+                    Screen.height / Mathf.Max(1f, _hubSettings.TerminalReferenceHeight)),
+                minimumScale,
+                maximumScale);
+            GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
+            float virtualWidth = Screen.width / scale;
+            float virtualHeight = Screen.height / scale;
+            float width = Mathf.Min(_hubSettings.TerminalPanelWidth, virtualWidth - (_hubSettings.TerminalScreenMargin * 2f));
+            float height = Mathf.Min(_hubSettings.TerminalPanelHeight, virtualHeight - (_hubSettings.TerminalScreenMargin * 2f));
+            Rect panel = new Rect((virtualWidth - width) * 0.5f, (virtualHeight - height) * 0.5f, width, height);
+            Rect shadow = new Rect(
+                panel.x + _hubSettings.TerminalPanelShadowOffset.x,
+                panel.y + _hubSettings.TerminalPanelShadowOffset.y,
+                panel.width,
+                panel.height);
+            DrawSolidRect(shadow, _hubSettings.TerminalShadowColor);
+            GUI.Box(panel, GUIContent.none, _terminalPanelStyle);
+            DrawBorder(panel, _hubSettings.TerminalBorderColor, _hubSettings.TerminalPanelBorderThickness);
+            DrawSolidRect(
+                new Rect(panel.x, panel.y, panel.width, _hubSettings.TerminalAccentBarHeight),
+                _hubSettings.TerminalAccentColor);
+
+            float padding = _hubSettings.TerminalPadding;
+            float contentWidth = panel.width - (padding * 2f);
+            GUI.Label(
+                new Rect(panel.x + padding, panel.y + 15f, contentWidth, 18f),
+                _hubSettings.FreeRoamTerminalSubtitle ?? string.Empty,
+                _terminalSubtitleStyle);
+            GUI.Label(
+                new Rect(panel.x + padding, panel.y + 34f, contentWidth, 40f),
+                _hubSettings.FreeRoamTerminalTitle ?? string.Empty,
+                _terminalTitleStyle);
+            _terminalActionStyle.normal.textColor = GuiTextColor(_hubSettings.TerminalAccentColor);
+            GUI.Label(
+                new Rect(panel.xMax - padding - 120f, panel.y + 15f, 120f, 18f),
+                "ESC  CLOSE",
+                _terminalActionStyle);
+
+            int riskCount = UnlockedFreeRoamRiskCount;
+            GUI.Label(
+                new Rect(panel.x + padding, panel.y + 78f, contentWidth, 26f),
+                FormatDesignerText(
+                    _hubSettings.FreeRoamTerminalMetaFormat,
+                    riskCount,
+                    _wallet != null ? _wallet.Gold : 0),
+                _terminalMetaStyle);
+            DrawSolidRect(
+                new Rect(panel.x + padding, panel.y + _hubSettings.TerminalHeaderHeight - 2f, contentWidth, 1f),
+                _hubSettings.TerminalDividerColor);
+
+            float gridTop = panel.y + _hubSettings.TerminalHeaderHeight + 12f;
+            float gridBottom = panel.yMax - _hubSettings.TerminalFooterHeight - padding;
+            Rect gridViewport = new Rect(
+                panel.x + padding,
+                gridTop,
+                contentWidth,
+                Mathf.Max(1f, gridBottom - gridTop));
+            int selectedRisk = 0;
+            if (riskCount > 0)
+            {
+                int columns = Mathf.Clamp(_hubSettings.FreeRoamRiskColumns, 2, 10);
+                columns = Mathf.Min(columns, riskCount);
+                int rowCount = Mathf.CeilToInt(riskCount / (float)columns);
+                float tileGap = _hubSettings.FreeRoamRiskTileGap;
+                float tileHeight = _hubSettings.FreeRoamRiskTileHeight;
+                float gridHeight = (rowCount * tileHeight) + (Mathf.Max(0, rowCount - 1) * tileGap);
+                bool needsScrollbar = gridHeight > gridViewport.height;
+                float usableWidth = gridViewport.width - (needsScrollbar ? 18f : 0f);
+                float tileWidth = Mathf.Max(
+                    1f,
+                    (usableWidth - (Mathf.Max(0, columns - 1) * tileGap)) / columns);
+                _freeRoamRiskScrollPosition = GUI.BeginScrollView(
+                    gridViewport,
+                    _freeRoamRiskScrollPosition,
+                    new Rect(0f, 0f, usableWidth, Mathf.Max(gridViewport.height, gridHeight)),
+                    false,
+                    needsScrollbar);
+                for (int index = 0; index < riskCount; index++)
+                {
+                    Rect tile = new Rect(
+                        (index % columns) * (tileWidth + tileGap),
+                        (index / columns) * (tileHeight + tileGap),
+                        tileWidth,
+                        tileHeight);
+                    if (DrawFreeRoamRiskTile(tile, index + 1, index == _hubTerminalSelectedIndex))
+                    {
+                        selectedRisk = index + 1;
+                    }
+                }
+                GUI.EndScrollView();
+            }
+
+            DrawSolidRect(
+                new Rect(panel.x + padding, panel.yMax - _hubSettings.TerminalFooterHeight, contentWidth, 1f),
+                _hubSettings.TerminalDividerColor);
+            GUI.Label(
+                new Rect(
+                    panel.x + padding,
+                    panel.yMax - _hubSettings.TerminalFooterHeight + 7f,
+                    contentWidth,
+                    22f),
+                _hubSettings.FreeRoamTerminalFooter ?? string.Empty,
+                _terminalMetaStyle);
+
+            GUI.matrix = previousMatrix;
+            GUI.backgroundColor = previousBackground;
+            if (selectedRisk > 0)
+            {
+                _hubTerminalSelectedIndex = selectedRisk - 1;
+                StartFreeRoam(selectedRisk);
+            }
+        }
+
+        private bool DrawFreeRoamRiskTile(Rect tile, int risk, bool selected)
+        {
+            bool deploy = GUI.Button(tile, GUIContent.none, _terminalButtonStyle);
+            Color accent = selected
+                ? _hubSettings.TerminalAccentColor
+                : _hubSettings.TerminalDividerColor;
+            DrawSolidRect(
+                new Rect(tile.x, tile.y, _hubSettings.TerminalCardAccentWidth, tile.height),
+                accent);
+            if (selected)
+            {
+                DrawBorder(tile, _hubSettings.TerminalAccentColor, _hubSettings.TerminalPanelBorderThickness);
+            }
+
+            float left = tile.x + _hubSettings.TerminalCardAccentWidth + 12f;
+            float contentWidth = Mathf.Max(1f, tile.xMax - 12f - left);
+            GUI.Label(new Rect(left, tile.y + 10f, contentWidth, 27f), $"RISK  {risk:00}", _terminalDestinationStyle);
+            _terminalKickerStyle.normal.textColor = GuiTextColor(_hubSettings.TerminalMutedTextColor);
+            GUI.Label(
+                new Rect(left, tile.y + 40f, contentWidth, 18f),
+                FormatDesignerText(
+                    _hubSettings.FreeRoamRiskTilePayoutFormat,
+                    _freeRoamSettings.EvaluateRiskGoldMultiplier(risk)),
+                _terminalKickerStyle);
+            _terminalActionStyle.normal.textColor = GuiTextColor(
+                selected ? _hubSettings.TerminalAccentColor : _hubSettings.TerminalMutedTextColor);
+            GUI.Label(new Rect(left, tile.yMax - 26f, contentWidth, 20f), "DEPLOY", _terminalActionStyle);
+            return deploy;
         }
 
         private void DrawMessageArchiveTerminal()
@@ -4204,7 +4478,9 @@ namespace DuneVector
                 }
                 string prompt = distance <= interactionRadius
                     ? mode == HubTerminalMode.FreeRoam
-                        ? _hubSettings.FreeRoamTerminalNearbyPrompt
+                        ? IsFreeRoamRiskSelectionUnlocked
+                            ? _hubSettings.FreeRoamTerminalRiskSelectPrompt
+                            : _hubSettings.FreeRoamTerminalNearbyPrompt
                         : FormatDesignerText(_hubSettings.TerminalNearbyPromptFormat, terminalName)
                     : FormatDesignerText(_hubSettings.TerminalDistancePromptFormat, terminalName, distance);
                 float promptWidth = Mathf.Min(_hubSettings.TerminalPromptWidth, Screen.width);
