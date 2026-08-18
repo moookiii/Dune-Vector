@@ -110,32 +110,41 @@ namespace DuneVector.Tests
 
             DuneVectorEnemySpawnClearance.Clear();
             DuneVectorEnemyEngagementRing.Configure(settings.EnemySpawnSafety);
+            GameObject worldObject = new GameObject("Enemy Ring Spawn Horizon Test World");
 
             try
             {
-                AssertAuthoredRings(settings);
+                DesertWorldStreamer world = worldObject.AddComponent<DesertWorldStreamer>();
+                world.ChunkSize = settings.DuneChunkSize;
+                world.PreloadRadius = settings.WorldStreaming.PreloadRadius;
+                AssertAuthoredRings(settings, world);
             }
             finally
             {
+                UnityEngine.Object.DestroyImmediate(worldObject);
                 DuneVectorEnemyEngagementRing.ResetToDefaults();
             }
         }
 
-        private static void AssertAuthoredRings(DuneVectorRuntimeSettings settings)
+        private static void AssertAuthoredRings(
+            DuneVectorRuntimeSettings settings,
+            DesertWorldStreamer world)
         {
             AssertRingClearsAttackRange(
                 "Storm Pyramid",
                 settings.StormPyramids.MinimumSpawnDistance,
                 settings.StormPyramids.MaximumSpawnDistance,
                 settings.StormPyramids.RepositionDistance,
-                settings.StormPyramids.DetectionRange);
+                settings.StormPyramids.DetectionRange,
+                world);
             AssertRingClearsAttackRange(
                 "Strike Ring",
                 settings.PlayerStrikeOrbs.MinimumSpawnDistance,
                 settings.PlayerStrikeOrbs.MaximumSpawnDistance,
                 settings.PlayerStrikeOrbs.RepositionDistance,
                 settings.PlayerStrikeOrbs.EvaluateDetectionRange(
-                    settings.PlayerStrikeOrbs.DetectionRangeRankCeiling));
+                    settings.PlayerStrikeOrbs.DetectionRangeRankCeiling),
+                world);
         }
 
         private static void AssertRingClearsAttackRange(
@@ -143,11 +152,13 @@ namespace DuneVector.Tests
             float authoredMinimum,
             float authoredMaximum,
             float authoredRepositionDistance,
-            float attackRange)
+            float attackRange,
+            DesertWorldStreamer world)
         {
             float minimum = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
                 authoredMinimum,
-                attackRange);
+                attackRange,
+                world);
             float maximum = DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
                 minimum,
                 authoredMinimum,
@@ -160,6 +171,10 @@ namespace DuneVector.Tests
                 minimum,
                 Is.GreaterThan(attackRange),
                 $"{enemyName} must appear outside its own attack range so it can engage from full range.");
+            Assert.That(
+                minimum,
+                Is.GreaterThanOrEqualTo(world.ChunkSize * world.PreloadRadius),
+                $"{enemyName} must appear at least as far away as streamed traversal rings.");
             Assert.That(
                 maximum,
                 Is.GreaterThanOrEqualTo(minimum),

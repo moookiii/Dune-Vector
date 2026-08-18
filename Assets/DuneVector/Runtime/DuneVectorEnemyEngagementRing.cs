@@ -49,6 +49,24 @@ namespace DuneVector
         }
 
         /// <summary>
+        /// Raises the enemy ring to the same radial horizon used to preload streamed traversal
+        /// rings. This keeps persistent aerial enemies from materialising inside an area whose
+        /// traversal rings have already been visible to the player for several seconds.
+        /// </summary>
+        public static float ResolveMinimumDistance(
+            float authoredMinimum,
+            float attackRange,
+            DesertWorldStreamer world)
+        {
+            float traversalRingSpawnDistance = world != null
+                ? Mathf.Max(0f, world.ChunkSize) * Mathf.Max(1, world.PreloadRadius)
+                : 0f;
+            return Mathf.Max(
+                ResolveMinimumDistance(authoredMinimum, attackRange),
+                traversalRingSpawnDistance);
+        }
+
+        /// <summary>
         /// Rebuilds the outer ring from a resolved inner ring, preserving the authored band width so
         /// pushing the ring out never collapses its spread.
         /// </summary>

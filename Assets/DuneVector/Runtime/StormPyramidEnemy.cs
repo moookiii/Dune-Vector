@@ -67,6 +67,7 @@ namespace DuneVector
 
         private DroneCharacterController _player;
         private DroneHealth _playerHealth;
+        private DesertWorldStreamer _world;
         private StormPyramidTuning _settings;
         private StormPyramidMovement _movement;
         private StormPyramidTargeting _targeting;
@@ -96,6 +97,7 @@ namespace DuneVector
         {
             _player = player;
             _playerHealth = playerHealth;
+            _world = world;
             _settings = settings;
             _materials = materials;
             _explosionSettings = explosionSettings;
@@ -415,7 +417,8 @@ namespace DuneVector
         {
             float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
                 _settings.MinimumSpawnDistance,
-                _settings.DetectionRange);
+                _settings.DetectionRange,
+                _world);
             return DuneVectorEnemyEngagementRing.ResolveRepositionDistance(
                 _settings.RepositionDistance,
                 DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
@@ -634,7 +637,8 @@ namespace DuneVector
             float distance01 = Mathf.Repeat((_identity * 0.413f) + (_repositionCount * 0.271f), 1f);
             float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
                 _settings.MinimumSpawnDistance,
-                _settings.DetectionRange);
+                _settings.DetectionRange,
+                _world);
             float distance = Mathf.Lerp(
                 minimumDistance,
                 DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
@@ -1310,6 +1314,7 @@ namespace DuneVector
 
         private DroneCharacterController _player;
         private DroneHealth _playerHealth;
+        private DesertWorldStreamer _world;
         private PlayerStrikeOrbTuning _settings;
         private PlayerStrikeOrbMovement _movement;
         private PlayerStrikeOrbTargeting _targeting;
@@ -1343,6 +1348,7 @@ namespace DuneVector
         {
             _player = player;
             _playerHealth = playerHealth;
+            _world = world;
             _settings = settings;
             _materials = materials;
             _identity = identity;
@@ -1615,7 +1621,8 @@ namespace DuneVector
         {
             float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
                 _settings.MinimumSpawnDistance,
-                _settings.EvaluateDetectionRange(DuneVectorContractRisk.CurrentRisk));
+                _settings.EvaluateDetectionRange(DuneVectorContractRisk.CurrentRisk),
+                _world);
             return DuneVectorEnemyEngagementRing.ResolveRepositionDistance(
                 _settings.RepositionDistance,
                 DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
@@ -2006,7 +2013,8 @@ namespace DuneVector
             float distance01 = Mathf.Repeat((_identity * 0.397f) + (_repositionCount * 0.283f), 1f);
             float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
                 _settings.MinimumSpawnDistance,
-                _settings.EvaluateDetectionRange(DuneVectorContractRisk.CurrentRisk));
+                _settings.EvaluateDetectionRange(DuneVectorContractRisk.CurrentRisk),
+                _world);
             float distance = Mathf.Lerp(
                 minimumDistance,
                 DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
@@ -2742,7 +2750,8 @@ namespace DuneVector
             float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
             float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
                 _settings.MinimumSpawnDistance,
-                _settings.DetectionRange);
+                _settings.DetectionRange,
+                _world);
             float distance = Mathf.Lerp(
                 minimumDistance,
                 DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
@@ -2788,7 +2797,8 @@ namespace DuneVector
             float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
             float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
                 _orbSettings.MinimumSpawnDistance,
-                _orbSettings.EvaluateDetectionRange(DuneVectorContractRisk.CurrentRisk));
+                _orbSettings.EvaluateDetectionRange(DuneVectorContractRisk.CurrentRisk),
+                _world);
             float distance = Mathf.Lerp(
                 minimumDistance,
                 DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
