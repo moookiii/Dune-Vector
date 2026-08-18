@@ -104,10 +104,10 @@ namespace DuneVector
             float stateDeltaTime = playerIsDead && CurrentState == GroundExploderState.Exploding
                 ? Time.unscaledDeltaTime
                 : deltaTime;
-            float stateRate = CurrentState == GroundExploderState.TriggeredWindUp
-                ? DuneVectorContractRisk.EnemyAttackRateMultiplier
-                : 1f;
-            _stateTime += stateDeltaTime * stateRate;
+            // The triggered wind-up is a telegraph, not a cooldown. Risk never shortens it, so a
+            // high-risk tier pressures the player with more detonations to route around instead of
+            // with a warning too short to act on.
+            _stateTime += stateDeltaTime;
             switch (CurrentState)
             {
                 case GroundExploderState.Patrolling:

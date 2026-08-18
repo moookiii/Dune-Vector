@@ -29,6 +29,8 @@ namespace DuneVector
 
         private float _damageInvulnerability;
         private float _nextDamageTime;
+        private PlayerHealthTuning _settings;
+        private float _timeSinceDamage;
 
         public void Initialize(float maximumHealth, float damageInvulnerability, bool infiniteHealth = false)
         {
@@ -40,6 +42,38 @@ namespace DuneVector
             HasInfiniteHealth = infiniteHealth;
             LastDamageSource = "Unknown damage source";
             LastDeathMessage = "Destroyed by an unknown damage source.";
+            _timeSinceDamage = 0f;
+        }
+
+        public void ConfigureOutOfCombatRepair(PlayerHealthTuning settings)
+        {
+            _settings = settings;
+        }
+
+        private void Update()
+        {
+            if (_settings == null || !_settings.OutOfCombatRepairEnabled || IsDead || HasInfiniteHealth)
+            {
+                return;
+            }
+
+            _timeSinceDamage += Time.deltaTime;
+            if (_timeSinceDamage < Mathf.Max(0f, _settings.OutOfCombatRepairDelay))
+            {
+                return;
+            }
+
+            // A dense risk tier can cost most of the bar in a few seconds with no way to get it
+            // back inside a contract. Repair only starts well after the last hit, so it never
+            // rewards absorbing damage; it just stops one bad stretch from ending the run.
+            float ceiling = MaximumHealth * Mathf.Clamp01(_settings.OutOfCombatRepairMaximumFraction);
+            if (CurrentHealth >= ceiling)
+            {
+                return;
+            }
+
+            float repaired = Mathf.Max(0f, _settings.OutOfCombatRepairRate) * Time.deltaTime;
+            RestoreHealth(Mathf.Min(repaired, ceiling - CurrentHealth));
         }
 
         public void SetMaximumHealth(float maximumHealth, bool restoreAddedCapacity)
@@ -77,6 +111,7 @@ namespace DuneVector
             }
 
             _nextDamageTime = Time.time + _damageInvulnerability;
+            _timeSinceDamage = 0f;
             LastDamageSource = string.IsNullOrWhiteSpace(damageSource) ? "Unknown damage source" : damageSource;
             LastDeathMessage = string.IsNullOrWhiteSpace(deathMessage)
                 ? $"Destroyed by {LastDamageSource}."
@@ -167,6 +202,7 @@ namespace DuneVector
             IsDamageImmune = false;
             CurrentHealth = MaximumHealth;
             _nextDamageTime = Time.time;
+            _timeSinceDamage = 0f;
             HealthChanged?.Invoke(CurrentHealth, MaximumHealth);
 
             float restored = CurrentHealth - previousHealth;

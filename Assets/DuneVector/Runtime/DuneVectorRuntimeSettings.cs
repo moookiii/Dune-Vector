@@ -1015,8 +1015,26 @@ namespace DuneVector
         [Tooltip("Highest contract risk. Every board offer uses one risk per completed delivery, capped at this value.")]
         [Range(1, 100)] public int MaximumRisk = 20;
         [Min(0f)] public float RiskRewardMultiplierPerTier = 0.12f;
-        [Min(1f)] public float RiskEnemyMultiplierAtRankOne = 1.1f;
-        [Min(1f)] public float RiskEnemyMultiplierAtMaximumRank = 3f;
+        [Tooltip("Enemy hull multiplier at risk 1. The energy launcher divides its own damage by this value, so hull scaling changes how enemies read rather than how long they take to kill.")]
+        [Min(1f)] public float RiskEnemyHealthMultiplierAtRankOne = 1f;
+        [Tooltip("Enemy hull multiplier at Maximum Risk.")]
+        [Min(1f)] public float RiskEnemyHealthMultiplierAtMaximumRank = 1.5f;
+        [Tooltip("Enemy movement speed multiplier at risk 1.")]
+        [Min(1f)] public float RiskEnemySpeedMultiplierAtRankOne = 1f;
+        [Tooltip("Enemy movement speed multiplier at Maximum Risk. Keep this close to 1: speed shortens reaction windows faster than any other axis.")]
+        [Min(1f)] public float RiskEnemySpeedMultiplierAtMaximumRank = 1.15f;
+        [Tooltip("Enemy damage multiplier at risk 1. Leave damage flat across risk so high risk kills through accumulated mistakes rather than through hits the drone cannot survive.")]
+        [Min(1f)] public float RiskEnemyDamageMultiplierAtRankOne = 1f;
+        [Tooltip("Enemy damage multiplier at Maximum Risk.")]
+        [Min(1f)] public float RiskEnemyDamageMultiplierAtMaximumRank = 1f;
+        [Tooltip("Enemy attack cadence multiplier at risk 1.")]
+        [Min(1f)] public float RiskEnemyAttackRateMultiplierAtRankOne = 1f;
+        [Tooltip("Enemy attack cadence multiplier at Maximum Risk. This only shortens the idle wait between attacks; attack telegraphs are never scaled by risk.")]
+        [Min(1f)] public float RiskEnemyAttackRateMultiplierAtMaximumRank = 1f;
+        [Tooltip("Enemy population multiplier at risk 1.")]
+        [Min(1f)] public float RiskEnemySpawnMultiplierAtRankOne = 1f;
+        [Tooltip("Enemy population multiplier at Maximum Risk. This is the intended difficulty axis: more simultaneous threats to route around.")]
+        [Min(1f)] public float RiskEnemySpawnMultiplierAtMaximumRank = 2f;
         [Min(1)] public int RiskGroundEnemyReferenceCount = 8;
 
         public int EvaluateRisk(int completedDeliveries)
@@ -1030,9 +1048,20 @@ namespace DuneVector
         [Min(0.1f)] public float SandAmbusherBaseInterval = 2.4f;
         [Min(0f)] public float SandAmbusherIntervalReductionPerRisk = 0.55f;
         [Min(0.1f)] public float SandAmbusherMinimumInterval = 0.55f;
-        [Min(0f)] public float SandAmbusherMinimumTargetOffset = 0f;
-        [Tooltip("Random horizontal offset around the predicted player position.")]
-        [Min(0f)] public float SandAmbusherMaximumTargetOffset = 4f;
+        [Tooltip("Closest a Sand Ambusher can erupt to the predicted player position at risk 0. Keep this above the combined collision radii so the eruption is always a readable dodge rather than an unavoidable hit.")]
+        [Min(0f)] public float SandAmbusherMinimumTargetOffset = 6f;
+        [Tooltip("Random horizontal offset around the predicted player position at risk 0.")]
+        [Min(0f)] public float SandAmbusherMaximumTargetOffset = 11f;
+        [Tooltip("Closest a Sand Ambusher can erupt to the predicted player position at the target offset risk ceiling.")]
+        [Min(0f)] public float SandAmbusherMinimumTargetOffsetAtRiskCeiling = 4f;
+        [Tooltip("Random horizontal offset around the predicted player position at the target offset risk ceiling. Rising risk tightens the ring so the dodge window narrows without ever erupting directly underneath the drone.")]
+        [Min(0f)] public float SandAmbusherMaximumTargetOffsetAtRiskCeiling = 8f;
+        [Tooltip("Risk where the target offset range reaches its ceiling values.")]
+        [Min(1)] public int SandAmbusherTargetOffsetRiskCeiling = 20;
+        [Tooltip("Smallest horizontal spacing between a new Sand Ambusher and every ambusher already buried or attacking. Stops high risk from stacking overlapping eruptions on a single point.")]
+        [Min(0f)] public float SandAmbusherMinimumSeparation = 9f;
+        [Tooltip("Placement attempts made to satisfy Sand Ambusher Minimum Separation before the spawn is skipped for this interval.")]
+        [Range(1, 24)] public int SandAmbusherSeparationAttempts = 10;
         [Tooltip("Target prediction time at risk 0.")]
         [Min(0f)] public float SandAmbusherTargetPredictionTime = 1.7f;
         [Tooltip("Target prediction time at the configured risk ceiling.")]
@@ -1042,6 +1071,7 @@ namespace DuneVector
         [InspectorName("Sand Ambusher Minimum Attack Angle")]
         [Tooltip("Minimum angle above the horizon for a Sand Ambusher's full attack path, whether the drone is grounded or airborne.")]
         [Range(0f, 90f)] public float SandAmbusherGroundedMinimumAttackAngle = 65f;
+        [Tooltip("Seconds of cracking-ground telegraph before a Sand Ambusher erupts. This is the player's entire read on the attack, so it is held constant at every risk and is never shortened by attack rate scaling.")]
         [Min(0f)] public float SandAmbusherWarningDuration = 1.15f;
         [Tooltip("FMOD one-shot event played at the terrain rupture when a Sand Ambusher emerges.")]
         public string SandAmbusherEmergenceEvent = "event:/Explosion_Sand_Ambusher";
@@ -2427,7 +2457,18 @@ namespace DuneVector
 
         [Header("Health")]
         [Min(1f)] public float MaximumHealth = 100f;
-        [Min(0f)] public float DamageInvulnerability = 0.45f;
+        [Tooltip("Grace period after any hit during which the drone cannot be damaged again. This is what stops a dense encounter from chaining several hits into one unrecoverable burst.")]
+        [Min(0f)] public float DamageInvulnerability = 0.9f;
+
+        [Header("Out Of Combat Repair")]
+        [Tooltip("Repairs hull integrity once the drone has gone long enough without taking damage. Disable to require pickups for every point of healing.")]
+        public bool OutOfCombatRepairEnabled = true;
+        [Tooltip("Seconds without taking damage before out-of-combat repair begins. Long enough that it never rewards tanking hits mid-fight.")]
+        [Min(0f)] public float OutOfCombatRepairDelay = 7f;
+        [Tooltip("Hull integrity repaired per second once out-of-combat repair has begun.")]
+        [Min(0f)] public float OutOfCombatRepairRate = 5f;
+        [Tooltip("Highest fraction of maximum hull integrity out-of-combat repair can reach. Below 1 it leaves a deficit only pickups and hub returns can close.")]
+        [Range(0f, 1f)] public float OutOfCombatRepairMaximumFraction = 1f;
     }
 
     [System.Serializable]
@@ -3262,9 +3303,16 @@ namespace DuneVector
         [Range(0f, 1f)] public float MinimumInitialAttackDelayMultiplier = 0.35f;
         [Min(0.1f)] public float ChargeTime = 1.15f;
         [Min(0f)] public float Cooldown = 2.5f;
-        [Min(0f)] public float LightningDamage = 34f;
+        [Tooltip("Hull damage dealt by a Strike Ring bolt. Strike Rings are a space-denial enemy, so this is authored at 0 and the bolt drains the flight and stamina meters instead of hull integrity.")]
+        [Min(0f)] public float LightningDamage = 0f;
         public string LightningDamageSource = "Strike Ring lightning";
         public string LightningDeathMessage = "Struck by Strike Ring lightning.";
+        [Tooltip("Seconds of flight reserve burned off by a Strike Ring bolt. This is the enemy's real threat: it forces the drone out of the sky and down into the Sand Ambusher layer.")]
+        [Min(0f)] public float FlightMeterDrainSeconds = 9f;
+        [Tooltip("Stamina removed by a Strike Ring bolt, so a drone knocked out of flight cannot immediately sprint clear of what is waiting on the ground.")]
+        [Min(0f)] public float StaminaDrain = 35f;
+        [Tooltip("FMOD one-shot event played on the drone when a Strike Ring bolt drains its meters. Leave empty for no sound.")]
+        public string MeterDrainEvent = string.Empty;
         [Min(0.1f)] public float StrikeRadius = 4.25f;
         [Min(0.05f)] public float LightningVisualDuration = 0.32f;
         [Min(0.01f)] public float ChargeTelegraphWidth = 0.14f;

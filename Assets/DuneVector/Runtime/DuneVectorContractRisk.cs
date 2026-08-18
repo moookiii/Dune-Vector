@@ -27,15 +27,38 @@ namespace DuneVector
             float rankProgress = maximumRisk > 1
                 ? (clampedRisk - 1f) / (maximumRisk - 1f)
                 : 0f;
-            float startMultiplier = Mathf.Max(1f, settings.RiskEnemyMultiplierAtRankOne);
-            float endMultiplier = Mathf.Max(startMultiplier, settings.RiskEnemyMultiplierAtMaximumRank);
-            float enemyMultiplier = Mathf.Lerp(startMultiplier, endMultiplier, rankProgress);
 
-            EnemyHealthMultiplier = enemyMultiplier;
-            EnemySpeedMultiplier = enemyMultiplier;
-            EnemyDamageMultiplier = enemyMultiplier;
-            EnemyAttackRateMultiplier = enemyMultiplier;
-            EnemySpawnMultiplier = enemyMultiplier;
+            // Each axis carries its own authored curve. A single shared multiplier reads as one
+            // difficulty number but lands multiplicatively: damage, cadence, and population
+            // together squared the incoming pressure and made high risk lethal on arithmetic
+            // rather than on anything the player could route around.
+            EnemyHealthMultiplier = EvaluateAxis(
+                settings.RiskEnemyHealthMultiplierAtRankOne,
+                settings.RiskEnemyHealthMultiplierAtMaximumRank,
+                rankProgress);
+            EnemySpeedMultiplier = EvaluateAxis(
+                settings.RiskEnemySpeedMultiplierAtRankOne,
+                settings.RiskEnemySpeedMultiplierAtMaximumRank,
+                rankProgress);
+            EnemyDamageMultiplier = EvaluateAxis(
+                settings.RiskEnemyDamageMultiplierAtRankOne,
+                settings.RiskEnemyDamageMultiplierAtMaximumRank,
+                rankProgress);
+            EnemyAttackRateMultiplier = EvaluateAxis(
+                settings.RiskEnemyAttackRateMultiplierAtRankOne,
+                settings.RiskEnemyAttackRateMultiplierAtMaximumRank,
+                rankProgress);
+            EnemySpawnMultiplier = EvaluateAxis(
+                settings.RiskEnemySpawnMultiplierAtRankOne,
+                settings.RiskEnemySpawnMultiplierAtMaximumRank,
+                rankProgress);
+        }
+
+        private static float EvaluateAxis(float atRankOne, float atMaximumRank, float rankProgress)
+        {
+            float start = Mathf.Max(1f, atRankOne);
+            float end = Mathf.Max(start, atMaximumRank);
+            return Mathf.Lerp(start, end, rankProgress);
         }
 
         public static void Reset()
@@ -179,8 +202,10 @@ namespace DuneVector
 
         private void TickBuried(SandAmbusher ambusher)
         {
-            float warningDuration = Mathf.Max(0f, _settings.SandAmbusherWarningDuration) /
-                Mathf.Max(0.1f, DuneVectorContractRisk.EnemyAttackRateMultiplier);
+            // The cracking-ground telegraph is the player's whole read on this attack, so it stays
+            // at its authored length no matter the risk. Risk tightens the spawn ring and raises
+            // the population instead.
+            float warningDuration = Mathf.Max(0f, _settings.SandAmbusherWarningDuration);
             float warningProgress = warningDuration > 0f
                 ? Mathf.Clamp01(ambusher.StateTime / warningDuration)
                 : 1f;
@@ -331,14 +356,11 @@ namespace DuneVector
 
         private void SpawnAmbusher()
         {
-            float angle = RandomRange(0f, Mathf.PI * 2f);
-            float minimumOffset = Mathf.Max(0f, _settings.SandAmbusherMinimumTargetOffset);
-            float maximumOffset = Mathf.Max(minimumOffset, _settings.SandAmbusherMaximumTargetOffset);
-            float offset = RandomRange(minimumOffset, maximumOffset);
-            Vector3 prediction = Vector3.ProjectOnPlane(_player.Motor.BaseVelocity, Vector3.up) *
-                GetTargetPredictionTime();
-            Vector3 target = _player.WorldCenter + prediction +
-                new Vector3(Mathf.Cos(angle) * offset, 0f, Mathf.Sin(angle) * offset);
+            if (!TryFindSpawnTarget(out Vector3 target))
+            {
+                return;
+            }
+
             float terrainHeight = _world.SampleHeightAtLocal(target.x, target.z);
             Vector3 buriedPosition = new Vector3(
                 target.x,
@@ -382,6 +404,67 @@ namespace DuneVector
                 BuriedPosition = buriedPosition,
                 State = AmbushState.Buried,
             });
+        }
+
+        private bool TryFindSpawnTarget(out Vector3 target)
+        {
+            float riskProgress = Mathf.Clamp01(
+                _risk / (float)Mathf.Max(1, _settings.SandAmbusherTargetOffsetRiskCeiling));
+            float minimumOffset = Mathf.Max(0f, Mathf.Lerp(
+                _settings.SandAmbusherMinimumTargetOffset,
+                _settings.SandAmbusherMinimumTargetOffsetAtRiskCeiling,
+                riskProgress));
+            float maximumOffset = Mathf.Max(minimumOffset, Mathf.Lerp(
+                _settings.SandAmbusherMaximumTargetOffset,
+                _settings.SandAmbusherMaximumTargetOffsetAtRiskCeiling,
+                riskProgress));
+            Vector3 prediction = Vector3.ProjectOnPlane(_player.Motor.BaseVelocity, Vector3.up) *
+                GetTargetPredictionTime();
+            Vector3 origin = _player.WorldCenter + prediction;
+
+            // Ambushers erupt in a ring around the drone rather than underneath it, so the crack
+            // telegraph always names a direction to move away from. Separation keeps a dense risk
+            // tier from stacking several eruptions onto the same escape route.
+            int attempts = Mathf.Clamp(_settings.SandAmbusherSeparationAttempts, 1, 24);
+            for (int i = 0; i < attempts; i++)
+            {
+                float angle = RandomRange(0f, Mathf.PI * 2f);
+                float offset = RandomRange(minimumOffset, maximumOffset);
+                target = origin + new Vector3(
+                    Mathf.Cos(angle) * offset,
+                    0f,
+                    Mathf.Sin(angle) * offset);
+                if (IsSeparatedFromActiveAmbushers(target))
+                {
+                    return true;
+                }
+            }
+
+            target = Vector3.zero;
+            return false;
+        }
+
+        private bool IsSeparatedFromActiveAmbushers(Vector3 target)
+        {
+            float separation = Mathf.Max(0f, _settings.SandAmbusherMinimumSeparation);
+            if (separation <= 0f)
+            {
+                return true;
+            }
+
+            float separationSquared = separation * separation;
+            for (int i = 0; i < _ambushers.Count; i++)
+            {
+                Vector3 buried = _ambushers[i].BuriedPosition;
+                float horizontalX = buried.x - target.x;
+                float horizontalZ = buried.z - target.z;
+                if ((horizontalX * horizontalX) + (horizontalZ * horizontalZ) < separationSquared)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private float NextSpawnInterval()

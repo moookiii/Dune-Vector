@@ -161,10 +161,8 @@ namespace DuneVector
                 return;
             }
 
-            float stateRate = CurrentState == StormPyramidState.TriggeredWindUp
-                ? DuneVectorContractRisk.EnemyAttackRateMultiplier
-                : 1f;
-            _stateTime += deltaTime * stateRate;
+            // The triggered wind-up is a telegraph, not a cooldown, so risk never shortens it.
+            _stateTime += deltaTime;
 
             if (CurrentState == StormPyramidState.TriggeredWindUp)
             {
@@ -692,6 +690,67 @@ namespace DuneVector
                     damage * DuneVectorContractRisk.EnemyDamageMultiplier,
                     damageSource,
                     deathMessage);
+            }
+        }
+    }
+
+    [DisallowMultipleComponent]
+    public sealed class PlayerStrikeOrbMeterDrain : MonoBehaviour
+    {
+        private DroneCharacterController _player;
+        private DroneHealth _health;
+        private DroneStaminaSystem _stamina;
+        private PlayerStrikeOrbTuning _settings;
+
+        public void Initialize(
+            DroneCharacterController player,
+            DroneHealth health,
+            PlayerStrikeOrbTuning settings)
+        {
+            _player = player;
+            _health = health;
+            _settings = settings;
+            _stamina = player != null ? player.GetComponent<DroneStaminaSystem>() : null;
+        }
+
+        public void ResolveStrike(Vector3 strikePoint, float strikeRadius)
+        {
+            if (_player == null || _health == null || _health.IsDead || strikeRadius <= 0f)
+            {
+                return;
+            }
+
+            if (Vector3.Distance(_player.WorldCenter, strikePoint) > strikeRadius)
+            {
+                return;
+            }
+
+            // Strike Rings deny airspace rather than deal damage. Burning the flight reserve drops
+            // the drone toward the ground layer and the stamina hit stops it from immediately
+            // sprinting clear of whatever is waiting there, which is the pressure the enemy is for.
+            bool drained = false;
+            if (_player.DrainFlightMeter(Mathf.Max(0f, _settings.FlightMeterDrainSeconds)))
+            {
+                drained = true;
+            }
+            if (_stamina != null && _stamina.Drain(Mathf.Max(0f, _settings.StaminaDrain)))
+            {
+                drained = true;
+            }
+
+            if (_settings.LightningDamage > 0f)
+            {
+                _health.TakeDamage(
+                    _settings.LightningDamage * DuneVectorContractRisk.EnemyDamageMultiplier,
+                    _settings.LightningDamageSource,
+                    _settings.LightningDeathMessage);
+            }
+
+            if (drained &&
+                !DuneTrainingRuntime.HeadlessPresentation &&
+                !string.IsNullOrWhiteSpace(_settings.MeterDrainEvent))
+            {
+                RuntimeManager.PlayOneShot(_settings.MeterDrainEvent, _player.WorldCenter);
             }
         }
     }
@@ -1298,8 +1357,8 @@ namespace DuneVector
             _targeting = gameObject.AddComponent<PlayerStrikeOrbTargeting>();
             _targeting.Initialize(player, world, settings);
 
-            StormPyramidLightningDamage damage = gameObject.AddComponent<StormPyramidLightningDamage>();
-            damage.Initialize(player, playerHealth);
+            PlayerStrikeOrbMeterDrain drain = gameObject.AddComponent<PlayerStrikeOrbMeterDrain>();
+            drain.Initialize(player, playerHealth, settings);
             _lightning = gameObject.AddComponent<PlayerStrikeOrbLightningAttack>();
             _lightning.Initialize(
                 transform,
@@ -1307,7 +1366,7 @@ namespace DuneVector
                 halo,
                 materials,
                 settings,
-                damage,
+                drain,
                 identity);
 
             _attackTimer = settings.AttackInterval * Mathf.Lerp(
@@ -2007,7 +2066,7 @@ namespace DuneVector
         private LineRenderer _chargeLine;
         private LineRenderer _lightningLine;
         private PlayerStrikeOrbTuning _settings;
-        private StormPyramidLightningDamage _damage;
+        private PlayerStrikeOrbMeterDrain _drain;
         private Vector3 _targetPosition;
         private float _timer;
         private int _identity;
@@ -2020,14 +2079,14 @@ namespace DuneVector
             Transform halo,
             DuneVectorMaterials materials,
             PlayerStrikeOrbTuning settings,
-            StormPyramidLightningDamage damage,
+            PlayerStrikeOrbMeterDrain drain,
             int identity)
         {
             _owner = owner;
             _origin = origin != null ? origin : owner;
             _halo = halo;
             _settings = settings;
-            _damage = damage;
+            _drain = drain;
             _identity = identity;
             _marker = DuneVectorVisuals.CreateStormStrikeMarker(
                 owner.parent,
@@ -2093,12 +2152,7 @@ namespace DuneVector
             _timer = 0f;
             _chargeLine.enabled = false;
             _lightningLine.enabled = true;
-            _damage.ResolveStrike(
-                _targetPosition,
-                _settings.StrikeRadius,
-                _settings.LightningDamage,
-                _settings.LightningDamageSource,
-                _settings.LightningDeathMessage);
+            _drain.ResolveStrike(_targetPosition, _settings.StrikeRadius);
             UpdateLightningVisual();
         }
 

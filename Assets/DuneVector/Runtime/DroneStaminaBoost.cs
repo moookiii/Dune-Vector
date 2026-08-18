@@ -59,6 +59,28 @@ namespace DuneVector
             _environmentalDrainMultiplier = Mathf.Max(1f, multiplier);
         }
 
+        public bool Drain(float amount)
+        {
+            if (amount <= 0f || CurrentStamina <= 0f)
+            {
+                return false;
+            }
+
+            CurrentStamina = Mathf.Max(0f, CurrentStamina - amount);
+            if (CurrentStamina <= 0f)
+            {
+                CurrentStamina = 0f;
+                State = DroneStaminaState.Exhausted;
+                _regenDelayRemaining = _settings != null ? Mathf.Max(0f, _settings.RegenDelay) : 0f;
+            }
+            else if (State == DroneStaminaState.Ready)
+            {
+                State = DroneStaminaState.Regenerating;
+            }
+
+            return true;
+        }
+
         public void RestoreToFull()
         {
             float previousStamina = CurrentStamina;

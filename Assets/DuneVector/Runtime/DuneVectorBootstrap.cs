@@ -535,6 +535,7 @@ namespace DuneVector
                 HealthSettings.MaximumHealth,
                 HealthSettings.DamageInvulnerability,
                 HealthSettings.DebugInfiniteHealth);
+            DroneHealth.ConfigureOutOfCombatRepair(HealthSettings);
             bool headlessTraining = DuneTrainingRuntime.Enabled && !DuneTrainingRuntime.VisualEvaluation;
             if (headlessTraining && SceneCamera != null)
             {

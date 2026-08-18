@@ -563,6 +563,24 @@ namespace DuneVector
             FlightTimeRemaining = 0f;
         }
 
+        public bool DrainFlightMeter(float seconds)
+        {
+            if (seconds <= 0f || DebugInfiniteFlight || FlightTimeRemaining <= 0f)
+            {
+                return false;
+            }
+
+            FlightTimeRemaining = Mathf.Max(0f, FlightTimeRemaining - seconds);
+            MarkFlightMeterDirty();
+            SaveFlightMeter();
+            if (CurrentMode == DroneTraversalMode.Flight && FlightTimeRemaining <= 0f)
+            {
+                FinishFlight(true);
+            }
+
+            return true;
+        }
+
         public void RestoreRunningFlightMeter()
         {
             if (!_usingContractFlightMeter)
