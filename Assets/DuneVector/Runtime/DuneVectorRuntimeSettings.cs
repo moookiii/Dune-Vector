@@ -3307,10 +3307,16 @@ namespace DuneVector
         [Min(0f)] public float LightningDamage = 0f;
         public string LightningDamageSource = "Strike Ring lightning";
         public string LightningDeathMessage = "Struck by Strike Ring lightning.";
-        [Tooltip("Seconds of flight reserve burned off by a Strike Ring bolt. This is the enemy's real threat: it forces the drone out of the sky and down into the Sand Ambusher layer.")]
-        [Min(0f)] public float FlightMeterDrainSeconds = 9f;
-        [Tooltip("Stamina removed by a Strike Ring bolt, so a drone knocked out of flight cannot immediately sprint clear of what is waiting on the ground.")]
+        [Tooltip("Seconds of flight reserve burned off by a Strike Ring bolt at risk 0. This is the enemy's real threat: it forces the drone out of the sky and down into the Sand Ambusher layer.")]
+        [Min(0f)] public float FlightMeterDrainSeconds = 18f;
+        [Tooltip("Seconds of flight reserve burned off by a Strike Ring bolt at the meter drain risk ceiling.")]
+        [Min(0f)] public float FlightMeterDrainSecondsAtRiskCeiling = 46f;
+        [Tooltip("Stamina removed by a Strike Ring bolt at risk 0, so a drone knocked out of flight cannot immediately sprint clear of what is waiting on the ground.")]
         [Min(0f)] public float StaminaDrain = 35f;
+        [Tooltip("Stamina removed by a Strike Ring bolt at the meter drain risk ceiling.")]
+        [Min(0f)] public float StaminaDrainAtRiskCeiling = 90f;
+        [Tooltip("Risk where the flight and stamina drain reach their ceiling values.")]
+        [Min(1)] public int MeterDrainRiskCeiling = 20;
         [Tooltip("FMOD one-shot event played on the drone when a Strike Ring bolt drains its meters. Leave empty for no sound.")]
         public string MeterDrainEvent = string.Empty;
         [Min(0.1f)] public float StrikeRadius = 4.25f;
@@ -3393,6 +3399,27 @@ namespace DuneVector
         [ColorUsage(false, true)] public Color OrbInnerColor;
         [ColorUsage(false, true)] public Color OrbOuterColor;
         [Range(0.01f, 1f)] public float OrbGradientWidth;
+
+        public float EvaluateFlightMeterDrain(int risk)
+        {
+            return Mathf.Max(0f, Mathf.Lerp(
+                FlightMeterDrainSeconds,
+                FlightMeterDrainSecondsAtRiskCeiling,
+                EvaluateMeterDrainProgress(risk)));
+        }
+
+        public float EvaluateStaminaDrain(int risk)
+        {
+            return Mathf.Max(0f, Mathf.Lerp(
+                StaminaDrain,
+                StaminaDrainAtRiskCeiling,
+                EvaluateMeterDrainProgress(risk)));
+        }
+
+        private float EvaluateMeterDrainProgress(int risk)
+        {
+            return Mathf.Clamp01(risk / (float)Mathf.Max(1, MeterDrainRiskCeiling));
+        }
 
         public float EvaluateDetectionRange(int rank)
         {

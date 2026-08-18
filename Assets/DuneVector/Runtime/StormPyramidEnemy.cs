@@ -728,12 +728,13 @@ namespace DuneVector
             // Strike Rings deny airspace rather than deal damage. Burning the flight reserve drops
             // the drone toward the ground layer and the stamina hit stops it from immediately
             // sprinting clear of whatever is waiting there, which is the pressure the enemy is for.
+            int risk = DuneVectorContractRisk.CurrentRisk;
             bool drained = false;
-            if (_player.DrainFlightMeter(Mathf.Max(0f, _settings.FlightMeterDrainSeconds)))
+            if (_player.DrainFlightMeter(_settings.EvaluateFlightMeterDrain(risk)))
             {
                 drained = true;
             }
-            if (_stamina != null && _stamina.Drain(Mathf.Max(0f, _settings.StaminaDrain)))
+            if (_stamina != null && _stamina.Drain(_settings.EvaluateStaminaDrain(risk)))
             {
                 drained = true;
             }
