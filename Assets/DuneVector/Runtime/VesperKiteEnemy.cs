@@ -728,7 +728,6 @@ namespace DuneVector
     {
         private readonly List<VesperKiteEnemy> _enemies = new List<VesperKiteEnemy>();
         private readonly List<VesperKiteEnemy> _baseEnemies = new List<VesperKiteEnemy>();
-        private readonly List<VesperKiteEnemy> _riskEnemies = new List<VesperKiteEnemy>();
 
         private DroneCharacterController _player;
         private DroneHealth _playerHealth;
@@ -772,11 +771,6 @@ namespace DuneVector
             if (active)
             {
                 RespawnBaseEnemies();
-                SpawnRiskEnemies();
-            }
-            else
-            {
-                ClearEnemies(_riskEnemies);
             }
 
             for (int i = 0; i < _enemies.Count; i++)
@@ -808,35 +802,6 @@ namespace DuneVector
         {
             ClearEnemies(_baseEnemies);
             SpawnBaseEnemies();
-        }
-
-        private void SpawnRiskEnemies()
-        {
-            ClearEnemies(_riskEnemies);
-            float bonusMultiplier = Mathf.Max(
-                0f,
-                DuneVectorContractRisk.EnemySpawnMultiplier - 1f);
-            int bonusCount = Mathf.FloorToInt(
-                Mathf.Max(1, _settings.EnemyCount) * bonusMultiplier);
-            if (bonusCount <= 0)
-            {
-                return;
-            }
-
-            int multiplierSeed = Mathf.RoundToInt(
-                DuneVectorContractRisk.EnemySpawnMultiplier * 1000f);
-            System.Random random = new System.Random(
-                unchecked(_world.EnemySpawnSeed ^ 0x49c8e23 ^ multiplierSeed));
-            for (int i = 0; i < bonusCount; i++)
-            {
-                VesperKiteEnemy enemy = SpawnEnemy(
-                    random,
-                    $"Risk Vesper Kite {i + 1:00}",
-                    80000 + i + 1,
-                    NormalizeIndex(i, bonusCount));
-                enemy.SetGameplayActive(_gameplayActive);
-                _riskEnemies.Add(enemy);
-            }
         }
 
         private VesperKiteEnemy SpawnEnemy(
