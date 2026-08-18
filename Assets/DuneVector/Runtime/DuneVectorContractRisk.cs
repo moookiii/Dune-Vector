@@ -202,10 +202,10 @@ namespace DuneVector
 
         private void TickBuried(SandAmbusher ambusher)
         {
-            // The cracking-ground telegraph is the player's whole read on this attack, so it stays
-            // at its authored length no matter the risk. Risk tightens the spawn ring and raises
-            // the population instead.
-            float warningDuration = Mathf.Max(0f, _settings.SandAmbusherWarningDuration);
+            // The cracking-ground telegraph is the player's whole read on this attack, so its
+            // length is authored per risk rather than falling out of attack rate scaling. Risk
+            // shortens it toward an authored floor while the spawn ring keeps the dodge available.
+            float warningDuration = GetWarningDuration();
             float warningProgress = warningDuration > 0f
                 ? Mathf.Clamp01(ambusher.StateTime / warningDuration)
                 : 1f;
@@ -502,6 +502,16 @@ namespace DuneVector
             return Mathf.Max(0f, Mathf.Lerp(
                 _settings.SandAmbusherTargetPredictionTime,
                 _settings.SandAmbusherTargetPredictionTimeAtRiskCeiling,
+                riskProgress));
+        }
+
+        private float GetWarningDuration()
+        {
+            float riskProgress = Mathf.Clamp01(
+                _risk / (float)Mathf.Max(1, _settings.SandAmbusherWarningDurationRiskCeiling));
+            return Mathf.Max(0f, Mathf.Lerp(
+                _settings.SandAmbusherWarningDuration,
+                _settings.SandAmbusherWarningDurationAtRiskCeiling,
                 riskProgress));
         }
 

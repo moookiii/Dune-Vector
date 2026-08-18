@@ -1071,8 +1071,12 @@ namespace DuneVector
         [InspectorName("Sand Ambusher Minimum Attack Angle")]
         [Tooltip("Minimum angle above the horizon for a Sand Ambusher's full attack path, whether the drone is grounded or airborne.")]
         [Range(0f, 90f)] public float SandAmbusherGroundedMinimumAttackAngle = 65f;
-        [Tooltip("Seconds of cracking-ground telegraph before a Sand Ambusher erupts. This is the player's entire read on the attack, so it is held constant at every risk and is never shortened by attack rate scaling.")]
+        [Tooltip("Seconds of cracking-ground telegraph before a Sand Ambusher erupts at risk 0. This is the player's entire read on the attack, so it is authored per risk here and is never shortened by attack rate scaling.")]
         [Min(0f)] public float SandAmbusherWarningDuration = 1.15f;
+        [Tooltip("Seconds of cracking-ground telegraph at the warning risk ceiling. Keep this well clear of human reaction time: below roughly 0.4 seconds the crack stops being a warning and the eruption reads as unavoidable.")]
+        [Min(0f)] public float SandAmbusherWarningDurationAtRiskCeiling = 0.65f;
+        [Tooltip("Risk where the cracking-ground telegraph reaches its ceiling value.")]
+        [Min(1)] public int SandAmbusherWarningDurationRiskCeiling = 20;
         [Tooltip("FMOD one-shot event played at the terrain rupture when a Sand Ambusher emerges.")]
         public string SandAmbusherEmergenceEvent = "event:/Explosion_Sand_Ambusher";
         [Tooltip("Effect spawned at the terrain rupture when a Sand Ambusher emerges.")]
