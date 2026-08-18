@@ -293,8 +293,8 @@ namespace DuneVector
         [Tooltip("Names of the authored hub screen objects driven by this unlock. The authored hub models its own terminals, so they are found by object name instead of being built from primitives.")]
         public string[] AuthoredScreenObjectNames =
         {
+            "Hub_EmissiveCyan.001",
             "Hub_EmissiveCyan.002",
-            "Hub_EmissiveCyan.003",
         };
         [Tooltip("Shader float on the authored hub screen material that drives its per-channel colour noise.")]
         public string AuthoredScreenColorNoiseProperty = "_ColorNoise";
