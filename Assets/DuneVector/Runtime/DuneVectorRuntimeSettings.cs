@@ -3223,7 +3223,12 @@ namespace DuneVector
         [Min(0)] public int GoldReward = 55;
 
         [Header("Spawning")]
+        [Tooltip("Total Strike Ring count at risk 0.")]
         [Range(1, 10)] public int EnemyCount = 2;
+        [Tooltip("Total Strike Ring count at the configured risk ceiling.")]
+        [Range(1, 10)] public int EnemyCountAtRiskCeiling = 4;
+        [Tooltip("Risk where the total Strike Ring count reaches its ceiling value.")]
+        [Min(1)] public int EnemyCountRiskCeiling = 20;
         [Min(20f)] public float MinimumSpawnDistance = 120f;
         [Min(20f)] public float MaximumSpawnDistance = 240f;
         [Min(50f)] public float RepositionDistance = 390f;
@@ -3346,6 +3351,16 @@ namespace DuneVector
             float rankProgress = Mathf.Clamp01(
                 rank / (float)Mathf.Max(1, DetectionRangeRankCeiling));
             return Mathf.Lerp(DetectionRange, DetectionRangeAtRankCeiling, rankProgress);
+        }
+
+        public int EvaluateEnemyCount(int risk)
+        {
+            float riskProgress = Mathf.Clamp01(
+                risk / (float)Mathf.Max(1, EnemyCountRiskCeiling));
+            return Mathf.Max(1, Mathf.RoundToInt(Mathf.Lerp(
+                EnemyCount,
+                Mathf.Max(EnemyCount, EnemyCountAtRiskCeiling),
+                riskProgress)));
         }
     }
 
