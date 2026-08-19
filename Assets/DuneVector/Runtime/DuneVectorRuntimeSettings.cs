@@ -1877,9 +1877,7 @@ namespace DuneVector
         [Range(2, 9)] public int OrbitalArrayGroundingSamplesPerAxis = 5;
         [Tooltip("Adds mesh colliders to Fallen Orbital Array meshes that do not already have colliders.")]
         public bool OrbitalArrayGenerateMeshColliders = true;
-        [Tooltip("How far disconnected rubble and structural offcut pieces are bedded below the dune height sampled directly beneath each piece. Dish and panel meshes are not adjusted.")]
-        [Min(0f)] public float OrbitalRubbleBurialDepth;
-        [Tooltip("How deep the Fallen Orbital Array is sunk once grounded. Grounding raises the model until its lowest bound meets the LOWEST terrain sampled across its whole 170m footprint, then sinks it by this much. The mesh already carries 12.2m of structure below its origin and the footprint spans several dunes, so values near 12 drop the wreck into a trough and bury the dish. Lower this to lift it out of the sand; raise it to bed it deeper.")]
+        [Tooltip("Extra depth the Fallen Orbital Array is sunk below the dunes once grounded, bedding its leading dish rim and equipment bus into the sand.")]
         [Min(0f)] public float OrbitalBurialDepth;
 
         [Header("Desert Megagate Detail")]

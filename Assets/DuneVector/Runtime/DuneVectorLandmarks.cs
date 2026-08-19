@@ -2131,107 +2131,10 @@ namespace DuneVector
                 _settings.OrbitalArrayGroundingSamplesPerAxis,
                 _settings.OrbitalBurialDepth);
             orbitalArray.transform.localScale = prefabScale;
-            GroundFallenOrbitalRubble(orbitalArray.transform, _settings.OrbitalRubbleBurialDepth);
 
             if (_settings.OrbitalArrayGenerateMeshColliders)
             {
                 AddMissingMeshColliders(orbitalArray);
-            }
-        }
-
-        private void GroundFallenOrbitalRubble(Transform orbitalArray, float burialDepth)
-        {
-            MeshFilter[] filters = orbitalArray.GetComponentsInChildren<MeshFilter>(true);
-            for (int filterIndex = 0; filterIndex < filters.Length; filterIndex++)
-            {
-                MeshFilter filter = filters[filterIndex];
-                if (filter == null ||
-                    (filter.name != "Impact Rubble" && filter.name != "Structural Offcuts"))
-                {
-                    continue;
-                }
-
-                Mesh source = filter.sharedMesh;
-                if (source == null || !source.isReadable)
-                {
-                    Debug.LogWarning($"Cannot conform {filter.name} to the dunes because its mesh is not readable.", filter);
-                    continue;
-                }
-
-                Mesh groundedMesh = UnityEngine.Object.Instantiate(source);
-                groundedMesh.name = source.name + " (Dune Grounded)";
-                Vector3[] vertices = groundedMesh.vertices;
-                int[] triangles = groundedMesh.triangles;
-                int[] parents = new int[vertices.Length];
-                for (int vertexIndex = 0; vertexIndex < parents.Length; vertexIndex++)
-                {
-                    parents[vertexIndex] = vertexIndex;
-                }
-
-                for (int triangleIndex = 0; triangleIndex + 2 < triangles.Length; triangleIndex += 3)
-                {
-                    UnionVertices(parents, triangles[triangleIndex], triangles[triangleIndex + 1]);
-                    UnionVertices(parents, triangles[triangleIndex], triangles[triangleIndex + 2]);
-                }
-
-                Dictionary<int, List<int>> islands = new Dictionary<int, List<int>>();
-                for (int vertexIndex = 0; vertexIndex < vertices.Length; vertexIndex++)
-                {
-                    int rootIndex = FindVertexRoot(parents, vertexIndex);
-                    if (!islands.TryGetValue(rootIndex, out List<int> island))
-                    {
-                        island = new List<int>();
-                        islands.Add(rootIndex, island);
-                    }
-                    island.Add(vertexIndex);
-                }
-
-                float safeBurialDepth = Mathf.Max(0f, burialDepth);
-                foreach (List<int> island in islands.Values)
-                {
-                    Vector3 lowestWorld = filter.transform.TransformPoint(vertices[island[0]]);
-                    for (int islandVertexIndex = 1; islandVertexIndex < island.Count; islandVertexIndex++)
-                    {
-                        Vector3 worldVertex = filter.transform.TransformPoint(vertices[island[islandVertexIndex]]);
-                        if (worldVertex.y < lowestWorld.y)
-                        {
-                            lowestWorld = worldVertex;
-                        }
-                    }
-
-                    float duneHeight = _world.SampleHeightAtLocal(lowestWorld.x, lowestWorld.z);
-                    Vector3 localShift = filter.transform.InverseTransformVector(
-                        Vector3.up * (duneHeight - lowestWorld.y - safeBurialDepth));
-                    for (int islandVertexIndex = 0; islandVertexIndex < island.Count; islandVertexIndex++)
-                    {
-                        int vertexIndex = island[islandVertexIndex];
-                        vertices[vertexIndex] += localShift;
-                    }
-                }
-
-                groundedMesh.vertices = vertices;
-                groundedMesh.RecalculateBounds();
-                filter.sharedMesh = groundedMesh;
-            }
-        }
-
-        private static int FindVertexRoot(int[] parents, int vertex)
-        {
-            while (parents[vertex] != vertex)
-            {
-                parents[vertex] = parents[parents[vertex]];
-                vertex = parents[vertex];
-            }
-            return vertex;
-        }
-
-        private static void UnionVertices(int[] parents, int first, int second)
-        {
-            int firstRoot = FindVertexRoot(parents, first);
-            int secondRoot = FindVertexRoot(parents, second);
-            if (firstRoot != secondRoot)
-            {
-                parents[secondRoot] = firstRoot;
             }
         }
 
