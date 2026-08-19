@@ -13,14 +13,15 @@ ARMATURE_NAME = "Armature"
 MESH_NAME = "model_0"
 
 # These are the weighted segment centers in the imported worm's rest pose,
-# ordered from tail to head.  Bone is an unweighted import root and remains
-# untouched so the action stays compatible with the source skeleton.
+# ordered from anatomical head to tail. Bone is an unweighted import root and
+# remains untouched so the action stays compatible with the source skeleton.
+# The final value is path lag: zero makes the toothed head lead the motion.
 SEGMENTS = (
-    ("Bone.001", Vector((0.093, -18.550, -0.020)), 38.0),
-    ("Bone.002", Vector((-0.216, -8.936, -0.234)), 28.5),
+    ("Bone.001", Vector((0.093, -18.550, -0.020)), 0.0),
+    ("Bone.002", Vector((-0.216, -8.936, -0.234)), 9.5),
     ("Bone.003", Vector((-0.067, 0.964, -0.483)), 19.0),
-    ("Bone.004", Vector((-0.163, 9.781, -0.806)), 9.5),
-    ("Bone.005", Vector((0.006, 18.533, -1.119)), 0.0),
+    ("Bone.004", Vector((-0.163, 9.781, -0.806)), 28.5),
+    ("Bone.005", Vector((0.006, 18.533, -1.119)), 38.0),
 )
 
 # Motion path: rise vertically, follow a broad half-loop, then dive vertically.
@@ -114,6 +115,8 @@ def repair_mesh_and_weights(mesh_object):
 
 
 def key_segment_pose(pose_bone, rest_center, target, angle, frame):
+    # The mesh's rest +Y axis runs from head toward tail, opposite travel.
+    angle += math.pi
     deform = (
         Matrix.Translation(target)
         @ Matrix.Rotation(angle, 4, "X")
@@ -124,7 +127,7 @@ def key_segment_pose(pose_bone, rest_center, target, angle, frame):
     # matrix_basis relative to the previous sampled parent pose at endpoints.
     bpy.context.view_layer.update()
     pose_bone.keyframe_insert("location", frame=frame, group=pose_bone.name)
-    pose_bone.keyframe_insert("rotation_quaternion", frame=frame, group=pose_bone.name)
+    pose_bone.keyframe_insert("rotation_euler", frame=frame, group=pose_bone.name)
     pose_bone.keyframe_insert("scale", frame=frame, group=pose_bone.name)
 
 
@@ -147,13 +150,15 @@ def build_animation():
     armature.animation_data.action = bpy.data.actions.new(ACTION_NAME)
 
     for pose_bone in armature.pose.bones:
-        pose_bone.rotation_mode = "QUATERNION"
+        # The animation is planar. Euler channels avoid quaternion sign flips
+        # between sampled keys (the visible bad in-between pose at frame 94).
+        pose_bone.rotation_mode = "XYZ"
         pose_bone.location = (0.0, 0.0, 0.0)
-        pose_bone.rotation_quaternion = (1.0, 0.0, 0.0, 0.0)
+        pose_bone.rotation_euler = (0.0, 0.0, 0.0)
         pose_bone.scale = (1.0, 1.0, 1.0)
     bpy.context.view_layer.update()
 
-    keyed_frames = sorted(set([1, 215] + list(range(36, 193, 4)) + [48, 72, 96, 120, 144, 168, 192]))
+    keyed_frames = sorted(set([1, 215] + list(range(36, 193, 4)) + [48, 72, 94, 96, 120, 144, 168, 192]))
     for frame in keyed_frames:
         scene.frame_set(frame)
         head_progress = progress_at_frame(frame)
