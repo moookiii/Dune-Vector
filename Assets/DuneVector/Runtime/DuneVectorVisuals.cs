@@ -2171,11 +2171,10 @@ namespace DuneVector
                 }
             }
 
-            DuneVectorSpatialInstancing.Capture(
-                root,
-                false,
-                pyramidLodTuning,
-                retainPhotographyRenderer: true);
+            // Pyramid prefab renderers must remain active. The spatial LOD path disables
+            // them and selects batches using only the gameplay camera, which can leave
+            // every spawned pyramid invisible to other cameras (including the Scene view).
+            DuneVectorInstancedVisualGroup.ShowHighestDetailLodOnly(root);
             return root.transform;
         }
 
