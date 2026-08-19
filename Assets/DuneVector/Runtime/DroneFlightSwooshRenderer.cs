@@ -38,6 +38,23 @@ namespace DuneVector
         private float _spawnCountdown;
         private uint _randomState;
         private bool _initialized;
+        private bool _externalMotionActive;
+        private bool _externalBoosted;
+        private Vector3 _externalVelocity;
+
+        public void SetExternalMotion(Vector3 velocity, bool boosted)
+        {
+            _externalMotionActive = true;
+            _externalVelocity = velocity;
+            _externalBoosted = boosted;
+        }
+
+        public void ClearExternalMotion()
+        {
+            _externalMotionActive = false;
+            _externalBoosted = false;
+            _externalVelocity = Vector3.zero;
+        }
 
         public void Initialize(DroneCharacterController drone, Camera targetCamera, FlightSwooshTuning tuning)
         {
@@ -65,16 +82,19 @@ namespace DuneVector
             }
 
             float deltaTime = Time.deltaTime;
-            Vector3 velocity = _drone.Motor != null ? _drone.Motor.Velocity : Vector3.zero;
+            Vector3 velocity = _externalMotionActive
+                ? _externalVelocity
+                : _drone.Motor != null ? _drone.Motor.Velocity : Vector3.zero;
             float speed = velocity.magnitude;
-            bool isFlying = _drone.CurrentMode == DroneTraversalMode.Flight;
+            bool isFlying = _externalMotionActive || _drone.CurrentMode == DroneTraversalMode.Flight;
             float speedRange = Mathf.Max(0.01f, _tuning.MaximumIntensitySpeed - _tuning.SpeedThreshold);
             float speed01 = Mathf.Clamp01((speed - _tuning.SpeedThreshold) / speedRange);
             float targetIntensity = isFlying
                 ? Mathf.Pow(speed01, Mathf.Max(0.01f, _tuning.DensityCurvePower))
                 : 0f;
 
-            if (_drone.IsBoosting || _drone.IsRingBoosting)
+            if ((_externalMotionActive && _externalBoosted) ||
+                (!_externalMotionActive && (_drone.IsBoosting || _drone.IsRingBoosting)))
             {
                 targetIntensity *= Mathf.Max(0f, _tuning.BoostMultiplier);
             }

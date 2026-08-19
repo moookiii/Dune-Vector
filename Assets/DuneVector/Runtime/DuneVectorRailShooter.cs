@@ -191,7 +191,6 @@ namespace DuneVector
         private readonly List<RailEnemy> _enemies = new List<RailEnemy>();
         private readonly List<FormationRecord> _formations = new List<FormationRecord>();
         private readonly List<RiftSegment> _segments = new List<RiftSegment>();
-        private readonly List<Transform> _speedStreaks = new List<Transform>();
         private readonly List<Transform> _railRings = new List<Transform>();
         private readonly List<ScorePopup> _popups = new List<ScorePopup>();
         private readonly List<RailEnemy> _chargeLocks = new List<RailEnemy>();
@@ -204,6 +203,7 @@ namespace DuneVector
         private DesertWorldStreamer _world;
         private DuneVectorMaterials _materials;
         private DroneGoldWallet _wallet;
+        private DroneFlightSwooshRenderer _flightSwooshes;
         private RailShooterTuning _settings;
         private FlyingEnemyTuning _skyPiercerSettings;
         private StormPyramidTuning _stormSettings;
@@ -321,6 +321,9 @@ namespace DuneVector
             _world = world;
             _materials = materials;
             _wallet = wallet;
+            _flightSwooshes = camera != null
+                ? camera.GetComponent<DroneFlightSwooshRenderer>()
+                : null;
             _settings = settings ?? new RailShooterTuning();
             _settings.EnsureInitialized();
             _skyPiercerSettings = skyPiercerSettings ?? new FlyingEnemyTuning();
@@ -392,6 +395,7 @@ namespace DuneVector
             ResetCourse();
             EnterRailPresentation();
             _modeRoot.gameObject.SetActive(true);
+            _flightSwooshes?.SetExternalMotion(Vector3.forward * _state.ForwardSpeed, false);
             DuneVectorAudioManager.Instance?.EnterRailSubgameMusic();
             Phase = RailShooterPhase.Entry;
             IsAnyRailShooterActive = true;
@@ -478,6 +482,12 @@ namespace DuneVector
                 _state.ForwardSpeed,
                 targetSpeed,
                 DuneVectorMath.Sharpness(_settings.ForwardSpeedSharpness, deltaTime));
+            _flightSwooshes?.SetExternalMotion(
+                new Vector3(
+                    _state.LateralVelocity.x,
+                    _state.LateralVelocity.y,
+                    _state.ForwardSpeed),
+                boosting);
 
             bool steering = command.Move.sqrMagnitude >
                 _settings.RecenterInputDeadzone * _settings.RecenterInputDeadzone;
@@ -1694,15 +1704,6 @@ namespace DuneVector
                 }
             }
 
-            for (int i = 0; i < _speedStreaks.Count; i++)
-            {
-                Transform streak = _speedStreaks[i];
-                streak.position -= Vector3.forward * _settings.SpeedStreakDriftSpeed * deltaTime;
-                if (streak.position.z < _camera.transform.position.z)
-                {
-                    ResetSpeedStreak(streak, i);
-                }
-            }
         }
 
         private void TickPresentation(float deltaTime)
@@ -2004,6 +2005,7 @@ namespace DuneVector
             _health.Damaged -= HandlePlayerDamaged;
             _health.EndTemporaryHealthPool();
             RestoreWorldState();
+            _flightSwooshes?.ClearExternalMotion();
             DuneVectorAudioManager.Instance?.ExitRailSubgameMusic();
             _modeRoot.gameObject.SetActive(false);
             Phase = RailShooterPhase.Inactive;
@@ -2065,23 +2067,6 @@ namespace DuneVector
                 _segments.Add(segment);
             }
 
-            for (int i = 0; i < _settings.SpeedStreakPoolSize; i++)
-            {
-                Transform streak = CreatePart(
-                    PrimitiveType.Cube,
-                    $"Near-Camera Rift Streak {i + 1:00}",
-                    _environmentRoot,
-                    Vector3.zero,
-                    Vector3.one,
-                    Quaternion.identity,
-                    _materials.DroneAccent);
-                Renderer renderer = streak.GetComponent<Renderer>();
-                if (renderer != null)
-                {
-                    renderer.shadowCastingMode = ShadowCastingMode.Off;
-                }
-                _speedStreaks.Add(streak);
-            }
         }
 
         private void BuildEnemyPool()
@@ -2356,10 +2341,6 @@ namespace DuneVector
                 _furthestSegmentZ += _settings.EnvironmentSegmentSpacing;
                 ResetSegment(_segments[i], _furthestSegmentZ, i);
             }
-            for (int i = 0; i < _speedStreaks.Count; i++)
-            {
-                ResetSpeedStreak(_speedStreaks[i], i);
-            }
         }
 
         private void ResetSegment(RiftSegment segment, float z, int identity)
@@ -2371,34 +2352,6 @@ namespace DuneVector
                 _arenaOrigin.y + NextFloat(-extent, extent),
                 z + NextFloat(-depthJitter, depthJitter));
             segment.Root.rotation = Quaternion.identity;
-        }
-
-        private void ResetSpeedStreak(Transform streak, int identity)
-        {
-            if (_camera == null)
-            {
-                streak.position = Vector3.zero;
-                return;
-            }
-            float length = NextFloat(
-                _settings.SpeedStreakMinimumLength,
-                _settings.SpeedStreakMaximumLength);
-            float angle = NextFloat(0f, Mathf.PI * 2f);
-            float radius = NextFloat(
-                _settings.SpeedStreakConeInnerRadius,
-                _settings.SpeedStreakConeOuterRadius);
-            // Seed the streaks in a ring around the view axis and point them down the ray they
-            // sit on, so they read as warp lines converging on the vanishing point.
-            Vector3 local = new Vector3(
-                Mathf.Cos(angle) * radius,
-                Mathf.Sin(angle) * radius,
-                NextFloat(_settings.SpeedStreakNearDistance, _settings.SpeedStreakDepth));
-            streak.position = _camera.transform.position + local;
-            streak.rotation = Quaternion.LookRotation(local.normalized, Vector3.up);
-            streak.localScale = new Vector3(
-                _settings.SpeedStreakWidth,
-                _settings.SpeedStreakWidth,
-                length);
         }
 
         private void SaveWorldState()
@@ -3351,6 +3304,7 @@ namespace DuneVector
             {
                 RestoreWorldState();
             }
+            _flightSwooshes?.ClearExternalMotion();
             DuneVectorAudioManager.Instance?.ExitRailSubgameMusic();
             IsAnyRailShooterActive = false;
         }
