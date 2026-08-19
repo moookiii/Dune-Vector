@@ -393,6 +393,7 @@ namespace DuneVector
             ResetCourse();
             EnterRailPresentation();
             _modeRoot.gameObject.SetActive(true);
+            DuneVectorAudioManager.Instance?.EnterRailSubgameMusic();
             Phase = RailShooterPhase.Entry;
             IsAnyRailShooterActive = true;
             _health.TemporaryHealthPoolDepleted += HandleTemporaryHullDepleted;
@@ -1991,6 +1992,7 @@ namespace DuneVector
             _health.Damaged -= HandlePlayerDamaged;
             _health.EndTemporaryHealthPool();
             RestoreWorldState();
+            DuneVectorAudioManager.Instance?.ExitRailSubgameMusic();
             _modeRoot.gameObject.SetActive(false);
             Phase = RailShooterPhase.Inactive;
             IsAnyRailShooterActive = false;
@@ -3313,6 +3315,7 @@ namespace DuneVector
             {
                 RestoreWorldState();
             }
+            DuneVectorAudioManager.Instance?.ExitRailSubgameMusic();
             IsAnyRailShooterActive = false;
         }
     }

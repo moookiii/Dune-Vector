@@ -115,6 +115,8 @@ namespace DuneVector
         private MusicPlaylistTrack[] _musicPlaylist = Array.Empty<MusicPlaylistTrack>();
         private int[] _musicPlayOrder = Array.Empty<int>();
         private int _musicPlayOrderPosition;
+        private MusicPlaylistTrack _trackBeforeSubgame;
+        private bool _subgameMusicActive;
         private bool _userMusicPaused;
         private bool _gameplayPaused;
         private int _lastPolledTimelinePosition;
@@ -967,6 +969,41 @@ namespace DuneVector
             StartMusicTrackAtCurrentPosition();
         }
 
+        public void EnterRailSubgameMusic()
+        {
+            if (_subgameMusicActive)
+            {
+                return;
+            }
+            MusicPlaylistTrack[] subgameTracks = BuildValidPlaylist(_settings.RailSubgameMusicPlaylist);
+            if (subgameTracks.Length == 0)
+            {
+                return;
+            }
+            _trackBeforeSubgame = ActiveMusicTrack;
+            _subgameMusicActive = true;
+            SetActivePlaylist(subgameTracks, false, 0);
+            StartMusicTrackAtCurrentPosition();
+        }
+
+        public void ExitRailSubgameMusic()
+        {
+            if (!_subgameMusicActive)
+            {
+                return;
+            }
+            MusicPlaylistTrack previousTrack = _trackBeforeSubgame;
+            _trackBeforeSubgame = null;
+            _subgameMusicActive = false;
+            InitializeMusicPlaylist();
+            if (previousTrack != null && TryStartMusicTrack(previousTrack))
+            {
+                SyncPlayOrderPosition(previousTrack);
+                return;
+            }
+            StartBackgroundMusic();
+        }
+
         private void InitializeMusicPlaylist()
         {
             List<MusicPlaylistTrack> validTracks = new List<MusicPlaylistTrack>();
@@ -993,24 +1030,69 @@ namespace DuneVector
                 });
             }
 
-            _musicPlaylist = validTracks.ToArray();
+            SetActivePlaylist(
+                validTracks.ToArray(),
+                _settings.RandomizeStartingBackgroundMusicTrack,
+                _settings.StartingBackgroundMusicTrackIndex);
+        }
+
+        private static MusicPlaylistTrack[] BuildValidPlaylist(MusicPlaylistTrack[] authoredPlaylist)
+        {
+            if (authoredPlaylist == null || authoredPlaylist.Length == 0)
+            {
+                return Array.Empty<MusicPlaylistTrack>();
+            }
+            List<MusicPlaylistTrack> validTracks = new List<MusicPlaylistTrack>();
+            for (int i = 0; i < authoredPlaylist.Length; i++)
+            {
+                MusicPlaylistTrack track = authoredPlaylist[i];
+                if (track != null && !string.IsNullOrWhiteSpace(track.FmodEventPath))
+                {
+                    validTracks.Add(track);
+                }
+            }
+            return validTracks.ToArray();
+        }
+
+        private void SetActivePlaylist(
+            MusicPlaylistTrack[] playlist,
+            bool randomizeStartingTrack,
+            int startingTrackIndex)
+        {
+            _musicPlaylist = playlist ?? Array.Empty<MusicPlaylistTrack>();
             _musicPlayOrder = new int[_musicPlaylist.Length];
             for (int i = 0; i < _musicPlayOrder.Length; i++)
             {
                 _musicPlayOrder[i] = i;
             }
             ShuffleMusicPlayOrder(-1);
-            if (_musicPlayOrder.Length > 1 && !_settings.RandomizeStartingBackgroundMusicTrack)
+            if (_musicPlayOrder.Length > 1 && !randomizeStartingTrack)
             {
-                int startingTrackIndex = Mathf.Clamp(
-                    _settings.StartingBackgroundMusicTrackIndex,
+                int clampedStartingTrackIndex = Mathf.Clamp(
+                    startingTrackIndex,
                     0,
                     _musicPlayOrder.Length - 1);
-                int shuffledPosition = Array.IndexOf(_musicPlayOrder, startingTrackIndex);
+                int shuffledPosition = Array.IndexOf(_musicPlayOrder, clampedStartingTrackIndex);
                 (_musicPlayOrder[0], _musicPlayOrder[shuffledPosition]) =
                     (_musicPlayOrder[shuffledPosition], _musicPlayOrder[0]);
             }
             _musicPlayOrderPosition = 0;
+        }
+
+        private void SyncPlayOrderPosition(MusicPlaylistTrack track)
+        {
+            int playlistIndex = Array.FindIndex(
+                _musicPlaylist,
+                candidate => candidate == track ||
+                    (candidate != null && string.Equals(
+                        candidate.FmodEventPath,
+                        track.FmodEventPath,
+                        StringComparison.Ordinal)));
+            int playOrderPosition = Array.IndexOf(_musicPlayOrder, playlistIndex);
+            if (playOrderPosition >= 0)
+            {
+                _musicPlayOrderPosition = playOrderPosition;
+            }
         }
 
         private void ShuffleMusicPlayOrder(int trackIndexToAvoidFirst)

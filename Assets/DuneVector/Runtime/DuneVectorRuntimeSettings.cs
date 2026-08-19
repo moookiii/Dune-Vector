@@ -6419,6 +6419,8 @@ namespace DuneVector
         [Header("FMOD Events")]
         [Tooltip("Songs played as a shuffled playlist. Each entry selects its matching visualizer profile.")]
         public MusicPlaylistTrack[] BackgroundMusicPlaylist = System.Array.Empty<MusicPlaylistTrack>();
+        [Tooltip("Separate playlist used only by the post-contract rail subgame.")]
+        public MusicPlaylistTrack[] RailSubgameMusicPlaylist = System.Array.Empty<MusicPlaylistTrack>();
         [Tooltip("Choose the first song from the shuffled playlist when the game starts.")]
         public bool RandomizeStartingBackgroundMusicTrack = true;
         [Tooltip("Playlist entry played first when startup randomization is disabled. Remaining entries stay shuffled.")]
