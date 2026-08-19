@@ -404,6 +404,16 @@ namespace DuneVector
         private GUIStyle _statLabelStyle;
         private GUIStyle _statValueStyle;
         private GUIStyle _sigilCountdownStyle;
+        private GUIStyle _valueStyle;
+        private GUIStyle _sectionStyle;
+        private GUIStyle _gradeStyle;
+        private float _hudScale = 1f;
+        private float _hudStyleScale = -1f;
+        private float _scoreDisplay;
+        private float _hullGhost = 1f;
+        private float _hullGhostHold;
+        private float _bossGhost = 1f;
+        private float _bossGhostHold;
 
         public void Initialize(
             DronePlayer input,
@@ -508,6 +518,11 @@ namespace DuneVector
             _distanceGoldBonus = 0;
             AwardedGold = 0;
             ResultGrade = "C";
+            _scoreDisplay = 0f;
+            _hullGhost = 1f;
+            _hullGhostHold = 0f;
+            _bossGhost = 1f;
+            _bossGhostHold = 0f;
             ResetPools();
             ResetCourse();
             ResetSigilDuel();
@@ -552,6 +567,7 @@ namespace DuneVector
             RailShooterCommand command = new RailShooterCommand(_input != null ? _input.CurrentCommand : default);
             _phaseElapsed += deltaTime;
             _state.Elapsed += deltaTime;
+            TickHudPresentation(deltaTime);
             if (Phase != RailShooterPhase.Results)
             {
                 TickFlight(command, deltaTime);
@@ -4781,16 +4797,46 @@ namespace DuneVector
                 _sigilChain ? sigils.ChainColor : _settings.HudPrimaryColor,
                 sigils.FaultColor,
                 urgency);
-            float size = sigils.SeekerMarkerSize * (1f + (urgency * 0.65f));
+            float size = Scaled(sigils.SeekerMarkerSize) * (1f + (urgency * 0.65f));
             DrawBracket(screen, size, marker);
+            // A closing ring of ticks around the seeker so its timer reads in the world too.
+            DrawSigilUrgencyTicks(screen, size, urgency, marker);
             RailSigilDefinition definition = CurrentSigilDefinition();
             if (definition != null)
             {
-                DrawLabel(
-                    new Rect(screen.x - 130f, screen.y - (size * 0.5f) - 26f, 260f, 22f),
+                float width = Scaled(sigils.NameLabelWidth);
+                DrawShadowedLabel(
+                    new Rect(
+                        screen.x - (width * 0.5f),
+                        screen.y - (size * 0.5f) - Scaled(sigils.NameLabelGap),
+                        width,
+                        Scaled(sigils.NameLabelHeight)),
                     definition.Name,
                     _centeredSmallStyle,
                     marker);
+            }
+        }
+
+        private void DrawSigilUrgencyTicks(Vector2 center, float size, float urgency, Color color)
+        {
+            int ticks = _settings.Sigils.UrgencyTickCount;
+            if (ticks < 2)
+            {
+                return;
+            }
+            int lit = Mathf.CeilToInt((1f - urgency) * ticks);
+            float thickness = BorderThickness();
+            float radius = size * 0.72f;
+            float length = size * 0.14f;
+            for (int i = 0; i < ticks; i++)
+            {
+                float angle = (i / (float)ticks) * 360f;
+                Matrix4x4 previous = GUI.matrix;
+                GUIUtility.RotateAroundPivot(angle, center);
+                DrawRect(
+                    new Rect(center.x + radius, center.y - (thickness * 0.5f), length, thickness),
+                    WithAlpha(color, i < lit ? 0.85f : 0.16f));
+                GUI.matrix = previous;
             }
         }
 
@@ -4806,30 +4852,56 @@ namespace DuneVector
             Color accent = faulted
                 ? sigils.FaultColor
                 : _sigilChain ? sigils.ChainColor : _settings.HudPrimaryColor;
-            float lineHeight = _settings.HudLineHeight;
-            string chainProgress = _sigilDemand.Count > 1
-                ? $"   {_sigilSymbolIndex + 1}/{_sigilDemand.Count}"
-                : string.Empty;
+            float lineHeight = Scaled(_settings.HudLineHeight);
+            float pad = Scaled(sigils.PromptPanelPadding);
+            float countdownHeight = lineHeight * 1.7f;
+            float pipSize = Scaled(sigils.PromptChainPipSize);
+            float pipGap = Scaled(sigils.PromptChainPipGap);
+            bool chained = _sigilDemand.Count > 1;
+
+            float plateWidth = Mathf.Min(
+                Scaled(sigils.PromptPanelWidth),
+                Screen.width - (Scaled(_settings.HudMargin) * 2f));
+            float plateHeight = (pad * 2f) + lineHeight + countdownHeight +
+                (chained ? pipSize + pipGap : 0f);
+            float plateY = Screen.height * sigils.DrawingPromptViewportY;
+            if (_boss != null && _boss.Active)
+            {
+                // The sovereign's meter owns the top of the frame, so the demand drops below it
+                // instead of being painted over.
+                plateY = Mathf.Max(
+                    plateY,
+                    Scaled(_settings.BossMeterTop + _settings.BossMeterHeight + _settings.HudSectionGap));
+            }
+            Rect plate = new Rect(
+                (Screen.width - plateWidth) * 0.5f,
+                plateY,
+                plateWidth,
+                plateHeight);
+            // The demand sits on its own plate so the glyph name and countdown stay readable over
+            // the starfield instead of floating loose across the reticle.
+            DrawPanel(plate, accent);
+
+            float cursor = plate.y + pad;
             DrawLabel(
-                new Rect(
-                    0f,
-                    Screen.height * sigils.DrawingPromptViewportY,
-                    Screen.width,
-                    lineHeight),
-                $"{(_sigilChain ? sigils.ChainPromptLabel : sigils.PromptLabel)}   " +
-                $"{definition.Name}{chainProgress}",
+                new Rect(plate.x + pad, cursor, plate.width - (pad * 2f), lineHeight),
+                $"{(_sigilChain ? sigils.ChainPromptLabel : sigils.PromptLabel)}   {definition.Name}",
                 _centeredSmallStyle,
                 accent);
+            cursor += lineHeight;
             float remaining = SigilCountdownRemaining();
-            DrawLabel(
-                new Rect(
-                    0f,
-                    (Screen.height * sigils.DrawingPromptViewportY) + lineHeight,
-                    Screen.width,
-                    lineHeight),
+            DrawShadowedLabel(
+                new Rect(plate.x + pad, cursor, plate.width - (pad * 2f), countdownHeight),
                 $"{remaining:0.0}s",
                 _sigilCountdownStyle,
                 accent);
+            cursor += countdownHeight;
+            if (chained)
+            {
+                DrawSigilChainPips(
+                    new Rect(plate.x + pad, cursor + pipGap, plate.width - (pad * 2f), pipSize),
+                    accent);
+            }
 
             float guideSize = Mathf.Min(Screen.width, Screen.height) *
                 sigils.DrawingGuideScreenFraction;
@@ -4857,12 +4929,12 @@ namespace DuneVector
                 DrawSigilLine(
                     _sigilGlyphPoints[i - 1],
                     _sigilGlyphPoints[i],
-                    sigils.DrawingGuideThickness,
+                    Scaled(sigils.DrawingGuideThickness),
                     guideColor);
             }
             if (_sigilGlyphPoints.Count > 0)
             {
-                float startSize = sigils.DrawingGuideStartSize;
+                float startSize = Scaled(sigils.DrawingGuideStartSize);
                 Vector2 start = _sigilGlyphPoints[0];
                 DrawRect(
                     new Rect(
@@ -4878,28 +4950,66 @@ namespace DuneVector
                 DrawSigilLine(
                     _sigilAttemptPoints[i - 1],
                     _sigilAttemptPoints[i],
-                    sigils.DrawingPaintThickness,
+                    Scaled(sigils.DrawingPaintThickness),
                     sigils.DrawingPaintColor);
             }
 
             float countdown = Mathf.Clamp01(remaining / Mathf.Max(0.01f, _sigilDuration));
+            float barWidth = Mathf.Min(
+                Scaled(sigils.CountdownBarWidth),
+                Screen.width - (Scaled(_settings.HudMargin) * 2f));
+            float barHeight = Scaled(sigils.CountdownBarHeight);
+            float gap = Scaled(_settings.HudRowGap);
+            // The hint keeps its authored anchor unless the charge readout is in the way, and the
+            // countdown bar then rides just above it, so nothing collides on a short screen.
+            float hintY = Mathf.Min(
+                Screen.height * sigils.DrawingHintViewportY,
+                ChargePanelRect().y - gap - lineHeight);
+            float barY = Mathf.Min(
+                Screen.height * sigils.DrawingCountdownViewportY,
+                hintY - gap - barHeight);
             DrawMeter(
-                new Rect(
-                    (Screen.width - sigils.CountdownBarWidth) * 0.5f,
-                    Screen.height * sigils.DrawingCountdownViewportY,
-                    sigils.CountdownBarWidth,
-                    sigils.CountdownBarHeight),
+                new Rect((Screen.width - barWidth) * 0.5f, barY, barWidth, barHeight),
                 countdown,
                 Color.Lerp(sigils.FaultColor, sigils.CompletedStrokeColor, countdown));
             DrawLabel(
-                new Rect(
-                    0f,
-                    Screen.height * sigils.DrawingHintViewportY,
-                    Screen.width,
-                    lineHeight),
+                new Rect(0f, hintY, Screen.width, lineHeight),
                 _sigilDrawing ? sigils.ReleaseHintLabel : sigils.HintLabel,
                 _centeredSmallStyle,
                 _settings.HudSecondaryColor);
+        }
+
+        // One pip per glyph in a chain demand, so the player can see how much of the choir is left.
+        private void DrawSigilChainPips(Rect row, Color accent)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            int count = _sigilDemand.Count;
+            if (count <= 0)
+            {
+                return;
+            }
+            float gap = Scaled(sigils.PromptChainPipGap);
+            float size = Mathf.Min(row.height, (row.width - ((count - 1) * gap)) / count);
+            float x = row.center.x - (((size * count) + (gap * (count - 1))) * 0.5f);
+            float border = BorderThickness();
+            for (int i = 0; i < count; i++)
+            {
+                Rect pip = new Rect(x + (i * (size + gap)), row.y, size, size);
+                if (i < _sigilSymbolIndex)
+                {
+                    DrawRect(pip, sigils.CompletedStrokeColor);
+                }
+                else if (i == _sigilSymbolIndex)
+                {
+                    DrawRect(pip, accent);
+                }
+                else
+                {
+                    DrawRect(pip, _settings.HudMeterTrackColor);
+                    DrawRect(new Rect(pip.x, pip.y, pip.width, border), WithAlpha(accent, 0.5f));
+                    DrawRect(new Rect(pip.x, pip.yMax - border, pip.width, border), WithAlpha(accent, 0.5f));
+                }
+            }
         }
 
         private void DrawSigilLine(Vector2 from, Vector2 to, float thickness, Color color)
@@ -4924,19 +5034,27 @@ namespace DuneVector
                 return;
             }
             RailSigilTuning sigils = _settings.Sigils;
-            float fade = 1f - Mathf.Clamp01(
+            float normalized = Mathf.Clamp01(
                 _sigilVerdictElapsed / Mathf.Max(0.01f, sigils.VerdictDuration));
-            DrawLabel(
-                new Rect(
-                    0f,
-                    Screen.height * sigils.DrawingVerdictViewportY,
-                    Screen.width,
-                    32f),
+            float fade = 1f - normalized;
+            Color color = _sigilVerdictBroken ? sigils.CompletedStrokeColor : sigils.FaultColor;
+            float height = Scaled(sigils.VerdictLabelHeight);
+            // The verdict lifts and fades so a banish and a strike are told apart at a glance.
+            Rect rect = new Rect(
+                0f,
+                (Screen.height * sigils.DrawingVerdictViewportY) - (normalized * height * 0.6f),
+                Screen.width,
+                height);
+            DrawShadowedLabel(
+                rect,
                 _sigilVerdictBroken ? sigils.BanishLabel : sigils.StrikeLabel,
                 _centeredSmallStyle,
-                WithAlpha(
-                    _sigilVerdictBroken ? sigils.CompletedStrokeColor : sigils.FaultColor,
-                    fade));
+                WithAlpha(color, fade));
+            float rule = Mathf.Max(1f, Scaled(_settings.HudDividerHeight));
+            float ruleWidth = Scaled(sigils.VerdictRuleWidth) * (0.4f + (0.6f * fade));
+            DrawRect(
+                new Rect(rect.center.x - (ruleWidth * 0.5f), rect.yMax, ruleWidth, rule),
+                WithAlpha(color, fade * 0.8f));
         }
 
         private void OnGUI()
@@ -4946,13 +5064,16 @@ namespace DuneVector
             {
                 return;
             }
+            UpdateHudScale();
             EnsureHudStyles();
             GUI.depth = -1300;
             // World-anchored layers first so the chrome always sits on top of them.
             DrawLaneHudWarning();
+            DrawLowHullEdge();
             DrawDamageVignette();
             DrawScorePopups();
             DrawReticles();
+            DrawThreatIndicators();
             DrawRoutePrompt();
             DrawSigilDuel();
             DrawHudPanels();
@@ -4967,38 +5088,104 @@ namespace DuneVector
             }
         }
 
+        // The chrome is authored against HudReferenceHeight and rescaled per display, so the
+        // panels keep their proportion instead of shrinking into a corner on a tall screen.
+        private void UpdateHudScale()
+        {
+            float minimum = Mathf.Min(_settings.HudMinimumScale, _settings.HudMaximumScale);
+            float maximum = Mathf.Max(_settings.HudMinimumScale, _settings.HudMaximumScale);
+            float scale = Mathf.Clamp(
+                Screen.height / Mathf.Max(1f, _settings.HudReferenceHeight),
+                minimum,
+                maximum);
+            if (Mathf.Abs(scale - _hudStyleScale) > 0.004f)
+            {
+                _bodyStyle = null;
+            }
+            _hudScale = scale;
+        }
+
+        private float Scaled(float value)
+        {
+            return value * _hudScale;
+        }
+
+        private int ScaledFontSize(int size)
+        {
+            return Mathf.Max(8, Mathf.RoundToInt(size * _hudScale));
+        }
+
+        private float BorderThickness()
+        {
+            return Mathf.Max(1f, Scaled(_settings.ReticleLineThickness));
+        }
+
+        // Presentation-only readout state: the score ticker and the trailing meter ghosts.
+        private void TickHudPresentation(float deltaTime)
+        {
+            _scoreDisplay = Mathf.MoveTowards(
+                _scoreDisplay,
+                _state.Score,
+                Mathf.Max(1f, _settings.ScoreTickerSpeed) * deltaTime);
+            float hull = _health != null ? _health.NormalizedHealth : 0f;
+            TickMeterGhost(hull, ref _hullGhost, ref _hullGhostHold, deltaTime);
+            float boss = _boss != null && _boss.Active
+                ? Mathf.Clamp01(_boss.Health / Mathf.Max(1f, _boss.MaximumHealth))
+                : 1f;
+            TickMeterGhost(boss, ref _bossGhost, ref _bossGhostHold, deltaTime);
+        }
+
+        private void TickMeterGhost(float value, ref float ghost, ref float hold, float deltaTime)
+        {
+            if (value >= ghost)
+            {
+                ghost = value;
+                hold = 0f;
+                return;
+            }
+            hold += deltaTime;
+            if (hold >= _settings.HudMeterGhostHoldDuration)
+            {
+                ghost = Mathf.MoveTowards(
+                    ghost,
+                    value,
+                    Mathf.Max(0.01f, _settings.HudMeterGhostDrainSpeed) * deltaTime);
+            }
+        }
+
         private void EnsureHudStyles()
         {
             if (_bodyStyle != null)
             {
                 return;
             }
+            _hudStyleScale = _hudScale;
             Font font = _settings.HudFont != null ? _settings.HudFont : GUI.skin.font;
             _smallStyle = new GUIStyle(GUI.skin.label)
             {
                 font = font,
-                fontSize = _settings.HudSmallFontSize,
+                fontSize = ScaledFontSize(_settings.HudSmallFontSize),
                 alignment = TextAnchor.MiddleLeft,
                 normal = { textColor = _settings.HudSecondaryColor },
             };
             _bodyStyle = new GUIStyle(_smallStyle)
             {
-                fontSize = _settings.HudBodyFontSize,
+                fontSize = ScaledFontSize(_settings.HudBodyFontSize),
                 normal = { textColor = _settings.HudPrimaryColor },
             };
             _titleStyle = new GUIStyle(_bodyStyle)
             {
-                fontSize = _settings.HudTitleFontSize,
+                fontSize = ScaledFontSize(_settings.HudTitleFontSize),
                 fontStyle = FontStyle.Bold,
             };
             _resultStyle = new GUIStyle(_titleStyle)
             {
-                fontSize = _settings.HudResultFontSize,
+                fontSize = ScaledFontSize(_settings.HudResultFontSize),
                 alignment = TextAnchor.MiddleCenter,
             };
             _popupStyle = new GUIStyle(_bodyStyle)
             {
-                fontSize = _settings.ScorePopupFontSize,
+                fontSize = ScaledFontSize(_settings.ScorePopupFontSize),
                 alignment = TextAnchor.MiddleCenter,
             };
             _centeredSmallStyle = new GUIStyle(_smallStyle)
@@ -5007,17 +5194,31 @@ namespace DuneVector
             };
             _statLabelStyle = new GUIStyle(_smallStyle)
             {
-                fontSize = _settings.HudBodyFontSize,
+                fontSize = ScaledFontSize(_settings.HudBodyFontSize),
                 alignment = TextAnchor.MiddleLeft,
             };
             _statValueStyle = new GUIStyle(_bodyStyle)
             {
                 alignment = TextAnchor.MiddleRight,
             };
+            _valueStyle = new GUIStyle(_bodyStyle)
+            {
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleRight,
+            };
+            _sectionStyle = new GUIStyle(_smallStyle)
+            {
+                fontStyle = FontStyle.Bold,
+                alignment = TextAnchor.MiddleLeft,
+            };
             _sigilCountdownStyle = new GUIStyle(_titleStyle)
             {
-                fontSize = _settings.Sigils.CountdownFontSize,
+                fontSize = ScaledFontSize(_settings.Sigils.CountdownFontSize),
                 alignment = TextAnchor.MiddleCenter,
+            };
+            _gradeStyle = new GUIStyle(_resultStyle)
+            {
+                fontSize = ScaledFontSize(Mathf.RoundToInt(_settings.HudResultFontSize * 1.25f)),
             };
             StripHoverStates(_smallStyle);
             StripHoverStates(_bodyStyle);
@@ -5027,9 +5228,14 @@ namespace DuneVector
             StripHoverStates(_centeredSmallStyle);
             StripHoverStates(_statLabelStyle);
             StripHoverStates(_statValueStyle);
+            StripHoverStates(_valueStyle);
+            StripHoverStates(_sectionStyle);
             StripHoverStates(_sigilCountdownStyle);
+            StripHoverStates(_gradeStyle);
         }
 
+        // Every GUIStyle state is pinned to the normal one so the labels never light up or shift
+        // under the pointer: this HUD is a readout, not a set of controls.
         private static void StripHoverStates(GUIStyle style)
         {
             if (style == null)
@@ -5068,6 +5274,24 @@ namespace DuneVector
             style.onHover.textColor = previous;
         }
 
+        // Drop shadow behind the glyphs so cyan text still separates from a bright cloud bank.
+        private void DrawShadowedLabel(Rect rect, string text, GUIStyle style, Color color)
+        {
+            Vector2 offset = _settings.HudPanelShadowOffset * (_hudScale * 0.35f);
+            DrawLabel(
+                new Rect(rect.x + offset.x, rect.y + offset.y, rect.width, rect.height),
+                text,
+                style,
+                WithAlpha(_settings.HudPanelShadowColor, color.a));
+            DrawLabel(rect, text, style, color);
+        }
+
+        private void DrawStatRow(Rect row, string label, string value, Color labelColor, Color valueColor)
+        {
+            DrawLabel(row, label, _smallStyle, labelColor);
+            DrawLabel(row, value, _valueStyle, valueColor);
+        }
+
         private static Color WithAlpha(Color color, float alpha)
         {
             color.a *= Mathf.Clamp01(alpha);
@@ -5076,173 +5300,327 @@ namespace DuneVector
 
         private void DrawHudPanels()
         {
-            float margin = _settings.HudMargin;
-            float pad = _settings.HudPanelPadding;
-            float line = _settings.HudLineHeight;
-            float meter = _settings.HudMeterHeight;
-            float width = _settings.HudPanelWidth;
-            float inner = width - (pad * 2f);
+            DrawMissionPanel();
+            DrawStatusPanel();
+            DrawChargePanel();
+        }
 
-            // Every row is laid out from a running cursor and the panel is sized to match, so
-            // no label can ever spill past the panel or off the top of the screen.
-            float leftHeight = (pad * 2f) + _settings.HudTitleHeight + (line * 4f) +
-                (_settings.ProgressMeterHeight * 2f) + 10f;
-            Rect left = new Rect(margin, margin, width, leftHeight);
-            DrawPanel(left);
-            float cursor = left.y + pad;
-            DrawLabel(
-                new Rect(left.x + pad, cursor, inner, _settings.HudTitleHeight),
+        private void DrawMissionPanel()
+        {
+            float margin = Scaled(_settings.HudMargin);
+            float pad = Scaled(_settings.HudPanelPadding);
+            float line = Scaled(_settings.HudLineHeight);
+            float progress = Scaled(_settings.ProgressMeterHeight);
+            float rowGap = Scaled(_settings.HudRowGap);
+            float sectionGap = Scaled(_settings.HudSectionGap);
+            float titleHeight = Scaled(_settings.HudTitleHeight);
+            float chip = Scaled(_settings.RouteChipHeight);
+            float width = Scaled(_settings.HudPanelWidth);
+            float inner = width - (pad * 2f);
+            float divider = Mathf.Max(1f, Scaled(_settings.HudDividerHeight));
+
+            // The panel is sized from exactly the increments the cursor walks below, so no row can
+            // ever spill past the frame at any HUD scale.
+            float height = (pad * 2f) + titleHeight + line + divider + (rowGap * 6f) +
+                (line * 5f) + (progress * 2f) + sectionGap + chip;
+            Rect panel = new Rect(margin, margin, width, height);
+            DrawPanel(panel, _settings.HudBorderColor);
+            DrawPanelHeader(panel, pad + titleHeight + line);
+
+            float cursor = panel.y + pad;
+            DrawShadowedLabel(
+                new Rect(panel.x + pad, cursor, inner, titleHeight),
                 _settings.MissionTitle,
                 _titleStyle,
                 _settings.HudPrimaryColor);
-            cursor += _settings.HudTitleHeight;
+            cursor += titleHeight;
             DrawLabel(
-                new Rect(left.x + pad, cursor, inner, line),
+                new Rect(panel.x + pad, cursor, inner, line),
                 _settings.MissionSubtitle,
                 _smallStyle,
                 _settings.HudSecondaryColor);
             cursor += line;
-            DrawLabel(
-                new Rect(left.x + pad, cursor, inner, line),
-                $"SCORE  {_state.Score:0000000}",
-                _bodyStyle,
-                _settings.HudPrimaryColor);
-            DrawLabel(
-                new Rect(left.x + pad, cursor, inner, line),
-                $"HIT  {_state.Kills:000}",
-                _statValueStyle,
+            DrawRect(new Rect(panel.x, cursor, panel.width, divider), _settings.HudDividerColor);
+            cursor += divider + rowGap;
+
+            DrawStatRow(
+                new Rect(panel.x + pad, cursor, inner, line),
+                _settings.ScoreLabel,
+                string.Format(_settings.ScoreValueFormat, Mathf.RoundToInt(_scoreDisplay)),
+                _settings.HudSecondaryColor,
                 _settings.HudPrimaryColor);
             cursor += line;
+            DrawStatRow(
+                new Rect(panel.x + pad, cursor, inner, line),
+                _settings.KillsLabel,
+                string.Format(_settings.KillsValueFormat, _state.Kills),
+                _settings.HudSecondaryColor,
+                _settings.HudPrimaryColor);
+            cursor += line + rowGap;
 
-            float comboFill = _state.Combo > 1 && float.IsFinite(_comboExpiresAt)
+            bool comboLive = _state.Combo > 1;
+            float comboFill = comboLive && float.IsFinite(_comboExpiresAt)
                 ? Mathf.Clamp01((_comboExpiresAt - _state.Elapsed) / Mathf.Max(0.01f, _settings.ComboWindow))
                 : 0f;
-            DrawLabel(
-                new Rect(left.x + pad, cursor, inner, line),
-                $"COMBO  x{_state.ComboMultiplier:0.0}",
-                _smallStyle,
-                _state.Combo > 1 ? _settings.HudComboColor : _settings.HudSecondaryColor);
-            DrawLabel(
-                new Rect(left.x + pad, cursor, inner, line),
-                $"FORMATIONS  {_state.FormationClears:00}",
-                _statValueStyle,
-                _settings.HudSecondaryColor);
-            cursor += line;
+            DrawStatRow(
+                new Rect(panel.x + pad, cursor, inner, line),
+                _settings.ComboLabel,
+                string.Format(_settings.ComboValueFormat, _state.ComboMultiplier),
+                _settings.HudSecondaryColor,
+                comboLive ? _settings.HudComboColor : _settings.HudSecondaryColor);
+            cursor += line + rowGap;
             DrawMeter(
-                new Rect(left.x + pad, cursor, inner, _settings.ProgressMeterHeight),
+                new Rect(panel.x + pad, cursor, inner, progress),
                 comboFill,
                 _settings.HudComboColor);
-            cursor += _settings.ProgressMeterHeight + 6f;
+            cursor += progress + sectionGap;
 
-            float depth = Mathf.Clamp01(_state.Distance / Mathf.Max(1f, _settings.BossSpawnDistance));
-            DrawLabel(
-                new Rect(left.x + pad, cursor, inner, line),
-                _settings.ProgressLabel,
-                _smallStyle,
+            DrawStatRow(
+                new Rect(panel.x + pad, cursor, inner, line),
+                _settings.FormationsLabel,
+                string.Format(_settings.FormationsValueFormat, _state.FormationClears),
+                _settings.HudSecondaryColor,
                 _settings.HudSecondaryColor);
-            DrawLabel(
-                new Rect(left.x + pad, cursor, inner, line),
-                _state.Route == RailShooterRoute.Black
-                    ? _settings.RiskRouteLabel
-                    : _settings.SafeRouteLabel,
-                _statValueStyle,
-                _state.Route == RailShooterRoute.Black
-                    ? _settings.RiftDangerColor
-                    : _settings.RiftSignalColor);
-            cursor += line;
-            DrawMeter(
-                new Rect(left.x + pad, cursor, inner, _settings.ProgressMeterHeight),
-                depth,
-                _settings.HudChargeColor);
+            cursor += line + rowGap;
 
-            float rightHeight = (pad * 2f) + (line * 3f) + (meter * 2f) + 16f;
-            Rect right = new Rect(Screen.width - margin - width, margin, width, rightHeight);
-            DrawPanel(right);
-            cursor = right.y + pad;
+            DrawStatRow(
+                new Rect(panel.x + pad, cursor, inner, line),
+                _settings.ProgressLabel,
+                string.Format(_settings.DepthValueFormat, Mathf.RoundToInt(_state.Distance)),
+                _settings.HudSecondaryColor,
+                _settings.HudPrimaryColor);
+            cursor += line + rowGap;
+            float depth = Mathf.Clamp01(_state.Distance / Mathf.Max(1f, _settings.BossSpawnDistance));
+            Rect depthMeter = new Rect(panel.x + pad, cursor, inner, progress);
+            DrawMeter(depthMeter, depth, _settings.HudChargeColor);
+            DrawDepthGateMarkers(depthMeter);
+            cursor += progress + rowGap;
+
+            bool blackRoute = _state.Route == RailShooterRoute.Black;
+            DrawRouteChip(
+                new Rect(panel.x + pad, cursor, inner, chip),
+                blackRoute ? _settings.RiskRouteLabel : _settings.SafeRouteLabel,
+                blackRoute ? _settings.RiftDangerColor : _settings.RiftSignalColor);
+        }
+
+        // Ticks on the depth meter for every route split still ahead, so the player can read how
+        // far the next branch is instead of only learning about it from the prompt.
+        private void DrawDepthGateMarkers(Rect meter)
+        {
+            float span = Mathf.Max(1f, _settings.BossSpawnDistance);
+            float markerWidth = Mathf.Max(1f, Scaled(_settings.DepthGateMarkerWidth));
+            for (int i = 0; i < _settings.BranchGateCount; i++)
+            {
+                float distance = _settings.BranchGateFirstDistance + (i * _settings.BranchGateSpacing);
+                float normalized = distance / span;
+                if (normalized <= 0f || normalized >= 1f)
+                {
+                    continue;
+                }
+                Color color = i < _state.RouteGatesCleared
+                    ? _settings.DepthGateClearedMarkerColor
+                    : _settings.DepthGateMarkerColor;
+                DrawRect(
+                    new Rect(
+                        meter.x + (meter.width * normalized) - (markerWidth * 0.5f),
+                        meter.y - markerWidth,
+                        markerWidth,
+                        meter.height + (markerWidth * 2f)),
+                    color);
+            }
+        }
+
+        private void DrawRouteChip(Rect row, string label, Color color)
+        {
+            float padding = Scaled(_settings.RouteChipPadding);
+            float width = Mathf.Min(
+                row.width,
+                _centeredSmallStyle.CalcSize(new GUIContent(label)).x + (padding * 2f));
+            Rect chip = new Rect(row.xMax - width, row.y, width, row.height);
+            DrawRect(chip, WithAlpha(color, 0.16f));
+            float border = BorderThickness();
+            DrawRect(new Rect(chip.x, chip.y, border, chip.height), color);
+            DrawRect(new Rect(chip.xMax - border, chip.y, border, chip.height), color);
+            DrawLabel(chip, label, _centeredSmallStyle, color);
+        }
+
+        private void DrawStatusPanel()
+        {
+            float margin = Scaled(_settings.HudMargin);
+            float pad = Scaled(_settings.HudPanelPadding);
+            float line = Scaled(_settings.HudLineHeight);
+            float meter = Scaled(_settings.HudMeterHeight);
+            float rowGap = Scaled(_settings.HudRowGap);
+            float sectionGap = Scaled(_settings.HudSectionGap);
+            float titleHeight = Scaled(_settings.HudTitleHeight);
+            float pip = Scaled(_settings.BombPipSize);
+            float width = Scaled(_settings.HudPanelWidth);
+            float inner = width - (pad * 2f);
+            float divider = Mathf.Max(1f, Scaled(_settings.HudDividerHeight));
+
+            float height = (pad * 2f) + titleHeight + divider + (rowGap * 4f) +
+                (line * 3f) + (meter * 2f) + (sectionGap * 2f) + pip;
+            Rect panel = new Rect(Screen.width - margin - width, margin, width, height);
+
             float hull = _health != null ? _health.NormalizedHealth : 0f;
             bool lowHull = hull <= _settings.LowHullWarningFraction;
             float hullPulse = lowHull
                 ? 0.55f + (0.45f * Mathf.Abs(Mathf.Sin(_state.Elapsed * _settings.LowHullPulseSpeed)))
                 : 1f;
-            DrawLabel(
-                new Rect(right.x + pad, cursor, inner, line),
-                $"RIFT HULL  {Mathf.CeilToInt(hull * 100f):000}%",
-                _bodyStyle,
-                WithAlpha(lowHull ? _settings.HudDamageColor : _settings.HudPrimaryColor, hullPulse));
-            cursor += line;
-            DrawMeter(
-                new Rect(right.x + pad, cursor, inner, meter),
-                hull,
-                Color.Lerp(_settings.HudDamageColor, _settings.HudReticleColor, hull));
-            cursor += meter + 8f;
-            DrawLabel(
-                new Rect(right.x + pad, cursor, inner, line),
-                "BOMBS",
-                _bodyStyle,
+            Color accent = lowHull
+                ? Color.Lerp(_settings.HudBorderColor, _settings.HudDamageColor, hullPulse)
+                : _settings.HudBorderColor;
+            DrawPanel(panel, accent);
+            DrawPanelHeader(panel, pad + titleHeight);
+
+            float cursor = panel.y + pad;
+            DrawShadowedLabel(
+                new Rect(panel.x + pad, cursor, inner, titleHeight),
+                _settings.StatusPanelTitle,
+                _titleStyle,
                 _settings.HudPrimaryColor);
-            DrawBombPips(new Rect(right.x + pad, cursor, inner, line));
-            cursor += line;
-            DrawLabel(
-                new Rect(right.x + pad, cursor, inner, line),
-                "MANEUVER",
-                _smallStyle,
-                _settings.HudSecondaryColor);
-            cursor += line;
-            DrawMeter(
-                new Rect(right.x + pad, cursor, inner, meter),
-                _state.ManeuverEnergy / Mathf.Max(1f, _settings.ManeuverEnergyCapacity),
-                _settings.HudChargeColor);
+            cursor += titleHeight;
+            DrawRect(new Rect(panel.x, cursor, panel.width, divider), _settings.HudDividerColor);
+            cursor += divider + rowGap;
 
-            float chargeHeight = (pad * 0.5f * 2f) + line + meter;
-            Rect chargeRect = new Rect(
-                (Screen.width - width) * 0.5f,
-                Screen.height - margin - chargeHeight - line,
-                width,
-                chargeHeight);
-            DrawPanel(chargeRect);
-            DrawLabel(
-                new Rect(chargeRect.x + 12f, chargeRect.y + (pad * 0.5f), chargeRect.width - 24f, line),
-                _chargeLock != null || _satelliteChargeLock != null
-                    ? $"CHARGE // LOCK {_chargeLocks.Count + _satelliteChargeLocks.Count:00}"
-                    : "CHARGE // PENETRATION",
-                _smallStyle,
-                _chargeLock != null || _satelliteChargeLock != null
-                    ? _settings.HudChargeColor
+            DrawStatRow(
+                new Rect(panel.x + pad, cursor, inner, line),
+                _settings.HullLabel,
+                string.Format(_settings.HullValueFormat, Mathf.CeilToInt(hull * 100f)),
+                _settings.HudSecondaryColor,
+                WithAlpha(lowHull ? _settings.HudDamageColor : _settings.HudPrimaryColor, hullPulse));
+            cursor += line + rowGap;
+            DrawMeter(
+                new Rect(panel.x + pad, cursor, inner, meter),
+                hull,
+                Color.Lerp(_settings.HudDamageColor, _settings.HudReticleColor, hull),
+                _hullGhost);
+            cursor += meter + sectionGap;
+
+            DrawStatRow(
+                new Rect(panel.x + pad, cursor, inner, line),
+                _settings.BombsLabel,
+                string.Format(_settings.BombsValueFormat, _state.Bombs, Mathf.Max(1, _settings.MaximumBombs)),
+                _settings.HudSecondaryColor,
+                _state.Bombs > 0 ? _settings.HudBombColor : _settings.HudSecondaryColor);
+            cursor += line + rowGap;
+            DrawBombPips(new Rect(panel.x + pad, cursor, inner, pip));
+            cursor += pip + sectionGap;
+
+            float maneuver = Mathf.Clamp01(
+                _state.ManeuverEnergy / Mathf.Max(1f, _settings.ManeuverEnergyCapacity));
+            bool maneuverReady = maneuver >= 0.999f;
+            float readyPulse = 0.6f + (0.4f * Mathf.Abs(Mathf.Sin(_state.Elapsed * _settings.HudReadyPulseSpeed)));
+            DrawStatRow(
+                new Rect(panel.x + pad, cursor, inner, line),
+                _settings.ManeuverLabel,
+                maneuverReady
+                    ? _settings.ManeuverReadyLabel
+                    : string.Format(_settings.ManeuverValueFormat, Mathf.FloorToInt(maneuver * 100f)),
+                _settings.HudSecondaryColor,
+                maneuverReady
+                    ? WithAlpha(_settings.HudReticleColor, readyPulse)
                     : _settings.HudSecondaryColor);
+            cursor += line + rowGap;
             DrawMeter(
-                new Rect(
-                    chargeRect.x + 12f,
-                    chargeRect.y + (pad * 0.5f) + line,
-                    chargeRect.width - 24f,
-                    meter),
-                ChargeNormalized(),
-                _settings.HudChargeColor);
+                new Rect(panel.x + pad, cursor, inner, meter),
+                maneuver,
+                maneuverReady
+                    ? Color.Lerp(_settings.HudChargeColor, _settings.HudReticleColor, readyPulse)
+                    : _settings.HudChargeColor);
+        }
 
+        // Shared so the sigil hint can stay clear of the charge readout at any HUD scale.
+        private Rect ChargePanelRect()
+        {
+            float margin = Scaled(_settings.HudMargin);
+            float pad = Scaled(_settings.HudPanelPadding);
+            float line = Scaled(_settings.HudLineHeight);
+            float meter = Scaled(_settings.HudMeterHeight);
+            float rowGap = Scaled(_settings.HudRowGap);
+            float width = Scaled(_settings.HudPanelWidth);
+            float height = pad + line + rowGap + meter + pad;
+            return new Rect(
+                (Screen.width - width) * 0.5f,
+                Screen.height - margin - height - line,
+                width,
+                height);
+        }
+
+        private void DrawChargePanel()
+        {
+            float pad = Scaled(_settings.HudPanelPadding);
+            float line = Scaled(_settings.HudLineHeight);
+            float meter = Scaled(_settings.HudMeterHeight);
+            float rowGap = Scaled(_settings.HudRowGap);
+            Rect panel = ChargePanelRect();
+            float inner = panel.width - (pad * 2f);
+
+            float charge = ChargeNormalized();
+            bool ready = charge >= 0.999f;
+            int locks = _chargeLocks.Count + _satelliteChargeLocks.Count;
+            bool locked = _chargeLock != null || _satelliteChargeLock != null;
+            float readyPulse = 0.6f + (0.4f * Mathf.Abs(Mathf.Sin(_state.Elapsed * _settings.HudReadyPulseSpeed)));
+            Color accent = ready
+                ? Color.Lerp(_settings.HudBorderColor, _settings.HudChargeColor, readyPulse)
+                : _settings.HudBorderColor;
+            DrawPanel(panel, accent);
+
+            string label = ready
+                ? _settings.ChargeReadyLabel
+                : locked
+                    ? string.Format(_settings.ChargeLockFormat, locks)
+                    : _settings.ChargeLabel;
+            Color labelColor = ready
+                ? WithAlpha(_settings.HudChargeColor, readyPulse)
+                : locked
+                    ? _settings.HudChargeColor
+                    : _settings.HudSecondaryColor;
+            DrawLabel(
+                new Rect(panel.x + pad, panel.y + pad, inner, line),
+                label,
+                _centeredSmallStyle,
+                labelColor);
+            DrawMeter(
+                new Rect(panel.x + pad, panel.y + pad + line + rowGap, inner, meter),
+                charge,
+                ready
+                    ? Color.Lerp(_settings.HudChargeColor, Color.white, readyPulse * 0.4f)
+                    : _settings.HudChargeColor);
         }
 
         private void DrawBombPips(Rect row)
         {
             int capacity = Mathf.Max(1, _settings.MaximumBombs);
-            float size = Mathf.Min(row.height * 0.45f, 14f);
-            float spacing = size + 8f;
-            float x = row.xMax - (capacity * spacing) + (spacing - size);
+            float gap = Scaled(_settings.BombPipGap);
+            float size = Mathf.Min(
+                row.height,
+                Mathf.Min(Scaled(_settings.BombPipSize), (row.width - ((capacity - 1) * gap)) / capacity));
             float y = row.y + ((row.height - size) * 0.5f);
+            float border = BorderThickness();
             for (int i = 0; i < capacity; i++)
             {
-                Rect pip = new Rect(x + (i * spacing), y, size, size);
-                DrawRect(pip, new Color(0f, 0f, 0f, 0.72f));
-                if (i < _state.Bombs)
+                Rect pip = new Rect(row.x + (i * (size + gap)), y, size, size);
+                DrawRect(pip, _settings.HudMeterTrackColor);
+                DrawRect(
+                    new Rect(pip.x, pip.y, pip.width, border),
+                    WithAlpha(_settings.HudBombColor, 0.4f));
+                DrawRect(
+                    new Rect(pip.x, pip.yMax - border, pip.width, border),
+                    WithAlpha(_settings.HudBombColor, 0.4f));
+                if (i >= _state.Bombs)
                 {
-                    DrawRect(
-                        new Rect(pip.x + 2f, pip.y + 2f, pip.width - 4f, pip.height - 4f),
-                        _settings.HudBombColor);
+                    continue;
                 }
-                else
-                {
-                    DrawRect(
-                        new Rect(pip.x, pip.y, pip.width, 1f),
-                        WithAlpha(_settings.HudSecondaryColor, 0.6f));
-                }
+                Rect core = new Rect(
+                    pip.x + border,
+                    pip.y + border,
+                    Mathf.Max(0f, pip.width - (border * 2f)),
+                    Mathf.Max(0f, pip.height - (border * 2f)));
+                DrawRect(core, _settings.HudBombColor);
+                DrawRect(
+                    new Rect(core.x, core.y, core.width, Mathf.Max(1f, border)),
+                    WithAlpha(Color.white, 0.45f));
             }
         }
 
@@ -5250,10 +5628,10 @@ namespace DuneVector
         {
             DrawWorldReticle(
                 _player.transform.position + (_state.AimDirection * _settings.NearReticleDistance),
-                _settings.ReticleNearSize);
+                Scaled(_settings.ReticleNearSize));
             Vector3 farAim = _player.transform.position +
                 (_state.AimDirection * _settings.FarReticleDistance);
-            DrawWorldReticle(farAim, _settings.ReticleFarSize);
+            DrawWorldReticle(farAim, Scaled(_settings.ReticleFarSize));
 
             RailEnemy assist = FindViewportTarget(
                 _settings.AimAssistViewportRadius,
@@ -5263,17 +5641,22 @@ namespace DuneVector
             {
                 DrawBracket(
                     assistScreen,
-                    _settings.TargetBracketSize,
+                    Scaled(_settings.TargetBracketSize),
                     WithAlpha(_settings.HudReticleColor, 0.6f));
-                DrawTargetHealth(assist, assistScreen, _settings.TargetBracketSize);
+                DrawTargetHealth(assist, assistScreen, Scaled(_settings.TargetBracketSize));
             }
+            float lockPulse = 0.72f + (0.28f * Mathf.Abs(Mathf.Sin(_state.Elapsed * _settings.HudReadyPulseSpeed)));
             for (int i = 0; i < _chargeLocks.Count; i++)
             {
                 RailEnemy locked = _chargeLocks[i];
                 if (locked != null && locked.Active &&
                     TryProject(locked.Transform.position, out Vector2 lockScreen))
                 {
-                    DrawBracket(lockScreen, _settings.LockBracketSize, _settings.HudChargeColor);
+                    DrawBracket(
+                        lockScreen,
+                        Scaled(_settings.LockBracketSize),
+                        WithAlpha(_settings.HudChargeColor, lockPulse));
+                    DrawTargetHealth(locked, lockScreen, Scaled(_settings.LockBracketSize));
                 }
             }
             for (int i = 0; i < _satelliteChargeLocks.Count; i++)
@@ -5282,13 +5665,120 @@ namespace DuneVector
                 if (locked != null && locked.Active &&
                     TryProject(SatelliteTargetPosition(locked), out Vector2 lockScreen))
                 {
-                    DrawBracket(lockScreen, _settings.LockBracketSize, _settings.HudChargeColor);
+                    DrawBracket(
+                        lockScreen,
+                        Scaled(_settings.LockBracketSize),
+                        WithAlpha(_settings.HudChargeColor, lockPulse));
                 }
             }
             if (TryProject(farAim, out Vector2 markerAnchor))
             {
                 DrawHitMarkers(markerAnchor);
             }
+        }
+
+        // Screen-edge chevrons for hostiles that are alive but out of frame, so an off-screen
+        // flanker is a readable threat instead of an unexplained hit.
+        private void DrawThreatIndicators()
+        {
+            if (!_settings.ThreatIndicatorsEnabled || _camera == null || _player == null)
+            {
+                return;
+            }
+            float margin = Scaled(_settings.ThreatIndicatorEdgeMargin);
+            if (margin * 2f >= Mathf.Min(Screen.width, Screen.height))
+            {
+                return;
+            }
+            float size = Scaled(_settings.ThreatIndicatorSize);
+            float range = Mathf.Max(1f, _settings.ThreatIndicatorRange);
+            float rangeSquared = range * range;
+            Vector2 center = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+            Rect bounds = new Rect(
+                margin,
+                margin,
+                Screen.width - (margin * 2f),
+                Screen.height - (margin * 2f));
+            Vector3 origin = _player.transform.position;
+            int drawn = 0;
+            for (int i = 0; i < _enemies.Count && drawn < _settings.ThreatIndicatorMaximumCount; i++)
+            {
+                RailEnemy enemy = _enemies[i];
+                if (enemy == null || !enemy.Active || enemy.Boss || enemy.Transform == null)
+                {
+                    continue;
+                }
+                if ((enemy.Transform.position - origin).sqrMagnitude > rangeSquared)
+                {
+                    continue;
+                }
+                Vector3 projected = _camera.WorldToScreenPoint(enemy.Transform.position);
+                bool behind = projected.z <= 0f;
+                Vector2 point = new Vector2(projected.x, Screen.height - projected.y);
+                if (behind)
+                {
+                    // A point behind the lens projects mirrored, so flip it back before it is
+                    // turned into a bearing.
+                    point = new Vector2(Screen.width - point.x, Screen.height - point.y);
+                }
+                // Visibility is judged against the whole frame; the inset bounds only decide where
+                // the chevron parks, so a hostile near the edge is not double-drawn.
+                if (!behind &&
+                    point.x >= 0f && point.x <= Screen.width &&
+                    point.y >= 0f && point.y <= Screen.height)
+                {
+                    continue;
+                }
+                Vector2 direction = point - center;
+                if (direction.sqrMagnitude < 0.0001f)
+                {
+                    continue;
+                }
+                direction.Normalize();
+                DrawThreatChevron(
+                    ProjectToBounds(center, direction, bounds),
+                    direction,
+                    size,
+                    enemy.Elite ? _settings.ThreatIndicatorEliteColor : _settings.ThreatIndicatorColor);
+                drawn++;
+            }
+        }
+
+        private static Vector2 ProjectToBounds(Vector2 center, Vector2 direction, Rect bounds)
+        {
+            float halfWidth = bounds.width * 0.5f;
+            float halfHeight = bounds.height * 0.5f;
+            float horizontal = Mathf.Abs(direction.x) > 0.0001f
+                ? halfWidth / Mathf.Abs(direction.x)
+                : float.PositiveInfinity;
+            float vertical = Mathf.Abs(direction.y) > 0.0001f
+                ? halfHeight / Mathf.Abs(direction.y)
+                : float.PositiveInfinity;
+            float distance = Mathf.Min(horizontal, vertical);
+            if (!float.IsFinite(distance))
+            {
+                distance = Mathf.Min(halfWidth, halfHeight);
+            }
+            return center + (direction * distance);
+        }
+
+        private void DrawThreatChevron(Vector2 center, Vector2 direction, float size, Color color)
+        {
+            float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+            float thickness = BorderThickness();
+            Vector2 tip = center + (direction * (size * 0.5f));
+            Matrix4x4 previous = GUI.matrix;
+            GUIUtility.RotateAroundPivot(angle, center);
+            DrawRect(
+                new Rect(center.x - (size * 0.5f), center.y - (thickness * 0.5f), size, thickness),
+                color);
+            GUI.matrix = previous;
+            GUIUtility.RotateAroundPivot(angle + 145f, tip);
+            DrawRect(new Rect(tip.x, tip.y - (thickness * 0.5f), size * 0.6f, thickness), color);
+            GUI.matrix = previous;
+            GUIUtility.RotateAroundPivot(angle - 145f, tip);
+            DrawRect(new Rect(tip.x, tip.y - (thickness * 0.5f), size * 0.6f, thickness), color);
+            GUI.matrix = previous;
         }
 
         private void DrawTargetHealth(RailEnemy enemy, Vector2 center, float size)
@@ -5301,9 +5791,9 @@ namespace DuneVector
             float width = size * 1.6f;
             Rect bar = new Rect(
                 center.x - (width * 0.5f),
-                center.y + (size * 0.5f) + 4f,
+                center.y + (size * 0.5f) + Scaled(_settings.TargetHealthBarGap),
                 width,
-                Mathf.Max(2f, _settings.ProgressMeterHeight * 0.5f));
+                Mathf.Max(2f, Scaled(_settings.ProgressMeterHeight) * 0.5f));
             DrawMeter(bar, health, Color.Lerp(_settings.RiftDangerColor, _settings.HudReticleColor, health));
         }
 
@@ -5331,7 +5821,7 @@ namespace DuneVector
                     _hitMarkerElapsed / Mathf.Max(0.01f, _settings.HitMarkerDuration));
                 DrawCross(
                     center,
-                    _settings.HitMarkerSize,
+                    Scaled(_settings.HitMarkerSize),
                     WithAlpha(_settings.HudPrimaryColor, fade));
             }
             if (float.IsFinite(_killMarkerElapsed))
@@ -5340,7 +5830,7 @@ namespace DuneVector
                     _killMarkerElapsed / Mathf.Max(0.01f, _settings.KillMarkerDuration));
                 DrawCross(
                     center,
-                    Mathf.Lerp(_settings.HitMarkerSize, _settings.KillMarkerSize, normalized),
+                    Scaled(Mathf.Lerp(_settings.HitMarkerSize, _settings.KillMarkerSize, normalized)),
                     WithAlpha(_settings.HudComboColor, 1f - normalized));
             }
         }
@@ -5348,7 +5838,7 @@ namespace DuneVector
         private void DrawCross(Vector2 center, float size, Color color)
         {
             float half = size * 0.5f;
-            float thickness = Mathf.Max(1f, _settings.ReticleLineThickness);
+            float thickness = BorderThickness();
             float arm = size * 0.32f;
             DrawRect(new Rect(center.x - half, center.y - half, arm, thickness), color);
             DrawRect(new Rect(center.x + half - arm, center.y - half, arm, thickness), color);
@@ -5362,6 +5852,8 @@ namespace DuneVector
 
         private void DrawScorePopups()
         {
+            float width = Scaled(_settings.ScorePopupWidth);
+            float height = Scaled(_settings.ScorePopupHeight);
             for (int i = 0; i < _popups.Count; i++)
             {
                 ScorePopup popup = _popups[i];
@@ -5372,11 +5864,13 @@ namespace DuneVector
                 float normalized = Mathf.Clamp01(
                     popup.Elapsed / Mathf.Max(0.01f, _settings.ScorePopupDuration));
                 float fade = 1f - (normalized * normalized);
-                DrawLabel(
-                    new Rect(screen.x - 140f, screen.y - 16f, 280f, 32f),
-                    popup.Text,
-                    _popupStyle,
-                    WithAlpha(popup.Color, fade));
+                // Popups drift upward as they fade so overlapping awards stay countable.
+                Rect rect = new Rect(
+                    screen.x - (width * 0.5f),
+                    screen.y - (height * 0.5f) - (normalized * height),
+                    width,
+                    height);
+                DrawShadowedLabel(rect, popup.Text, _popupStyle, WithAlpha(popup.Color, fade));
             }
         }
 
@@ -5392,27 +5886,94 @@ namespace DuneVector
                 return;
             }
             float urgency = 1f - (ahead / Mathf.Max(1f, _settings.RoutePromptLeadDistance));
+            float promptWidth = Scaled(_settings.RoutePromptWidth);
+            float promptHeight = Scaled(_settings.RoutePromptHeight);
+            Rect prompt = new Rect(
+                (Screen.width - promptWidth) * 0.5f,
+                Screen.height * _settings.RoutePromptViewportY,
+                promptWidth,
+                promptHeight);
+            Color accent = Color.Lerp(_settings.HudSecondaryColor, _settings.HudPrimaryColor, urgency);
+            DrawPanel(prompt, accent);
             DrawLabel(
-                new Rect(0f, Screen.height * 0.24f, Screen.width, 30f),
+                prompt,
                 _settings.RoutePromptLabel,
                 _centeredSmallStyle,
-                WithAlpha(_settings.HudPrimaryColor, 0.45f + (0.55f * urgency)));
-            if (TryProject(_safeGate.position, out Vector2 safeScreen))
+                WithAlpha(_settings.HudPrimaryColor, 0.5f + (0.5f * urgency)));
+            // A closing bar under the plate turns the prompt into a readable approach timer.
+            DrawRect(
+                new Rect(prompt.x, prompt.yMax, prompt.width * urgency, Mathf.Max(1f, Scaled(_settings.HudDividerHeight))),
+                accent);
+
+            bool hasSafe = TryProject(_safeGate.position, out Vector2 safeScreen);
+            bool hasRisk = TryProject(_riskGate.position, out Vector2 riskScreen);
+            float chipWidth = Scaled(_settings.GateLabelWidth);
+            float chipHeight = Scaled(_settings.GateLabelHeight);
+            float offset = Scaled(_settings.GateLabelVerticalOffset);
+            float safeY = safeScreen.y - offset;
+            float riskY = riskScreen.y - offset;
+            // Far down the rift both gates project onto nearly the same pixel, so the chips are
+            // pushed apart instead of being painted on top of each other.
+            if (hasSafe && hasRisk &&
+                Mathf.Abs(safeScreen.x - riskScreen.x) < chipWidth &&
+                Mathf.Abs(safeY - riskY) < chipHeight)
             {
-                DrawLabel(
-                    new Rect(safeScreen.x - 130f, safeScreen.y - 12f, 260f, 24f),
+                float push = Scaled(_settings.GateLabelSeparation) * 0.5f;
+                if (safeScreen.x <= riskScreen.x)
+                {
+                    safeY -= push;
+                    riskY += push;
+                }
+                else
+                {
+                    safeY += push;
+                    riskY -= push;
+                }
+            }
+            if (hasSafe)
+            {
+                DrawGateChip(
+                    new Vector2(safeScreen.x, safeY),
+                    safeScreen,
+                    chipWidth,
+                    chipHeight,
                     _settings.SafeGateLabel,
-                    _centeredSmallStyle,
                     _settings.RiftSignalColor);
             }
-            if (TryProject(_riskGate.position, out Vector2 riskScreen))
+            if (hasRisk)
             {
-                DrawLabel(
-                    new Rect(riskScreen.x - 130f, riskScreen.y - 12f, 260f, 24f),
+                DrawGateChip(
+                    new Vector2(riskScreen.x, riskY),
+                    riskScreen,
+                    chipWidth,
+                    chipHeight,
                     _settings.RiskGateLabel,
-                    _centeredSmallStyle,
                     _settings.RiftDangerColor);
             }
+        }
+
+        private void DrawGateChip(
+            Vector2 center,
+            Vector2 anchor,
+            float width,
+            float height,
+            string label,
+            Color color)
+        {
+            Rect chip = new Rect(center.x - (width * 0.5f), center.y - (height * 0.5f), width, height);
+            float border = BorderThickness();
+            // Leader back to the gate so a nudged chip still reads as that gate's tag.
+            float top = Mathf.Min(chip.yMax, anchor.y);
+            float bottom = Mathf.Max(chip.yMax, anchor.y);
+            DrawRect(
+                new Rect(anchor.x - (border * 0.5f), top, border, Mathf.Max(0f, bottom - top)),
+                WithAlpha(color, 0.4f));
+            DrawRect(chip, _settings.HudPanelColor);
+            DrawRect(new Rect(chip.x, chip.y, border, chip.height), color);
+            DrawRect(new Rect(chip.xMax - border, chip.y, border, chip.height), color);
+            DrawRect(new Rect(chip.x, chip.y, chip.width, border), WithAlpha(color, 0.55f));
+            DrawRect(new Rect(chip.x, chip.yMax - border, chip.width, border), WithAlpha(color, 0.55f));
+            DrawLabel(chip, label, _centeredSmallStyle, color);
         }
 
         private void DrawBanner()
@@ -5420,6 +5981,7 @@ namespace DuneVector
             string text = null;
             string subtitle = null;
             float alpha = 0f;
+            bool hostile = false;
             if (Phase == RailShooterPhase.Entry)
             {
                 text = _settings.MissionTitle;
@@ -5431,6 +5993,7 @@ namespace DuneVector
             {
                 text = _settings.BossApproachLabel;
                 subtitle = _settings.BossTitle;
+                hostile = true;
                 float duration = Mathf.Max(0.01f, _settings.EntryCardDuration * 2f);
                 alpha = 1f - Mathf.Clamp01((_bossBannerElapsed - (duration * 0.6f)) / (duration * 0.4f));
                 alpha *= 0.55f + (0.45f * Mathf.Abs(Mathf.Sin(_bossBannerElapsed * 6f)));
@@ -5439,16 +6002,58 @@ namespace DuneVector
             {
                 return;
             }
-            DrawLabel(
-                new Rect(0f, (Screen.height * 0.38f) - 40f, Screen.width, 60f),
+            float width = Mathf.Min(Scaled(_settings.BannerWidth), Screen.width - (Scaled(_settings.HudMargin) * 2f));
+            float height = Scaled(_settings.BannerHeight);
+            Rect plate = new Rect(
+                (Screen.width - width) * 0.5f,
+                (Screen.height * _settings.BannerViewportY) - (height * 0.5f),
+                width,
+                height);
+            Color accent = hostile ? _settings.RiftDangerColor : _settings.HudBorderColor;
+            DrawRect(plate, WithAlpha(_settings.HudPanelColor, alpha));
+            float rule = Mathf.Max(1f, Scaled(_settings.BannerRuleHeight));
+            DrawRect(new Rect(plate.x, plate.y, plate.width, rule), WithAlpha(accent, alpha));
+            DrawRect(new Rect(plate.x, plate.yMax - rule, plate.width, rule), WithAlpha(accent, alpha));
+            float title = height * 0.58f;
+            DrawShadowedLabel(
+                new Rect(plate.x, plate.y + (height * 0.06f), plate.width, title),
                 text,
                 _resultStyle,
-                WithAlpha(_settings.HudPrimaryColor, alpha));
+                WithAlpha(hostile ? _settings.RiftDangerColor : _settings.HudPrimaryColor, alpha));
             DrawLabel(
-                new Rect(0f, (Screen.height * 0.38f) + 26f, Screen.width, 28f),
+                new Rect(plate.x, plate.y + (height * 0.06f) + title, plate.width, height * 0.3f),
                 subtitle,
                 _centeredSmallStyle,
                 WithAlpha(_settings.HudChargeColor, alpha));
+        }
+
+        // A persistent bleed on the frame edge while the hull is critical, so the state reads even
+        // when the player never looks at the status panel.
+        private void DrawLowHullEdge()
+        {
+            float warning = Mathf.Max(0.0001f, _settings.LowHullWarningFraction);
+            float hull = _health != null ? _health.NormalizedHealth : 1f;
+            if (hull <= 0f || hull > warning || _settings.LowHullEdgeOpacity <= 0.001f)
+            {
+                return;
+            }
+            float severity = 1f - (hull / warning);
+            float pulse = 0.55f + (0.45f * Mathf.Abs(Mathf.Sin(_state.Elapsed * _settings.LowHullPulseSpeed)));
+            float thickness = Scaled(_settings.LowHullEdgeThickness);
+            const int Bands = 4;
+            float slice = thickness / Bands;
+            for (int i = 0; i < Bands; i++)
+            {
+                float band = 1f - (i / (float)Bands);
+                Color color = WithAlpha(
+                    _settings.HudDamageColor,
+                    _settings.LowHullEdgeOpacity * severity * pulse * band * band);
+                float inset = i * slice;
+                DrawRect(new Rect(0f, inset, Screen.width, slice), color);
+                DrawRect(new Rect(0f, Screen.height - inset - slice, Screen.width, slice), color);
+                DrawRect(new Rect(inset, 0f, slice, Screen.height), color);
+                DrawRect(new Rect(Screen.width - inset - slice, 0f, slice, Screen.height), color);
+            }
         }
 
         private void DrawDamageVignette()
@@ -5492,7 +6097,7 @@ namespace DuneVector
         {
             float half = size * 0.5f;
             float corner = size * 0.28f;
-            float thickness = _settings.ReticleLineThickness;
+            float thickness = BorderThickness();
             DrawRect(new Rect(center.x - half, center.y - half, corner, thickness), color);
             DrawRect(new Rect(center.x - half, center.y - half, thickness, corner), color);
             DrawRect(new Rect(center.x + half - corner, center.y - half, corner, thickness), color);
@@ -5538,7 +6143,7 @@ namespace DuneVector
                     new Rect(laneScreen.x - spread, 0f, spread * 2f, Screen.height),
                     WithAlpha(_settings.RiftDangerColor, alpha));
             }
-            float edge = Mathf.Max(1f, _settings.ReticleLineThickness);
+            float edge = BorderThickness();
             Color edgeColor = WithAlpha(_settings.RiftDangerColor, active ? 0.9f : 0.35f + (0.4f * telegraph));
             DrawRect(new Rect(laneScreen.x - width, 0f, edge, Screen.height), edgeColor);
             DrawRect(new Rect(laneScreen.x + width - edge, 0f, edge, Screen.height), edgeColor);
@@ -5547,76 +6152,172 @@ namespace DuneVector
         private void DrawBossMeter()
         {
             float health = Mathf.Clamp01(_boss.Health / Mathf.Max(1f, _boss.MaximumHealth));
+            float pad = Scaled(_settings.HudPanelPadding);
+            float meter = Scaled(_settings.HudMeterHeight);
+            float titleHeight = Scaled(_settings.HudTitleHeight);
+            float width = Mathf.Min(
+                Scaled(_settings.BossMeterWidth),
+                Screen.width - (Scaled(_settings.HudMargin) * 2f));
+            float height = Scaled(_settings.BossMeterHeight);
             Rect panel = new Rect(
-                (Screen.width - _settings.BossMeterWidth) * 0.5f,
-                _settings.BossMeterTop,
-                _settings.BossMeterWidth,
-                58f);
-            DrawPanel(panel);
-            GUI.Label(new Rect(panel.x + 14f, panel.y + 5f, panel.width - 28f, 24f),
-                _settings.BossTitle, _titleStyle);
-            DrawMeter(new Rect(panel.x + 14f, panel.y + 36f, panel.width - 28f, _settings.HudMeterHeight),
-                health, _settings.HudDamageColor);
+                (Screen.width - width) * 0.5f,
+                Scaled(_settings.BossMeterTop),
+                width,
+                height);
+            DrawPanel(panel, _settings.RiftDangerColor);
+            float inner = panel.width - (pad * 2f);
+            Rect titleRow = new Rect(panel.x + pad, panel.y + (pad * 0.4f), inner, titleHeight);
+            DrawShadowedLabel(titleRow, _settings.BossTitle, _titleStyle, _settings.HudPrimaryColor);
+            DrawLabel(
+                titleRow,
+                string.Format(_settings.BossHealthFormat, Mathf.CeilToInt(health * 100f)),
+                _valueStyle,
+                _settings.RiftDangerColor);
+            Rect bar = new Rect(panel.x + pad, panel.yMax - pad - meter, inner, meter);
+            DrawMeter(
+                bar,
+                health,
+                Color.Lerp(_settings.HudDamageColor, _settings.HudComboColor, health),
+                _bossGhost);
+            DrawBossPhasePips(bar);
+        }
+
+        // Phase thresholds marked on the sovereign's bar so the fight reads as staged rather than
+        // as one long drain.
+        private void DrawBossPhasePips(Rect bar)
+        {
+            int phases = Mathf.Max(1, _settings.BossMeterPhaseCount);
+            if (phases < 2)
+            {
+                return;
+            }
+            float thickness = BorderThickness();
+            for (int i = 1; i < phases; i++)
+            {
+                float x = bar.x + (bar.width * (i / (float)phases));
+                DrawRect(
+                    new Rect(x - (thickness * 0.5f), bar.y - thickness, thickness, bar.height + (thickness * 2f)),
+                    WithAlpha(_settings.HudPrimaryColor, 0.55f));
+            }
         }
 
         private void DrawResults()
         {
             float fade = Mathf.Clamp01(
                 _phaseElapsed / Mathf.Max(0.01f, _settings.ResultsFadeDuration));
-            DrawRect(new Rect(0f, 0f, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.82f * fade));
+            DrawRect(new Rect(0f, 0f, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.86f * fade));
 
-            float line = _settings.HudLineHeight;
-            float pad = _settings.HudPanelPadding;
-            (string Label, string Value, Color Color)[] rows =
+            float pad = Scaled(_settings.HudPanelPadding);
+            float line = Scaled(_settings.HudLineHeight);
+            float rowGap = Scaled(_settings.HudRowGap);
+            float sectionGap = Scaled(_settings.HudSectionGap);
+            float sectionLabel = Scaled(_settings.ResultsSectionLabelHeight);
+            float badge = Scaled(_settings.ResultsGradeBadgeSize);
+            float columnGap = Scaled(_settings.ResultsColumnGap);
+            float divider = Mathf.Max(1f, Scaled(_settings.HudDividerHeight));
+
+            (string Label, string Value, Color Color)[] combat =
             {
-                ("SCORE", _state.Score.ToString("0000000"), _settings.HudPrimaryColor),
-                ("HOSTILES DOWNED", _state.Kills.ToString("000"), _settings.HudPrimaryColor),
-                ("FORMATION CLEARS", _state.FormationClears.ToString("00"), _settings.HudPrimaryColor),
-                ("CHARGED KILLS", _state.ChargeKills.ToString("00"), _settings.HudPrimaryColor),
-                ("PROJECTILES DEFLECTED", _state.ProjectileDeflections.ToString("00"), _settings.HudPrimaryColor),
-                ("BULLETS GRAZED", _state.Grazes.ToString("000"), _settings.HudReticleColor),
-                ("PICKUPS RECOVERED", _state.Pickups.ToString("00"), _settings.HudPrimaryColor),
-                ("SIGILS BROKEN", _state.SigilsBroken.ToString("00"), _settings.Sigils.CompletedStrokeColor),
-                ("CHOIR CHAINS BROKEN", _state.ChainSigilsBroken.ToString("00"), _settings.Sigils.ChainColor),
-                ("SIGIL STRIKES TAKEN", _state.SigilStrikes.ToString("00"),
-                    _state.SigilStrikes > 0 ? _settings.Sigils.FaultColor : _settings.HudSecondaryColor),
-                ("ROUTE GATES", $"{_state.RouteGatesCleared:00} / {_settings.BranchGateCount:00}", _settings.HudPrimaryColor),
-                ("RIFT DEPTH", $"{Mathf.RoundToInt(_state.Distance)} M", _settings.HudSecondaryColor),
-                ("DISTANCE BONUS", $"+{_distanceGoldBonus} GOLD", _settings.RiftGoldColor),
-                ("FLAWLESS RUN", _state.TookDamage ? "NO" : "YES",
+                (_settings.ResultsScoreLabel, _state.Score.ToString("0000000"), _settings.HudPrimaryColor),
+                (_settings.ResultsKillsLabel, _state.Kills.ToString("000"), _settings.HudPrimaryColor),
+                (_settings.ResultsFormationsLabel, _state.FormationClears.ToString("00"), _settings.HudPrimaryColor),
+                (_settings.ResultsChargeKillsLabel, _state.ChargeKills.ToString("00"), _settings.HudChargeColor),
+                (_settings.ResultsDeflectionsLabel, _state.ProjectileDeflections.ToString("00"), _settings.HudPrimaryColor),
+                (_settings.ResultsGrazesLabel, _state.Grazes.ToString("000"), _settings.HudReticleColor),
+                (_settings.ResultsPickupsLabel, _state.Pickups.ToString("00"), _settings.HudPrimaryColor),
+                (_settings.ResultsFlawlessLabel,
+                    _state.TookDamage ? _settings.ResultsNegativeLabel : _settings.ResultsAffirmativeLabel,
                     _state.TookDamage ? _settings.HudSecondaryColor : _settings.HudReticleColor),
-                ("COMBAT PAYOUT", $"+{AwardedGold} GOLD", _settings.RiftGoldColor),
             };
+            (string Label, string Value, Color Color)[] run =
+            {
+                (_settings.ResultsSigilsLabel, _state.SigilsBroken.ToString("00"), _settings.Sigils.CompletedStrokeColor),
+                (_settings.ResultsChainSigilsLabel, _state.ChainSigilsBroken.ToString("00"), _settings.Sigils.ChainColor),
+                (_settings.ResultsSigilStrikesLabel, _state.SigilStrikes.ToString("00"),
+                    _state.SigilStrikes > 0 ? _settings.Sigils.FaultColor : _settings.HudSecondaryColor),
+                (_settings.ResultsRouteGatesLabel,
+                    string.Format(_settings.ResultsRouteGateFormat, _state.RouteGatesCleared, _settings.BranchGateCount),
+                    _settings.HudPrimaryColor),
+                (_settings.ResultsDepthLabel,
+                    string.Format(_settings.DepthValueFormat, Mathf.RoundToInt(_state.Distance)),
+                    _settings.HudSecondaryColor),
+                (_settings.ResultsDistanceBonusLabel,
+                    string.Format(_settings.ResultsGoldFormat, _distanceGoldBonus), _settings.RiftGoldColor),
+                (_settings.ResultsPayoutLabel,
+                    string.Format(_settings.ResultsGoldFormat, AwardedGold), _settings.RiftGoldColor),
+            };
+            int rowCount = Mathf.Max(combat.Length, run.Length);
 
-            float width = Mathf.Min(760f, Screen.width - (_settings.HudMargin * 2f));
-            float height = (pad * 2f) + 76f + 56f + (rows.Length * line) + line + 16f;
+            float width = Mathf.Min(
+                Scaled(_settings.ResultsPanelWidth),
+                Screen.width - (Scaled(_settings.HudMargin) * 2f));
+            float height = (pad * 2f) + badge + sectionGap + divider + rowGap + sectionLabel +
+                rowGap + (rowCount * line) + sectionGap + line;
             Rect panel = new Rect(
                 (Screen.width - width) * 0.5f,
                 (Screen.height - height) * 0.5f,
                 width,
                 height);
-            DrawPanel(panel);
-            float cursor = panel.y + pad;
-            DrawLabel(
-                new Rect(panel.x + pad, cursor, panel.width - (pad * 2f), 70f),
-                _resultSuccess ? "RIFT INTERCEPT CLEARED" : "EMERGENCY EXTRACTION",
-                _resultStyle,
-                WithAlpha(_resultSuccess ? _settings.HudPrimaryColor : _settings.HudDamageColor, fade));
-            cursor += 76f;
-            DrawLabel(
-                new Rect(panel.x + pad, cursor, panel.width - (pad * 2f), 50f),
-                $"COMBAT RATING  {ResultGrade}",
-                _resultStyle,
-                WithAlpha(_settings.HudChargeColor, fade));
-            cursor += 56f;
+            Color accent = _resultSuccess ? _settings.HudChargeColor : _settings.HudDamageColor;
+            DrawPanel(panel, accent);
 
-            float columnX = panel.x + (pad * 3f);
-            float columnWidth = panel.width - (pad * 6f);
-            for (int i = 0; i < rows.Length; i++)
+            float cursor = panel.y + pad;
+            Rect badgeRect = new Rect(panel.x + pad, cursor, badge, badge);
+            DrawRect(badgeRect, WithAlpha(accent, 0.14f));
+            float border = BorderThickness();
+            DrawRect(new Rect(badgeRect.x, badgeRect.y, badgeRect.width, border), WithAlpha(accent, fade));
+            DrawRect(new Rect(badgeRect.x, badgeRect.yMax - border, badgeRect.width, border), WithAlpha(accent, fade));
+            DrawRect(new Rect(badgeRect.x, badgeRect.y, border, badgeRect.height), WithAlpha(accent, fade));
+            DrawRect(new Rect(badgeRect.xMax - border, badgeRect.y, border, badgeRect.height), WithAlpha(accent, fade));
+            DrawLabel(badgeRect, ResultGrade, _gradeStyle, WithAlpha(accent, fade));
+
+            float headX = badgeRect.xMax + pad;
+            float headWidth = panel.xMax - pad - headX;
+            DrawShadowedLabel(
+                new Rect(headX, cursor + (badge * 0.16f), headWidth, badge * 0.4f),
+                _resultSuccess ? _settings.ResultsSuccessLabel : _settings.ResultsFailureLabel,
+                _titleStyle,
+                WithAlpha(_resultSuccess ? _settings.HudPrimaryColor : _settings.HudDamageColor, fade));
+            DrawLabel(
+                new Rect(headX, cursor + (badge * 0.56f), headWidth, badge * 0.26f),
+                _settings.ResultsGradeLabel,
+                _smallStyle,
+                WithAlpha(_settings.HudSecondaryColor, fade));
+            cursor += badge + sectionGap;
+            DrawRect(new Rect(panel.x, cursor, panel.width, divider), WithAlpha(_settings.HudDividerColor, fade));
+            cursor += divider + rowGap;
+
+            float contentWidth = panel.width - (pad * 4f);
+            float columnWidth = (contentWidth - columnGap) * 0.5f;
+            float leftX = panel.x + (pad * 2f);
+            float rightX = leftX + columnWidth + columnGap;
+            DrawLabel(
+                new Rect(leftX, cursor, columnWidth, sectionLabel),
+                _settings.ResultsCombatSectionLabel,
+                _sectionStyle,
+                WithAlpha(accent, fade));
+            DrawLabel(
+                new Rect(rightX, cursor, columnWidth, sectionLabel),
+                _settings.ResultsRunSectionLabel,
+                _sectionStyle,
+                WithAlpha(accent, fade));
+            cursor += sectionLabel + rowGap;
+
+            for (int i = 0; i < rowCount; i++)
             {
-                Rect row = new Rect(columnX, cursor, columnWidth, line);
-                DrawLabel(row, rows[i].Label, _statLabelStyle, WithAlpha(_settings.HudSecondaryColor, fade));
-                DrawLabel(row, rows[i].Value, _statValueStyle, WithAlpha(rows[i].Color, fade));
+                // Rows land one after another so the tally reads as it is counted up.
+                float reveal = Mathf.Clamp01(
+                    (_phaseElapsed - (i * _settings.ResultsRowStagger)) /
+                    Mathf.Max(0.01f, _settings.ResultsFadeDuration));
+                float rowFade = reveal * fade;
+                if (i < combat.Length)
+                {
+                    DrawResultRow(new Rect(leftX, cursor, columnWidth, line), combat[i], rowFade);
+                }
+                if (i < run.Length)
+                {
+                    DrawResultRow(new Rect(rightX, cursor, columnWidth, line), run[i], rowFade);
+                }
                 cursor += line;
             }
 
@@ -5624,29 +6325,151 @@ namespace DuneVector
             {
                 float pulse = 0.5f + (0.5f * Mathf.Abs(Mathf.Sin(_phaseElapsed * 3.2f)));
                 DrawLabel(
-                    new Rect(panel.x + pad, cursor + 8f, panel.width - (pad * 2f), line),
+                    new Rect(panel.x + pad, cursor + sectionGap, panel.width - (pad * 2f), line),
                     _settings.ResultsSkipLabel,
                     _centeredSmallStyle,
                     WithAlpha(_settings.HudSecondaryColor, pulse * fade));
             }
         }
 
-        private void DrawPanel(Rect rect)
+        private void DrawResultRow(Rect row, (string Label, string Value, Color Color) entry, float fade)
         {
+            if (fade <= 0.01f)
+            {
+                return;
+            }
+            DrawLabel(row, entry.Label, _statLabelStyle, WithAlpha(_settings.HudSecondaryColor, fade));
+            DrawLabel(row, entry.Value, _valueStyle, WithAlpha(entry.Color, fade));
+        }
+
+        private void DrawPanel(Rect rect, Color accent)
+        {
+            Vector2 shadow = _settings.HudPanelShadowOffset * _hudScale;
+            DrawRect(
+                new Rect(rect.x + shadow.x, rect.y + shadow.y, rect.width, rect.height),
+                _settings.HudPanelShadowColor);
             DrawRect(rect, _settings.HudPanelColor);
-            float border = Mathf.Max(1f, _settings.ReticleLineThickness);
-            DrawRect(new Rect(rect.x, rect.y, rect.width, border), _settings.HudBorderColor);
-            DrawRect(new Rect(rect.x, rect.yMax - border, rect.width, border), _settings.HudBorderColor);
-            DrawRect(new Rect(rect.x, rect.y, border, rect.height), _settings.HudBorderColor);
-            DrawRect(new Rect(rect.xMax - border, rect.y, border, rect.height), _settings.HudBorderColor);
+            DrawPanelScanlines(rect);
+            float border = BorderThickness();
+            Color edge = WithAlpha(accent, 0.5f);
+            DrawRect(new Rect(rect.x, rect.y, rect.width, border), edge);
+            DrawRect(new Rect(rect.x, rect.yMax - border, rect.width, border), edge);
+            DrawRect(new Rect(rect.x, rect.y, border, rect.height), edge);
+            DrawRect(new Rect(rect.xMax - border, rect.y, border, rect.height), edge);
+            DrawPanelCorners(rect, accent, border);
+            DrawRect(
+                new Rect(rect.x, rect.y, Scaled(_settings.HudPanelAccentWidth), rect.height),
+                accent);
+        }
+
+        // Faint horizontal ruling inside the plate: it keeps the panel reading as a screen rather
+        // than a flat fill without ever competing with the text.
+        private void DrawPanelScanlines(Rect rect)
+        {
+            float spacing = Scaled(_settings.HudPanelScanlineSpacing);
+            if (spacing < 1f || _settings.HudPanelScanlineColor.a <= 0.001f)
+            {
+                return;
+            }
+            for (float y = rect.y + spacing; y < rect.yMax - 1f; y += spacing)
+            {
+                DrawRect(new Rect(rect.x, y, rect.width, 1f), _settings.HudPanelScanlineColor);
+            }
+        }
+
+        // Tinted band behind a panel's title. It is inset past the accent bar and the frame so the
+        // border and corner brackets stay unbroken.
+        private void DrawPanelHeader(Rect rect, float headerHeight)
+        {
+            float border = BorderThickness();
+            float accent = Scaled(_settings.HudPanelAccentWidth);
+            float height = Mathf.Min(headerHeight, rect.height) - border;
+            float width = rect.width - accent - border;
+            if (height <= 0f || width <= 0f)
+            {
+                return;
+            }
+            DrawRect(
+                new Rect(rect.x + accent, rect.y + border, width, height),
+                _settings.HudPanelHeaderColor);
+        }
+
+        private void DrawPanelCorners(Rect rect, Color accent, float thickness)
+        {
+            float length = Mathf.Min(
+                Scaled(_settings.HudPanelCornerLength),
+                Mathf.Min(rect.width, rect.height) * 0.4f);
+            if (length <= 0f)
+            {
+                return;
+            }
+            DrawRect(new Rect(rect.x, rect.y, length, thickness), accent);
+            DrawRect(new Rect(rect.x, rect.y, thickness, length), accent);
+            DrawRect(new Rect(rect.xMax - length, rect.y, length, thickness), accent);
+            DrawRect(new Rect(rect.xMax - thickness, rect.y, thickness, length), accent);
+            DrawRect(new Rect(rect.x, rect.yMax - thickness, length, thickness), accent);
+            DrawRect(new Rect(rect.x, rect.yMax - length, thickness, length), accent);
+            DrawRect(new Rect(rect.xMax - length, rect.yMax - thickness, length, thickness), accent);
+            DrawRect(new Rect(rect.xMax - thickness, rect.yMax - length, thickness, length), accent);
         }
 
         private void DrawMeter(Rect rect, float normalized, Color fill)
         {
-            DrawRect(rect, new Color(0f, 0f, 0f, 0.72f));
-            Rect inset = new Rect(rect.x + 2f, rect.y + 2f, Mathf.Max(0f, rect.width - 4f), Mathf.Max(0f, rect.height - 4f));
-            inset.width *= Mathf.Clamp01(normalized);
-            DrawRect(inset, fill);
+            DrawMeter(rect, normalized, fill, 0f);
+        }
+
+        private void DrawMeter(Rect rect, float normalized, Color fill, float ghost)
+        {
+            normalized = Mathf.Clamp01(normalized);
+            DrawRect(rect, _settings.HudMeterTrackColor);
+            float inset = Scaled(_settings.HudMeterInset);
+            Rect body = new Rect(
+                rect.x + inset,
+                rect.y + inset,
+                Mathf.Max(0f, rect.width - (inset * 2f)),
+                Mathf.Max(0f, rect.height - (inset * 2f)));
+            ghost = Mathf.Clamp01(ghost);
+            if (ghost > normalized)
+            {
+                // Trailing bar showing what was just lost, so a hit reads as an amount.
+                DrawRect(
+                    new Rect(
+                        body.x + (body.width * normalized),
+                        body.y,
+                        body.width * (ghost - normalized),
+                        body.height),
+                    _settings.HudMeterGhostColor);
+            }
+            Rect filled = new Rect(body.x, body.y, body.width * normalized, body.height);
+            DrawRect(filled, fill);
+            float cap = Scaled(_settings.HudMeterCapWidth);
+            if (cap > 0f && filled.width > cap)
+            {
+                DrawRect(
+                    new Rect(filled.xMax - cap, filled.y, cap, filled.height),
+                    WithAlpha(Color.Lerp(fill, Color.white, 0.55f), _settings.HudMeterCapOpacity));
+            }
+            DrawMeterSegments(body);
+        }
+
+        private void DrawMeterSegments(Rect body)
+        {
+            int segments = _settings.HudMeterSegmentCount;
+            float width = Scaled(_settings.HudMeterSegmentWidth);
+            if (segments < 2 || width <= 0f || body.width <= 0f)
+            {
+                return;
+            }
+            for (int i = 1; i < segments; i++)
+            {
+                DrawRect(
+                    new Rect(
+                        body.x + (body.width * (i / (float)segments)) - (width * 0.5f),
+                        body.y,
+                        width,
+                        body.height),
+                    _settings.HudMeterSegmentColor);
+            }
         }
 
         private static void DrawRect(Rect rect, Color color)

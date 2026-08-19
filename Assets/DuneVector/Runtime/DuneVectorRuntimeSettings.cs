@@ -7844,7 +7844,13 @@ namespace DuneVector
         [Min(0f)] public float PromptPanelPadding = 10f;
         [Min(0f)] public float PromptChainPipSize = 9f;
         [Min(0f)] public float PromptChainPipGap = 6f;
-        [Min(0f)] public float CountdownBarSegmentWidth = 1f;
+        [Min(0f)] public float NameLabelWidth = 260f;
+        [Min(0f)] public float NameLabelHeight = 22f;
+        [Tooltip("Gap between the seeker bracket and the glyph name floating above it.")]
+        [Min(0f)] public float NameLabelGap = 26f;
+        [Range(0, 48)] public int UrgencyTickCount = 12;
+        [Min(0f)] public float VerdictLabelHeight = 32f;
+        [Min(0f)] public float VerdictRuleWidth = 180f;
 
         [Header("Sigil Audio")]
         public string SpawnEvent = "event:/Alert";
@@ -8412,7 +8418,6 @@ namespace DuneVector
         [Range(0.25f, 3f)] public float HudMaximumScale = 1.6f;
         [Min(0f)] public float HudPanelCornerLength = 18f;
         [Min(0f)] public float HudPanelAccentWidth = 3f;
-        [Min(0f)] public float HudPanelHeaderRuleHeight = 2f;
         [Min(0f)] public float HudRowGap = 5f;
         [Min(0f)] public float HudSectionGap = 11f;
         [Min(0f)] public float HudDividerHeight = 1f;
@@ -8460,6 +8465,10 @@ namespace DuneVector
         public string ChargeReadyLabel = "CHARGE READY // RELEASE";
         public string DepthValueFormat = "{0} M";
         public string StatusPanelTitle = "RIFT STATUS";
+        [Min(0f)] public float ScorePopupWidth = 280f;
+        [Min(0f)] public float ScorePopupHeight = 32f;
+        [Tooltip("Gap between a bracketed target and the health bar drawn beneath it.")]
+        [Min(0f)] public float TargetHealthBarGap = 4f;
         [Min(0f)] public float HudReadyPulseSpeed = 7f;
         [Min(0f)] public float BombPipSize = 15f;
         [Min(0f)] public float BombPipGap = 6f;
