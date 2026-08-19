@@ -1125,6 +1125,8 @@ namespace DuneVector
                 AudioManager,
                 GoldWallet,
                 PermanentUpgrades,
+                World,
+                RuntimeSettings.Geoglyphs,
                 PlayerTuning,
                 AudioSettings.PauseMenu,
                 RuntimeSettings.PermanentUpgrades.ShopVisuals,

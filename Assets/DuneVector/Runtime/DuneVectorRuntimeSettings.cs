@@ -6120,6 +6120,14 @@ namespace DuneVector
         [Header("Cheat Codes")]
         [Tooltip("Typing this phrase while the pause screen is open permanently unlocks every upgrade.")]
         public string UpgradeUnlockCheatCode = "giveallupgradespls";
+        [Tooltip("Typing this prefix followed by a three-digit authored glyph number while paused teleports the player to that glyph.")]
+        public string GlyphTeleportCheatPrefix = "gotoglyph";
+        [Tooltip("Height above the glyph's terrain surface where a successful glyph cheat places the player.")]
+        [Min(0f)] public float GlyphTeleportHeightAboveTerrain = 8f;
+        [Tooltip("Steepest terrain surface accepted at the authored glyph center for cheat teleport placement.")]
+        [Range(0f, 89f)] public float GlyphTeleportMaximumTerrainSlope = 89f;
+        [Tooltip("FMOD one-shot played after a successful glyph teleport.")]
+        public string GlyphTeleportEvent = "event:/Flight_Swoosh";
 
         [Header("Panel Styling")]
         [Tooltip("Vertical gradient applied across the panel body. 0 keeps the panel flat.")]

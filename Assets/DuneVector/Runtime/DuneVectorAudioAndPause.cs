@@ -826,6 +826,11 @@ namespace DuneVector
             PlayConfiguredOneShot(_settings != null ? _settings.FlightRingSwooshEvent : null, position, "flight-ring swoosh");
         }
 
+        public void PlayGlyphTeleportSwoosh(string eventPath, Vector3 position)
+        {
+            PlayConfiguredOneShot(eventPath, position, "glyph-teleport swoosh");
+        }
+
         public void RegisterFlightRingPass(Vector3 position, float maximumInterval, string quickPassEvent)
         {
             float passTime = Time.time;
@@ -1436,6 +1441,8 @@ namespace DuneVector
         private DuneVectorAudioManager _audio;
         private DroneGoldWallet _wallet;
         private DronePermanentUpgradeSystem _upgrades;
+        private DesertWorldStreamer _world;
+        private GeoglyphSystemTuning _geoglyphs;
         private DroneTuning _playerTuning;
         private PauseMenuVisualTuning _visuals;
         private DuneVectorUpgradeShopView _shopView;
@@ -1450,6 +1457,7 @@ namespace DuneVector
         private float _controlsFade;
         private Keyboard _textInputKeyboard;
         private int _upgradeCheatProgress;
+        private string _glyphTeleportCheatInput = string.Empty;
         private readonly Dictionary<ChromaticAberration, bool> _chromaticAberrationOriginalStates = new();
         private readonly Dictionary<LensDistortion, bool> _lensDistortionOriginalStates = new();
         private readonly Dictionary<FilmGrain, bool> _filmGrainOriginalStates = new();
@@ -1501,6 +1509,8 @@ namespace DuneVector
             DuneVectorAudioManager audio,
             DroneGoldWallet wallet,
             DronePermanentUpgradeSystem upgrades,
+            DesertWorldStreamer world,
+            GeoglyphSystemTuning geoglyphs,
             DroneTuning playerTuning,
             PauseMenuVisualTuning visuals,
             UpgradeShopVisualTuning shopVisuals,
@@ -1511,6 +1521,8 @@ namespace DuneVector
             _audio = audio;
             _wallet = wallet;
             _upgrades = upgrades;
+            _world = world;
+            _geoglyphs = geoglyphs;
             _playerTuning = playerTuning;
             _visuals = visuals;
             _retroCrtScanlines = retroCrtScanlines;
@@ -1716,6 +1728,8 @@ namespace DuneVector
 
         private void HandleTextInput(char character)
         {
+            HandleGlyphTeleportCheatInput(character);
+
             string cheatCode = _visuals?.UpgradeUnlockCheatCode;
             if (!IsPaused || string.IsNullOrEmpty(cheatCode))
             {
@@ -1747,6 +1761,73 @@ namespace DuneVector
             _upgradeCheatProgress = typedCharacter == char.ToLowerInvariant(cheatCode[0]) ? 1 : 0;
         }
 
+        private void HandleGlyphTeleportCheatInput(char character)
+        {
+            string prefix = _visuals?.GlyphTeleportCheatPrefix;
+            if (!IsPaused || string.IsNullOrWhiteSpace(prefix) || !char.IsLetterOrDigit(character))
+            {
+                _glyphTeleportCheatInput = string.Empty;
+                return;
+            }
+
+            string commandPrefix = prefix.Trim().ToLowerInvariant();
+            int commandLength = commandPrefix.Length + 3;
+            _glyphTeleportCheatInput += char.ToLowerInvariant(character);
+            if (_glyphTeleportCheatInput.Length > commandLength)
+            {
+                _glyphTeleportCheatInput = _glyphTeleportCheatInput.Substring(
+                    _glyphTeleportCheatInput.Length - commandLength,
+                    commandLength);
+            }
+
+            if (_glyphTeleportCheatInput.Length != commandLength ||
+                !_glyphTeleportCheatInput.StartsWith(commandPrefix, StringComparison.Ordinal) ||
+                !int.TryParse(_glyphTeleportCheatInput.Substring(commandPrefix.Length, 3), out int glyphNumber))
+            {
+                return;
+            }
+
+            _glyphTeleportCheatInput = string.Empty;
+            TryTeleportToGlyph(glyphNumber - 1);
+        }
+
+        private bool TryTeleportToGlyph(int glyphIndex)
+        {
+            if (_player == null || _player.Character == null || _player.Character.Motor == null ||
+                _world == null || _geoglyphs == null || _geoglyphs.Placements == null ||
+                glyphIndex < 0 || glyphIndex >= _geoglyphs.Placements.Count)
+            {
+                return false;
+            }
+
+            GeoglyphArtworkPlacement glyph = _geoglyphs.Placements[glyphIndex];
+            if (glyph == null)
+            {
+                return false;
+            }
+
+            LogicalPosition destination = new LogicalPosition(glyph.WorldCenter.x, glyph.WorldCenter.y);
+            float arrivalHeight = Mathf.Max(0f, _visuals.GlyphTeleportHeightAboveTerrain);
+            if (!_world.TryPreparePlayerTeleportDestination(
+                    destination,
+                    arrivalHeight,
+                    _visuals.GlyphTeleportMaximumTerrainSlope,
+                    out Vector3 localPosition))
+            {
+                return false;
+            }
+
+            Vector3 forward = Quaternion.Euler(0f, -glyph.RotationDegrees, 0f) * Vector3.forward;
+            _player.Character.Motor.SetPositionAndRotation(
+                localPosition,
+                Quaternion.LookRotation(forward, Vector3.up),
+                true);
+            _player.Character.ResetTraversalAfterTeleport(forward);
+            SetPaused(false);
+            _audio?.PlayGlyphTeleportSwoosh(_visuals.GlyphTeleportEvent, localPosition);
+            return true;
+        }
+
         private void SetPaused(bool paused)
         {
             if (paused && _health != null && _health.IsDead)
@@ -1774,6 +1855,7 @@ namespace DuneVector
             if (!paused)
             {
                 _upgradeCheatProgress = 0;
+                _glyphTeleportCheatInput = string.Empty;
                 _showShop = false;
                 _showGallery = false;
                 _showCompendium = false;
