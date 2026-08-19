@@ -8276,10 +8276,10 @@ namespace DuneVector
         public GameObject SatellitePrefab;
         public GameObject SatelliteExplosionPrefab;
         [Min(1)] public int SatellitePoolSize = 12;
-        [Min(1f)] public float SatelliteSpacing = 180f;
-        [Min(0f)] public float SatelliteSpawnAheadDistance = 260f;
-        [Min(0f)] public float SatellitePlaneHalfExtent = 70f;
-        [Min(0.01f)] public float SatelliteVisualScale = 8f;
+        [Min(1f)] public float SatelliteSpacing = 92f;
+        [Min(0f)] public float SatelliteSpawnAheadDistance = 110f;
+        [Min(0f)] public float SatellitePlaneHalfExtent = 32f;
+        [Min(0.01f)] public float SatelliteVisualScale = 12f;
         [Min(0.01f)] public float SatelliteHitRadius = 5f;
         [Min(0.01f)] public float SatelliteCollisionRadius = 4f;
         [Min(0.01f)] public float SatelliteHealth = 24f;

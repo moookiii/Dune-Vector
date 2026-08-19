@@ -3300,7 +3300,8 @@ namespace DuneVector
                 _furthestSegmentZ += _settings.EnvironmentSegmentSpacing;
                 ResetSegment(_segments[i], _furthestSegmentZ, i);
             }
-            _furthestSatelliteZ = _player.transform.position.z + _settings.SatelliteSpawnAheadDistance;
+            _furthestSatelliteZ = _player.transform.position.z +
+                _settings.SatelliteSpawnAheadDistance - _settings.SatelliteSpacing;
             for (int i = 0; i < _satellites.Count; i++)
             {
                 _furthestSatelliteZ += _settings.SatelliteSpacing;
