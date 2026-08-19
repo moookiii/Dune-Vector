@@ -561,6 +561,10 @@ namespace DuneVector
             bool wasSuspended = !_hasApplicationFocus || _applicationPaused;
             _hasApplicationFocus = hasFocus;
             HandleApplicationSuspensionChange(wasSuspended);
+            if (hasFocus && IsActive && Time.timeScale > 0f)
+            {
+                ApplyRailCursorState();
+            }
         }
 
         private void OnApplicationPause(bool pauseStatus)
@@ -3230,6 +3234,11 @@ namespace DuneVector
                 RenderSettings.fogStartDistance = _settings.RiftFogStartDistance;
                 RenderSettings.fogEndDistance = _settings.RiftFogEndDistance;
             }
+            ApplyRailCursorState();
+        }
+
+        private static void ApplyRailCursorState()
+        {
             Cursor.lockState = CursorLockMode.Locked;
             Cursor.visible = false;
         }

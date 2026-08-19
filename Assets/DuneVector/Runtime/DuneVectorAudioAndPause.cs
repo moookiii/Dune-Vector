@@ -1945,7 +1945,9 @@ namespace DuneVector
                 ? false
                 : wasPaused ? _playerInputEnabledBeforePause : _player == null || _player.InputEnabled;
             _player?.SetInputEnabled(playerInputEnabled);
-            bool keepCursorFree = paused || DuneVectorMapHUD.IsWorldMapOpen || !playerInputEnabled;
+            bool railSubgameActive = DuneVectorRailShooterController.IsAnyRailShooterActive;
+            bool keepCursorFree = paused || DuneVectorMapHUD.IsWorldMapOpen ||
+                (!playerInputEnabled && !railSubgameActive);
             Cursor.lockState = keepCursorFree
                 ? CursorLockMode.None
                 : CursorLockMode.Locked;
