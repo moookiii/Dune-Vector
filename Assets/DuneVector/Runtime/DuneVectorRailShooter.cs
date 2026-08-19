@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 
 namespace DuneVector
@@ -2607,8 +2608,15 @@ namespace DuneVector
 
         private void TickResults(in RailShooterCommand command)
         {
+            Keyboard keyboard = Keyboard.current;
+            bool directConfirmation =
+                (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame) ||
+                (keyboard != null &&
+                 (keyboard.spaceKey.wasPressedThisFrame ||
+                  keyboard.enterKey.wasPressedThisFrame ||
+                  keyboard.numpadEnterKey.wasPressedThisFrame));
             bool continueRequested = _phaseElapsed >= _settings.ResultsSkipDelay &&
-                (command.FirePressed || command.TrickPressed || command.ConfirmPressed);
+                (directConfirmation || command.FirePressed || command.TrickPressed || command.ConfirmPressed);
             if (!continueRequested)
             {
                 return;
@@ -4265,14 +4273,53 @@ namespace DuneVector
                 fontSize = _settings.Sigils.CountdownFontSize,
                 alignment = TextAnchor.MiddleCenter,
             };
+            StripHoverStates(_smallStyle);
+            StripHoverStates(_bodyStyle);
+            StripHoverStates(_titleStyle);
+            StripHoverStates(_resultStyle);
+            StripHoverStates(_popupStyle);
+            StripHoverStates(_centeredSmallStyle);
+            StripHoverStates(_statLabelStyle);
+            StripHoverStates(_statValueStyle);
+            StripHoverStates(_sigilCountdownStyle);
+        }
+
+        private static void StripHoverStates(GUIStyle style)
+        {
+            if (style == null)
+            {
+                return;
+            }
+            Color text = style.normal.textColor;
+            Texture2D background = style.normal.background;
+            GUIStyleState[] states =
+            {
+                style.hover, style.active, style.focused,
+                style.onNormal, style.onHover, style.onActive, style.onFocused,
+            };
+            for (int i = 0; i < states.Length; i++)
+            {
+                states[i].textColor = text;
+                states[i].background = background;
+            }
         }
 
         private void DrawLabel(Rect rect, string text, GUIStyle style, Color color)
         {
             Color previous = style.normal.textColor;
             style.normal.textColor = color;
+            style.hover.textColor = color;
+            style.active.textColor = color;
+            style.focused.textColor = color;
+            style.onNormal.textColor = color;
+            style.onHover.textColor = color;
             GUI.Label(rect, text, style);
             style.normal.textColor = previous;
+            style.hover.textColor = previous;
+            style.active.textColor = previous;
+            style.focused.textColor = previous;
+            style.onNormal.textColor = previous;
+            style.onHover.textColor = previous;
         }
 
         private static Color WithAlpha(Color color, float alpha)
@@ -4423,11 +4470,6 @@ namespace DuneVector
                 ChargeNormalized(),
                 _settings.HudChargeColor);
 
-            DrawLabel(
-                new Rect(margin, Screen.height - margin - line, Screen.width - (margin * 2f), line),
-                _settings.ControlsLabel,
-                _smallStyle,
-                WithAlpha(_settings.HudSecondaryColor, 0.85f));
         }
 
         private void DrawBombPips(Rect row)
