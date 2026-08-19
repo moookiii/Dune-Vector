@@ -8331,14 +8331,15 @@ namespace DuneVector
         [Header("Environment Obstacles")]
         public GameObject SatellitePrefab;
         public GameObject SatelliteExplosionPrefab;
-        [Min(1)] public int SatellitePoolSize = 30;
-        [Min(1f)] public float SatelliteSpacing = 52f;
+        [Min(1)] public int SatellitePoolSize = 36;
+        [Min(1f)] public float SatelliteSpacing = 36f;
         [Min(0f)] public float SatelliteSpawnAheadDistance = 110f;
-        [Min(0f)] public float SatellitePlaneHalfExtent = 58f;
-        [Tooltip("Every Nth satellite is placed close to the current flight path; the satellites between use the full procedural plane.")]
-        [Min(1)] public int SatellitePathSpawnInterval = 3;
-        [Tooltip("Maximum horizontal and vertical offset for satellites selected to obstruct the current flight path.")]
-        [Min(0f)] public float SatellitePathHalfExtent = 7f;
+        [Tooltip("Half-extent of the surrounding scenery satellites, in world units. These sit outside the reachable box and read as depth rather than as obstacles.")]
+        [Min(0f)] public float SatellitePlaneHalfExtent = 90f;
+        [Tooltip("Every Nth satellite is placed inside the reachable flight box as an obstruction; the satellites between it become surrounding scenery.")]
+        [Min(1)] public int SatellitePathSpawnInterval = 2;
+        [Tooltip("Fraction of FlightBounds the obstructing satellites are spread across. 1 covers the whole box the drone can actually reach, so no corner of the lane is left empty; lower values pull the obstacles toward the centre line.")]
+        [Range(0f, 1f)] public float SatellitePathBoundsFraction = 1f;
         [Min(0.01f)] public float SatelliteVisualScale = 12f;
         [Min(0.01f)] public float SatelliteHitRadius = 5f;
         [Min(0.01f)] public float SatelliteCollisionRadius = 4f;

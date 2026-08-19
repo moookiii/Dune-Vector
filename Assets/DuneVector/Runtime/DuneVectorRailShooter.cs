@@ -3710,12 +3710,24 @@ namespace DuneVector
         {
             int pathInterval = Mathf.Max(1, _settings.SatellitePathSpawnInterval);
             bool obstructFlightPath = Mathf.Abs(sequence) % pathInterval == 0;
-            float extent = obstructFlightPath
-                ? Mathf.Max(0f, _settings.SatellitePathHalfExtent)
-                : Mathf.Max(0f, _settings.SatellitePlaneHalfExtent);
-            satellite.PlaneOffset = obstructFlightPath
-                ? new Vector2(NextFloat(-extent, extent), NextFloat(-extent, extent))
-                : EvenPlaneOffset(sequence, extent, 17);
+            if (obstructFlightPath)
+            {
+                // Deliberate obstruction. It is spread across the whole box the drone can actually
+                // reach rather than a small patch on the centre line: an obstacle parked near the
+                // axis contests nothing once the player flies out to the edge of FlightBounds.
+                satellite.PlaneOffset = EvenPlaneOffset(
+                    sequence,
+                    _settings.FlightBounds * Mathf.Clamp01(_settings.SatellitePathBoundsFraction),
+                    5);
+            }
+            else
+            {
+                // Surrounding scenery, outside the reachable box.
+                satellite.PlaneOffset = EvenPlaneOffset(
+                    sequence,
+                    Mathf.Max(0f, _settings.SatellitePlaneHalfExtent),
+                    17);
+            }
             Vector2 center = CurrentFlightPlaneCenter();
             satellite.Transform.position = new Vector3(
                 center.x + satellite.PlaneOffset.x,
@@ -3746,10 +3758,15 @@ namespace DuneVector
         // places. The per-run rotation shifts the whole sequence without clumping it.
         private Vector2 EvenPlaneOffset(int identity, float halfExtent, int sequenceSalt)
         {
+            return EvenPlaneOffset(identity, new Vector2(halfExtent, halfExtent), sequenceSalt);
+        }
+
+        private Vector2 EvenPlaneOffset(int identity, Vector2 halfExtent, int sequenceSalt)
+        {
             int sequence = Mathf.Abs(identity) + Mathf.Max(0, sequenceSalt) + 1;
             float x = Mathf.Repeat(RadicalInverse(sequence, 2) + _planeRotation.x, 1f);
             float y = Mathf.Repeat(RadicalInverse(sequence, 3) + _planeRotation.y, 1f);
-            return new Vector2(((x * 2f) - 1f) * halfExtent, ((y * 2f) - 1f) * halfExtent);
+            return new Vector2(((x * 2f) - 1f) * halfExtent.x, ((y * 2f) - 1f) * halfExtent.y);
         }
 
         private static float RadicalInverse(int value, int radix)
