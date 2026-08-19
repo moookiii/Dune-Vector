@@ -7776,24 +7776,34 @@ namespace DuneVector
         [Tooltip("Seconds the banish or strike verdict stays on the HUD.")]
         [Min(0f)] public float VerdictDuration = 1.1f;
 
-        [Header("Stroke Recognition")]
-        [Tooltip("Screen distance the stylus must travel in one direction before that stroke commits.")]
-        [Min(4f)] public float StrokeCommitDistance = 80f;
-        [Tooltip("Mouse delta multiplier applied to the drawing stylus.")]
+        [Header("Full-Screen Drawing Recognition")]
+        [Tooltip("Mouse delta multiplier applied to the full-screen drawing cursor.")]
         [Min(0.01f)] public float MouseStrokeSensitivity = 1f;
-        [Tooltip("Screen units per second the gamepad right stick pushes the drawing stylus.")]
+        [Tooltip("Screen units per second the gamepad right stick pushes the full-screen drawing cursor.")]
         [Min(1f)] public float StickStrokeSpeed = 900f;
-        [Tooltip("Widest angle between the drawn direction and the demanded stroke that still counts as a match.")]
-        [Range(5f, 80f)] public float StrokeAngleTolerance = 38f;
-        [Tooltip("Screen units per second an uncommitted stroke bleeds away while the stylus is still.")]
-        [Min(0f)] public float StrokeDecayPerSecond = 90f;
-        [Tooltip("Seconds burned off the countdown when a stroke is drawn in the wrong direction.")]
+        [Tooltip("Minimum screen-space distance between recorded paint points.")]
+        [Min(0.5f)] public float DrawingPointSpacing = 4f;
+        [Tooltip("Minimum total painted length required before an attempt can pass.")]
+        [Min(1f)] public float DrawingMinimumLength = 120f;
+        [Tooltip("Number of equally spaced points used to compare the submitted painting with the target glyph.")]
+        [Range(8, 128)] public int DrawingEvaluationSamples = 40;
+        [Tooltip("Maximum average normalized distance between the submitted painting and target glyph.")]
+        [Range(0.01f, 1f)] public float DrawingAverageErrorTolerance = 0.18f;
+        [Tooltip("Maximum error allowed at any one normalized sample along the submitted painting.")]
+        [Range(0.01f, 1.5f)] public float DrawingMaximumPointError = 0.42f;
+        [Tooltip("Seconds burned off the countdown when a submitted full-screen drawing fails evaluation.")]
         [Min(0f)] public float FaultTimePenalty = 0.25f;
-        [Tooltip("A wrong stroke restarts the current glyph instead of only costing time.")]
-        public bool FaultRestartsGlyph = true;
         [Min(0f)] public float FaultFlashDuration = 0.22f;
-        [Tooltip("How far past the commit distance the live stylus line may stretch on the glyph diagram.")]
-        [Range(1f, 2.5f)] public float StylusReachFraction = 1.35f;
+
+        [Header("Full-Screen Drawing Cursor")]
+        [Tooltip("Distance in front of the rail camera at which ModularSphereMissile follows the virtual cursor.")]
+        [Min(0.1f)] public float DrawingCursorWorldDistance = 10f;
+        [Tooltip("Maximum world-space dimension of the ModularSphereMissile cursor model.")]
+        [Min(0.01f)] public float DrawingCursorMaximumDimension = 0.35f;
+        public Vector3 DrawingCursorLocalEulerAngles = Vector3.zero;
+        public float DrawingCursorSpinSpeed = 120f;
+        [Tooltip("Screen-edge padding retained by the virtual drawing cursor, in pixels.")]
+        [Min(0f)] public float DrawingCursorScreenMargin = 8f;
 
         [Header("Sigil Rewards")]
         [Min(0)] public int BanishScore = 260;
@@ -7802,32 +7812,36 @@ namespace DuneVector
         [Min(0)] public int SigilChallengeCount = 6;
         [Min(0)] public int SigilChallengeBonus = 1600;
 
-        [Header("Sigil HUD")]
-        [Tooltip("Viewport position of the drawing panel. Y is measured from the bottom of the screen.")]
-        public Vector2 PanelViewportCenter = new Vector2(0.5f, 0.27f);
-        [Min(40f)] public float GlyphBoxSize = 190f;
-        [Min(1f)] public float GlyphLineThickness = 5f;
-        [Min(20f)] public float ChainThumbnailSize = 52f;
-        [Min(0f)] public float ChainThumbnailSpacing = 12f;
+        [Header("Full-Screen Drawing HUD")]
+        [Range(0f, 1f)] public float DrawingPromptViewportY = 0.06f;
+        [Tooltip("Target glyph center in top-left-origin viewport coordinates.")]
+        public Vector2 DrawingGuideViewportCenter = new Vector2(0.5f, 0.48f);
+        [Range(0.1f, 0.9f)] public float DrawingGuideScreenFraction = 0.42f;
+        [Range(0f, 0.45f)] public float DrawingGuidePaddingFraction = 0.12f;
+        [Min(1f)] public float DrawingGuideThickness = 4f;
+        [Min(1f)] public float DrawingGuideStartSize = 12f;
+        [Min(1f)] public float DrawingPaintThickness = 8f;
+        public Color DrawingPaintColor = Color.white;
+        public Color DrawingGuideColor = new Color(0.34f, 0.78f, 0.9f, 0.38f);
+        [Range(0f, 1f)] public float DrawingCountdownViewportY = 0.83f;
+        [Range(0f, 1f)] public float DrawingHintViewportY = 0.87f;
+        [Range(0f, 1f)] public float DrawingVerdictViewportY = 0.18f;
         [Min(10f)] public float CountdownBarWidth = 320f;
         [Min(2f)] public float CountdownBarHeight = 10f;
         [Min(8)] public int CountdownFontSize = 42;
         [Min(0f)] public float SeekerMarkerSize = 64f;
-        public Color PendingStrokeColor = new Color(0.34f, 0.62f, 0.7f, 0.75f);
-        public Color ActiveStrokeColor = new Color(1f, 0.86f, 0.3f, 1f);
         public Color CompletedStrokeColor = new Color(0.32f, 1f, 0.58f, 1f);
         public Color FaultColor = new Color(1f, 0.24f, 0.3f, 1f);
         public Color ChainColor = new Color(0.78f, 0.42f, 1f, 1f);
-        public Color StylusColor = new Color(0.76f, 0.96f, 1f, 0.9f);
         public string PromptLabel = "TRACE THE SIGIL";
         public string ChainPromptLabel = "NULL CHOIR // TRACE THE CHAIN";
         public string BanishLabel = "SIGIL BROKEN";
         public string StrikeLabel = "SIGIL STRUCK";
-        public string HintLabel = "MOUSE OR RIGHT STICK DRAWS";
+        public string HintLabel = "HOLD LMB TO PAINT // DRAW THE WHOLE GLYPH";
+        public string ReleaseHintLabel = "RELEASE LMB TO SUBMIT";
 
         [Header("Sigil Audio")]
         public string SpawnEvent = "event:/Alert";
-        public string StrokeEvent = "event:/Lock_On";
         public string GlyphClearedEvent = "event:/Lock_On_Full";
         public string FaultEvent = "event:/Okay";
         [Tooltip("Minimum seconds between repeated sigil mistake audio cues. Visual feedback and penalties still occur for every mistake.")]

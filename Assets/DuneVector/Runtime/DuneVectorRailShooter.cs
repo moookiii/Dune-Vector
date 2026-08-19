@@ -255,6 +255,10 @@ namespace DuneVector
         private readonly List<RailSigilDefinition> _sigilDemand = new List<RailSigilDefinition>();
         private readonly List<RailSigilDefinition> _sigilCandidates = new List<RailSigilDefinition>();
         private readonly List<Vector2> _sigilGlyphPoints = new List<Vector2>();
+        private readonly List<Vector2> _sigilAttemptPoints = new List<Vector2>();
+        private readonly List<Vector2> _sigilEvaluationAttempt = new List<Vector2>();
+        private readonly List<Vector2> _sigilEvaluationTarget = new List<Vector2>();
+        private readonly List<Vector2> _sigilTargetPoints = new List<Vector2>();
 
         private DronePlayer _input;
         private DroneCharacterController _player;
@@ -348,15 +352,16 @@ namespace DuneVector
         private Transform _sigilRoot;
         private Transform _sigilCage;
         private Transform _sigilHalo;
+        private Transform _sigilDrawingCursor;
         private bool _sigilActive;
         private bool _sigilChain;
+        private bool _sigilDrawing;
         private bool _sigilVerdictBroken;
         private float _sigilElapsed;
         private float _sigilDuration;
         private Vector2 _sigilPlaneOffset;
-        private Vector2 _sigilStrokeAccumulator;
+        private Vector2 _sigilCursorScreen;
         private int _sigilSymbolIndex;
-        private int _sigilStrokeIndex;
         private int _sigilAttackCount;
         private int _sigilChainCycle;
         private float _sigilNextAttackDistance;
@@ -607,6 +612,7 @@ namespace DuneVector
 
             _input?.ClearCapturedInput();
             _fireWasHeld = false;
+            CancelSigilDrawingAttempt();
             bool isSuspended = !_hasApplicationFocus || _applicationPaused;
             if (wasSuspended && !isSuspended)
             {
@@ -1156,6 +1162,19 @@ namespace DuneVector
 
         private void TickWeapons(in RailShooterCommand command, float deltaTime)
         {
+            if (_sigilActive)
+            {
+                _state.ChargeElapsed = 0f;
+                _chargeLock = null;
+                _chargeReadyCued = false;
+                _chargeLocks.Clear();
+                _fireWasHeld = false;
+                if (command.BombPressed && _state.Bombs > 0 && !float.IsFinite(_bombElapsed))
+                {
+                    DetonateBomb();
+                }
+                return;
+            }
             if (command.FireHeld)
             {
                 _state.ChargeElapsed += deltaTime;
@@ -2714,6 +2733,10 @@ namespace DuneVector
             {
                 _sigilRoot.gameObject.SetActive(false);
             }
+            if (_sigilDrawingCursor != null)
+            {
+                _sigilDrawingCursor.gameObject.SetActive(false);
+            }
             if (_state.SigilsBroken >= _settings.Sigils.SigilChallengeCount)
             {
                 AddScore(_settings.Sigils.SigilChallengeBonus);
@@ -3794,10 +3817,10 @@ namespace DuneVector
             }
         }
 
-        // The null sigil duel. A seeker fades in ahead of the drone, homes onto it, and
-        // counts down. Breaking it means drawing the glyph it demands with the mouse or the
-        // right stick before the countdown expires. Powered seekers demand a whole chain of
-        // glyphs under one shared timer and close in faster.
+        // The null sigil duel. A seeker fades in ahead of the drone and counts down while
+        // ModularSphereMissile becomes a full-screen tablet cursor. The player holds fire to
+        // paint one complete glyph, then releases to submit the entire normalized path.
+        // Powered seekers demand a chain of separately submitted glyphs under one timer.
 
         private void BuildSigilSeeker()
         {
@@ -3836,6 +3859,33 @@ namespace DuneVector
             _sigilHalo = null;
             _sigilCage = null;
             _sigilRoot.gameObject.SetActive(false);
+            BuildSigilDrawingCursor();
+        }
+
+        private void BuildSigilDrawingCursor()
+        {
+            GameObject cursorPrefab = _strikeOrbSettings != null &&
+                _strikeOrbSettings.UseModularSphereMissileVisual
+                    ? _strikeOrbSettings.ModularSphereMissilePrefab
+                    : null;
+            cursorPrefab ??= Resources.Load<GameObject>("vfx/ModularSphereMissile");
+            GameObject cursor = InstantiateConfiguredPrefab(
+                cursorPrefab,
+                _effectsRoot,
+                "ModularSphereMissile drawing cursor");
+            if (cursor == null)
+            {
+                Debug.LogError("ModularSphereMissile could not be loaded for the rail drawing cursor.", this);
+                return;
+            }
+            cursor.name = "ModularSphereMissile Full-Screen Drawing Cursor";
+            cursor.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+            cursor.transform.localScale = FitVisualToMaximumDimension(
+                cursor.transform,
+                _settings.Sigils.DrawingCursorMaximumDimension);
+            DisableVisualPhysics(cursor.transform);
+            _sigilDrawingCursor = cursor.transform;
+            cursor.SetActive(false);
         }
 
         private static Vector3 FitVisualToMaximumDimension(Transform root, float targetMaximumDimension)
@@ -3887,8 +3937,8 @@ namespace DuneVector
             _sigilDuration = 0f;
             _sigilDemand.Clear();
             _sigilSymbolIndex = 0;
-            _sigilStrokeIndex = 0;
-            _sigilStrokeAccumulator = Vector2.zero;
+            CancelSigilDrawingAttempt();
+            _sigilCursorScreen = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
             _sigilPlaneOffset = Vector2.zero;
             _sigilFaultElapsed = float.PositiveInfinity;
             _lastSigilFaultCueAt = float.NegativeInfinity;
@@ -3901,6 +3951,10 @@ namespace DuneVector
             if (_sigilRoot != null)
             {
                 _sigilRoot.gameObject.SetActive(false);
+            }
+            if (_sigilDrawingCursor != null)
+            {
+                _sigilDrawingCursor.gameObject.SetActive(false);
             }
         }
 
@@ -3974,8 +4028,8 @@ namespace DuneVector
             _sigilDuration = Mathf.Max(0.5f, duration);
             _sigilElapsed = 0f;
             _sigilSymbolIndex = 0;
-            _sigilStrokeIndex = 0;
-            _sigilStrokeAccumulator = Vector2.zero;
+            CancelSigilDrawingAttempt();
+            _sigilCursorScreen = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
             _sigilFaultElapsed = float.PositiveInfinity;
             _sigilVerdictElapsed = float.PositiveInfinity;
             float spawnAngle = NextFloat(0f, Mathf.PI * 2f);
@@ -3983,6 +4037,11 @@ namespace DuneVector
                 sigils.SpawnLateralSpread;
             UpdateSigilTransform();
             _sigilRoot.gameObject.SetActive(true);
+            if (_sigilDrawingCursor != null)
+            {
+                _sigilDrawingCursor.gameObject.SetActive(true);
+                UpdateSigilDrawingCursorWorld();
+            }
             PlayCue(sigils.SpawnEvent, _sigilRoot.position);
         }
 
@@ -4085,67 +4144,222 @@ namespace DuneVector
         private void TickSigilDrawing(in RailShooterCommand command, float deltaTime)
         {
             RailSigilTuning sigils = _settings.Sigils;
-            // Screen space grows downward, so both drawing devices are flipped into it.
-            Vector2 drawn = new Vector2(command.Look.x, -command.Look.y) * sigils.MouseStrokeSensitivity;
-            drawn += new Vector2(command.Stick.x, -command.Stick.y) * sigils.StickStrokeSpeed * deltaTime;
-            if (drawn.sqrMagnitude > 0f)
-            {
-                _sigilStrokeAccumulator += drawn;
-            }
-            else
-            {
-                _sigilStrokeAccumulator = Vector2.MoveTowards(
-                    _sigilStrokeAccumulator,
-                    Vector2.zero,
-                    sigils.StrokeDecayPerSecond * deltaTime);
-            }
+            Vector2 cursorDelta = new Vector2(command.Look.x, -command.Look.y) *
+                sigils.MouseStrokeSensitivity;
+            cursorDelta += new Vector2(command.Stick.x, -command.Stick.y) *
+                sigils.StickStrokeSpeed * deltaTime;
+            _sigilCursorScreen += cursorDelta;
+            float margin = Mathf.Max(0f, sigils.DrawingCursorScreenMargin);
+            _sigilCursorScreen.x = Mathf.Clamp(_sigilCursorScreen.x, margin, Screen.width - margin);
+            _sigilCursorScreen.y = Mathf.Clamp(_sigilCursorScreen.y, margin, Screen.height - margin);
+            UpdateSigilDrawingCursorWorld();
 
-            float commit = Mathf.Max(1f, sigils.StrokeCommitDistance);
-            if (_sigilStrokeAccumulator.magnitude < commit)
+            if (!_sigilDrawing && (command.FirePressed || command.FireHeld))
+            {
+                _sigilDrawing = true;
+                _sigilAttemptPoints.Clear();
+                _sigilAttemptPoints.Add(_sigilCursorScreen);
+            }
+            if (_sigilDrawing && command.FireHeld)
+            {
+                float pointSpacing = Mathf.Max(0.5f, sigils.DrawingPointSpacing);
+                if (_sigilAttemptPoints.Count == 0 ||
+                    Vector2.Distance(_sigilAttemptPoints[^1], _sigilCursorScreen) >= pointSpacing)
+                {
+                    _sigilAttemptPoints.Add(_sigilCursorScreen);
+                }
+            }
+            if (!_sigilDrawing || (!command.FireReleased && command.FireHeld))
             {
                 return;
             }
+
+            if (_sigilAttemptPoints.Count == 0 ||
+                Vector2.Distance(_sigilAttemptPoints[^1], _sigilCursorScreen) > 0.5f)
+            {
+                _sigilAttemptPoints.Add(_sigilCursorScreen);
+            }
+            ResolveSigilDrawingAttempt();
+        }
+
+        private void UpdateSigilDrawingCursorWorld()
+        {
+            if (_sigilDrawingCursor == null || _camera == null)
+            {
+                return;
+            }
+            Vector3 unityScreenPoint = new Vector3(
+                _sigilCursorScreen.x,
+                Screen.height - _sigilCursorScreen.y,
+                0f);
+            Ray cursorRay = _camera.ScreenPointToRay(unityScreenPoint);
+            _sigilDrawingCursor.position = cursorRay.GetPoint(
+                Mathf.Max(_camera.nearClipPlane + 0.1f, _settings.Sigils.DrawingCursorWorldDistance));
+            Quaternion spin = Quaternion.Euler(
+                0f,
+                _state.Elapsed * _settings.Sigils.DrawingCursorSpinSpeed,
+                0f);
+            _sigilDrawingCursor.rotation = _camera.transform.rotation *
+                Quaternion.Euler(_settings.Sigils.DrawingCursorLocalEulerAngles) * spin;
+        }
+
+        private void ResolveSigilDrawingAttempt()
+        {
             RailSigilDefinition definition = CurrentSigilDefinition();
-            if (definition == null)
+            bool accepted = definition != null && EvaluateSigilDrawing(definition);
+            _sigilDrawing = false;
+            _sigilAttemptPoints.Clear();
+            if (!accepted)
             {
-                return;
-            }
-            Vector2 demanded = SigilStrokeVector(definition.Strokes[_sigilStrokeIndex]);
-            float error = Vector2.Angle(_sigilStrokeAccumulator, demanded);
-            _sigilStrokeAccumulator = Vector2.zero;
-            if (error > sigils.StrokeAngleTolerance)
-            {
-                FaultSigilStroke();
+                RejectSigilDrawing();
                 return;
             }
 
-            _sigilStrokeIndex++;
-            if (_sigilStrokeIndex < definition.StrokeCount)
-            {
-                PlayCue(sigils.StrokeEvent, _player.transform.position);
-                return;
-            }
-
-            _sigilStrokeIndex = 0;
+            _sigilFaultElapsed = float.PositiveInfinity;
             _sigilSymbolIndex++;
             if (_sigilSymbolIndex < _sigilDemand.Count)
             {
-                PlayCue(sigils.GlyphClearedEvent, _player.transform.position);
+                PlayCue(_settings.Sigils.GlyphClearedEvent, _player.transform.position);
                 return;
             }
             BreakSigil();
         }
 
-        private void FaultSigilStroke()
+        private bool EvaluateSigilDrawing(RailSigilDefinition definition)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            if (_sigilAttemptPoints.Count < 2 ||
+                PolylineLength(_sigilAttemptPoints) < sigils.DrawingMinimumLength)
+            {
+                return false;
+            }
+
+            BuildSigilRawPoints(definition, _sigilTargetPoints);
+            int samples = Mathf.Max(8, sigils.DrawingEvaluationSamples);
+            if (!NormalizeAndResamplePolyline(
+                    _sigilAttemptPoints,
+                    _sigilEvaluationAttempt,
+                    samples) ||
+                !NormalizeAndResamplePolyline(
+                    _sigilTargetPoints,
+                    _sigilEvaluationTarget,
+                    samples))
+            {
+                return false;
+            }
+
+            float totalError = 0f;
+            float maximumError = 0f;
+            for (int i = 0; i < samples; i++)
+            {
+                float error = Vector2.Distance(
+                    _sigilEvaluationAttempt[i],
+                    _sigilEvaluationTarget[i]);
+                totalError += error;
+                maximumError = Mathf.Max(maximumError, error);
+            }
+            float averageError = totalError / samples;
+            return averageError <= sigils.DrawingAverageErrorTolerance &&
+                maximumError <= sigils.DrawingMaximumPointError;
+        }
+
+        private static float PolylineLength(List<Vector2> points)
+        {
+            float length = 0f;
+            for (int i = 1; i < points.Count; i++)
+            {
+                length += Vector2.Distance(points[i - 1], points[i]);
+            }
+            return length;
+        }
+
+        private static void BuildSigilRawPoints(
+            RailSigilDefinition definition,
+            List<Vector2> points)
+        {
+            points.Clear();
+            Vector2 cursor = Vector2.zero;
+            points.Add(cursor);
+            if (definition?.Strokes == null)
+            {
+                return;
+            }
+            for (int i = 0; i < definition.Strokes.Count; i++)
+            {
+                cursor += SigilStrokeVector(definition.Strokes[i]);
+                points.Add(cursor);
+            }
+        }
+
+        private static bool NormalizeAndResamplePolyline(
+            List<Vector2> source,
+            List<Vector2> destination,
+            int sampleCount)
+        {
+            destination.Clear();
+            if (source == null || source.Count < 2)
+            {
+                return false;
+            }
+
+            Vector2 minimum = source[0];
+            Vector2 maximum = source[0];
+            for (int i = 1; i < source.Count; i++)
+            {
+                minimum = Vector2.Min(minimum, source[i]);
+                maximum = Vector2.Max(maximum, source[i]);
+            }
+            float scale = Mathf.Max(maximum.x - minimum.x, maximum.y - minimum.y);
+            if (scale < 0.001f)
+            {
+                return false;
+            }
+            Vector2 center = (minimum + maximum) * 0.5f;
+            Vector2[] normalized = new Vector2[source.Count];
+            float[] cumulative = new float[source.Count];
+            normalized[0] = (source[0] - center) / scale;
+            for (int i = 1; i < source.Count; i++)
+            {
+                normalized[i] = (source[i] - center) / scale;
+                cumulative[i] = cumulative[i - 1] +
+                    Vector2.Distance(normalized[i - 1], normalized[i]);
+            }
+            float totalLength = cumulative[^1];
+            if (totalLength < 0.001f)
+            {
+                return false;
+            }
+
+            int segment = 1;
+            for (int sample = 0; sample < sampleCount; sample++)
+            {
+                float distance = totalLength * sample / Mathf.Max(1, sampleCount - 1);
+                while (segment < cumulative.Length - 1 && cumulative[segment] < distance)
+                {
+                    segment++;
+                }
+                float segmentStart = cumulative[segment - 1];
+                float segmentLength = cumulative[segment] - segmentStart;
+                float t = segmentLength > 0.0001f
+                    ? Mathf.Clamp01((distance - segmentStart) / segmentLength)
+                    : 0f;
+                destination.Add(Vector2.Lerp(normalized[segment - 1], normalized[segment], t));
+            }
+            return destination.Count == sampleCount;
+        }
+
+        private void CancelSigilDrawingAttempt()
+        {
+            _sigilDrawing = false;
+            _sigilAttemptPoints.Clear();
+        }
+
+        private void RejectSigilDrawing()
         {
             RailSigilTuning sigils = _settings.Sigils;
             _sigilFaultElapsed = 0f;
             _sigilElapsed += sigils.FaultTimePenalty;
             _cameraShake = Mathf.Max(_cameraShake, sigils.FaultCameraShake);
-            if (sigils.FaultRestartsGlyph)
-            {
-                _sigilStrokeIndex = 0;
-            }
             if (_state.Elapsed - _lastSigilFaultCueAt >= sigils.FaultEventCooldown)
             {
                 _lastSigilFaultCueAt = _state.Elapsed;
@@ -4208,10 +4422,14 @@ namespace DuneVector
             _sigilActive = false;
             _sigilVerdictBroken = broken;
             _sigilVerdictElapsed = 0f;
-            _sigilStrokeAccumulator = Vector2.zero;
+            CancelSigilDrawingAttempt();
             if (_sigilRoot != null)
             {
                 _sigilRoot.gameObject.SetActive(false);
+            }
+            if (_sigilDrawingCursor != null)
+            {
+                _sigilDrawingCursor.gameObject.SetActive(false);
             }
             _sigilNextAttackDistance = _state.Distance + SigilAttackSpacing();
             _sigilNextBossAttackAt = _state.Elapsed + sigils.BossAttackInterval;
@@ -4291,7 +4509,7 @@ namespace DuneVector
             if (_sigilActive)
             {
                 DrawSigilWorldMarker();
-                DrawSigilPanel();
+                DrawSigilTablet();
             }
             DrawSigilVerdict();
         }
@@ -4321,7 +4539,7 @@ namespace DuneVector
             }
         }
 
-        private void DrawSigilPanel()
+        private void DrawSigilTablet()
         {
             RailSigilTuning sigils = _settings.Sigils;
             RailSigilDefinition definition = CurrentSigilDefinition();
@@ -4329,155 +4547,104 @@ namespace DuneVector
             {
                 return;
             }
-            float pad = _settings.HudPanelPadding;
-            float line = _settings.HudLineHeight;
-            float box = sigils.GlyphBoxSize;
-            float chainRow = _sigilDemand.Count > 1 ? sigils.ChainThumbnailSize + 12f : 0f;
-            float width = Mathf.Max(box, sigils.CountdownBarWidth) + (pad * 2f);
-            float height = (pad * 2f) + line + chainRow + box + 12f + sigils.CountdownBarHeight + line;
-            Vector2 center = new Vector2(
-                Screen.width * sigils.PanelViewportCenter.x,
-                Screen.height * (1f - sigils.PanelViewportCenter.y));
-            Rect panel = new Rect(center.x - (width * 0.5f), center.y - (height * 0.5f), width, height);
-            DrawPanel(panel);
-
             bool faulted = float.IsFinite(_sigilFaultElapsed);
-            Color accent = _sigilChain ? sigils.ChainColor : _settings.HudPrimaryColor;
-            float cursor = panel.y + pad;
+            Color accent = faulted
+                ? sigils.FaultColor
+                : _sigilChain ? sigils.ChainColor : _settings.HudPrimaryColor;
+            float lineHeight = _settings.HudLineHeight;
+            string chainProgress = _sigilDemand.Count > 1
+                ? $"   {_sigilSymbolIndex + 1}/{_sigilDemand.Count}"
+                : string.Empty;
             DrawLabel(
-                new Rect(panel.x + pad, cursor, panel.width - (pad * 2f), line),
-                _sigilChain
-                    ? $"{sigils.ChainPromptLabel}   {_sigilSymbolIndex + 1}/{_sigilDemand.Count}"
-                    : $"{sigils.PromptLabel}   {definition.Name}",
+                new Rect(
+                    0f,
+                    Screen.height * sigils.DrawingPromptViewportY,
+                    Screen.width,
+                    lineHeight),
+                $"{(_sigilChain ? sigils.ChainPromptLabel : sigils.PromptLabel)}   " +
+                $"{definition.Name}{chainProgress}",
                 _centeredSmallStyle,
-                faulted ? sigils.FaultColor : accent);
-            cursor += line;
-
-            if (chainRow > 0f)
-            {
-                DrawSigilChainRow(
-                    new Rect(panel.x + pad, cursor, panel.width - (pad * 2f), sigils.ChainThumbnailSize));
-                cursor += chainRow;
-            }
-
-            Rect glyphBox = new Rect(
-                panel.x + ((panel.width - box) * 0.5f),
-                cursor,
-                box,
-                box);
+                accent);
             float remaining = SigilCountdownRemaining();
             DrawLabel(
-                glyphBox,
-                Mathf.CeilToInt(remaining).ToString(),
+                new Rect(
+                    0f,
+                    (Screen.height * sigils.DrawingPromptViewportY) + lineHeight,
+                    Screen.width,
+                    lineHeight),
+                $"{remaining:0.0}s",
                 _sigilCountdownStyle,
-                WithAlpha(faulted ? sigils.FaultColor : accent, 0.22f));
-            DrawSigilGlyph(
+                accent);
+
+            float guideSize = Mathf.Min(Screen.width, Screen.height) *
+                sigils.DrawingGuideScreenFraction;
+            Vector2 guideCenter = new Vector2(
+                Screen.width * sigils.DrawingGuideViewportCenter.x,
+                Screen.height * sigils.DrawingGuideViewportCenter.y);
+            Rect guideBox = new Rect(
+                guideCenter.x - (guideSize * 0.5f),
+                guideCenter.y - (guideSize * 0.5f),
+                guideSize,
+                guideSize);
+            BuildSigilGlyphPoints(
                 definition,
                 new Rect(
-                    glyphBox.x + (box * 0.14f),
-                    glyphBox.y + (box * 0.14f),
-                    box * 0.72f,
-                    box * 0.72f),
-                _sigilStrokeIndex,
-                sigils.GlyphLineThickness,
-                true);
-            cursor += box + 12f;
+                    guideBox.x + (guideSize * sigils.DrawingGuidePaddingFraction),
+                    guideBox.y + (guideSize * sigils.DrawingGuidePaddingFraction),
+                    guideSize * (1f - (sigils.DrawingGuidePaddingFraction * 2f)),
+                    guideSize * (1f - (sigils.DrawingGuidePaddingFraction * 2f))),
+                _sigilGlyphPoints);
+            Color guideColor = faulted
+                ? WithAlpha(sigils.FaultColor, sigils.DrawingGuideColor.a)
+                : sigils.DrawingGuideColor;
+            for (int i = 1; i < _sigilGlyphPoints.Count; i++)
+            {
+                DrawSigilLine(
+                    _sigilGlyphPoints[i - 1],
+                    _sigilGlyphPoints[i],
+                    sigils.DrawingGuideThickness,
+                    guideColor);
+            }
+            if (_sigilGlyphPoints.Count > 0)
+            {
+                float startSize = sigils.DrawingGuideStartSize;
+                Vector2 start = _sigilGlyphPoints[0];
+                DrawRect(
+                    new Rect(
+                        start.x - (startSize * 0.5f),
+                        start.y - (startSize * 0.5f),
+                        startSize,
+                        startSize),
+                    sigils.CompletedStrokeColor);
+            }
+
+            for (int i = 1; i < _sigilAttemptPoints.Count; i++)
+            {
+                DrawSigilLine(
+                    _sigilAttemptPoints[i - 1],
+                    _sigilAttemptPoints[i],
+                    sigils.DrawingPaintThickness,
+                    sigils.DrawingPaintColor);
+            }
 
             float countdown = Mathf.Clamp01(remaining / Mathf.Max(0.01f, _sigilDuration));
             DrawMeter(
                 new Rect(
-                    panel.x + ((panel.width - sigils.CountdownBarWidth) * 0.5f),
-                    cursor,
+                    (Screen.width - sigils.CountdownBarWidth) * 0.5f,
+                    Screen.height * sigils.DrawingCountdownViewportY,
                     sigils.CountdownBarWidth,
                     sigils.CountdownBarHeight),
                 countdown,
                 Color.Lerp(sigils.FaultColor, sigils.CompletedStrokeColor, countdown));
-            cursor += sigils.CountdownBarHeight + 4f;
             DrawLabel(
-                new Rect(panel.x + pad, cursor, panel.width - (pad * 2f), line),
-                $"{remaining:0.0}s   {sigils.HintLabel}",
+                new Rect(
+                    0f,
+                    Screen.height * sigils.DrawingHintViewportY,
+                    Screen.width,
+                    lineHeight),
+                _sigilDrawing ? sigils.ReleaseHintLabel : sigils.HintLabel,
                 _centeredSmallStyle,
                 _settings.HudSecondaryColor);
-        }
-
-        private void DrawSigilChainRow(Rect row)
-        {
-            RailSigilTuning sigils = _settings.Sigils;
-            float size = sigils.ChainThumbnailSize;
-            float spacing = sigils.ChainThumbnailSpacing;
-            float total = (_sigilDemand.Count * size) + ((_sigilDemand.Count - 1) * spacing);
-            float x = row.center.x - (total * 0.5f);
-            for (int i = 0; i < _sigilDemand.Count; i++)
-            {
-                Rect cell = new Rect(x, row.y, size, size);
-                x += size + spacing;
-                int strokeProgress = i < _sigilSymbolIndex
-                    ? _sigilDemand[i].StrokeCount
-                    : i == _sigilSymbolIndex ? _sigilStrokeIndex : 0;
-                DrawSigilGlyph(
-                    _sigilDemand[i],
-                    new Rect(cell.x + (size * 0.16f), cell.y + (size * 0.16f), size * 0.68f, size * 0.68f),
-                    strokeProgress,
-                    Mathf.Max(1f, sigils.GlyphLineThickness * 0.5f),
-                    false);
-                if (i == _sigilSymbolIndex)
-                {
-                    DrawBracket(cell.center, size, sigils.ActiveStrokeColor);
-                }
-            }
-        }
-
-        private void DrawSigilGlyph(
-            RailSigilDefinition definition,
-            Rect box,
-            int completedStrokes,
-            float thickness,
-            bool showStylus)
-        {
-            RailSigilTuning sigils = _settings.Sigils;
-            BuildSigilGlyphPoints(definition, box, _sigilGlyphPoints);
-            if (_sigilGlyphPoints.Count < 2)
-            {
-                return;
-            }
-            bool faulted = float.IsFinite(_sigilFaultElapsed);
-            for (int i = 0; i < _sigilGlyphPoints.Count - 1; i++)
-            {
-                Color color = i < completedStrokes
-                    ? sigils.CompletedStrokeColor
-                    : i == completedStrokes
-                        ? (faulted ? sigils.FaultColor : sigils.ActiveStrokeColor)
-                        : sigils.PendingStrokeColor;
-                float width = i == completedStrokes ? thickness * 1.5f : thickness;
-                DrawSigilLine(_sigilGlyphPoints[i], _sigilGlyphPoints[i + 1], width, color);
-            }
-            // The start pip tells the player which end of the glyph the trace begins at.
-            float pip = Mathf.Max(3f, thickness * 1.4f);
-            DrawRect(
-                new Rect(
-                    _sigilGlyphPoints[0].x - pip,
-                    _sigilGlyphPoints[0].y - pip,
-                    pip * 2f,
-                    pip * 2f),
-                sigils.CompletedStrokeColor);
-            if (!showStylus || completedStrokes >= _sigilGlyphPoints.Count - 1)
-            {
-                return;
-            }
-            // Live stylus: the drawn direction hanging off the node the trace is sitting on,
-            // so a wrong-way flick is visible before it commits.
-            Vector2 node = _sigilGlyphPoints[completedStrokes];
-            float commit = Mathf.Max(1f, sigils.StrokeCommitDistance);
-            float reach = Vector2.Distance(_sigilGlyphPoints[completedStrokes], _sigilGlyphPoints[completedStrokes + 1]);
-            Vector2 offset = _sigilStrokeAccumulator / commit;
-            if (offset.magnitude > sigils.StylusReachFraction)
-            {
-                offset = offset.normalized * sigils.StylusReachFraction;
-            }
-            Vector2 stylus = node + (offset * reach);
-            DrawSigilLine(node, stylus, Mathf.Max(1f, thickness * 0.6f), sigils.StylusColor);
-            float dot = Mathf.Max(2f, thickness);
-            DrawRect(new Rect(stylus.x - dot, stylus.y - dot, dot * 2f, dot * 2f), sigils.StylusColor);
         }
 
         private void DrawSigilLine(Vector2 from, Vector2 to, float thickness, Color color)
@@ -4507,7 +4674,7 @@ namespace DuneVector
             DrawLabel(
                 new Rect(
                     0f,
-                    Screen.height * (1f - sigils.PanelViewportCenter.y) - (sigils.GlyphBoxSize * 0.9f),
+                    Screen.height * sigils.DrawingVerdictViewportY,
                     Screen.width,
                     32f),
                 _sigilVerdictBroken ? sigils.BanishLabel : sigils.StrikeLabel,
