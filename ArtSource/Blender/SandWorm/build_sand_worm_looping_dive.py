@@ -11,6 +11,8 @@ ACTION_NAME = "Worm_LoopingDive"
 
 ARMATURE_NAME = "Armature"
 MESH_NAME = "model_0"
+ROOT_BONE_NAME = "Bone"
+ROOT_TRACK_LAG = 19.0
 
 # These are the weighted segment centers in the imported worm's rest pose,
 # ordered from anatomical head to tail. Bone is an unweighted import root and
@@ -131,6 +133,20 @@ def key_segment_pose(pose_bone, rest_center, target, angle, frame):
     pose_bone.keyframe_insert("scale", frame=frame, group=pose_bone.name)
 
 
+def key_tracking_root(root_bone, target, angle, frame):
+    """Move Unity's skin root with the body center without changing the pose."""
+    deform = (
+        Matrix.Translation(target)
+        @ Matrix.Rotation(angle + math.pi, 4, "X")
+        @ Matrix.Translation(-root_bone.bone.head_local)
+    )
+    root_bone.matrix = deform @ root_bone.bone.matrix_local
+    bpy.context.view_layer.update()
+    root_bone.keyframe_insert("location", frame=frame, group=root_bone.name)
+    root_bone.keyframe_insert("rotation_euler", frame=frame, group=root_bone.name)
+    root_bone.keyframe_insert("scale", frame=frame, group=root_bone.name)
+
+
 def build_animation():
     scene = bpy.context.scene
     armature = bpy.data.objects[ARMATURE_NAME]
@@ -164,6 +180,8 @@ def build_animation():
     for frame in keyed_frames:
         scene.frame_set(frame)
         head_progress = progress_at_frame(frame)
+        root_target, root_angle = path_sample(head_progress - ROOT_TRACK_LAG)
+        key_tracking_root(armature.pose.bones[ROOT_BONE_NAME], root_target, root_angle, frame)
         for bone_name, rest_center, lag in SEGMENTS:
             target, angle = path_sample(head_progress - lag)
             key_segment_pose(armature.pose.bones[bone_name], rest_center, target, angle, frame)
