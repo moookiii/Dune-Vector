@@ -3556,9 +3556,35 @@ namespace DuneVector
                 0,
                 1f);
 
+            // The sigil is sized backwards from the inner ring so its mitred corners always land
+            // inside it. Solving this here, where the inner ring is already measured, keeps the
+            // frame and the columns standing on it locked to one derived radius.
+            float sigilCornerRadius = Mathf.Min(
+                radius * Mathf.Clamp01(settings.GroundWarningSigilRadiusFraction),
+                Mathf.Max(
+                    0.01f,
+                    innerRadius - innerThickness - (radius * Mathf.Max(0f, settings.GroundWarningSigilInnerClearance))));
+
+            // A static hairline track under the blades: without it the bezel reads as loose
+            // ticks floating in the gap rather than a ring of blades running in a groove.
+            float trackThickness = radius * Mathf.Max(0f, settings.GroundWarningBezelTrackThickness);
+            if (trackThickness > 0f)
+            {
+                CreateStormWarningRing(
+                    "Bezel Track",
+                    warningZone,
+                    warningMaterial,
+                    radius * Mathf.Clamp01(settings.GroundWarningBezelRadiusFraction),
+                    trackThickness,
+                    0,
+                    1f);
+            }
+
             CreateStormWarningBezel(warningZone, warningMaterial, radius, settings);
-            Transform sigil = CreateStormWarningSigil(warningZone, warningMaterial, radius, settings);
-            CreateStormWarningIonColumns(sigil, warningMaterial, radius, settings);
+            Transform sigil = CreateStormWarningSigil(
+                warningZone, warningMaterial, radius, sigilCornerRadius, settings);
+            CreateStormWarningIonColumns(
+                sigil, warningMaterial, radius, sigilCornerRadius, settings);
 
             float closingThickness = Mathf.Max(0.01f, radius * settings.GroundWarningClosingRingThickness);
             Transform closingRing = CreateStormWarningRing(
@@ -3663,6 +3689,7 @@ namespace DuneVector
             float bezelRadius = radius * Mathf.Clamp01(settings.GroundWarningBezelRadiusFraction);
             float barLength = Mathf.Max(0.01f, radius * settings.GroundWarningBezelBarLength);
             float barWidth = Mathf.Max(0.004f, radius * settings.GroundWarningBezelBarWidth);
+            float barHeight = Mathf.Max(0.004f, radius * settings.GroundWarningBezelBarHeight);
             for (int i = 0; i < barCount; i++)
             {
                 Quaternion placement = Quaternion.Euler(0f, (360f / barCount) * i, 0f);
@@ -3671,7 +3698,7 @@ namespace DuneVector
                     $"Hazard Blade {i + 1}",
                     bezel,
                     placement * (Vector3.forward * bezelRadius),
-                    new Vector3(barWidth, barWidth, barLength),
+                    new Vector3(barWidth, barHeight, barLength),
                     placement * Quaternion.Euler(0f, settings.GroundWarningBezelBarLean, 0f),
                     material);
                 DisableRendererShadows(blade.gameObject);
@@ -3688,6 +3715,7 @@ namespace DuneVector
             Transform parent,
             Material material,
             float radius,
+            float cornerRadius,
             StormPyramidTuning settings)
         {
             GameObject sigilObject = new GameObject("Warning Sigil");
@@ -3695,13 +3723,17 @@ namespace DuneVector
             sigil.SetParent(parent, false);
 
             int sides = Mathf.Clamp(settings.GroundWarningSigilSides, 0, 8);
-            float sigilRadius = radius * Mathf.Clamp01(settings.GroundWarningSigilRadiusFraction);
             float barThickness = Mathf.Max(0.004f, radius * settings.GroundWarningSigilBarThickness);
             if (sides >= 3)
             {
+                // Each edge is a box, so the frame's widest point is the mitred corner where two
+                // boxes meet, not the polygon vertex. Placing the bar's outer face at
+                // cornerRadius * cos(halfSlot) and running it out to cornerRadius * sin(halfSlot)
+                // puts that corner exactly on cornerRadius, which is what the caller has already
+                // guaranteed clears the inner ring.
                 float halfSlot = Mathf.PI / sides;
-                float apothem = sigilRadius * Mathf.Cos(halfSlot);
-                float edgeLength = 2f * sigilRadius * Mathf.Sin(halfSlot);
+                float apothem = (cornerRadius * Mathf.Cos(halfSlot)) - (barThickness * 0.5f);
+                float edgeLength = 2f * cornerRadius * Mathf.Sin(halfSlot);
                 for (int i = 0; i < sides; i++)
                 {
                     Quaternion placement = Quaternion.Euler(0f, (360f / sides) * i, 0f);
@@ -3710,7 +3742,7 @@ namespace DuneVector
                         $"Sigil Edge {i + 1}",
                         sigil,
                         placement * (Vector3.forward * apothem),
-                        new Vector3(edgeLength + barThickness, barThickness, barThickness),
+                        new Vector3(edgeLength, barThickness, barThickness),
                         placement,
                         material);
                     DisableRendererShadows(edge.gameObject);
@@ -3719,6 +3751,18 @@ namespace DuneVector
 
             float pipWidth = radius * Mathf.Max(0f, settings.GroundWarningCorePipWidth);
             float pipHeight = radius * Mathf.Max(0f, settings.GroundWarningCorePipHeight);
+            float collarRadius = radius * Mathf.Max(0f, settings.GroundWarningCorePipBaseRadius);
+            if (collarRadius > 0f)
+            {
+                CreateStormWarningRing(
+                    "Sigil Core Collar",
+                    sigil,
+                    material,
+                    collarRadius,
+                    radius * Mathf.Max(0.004f, settings.GroundWarningCorePipBaseThickness),
+                    0,
+                    1f);
+            }
             if (pipWidth > 0f && pipHeight > 0f)
             {
                 GameObject pip = CreateMeshObject("Sigil Core Pip", sigil, GetPyramidMesh(), material);
@@ -3740,6 +3784,7 @@ namespace DuneVector
             Transform parent,
             Material material,
             float radius,
+            float cornerRadius,
             StormPyramidTuning settings)
         {
             GameObject columnsObject = new GameObject("Ion Columns");
@@ -3752,7 +3797,6 @@ namespace DuneVector
                 return columns;
             }
 
-            float columnRadius = radius * Mathf.Clamp01(settings.GroundWarningIonColumnRadiusFraction);
             float columnWidth = Mathf.Max(0.004f, radius * settings.GroundWarningIonColumnWidth);
             for (int i = 0; i < columnCount; i++)
             {
@@ -3764,7 +3808,7 @@ namespace DuneVector
                     columns,
                     GetPyramidMesh(),
                     material);
-                column.transform.localPosition = placement * (Vector3.forward * columnRadius);
+                column.transform.localPosition = placement * (Vector3.forward * cornerRadius);
                 column.transform.localRotation = placement;
                 column.transform.localScale = new Vector3(columnWidth * 0.5f, 0f, columnWidth * 0.5f);
                 DisableRendererShadows(column);
