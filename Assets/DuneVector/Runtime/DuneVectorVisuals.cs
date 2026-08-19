@@ -5343,7 +5343,7 @@ namespace DuneVector
             {
                 GameObject trail = UnityEngine.Object.Instantiate(trailPrefab, droneVisual);
                 trail.name = trailPrefab.name;
-                trail.transform.localPosition = Vector3.zero;
+                trail.transform.localPosition = settings.TrailPrefabLocalPosition;
                 trail.transform.localRotation = Quaternion.identity;
                 return;
             }

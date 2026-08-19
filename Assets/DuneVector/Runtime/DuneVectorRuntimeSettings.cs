@@ -2717,6 +2717,8 @@ namespace DuneVector
         [Header("Trails")]
         [Tooltip("Resources path of the trail prefab attached directly to each drone visual. Leave empty to use the procedural trail fallback.")]
         public string TrailPrefabResourcePath = "DroneTrailPrefab";
+        [Tooltip("Local position offset applied to the trail prefab relative to the drone visual root.")]
+        public Vector3 TrailPrefabLocalPosition = Vector3.zero;
         public Vector3 TrailPosition = new Vector3(0.5f, -0.08f, -1.2f);
         [Min(0f)] public float TrailDuration = 0.3f;
         [Min(0f)] public float TrailStartWidth = 0.065f;
