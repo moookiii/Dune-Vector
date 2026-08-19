@@ -1149,7 +1149,7 @@ namespace DuneVector
         [Min(0.01f)] public float SandAmbusherSegmentExtensionDuration = 0.38f;
         [Range(0.1f, 1f)] public float SandAmbusherSegmentEmergenceScale = 0.62f;
         [Min(0f)] public float SandAmbusherFullSwayBlendDuration = 0.9f;
-        [Min(0f)] public float SandAmbusherExposedDuration = 2.2f;
+        [Min(0f)] public float SandAmbusherExposedDuration = 6.6f;
         [Min(0f)] public float SandAmbusherIdleSwayAmplitude = 0.42f;
         [Min(0f)] public float SandAmbusherIdleSwayFrequency = 1.15f;
         [Min(0f)] public float SandAmbusherCrossSwayAmplitude = 0.22f;
