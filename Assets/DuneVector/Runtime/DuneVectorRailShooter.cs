@@ -296,6 +296,7 @@ namespace DuneVector
         private int _pickupSequence;
         private int _riskRouteCount;
         private int _killsSinceDrop;
+        private int _distanceGoldBonus;
         private bool _resultSuccess;
         private bool _rewardCommitted;
         private readonly List<RailShooterBulletPattern> _patternCandidates =
@@ -474,6 +475,7 @@ namespace DuneVector
             _bossAnnounced = false;
             _bossBannerElapsed = float.PositiveInfinity;
             _chargeLocks.Clear();
+            _distanceGoldBonus = 0;
             AwardedGold = 0;
             ResultGrade = "C";
             ResetPools();
@@ -2604,6 +2606,10 @@ namespace DuneVector
                     : _state.Score >= _settings.GradeBScore ? "B" : "C";
             float rewardFraction = success ? 1f : _settings.FailureRewardFraction;
             AwardedGold = Mathf.Max(0, Mathf.RoundToInt(_state.Score * _settings.GoldPerScore * rewardFraction));
+            _distanceGoldBonus = Mathf.Max(
+                0,
+                Mathf.FloorToInt(_state.Distance / Mathf.Max(0.01f, _settings.DistanceGoldDivisor)));
+            AwardedGold += _distanceGoldBonus;
             if (success)
             {
                 AwardedGold += _settings.BossGoldReward;
@@ -4834,6 +4840,7 @@ namespace DuneVector
                     _state.SigilStrikes > 0 ? _settings.Sigils.FaultColor : _settings.HudSecondaryColor),
                 ("ROUTE GATES", $"{_state.RouteGatesCleared:00} / {_settings.BranchGateCount:00}", _settings.HudPrimaryColor),
                 ("RIFT DEPTH", $"{Mathf.RoundToInt(_state.Distance)} M", _settings.HudSecondaryColor),
+                ("DISTANCE BONUS", $"+{_distanceGoldBonus} GOLD", _settings.RiftGoldColor),
                 ("FLAWLESS RUN", _state.TookDamage ? "NO" : "YES",
                     _state.TookDamage ? _settings.HudSecondaryColor : _settings.HudReticleColor),
                 ("COMBAT PAYOUT", $"+{AwardedGold} GOLD", _settings.RiftGoldColor),
