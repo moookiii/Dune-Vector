@@ -699,7 +699,7 @@ namespace DuneVector
         private void BuildSamples(DesertAtlasSiteDefinition site, GeoglyphArtworkPlacement artwork)
         {
             _worldSamples.Clear();
-            Vector2 contentCenter = artwork.MaskContentCenter;
+            Vector2 contentCenter = artwork.UnityUvContentCenter;
             Vector2 contentScale = artwork.MaskContentSize;
             if (contentScale.x <= 0f || contentScale.y <= 0f)
             {
@@ -728,8 +728,10 @@ namespace DuneVector
                 AddWorldSample(contentCenterX, contentCenterZ);
                 for (int i = 0; i < artwork.MaskCaptureBoundary.Count; i++)
                 {
+                    Vector2 boundaryUv = GeoglyphArtworkPlacement.ImageUvToUnityUv(
+                        artwork.MaskCaptureBoundary[i]);
                     Vector2 uv = contentCenter +
-                        ((artwork.MaskCaptureBoundary[i] - contentCenter) * regionScale);
+                        ((boundaryUv - contentCenter) * regionScale);
                     Vector3 offset = rotation * new Vector3(
                         (uv.x - 0.5f) * artwork.WorldSize.x,
                         0f,

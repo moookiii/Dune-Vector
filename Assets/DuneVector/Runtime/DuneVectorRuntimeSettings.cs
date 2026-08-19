@@ -43,14 +43,21 @@ namespace DuneVector
         [Tooltip("Width and length of the artwork footprint in world metres.")]
         public Vector2 WorldSize = new Vector2(640f, 426.67f);
 
-        [Tooltip("Center of the visible mask linework in normalized Unity texture coordinates.")]
+        [Tooltip("Center of the visible mask linework in normalized image coordinates with Y increasing downward.")]
         public Vector2 MaskContentCenter = new Vector2(0.5f, 0.5f);
 
         [Tooltip("Width and height of the visible mask linework as normalized fractions of the full texture.")]
         public Vector2 MaskContentSize = Vector2.one;
 
-        [Tooltip("Convex boundary samples around the visible linework in normalized Unity texture coordinates. Camera framing uses these points instead of the rectangular texture footprint.")]
+        [Tooltip("Convex boundary samples around the visible linework in normalized image coordinates with Y increasing downward. Camera framing uses these points instead of the rectangular texture footprint.")]
         public List<Vector2> MaskCaptureBoundary = new List<Vector2>();
+
+        public Vector2 UnityUvContentCenter => ImageUvToUnityUv(MaskContentCenter);
+
+        public static Vector2 ImageUvToUnityUv(Vector2 imageUv)
+        {
+            return new Vector2(imageUv.x, 1f - imageUv.y);
+        }
 
         [Tooltip("Rotation of the artwork footprint around its world-space center.")]
         public float RotationDegrees;
@@ -164,7 +171,7 @@ namespace DuneVector
                     continue;
                 }
 
-                Vector2 contentCenter = placement.MaskContentCenter;
+                Vector2 contentCenter = placement.UnityUvContentCenter;
                 Vector2 contentSize = placement.MaskContentSize;
                 if (contentSize.x <= 0f || contentSize.y <= 0f)
                 {

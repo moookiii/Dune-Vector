@@ -15,6 +15,16 @@ namespace DuneVector.Tests
             "Assets/DuneVector/ScriptableObjects/Dune Vector Runtime Settings.asset";
 
         [Test]
+        public void GeoglyphImageCoordinatesConvertToUnityUvCoordinates()
+        {
+            Vector2 converted = GeoglyphArtworkPlacement.ImageUvToUnityUv(
+                new Vector2(0.25f, 0.8f));
+
+            Assert.That(converted.x, Is.EqualTo(0.25f).Within(0.0001f));
+            Assert.That(converted.y, Is.EqualTo(0.2f).Within(0.0001f));
+        }
+
+        [Test]
         public void StormPyramidRecurringCadenceVariesByEnemyAndAttack()
         {
             MethodInfo cadencePhase = typeof(StormPyramidEnemy).GetMethod(
