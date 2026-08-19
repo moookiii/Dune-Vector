@@ -658,13 +658,6 @@ namespace DuneVector
 
         private void TickEncounterDirector()
         {
-            while (_state.Distance >= _nextWaveDistance &&
-                   _nextWaveDistance < _settings.BossSpawnDistance)
-            {
-                SpawnFormation();
-                _nextWaveDistance += _settings.WaveSpacing;
-            }
-
             while (_state.Distance >= _nextPickupDistance &&
                    _nextPickupDistance < _settings.BossSpawnDistance)
             {
@@ -2064,12 +2057,6 @@ namespace DuneVector
 
         private void BuildEnemyPool()
         {
-            for (int i = 0; i < _settings.EnemyPoolSize; i++)
-            {
-                RailShooterEnemyKind kind = (RailShooterEnemyKind)(i % 5);
-                RailEnemy enemy = CreateRailEnemy(kind, i, false);
-                _enemies.Add(enemy);
-            }
             _boss = CreateRailEnemy(RailShooterEnemyKind.VesperKite, _settings.EnemyPoolSize, true);
             _boss.Root.name = "Vesper Sovereign Boss - Pooled";
             for (int i = 0; i < _settings.ScorePopupPoolSize; i++)
