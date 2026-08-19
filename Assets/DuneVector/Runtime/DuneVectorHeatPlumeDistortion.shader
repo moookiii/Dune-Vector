@@ -53,7 +53,7 @@ Shader "DuneVector/URP Heat Plume Distortion"
         Pass
         {
             Name "DuneVectorHeatDistortion"
-            Tags { "LightMode" = "DuneVectorLegacyDistortion" }
+            Tags { "LightMode" = "UniversalForward" }
 
             Stencil
             {
@@ -63,7 +63,7 @@ Shader "DuneVector/URP Heat Plume Distortion"
                 Pass Replace
             }
 
-            Blend One One, One One
+            Blend SrcAlpha OneMinusSrcAlpha
             ZTest LEqual
             ZWrite Off
             Cull Off
@@ -76,6 +76,7 @@ Shader "DuneVector/URP Heat Plume Distortion"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareOpaqueTexture.hlsl"
 
             TEXTURE2D(_NoiseTex);
             SAMPLER(sampler_NoiseTex);
@@ -210,7 +211,17 @@ Shader "DuneVector/URP Heat Plume Distortion"
                 distortion.x += (secondary.g - 0.5) * _HorizontalTurbulence * detailFade;
                 distortion *= _DistortionStrength * strengthVariation * mask;
 
-                return float4(distortion, 1.0, _DistortionBlur * mask);
+                float2 texelSize = rcp(_ScaledScreenParams.xy);
+                float2 distortedUv = saturate(screenUv + (distortion * texelSize));
+                float3 refracted = SampleSceneColor(distortedUv);
+                float2 blurOffset = texelSize * max(1.0, _DistortionStrength) * _DistortionBlur;
+                float3 blurred = (
+                    SampleSceneColor(saturate(distortedUv + float2(blurOffset.x, 0.0))) +
+                    SampleSceneColor(saturate(distortedUv - float2(blurOffset.x, 0.0))) +
+                    SampleSceneColor(saturate(distortedUv + float2(0.0, blurOffset.y))) +
+                    SampleSceneColor(saturate(distortedUv - float2(0.0, blurOffset.y)))) * 0.25;
+                refracted = lerp(refracted, blurred, saturate(_DistortionBlur));
+                return float4(refracted, saturate(mask));
             }
             ENDHLSL
         }
@@ -220,7 +231,7 @@ Shader "DuneVector/URP Heat Plume Distortion"
         Pass
         {
             Name "FallbackInvisible"
-            Tags { "LightMode" = "UniversalForward" }
+            Tags { "LightMode" = "DuneVectorFallbackInvisible" }
             Cull Off
             ZWrite Off
             ColorMask 0

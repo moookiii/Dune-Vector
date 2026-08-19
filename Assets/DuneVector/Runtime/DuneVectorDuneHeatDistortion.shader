@@ -25,7 +25,7 @@ Shader "DuneVector/URP Dune Heat Distortion"
         Pass
         {
             Name "DuneHeatDistortion"
-            Tags { "LightMode" = "DuneVectorLegacyDistortion" }
+            Tags { "LightMode" = "UniversalForward" }
 
             Stencil
             {
@@ -35,7 +35,7 @@ Shader "DuneVector/URP Dune Heat Distortion"
                 Pass Replace
             }
 
-            Blend One One, One One
+            Blend SrcAlpha OneMinusSrcAlpha
             ZTest LEqual
             ZWrite Off
             Cull Off
@@ -47,6 +47,7 @@ Shader "DuneVector/URP Dune Heat Distortion"
             #pragma multi_compile_instancing
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareOpaqueTexture.hlsl"
 
             TEXTURE2D(_NoiseTex);
             SAMPLER(sampler_NoiseTex);
@@ -58,6 +59,8 @@ Shader "DuneVector/URP Dune Heat Distortion"
                 float4 _ScrollVelocity;
                 float _ShellStrengthMultiplier;
                 float _VerticalVeil;
+                float4 _ShimmerColor;
+                float _ShimmerOpacity;
             CBUFFER_END
 
             struct Attributes
@@ -102,7 +105,21 @@ Shader "DuneVector/URP Dune Heat Distortion"
                 float2 distortion = primary + (secondary * 0.55) + float2(wave * 0.12, wave * 0.04);
                 distortion *= _DistortionStrength * _ShellStrengthMultiplier * edgeMask;
 
-                return float4(distortion, 1.0, _DistortionBlur * edgeMask);
+                float2 screenUv = GetNormalizedScreenSpaceUV(input.positionCS);
+                float2 texelSize = rcp(_ScaledScreenParams.xy);
+                float2 distortedUv = saturate(screenUv + (distortion * texelSize));
+                float3 refracted = SampleSceneColor(distortedUv);
+
+                float2 blurOffset = texelSize * max(1.0, _DistortionStrength) * _DistortionBlur;
+                float3 blurred = (
+                    SampleSceneColor(saturate(distortedUv + float2(blurOffset.x, 0.0))) +
+                    SampleSceneColor(saturate(distortedUv - float2(blurOffset.x, 0.0))) +
+                    SampleSceneColor(saturate(distortedUv + float2(0.0, blurOffset.y))) +
+                    SampleSceneColor(saturate(distortedUv - float2(0.0, blurOffset.y)))) * 0.25;
+                refracted = lerp(refracted, blurred, saturate(_DistortionBlur));
+
+                float opacity = edgeMask * saturate(_ShellStrengthMultiplier) * saturate(_ShimmerOpacity);
+                return float4(refracted, opacity);
             }
             ENDHLSL
         }
@@ -110,7 +127,7 @@ Shader "DuneVector/URP Dune Heat Distortion"
         Pass
         {
             Name "VisibleHeatShimmer"
-            Tags { "LightMode" = "UniversalForward" }
+            Tags { "LightMode" = "DuneVectorVisibleHeatShimmer" }
             Blend SrcAlpha OneMinusSrcAlpha
             ZTest LEqual
             ZWrite Off

@@ -53,6 +53,24 @@ namespace DuneVector.Tests
             }
         }
 
+        [Test]
+        public void GroundHeatShaders_UseRenderableUrpRefractionPasses()
+        {
+            AssertRenderableRefractionShader(
+                "Assets/DuneVector/Runtime/DuneVectorDuneHeatDistortion.shader");
+            AssertRenderableRefractionShader(
+                "Assets/DuneVector/Runtime/DuneVectorHeatPlumeDistortion.shader");
+        }
+
+        private static void AssertRenderableRefractionShader(string assetPath)
+        {
+            string source = System.IO.File.ReadAllText(assetPath);
+            StringAssert.Contains("\"LightMode\" = \"UniversalForward\"", source);
+            StringAssert.Contains("DeclareOpaqueTexture.hlsl", source);
+            StringAssert.Contains("SampleSceneColor", source);
+            StringAssert.DoesNotContain("\"LightMode\" = \"DuneVectorLegacyDistortion\"", source);
+        }
+
         private static readonly string[] RuntimeOnlyShaderNames =
         {
             "DuneVector/URP Dune Heat Distortion",
