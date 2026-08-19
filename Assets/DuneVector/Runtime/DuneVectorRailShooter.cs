@@ -230,6 +230,7 @@ namespace DuneVector
             public float ExplosionElapsed;
             public Vector2 PlaneOffset;
             public Vector3 RotationAxis;
+            public Vector3 BaseScale;
         }
 
         public static bool IsAnyRailShooterActive { get; private set; }
@@ -2836,26 +2837,42 @@ namespace DuneVector
                 _segments.Add(segment);
             }
 
-            if (_settings.SatellitePrefab != null)
+            GameObject resourceSatellitePrefab = Resources.Load<GameObject>("SatellitePrefab");
+            GameObject satellitePrefab = _settings.SatellitePrefab != null
+                ? _settings.SatellitePrefab
+                : resourceSatellitePrefab;
+            if (satellitePrefab != null)
             {
                 for (int i = 0; i < _settings.SatellitePoolSize; i++)
                 {
                     GameObject root = InstantiateConfiguredPrefab(
-                        _settings.SatellitePrefab,
+                        satellitePrefab,
                         _environmentRoot,
                         "satellite");
+                    if (root == null && resourceSatellitePrefab != null &&
+                        satellitePrefab != resourceSatellitePrefab)
+                    {
+                        root = InstantiateConfiguredPrefab(
+                            resourceSatellitePrefab,
+                            _environmentRoot,
+                            "Resources satellite fallback");
+                    }
                     if (root == null)
                     {
                         break;
                     }
                     root.name = $"Destructible Satellite {i + 1:00} - Pooled";
                     DisableVisualPhysics(root.transform);
+                    Vector3 fittedScale = FitSatelliteScale(root.transform);
                     GameObject explosion = null;
                     ParticleSystem[] particles = Array.Empty<ParticleSystem>();
-                    if (_settings.SatelliteExplosionPrefab != null)
+                    GameObject explosionPrefab = _settings.SatelliteExplosionPrefab != null
+                        ? _settings.SatelliteExplosionPrefab
+                        : Resources.Load<GameObject>("vfx/RedFireImpactV2 Satellite");
+                    if (explosionPrefab != null)
                     {
                         explosion = InstantiateConfiguredPrefab(
-                            _settings.SatelliteExplosionPrefab,
+                            explosionPrefab,
                             _effectsRoot,
                             "satellite explosion");
                         if (explosion != null)
@@ -2872,8 +2889,13 @@ namespace DuneVector
                         Transform = root.transform,
                         Explosion = explosion,
                         ExplosionParticles = particles,
+                        BaseScale = fittedScale,
                     });
                 }
+            }
+            else
+            {
+                Debug.LogError("SatellitePrefab could not be loaded; no rail satellites were created.", this);
             }
 
             for (int i = 0; i < _settings.SpeedStreakPoolSize; i++)
@@ -3440,12 +3462,32 @@ namespace DuneVector
             {
                 satellite.RotationAxis = Vector3.up;
             }
-            satellite.Transform.localScale = Vector3.one * _settings.SatelliteVisualScale;
+            satellite.Transform.localScale = satellite.BaseScale;
             satellite.Health = _settings.SatelliteHealth;
             satellite.Active = true;
             satellite.Exploding = false;
             satellite.Explosion?.SetActive(false);
             satellite.Root.SetActive(true);
+        }
+
+        private Vector3 FitSatelliteScale(Transform root)
+        {
+            root.localScale = Vector3.one;
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+            {
+                return Vector3.one * _settings.SatelliteVisualScale;
+            }
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+            float maximumDimension = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
+            float fitted = maximumDimension > 0.001f
+                ? _settings.SatelliteVisualScale / maximumDimension
+                : _settings.SatelliteVisualScale;
+            return Vector3.one * Mathf.Max(0.001f, fitted);
         }
 
         private static void ApplyRailCursorState()
@@ -3747,19 +3789,32 @@ namespace DuneVector
         private void BuildSigilSeeker()
         {
             _sigilRoot = NewRoot("Pooled Null Sigil Seeker", _effectsRoot);
-            if (_settings.Sigils.SeekerPrefab != null)
+            GameObject resourceMissilePrefab = Resources.Load<GameObject>("MissilePrefab");
+            GameObject missilePrefab = _settings.Sigils.SeekerPrefab != null
+                ? _settings.Sigils.SeekerPrefab
+                : resourceMissilePrefab;
+            GameObject missile = InstantiateConfiguredPrefab(
+                missilePrefab,
+                _sigilRoot,
+                "sigil missile");
+            if (missile == null && resourceMissilePrefab != null &&
+                missilePrefab != resourceMissilePrefab)
             {
-                GameObject missile = InstantiateConfiguredPrefab(
-                    _settings.Sigils.SeekerPrefab,
+                missile = InstantiateConfiguredPrefab(
+                    resourceMissilePrefab,
                     _sigilRoot,
-                    "sigil missile");
-                if (missile != null)
-                {
-                    missile.name = "Hafnium Sigil Missile Visual";
-                    missile.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
-                    missile.transform.localScale = Vector3.one * _settings.Sigils.SeekerPrefabScale;
-                    DisableVisualPhysics(missile.transform);
-                }
+                    "Resources sigil missile fallback");
+            }
+            if (missile != null)
+            {
+                missile.name = "MissilePrefab Sigil Seeker";
+                missile.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+                missile.transform.localScale = Vector3.one * _settings.Sigils.SeekerPrefabScale;
+                DisableVisualPhysics(missile.transform);
+            }
+            else
+            {
+                Debug.LogError("MissilePrefab could not be loaded for the rail sigil seeker.", this);
             }
             _sigilHalo = null;
             _sigilCage = null;
