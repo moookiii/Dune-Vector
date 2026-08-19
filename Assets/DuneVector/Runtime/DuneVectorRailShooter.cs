@@ -175,6 +175,7 @@ namespace DuneVector
         private sealed class RiftSegment
         {
             public Transform Root;
+            public Vector2 PlaneOffset;
             public readonly List<Transform> Rotators = new List<Transform>();
         }
 
@@ -1509,12 +1510,12 @@ namespace DuneVector
             {
                 float gateZ = _startZ + targetDistance;
                 _safeGate.position = new Vector3(
-                    _arenaOrigin.x - _settings.BranchGateHorizontalOffset,
-                    _arenaOrigin.y,
+                    _player.transform.position.x - _settings.BranchGateHorizontalOffset,
+                    _player.transform.position.y,
                     gateZ);
                 _riskGate.position = new Vector3(
-                    _arenaOrigin.x + _settings.BranchGateHorizontalOffset,
-                    _arenaOrigin.y,
+                    _player.transform.position.x + _settings.BranchGateHorizontalOffset,
+                    _player.transform.position.y,
                     gateZ);
                 _safeGate.gameObject.SetActive(true);
                 _riskGate.gameObject.SetActive(true);
@@ -1570,10 +1571,10 @@ namespace DuneVector
                 return;
             }
             float side = (_pickupSequence & 1) == 0 ? -1f : 1f;
-            pickup.Transform.position = worldPosition ?? (_arenaOrigin + new Vector3(
+            pickup.Transform.position = worldPosition ?? (_player.transform.position + new Vector3(
                 side * _settings.FlightBounds.x * _settings.PickupRiskLineFraction,
                 Mathf.Sin(_pickupSequence * 1.7f) * _settings.FlightBounds.y * 0.65f,
-                _state.Distance + _settings.PickupSpawnAheadDistance));
+                _settings.PickupSpawnAheadDistance));
             pickup.Active = true;
             pickup.Root.SetActive(true);
         }
@@ -1715,6 +1716,11 @@ namespace DuneVector
                     _furthestSegmentZ += _settings.EnvironmentSegmentSpacing;
                     ResetSegment(segment, _furthestSegmentZ, i + Mathf.RoundToInt(_state.Distance));
                 }
+                Vector2 planeCenter = CurrentFlightPlaneCenter();
+                Vector3 segmentPosition = segment.Root.position;
+                segmentPosition.x = planeCenter.x + segment.PlaneOffset.x;
+                segmentPosition.y = planeCenter.y + segment.PlaneOffset.y;
+                segment.Root.position = segmentPosition;
                 for (int rotorIndex = 0; rotorIndex < segment.Rotators.Count; rotorIndex++)
                 {
                     segment.Rotators[rotorIndex].Rotate(
@@ -2090,7 +2096,8 @@ namespace DuneVector
                     TraversalRingType.Flight,
                     _materials,
                     _settings.GateRadius,
-                    _ringSettings);
+                    _ringSettings,
+                    faceForward: true);
                 gate.name = "Procedural Rift Navigation Ring";
                 RegisterRailRing(gate);
                 _segments.Add(segment);
@@ -2216,7 +2223,8 @@ namespace DuneVector
                     ringType,
                     _materials,
                     _settings.PickupRadius,
-                    _ringSettings);
+                    _ringSettings,
+                    faceForward: true);
                 RegisterRailRing(pickupRing);
                 if (kind == PickupKind.Bomb)
                 {
@@ -2298,13 +2306,15 @@ namespace DuneVector
                 TraversalRingType.Flight,
                 _materials,
                 _settings.BranchGateRadius,
-                _ringSettings);
+                _ringSettings,
+                faceForward: true);
             Transform riskRing = DuneVectorVisuals.CreateRingVisual(
                 _riskGate,
                 TraversalRingType.UpperFlight,
                 _materials,
                 _settings.BranchGateRadius,
-                _ringSettings);
+                _ringSettings,
+                faceForward: true);
             RegisterRailRing(safeRing);
             RegisterRailRing(riskRing);
             _safeGate.gameObject.SetActive(false);
@@ -2397,11 +2407,22 @@ namespace DuneVector
         {
             float extent = Mathf.Max(1f, _settings.ProceduralPlaneHalfExtent);
             float depthJitter = Mathf.Max(0f, _settings.ProceduralRingDepthJitter);
+            segment.PlaneOffset = new Vector2(
+                NextFloat(-extent, extent),
+                NextFloat(-extent, extent));
+            Vector2 planeCenter = CurrentFlightPlaneCenter();
             segment.Root.position = new Vector3(
-                _arenaOrigin.x + NextFloat(-extent, extent),
-                _arenaOrigin.y + NextFloat(-extent, extent),
+                planeCenter.x + segment.PlaneOffset.x,
+                planeCenter.y + segment.PlaneOffset.y,
                 z + NextFloat(-depthJitter, depthJitter));
             segment.Root.rotation = Quaternion.identity;
+        }
+
+        private Vector2 CurrentFlightPlaneCenter()
+        {
+            return new Vector2(
+                _arenaOrigin.x + _state.FlightOffset.x,
+                _arenaOrigin.y + _state.FlightOffset.y);
         }
 
         private void ResetSpeedStreak(Transform streak, int identity)

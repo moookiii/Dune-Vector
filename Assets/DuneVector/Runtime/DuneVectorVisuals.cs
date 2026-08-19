@@ -2308,7 +2308,8 @@ namespace DuneVector
             TraversalRingType type,
             DuneVectorMaterials materials,
             float majorRadius,
-            RingTuning settings)
+            RingTuning settings,
+            bool faceForward = false)
         {
             Material material = type switch
             {
@@ -2322,9 +2323,9 @@ namespace DuneVector
             GameObject visualRoot = new GameObject("Ring Visual Root");
             visualRoot.transform.SetParent(parent, false);
             Transform geometryParent = visualRoot.transform;
-            if (type == TraversalRingType.Health
+            if (!faceForward && (type == TraversalRingType.Health
                 || type == TraversalRingType.Shield
-                || type == TraversalRingType.Coin)
+                || type == TraversalRingType.Coin))
             {
                 GameObject geometryObject = new GameObject("Health Ring XZ Geometry");
                 geometryParent = geometryObject.transform;
@@ -2332,7 +2333,7 @@ namespace DuneVector
                 geometryParent.localRotation = Quaternion.Euler(90f, 0f, 0f);
             }
             float visualRadius = CalculatePortalVisualRadius(majorRadius, settings);
-            GameObject portalPrefab = GetPortalPrefab(type, settings);
+            GameObject portalPrefab = faceForward ? null : GetPortalPrefab(type, settings);
             Renderer[] prefabRenderers = portalPrefab != null
                 ? CreatePortalPrefabGeometry(geometryParent, portalPrefab, visualRadius, settings)
                 : null;
