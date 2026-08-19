@@ -334,7 +334,7 @@ namespace DuneVector
         [Header("Copy")]
         public string HeaderText = "TRAIL UNLOCKED";
         [TextArea] public string BodyText =
-            "A new drone trail joined your collection. Equip it at the Aerie upgrade terminal.";
+            "A new drone trail has been added to your collection. Equip it in the upgrade shop.";
         public string ContinuePrompt = "CLICK OR PRESS SPACE TO CONTINUE";
         [Tooltip("Seconds the showcase ignores input after opening so the return-to-hub press cannot dismiss it.")]
         [Min(0f)] public float OpenInputDelay = 0.35f;
