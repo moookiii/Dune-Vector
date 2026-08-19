@@ -129,6 +129,7 @@ namespace DuneVector.Editor
         private string _indexedSearchQuery;
         private bool _searchIndexIsValid;
         private int _searchMatchCount;
+        private bool _duneSurfaceExpanded = true;
         private SerializedProperty _player;
         private SerializedProperty _retroCrtScanlines;
         private SerializedProperty _runtimeBlendModeCube;
@@ -607,49 +608,57 @@ namespace DuneVector.Editor
 
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                EditorGUILayout.LabelField("Dune Surface", EditorStyles.boldLabel);
+                _duneSurfaceExpanded = EditorGUILayout.Foldout(
+                    _duneSurfaceExpanded,
+                    "Dune Surface",
+                    true,
+                    EditorStyles.foldoutHeader);
                 EditorGUILayout.LabelField(
                     "Terrain texture, three-color macro regions, and independent secondary surface variation.",
                     EditorStyles.wordWrappedMiniLabel);
-                EditorGUILayout.Space(3f);
-                EditorGUILayout.PropertyField(_duneTexture);
-                EditorGUILayout.PropertyField(_duneNormalMap);
-                EditorGUILayout.PropertyField(_duneNormalStrength);
-                EditorGUILayout.PropertyField(_duneHeightMap);
-                using (new EditorGUI.DisabledScope(_duneHeightMap.objectReferenceValue == null))
+
+                if (_duneSurfaceExpanded)
                 {
-                    EditorGUILayout.PropertyField(_duneDisplacementDepth);
-                    EditorGUILayout.PropertyField(_duneDisplacementSteps);
-                    EditorGUILayout.PropertyField(_duneDisplacementFadeDistance);
+                    EditorGUILayout.Space(3f);
+                    EditorGUILayout.PropertyField(_duneTexture);
+                    EditorGUILayout.PropertyField(_duneNormalMap);
+                    EditorGUILayout.PropertyField(_duneNormalStrength);
+                    EditorGUILayout.PropertyField(_duneHeightMap);
+                    using (new EditorGUI.DisabledScope(_duneHeightMap.objectReferenceValue == null))
+                    {
+                        EditorGUILayout.PropertyField(_duneDisplacementDepth);
+                        EditorGUILayout.PropertyField(_duneDisplacementSteps);
+                        EditorGUILayout.PropertyField(_duneDisplacementFadeDistance);
+                    }
+                    EditorGUILayout.PropertyField(_duneTextureTileSize);
+                    EditorGUILayout.PropertyField(_duneTextureRotationDegrees);
+                    EditorGUILayout.Space(4f);
+                    EditorGUILayout.PropertyField(_duneColorVariationEnabled);
+                    EditorGUILayout.PropertyField(_duneSandLightColor);
+                    EditorGUILayout.PropertyField(_duneSandMidColor);
+                    EditorGUILayout.PropertyField(_duneSandDarkColor);
+                    EditorGUILayout.PropertyField(_duneMacroColorPatternSize);
+                    EditorGUILayout.PropertyField(_duneSecondaryColorPatternSize);
+                    EditorGUILayout.PropertyField(_duneDetailColorPatternSize);
+                    EditorGUILayout.PropertyField(_duneMacroColorNoiseOffset);
+                    EditorGUILayout.PropertyField(_duneSecondaryBrightnessNoiseOffset);
+                    EditorGUILayout.PropertyField(_duneSecondarySaturationNoiseOffset);
+                    EditorGUILayout.PropertyField(_duneDetailBrightnessNoiseOffset);
+                    EditorGUILayout.PropertyField(_duneMacroDarkThreshold);
+                    EditorGUILayout.PropertyField(_duneMacroLightThreshold);
+                    EditorGUILayout.PropertyField(_duneMacroColorTransitionSoftness);
+                    EditorGUILayout.PropertyField(_duneMacroColorBlendStrength);
+                    EditorGUILayout.PropertyField(_duneBrightnessMultiplierMinimum);
+                    EditorGUILayout.PropertyField(_duneBrightnessMultiplierMaximum);
+                    EditorGUILayout.PropertyField(_duneDetailBrightnessVariation);
+                    EditorGUILayout.PropertyField(_duneSaturationMultiplierMinimum);
+                    EditorGUILayout.PropertyField(_duneSaturationMultiplierMaximum);
+                    EditorGUILayout.PropertyField(_duneDarkRegionSaturationMultiplier);
+                    EditorGUILayout.PropertyField(_duneSurfaceSmoothness);
+                    EditorGUILayout.PropertyField(_duneSmoothnessVariation);
+                    EditorGUILayout.PropertyField(_duneSurfaceMetallic);
+                    EditorGUILayout.PropertyField(_duneMinimumShadowAttenuation);
                 }
-                EditorGUILayout.PropertyField(_duneTextureTileSize);
-                EditorGUILayout.PropertyField(_duneTextureRotationDegrees);
-                EditorGUILayout.Space(4f);
-                EditorGUILayout.PropertyField(_duneColorVariationEnabled);
-                EditorGUILayout.PropertyField(_duneSandLightColor);
-                EditorGUILayout.PropertyField(_duneSandMidColor);
-                EditorGUILayout.PropertyField(_duneSandDarkColor);
-                EditorGUILayout.PropertyField(_duneMacroColorPatternSize);
-                EditorGUILayout.PropertyField(_duneSecondaryColorPatternSize);
-                EditorGUILayout.PropertyField(_duneDetailColorPatternSize);
-                EditorGUILayout.PropertyField(_duneMacroColorNoiseOffset);
-                EditorGUILayout.PropertyField(_duneSecondaryBrightnessNoiseOffset);
-                EditorGUILayout.PropertyField(_duneSecondarySaturationNoiseOffset);
-                EditorGUILayout.PropertyField(_duneDetailBrightnessNoiseOffset);
-                EditorGUILayout.PropertyField(_duneMacroDarkThreshold);
-                EditorGUILayout.PropertyField(_duneMacroLightThreshold);
-                EditorGUILayout.PropertyField(_duneMacroColorTransitionSoftness);
-                EditorGUILayout.PropertyField(_duneMacroColorBlendStrength);
-                EditorGUILayout.PropertyField(_duneBrightnessMultiplierMinimum);
-                EditorGUILayout.PropertyField(_duneBrightnessMultiplierMaximum);
-                EditorGUILayout.PropertyField(_duneDetailBrightnessVariation);
-                EditorGUILayout.PropertyField(_duneSaturationMultiplierMinimum);
-                EditorGUILayout.PropertyField(_duneSaturationMultiplierMaximum);
-                EditorGUILayout.PropertyField(_duneDarkRegionSaturationMultiplier);
-                EditorGUILayout.PropertyField(_duneSurfaceSmoothness);
-                EditorGUILayout.PropertyField(_duneSmoothnessVariation);
-                EditorGUILayout.PropertyField(_duneSurfaceMetallic);
-                EditorGUILayout.PropertyField(_duneMinimumShadowAttenuation);
             }
 
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
