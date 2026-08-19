@@ -8172,6 +8172,14 @@ namespace DuneVector
         [Min(0.05f)] public float RingBulletSpeedMultiplier = 0.72f;
         [Tooltip("Half-angle of the cone rings and spirals expand into as they close on the drone. Wide angles scatter the pattern past the flight bounds before it arrives.")]
         [Range(3f, 85f)] public float RadialPatternConeAngle = 18f;
+        [Tooltip("Blue radial patterns solve for where the drone will be when the lattice reaches it instead of aiming where it is now.")]
+        public bool RadialPatternPredictsDrone = true;
+        [Tooltip("Longest intercept lead a radial pattern will solve for, in seconds.")]
+        [Min(0f)] public float RadialPatternMaximumLead = 2.8f;
+        [Tooltip("Refinement passes used to converge the radial intercept solve.")]
+        [Range(1, 6)] public int RadialPatternInterceptIterations = 3;
+        [Tooltip("Fraction of the solved lead actually applied, so prediction reads as anticipation rather than as a guaranteed hit.")]
+        [Range(0f, 1f)] public float RadialPatternLeadStrength = 0.85f;
         [Tooltip("Peak swing rate of a weaving bullet, in degrees per second.")]
         [Min(0f)] public float WeaveSwingDegreesPerSecond = 155f;
         [Tooltip("Oscillations per second of a weaving bullet.")]

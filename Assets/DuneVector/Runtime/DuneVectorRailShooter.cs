@@ -1738,11 +1738,51 @@ namespace DuneVector
             return projectile;
         }
 
+        // The blue radial patterns take long enough to arrive that firing at the drone's
+        // current position always trails a strafing player, so their cone axis is aimed at
+        // a solved intercept: the point where drone and lattice actually meet.
+        private Vector3 RadialInterceptPoint(Vector3 origin, float bulletSpeed)
+        {
+            if (!_settings.RadialPatternPredictsDrone)
+            {
+                return PredictedPlayerPosition();
+            }
+            Vector3 playerPosition = _player.transform.position;
+            Vector3 playerVelocity = new Vector3(
+                _state.LateralVelocity.x,
+                _state.LateralVelocity.y,
+                _state.ForwardSpeed);
+            float speed = Mathf.Max(1f, bulletSpeed);
+            float lead = 0f;
+            int iterations = Mathf.Max(1, _settings.RadialPatternInterceptIterations);
+            for (int i = 0; i < iterations; i++)
+            {
+                Vector3 candidate = playerPosition + (playerVelocity * lead);
+                lead = Mathf.Clamp(
+                    Vector3.Distance(origin, candidate) / speed,
+                    0f,
+                    _settings.RadialPatternMaximumLead);
+            }
+            Vector3 intercept =
+                playerPosition + (playerVelocity * lead * _settings.RadialPatternLeadStrength);
+            // A hard turn right as the pattern fires would otherwise throw the whole lattice
+            // outside the arena, where it is neither a threat nor readable.
+            intercept.x = Mathf.Clamp(
+                intercept.x,
+                _arenaOrigin.x - _settings.FlightBounds.x,
+                _arenaOrigin.x + _settings.FlightBounds.x);
+            intercept.y = Mathf.Clamp(
+                intercept.y,
+                _arenaOrigin.y - _settings.FlightBounds.y,
+                _arenaOrigin.y + _settings.FlightBounds.y);
+            return intercept;
+        }
+
         // Rings and spirals fan out sideways while still closing on the drone, so the
         // player flies into an expanding lattice rather than past a stationary one.
-        private Vector3 RadialHeading(Vector3 origin, float planarAngleDegrees)
+        private Vector3 RadialHeading(Vector3 origin, float planarAngleDegrees, float bulletSpeed)
         {
-            Vector3 approach = PredictedPlayerPosition() - origin;
+            Vector3 approach = RadialInterceptPoint(origin, bulletSpeed) - origin;
             if (approach.sqrMagnitude <= 0.0001f)
             {
                 approach = Vector3.back;
@@ -1799,14 +1839,15 @@ namespace DuneVector
             int requested = Mathf.Max(3, count);
             int budget = Mathf.Min(requested, RemainingBulletBudget());
             Vector3 origin = source.Transform.position;
+            float speed = _settings.EnemyProjectileSpeed * _settings.RingBulletSpeedMultiplier;
             float step = 360f / requested;
             for (int i = 0; i < budget; i++)
             {
-                Vector3 heading = RadialHeading(origin, angleOffset + (step * i));
+                Vector3 heading = RadialHeading(origin, angleOffset + (step * i), speed);
                 SpawnEnemyBullet(
                     origin,
                     heading,
-                    _settings.EnemyProjectileSpeed * _settings.RingBulletSpeedMultiplier,
+                    speed,
                     RailShooterBulletPattern.Ring,
                     0f,
                     0f);
@@ -1818,14 +1859,15 @@ namespace DuneVector
             int requested = Mathf.Max(1, arms);
             int budget = Mathf.Min(requested, RemainingBulletBudget());
             Vector3 origin = source.Transform.position;
+            float speed = _settings.EnemyProjectileSpeed * _settings.RingBulletSpeedMultiplier;
             float step = 360f / requested;
             for (int i = 0; i < budget; i++)
             {
-                Vector3 heading = RadialHeading(origin, angle + (step * i));
+                Vector3 heading = RadialHeading(origin, angle + (step * i), speed);
                 SpawnEnemyBullet(
                     origin,
                     heading,
-                    _settings.EnemyProjectileSpeed * _settings.RingBulletSpeedMultiplier,
+                    speed,
                     RailShooterBulletPattern.Spiral,
                     _settings.SpiralCurveDegreesPerSecond,
                     0f);
