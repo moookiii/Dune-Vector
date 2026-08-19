@@ -218,6 +218,20 @@ namespace DuneVector
             public readonly List<Transform> Rotators = new List<Transform>();
         }
 
+        private sealed class RailSatellite
+        {
+            public GameObject Root;
+            public Transform Transform;
+            public GameObject Explosion;
+            public ParticleSystem[] ExplosionParticles;
+            public bool Active;
+            public bool Exploding;
+            public float Health;
+            public float ExplosionElapsed;
+            public Vector2 PlaneOffset;
+            public Vector3 RotationAxis;
+        }
+
         public static bool IsAnyRailShooterActive { get; private set; }
         public bool IsActive => Phase != RailShooterPhase.Inactive;
         public RailShooterPhase Phase { get; private set; } = RailShooterPhase.Inactive;
@@ -234,6 +248,7 @@ namespace DuneVector
         private readonly List<RiftSegment> _segments = new List<RiftSegment>();
         private readonly List<Transform> _speedStreaks = new List<Transform>();
         private readonly List<Transform> _railRings = new List<Transform>();
+        private readonly List<RailSatellite> _satellites = new List<RailSatellite>();
         private readonly List<ScorePopup> _popups = new List<ScorePopup>();
         private readonly List<RailEnemy> _chargeLocks = new List<RailEnemy>();
         private readonly List<RailSigilDefinition> _sigilDemand = new List<RailSigilDefinition>();
@@ -277,6 +292,7 @@ namespace DuneVector
         private Vector3 _arenaOrigin;
         private float _startZ;
         private float _furthestSegmentZ;
+        private float _furthestSatelliteZ;
         private float _phaseElapsed;
         private float _nextWaveDistance;
         private float _nextPickupDistance;
@@ -1959,6 +1975,21 @@ namespace DuneVector
                     DeactivateProjectile(projectile);
                     continue;
                 }
+                RailSatellite satelliteHit = FindSatelliteHit(
+                    previous,
+                    projectile.Transform.position,
+                    projectile.Radius);
+                if (satelliteHit != null)
+                {
+                    satelliteHit.Health = Mathf.Max(0f, satelliteHit.Health - _settings.RegularShotDamage);
+                    SpawnImpact(satelliteHit.Transform.position, _settings.SatelliteHitRadius * 0.35f);
+                    if (satelliteHit.Health <= 0f)
+                    {
+                        ExplodeSatellite(satelliteHit, true);
+                    }
+                    DeactivateProjectile(projectile);
+                    continue;
+                }
                 RailEnemy hit = FindProjectileHit(previous, projectile.Transform.position, projectile.Radius);
                 if (hit != null)
                 {
@@ -2329,6 +2360,96 @@ namespace DuneVector
                 {
                     ResetSpeedStreak(streak, i);
                 }
+            }
+
+            Vector2 satelliteCenter = CurrentFlightPlaneCenter();
+            for (int i = 0; i < _satellites.Count; i++)
+            {
+                RailSatellite satellite = _satellites[i];
+                if (satellite.Exploding)
+                {
+                    satellite.ExplosionElapsed += deltaTime;
+                    if (satellite.ExplosionElapsed >= _settings.SatelliteExplosionDuration)
+                    {
+                        satellite.Exploding = false;
+                        satellite.Explosion?.SetActive(false);
+                    }
+                }
+                if (satellite.Transform.position.z <
+                    _player.transform.position.z - _settings.EnvironmentRecycleBehindDistance)
+                {
+                    _furthestSatelliteZ += _settings.SatelliteSpacing;
+                    ResetSatellite(satellite, _furthestSatelliteZ);
+                }
+                if (!satellite.Active)
+                {
+                    continue;
+                }
+                Vector3 position = satellite.Transform.position;
+                position.x = satelliteCenter.x + satellite.PlaneOffset.x;
+                position.y = satelliteCenter.y + satellite.PlaneOffset.y;
+                satellite.Transform.position = position;
+                satellite.Transform.Rotate(
+                    satellite.RotationAxis,
+                    _settings.SatelliteRotationSpeed * deltaTime,
+                    Space.Self);
+                if (Vector3.Distance(position, _player.transform.position) <=
+                    _settings.SatelliteCollisionRadius)
+                {
+                    ExplodeSatellite(satellite, false);
+                    DamagePlayer(_settings.SatelliteCollisionDamage, "Satellite collision");
+                }
+            }
+        }
+
+        private RailSatellite FindSatelliteHit(Vector3 start, Vector3 end, float radius)
+        {
+            RailSatellite best = null;
+            float bestDistance = float.PositiveInfinity;
+            for (int i = 0; i < _satellites.Count; i++)
+            {
+                RailSatellite satellite = _satellites[i];
+                if (!satellite.Active || !SegmentIntersectsSphere(
+                        start,
+                        end,
+                        satellite.Transform.position,
+                        radius + _settings.SatelliteHitRadius,
+                        out float distance) || distance >= bestDistance)
+                {
+                    continue;
+                }
+                best = satellite;
+                bestDistance = distance;
+            }
+            return best;
+        }
+
+        private void ExplodeSatellite(RailSatellite satellite, bool awardScore)
+        {
+            if (satellite == null || !satellite.Active)
+            {
+                return;
+            }
+            Vector3 position = satellite.Transform.position;
+            satellite.Active = false;
+            satellite.Root.SetActive(false);
+            satellite.Exploding = satellite.Explosion != null;
+            satellite.ExplosionElapsed = 0f;
+            if (satellite.Explosion != null)
+            {
+                satellite.Explosion.transform.SetPositionAndRotation(position, Quaternion.identity);
+                satellite.Explosion.transform.localScale = Vector3.one * _settings.SatelliteExplosionScale;
+                satellite.Explosion.SetActive(true);
+                for (int i = 0; i < satellite.ExplosionParticles.Length; i++)
+                {
+                    satellite.ExplosionParticles[i].Clear(true);
+                    satellite.ExplosionParticles[i].Play(true);
+                }
+            }
+            if (awardScore)
+            {
+                AddScore(_settings.SatelliteDestroyScore);
+                SpawnScorePopup(position, $"+{_settings.SatelliteDestroyScore}", _settings.RiftGoldColor);
             }
         }
 
@@ -2713,6 +2834,33 @@ namespace DuneVector
                 gate.name = "Procedural Rift Navigation Ring";
                 RegisterRailRing(gate);
                 _segments.Add(segment);
+            }
+
+            if (_settings.SatellitePrefab != null)
+            {
+                for (int i = 0; i < _settings.SatellitePoolSize; i++)
+                {
+                    GameObject root = Instantiate(_settings.SatellitePrefab, _environmentRoot);
+                    root.name = $"Destructible Satellite {i + 1:00} - Pooled";
+                    DisableVisualPhysics(root.transform);
+                    GameObject explosion = null;
+                    ParticleSystem[] particles = Array.Empty<ParticleSystem>();
+                    if (_settings.SatelliteExplosionPrefab != null)
+                    {
+                        explosion = Instantiate(_settings.SatelliteExplosionPrefab, _effectsRoot);
+                        explosion.name = $"Satellite Explosion {i + 1:00} - Pooled";
+                        particles = explosion.GetComponentsInChildren<ParticleSystem>(true);
+                        explosion.SetActive(false);
+                    }
+                    root.SetActive(false);
+                    _satellites.Add(new RailSatellite
+                    {
+                        Root = root,
+                        Transform = root.transform,
+                        Explosion = explosion,
+                        ExplosionParticles = particles,
+                    });
+                }
             }
 
             for (int i = 0; i < _settings.SpeedStreakPoolSize; i++)
@@ -3106,6 +3254,14 @@ namespace DuneVector
                 _impacts[i].Active = false;
                 _impacts[i].Root.SetActive(false);
             }
+            for (int i = 0; i < _satellites.Count; i++)
+            {
+                RailSatellite satellite = _satellites[i];
+                satellite.Active = false;
+                satellite.Exploding = false;
+                satellite.Root.SetActive(false);
+                satellite.Explosion?.SetActive(false);
+            }
             _formations.Clear();
             for (int i = 0; i < _popups.Count; i++)
             {
@@ -3130,6 +3286,12 @@ namespace DuneVector
             {
                 _furthestSegmentZ += _settings.EnvironmentSegmentSpacing;
                 ResetSegment(_segments[i], _furthestSegmentZ, i);
+            }
+            _furthestSatelliteZ = _player.transform.position.z + _settings.SatelliteSpawnAheadDistance;
+            for (int i = 0; i < _satellites.Count; i++)
+            {
+                _furthestSatelliteZ += _settings.SatelliteSpacing;
+                ResetSatellite(_satellites[i], _furthestSatelliteZ);
             }
             for (int i = 0; i < _speedStreaks.Count; i++)
             {
@@ -3241,6 +3403,35 @@ namespace DuneVector
                 RenderSettings.fogEndDistance = _settings.RiftFogEndDistance;
             }
             ApplyRailCursorState();
+        }
+
+        private void ResetSatellite(RailSatellite satellite, float z)
+        {
+            float extent = Mathf.Max(0f, _settings.SatellitePlaneHalfExtent);
+            satellite.PlaneOffset = new Vector2(NextFloat(-extent, extent), NextFloat(-extent, extent));
+            Vector2 center = CurrentFlightPlaneCenter();
+            satellite.Transform.position = new Vector3(
+                center.x + satellite.PlaneOffset.x,
+                center.y + satellite.PlaneOffset.y,
+                z);
+            satellite.Transform.rotation = Quaternion.Euler(
+                NextFloat(0f, 360f),
+                NextFloat(0f, 360f),
+                NextFloat(0f, 360f));
+            satellite.RotationAxis = new Vector3(
+                NextFloat(-1f, 1f),
+                NextFloat(-1f, 1f),
+                NextFloat(-1f, 1f)).normalized;
+            if (satellite.RotationAxis.sqrMagnitude < 0.01f)
+            {
+                satellite.RotationAxis = Vector3.up;
+            }
+            satellite.Transform.localScale = Vector3.one * _settings.SatelliteVisualScale;
+            satellite.Health = _settings.SatelliteHealth;
+            satellite.Active = true;
+            satellite.Exploding = false;
+            satellite.Explosion?.SetActive(false);
+            satellite.Root.SetActive(true);
         }
 
         private static void ApplyRailCursorState()
@@ -3542,36 +3733,16 @@ namespace DuneVector
         private void BuildSigilSeeker()
         {
             _sigilRoot = NewRoot("Pooled Null Sigil Seeker", _effectsRoot);
-            CreatePart(
-                PrimitiveType.Sphere,
-                "Sigil Core",
-                _sigilRoot,
-                Vector3.zero,
-                Vector3.one,
-                Quaternion.identity,
-                _materials.EnemyCore);
-            _sigilHalo = CreatePart(
-                PrimitiveType.Sphere,
-                "Sigil Choir Halo",
-                _sigilRoot,
-                Vector3.zero,
-                Vector3.one * 1.85f,
-                Quaternion.identity,
-                _materials.LightningWarning);
-            _sigilCage = NewRoot("Sigil Shard Cage", _sigilRoot);
-            const int ShardCount = 4;
-            for (int i = 0; i < ShardCount; i++)
+            if (_settings.Sigils.SeekerPrefab != null)
             {
-                float angle = (i / (float)ShardCount) * Mathf.PI * 2f;
-                CreatePart(
-                    PrimitiveType.Cube,
-                    $"Sigil Shard {i + 1:00}",
-                    _sigilCage,
-                    new Vector3(Mathf.Cos(angle) * 1.45f, Mathf.Sin(angle) * 1.45f, 0f),
-                    new Vector3(0.26f, 1.1f, 0.26f),
-                    Quaternion.Euler(0f, 0f, (angle * Mathf.Rad2Deg) - 90f),
-                    _materials.PlayerStrikeOrbCore);
+                GameObject missile = Instantiate(_settings.Sigils.SeekerPrefab, _sigilRoot);
+                missile.name = "Hafnium Sigil Missile Visual";
+                missile.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+                missile.transform.localScale = Vector3.one * _settings.Sigils.SeekerPrefabScale;
+                DisableVisualPhysics(missile.transform);
             }
+            _sigilHalo = null;
+            _sigilCage = null;
             _sigilRoot.gameObject.SetActive(false);
         }
 

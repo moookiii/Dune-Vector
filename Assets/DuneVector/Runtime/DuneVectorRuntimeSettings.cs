@@ -7749,6 +7749,9 @@ namespace DuneVector
         [Min(1f)] public float ChainScoreMultiplier = 2.4f;
 
         [Header("Seeker Flight")]
+        [Tooltip("Visual prefab used by the homing glyph missile.")]
+        public GameObject SeekerPrefab;
+        [Min(0.01f)] public float SeekerPrefabScale = 1f;
         [Tooltip("Forward gap the seeker holds when it appears.")]
         [Min(1f)] public float SpawnAheadDistance = 210f;
         [Tooltip("Lateral and vertical offset the seeker appears at before it homes in.")]
@@ -8269,6 +8272,22 @@ namespace DuneVector
         [Min(1f)] public float ProceduralPlaneHalfExtent = 95f;
         [Tooltip("Random forward-depth variation added when a procedural ring segment is recycled.")]
         [Min(0f)] public float ProceduralRingDepthJitter = 24f;
+        [Header("Environment Obstacles")]
+        public GameObject SatellitePrefab;
+        public GameObject SatelliteExplosionPrefab;
+        [Min(1)] public int SatellitePoolSize = 12;
+        [Min(1f)] public float SatelliteSpacing = 180f;
+        [Min(0f)] public float SatelliteSpawnAheadDistance = 260f;
+        [Min(0f)] public float SatellitePlaneHalfExtent = 70f;
+        [Min(0.01f)] public float SatelliteVisualScale = 8f;
+        [Min(0.01f)] public float SatelliteHitRadius = 5f;
+        [Min(0.01f)] public float SatelliteCollisionRadius = 4f;
+        [Min(0.01f)] public float SatelliteHealth = 24f;
+        [Min(0f)] public float SatelliteCollisionDamage = 30f;
+        [Min(0)] public int SatelliteDestroyScore = 300;
+        [Min(0.05f)] public float SatelliteExplosionDuration = 2.5f;
+        [Min(0.01f)] public float SatelliteExplosionScale = 1f;
+        [Min(0f)] public float SatelliteRotationSpeed = 18f;
         [Min(1)] public int SpeedStreakPoolSize = 52;
         [Min(0f)] public float SpeedStreakMinimumLength = 5f;
         [Min(0f)] public float SpeedStreakMaximumLength = 18f;
