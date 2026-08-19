@@ -14,6 +14,7 @@ namespace DuneVector
         private readonly Dictionary<DroneUpgradeId, float> _displayedTiers = new Dictionary<DroneUpgradeId, float>();
         private readonly Dictionary<DroneUpgradeId, Texture2D> _icons = new Dictionary<DroneUpgradeId, Texture2D>();
         private readonly Dictionary<string, Texture2D> _trailIcons = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
+        private readonly HashSet<string> _pendingTrailIcons = new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> _failedTrailIcons = new HashSet<string>(StringComparer.Ordinal);
 
         private GUIStyle _titleStyle;
@@ -53,6 +54,7 @@ namespace DuneVector
         private float _hubRgbTerminalRecentUntil;
         private string _statusMessage;
         private float _statusUntil;
+        private bool _disposed;
 
         public DuneVectorUpgradeShopView(
             DronePermanentUpgradeSystem upgrades,
@@ -1053,18 +1055,33 @@ namespace DuneVector
                 return null;
             }
 
-            texture = DuneVectorUpgradeObjectThumbnailFactory.CreateTrailThumbnail(
-                option.TrailObject,
-                Mathf.Max(16, _visuals.IconTextureSize));
+            if (_pendingTrailIcons.Add(option.ObjectName))
+            {
+                string objectName = option.ObjectName;
+                DuneVectorUpgradeObjectThumbnailFactory.RequestTrailThumbnail(
+                    option.TrailObject,
+                    Mathf.Max(16, _visuals.IconTextureSize),
+                    generatedTexture => HandleTrailIconGenerated(objectName, generatedTexture));
+            }
+            return null;
+        }
+
+        private void HandleTrailIconGenerated(string objectName, Texture2D texture)
+        {
+            _pendingTrailIcons.Remove(objectName);
+            if (_disposed)
+            {
+                DestroyTexture(texture);
+                return;
+            }
             if (texture != null)
             {
-                _trailIcons[option.ObjectName] = texture;
+                _trailIcons[objectName] = texture;
             }
             else
             {
-                _failedTrailIcons.Add(option.ObjectName);
+                _failedTrailIcons.Add(objectName);
             }
-            return texture;
         }
 
         private Texture2D GetHubRgbTerminalIcon(HubRgbTerminalUnlockTuning tuning)
@@ -1283,6 +1300,7 @@ namespace DuneVector
 
         public void Dispose()
         {
+            _disposed = true;
             foreach (Texture2D icon in _icons.Values)
             {
                 DestroyTexture(icon);
@@ -1293,6 +1311,7 @@ namespace DuneVector
                 DestroyTexture(icon);
             }
             _trailIcons.Clear();
+            _pendingTrailIcons.Clear();
             _failedTrailIcons.Clear();
             DestroyTexture(_buttonTexture);
             DestroyTexture(_buttonHoverTexture);
@@ -1318,8 +1337,32 @@ namespace DuneVector
     internal static class DuneVectorUpgradeObjectThumbnailFactory
     {
         private const int PreviewLayer = 31;
+        private static DuneVectorUpgradeThumbnailRenderer _renderer;
 
-        public static Texture2D CreateTrailThumbnail(GameObject source, int textureSize)
+        public static void RequestTrailThumbnail(
+            GameObject source,
+            int textureSize,
+            Action<Texture2D> completed)
+        {
+            if (source == null)
+            {
+                completed?.Invoke(null);
+                return;
+            }
+
+            if (_renderer == null)
+            {
+                GameObject rendererObject = new GameObject("Dune Vector Upgrade Trail Thumbnail Renderer")
+                {
+                    hideFlags = HideFlags.HideAndDontSave,
+                };
+                UnityEngine.Object.DontDestroyOnLoad(rendererObject);
+                _renderer = rendererObject.AddComponent<DuneVectorUpgradeThumbnailRenderer>();
+            }
+            _renderer.Enqueue(() => completed?.Invoke(CreateTrailThumbnail(source, textureSize)));
+        }
+
+        private static Texture2D CreateTrailThumbnail(GameObject source, int textureSize)
         {
             if (source == null)
             {
@@ -1435,6 +1478,7 @@ namespace DuneVector
             {
                 ParticleSystem particles = particleSystems[i];
                 ParticleSystem.MainModule main = particles.main;
+                particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
                 simulationTime = Mathf.Max(
                     simulationTime,
                     main.startDelay.constantMax + Mathf.Min(main.duration, main.startLifetime.constantMax));
@@ -1514,6 +1558,27 @@ namespace DuneVector
             else
             {
                 UnityEngine.Object.DestroyImmediate(temporary);
+            }
+        }
+    }
+
+    internal sealed class DuneVectorUpgradeThumbnailRenderer : MonoBehaviour
+    {
+        private readonly Queue<Action> _requests = new Queue<Action>();
+
+        public void Enqueue(Action request)
+        {
+            if (request != null)
+            {
+                _requests.Enqueue(request);
+            }
+        }
+
+        private void Update()
+        {
+            if (_requests.Count > 0)
+            {
+                _requests.Dequeue().Invoke();
             }
         }
     }
