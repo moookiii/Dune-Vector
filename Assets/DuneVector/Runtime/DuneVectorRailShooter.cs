@@ -2840,17 +2840,30 @@ namespace DuneVector
             {
                 for (int i = 0; i < _settings.SatellitePoolSize; i++)
                 {
-                    GameObject root = Instantiate(_settings.SatellitePrefab, _environmentRoot);
+                    GameObject root = InstantiateConfiguredPrefab(
+                        _settings.SatellitePrefab,
+                        _environmentRoot,
+                        "satellite");
+                    if (root == null)
+                    {
+                        break;
+                    }
                     root.name = $"Destructible Satellite {i + 1:00} - Pooled";
                     DisableVisualPhysics(root.transform);
                     GameObject explosion = null;
                     ParticleSystem[] particles = Array.Empty<ParticleSystem>();
                     if (_settings.SatelliteExplosionPrefab != null)
                     {
-                        explosion = Instantiate(_settings.SatelliteExplosionPrefab, _effectsRoot);
-                        explosion.name = $"Satellite Explosion {i + 1:00} - Pooled";
-                        particles = explosion.GetComponentsInChildren<ParticleSystem>(true);
-                        explosion.SetActive(false);
+                        explosion = InstantiateConfiguredPrefab(
+                            _settings.SatelliteExplosionPrefab,
+                            _effectsRoot,
+                            "satellite explosion");
+                        if (explosion != null)
+                        {
+                            explosion.name = $"Satellite Explosion {i + 1:00} - Pooled";
+                            particles = explosion.GetComponentsInChildren<ParticleSystem>(true);
+                            explosion.SetActive(false);
+                        }
                     }
                     root.SetActive(false);
                     _satellites.Add(new RailSatellite
@@ -3735,15 +3748,42 @@ namespace DuneVector
             _sigilRoot = NewRoot("Pooled Null Sigil Seeker", _effectsRoot);
             if (_settings.Sigils.SeekerPrefab != null)
             {
-                GameObject missile = Instantiate(_settings.Sigils.SeekerPrefab, _sigilRoot);
-                missile.name = "Hafnium Sigil Missile Visual";
-                missile.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
-                missile.transform.localScale = Vector3.one * _settings.Sigils.SeekerPrefabScale;
-                DisableVisualPhysics(missile.transform);
+                GameObject missile = InstantiateConfiguredPrefab(
+                    _settings.Sigils.SeekerPrefab,
+                    _sigilRoot,
+                    "sigil missile");
+                if (missile != null)
+                {
+                    missile.name = "Hafnium Sigil Missile Visual";
+                    missile.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
+                    missile.transform.localScale = Vector3.one * _settings.Sigils.SeekerPrefabScale;
+                    DisableVisualPhysics(missile.transform);
+                }
             }
             _sigilHalo = null;
             _sigilCage = null;
             _sigilRoot.gameObject.SetActive(false);
+        }
+
+        private GameObject InstantiateConfiguredPrefab(GameObject prefab, Transform parent, string label)
+        {
+            if (prefab == null)
+            {
+                return null;
+            }
+            try
+            {
+                return Instantiate(prefab, parent);
+            }
+            catch (InvalidCastException exception)
+            {
+                Debug.LogError(
+                    $"Rail {label} reference does not resolve to a prefab GameObject. " +
+                    "The rail mode will continue without that visual.",
+                    this);
+                Debug.LogException(exception, this);
+                return null;
+            }
         }
 
         private void ResetSigilDuel()
