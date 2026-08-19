@@ -8333,6 +8333,8 @@ namespace DuneVector
         [Min(1)] public int ImpactFlashPoolSize = 24;
         [Min(0.01f)] public float ImpactFlashDuration = 0.28f;
         [Min(0f)] public float ImpactFlashMaximumScale = 4.5f;
+        [Tooltip("Skybox material used while the rail subgame owns the camera. Leave empty to use the solid rift background.")]
+        public Material RailSkybox;
         public Color RiftBackgroundColor = new Color(0.006f, 0.008f, 0.022f, 1f);
         [Tooltip("Linear distance fog applied while the rift owns the camera. It buries the streamed desert sky and keeps the corridor readable.")]
         public bool RiftFogEnabled = true;

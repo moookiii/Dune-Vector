@@ -387,6 +387,7 @@ namespace DuneVector
         private CameraClearFlags _savedClearFlags;
         private Color _savedBackgroundColor;
         private float _savedFieldOfView;
+        private Material _savedSkybox;
         private bool _savedFogEnabled;
         private FogMode _savedFogMode;
         private Color _savedFogColor;
@@ -3566,6 +3567,7 @@ namespace DuneVector
             _savedClearFlags = _camera.clearFlags;
             _savedBackgroundColor = _camera.backgroundColor;
             _savedFieldOfView = _camera.fieldOfView;
+            _savedSkybox = RenderSettings.skybox;
             _savedFogEnabled = RenderSettings.fog;
             _savedFogMode = RenderSettings.fogMode;
             _savedFogColor = RenderSettings.fogColor;
@@ -3588,8 +3590,14 @@ namespace DuneVector
             }
             if (_world != null) _world.enabled = false;
             if (_cameraController != null) _cameraController.enabled = false;
-            _camera.clearFlags = CameraClearFlags.SolidColor;
+            _camera.clearFlags = _settings.RailSkybox != null
+                ? CameraClearFlags.Skybox
+                : CameraClearFlags.SolidColor;
             _camera.backgroundColor = _settings.RiftBackgroundColor;
+            if (_settings.RailSkybox != null)
+            {
+                RenderSettings.skybox = _settings.RailSkybox;
+            }
             _camera.fieldOfView = _settings.CameraFieldOfView;
             _camera.transform.position = _arenaOrigin + _settings.CameraLocalOffset;
             _camera.transform.rotation = Quaternion.identity;
@@ -3721,6 +3729,7 @@ namespace DuneVector
             _camera.clearFlags = _savedClearFlags;
             _camera.backgroundColor = _savedBackgroundColor;
             _camera.fieldOfView = _savedFieldOfView;
+            RenderSettings.skybox = _savedSkybox;
             _camera.transform.SetPositionAndRotation(_savedCameraPosition, _savedCameraRotation);
             if (_cameraController != null)
             {
