@@ -362,6 +362,7 @@ namespace DuneVector
         private float _sigilNextAttackDistance;
         private float _sigilNextBossAttackAt = float.PositiveInfinity;
         private float _sigilFaultElapsed = float.PositiveInfinity;
+        private float _lastSigilFaultCueAt = float.NegativeInfinity;
         private float _sigilVerdictElapsed = float.PositiveInfinity;
         private Component _massiveClouds;
         private readonly List<object> _savedMassiveCloudParameters = new List<object>();
@@ -3876,6 +3877,7 @@ namespace DuneVector
             _sigilStrokeAccumulator = Vector2.zero;
             _sigilPlaneOffset = Vector2.zero;
             _sigilFaultElapsed = float.PositiveInfinity;
+            _lastSigilFaultCueAt = float.NegativeInfinity;
             _sigilVerdictElapsed = float.PositiveInfinity;
             _sigilVerdictBroken = false;
             _sigilAttackCount = 0;
@@ -4130,7 +4132,11 @@ namespace DuneVector
             {
                 _sigilStrokeIndex = 0;
             }
-            PlayCue(sigils.FaultEvent, _player.transform.position);
+            if (_state.Elapsed - _lastSigilFaultCueAt >= sigils.FaultEventCooldown)
+            {
+                _lastSigilFaultCueAt = _state.Elapsed;
+                PlayCue(sigils.FaultEvent, _player.transform.position);
+            }
         }
 
         private void BreakSigil()

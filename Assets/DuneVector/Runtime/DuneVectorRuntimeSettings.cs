@@ -7828,6 +7828,8 @@ namespace DuneVector
         public string StrokeEvent = "event:/Lock_On";
         public string GlyphClearedEvent = "event:/Lock_On_Full";
         public string FaultEvent = "event:/Okay";
+        [Tooltip("Minimum seconds between repeated sigil mistake audio cues. Visual feedback and penalties still occur for every mistake.")]
+        [Min(0f)] public float FaultEventCooldown = 0.6f;
         public string BanishEvent = "event:/Explosion_Strike_Orb";
         public string StrikeEvent = "event:/Drone_Damage";
 
