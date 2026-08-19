@@ -13,9 +13,7 @@ namespace DuneVector
         private readonly UpgradeShopVisualTuning _visuals;
         private readonly Dictionary<DroneUpgradeId, float> _displayedTiers = new Dictionary<DroneUpgradeId, float>();
         private readonly Dictionary<DroneUpgradeId, Texture2D> _icons = new Dictionary<DroneUpgradeId, Texture2D>();
-        private readonly Dictionary<string, Texture2D> _trailIcons = new Dictionary<string, Texture2D>(StringComparer.Ordinal);
-        private readonly HashSet<string> _pendingTrailIcons = new HashSet<string>(StringComparer.Ordinal);
-        private readonly HashSet<string> _failedTrailIcons = new HashSet<string>(StringComparer.Ordinal);
+        private readonly Dictionary<string, TrailPreviewImage> _trailIcons = new Dictionary<string, TrailPreviewImage>(StringComparer.Ordinal);
 
         private GUIStyle _titleStyle;
         private GUIStyle _subtitleStyle;
@@ -54,7 +52,20 @@ namespace DuneVector
         private float _hubRgbTerminalRecentUntil;
         private string _statusMessage;
         private float _statusUntil;
-        private bool _disposed;
+
+        private readonly struct TrailPreviewImage
+        {
+            public readonly Texture Texture;
+            public readonly Rect TextureCoordinates;
+            public readonly Color Tint;
+
+            public TrailPreviewImage(Texture texture, Rect textureCoordinates, Color tint)
+            {
+                Texture = texture;
+                TextureCoordinates = textureCoordinates;
+                Tint = tint;
+            }
+        }
 
         public DuneVectorUpgradeShopView(
             DronePermanentUpgradeSystem upgrades,
@@ -477,12 +488,18 @@ namespace DuneVector
             Color trailColor = Color.HSVToRGB(hue, 0.7f, unlocked ? 1f : 0.35f);
             DrawSolidRect(iconPanel, Color.Lerp(_visuals.RowColor, trailColor, _visuals.IconPanelTintAmount * 2f));
             DrawGradientRect(iconPanel, WithAlpha(trailColor, 0.4f), _fadeUpTexture);
-            DrawIconFrame(iconPanel, groupColor, scale);
-            Texture2D trailIcon = GetTrailIcon(option);
-            if (trailIcon != null)
+            if (TryGetTrailIcon(option, out TrailPreviewImage trailIcon))
             {
-                GUI.DrawTexture(iconPanel, trailIcon, ScaleMode.ScaleToFit, true);
+                Color previousGuiColor = GUI.color;
+                GUI.color = trailIcon.Tint;
+                GUI.DrawTextureWithTexCoords(
+                    iconPanel,
+                    trailIcon.Texture,
+                    trailIcon.TextureCoordinates,
+                    true);
+                GUI.color = previousGuiColor;
             }
+            DrawIconFrame(iconPanel, groupColor, scale);
 
             float detailsX = iconPanel.xMax + columnGap;
             float detailsWidth = _visuals.DetailsColumnWidth * scale;
@@ -1040,48 +1057,158 @@ namespace DuneVector
             return texture;
         }
 
-        private Texture2D GetTrailIcon(DroneTrailOption option)
+        private bool TryGetTrailIcon(DroneTrailOption option, out TrailPreviewImage preview)
         {
             if (option == null || string.IsNullOrEmpty(option.ObjectName))
             {
-                return null;
+                preview = default;
+                return false;
             }
-            if (_trailIcons.TryGetValue(option.ObjectName, out Texture2D texture) && texture != null)
+            if (_trailIcons.TryGetValue(option.ObjectName, out preview))
             {
-                return texture;
-            }
-            if (_failedTrailIcons.Contains(option.ObjectName))
-            {
-                return null;
+                return preview.Texture != null;
             }
 
-            if (_pendingTrailIcons.Add(option.ObjectName))
+            if (!TryFindTrailPreview(option, out preview))
             {
-                string objectName = option.ObjectName;
-                DuneVectorUpgradeObjectThumbnailFactory.RequestTrailThumbnail(
-                    option.TrailObject,
-                    Mathf.Max(16, _visuals.IconTextureSize),
-                    generatedTexture => HandleTrailIconGenerated(objectName, generatedTexture));
+                return false;
             }
-            return null;
+            _trailIcons[option.ObjectName] = preview;
+            return true;
         }
 
-        private void HandleTrailIconGenerated(string objectName, Texture2D texture)
+        private static bool TryFindTrailPreview(
+            DroneTrailOption option,
+            out TrailPreviewImage preview)
         {
-            _pendingTrailIcons.Remove(objectName);
-            if (_disposed)
+            preview = default;
+            if (option?.TrailObject == null)
             {
-                DestroyTexture(texture);
-                return;
+                return false;
             }
-            if (texture != null)
+
+            ParticleSystemRenderer bestRenderer = null;
+            ParticleSystem bestParticles = null;
+            Material bestMaterial = null;
+            Texture bestTexture = null;
+            int bestScore = int.MinValue;
+            bool wantsLightning = option.ObjectName.IndexOf("Lightning", StringComparison.OrdinalIgnoreCase) >= 0;
+            bool wantsRings = option.ObjectName.IndexOf("Ring", StringComparison.OrdinalIgnoreCase) >= 0;
+            ParticleSystemRenderer[] renderers =
+                option.TrailObject.GetComponentsInChildren<ParticleSystemRenderer>(true);
+            for (int rendererIndex = 0; rendererIndex < renderers.Length; rendererIndex++)
             {
-                _trailIcons[objectName] = texture;
+                ParticleSystemRenderer renderer = renderers[rendererIndex];
+                Material[] materials = renderer.sharedMaterials;
+                for (int materialIndex = 0; materialIndex < materials.Length; materialIndex++)
+                {
+                    Material material = materials[materialIndex];
+                    Texture texture = material != null ? material.mainTexture : null;
+                    if (texture == null)
+                    {
+                        continue;
+                    }
+
+                    string textureName = texture.name ?? string.Empty;
+                    int score = Mathf.Max(texture.width, texture.height);
+                    if (wantsLightning && textureName.IndexOf("lightning", StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        score += 100000;
+                    }
+                    if (wantsRings
+                        && (textureName.IndexOf("ring", StringComparison.OrdinalIgnoreCase) >= 0
+                            || textureName.IndexOf("portal", StringComparison.OrdinalIgnoreCase) >= 0))
+                    {
+                        score += 100000;
+                    }
+                    if (score <= bestScore)
+                    {
+                        continue;
+                    }
+
+                    bestScore = score;
+                    bestRenderer = renderer;
+                    bestParticles = renderer.GetComponent<ParticleSystem>();
+                    bestMaterial = material;
+                    bestTexture = texture;
+                }
             }
-            else
+
+            if (bestRenderer == null || bestTexture == null)
             {
-                _failedTrailIcons.Add(objectName);
+                return false;
             }
+
+            Rect textureCoordinates = ResolveRepresentativeFrame(bestParticles);
+            Color tint = ResolveParticleTint(bestParticles, bestMaterial);
+            preview = new TrailPreviewImage(bestTexture, textureCoordinates, tint);
+            return true;
+        }
+
+        private static Rect ResolveRepresentativeFrame(ParticleSystem particles)
+        {
+            if (particles == null)
+            {
+                return new Rect(0f, 0f, 1f, 1f);
+            }
+
+            ParticleSystem.TextureSheetAnimationModule sheet = particles.textureSheetAnimation;
+            if (!sheet.enabled || sheet.mode != ParticleSystemAnimationMode.Grid)
+            {
+                return new Rect(0f, 0f, 1f, 1f);
+            }
+
+            int columns = Mathf.Max(1, sheet.numTilesX);
+            int rows = Mathf.Max(1, sheet.numTilesY);
+            int frame = (columns * rows) / 2;
+            int column = frame % columns;
+            int row = frame / columns;
+            float width = 1f / columns;
+            float height = 1f / rows;
+            return new Rect(column * width, 1f - ((row + 1) * height), width, height);
+        }
+
+        private static Color ResolveParticleTint(ParticleSystem particles, Material material)
+        {
+            Color tint = Color.white;
+            if (particles != null)
+            {
+                ParticleSystem.MinMaxGradient startColor = particles.main.startColor;
+                tint = startColor.mode switch
+                {
+                    ParticleSystemGradientMode.Color => startColor.color,
+                    ParticleSystemGradientMode.TwoColors => Color.Lerp(startColor.colorMin, startColor.colorMax, 0.5f),
+                    ParticleSystemGradientMode.Gradient => startColor.gradient.Evaluate(0.5f),
+                    ParticleSystemGradientMode.TwoGradients => Color.Lerp(
+                        startColor.gradientMin.Evaluate(0.5f),
+                        startColor.gradientMax.Evaluate(0.5f),
+                        0.5f),
+                    _ => Color.white,
+                };
+            }
+
+            if (material != null)
+            {
+                if (material.HasProperty("_BaseColor"))
+                {
+                    tint *= material.GetColor("_BaseColor");
+                }
+                else if (material.HasProperty("_Color"))
+                {
+                    tint *= material.GetColor("_Color");
+                }
+                else if (material.HasProperty("_TintColor"))
+                {
+                    tint *= material.GetColor("_TintColor");
+                }
+            }
+
+            float maximumChannel = Mathf.Max(1f, tint.r, tint.g, tint.b);
+            tint.r /= maximumChannel;
+            tint.g /= maximumChannel;
+            tint.b /= maximumChannel;
+            tint.a = Mathf.Max(0.5f, tint.a);
+            return tint;
         }
 
         private Texture2D GetHubRgbTerminalIcon(HubRgbTerminalUnlockTuning tuning)
@@ -1300,19 +1427,12 @@ namespace DuneVector
 
         public void Dispose()
         {
-            _disposed = true;
             foreach (Texture2D icon in _icons.Values)
             {
                 DestroyTexture(icon);
             }
             _icons.Clear();
-            foreach (Texture2D icon in _trailIcons.Values)
-            {
-                DestroyTexture(icon);
-            }
             _trailIcons.Clear();
-            _pendingTrailIcons.Clear();
-            _failedTrailIcons.Clear();
             DestroyTexture(_buttonTexture);
             DestroyTexture(_buttonHoverTexture);
             DestroyTexture(_disabledButtonTexture);
@@ -1330,255 +1450,6 @@ namespace DuneVector
             if (texture != null)
             {
                 UnityEngine.Object.Destroy(texture);
-            }
-        }
-    }
-
-    internal static class DuneVectorUpgradeObjectThumbnailFactory
-    {
-        private const int PreviewLayer = 31;
-        private static DuneVectorUpgradeThumbnailRenderer _renderer;
-
-        public static void RequestTrailThumbnail(
-            GameObject source,
-            int textureSize,
-            Action<Texture2D> completed)
-        {
-            if (source == null)
-            {
-                completed?.Invoke(null);
-                return;
-            }
-
-            if (_renderer == null)
-            {
-                GameObject rendererObject = new GameObject("Dune Vector Upgrade Trail Thumbnail Renderer")
-                {
-                    hideFlags = HideFlags.HideAndDontSave,
-                };
-                UnityEngine.Object.DontDestroyOnLoad(rendererObject);
-                _renderer = rendererObject.AddComponent<DuneVectorUpgradeThumbnailRenderer>();
-            }
-            _renderer.Enqueue(() => completed?.Invoke(CreateTrailThumbnail(source, textureSize)));
-        }
-
-        private static Texture2D CreateTrailThumbnail(GameObject source, int textureSize)
-        {
-            if (source == null)
-            {
-                return null;
-            }
-
-            GameObject previewObject = null;
-            GameObject cameraObject = null;
-            RenderTexture renderTexture = null;
-            RenderTexture previousTarget = RenderTexture.active;
-            try
-            {
-                previewObject = UnityEngine.Object.Instantiate(source);
-                previewObject.name = $"{source.name} Shop Thumbnail";
-                previewObject.hideFlags = HideFlags.HideAndDontSave;
-                previewObject.transform.SetParent(null, false);
-                previewObject.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
-                previewObject.transform.localScale = Vector3.one;
-                SetLayerRecursively(previewObject.transform, PreviewLayer);
-                foreach (MonoBehaviour behaviour in previewObject.GetComponentsInChildren<MonoBehaviour>(true))
-                {
-                    behaviour.enabled = false;
-                }
-                previewObject.SetActive(true);
-                SimulateParticles(previewObject);
-
-                if (!TryCalculateBounds(previewObject, out Bounds bounds))
-                {
-                    return null;
-                }
-
-                Vector3 viewDirection = ChooseSilhouetteViewDirection(bounds.extents);
-                Vector3 cameraUp = Mathf.Abs(Vector3.Dot(viewDirection, Vector3.up)) < 0.99f
-                    ? Vector3.up
-                    : Vector3.forward;
-                Quaternion cameraRotation = Quaternion.LookRotation(viewDirection, cameraUp);
-                Vector3 cameraRight = cameraRotation * Vector3.right;
-                Vector3 cameraVertical = cameraRotation * Vector3.up;
-                float horizontalExtent = ProjectBoundsExtent(bounds.extents, cameraRight);
-                float verticalExtent = ProjectBoundsExtent(bounds.extents, cameraVertical);
-                float orthographicSize = Mathf.Max(horizontalExtent, verticalExtent, Mathf.Epsilon);
-                float distance = Mathf.Max(bounds.extents.magnitude * 2f, Mathf.Epsilon);
-
-                cameraObject = new GameObject($"{source.name} Shop Thumbnail Camera")
-                {
-                    hideFlags = HideFlags.HideAndDontSave,
-                };
-                Camera previewCamera = cameraObject.AddComponent<Camera>();
-                previewCamera.enabled = false;
-                previewCamera.clearFlags = CameraClearFlags.SolidColor;
-                previewCamera.backgroundColor = Color.clear;
-                previewCamera.orthographic = true;
-                previewCamera.orthographicSize = orthographicSize;
-                previewCamera.cullingMask = 1 << PreviewLayer;
-                previewCamera.nearClipPlane = Mathf.Max(0.001f, distance - bounds.extents.magnitude);
-                previewCamera.farClipPlane = distance + bounds.extents.magnitude;
-                previewCamera.transform.SetPositionAndRotation(
-                    bounds.center - (viewDirection * distance),
-                    cameraRotation);
-
-                int size = Mathf.Max(16, textureSize);
-                renderTexture = new RenderTexture(size, size, 24, RenderTextureFormat.ARGB32)
-                {
-                    name = $"{source.name} Shop Thumbnail Target",
-                    antiAliasing = Mathf.Max(1, Mathf.Min(
-                        4,
-                        SystemInfo.GetRenderTextureSupportedMSAASampleCount(
-                            new RenderTextureDescriptor(size, size, RenderTextureFormat.ARGB32, 24)
-                            {
-                                msaaSamples = 4,
-                            }))),
-                    hideFlags = HideFlags.HideAndDontSave,
-                };
-                renderTexture.Create();
-                previewCamera.targetTexture = renderTexture;
-                previewCamera.Render();
-
-                RenderTexture.active = renderTexture;
-                Texture2D thumbnail = new Texture2D(size, size, TextureFormat.RGBA32, false)
-                {
-                    name = $"Upgrade Shop Trail Picture - {source.name}",
-                    filterMode = FilterMode.Bilinear,
-                    wrapMode = TextureWrapMode.Clamp,
-                    hideFlags = HideFlags.HideAndDontSave,
-                };
-                thumbnail.ReadPixels(new Rect(0f, 0f, size, size), 0, 0, false);
-                thumbnail.Apply(false, true);
-                return thumbnail;
-            }
-            catch (Exception exception)
-            {
-                Debug.LogWarning($"Could not render the '{source.name}' trail picture: {exception.Message}");
-                return null;
-            }
-            finally
-            {
-                RenderTexture.active = previousTarget;
-                if (renderTexture != null)
-                {
-                    renderTexture.Release();
-                    DestroyTemporary(renderTexture);
-                }
-                DestroyTemporary(cameraObject);
-                DestroyTemporary(previewObject);
-            }
-        }
-
-        private static void SimulateParticles(GameObject previewObject)
-        {
-            ParticleSystem[] particleSystems = previewObject.GetComponentsInChildren<ParticleSystem>(true);
-            float simulationTime = 0f;
-            for (int i = 0; i < particleSystems.Length; i++)
-            {
-                ParticleSystem particles = particleSystems[i];
-                ParticleSystem.MainModule main = particles.main;
-                particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-                simulationTime = Mathf.Max(
-                    simulationTime,
-                    main.startDelay.constantMax + Mathf.Min(main.duration, main.startLifetime.constantMax));
-                main.useUnscaledTime = true;
-                particles.useAutoRandomSeed = false;
-                particles.randomSeed = DuneVectorMath.StableHash($"upgrade-shop:{particles.name}");
-            }
-            simulationTime = Mathf.Max(simulationTime, Time.fixedDeltaTime);
-            for (int i = 0; i < particleSystems.Length; i++)
-            {
-                ParticleSystem particles = particleSystems[i];
-                particles.Simulate(simulationTime, true, true, true);
-                particles.Pause(true);
-            }
-        }
-
-        private static bool TryCalculateBounds(GameObject previewObject, out Bounds bounds)
-        {
-            bounds = default;
-            bool found = false;
-            Renderer[] renderers = previewObject.GetComponentsInChildren<Renderer>(true);
-            for (int i = 0; i < renderers.Length; i++)
-            {
-                Renderer renderer = renderers[i];
-                if (renderer == null || !renderer.enabled)
-                {
-                    continue;
-                }
-                if (!found)
-                {
-                    bounds = renderer.bounds;
-                    found = true;
-                }
-                else
-                {
-                    bounds.Encapsulate(renderer.bounds);
-                }
-            }
-            return found && bounds.extents.sqrMagnitude > Mathf.Epsilon;
-        }
-
-        private static Vector3 ChooseSilhouetteViewDirection(Vector3 extents)
-        {
-            if (extents.x <= extents.y && extents.x <= extents.z)
-            {
-                return Vector3.right;
-            }
-            return extents.y <= extents.z ? Vector3.up : Vector3.forward;
-        }
-
-        private static float ProjectBoundsExtent(Vector3 extents, Vector3 axis)
-        {
-            return (Mathf.Abs(axis.x) * extents.x)
-                + (Mathf.Abs(axis.y) * extents.y)
-                + (Mathf.Abs(axis.z) * extents.z);
-        }
-
-        private static void SetLayerRecursively(Transform root, int layer)
-        {
-            root.gameObject.layer = layer;
-            for (int childIndex = 0; childIndex < root.childCount; childIndex++)
-            {
-                SetLayerRecursively(root.GetChild(childIndex), layer);
-            }
-        }
-
-        private static void DestroyTemporary(UnityEngine.Object temporary)
-        {
-            if (temporary == null)
-            {
-                return;
-            }
-            if (Application.isPlaying)
-            {
-                UnityEngine.Object.Destroy(temporary);
-            }
-            else
-            {
-                UnityEngine.Object.DestroyImmediate(temporary);
-            }
-        }
-    }
-
-    internal sealed class DuneVectorUpgradeThumbnailRenderer : MonoBehaviour
-    {
-        private readonly Queue<Action> _requests = new Queue<Action>();
-
-        public void Enqueue(Action request)
-        {
-            if (request != null)
-            {
-                _requests.Enqueue(request);
-            }
-        }
-
-        private void Update()
-        {
-            if (_requests.Count > 0)
-            {
-                _requests.Dequeue().Invoke();
             }
         }
     }
