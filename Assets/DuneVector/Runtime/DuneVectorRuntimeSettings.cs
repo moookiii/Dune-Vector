@@ -2714,7 +2714,7 @@ namespace DuneVector
         [Tooltip("Colour the far end of the speed trail fades into. The trail leaves the drone at Trail Emission and blends to this along its length.")]
         [ColorUsage(false, true)] public Color TrailTailEmission = new Color(1.4f, 1.4f, 1.4f);
         [Tooltip("Fraction of the trail's length, measured back from its oldest end, held at Trail Tail Emission before the blend back toward Trail Emission begins.")]
-        [Range(0f, 1f)] public float TrailTailColorFraction = 0.33f;
+        [Range(0f, 1f)] public float TrailTailColorFraction = 0.1f;
     }
 
     [System.Serializable]
