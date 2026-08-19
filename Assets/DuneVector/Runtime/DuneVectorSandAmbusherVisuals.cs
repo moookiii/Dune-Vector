@@ -146,11 +146,6 @@ namespace DuneVector
         private Transform _visualRoot;
         private Transform _body;
         private Animator _bodyAnimator;
-        private readonly List<Transform> _jumpWiggleBones = new List<Transform>();
-        private readonly List<int> _jumpWiggleBoneDepths = new List<int>();
-        private bool _jumpWiggleActive;
-        private float _jumpWiggleWeight;
-        private float _jumpWigglePhase;
         private Quaternion _bodyBaseRotation = Quaternion.identity;
         private Transform _leftProng;
         private Transform _rightProng;
@@ -187,8 +182,6 @@ namespace DuneVector
         public void PlayAttackAnimation()
         {
             _attackAnimationObserved = false;
-            _jumpWiggleActive = true;
-            _jumpWigglePhase = 0f;
             if (_bodyAnimator != null && !string.IsNullOrWhiteSpace(_settings.SandAmbusherJumpAnimatorTrigger))
             {
                 _bodyAnimator.SetTrigger(_settings.SandAmbusherJumpAnimatorTrigger.Trim());
@@ -212,12 +205,7 @@ namespace DuneVector
                 return false;
             }
 
-            bool complete = _attackAnimationObserved && !_bodyAnimator.IsInTransition(0);
-            if (complete)
-            {
-                _jumpWiggleActive = false;
-            }
-            return complete;
+            return _attackAnimationObserved && !_bodyAnimator.IsInTransition(0);
         }
 
         public bool IsFullyBelowTerrain(DesertWorldStreamer world)
@@ -246,7 +234,6 @@ namespace DuneVector
         public void BeginRetreat()
         {
             _retreating = true;
-            _jumpWiggleActive = false;
             if (_trickle != null)
             {
                 ParticleSystem.EmissionModule emission = _trickle.emission;
@@ -473,91 +460,6 @@ namespace DuneVector
             _body.localScale = Vector3.Scale(
                 _body.localScale,
                 _settings.SandAmbusherBodyPrefabLocalScale);
-            CollectJumpWiggleBones();
-        }
-
-        private void CollectJumpWiggleBones()
-        {
-            _jumpWiggleBones.Clear();
-            _jumpWiggleBoneDepths.Clear();
-            string path = _settings.SandAmbusherJumpWiggleBoneRootPath;
-            if (_body == null || string.IsNullOrWhiteSpace(path))
-            {
-                return;
-            }
-
-            Transform searchRoot = _bodyAnimator != null ? _bodyAnimator.transform : _body;
-            Transform root = searchRoot.Find(path.Trim());
-            if (root == null)
-            {
-                Debug.LogWarning(
-                    $"Sand Ambusher jump wiggle bone root '{path}' was not found under the body prefab. The jump wiggle is disabled.",
-                    this);
-                return;
-            }
-
-            AddJumpWiggleBone(root, 0);
-        }
-
-        private void AddJumpWiggleBone(Transform bone, int depth)
-        {
-            _jumpWiggleBones.Add(bone);
-            _jumpWiggleBoneDepths.Add(depth);
-            for (int i = 0; i < bone.childCount; i++)
-            {
-                AddJumpWiggleBone(bone.GetChild(i), depth + 1);
-            }
-        }
-
-        private void LateUpdate()
-        {
-            if (_settings == null || _jumpWiggleBones.Count == 0)
-            {
-                return;
-            }
-
-            float deltaTime = Time.deltaTime;
-            float target = _jumpWiggleActive ? 1f : 0f;
-            float blendDuration = _jumpWiggleActive
-                ? Mathf.Max(0f, _settings.SandAmbusherJumpWiggleFadeInDuration)
-                : Mathf.Max(0f, _settings.SandAmbusherJumpWiggleFadeOutDuration);
-            _jumpWiggleWeight = blendDuration <= 0f
-                ? target
-                : Mathf.MoveTowards(_jumpWiggleWeight, target, deltaTime / blendDuration);
-            if (_jumpWiggleWeight <= 0f)
-            {
-                return;
-            }
-
-            _jumpWigglePhase += deltaTime * Mathf.Max(0f, _settings.SandAmbusherJumpWiggleFrequency) * Mathf.PI * 2f;
-
-            Vector3 primaryAxis = _settings.SandAmbusherJumpWiggleAxis;
-            primaryAxis = primaryAxis.sqrMagnitude > 0.0001f ? primaryAxis.normalized : Vector3.forward;
-            Vector3 secondaryAxis = _settings.SandAmbusherJumpWiggleSecondaryAxis;
-            secondaryAxis = secondaryAxis.sqrMagnitude > 0.0001f ? secondaryAxis.normalized : Vector3.right;
-            float amplitudeFalloff = Mathf.Max(0f, _settings.SandAmbusherJumpWiggleAmplitudePerBone);
-            float baseDegrees = Mathf.Max(0f, _settings.SandAmbusherJumpWiggleDegrees) * _jumpWiggleWeight;
-            float phasePerBone = _settings.SandAmbusherJumpWigglePhasePerBone;
-            float secondaryAmplitude = _settings.SandAmbusherJumpWiggleSecondaryAmplitude;
-            float secondaryFrequency = Mathf.Max(0f, _settings.SandAmbusherJumpWiggleSecondaryFrequencyMultiplier);
-
-            for (int i = 0; i < _jumpWiggleBones.Count; i++)
-            {
-                Transform bone = _jumpWiggleBones[i];
-                if (bone == null)
-                {
-                    continue;
-                }
-
-                int depth = _jumpWiggleBoneDepths[i];
-                float amplitude = baseDegrees * Mathf.Pow(amplitudeFalloff, depth);
-                float bonePhase = _jumpWigglePhase - (depth * phasePerBone);
-                float primaryAngle = Mathf.Sin(bonePhase) * amplitude;
-                float secondaryAngle = Mathf.Sin(bonePhase * secondaryFrequency) * amplitude * secondaryAmplitude;
-                bone.localRotation = bone.localRotation *
-                    Quaternion.AngleAxis(primaryAngle, primaryAxis) *
-                    Quaternion.AngleAxis(secondaryAngle, secondaryAxis);
-            }
         }
 
         private void UpdatePrefabBody(float swayBlend)

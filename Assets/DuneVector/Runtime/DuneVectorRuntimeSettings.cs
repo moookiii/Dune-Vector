@@ -1129,28 +1129,6 @@ namespace DuneVector
         public Vector3 SandAmbusherBodyPrefabLocalScale = Vector3.one;
         [Tooltip("Degrees of idle sway rotation applied to the Sand Ambusher body prefab once it has emerged.")]
         [Min(0f)] public float SandAmbusherBodyPrefabSwayDegrees = 6f;
-        [Tooltip("Transform path inside the Sand Ambusher body prefab whose descendant chain wiggles while it jumps. Leave empty to disable the jump wiggle.")]
-        public string SandAmbusherJumpWiggleBoneRootPath = "Armature/Bone";
-        [Tooltip("Peak degrees of jump wiggle rotation applied to the first wiggling bone.")]
-        [Min(0f)] public float SandAmbusherJumpWiggleDegrees = 9f;
-        [Tooltip("Jump wiggle oscillations per second travelling down the Sand Ambusher body.")]
-        [Min(0f)] public float SandAmbusherJumpWiggleFrequency = 2.4f;
-        [Tooltip("Radians of jump wiggle phase delay added per bone, which makes the wiggle travel along the body instead of bending it all at once.")]
-        public float SandAmbusherJumpWigglePhasePerBone = 0.9f;
-        [Tooltip("Jump wiggle amplitude multiplier applied per bone down the chain. Values above 1 whip the tail harder, values below 1 damp it.")]
-        [Min(0f)] public float SandAmbusherJumpWiggleAmplitudePerBone = 1.15f;
-        [Tooltip("Local bone axis the primary jump wiggle rotates around.")]
-        public Vector3 SandAmbusherJumpWiggleAxis = new Vector3(0f, 0f, 1f);
-        [Tooltip("Local bone axis the secondary jump wiggle rotates around, which adds a corkscrew to the primary wiggle.")]
-        public Vector3 SandAmbusherJumpWiggleSecondaryAxis = new Vector3(1f, 0f, 0f);
-        [Tooltip("Secondary jump wiggle amplitude as a fraction of the primary amplitude. Set to 0 for a purely flat wiggle.")]
-        [Range(0f, 2f)] public float SandAmbusherJumpWiggleSecondaryAmplitude = 0.45f;
-        [Tooltip("Frequency multiplier applied to the secondary jump wiggle.")]
-        [Min(0f)] public float SandAmbusherJumpWiggleSecondaryFrequencyMultiplier = 0.7f;
-        [Tooltip("Seconds the jump wiggle takes to reach full strength once the jump animation starts.")]
-        [Min(0f)] public float SandAmbusherJumpWiggleFadeInDuration = 0.15f;
-        [Tooltip("Seconds the jump wiggle takes to settle back to the authored animation once the jump animation finishes.")]
-        [Min(0f)] public float SandAmbusherJumpWiggleFadeOutDuration = 0.35f;
         public int SandAmbusherVisualSeed = 9317;
         [Range(3, 10)] public int SandAmbusherVisualSegmentCount = 6;
         [Min(0.1f)] public float SandAmbusherSegmentSpacing = 3.8f;
