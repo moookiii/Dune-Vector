@@ -3124,13 +3124,6 @@ namespace DuneVector
                     scale,
                     yaw);
                 float y = footprintFloor - burial;
-                float hue = DuneVectorMath.HashRange(
-                    coordinate.x,
-                    coordinate.y,
-                    worldSeed,
-                    1009 + (i * 17),
-                    0f,
-                    1f);
                 DuneVectorVisuals.CreatePyramid(
                     Root,
                     new Vector3(local.x, y, local.y),
@@ -3138,8 +3131,7 @@ namespace DuneVector
                     yaw,
                     materials.PyramidPrefab,
                     materials.Sandstone,
-                    materials.PyramidLodTuning,
-                    hue);
+                    materials.PyramidLodTuning);
                 sceneryExclusions.Add(local);
             }
 
