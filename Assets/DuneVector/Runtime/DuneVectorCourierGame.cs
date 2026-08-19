@@ -3435,7 +3435,6 @@ namespace DuneVector
                 Progress != null ? Progress.CompletedDeliveries : 0);
             if (unlockedTrail == null)
             {
-                ShowStatus("RETURNED TO COURIER AERIE", 2.5f);
                 return;
             }
 
