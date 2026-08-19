@@ -253,6 +253,7 @@ namespace DuneVector
             ambusher.CombatTarget?.SetTargetable(true);
             ambusher.State = AmbushState.Attacking;
             ambusher.StateTime = 0f;
+            ambusher.Visual?.PlayAttackAnimation();
         }
 
         private void TickAttack(SandAmbusher ambusher, float deltaTime)

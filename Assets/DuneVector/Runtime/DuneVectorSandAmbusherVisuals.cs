@@ -169,16 +169,20 @@ namespace DuneVector
             _emerging = true;
             _retreating = false;
             _emergenceAge = 0f;
-            if (_bodyAnimator != null && !string.IsNullOrWhiteSpace(_settings.SandAmbusherJumpAnimatorTrigger))
-            {
-                _bodyAnimator.SetTrigger(_settings.SandAmbusherJumpAnimatorTrigger.Trim());
-            }
             _trickleRemaining = Mathf.Max(0f, _settings.SandAmbusherTrickleDuration);
             if (_trickle != null)
             {
                 ParticleSystem.EmissionModule emission = _trickle.emission;
                 emission.enabled = true;
                 _trickle.Play();
+            }
+        }
+
+        public void PlayAttackAnimation()
+        {
+            if (_bodyAnimator != null && !string.IsNullOrWhiteSpace(_settings.SandAmbusherJumpAnimatorTrigger))
+            {
+                _bodyAnimator.SetTrigger(_settings.SandAmbusherJumpAnimatorTrigger.Trim());
             }
         }
 
