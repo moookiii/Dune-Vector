@@ -753,6 +753,8 @@ namespace DuneVector
         private VesperKiteTuning _settings;
         private bool _gameplayActive = true;
         private bool _useDesertDeploymentSpawnDistance;
+        private int _desertDeploymentSpawnIndex;
+        private int _desertDeploymentSpawnCount;
 
         public int ActivePilgrimCount
         {
@@ -789,6 +791,8 @@ namespace DuneVector
             if (active)
             {
                 _useDesertDeploymentSpawnDistance = true;
+                _desertDeploymentSpawnIndex = 0;
+                _desertDeploymentSpawnCount = Mathf.Max(1, _settings.EnemyCount);
                 try
                 {
                     RespawnBaseEnemies();
@@ -836,12 +840,18 @@ namespace DuneVector
             int identity,
             float altitudeProgress)
         {
-            float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
+            int deploymentIndex = _desertDeploymentSpawnIndex;
+            float angle = _useDesertDeploymentSpawnDistance
+                ? GetDesertDeploymentAngleRadians(deploymentIndex)
+                : (float)(random.NextDouble() * Mathf.PI * 2f);
             float distance01 = (float)random.NextDouble();
             float distance;
             if (_useDesertDeploymentSpawnDistance)
             {
-                distance = DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(distance01);
+                _desertDeploymentSpawnIndex++;
+                distance = DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(
+                    deploymentIndex,
+                    _desertDeploymentSpawnCount);
             }
             else
             {
@@ -890,6 +900,13 @@ namespace DuneVector
                 altitude);
             _enemies.Add(enemy);
             return enemy;
+        }
+
+        private float GetDesertDeploymentAngleRadians(int index)
+        {
+            const float GoldenAngleDegrees = 137.50776f;
+            float seedAngle = Mathf.Repeat((_world.EnemySpawnSeed * 0.381966f) + 71f, 360f);
+            return (seedAngle + (index * GoldenAngleDegrees)) * Mathf.Deg2Rad;
         }
 
         private void ClearEnemies(List<VesperKiteEnemy> enemies)

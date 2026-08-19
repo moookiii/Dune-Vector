@@ -2067,6 +2067,8 @@ namespace DuneVector
         [Min(0f)] public float PlayerSpawnClearanceRadius = 20f;
         [Tooltip("Farthest distance from the drone where persistent enemies may be placed during the one-time hub-to-desert deployment spawn. Normal gameplay spawns and repositioning still use the distant traversal-ring horizon.")]
         [Min(0f)] public float DesertDeploymentMaximumEnemyDistance = 360f;
+        [Tooltip("Closest distance from the drone where persistent enemies may be placed during the one-time hub-to-desert deployment spawn.")]
+        [Min(0f)] public float DesertDeploymentMinimumEnemyDistance = 50f;
 
         [Header("Attack Range Clearance")]
         [Tooltip("Multiplies an enemy's own attack range to set the closest it may be placed around the drone. Enemies live in a bubble around the drone, so a value below 1 lets them appear already inside their engagement envelope and they never get to use their full range. 1 places them exactly on the edge of it; higher values give them room to close the distance first.")]

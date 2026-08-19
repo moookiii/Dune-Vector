@@ -2641,6 +2641,8 @@ namespace DuneVector
         private PlayerStrikeOrbTuning _orbSettings;
         private StormPyramidThreatHUD _warningHud;
         private bool _useDesertDeploymentSpawnDistance;
+        private int _desertDeploymentSpawnIndex;
+        private int _desertDeploymentSpawnCount;
 
         public void Initialize(
             DroneCharacterController player,
@@ -2748,12 +2750,18 @@ namespace DuneVector
             int identity,
             float normalizedHeight)
         {
-            float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
+            int deploymentIndex = _desertDeploymentSpawnIndex;
+            float angle = _useDesertDeploymentSpawnDistance
+                ? GetDesertDeploymentAngleRadians(deploymentIndex)
+                : (float)(random.NextDouble() * Mathf.PI * 2f);
             float distance01 = (float)random.NextDouble();
             float distance;
             if (_useDesertDeploymentSpawnDistance)
             {
-                distance = DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(distance01);
+                _desertDeploymentSpawnIndex++;
+                distance = DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(
+                    deploymentIndex,
+                    _desertDeploymentSpawnCount);
             }
             else
             {
@@ -2804,12 +2812,18 @@ namespace DuneVector
             int identity,
             float normalizedHeight)
         {
-            float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
+            int deploymentIndex = _desertDeploymentSpawnIndex;
+            float angle = _useDesertDeploymentSpawnDistance
+                ? GetDesertDeploymentAngleRadians(deploymentIndex)
+                : (float)(random.NextDouble() * Mathf.PI * 2f);
             float distance01 = (float)random.NextDouble();
             float distance;
             if (_useDesertDeploymentSpawnDistance)
             {
-                distance = DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(distance01);
+                _desertDeploymentSpawnIndex++;
+                distance = DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(
+                    deploymentIndex,
+                    _desertDeploymentSpawnCount);
             }
             else
             {
@@ -2853,6 +2867,8 @@ namespace DuneVector
             if (active)
             {
                 _useDesertDeploymentSpawnDistance = true;
+                _desertDeploymentSpawnIndex = 0;
+                _desertDeploymentSpawnCount = GetDesertDeploymentSpawnCount();
                 try
                 {
                     RespawnBaseEnemies();
@@ -2885,6 +2901,30 @@ namespace DuneVector
             {
                 _warningHud.enabled = active;
             }
+        }
+
+        private int GetDesertDeploymentSpawnCount()
+        {
+            int count = 0;
+            float bonusMultiplier = Mathf.Max(0f, DuneVectorContractRisk.EnemySpawnMultiplier - 1f);
+            if (_settings.Enabled)
+            {
+                int baseCount = Mathf.Max(1, _settings.EnemyCount);
+                count += baseCount + Mathf.CeilToInt(baseCount * bonusMultiplier);
+            }
+            if (_orbSettings.Enabled)
+            {
+                int baseCount = Mathf.Max(1, _orbSettings.EnemyCount);
+                count += baseCount + Mathf.CeilToInt(baseCount * bonusMultiplier);
+            }
+            return Mathf.Max(1, count);
+        }
+
+        private float GetDesertDeploymentAngleRadians(int index)
+        {
+            const float GoldenAngleDegrees = 137.50776f;
+            float seedAngle = Mathf.Repeat(_world.EnemySpawnSeed * 0.6180339f, 360f);
+            return (seedAngle + (index * GoldenAngleDegrees)) * Mathf.Deg2Rad;
         }
 
         public void SetHubLightningActive()

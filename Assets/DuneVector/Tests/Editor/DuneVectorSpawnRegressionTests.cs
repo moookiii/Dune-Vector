@@ -121,12 +121,29 @@ namespace DuneVector.Tests
                 AssertAuthoredRings(settings, world);
                 Assert.That(
                     DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(0f),
-                    Is.GreaterThanOrEqualTo(settings.EnemySpawnSafety.PlayerSpawnClearanceRadius));
+                    Is.EqualTo(settings.EnemySpawnSafety.DesertDeploymentMinimumEnemyDistance)
+                        .Within(0.001f),
+                    "The first deployment enemy must use the authored inner edge.");
                 Assert.That(
                     DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(1f),
                     Is.EqualTo(settings.EnemySpawnSafety.DesertDeploymentMaximumEnemyDistance)
                         .Within(0.001f),
                     "The one-time desert deployment spawn must use the authored close-range cap.");
+                Assert.That(
+                    DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(0, 3),
+                    Is.EqualTo(settings.EnemySpawnSafety.DesertDeploymentMinimumEnemyDistance)
+                        .Within(0.001f));
+                Assert.That(
+                    DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(1, 3),
+                    Is.EqualTo(
+                        (settings.EnemySpawnSafety.DesertDeploymentMinimumEnemyDistance +
+                         settings.EnemySpawnSafety.DesertDeploymentMaximumEnemyDistance) * 0.5f)
+                        .Within(0.001f));
+                Assert.That(
+                    DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(2, 3),
+                    Is.EqualTo(settings.EnemySpawnSafety.DesertDeploymentMaximumEnemyDistance)
+                        .Within(0.001f),
+                    "Deployment slots must span the complete authored distance band.");
             }
             finally
             {
