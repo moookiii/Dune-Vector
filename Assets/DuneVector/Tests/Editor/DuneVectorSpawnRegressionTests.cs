@@ -15,6 +15,50 @@ namespace DuneVector.Tests
             "Assets/DuneVector/ScriptableObjects/Dune Vector Runtime Settings.asset";
 
         [Test]
+        public void ShieldConsumesOneOtherwiseValidHitWithoutLosingHealth()
+        {
+            GameObject droneObject = new GameObject("Shield Test Drone");
+            try
+            {
+                DroneHealth health = droneObject.AddComponent<DroneHealth>();
+                health.Initialize(100f, 0f);
+
+                Assert.That(health.GrantShield(), Is.True);
+                Assert.That(health.HasShield, Is.True);
+                Assert.That(health.TakeDamage(25f, "Shield test"), Is.True);
+                Assert.That(health.HasShield, Is.False);
+                Assert.That(health.CurrentHealth, Is.EqualTo(100f));
+
+                Assert.That(health.TakeDamage(25f, "Unshielded test"), Is.True);
+                Assert.That(health.CurrentHealth, Is.EqualTo(75f));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(droneObject);
+            }
+        }
+
+        [Test]
+        public void NonDamagingAttemptDoesNotConsumeShield()
+        {
+            GameObject droneObject = new GameObject("Shield Validation Test Drone");
+            try
+            {
+                DroneHealth health = droneObject.AddComponent<DroneHealth>();
+                health.Initialize(100f, 0f);
+                health.GrantShield();
+
+                Assert.That(health.TakeDamage(0f, "No damage"), Is.False);
+                Assert.That(health.HasShield, Is.True);
+                Assert.That(health.CurrentHealth, Is.EqualTo(100f));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(droneObject);
+            }
+        }
+
+        [Test]
         public void GeoglyphImageCoordinatesConvertToUnityUvCoordinates()
         {
             Vector2 converted = GeoglyphArtworkPlacement.ImageUvToUnityUv(

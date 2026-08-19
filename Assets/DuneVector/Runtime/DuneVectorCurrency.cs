@@ -39,6 +39,27 @@ namespace DuneVector
     }
 
     [DisallowMultipleComponent]
+    public sealed class ShieldRingReward : MonoBehaviour, ITraversalRingReward
+    {
+        private DroneHealth _health;
+
+        public void Initialize(DroneHealth health)
+        {
+            _health = health;
+        }
+
+        public void BindTargets(DroneHealth health, DroneGoldWallet wallet)
+        {
+            _health = health;
+        }
+
+        public bool TryReward()
+        {
+            return _health != null && _health.GrantShield();
+        }
+    }
+
+    [DisallowMultipleComponent]
     public sealed class CoinRingReward : MonoBehaviour, ITraversalRingReward
     {
         private DroneGoldWallet _wallet;

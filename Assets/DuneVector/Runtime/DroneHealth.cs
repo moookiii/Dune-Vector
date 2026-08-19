@@ -14,6 +14,7 @@ namespace DuneVector
         public bool IsDead { get; private set; }
         public bool IsDamageImmune { get; private set; }
         public bool HasInfiniteHealth { get; private set; }
+        public bool HasShield { get; private set; }
 
         /// <summary>
         /// True while the post-hit grace period from <c>DamageInvulnerability</c> is still running.
@@ -26,9 +27,11 @@ namespace DuneVector
         public event Action<float, float> HealthChanged;
         public event Action<float> Damaged;
         public event Action<float> Healed;
+        public event Action<bool> ShieldChanged;
         public event Action Died;
 
         private const string DeathEffectResourcePath = "vfx/RedFireImpactV2";
+        private const string ShieldEffectResourcePath = "vfx/BlueSparkleShield";
         private const float DeathEffectVerticalOffset = 0.3f;
         private const float DeathEffectMinimumLifetime = 3f;
         private static readonly Vector3 DeathEffectScale = new Vector3(2f, 2f, 2f);
@@ -37,6 +40,7 @@ namespace DuneVector
         private float _nextDamageTime;
         private PlayerHealthTuning _settings;
         private float _timeSinceDamage;
+        private GameObject _shieldEffect;
 
         public void Initialize(float maximumHealth, float damageInvulnerability, bool infiniteHealth = false)
         {
@@ -46,6 +50,7 @@ namespace DuneVector
             IsDead = false;
             IsDamageImmune = false;
             HasInfiniteHealth = infiniteHealth;
+            RemoveShield();
             LastDamageSource = "Unknown damage source";
             LastDeathMessage = "Destroyed by an unknown damage source.";
             _timeSinceDamage = 0f;
@@ -122,6 +127,12 @@ namespace DuneVector
             LastDeathMessage = string.IsNullOrWhiteSpace(deathMessage)
                 ? $"Destroyed by {LastDamageSource}."
                 : deathMessage;
+            if (HasShield)
+            {
+                RemoveShield();
+                return true;
+            }
+
             float previousHealth = CurrentHealth;
             CurrentHealth = Mathf.Max(0f, CurrentHealth - damage);
             HealthChanged?.Invoke(CurrentHealth, MaximumHealth);
@@ -176,6 +187,57 @@ namespace DuneVector
             HasInfiniteHealth = enabled;
         }
 
+        public bool GrantShield()
+        {
+            if (IsDead)
+            {
+                return false;
+            }
+
+            if (!HasShield)
+            {
+                HasShield = true;
+                SpawnShieldEffect();
+                ShieldChanged?.Invoke(true);
+            }
+            return true;
+        }
+
+        private void SpawnShieldEffect()
+        {
+            GameObject prefab = Resources.Load<GameObject>(ShieldEffectResourcePath);
+            if (prefab == null)
+            {
+                Debug.LogWarning($"Shield effect prefab '{ShieldEffectResourcePath}' was not found in Resources.", this);
+                return;
+            }
+
+            _shieldEffect = Instantiate(prefab, transform, false);
+            _shieldEffect.name = "BlueSparkleShield";
+        }
+
+        private void RemoveShield()
+        {
+            bool hadShield = HasShield;
+            HasShield = false;
+            if (_shieldEffect != null)
+            {
+                if (Application.isPlaying)
+                {
+                    Destroy(_shieldEffect);
+                }
+                else
+                {
+                    DestroyImmediate(_shieldEffect);
+                }
+                _shieldEffect = null;
+            }
+            if (hadShield)
+            {
+                ShieldChanged?.Invoke(false);
+            }
+        }
+
         public bool RestoreHealth(float amount)
         {
             if (IsDead || amount <= 0f || CurrentHealth >= MaximumHealth)
@@ -206,6 +268,7 @@ namespace DuneVector
             float previousHealth = CurrentHealth;
             IsDead = false;
             IsDamageImmune = false;
+            RemoveShield();
             CurrentHealth = MaximumHealth;
             _nextDamageTime = Time.time;
             _timeSinceDamage = 0f;

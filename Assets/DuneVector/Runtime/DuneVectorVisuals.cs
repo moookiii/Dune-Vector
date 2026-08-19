@@ -2306,12 +2306,15 @@ namespace DuneVector
                 TraversalRingType.Flight => materials.FlightRing,
                 TraversalRingType.UpperFlight => materials.UpperFlightRing,
                 TraversalRingType.Health => materials.HealthRing,
+                TraversalRingType.Shield => materials.FlightRing,
                 _ => materials.CoinRing,
             };
             GameObject visualRoot = new GameObject("Ring Visual Root");
             visualRoot.transform.SetParent(parent, false);
             Transform geometryParent = visualRoot.transform;
-            if (type == TraversalRingType.Health || type == TraversalRingType.Coin)
+            if (type == TraversalRingType.Health
+                || type == TraversalRingType.Shield
+                || type == TraversalRingType.Coin)
             {
                 GameObject geometryObject = new GameObject("Health Ring XZ Geometry");
                 geometryParent = geometryObject.transform;

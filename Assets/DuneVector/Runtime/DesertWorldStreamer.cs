@@ -2955,18 +2955,24 @@ namespace DuneVector
                 }
             }
 
-            for (int collectibleIndex = 0; coordinate != Vector2Int.zero && collectibleIndex < 2; collectibleIndex++)
+            for (int collectibleIndex = 0; coordinate != Vector2Int.zero && collectibleIndex < 3; collectibleIndex++)
             {
                 TraversalRingType collectibleType = collectibleIndex == 0
                     ? TraversalRingType.Health
-                    : TraversalRingType.Coin;
-                float density = collectibleType == TraversalRingType.Health
+                    : collectibleIndex == 1
+                        ? TraversalRingType.Shield
+                        : TraversalRingType.Coin;
+                bool isHealthOrShield = collectibleType == TraversalRingType.Health
+                    || collectibleType == TraversalRingType.Shield;
+                float density = isHealthOrShield
                     ? ringTuning.HealthRingDensityPerChunk
                     : ringTuning.CoinRingDensityPerChunk;
-                float radius = collectibleType == TraversalRingType.Health
+                float radius = isHealthOrShield
                     ? ringTuning.HealthRingRadius
                     : ringTuning.CoinRingRadius;
-                int spawnSalt = collectibleType == TraversalRingType.Health ? 757 : 787;
+                // Health and shield rings deliberately share their spawn roll, giving the
+                // streamed world one shield ring for every health-ring roll.
+                int spawnSalt = isHealthOrShield ? 757 : 787;
                 int collectibleSeed = collectibleType == TraversalRingType.Coin
                     ? coinRingSeed
                     : worldSeed;
@@ -2976,12 +2982,24 @@ namespace DuneVector
                 }
 
                 Vector2 collectiblePosition = new Vector2(
-                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, collectibleSeed, spawnSalt + 4, 16f, chunkSize - 16f),
-                    DuneVectorMath.HashRange(coordinate.x, coordinate.y, collectibleSeed, spawnSalt + 12, 16f, chunkSize - 16f));
+                    DuneVectorMath.HashRange(
+                        coordinate.x,
+                        coordinate.y,
+                        collectibleSeed,
+                        spawnSalt + (collectibleType == TraversalRingType.Shield ? 20 : 4),
+                        16f,
+                        chunkSize - 16f),
+                    DuneVectorMath.HashRange(
+                        coordinate.x,
+                        coordinate.y,
+                        collectibleSeed,
+                        spawnSalt + (collectibleType == TraversalRingType.Shield ? 28 : 12),
+                        16f,
+                        chunkSize - 16f));
                 // Health rings are recovery pickups, so they must not lose their spawn roll
                 // merely because another traversal ring happens to be nearby. Coin rings keep
                 // the normal local spacing so their distribution remains unchanged.
-                if (collectibleType != TraversalRingType.Health
+                if (!isHealthOrShield
                     && IsNearAny(collectiblePosition, ringExclusions, radius * 2f))
                 {
                     continue;
@@ -3009,7 +3027,12 @@ namespace DuneVector
                     ringExclusions,
                     collectibleSeed,
                     ringTuning,
-                    collectibleType == TraversalRingType.Health ? "health" : "coin",
+                    collectibleType switch
+                    {
+                        TraversalRingType.Health => "health",
+                        TraversalRingType.Shield => "shield",
+                        _ => "coin",
+                    },
                     ringActivated);
             }
 
@@ -3518,7 +3541,8 @@ namespace DuneVector
             string identitySuffix,
             Action<TraversalRing> ringActivated)
         {
-            bool usesSharedRingSpacing = type != TraversalRingType.Health;
+            bool usesSharedRingSpacing = type != TraversalRingType.Health
+                && type != TraversalRingType.Shield;
             float minimumRingSeparation = Mathf.Max(0f, ringTuning.MinimumRingSeparation);
             if (usesSharedRingSpacing && IsNearAny(local, exclusions, minimumRingSeparation))
             {
@@ -3616,6 +3640,7 @@ namespace DuneVector
                 TraversalRingType.GroundBoost => ringTuning.GroundRingMinimumHeight,
                 TraversalRingType.Flight => ringTuning.FlightRingMinimumHeight,
                 TraversalRingType.Health => ringTuning.HealthRingMinimumHeight,
+                TraversalRingType.Shield => ringTuning.HealthRingMinimumHeight,
                 _ => ringTuning.UpperFlightRingMinimumHeight,
             };
             float maximumHeight = type switch
@@ -3623,6 +3648,7 @@ namespace DuneVector
                 TraversalRingType.GroundBoost => ringTuning.GroundRingMaximumHeight,
                 TraversalRingType.Flight => ringTuning.FlightRingMaximumHeight,
                 TraversalRingType.Health => ringTuning.HealthRingMaximumHeight,
+                TraversalRingType.Shield => ringTuning.HealthRingMaximumHeight,
                 _ => ringTuning.UpperFlightRingMaximumHeight,
             };
             maximumHeight = Mathf.Max(minimumHeight, maximumHeight);
@@ -3669,6 +3695,12 @@ namespace DuneVector
                 reward.Initialize(playerHealth, ringTuning.HealthRestored);
                 ring.SetCollectibleReward(reward);
             }
+            else if (type == TraversalRingType.Shield)
+            {
+                ShieldRingReward reward = ringObject.AddComponent<ShieldRingReward>();
+                reward.Initialize(playerHealth);
+                ring.SetCollectibleReward(reward);
+            }
             else if (type == TraversalRingType.Coin)
             {
                 CoinRingReward reward = ringObject.AddComponent<CoinRingReward>();
@@ -3685,6 +3717,7 @@ namespace DuneVector
             ring.ClockwiseRotationSpeed = type switch
             {
                 TraversalRingType.Health => ringTuning.HealthRingRotationSpeed,
+                TraversalRingType.Shield => ringTuning.HealthRingRotationSpeed,
                 TraversalRingType.Coin => ringTuning.CoinRingRotationSpeed,
                 _ => ringTuning.ClockwiseRotationSpeed,
             };
@@ -3692,7 +3725,9 @@ namespace DuneVector
             {
                 ring.Activated += ringActivated;
             }
-            if (type == TraversalRingType.Flight || type == TraversalRingType.Health)
+            if (type == TraversalRingType.Flight
+                || type == TraversalRingType.Health
+                || type == TraversalRingType.Shield)
             {
                 float minimumLift = Mathf.Max(0f, ringTuning.FlightModeMinimumHeightOffset);
                 float maximumLift = Mathf.Max(minimumLift, ringTuning.FlightModeMaximumHeightOffset);

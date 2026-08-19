@@ -11,6 +11,7 @@ namespace DuneVector
         Health,
         Coin,
         UpperFlight,
+        Shield,
     }
 
     [DisallowMultipleComponent]
@@ -122,6 +123,7 @@ namespace DuneVector
                 TraversalRingType.Flight => "Elevated Flight Ring",
                 TraversalRingType.UpperFlight => "Upper Flight Ring",
                 TraversalRingType.Health => "Health Ring",
+                TraversalRingType.Shield => "Shield Ring",
                 _ => "Coin Ring",
             };
             DuneVectorPhotographableMarker.Register(
@@ -130,7 +132,9 @@ namespace DuneVector
                 PhotographableSubjectCategory.Misc);
         }
 
-        private bool IsCollectible => RingType == TraversalRingType.Health || RingType == TraversalRingType.Coin;
+        private bool IsCollectible => RingType == TraversalRingType.Health
+            || RingType == TraversalRingType.Shield
+            || RingType == TraversalRingType.Coin;
 
         public void SetCollectibleReward(ITraversalRingReward reward)
         {
@@ -221,7 +225,9 @@ namespace DuneVector
         }
 
         private bool IsFlightRing => RingType == TraversalRingType.Flight || RingType == TraversalRingType.UpperFlight;
-        private bool UsesFlightModeHeight => IsFlightRing || RingType == TraversalRingType.Health;
+        private bool UsesFlightModeHeight => IsFlightRing
+            || RingType == TraversalRingType.Health
+            || RingType == TraversalRingType.Shield;
 
         internal void Tick(float deltaTime)
         {
@@ -517,6 +523,7 @@ namespace DuneVector
                 TraversalRingType.Flight => new Color(0f, 0.8f, 1f, 0.7f),
                 TraversalRingType.UpperFlight => new Color(0.75f, 0.1f, 1f, 0.7f),
                 TraversalRingType.Health => new Color(0.1f, 1f, 0.3f, 0.7f),
+                TraversalRingType.Shield => new Color(0.1f, 0.45f, 1f, 0.7f),
                 _ => new Color(1f, 0.72f, 0.08f, 0.7f),
             };
             Gizmos.matrix = transform.localToWorldMatrix;
