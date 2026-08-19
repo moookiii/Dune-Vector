@@ -139,9 +139,11 @@ namespace DuneVector.Tests
                         .Within(0.001f));
                 Assert.That(
                     DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(1, 3),
-                    Is.EqualTo(
-                        (settings.EnemySpawnSafety.DesertDeploymentMinimumEnemyDistance +
-                         settings.EnemySpawnSafety.DesertDeploymentMaximumEnemyDistance) * 0.5f)
+                    Is.EqualTo(Mathf.Sqrt(
+                        ((settings.EnemySpawnSafety.DesertDeploymentMinimumEnemyDistance *
+                          settings.EnemySpawnSafety.DesertDeploymentMinimumEnemyDistance) +
+                         (settings.EnemySpawnSafety.DesertDeploymentMaximumEnemyDistance *
+                          settings.EnemySpawnSafety.DesertDeploymentMaximumEnemyDistance)) * 0.5f))
                         .Within(0.001f));
                 Assert.That(
                     DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(2, 3),

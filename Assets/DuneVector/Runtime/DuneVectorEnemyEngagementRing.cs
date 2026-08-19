@@ -66,10 +66,16 @@ namespace DuneVector
             float maximumDistance = Mathf.Max(
                 minimumDistance,
                 DesertDeploymentMaximumDistance);
-            return Mathf.Lerp(minimumDistance, maximumDistance, Mathf.Clamp01(distance01));
+            return Mathf.Sqrt(Mathf.Lerp(
+                minimumDistance * minimumDistance,
+                maximumDistance * maximumDistance,
+                Mathf.Clamp01(distance01)));
         }
 
-        /// <summary>Returns an evenly spaced radial slot across the deployment band.</summary>
+        /// <summary>
+        /// Returns an area-uniform radial slot across the deployment annulus. Squared-radius
+        /// spacing prevents the much smaller inner area from looking overcrowded.
+        /// </summary>
         public static float ResolveDesertDeploymentDistance(int index, int count)
         {
             float distance01 = count <= 1
@@ -96,7 +102,10 @@ namespace DuneVector
             float distance01 = count <= 1
                 ? 0.5f
                 : Mathf.Clamp01(index / (float)(count - 1));
-            return Mathf.Lerp(minimumDistance, maximumDistance, distance01);
+            return Mathf.Sqrt(Mathf.Lerp(
+                minimumDistance * minimumDistance,
+                maximumDistance * maximumDistance,
+                distance01));
         }
 
         public static float ResolveStreamingHorizonDistance(DesertWorldStreamer world)
