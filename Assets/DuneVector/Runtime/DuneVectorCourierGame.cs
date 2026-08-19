@@ -597,6 +597,7 @@ namespace DuneVector
         private Vector3 _droneVisualOriginalScale;
         private Material _hubMetalMaterial;
         private Material _hubEnergyMaterial;
+        private Material _teleportEnergyMaterial;
         private Material _hubPlatformEnergyMaterial;
         private readonly List<Material> _hubTerminalPanelMaterials = new List<Material>();
         private readonly List<Material> _hubTerminalAntennaMaterials = new List<Material>();
@@ -1213,6 +1214,15 @@ namespace DuneVector
                 "World Hub Energy",
                 new Color(_hubSettings.HubEnergyColor.r * 0.12f, _hubSettings.HubEnergyColor.g * 0.12f, _hubSettings.HubEnergyColor.b * 0.12f),
                 _hubSettings.HubEnergyColor);
+            float teleportBloomIntensity = Mathf.Max(0f, _hubSettings.TeleportBloomIntensity);
+            _teleportEnergyMaterial = CreateHubMaterial(
+                _materials.DroneAccent,
+                "Teleport Energy Bloom",
+                new Color(
+                    _hubSettings.HubEnergyColor.r * 0.12f,
+                    _hubSettings.HubEnergyColor.g * 0.12f,
+                    _hubSettings.HubEnergyColor.b * 0.12f),
+                _hubSettings.HubEnergyColor * teleportBloomIntensity);
             _hubPlatformEnergyMaterial = CreateHubMaterial(
                 _materials.DroneAccent,
                 "World Hub Platform Energy",
@@ -3445,7 +3455,9 @@ namespace DuneVector
                     _hubSettings.TeleportParticleMaximumSize,
                     (i % 7) / 6f);
                 Renderer renderer = particle.GetComponent<Renderer>();
-                renderer.sharedMaterial = _hubEnergyMaterial != null ? _hubEnergyMaterial : _materials.DroneAccent;
+                renderer.sharedMaterial = _teleportEnergyMaterial != null
+                    ? _teleportEnergyMaterial
+                    : (_hubEnergyMaterial != null ? _hubEnergyMaterial : _materials.DroneAccent);
                 renderer.shadowCastingMode = ShadowCastingMode.Off;
                 Collider collider = particle.GetComponent<Collider>();
                 if (collider != null) Destroy(collider);
@@ -3464,7 +3476,9 @@ namespace DuneVector
                     _hubSettings.TeleportEnergyRingSegmentLength,
                     _hubSettings.TeleportEnergyRingThickness,
                     _hubSettings.TeleportEnergyRingThickness,
-                    _hubEnergyMaterial != null ? _hubEnergyMaterial : _materials.DroneAccent,
+                    _teleportEnergyMaterial != null
+                        ? _teleportEnergyMaterial
+                        : (_hubEnergyMaterial != null ? _hubEnergyMaterial : _materials.DroneAccent),
                     "Teleport Arc");
                 _teleportEnergyRings.Add(ring);
             }
@@ -5149,6 +5163,7 @@ namespace DuneVector
             DestroyHubTerminalMaterials(_hubTerminalPanelMaterials);
             DestroyHubTerminalMaterials(_hubTerminalAntennaMaterials);
             if (_hubEnergyMaterial != null) Destroy(_hubEnergyMaterial);
+            if (_teleportEnergyMaterial != null) Destroy(_teleportEnergyMaterial);
             if (_hubPlatformEnergyMaterial != null) Destroy(_hubPlatformEnergyMaterial);
             if (_terminalPanelTexture != null) Destroy(_terminalPanelTexture);
             if (_terminalCardTexture != null) Destroy(_terminalCardTexture);

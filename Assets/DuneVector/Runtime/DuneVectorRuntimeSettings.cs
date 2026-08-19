@@ -1556,6 +1556,8 @@ namespace DuneVector
         public float UpgradePadRotationSpeed = -11f;
 
         [Header("Teleport Presentation")]
+        [Tooltip("HDR emission multiplier used by teleport particles and segmented energy rings. Values above 1 push the effect over the bloom threshold without brightening the rest of the hub.")]
+        [Min(0f)] public float TeleportBloomIntensity = 3f;
         [Min(0f)] public float TeleportParticleMinimumSize = 0.05f;
         [Min(0f)] public float TeleportParticleMaximumSize = 0.16f;
         [Min(0f)] public float TeleportHelixHeight = 6f;
