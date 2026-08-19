@@ -2072,7 +2072,7 @@ namespace DuneVector
             GameObject model,
             Material fallbackMaterial,
             PyramidTuning pyramidLodTuning,
-            float? hue = null,
+            float hue = 0f,
             string rootName = "Small Pyramid",
             string compendiumSubjectId = DuneVectorCompendiumSubjectIds.Pyramid)
         {
@@ -2088,9 +2088,7 @@ namespace DuneVector
 
             Mesh mesh = GetPyramidMesh();
             float targetHalfExtent = Mathf.Max(0.1f, scale);
-            Material resolvedFallback = hue.HasValue
-                ? GetPyramidTintedMaterial(fallbackMaterial, ResolvePyramidHueIndex(hue.Value))
-                : fallbackMaterial;
+            Material tintedFallback = GetPyramidTintedMaterial(fallbackMaterial, ResolvePyramidHueIndex(hue));
 
             if (model == null)
             {
@@ -2100,7 +2098,7 @@ namespace DuneVector
                 MeshFilter filter = root.AddComponent<MeshFilter>();
                 filter.sharedMesh = mesh;
                 MeshRenderer renderer = root.AddComponent<MeshRenderer>();
-                renderer.sharedMaterial = resolvedFallback;
+                renderer.sharedMaterial = tintedFallback;
                 renderer.shadowCastingMode = ShadowCastingMode.On;
                 renderer.receiveShadows = true;
                 return root.transform;
@@ -2126,7 +2124,7 @@ namespace DuneVector
                 MeshFilter filter = root.AddComponent<MeshFilter>();
                 filter.sharedMesh = mesh;
                 MeshRenderer renderer = root.AddComponent<MeshRenderer>();
-                renderer.sharedMaterial = resolvedFallback;
+                renderer.sharedMaterial = tintedFallback;
                 renderer.shadowCastingMode = ShadowCastingMode.On;
                 renderer.receiveShadows = true;
                 return root.transform;
@@ -2158,10 +2156,7 @@ namespace DuneVector
             MeshCollider modelCollider = colliderObject.AddComponent<MeshCollider>();
             modelCollider.sharedMesh = mesh;
 
-            if (hue.HasValue)
-            {
-                ApplyPyramidHue(renderers, hue.Value);
-            }
+            ApplyPyramidHue(renderers, hue);
             for (int i = 0; i < renderers.Length; i++)
             {
                 renderers[i].shadowCastingMode = ShadowCastingMode.On;
