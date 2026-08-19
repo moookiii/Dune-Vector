@@ -139,6 +139,7 @@ namespace DuneVector
                 materials,
                 settings,
                 damage,
+                world,
                 identity);
 
             _attackTimer = GetStaggeredAttackDelay();
@@ -824,9 +825,14 @@ namespace DuneVector
         private Transform _marker;
         private Transform _impactFlash;
         private Transform _warningZone;
-        private Transform _closingRing;
-        private Transform _hazardBezel;
-        private Transform _warningSigil;
+        private Transform _corePip;
+        private Mesh _staticStampMesh;
+        private Mesh _rotorStampMesh;
+        private DesertWorldStreamer _world;
+        private DuneVectorVisuals.GroundHeightSampler _worldSampler;
+        private DuneVectorVisuals.GroundHeightSampler _drapeSampler;
+        private readonly DuneVectorVisuals.StormWarningDrapeCache _drape =
+            new DuneVectorVisuals.StormWarningDrapeCache();
         private Transform _groundImpactWave;
         private Transform _spawnedGroundImpact;
         private LineRenderer _chargeLine;
@@ -857,9 +863,17 @@ namespace DuneVector
             DuneVectorMaterials materials,
             StormPyramidTuning settings,
             StormPyramidLightningDamage damage,
+            DesertWorldStreamer world,
             int identity)
         {
             _owner = owner;
+            _world = world;
+            // Both delegates are cached here: the stamp rebuild runs every frame a strike is
+            // telegraphing, and allocating a fresh delegate per rebuild would garbage that path.
+            _worldSampler = _world != null
+                ? (DuneVectorVisuals.GroundHeightSampler)_world.SampleHeightAtLocal
+                : null;
+            _drapeSampler = _drape.Sample;
             _origin = origin != null ? origin : owner;
             _core = core;
             _halo = halo;
@@ -869,9 +883,9 @@ namespace DuneVector
             _marker = DuneVectorVisuals.CreateStormPyramidStrikeMarker(owner.parent, materials, settings);
             _impactFlash = _marker.Find("Strike Impact Flash");
             _warningZone = _marker.Find("Ground Warning Zone");
-            _closingRing = _marker.Find("Closing Countdown Ring");
-            _hazardBezel = _warningZone != null ? _warningZone.Find("Hazard Bezel") : null;
-            _warningSigil = _warningZone != null ? _warningZone.Find("Warning Sigil") : null;
+            _corePip = _warningZone != null ? _warningZone.Find("Sigil Core Pip") : null;
+            _staticStampMesh = FindStampMesh("Warning Stamp Static");
+            _rotorStampMesh = FindStampMesh("Warning Stamp Rotor");
             CacheIonColumns();
             CacheWarningRenderers();
             if (settings.GroundImpactPrefab == null)
@@ -1051,6 +1065,7 @@ namespace DuneVector
         public void ApplyWorldShift(Vector3 shift)
         {
             _target = new StormLightningTarget(_target.Type, _target.Position + shift);
+            _drape.ApplyWorldShift(shift);
             if (_marker != null)
             {
                 _marker.position += shift;
@@ -1096,6 +1111,7 @@ namespace DuneVector
             // The danger zone is staged at its true radius immediately. Growing it into place
             // would misreport the strike area for the whole time the drone can still react.
             _marker.localScale = Vector3.one * _strikeRadiusScale;
+            StageWarningStamp();
             if (_impactFlash != null)
             {
                 _impactFlash.localScale = Vector3.zero;
@@ -1126,46 +1142,95 @@ namespace DuneVector
 
             // The countdown ring collapses onto the danger zone edge exactly as the charge starts,
             // so the closing gap reads as the remaining reaction time from any viewing angle.
-            if (_closingRing != null)
-            {
-                float closingScale = Mathf.Lerp(
-                    Mathf.Max(1f, _settings.GroundWarningClosingRingStartMultiplier),
-                    1f,
-                    warning01);
-                _closingRing.localScale = Vector3.one * closingScale;
-            }
-
-            AnimateWarningSigil(warning01);
+            float closingScale = Mathf.Lerp(
+                Mathf.Max(1f, _settings.GroundWarningClosingRingStartMultiplier),
+                1f,
+                warning01);
+            AnimateWarningSigil(warning01, closingScale);
             ApplyWarningPulse(warning01);
             UpdateWarningBeam(warning01);
         }
 
+        private Mesh FindStampMesh(string surfaceName)
+        {
+            Transform surface = _warningZone != null ? _warningZone.Find(surfaceName) : null;
+            MeshFilter filter = surface != null ? surface.GetComponent<MeshFilter>() : null;
+            return filter != null ? filter.sharedMesh : null;
+        }
+
         /// <summary>
-        /// Counter-rotates the hazard bezel against the sigil and drives the ion columns up out of
-        /// the ground, both accelerating as the strike closes in. Everything here is authored at
-        /// the base strike radius, because the marker root already carries the risk-scaled radius.
+        /// Stamps the fixed line work onto the dunes under a freshly staged strike, and resizes the
+        /// standing pieces to the risk-scaled radius. The stamp is generated in world metres so it
+        /// can pin its vertices to real dune heights, so the zone has to shed the marker root's
+        /// radius scale rather than inherit it.
         /// </summary>
-        private void AnimateWarningSigil(float urgency01)
+        private void StageWarningStamp()
+        {
+            if (_warningZone == null)
+            {
+                return;
+            }
+
+            _warningZone.localScale = Vector3.one / Mathf.Max(0.0001f, _strikeRadiusScale);
+            _drape.Rebuild(
+                _target.Position,
+                DuneVectorVisuals.ResolveStormWarningStampExtent(_strikeRadius, _settings),
+                _settings.GroundWarningDrapeResolution,
+                _worldSampler);
+            if (_staticStampMesh != null)
+            {
+                DuneVectorVisuals.BuildStormWarningStaticStamp(
+                    _staticStampMesh, _target.Position, _strikeRadius, _settings, _drapeSampler);
+            }
+
+            if (_corePip != null)
+            {
+                float pipWidth = _strikeRadius * Mathf.Max(0f, _settings.GroundWarningCorePipWidth);
+                float pipHeight = _strikeRadius * Mathf.Max(0f, _settings.GroundWarningCorePipHeight);
+                _corePip.localScale = new Vector3(
+                    pipWidth * 0.5f,
+                    pipHeight / DuneVectorVisuals.PyramidMeshApexHeight,
+                    pipWidth * 0.5f);
+                // Read the centre off the drape too, so the pip stands on the same surface the
+                // stamp is pinned to rather than on wherever the strike point happened to land.
+                float centreHeight = _drape.Sample(_target.Position.x, _target.Position.z);
+                _corePip.localPosition = Vector3.up * (
+                    (centreHeight - _target.Position.y)
+                        + Mathf.Max(0f, _settings.GroundWarningHeightOffset));
+            }
+        }
+
+        /// <summary>
+        /// Regenerates the moving half of the stamp and walks the ion columns around with it. A
+        /// mesh draped onto the dunes cannot be turned or scaled by its transform without peeling
+        /// off the slope it is stamped to, so the rotation is baked into the geometry every frame
+        /// instead. Only the pieces that actually move are in this mesh.
+        /// </summary>
+        private void AnimateWarningSigil(float urgency01, float closingRingScale)
         {
             float urgency = Mathf.Clamp01(urgency01);
             float deltaTime = Time.deltaTime;
 
-            if (_hazardBezel != null)
-            {
-                _bezelSpinDegrees += Mathf.Lerp(
-                    _settings.GroundWarningBezelSpinStart,
-                    _settings.GroundWarningBezelSpinEnd,
-                    urgency) * deltaTime;
-                _hazardBezel.localRotation = Quaternion.Euler(0f, _bezelSpinDegrees, 0f);
-            }
+            _bezelSpinDegrees += Mathf.Lerp(
+                _settings.GroundWarningBezelSpinStart,
+                _settings.GroundWarningBezelSpinEnd,
+                urgency) * deltaTime;
+            _sigilSpinDegrees += Mathf.Lerp(
+                _settings.GroundWarningSigilSpinStart,
+                _settings.GroundWarningSigilSpinEnd,
+                urgency) * deltaTime;
 
-            if (_warningSigil != null)
+            if (_rotorStampMesh != null)
             {
-                _sigilSpinDegrees += Mathf.Lerp(
-                    _settings.GroundWarningSigilSpinStart,
-                    _settings.GroundWarningSigilSpinEnd,
-                    urgency) * deltaTime;
-                _warningSigil.localRotation = Quaternion.Euler(0f, _sigilSpinDegrees, 0f);
+                DuneVectorVisuals.BuildStormWarningRotorStamp(
+                    _rotorStampMesh,
+                    _target.Position,
+                    _strikeRadius,
+                    _bezelSpinDegrees,
+                    _sigilSpinDegrees,
+                    closingRingScale,
+                    _settings,
+                    _drapeSampler);
             }
 
             if (_ionColumns.Count == 0)
@@ -1174,11 +1239,14 @@ namespace DuneVector
             }
 
             _ionShimmerPhase += deltaTime * Mathf.Max(0f, _settings.GroundWarningIonColumnShimmerSpeed);
-            float authoredRadius = Mathf.Max(0.2f, _settings.StrikeRadius);
-            float columnHeight = authoredRadius * Mathf.Lerp(
+            float columnHeight = _strikeRadius * Mathf.Lerp(
                 Mathf.Max(0f, _settings.GroundWarningIonColumnHeightStart),
                 Mathf.Max(0f, _settings.GroundWarningIonColumnHeightEnd),
                 urgency);
+            float columnWidth = Mathf.Max(0.004f, _strikeRadius * _settings.GroundWarningIonColumnWidth);
+            float cornerRadius = DuneVectorVisuals.ResolveStormWarningSigilCornerRadius(
+                _strikeRadius, _settings);
+            float lift = Mathf.Max(0f, _settings.GroundWarningHeightOffset);
             float shimmer = Mathf.Clamp01(_settings.GroundWarningIonColumnShimmer);
             float phaseStep = (Mathf.PI * 2f) / _ionColumns.Count;
             for (int i = 0; i < _ionColumns.Count; i++)
@@ -1188,13 +1256,24 @@ namespace DuneVector
                 {
                     continue;
                 }
+
+                // Half a slot of offset seats the columns on the sigil's vertices whenever the
+                // column count matches its side count, which is the authored pairing.
+                float yaw = _sigilSpinDegrees + ((360f / _ionColumns.Count) * (i + 0.5f));
+                Quaternion placement = Quaternion.Euler(0f, yaw, 0f);
+                Vector3 local = placement * (Vector3.forward * cornerRadius);
+                float groundHeight = _drape.Sample(
+                    _target.Position.x + local.x, _target.Position.z + local.z);
+                local.y = (groundHeight - _target.Position.y) + lift;
+                column.localPosition = local;
+                column.localRotation = placement;
+
                 float wave = Mathf.Sin(_ionShimmerPhase - (i * phaseStep) + _identity);
                 float height = columnHeight * (1f + (shimmer * wave));
-                Vector3 scale = column.localScale;
                 column.localScale = new Vector3(
-                    scale.x,
+                    columnWidth * 0.5f,
                     Mathf.Max(0.0001f, height / DuneVectorVisuals.PyramidMeshApexHeight),
-                    scale.z);
+                    columnWidth * 0.5f);
             }
         }
 
@@ -1254,18 +1333,12 @@ namespace DuneVector
             {
                 _warningZone.GetComponentsInChildren(true, _warningRenderers);
             }
-            if (_closingRing != null)
-            {
-                // The countdown ring is a parent over its arc segments, so its own transform
-                // carries no renderer of its own.
-                _warningRenderers.AddRange(_closingRing.GetComponentsInChildren<Renderer>(true));
-            }
         }
 
         private void CacheIonColumns()
         {
             _ionColumns.Clear();
-            Transform columns = _warningSigil != null ? _warningSigil.Find("Ion Columns") : null;
+            Transform columns = _warningZone != null ? _warningZone.Find("Ion Columns") : null;
             if (columns == null)
             {
                 return;
@@ -1279,7 +1352,6 @@ namespace DuneVector
         private void SetWarningZoneActive(bool active)
         {
             if (_warningZone != null) _warningZone.gameObject.SetActive(active);
-            if (_closingRing != null) _closingRing.gameObject.SetActive(active);
         }
 
         private void SpawnGroundImpactPrefab()
@@ -1321,11 +1393,7 @@ namespace DuneVector
             float pulse = 0.88f + (Mathf.Sin((Time.time * 12f) + _identity) * 0.12f);
             _marker.position = _target.Position;
             _marker.localScale = Vector3.one * _strikeRadiusScale;
-            if (_closingRing != null)
-            {
-                _closingRing.localScale = Vector3.one;
-            }
-            AnimateWarningSigil(1f);
+            AnimateWarningSigil(1f, 1f);
             ApplyWarningPulse(1f);
             UpdateWarningBeam(1f);
             if (_halo != null)
@@ -1404,6 +1472,18 @@ namespace DuneVector
             if (_marker != null)
             {
                 Destroy(_marker.gameObject);
+            }
+            // The stamp meshes are generated per marker rather than shared out of the mesh cache,
+            // so destroying the GameObject that renders them does not reclaim them.
+            if (_staticStampMesh != null)
+            {
+                Destroy(_staticStampMesh);
+                _staticStampMesh = null;
+            }
+            if (_rotorStampMesh != null)
+            {
+                Destroy(_rotorStampMesh);
+                _rotorStampMesh = null;
             }
         }
     }
@@ -2954,6 +3034,17 @@ namespace DuneVector
             spawnPosition.y = _world.SampleHeightAtLocal(spawnPosition.x, spawnPosition.z)
                 + _orbSettings.HoverHeight
                 + heightVariation;
+            _useDesertDeploymentSpawnDistance = true;
+            _desertDeploymentSpawnIndex = 0;
+            _desertDeploymentSpawnCount = GetHubDeploymentSpawnCount();
+            try
+            {
+                RespawnBaseEnemies();
+            }
+            finally
+            {
+                _useDesertDeploymentSpawnDistance = false;
+            }
 
             GameObject enemyObject = new GameObject(objectName);
             enemyObject.transform.SetParent(transform, true);
@@ -2973,6 +3064,20 @@ namespace DuneVector
                 _desertDeploymentSpawnIndex = 0;
                 _desertDeploymentSpawnCount = GetDesertDeploymentSpawnCount();
                 try
+
+        private int GetHubDeploymentSpawnCount()
+        {
+            int count = 0;
+            if (_settings.Enabled)
+            {
+                count += Mathf.Max(1, _settings.EnemyCount);
+            }
+            if (_orbSettings.Enabled)
+            {
+                count += Mathf.Max(1, _orbSettings.EnemyCount);
+            }
+            return Mathf.Max(1, count);
+        }
                 {
                     RespawnBaseEnemies();
                     SpawnRiskEnemies();
@@ -3034,6 +3139,17 @@ namespace DuneVector
         {
             enabled = true;
             ClearRiskEnemies();
+            _useDesertDeploymentSpawnDistance = true;
+            _desertDeploymentSpawnIndex = 0;
+            _desertDeploymentSpawnCount = GetHubDeploymentSpawnCount();
+            try
+            {
+                RespawnBaseEnemies();
+            }
+            finally
+            {
+                _useDesertDeploymentSpawnDistance = false;
+            }
             for (int i = 0; i < _enemies.Count; i++)
             {
                 if (_enemies[i] != null)
@@ -3052,6 +3168,20 @@ namespace DuneVector
             {
                 _warningHud.enabled = true;
             }
+        }
+
+        private int GetHubDeploymentSpawnCount()
+        {
+            int count = 0;
+            if (_settings.Enabled)
+            {
+                count += Mathf.Max(1, _settings.EnemyCount);
+            }
+            if (_orbSettings.Enabled)
+            {
+                count += Mathf.Max(1, _orbSettings.EnemyCount);
+            }
+            return Mathf.Max(1, count);
         }
 
         private static void ClearEnemies<T>(List<T> source, List<T> allEnemies)

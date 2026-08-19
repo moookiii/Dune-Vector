@@ -3173,8 +3173,12 @@ namespace DuneVector
         [Header("Ground Strike Warning")]
         [Tooltip("Seconds the danger zone is painted on the ground at full size before the strike starts charging. This is the warning window the drone gets, so the total lead time is this plus Ground Strike Charge Time. Set to 0 to strike with no ground warning.")]
         [Min(0f)] public float GroundWarningLeadTime = 1.8f;
-        [Tooltip("Height the danger zone floats above the impact point so it stays readable over dune slopes. Authored at the base Strike Radius and scaled with the risk-scaled radius.")]
-        [Min(0f)] public float GroundWarningHeightOffset = 0.45f;
+        [Tooltip("Height the stamped line work is lifted above the dune surface it is draped onto. Just enough to stop it fighting with the sand; large values make it float instead of reading as stamped.")]
+        [Min(0f)] public float GroundWarningHeightOffset = 0.2f;
+        [Tooltip("Spacing in metres between the points where the stamped line work samples dune height. Smaller hugs steep dunes more closely and costs more vertices.")]
+        [Range(0.25f, 8f)] public float GroundWarningStampSampleSpacing = 1.6f;
+        [Tooltip("Grid resolution of the dune heights cached when a strike is placed. The stamp reads its drape from this grid rather than re-running the world height field, so this trades a one-off cost at placement against the per-frame cost of turning the mark.")]
+        [Range(8, 65)] public int GroundWarningDrapeResolution = 33;
         [Tooltip("Thickness of the outer danger ring as a fraction of the strike radius.")]
         [Range(0.005f, 0.3f)] public float GroundWarningRingThickness = 0.052f;
         [Tooltip("Radius of the inner danger ring as a fraction of the strike radius.")]
@@ -3215,8 +3219,6 @@ namespace DuneVector
         [Range(0.01f, 0.5f)] public float GroundWarningBezelBarLength = 0.14f;
         [Tooltip("Width of each hazard bar as a fraction of the strike radius.")]
         [Range(0.004f, 0.2f)] public float GroundWarningBezelBarWidth = 0.026f;
-        [Tooltip("Standing height of each hazard bar as a fraction of the strike radius. Taller than it is wide keeps the bezel visible once the flat rings foreshorten.")]
-        [Range(0.004f, 0.3f)] public float GroundWarningBezelBarHeight = 0.05f;
         [Tooltip("Lean of each hazard bar away from radial, in degrees, giving the bezel its swept blade look.")]
         [Range(-80f, 80f)] public float GroundWarningBezelBarLean = 36f;
         [Tooltip("Bezel spin in degrees per second when the warning first appears.")]

@@ -3513,6 +3513,119 @@ namespace DuneVector
         /// thickness-scaled boundary ring, an inner ring, overhead-readable radial spokes, and a
         /// separate closing countdown ring that collapses onto the boundary as the strike nears.
         /// </summary>
+        /// <summary>
+        /// World ground height under a point. The stamped ground warning drapes itself over the
+        /// dunes through this rather than floating a flat slab over them.
+        /// </summary>
+        public delegate float GroundHeightSampler(float worldX, float worldZ);
+
+        /// <summary>
+        /// Dune heights under a strike, sampled once when the mark is placed and read back by
+        /// bilinear interpolation while it turns. The world height field costs several octaves of
+        /// fractal noise per sample, which is far too heavy to re-run for every vertex of a mesh
+        /// that is rebuilt every frame. The ground under a staged strike does not move, so the
+        /// grid stays valid for the whole telegraph.
+        /// </summary>
+        public sealed class StormWarningDrapeCache
+        {
+            private float[] _heights = System.Array.Empty<float>();
+            private int _resolution;
+            private float _minimumX;
+            private float _minimumZ;
+            private float _inverseCellSize;
+            private float _fallbackHeight;
+
+            public void Rebuild(
+                Vector3 centre,
+                float extent,
+                int resolution,
+                GroundHeightSampler sampleHeight)
+            {
+                _resolution = Mathf.Clamp(resolution, 2, 129);
+                _fallbackHeight = centre.y;
+                float span = Mathf.Max(0.5f, extent) * 2f;
+                float cellSize = span / (_resolution - 1);
+                _inverseCellSize = 1f / cellSize;
+                _minimumX = centre.x - (span * 0.5f);
+                _minimumZ = centre.z - (span * 0.5f);
+
+                int required = _resolution * _resolution;
+                if (_heights.Length < required)
+                {
+                    _heights = new float[required];
+                }
+                for (int row = 0; row < _resolution; row++)
+                {
+                    float worldZ = _minimumZ + (row * cellSize);
+                    int rowOffset = row * _resolution;
+                    for (int column = 0; column < _resolution; column++)
+                    {
+                        float worldX = _minimumX + (column * cellSize);
+                        _heights[rowOffset + column] = sampleHeight != null
+                            ? sampleHeight(worldX, worldZ)
+                            : _fallbackHeight;
+                    }
+                }
+            }
+
+            /// <summary>
+            /// Follows a floating origin shift. The grid is keyed by world position, and the dunes
+            /// move with the origin, so the cached heights stay correct once their keys move too.
+            /// </summary>
+            public void ApplyWorldShift(Vector3 shift)
+            {
+                _minimumX += shift.x;
+                _minimumZ += shift.z;
+                _fallbackHeight += shift.y;
+                if (shift.y == 0f)
+                {
+                    return;
+                }
+                for (int i = 0; i < _resolution * _resolution; i++)
+                {
+                    _heights[i] += shift.y;
+                }
+            }
+
+            public float Sample(float worldX, float worldZ)
+            {
+                if (_resolution < 2)
+                {
+                    return _fallbackHeight;
+                }
+
+                float gridX = Mathf.Clamp((worldX - _minimumX) * _inverseCellSize, 0f, _resolution - 1.001f);
+                float gridZ = Mathf.Clamp((worldZ - _minimumZ) * _inverseCellSize, 0f, _resolution - 1.001f);
+                int column = (int)gridX;
+                int row = (int)gridZ;
+                float tx = gridX - column;
+                float tz = gridZ - row;
+                int rowOffset = row * _resolution;
+                int nextRowOffset = rowOffset + _resolution;
+                float bottom = Mathf.Lerp(_heights[rowOffset + column], _heights[rowOffset + column + 1], tx);
+                float top = Mathf.Lerp(_heights[nextRowOffset + column], _heights[nextRowOffset + column + 1], tx);
+                return Mathf.Lerp(bottom, top, tz);
+            }
+        }
+
+        /// <summary>
+        /// Half-span of ground the stamped warning can cover, which is set by however far out the
+        /// countdown ring starts rather than by the damage radius.
+        /// </summary>
+        public static float ResolveStormWarningStampExtent(float radius, StormPyramidTuning settings)
+        {
+            return radius
+                * Mathf.Max(1f, settings.GroundWarningClosingRingStartMultiplier)
+                * 1.05f;
+        }
+
+        // Scratch buffers for the stamped warning meshes. The rotor mesh is rebuilt every frame a
+        // strike is telegraphing, so nothing on that path may allocate.
+        private static readonly List<Vector3> StampVertices = new List<Vector3>();
+        private static readonly List<Vector3> StampNormals = new List<Vector3>();
+        private static readonly List<Vector2> StampUvs = new List<Vector2>();
+        private static readonly List<int> StampTriangles = new List<int>();
+
         public static Transform CreateStormPyramidStrikeMarker(
             Transform parent,
             DuneVectorMaterials materials,
@@ -3525,77 +3638,33 @@ namespace DuneVector
             float radius = Mathf.Max(0.2f, settings.StrikeRadius);
             Material warningMaterial = materials.LightningWarning;
 
+            // The stamped line work is generated in world metres so its vertices can be pinned to
+            // real dune heights, which means it cannot inherit the risk radius scale the impact
+            // effects ride on. The caller cancels that scale back out on this container.
             GameObject warningZoneObject = new GameObject("Ground Warning Zone");
             Transform warningZone = warningZoneObject.transform;
             warningZone.SetParent(root, false);
-            warningZone.localPosition = Vector3.up * Mathf.Max(0f, settings.GroundWarningHeightOffset);
 
-            // The perimeter is a broken ring of arcs rather than one closed circle. The gaps give
-            // the zone an orientation the eye can lock onto, so a drone reading it from a shallow
-            // angle can still tell which way the boundary is turning.
-            float ringThickness = Mathf.Max(0.01f, radius * settings.GroundWarningRingThickness);
-            CreateStormWarningRing(
-                "Danger Zone Ring",
-                warningZone,
-                warningMaterial,
-                radius - ringThickness,
-                ringThickness,
-                settings.GroundWarningRingSegments,
-                settings.GroundWarningRingFill);
+            // Two surfaces, split by how often they have to be regenerated. Draped geometry cannot
+            // be spun or scaled by its transform -- that would peel it off the dune it is stamped
+            // onto -- so anything that moves has to be rebuilt into its mesh instead.
+            CreateStormWarningStampSurface("Warning Stamp Static", warningZone, warningMaterial);
+            CreateStormWarningStampSurface("Warning Stamp Rotor", warningZone, warningMaterial);
 
-            float innerRadius = Mathf.Max(
-                0.05f,
-                radius * Mathf.Clamp01(settings.GroundWarningInnerRingRadiusFraction));
-            float innerThickness = Mathf.Max(0.008f, radius * settings.GroundWarningInnerRingThickness);
-            CreateStormWarningRing(
-                "Danger Zone Inner Ring",
-                warningZone,
-                warningMaterial,
-                innerRadius,
-                innerThickness,
-                0,
-                1f);
+            CreateStormWarningIonColumns(warningZone, warningMaterial, radius, settings);
 
-            // The sigil is sized backwards from the inner ring so its mitred corners always land
-            // inside it. Solving this here, where the inner ring is already measured, keeps the
-            // frame and the columns standing on it locked to one derived radius.
-            float sigilCornerRadius = Mathf.Min(
-                radius * Mathf.Clamp01(settings.GroundWarningSigilRadiusFraction),
-                Mathf.Max(
-                    0.01f,
-                    innerRadius - innerThickness - (radius * Mathf.Max(0f, settings.GroundWarningSigilInnerClearance))));
-
-            // A static hairline track under the blades: without it the bezel reads as loose
-            // ticks floating in the gap rather than a ring of blades running in a groove.
-            float trackThickness = radius * Mathf.Max(0f, settings.GroundWarningBezelTrackThickness);
-            if (trackThickness > 0f)
+            float pipWidth = radius * Mathf.Max(0f, settings.GroundWarningCorePipWidth);
+            float pipHeight = radius * Mathf.Max(0f, settings.GroundWarningCorePipHeight);
+            if (pipWidth > 0f && pipHeight > 0f)
             {
-                CreateStormWarningRing(
-                    "Bezel Track",
-                    warningZone,
-                    warningMaterial,
-                    radius * Mathf.Clamp01(settings.GroundWarningBezelRadiusFraction),
-                    trackThickness,
-                    0,
-                    1f);
+                GameObject pip = CreateMeshObject(
+                    "Sigil Core Pip", warningZone, GetPyramidMesh(), warningMaterial);
+                pip.transform.localScale = new Vector3(
+                    pipWidth * 0.5f,
+                    pipHeight / PyramidMeshApexHeight,
+                    pipWidth * 0.5f);
+                DisableRendererShadows(pip);
             }
-
-            CreateStormWarningBezel(warningZone, warningMaterial, radius, settings);
-            Transform sigil = CreateStormWarningSigil(
-                warningZone, warningMaterial, radius, sigilCornerRadius, settings);
-            CreateStormWarningIonColumns(
-                sigil, warningMaterial, radius, sigilCornerRadius, settings);
-
-            float closingThickness = Mathf.Max(0.01f, radius * settings.GroundWarningClosingRingThickness);
-            Transform closingRing = CreateStormWarningRing(
-                "Closing Countdown Ring",
-                root,
-                warningMaterial,
-                radius - closingThickness,
-                closingThickness,
-                settings.GroundWarningClosingRingSegments,
-                settings.GroundWarningClosingRingFill);
-            closingRing.localPosition = Vector3.up * Mathf.Max(0f, settings.GroundWarningHeightOffset);
 
             Transform impactFlash = CreatePart(
                 PrimitiveType.Sphere,
@@ -3610,181 +3679,334 @@ namespace DuneVector
             return root;
         }
 
-        /// <summary>
-        /// Builds one flat ring of the ground warning under a parent already laid into the ground
-        /// plane, returning the ring transform so callers can scale or spin the whole ring. A
-        /// segment count of zero, or a fill of one, draws a single closed torus instead.
-        /// </summary>
-        private static Transform CreateStormWarningRing(
+        private static GameObject CreateStormWarningStampSurface(
             string name,
             Transform parent,
-            Material material,
-            float majorRadius,
-            float tubeRadius,
-            int segments,
-            float fillFraction)
+            Material material)
         {
-            GameObject ringObject = new GameObject(name);
-            Transform ring = ringObject.transform;
-            ring.SetParent(parent, false);
-            ring.localRotation = Quaternion.Euler(90f, 0f, 0f);
+            GameObject surfaceObject = new GameObject(name);
+            surfaceObject.transform.SetParent(parent, false);
+            Mesh mesh = new Mesh { name = name };
+            mesh.MarkDynamic();
+            surfaceObject.AddComponent<MeshFilter>().sharedMesh = mesh;
+            MeshRenderer renderer = surfaceObject.AddComponent<MeshRenderer>();
+            renderer.sharedMaterial = material;
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            return surfaceObject;
+        }
 
-            float safeRadius = Mathf.Max(0.01f, majorRadius);
-            float safeTube = Mathf.Max(0.004f, tubeRadius);
+        /// <summary>
+        /// Radius the sigil frame's mitred outer corners reach. Derived from the inner ring rather
+        /// than taken straight from the authored fraction, so the frame can never cross the circle
+        /// it sits in whatever thickness or side count is authored.
+        /// </summary>
+        public static float ResolveStormWarningSigilCornerRadius(
+            float radius,
+            StormPyramidTuning settings)
+        {
+            float innerRadius = Mathf.Max(
+                0.05f, radius * Mathf.Clamp01(settings.GroundWarningInnerRingRadiusFraction));
+            float innerHalfWidth = Mathf.Max(
+                0.008f, radius * settings.GroundWarningInnerRingThickness);
+            return Mathf.Min(
+                radius * Mathf.Clamp01(settings.GroundWarningSigilRadiusFraction),
+                Mathf.Max(
+                    0.01f,
+                    innerRadius
+                        - innerHalfWidth
+                        - (radius * Mathf.Max(0f, settings.GroundWarningSigilInnerClearance))));
+        }
+
+        /// <summary>
+        /// Stamps the fixed line work -- damage boundary, inner ring, bezel track and core collar.
+        /// None of it moves once a strike is staged, so this is rebuilt only when the mark is
+        /// placed on new ground.
+        /// </summary>
+        public static void BuildStormWarningStaticStamp(
+            Mesh mesh,
+            Vector3 origin,
+            float radius,
+            StormPyramidTuning settings,
+            GroundHeightSampler sampleHeight)
+        {
+            BeginStamp();
+            float lift = Mathf.Max(0f, settings.GroundWarningHeightOffset);
+            float spacing = Mathf.Max(0.25f, settings.GroundWarningStampSampleSpacing);
+
+            // The boundary is a broken ring of arcs rather than one closed circle. The gaps give
+            // the zone an orientation the eye can lock onto, and its outer edge is the true damage
+            // radius, so the band is grown inwards from there.
+            float boundaryWidth = Mathf.Max(0.02f, radius * settings.GroundWarningRingThickness * 2f);
+            AppendStampRing(
+                origin, radius - (boundaryWidth * 0.5f), boundaryWidth,
+                settings.GroundWarningRingSegments, settings.GroundWarningRingFill, 0f,
+                lift, spacing, sampleHeight);
+
+            float innerRadius = Mathf.Max(
+                0.05f, radius * Mathf.Clamp01(settings.GroundWarningInnerRingRadiusFraction));
+            AppendStampRing(
+                origin, innerRadius,
+                Mathf.Max(0.016f, radius * settings.GroundWarningInnerRingThickness * 2f),
+                0, 1f, 0f, lift, spacing, sampleHeight);
+
+            // Without a track the hazard blades read as loose ticks scattered in the gap rather
+            // than a ring of blades running in a groove.
+            float trackWidth = radius * Mathf.Max(0f, settings.GroundWarningBezelTrackThickness) * 2f;
+            if (trackWidth > 0f)
+            {
+                AppendStampRing(
+                    origin, radius * Mathf.Clamp01(settings.GroundWarningBezelRadiusFraction),
+                    trackWidth, 0, 1f, 0f, lift, spacing, sampleHeight);
+            }
+
+            float collarRadius = radius * Mathf.Max(0f, settings.GroundWarningCorePipBaseRadius);
+            if (collarRadius > 0f)
+            {
+                AppendStampRing(
+                    origin, collarRadius,
+                    Mathf.Max(0.008f, radius * settings.GroundWarningCorePipBaseThickness * 2f),
+                    0, 1f, 0f, lift, spacing, sampleHeight);
+            }
+
+            EndStamp(mesh);
+        }
+
+        /// <summary>
+        /// Stamps the line work that moves: the counter-rotating hazard blades and sigil frame, and
+        /// the countdown ring collapsing onto the boundary. Rebuilt every frame, because a draped
+        /// mesh has to be regenerated to turn rather than spun by its transform.
+        /// </summary>
+        public static void BuildStormWarningRotorStamp(
+            Mesh mesh,
+            Vector3 origin,
+            float radius,
+            float bezelSpinDegrees,
+            float sigilSpinDegrees,
+            float closingRingScale,
+            StormPyramidTuning settings,
+            GroundHeightSampler sampleHeight)
+        {
+            BeginStamp();
+            float lift = Mathf.Max(0f, settings.GroundWarningHeightOffset);
+            float spacing = Mathf.Max(0.25f, settings.GroundWarningStampSampleSpacing);
+
+            int barCount = Mathf.Clamp(settings.GroundWarningBezelBarCount, 0, 48);
+            if (barCount > 0)
+            {
+                float bezelRadius = radius * Mathf.Clamp01(settings.GroundWarningBezelRadiusFraction);
+                float barLength = Mathf.Max(0.01f, radius * settings.GroundWarningBezelBarLength);
+                float barWidth = Mathf.Max(0.004f, radius * settings.GroundWarningBezelBarWidth);
+                for (int i = 0; i < barCount; i++)
+                {
+                    float yaw = bezelSpinDegrees + ((360f / barCount) * i);
+                    float sin = Mathf.Sin(yaw * Mathf.Deg2Rad);
+                    float cos = Mathf.Cos(yaw * Mathf.Deg2Rad);
+                    AppendStampBar(
+                        origin, sin * bezelRadius, cos * bezelRadius,
+                        yaw + settings.GroundWarningBezelBarLean,
+                        barLength, barWidth, lift, spacing, sampleHeight);
+                }
+            }
+
+            int sides = Mathf.Clamp(settings.GroundWarningSigilSides, 0, 8);
+            if (sides >= 3)
+            {
+                // Each edge is a rectangle, so the frame's widest point is the mitred corner where
+                // two rectangles meet, not the polygon vertex. Setting the outer edge at
+                // cornerRadius * cos(halfSlot) and running it out to cornerRadius * sin(halfSlot)
+                // puts that corner exactly on the derived radius that clears the inner ring.
+                float cornerRadius = ResolveStormWarningSigilCornerRadius(radius, settings);
+                float barWidth = Mathf.Max(0.004f, radius * settings.GroundWarningSigilBarThickness);
+                float halfSlot = Mathf.PI / sides;
+                float apothem = (cornerRadius * Mathf.Cos(halfSlot)) - (barWidth * 0.5f);
+                float edgeLength = 2f * cornerRadius * Mathf.Sin(halfSlot);
+                for (int i = 0; i < sides; i++)
+                {
+                    float yaw = sigilSpinDegrees + ((360f / sides) * i);
+                    float sin = Mathf.Sin(yaw * Mathf.Deg2Rad);
+                    float cos = Mathf.Cos(yaw * Mathf.Deg2Rad);
+                    AppendStampBar(
+                        origin, sin * apothem, cos * apothem, yaw + 90f,
+                        edgeLength, barWidth, lift, spacing, sampleHeight);
+                }
+            }
+
+            float closingWidth = Mathf.Max(0.02f, radius * settings.GroundWarningClosingRingThickness * 2f);
+            float closingScale = Mathf.Max(0.01f, closingRingScale);
+            AppendStampRing(
+                origin, (radius - (closingWidth * 0.5f)) * closingScale, closingWidth,
+                settings.GroundWarningClosingRingSegments, settings.GroundWarningClosingRingFill,
+                0f, lift, spacing, sampleHeight);
+
+            EndStamp(mesh);
+        }
+
+        private static void BeginStamp()
+        {
+            StampVertices.Clear();
+            StampNormals.Clear();
+            StampUvs.Clear();
+            StampTriangles.Clear();
+        }
+
+        private static void EndStamp(Mesh mesh)
+        {
+            mesh.Clear();
+            mesh.SetVertices(StampVertices);
+            mesh.SetNormals(StampNormals);
+            mesh.SetUVs(0, StampUvs);
+            mesh.SetTriangles(StampTriangles, 0);
+            mesh.RecalculateBounds();
+        }
+
+        private static void AppendStampRing(
+            Vector3 origin,
+            float centreRadius,
+            float width,
+            int segments,
+            float fillFraction,
+            float rotationDegrees,
+            float lift,
+            float spacing,
+            GroundHeightSampler sampleHeight)
+        {
+            float halfWidth = Mathf.Max(0.004f, width) * 0.5f;
+            float inner = Mathf.Max(0.001f, centreRadius - halfWidth);
+            float outer = Mathf.Max(inner + 0.002f, centreRadius + halfWidth);
             int arcCount = Mathf.Clamp(segments, 0, 12);
             float fill = Mathf.Clamp(fillFraction, 0.05f, 1f);
             if (arcCount <= 0 || fill >= 0.999f)
             {
-                GameObject band = CreateMeshObject(
-                    $"{name} Band",
-                    ring,
-                    GetTorusMesh(safeRadius, safeTube, 56, 6),
-                    material);
-                DisableRendererShadows(band);
-                return ring;
+                AppendStampArcBand(
+                    origin, inner, outer, rotationDegrees, 360f, lift, spacing, sampleHeight);
+                return;
             }
 
             float slotDegrees = 360f / arcCount;
             float sweepDegrees = slotDegrees * fill;
-            int arcSegments = Mathf.Clamp(Mathf.CeilToInt(sweepDegrees / 6f), 3, 48);
             for (int i = 0; i < arcCount; i++)
             {
-                GameObject arc = CreateMeshObject(
-                    $"{name} Arc {i + 1}",
-                    ring,
-                    GetArcTorusMesh(
-                        safeRadius,
-                        safeTube,
-                        arcSegments,
-                        6,
-                        (slotDegrees * i) - (sweepDegrees * 0.5f),
-                        sweepDegrees),
-                    material);
-                DisableRendererShadows(arc);
+                AppendStampArcBand(
+                    origin, inner, outer,
+                    rotationDegrees + (slotDegrees * i) - (sweepDegrees * 0.5f),
+                    sweepDegrees, lift, spacing, sampleHeight);
             }
-            return ring;
         }
 
-        /// <summary>
-        /// Ring of leaning blades sitting between the outer and inner boundary rings. The lean is
-        /// what stops the zone reading as plain concentric circles, and the standing height keeps
-        /// the bezel catching light after the flat rings have foreshortened to a line.
-        /// </summary>
-        private static Transform CreateStormWarningBezel(
-            Transform parent,
-            Material material,
-            float radius,
-            StormPyramidTuning settings)
+        private static void AppendStampArcBand(
+            Vector3 origin,
+            float innerRadius,
+            float outerRadius,
+            float startDegrees,
+            float sweepDegrees,
+            float lift,
+            float spacing,
+            GroundHeightSampler sampleHeight)
         {
-            GameObject bezelObject = new GameObject("Hazard Bezel");
-            Transform bezel = bezelObject.transform;
-            bezel.SetParent(parent, false);
-
-            int barCount = Mathf.Clamp(settings.GroundWarningBezelBarCount, 0, 48);
-            if (barCount <= 0)
+            if (sweepDegrees <= 0f || outerRadius <= innerRadius)
             {
-                return bezel;
+                return;
             }
 
-            float bezelRadius = radius * Mathf.Clamp01(settings.GroundWarningBezelRadiusFraction);
-            float barLength = Mathf.Max(0.01f, radius * settings.GroundWarningBezelBarLength);
-            float barWidth = Mathf.Max(0.004f, radius * settings.GroundWarningBezelBarWidth);
-            float barHeight = Mathf.Max(0.004f, radius * settings.GroundWarningBezelBarHeight);
-            for (int i = 0; i < barCount; i++)
+            float arcLength = outerRadius * sweepDegrees * Mathf.Deg2Rad;
+            int steps = Mathf.Clamp(Mathf.CeilToInt(arcLength / spacing), 1, 160);
+            int baseIndex = StampVertices.Count;
+            for (int i = 0; i <= steps; i++)
             {
-                Quaternion placement = Quaternion.Euler(0f, (360f / barCount) * i, 0f);
-                Transform blade = CreatePart(
-                    PrimitiveType.Cube,
-                    $"Hazard Blade {i + 1}",
-                    bezel,
-                    placement * (Vector3.forward * bezelRadius),
-                    new Vector3(barWidth, barHeight, barLength),
-                    placement * Quaternion.Euler(0f, settings.GroundWarningBezelBarLean, 0f),
-                    material);
-                DisableRendererShadows(blade.gameObject);
+                float along = i / (float)steps;
+                float radians = (startDegrees + (sweepDegrees * along)) * Mathf.Deg2Rad;
+                float sin = Mathf.Sin(radians);
+                float cos = Mathf.Cos(radians);
+                AppendStampVertex(
+                    origin, sin * innerRadius, cos * innerRadius, along, 0f, lift, sampleHeight);
+                AppendStampVertex(
+                    origin, sin * outerRadius, cos * outerRadius, along, 1f, lift, sampleHeight);
             }
-            return bezel;
+            AppendStampStripTriangles(baseIndex, steps);
         }
 
-        /// <summary>
-        /// The mark at the middle of the zone is a polygon frame around a standing pyramid pip, so
-        /// the warning names the enemy that cast it instead of reading as generic crosshairs.
-        /// Returned so the caller can counter-rotate it against the bezel.
-        /// </summary>
-        private static Transform CreateStormWarningSigil(
-            Transform parent,
-            Material material,
-            float radius,
-            float cornerRadius,
-            StormPyramidTuning settings)
+        private static void AppendStampBar(
+            Vector3 origin,
+            float centreX,
+            float centreZ,
+            float axisYawDegrees,
+            float length,
+            float width,
+            float lift,
+            float spacing,
+            GroundHeightSampler sampleHeight)
         {
-            GameObject sigilObject = new GameObject("Warning Sigil");
-            Transform sigil = sigilObject.transform;
-            sigil.SetParent(parent, false);
-
-            int sides = Mathf.Clamp(settings.GroundWarningSigilSides, 0, 8);
-            float barThickness = Mathf.Max(0.004f, radius * settings.GroundWarningSigilBarThickness);
-            if (sides >= 3)
+            if (length <= 0f || width <= 0f)
             {
-                // Each edge is a box, so the frame's widest point is the mitred corner where two
-                // boxes meet, not the polygon vertex. Placing the bar's outer face at
-                // cornerRadius * cos(halfSlot) and running it out to cornerRadius * sin(halfSlot)
-                // puts that corner exactly on cornerRadius, which is what the caller has already
-                // guaranteed clears the inner ring.
-                float halfSlot = Mathf.PI / sides;
-                float apothem = (cornerRadius * Mathf.Cos(halfSlot)) - (barThickness * 0.5f);
-                float edgeLength = 2f * cornerRadius * Mathf.Sin(halfSlot);
-                for (int i = 0; i < sides; i++)
-                {
-                    Quaternion placement = Quaternion.Euler(0f, (360f / sides) * i, 0f);
-                    Transform edge = CreatePart(
-                        PrimitiveType.Cube,
-                        $"Sigil Edge {i + 1}",
-                        sigil,
-                        placement * (Vector3.forward * apothem),
-                        new Vector3(edgeLength, barThickness, barThickness),
-                        placement,
-                        material);
-                    DisableRendererShadows(edge.gameObject);
-                }
+                return;
             }
 
-            float pipWidth = radius * Mathf.Max(0f, settings.GroundWarningCorePipWidth);
-            float pipHeight = radius * Mathf.Max(0f, settings.GroundWarningCorePipHeight);
-            float collarRadius = radius * Mathf.Max(0f, settings.GroundWarningCorePipBaseRadius);
-            if (collarRadius > 0f)
+            float radians = axisYawDegrees * Mathf.Deg2Rad;
+            float axisX = Mathf.Sin(radians);
+            float axisZ = Mathf.Cos(radians);
+            float sideX = axisZ;
+            float sideZ = -axisX;
+            float halfWidth = width * 0.5f;
+            int steps = Mathf.Clamp(Mathf.CeilToInt(length / spacing), 1, 160);
+            int baseIndex = StampVertices.Count;
+            for (int i = 0; i <= steps; i++)
             {
-                CreateStormWarningRing(
-                    "Sigil Core Collar",
-                    sigil,
-                    material,
-                    collarRadius,
-                    radius * Mathf.Max(0.004f, settings.GroundWarningCorePipBaseThickness),
-                    0,
-                    1f);
+                float along = i / (float)steps;
+                float offset = (along - 0.5f) * length;
+                float x = centreX + (axisX * offset);
+                float z = centreZ + (axisZ * offset);
+                AppendStampVertex(
+                    origin, x + (sideX * halfWidth), z + (sideZ * halfWidth),
+                    along, 0f, lift, sampleHeight);
+                AppendStampVertex(
+                    origin, x - (sideX * halfWidth), z - (sideZ * halfWidth),
+                    along, 1f, lift, sampleHeight);
             }
-            if (pipWidth > 0f && pipHeight > 0f)
+            AppendStampStripTriangles(baseIndex, steps);
+        }
+
+        private static void AppendStampStripTriangles(int baseIndex, int steps)
+        {
+            for (int i = 0; i < steps; i++)
             {
-                GameObject pip = CreateMeshObject("Sigil Core Pip", sigil, GetPyramidMesh(), material);
-                pip.transform.localScale = new Vector3(
-                    pipWidth * 0.5f,
-                    pipHeight / PyramidMeshApexHeight,
-                    pipWidth * 0.5f);
-                DisableRendererShadows(pip);
+                int corner = baseIndex + (i * 2);
+                StampTriangles.Add(corner);
+                StampTriangles.Add(corner + 1);
+                StampTriangles.Add(corner + 2);
+                StampTriangles.Add(corner + 2);
+                StampTriangles.Add(corner + 1);
+                StampTriangles.Add(corner + 3);
             }
-            return sigil;
+        }
+
+        private static void AppendStampVertex(
+            Vector3 origin,
+            float localX,
+            float localZ,
+            float u,
+            float v,
+            float lift,
+            GroundHeightSampler sampleHeight)
+        {
+            float groundHeight = sampleHeight != null
+                ? sampleHeight(origin.x + localX, origin.z + localZ)
+                : origin.y;
+            StampVertices.Add(new Vector3(localX, (groundHeight - origin.y) + lift, localZ));
+            StampNormals.Add(Vector3.up);
+            StampUvs.Add(new Vector2(u, v));
         }
 
         /// <summary>
-        /// Standing spires on the sigil vertices. Everything else in the warning lies flat, which
-        /// collapses to nothing when the drone is at ground level looking along a dune, so these
-        /// are the part of the mark that survives a shallow approach. Their height is animated.
+        /// Standing spires on the sigil vertices. The stamped line work lies on the sand and
+        /// vanishes when the drone is down at dune level looking along the slope, so these are the
+        /// part of the mark that survives a shallow approach. Their placement and height are driven
+        /// per frame; this only creates them.
         /// </summary>
         private static Transform CreateStormWarningIonColumns(
             Transform parent,
             Material material,
             float radius,
-            float cornerRadius,
             StormPyramidTuning settings)
         {
             GameObject columnsObject = new GameObject("Ion Columns");
@@ -3792,29 +4014,17 @@ namespace DuneVector
             columns.SetParent(parent, false);
 
             int columnCount = Mathf.Clamp(settings.GroundWarningIonColumnCount, 0, 12);
-            if (columnCount <= 0)
-            {
-                return columns;
-            }
-
             float columnWidth = Mathf.Max(0.004f, radius * settings.GroundWarningIonColumnWidth);
             for (int i = 0; i < columnCount; i++)
             {
-                // Half a slot of offset lands the columns on the sigil vertices whenever the column
-                // count matches its side count, which is the authored pairing.
-                Quaternion placement = Quaternion.Euler(0f, (360f / columnCount) * (i + 0.5f), 0f);
                 GameObject column = CreateMeshObject(
-                    $"Ion Column {i + 1}",
-                    columns,
-                    GetPyramidMesh(),
-                    material);
-                column.transform.localPosition = placement * (Vector3.forward * cornerRadius);
-                column.transform.localRotation = placement;
+                    $"Ion Column {i + 1}", columns, GetPyramidMesh(), material);
                 column.transform.localScale = new Vector3(columnWidth * 0.5f, 0f, columnWidth * 0.5f);
                 DisableRendererShadows(column);
             }
             return columns;
         }
+
 
         public static Transform CreateStormGroundImpactWave(
             Transform marker,
