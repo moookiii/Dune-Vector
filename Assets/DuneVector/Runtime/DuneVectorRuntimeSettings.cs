@@ -6593,6 +6593,10 @@ namespace DuneVector
         [Min(0f)] public float FlightRingRechargeSeconds = 7f;
         [Tooltip("Debug option that prevents the flight meter from depleting while flying.")]
         public bool DebugInfiniteFlight;
+        [Tooltip("Seconds taken to blend from normal gravity to exhausted-flight gravity after the flight meter empties.")]
+        [Min(0f)] public float ExhaustedFlightGravityBlendDuration = 2f;
+        [Tooltip("Gravity multiplier reached after the flight meter has been empty for the full blend duration. Resets on ground contact.")]
+        [Min(1f)] public float ExhaustedFlightGravityMultiplier = 2f;
         [Min(0f)] public float FlightEntryLiftDuration = 0.75f;
         [Min(0f)] public float FlightEntryLiftSpeed = 16f;
 
@@ -6681,6 +6685,9 @@ namespace DuneVector
             drone.FlightLevelingSharpness = FlightLevelingSharpness;
             drone.FlightYawRate = FlightYawRate;
             drone.ConfigureFlightMeter(FlightDuration, FlightRingRechargeSeconds, DebugInfiniteFlight);
+            drone.ConfigureExhaustedFlightGravity(
+                ExhaustedFlightGravityBlendDuration,
+                ExhaustedFlightGravityMultiplier);
             drone.FlightEntryLiftDuration = FlightEntryLiftDuration;
             drone.FlightEntryLiftSpeed = FlightEntryLiftSpeed;
             drone.ConfigureFlightLandingVisual(

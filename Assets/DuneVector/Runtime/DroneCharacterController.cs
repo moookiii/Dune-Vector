@@ -218,6 +218,10 @@ namespace DuneVector
         private float _flightSpeedMultiplier = 1f;
         private float _flightElapsedTime;
         private float _flightEntryLiftTimeRemaining;
+        private float _exhaustedFlightGravityBlendDuration;
+        private float _exhaustedFlightGravityMultiplier;
+        private float _exhaustedFlightGravityElapsed;
+        private bool _exhaustedFlightGravityActive;
         private bool _flightMeterInitialized;
         private bool _flightMeterSaveDirty;
         private float _flightMeterAutosaveTimeRemaining;
@@ -546,6 +550,12 @@ namespace DuneVector
             {
                 FlightTimeRemaining = Mathf.Min(FlightTimeRemaining, FlightDuration);
             }
+        }
+
+        public void ConfigureExhaustedFlightGravity(float blendDuration, float gravityMultiplier)
+        {
+            _exhaustedFlightGravityBlendDuration = Mathf.Max(0f, blendDuration);
+            _exhaustedFlightGravityMultiplier = Mathf.Max(1f, gravityMultiplier);
         }
 
         public void BeginContractFlightMeter()
@@ -983,7 +993,17 @@ namespace DuneVector
                     }
                 }
 
-                currentVelocity += Gravity * deltaTime;
+                float gravityMultiplier = 1f;
+                if (_exhaustedFlightGravityActive)
+                {
+                    _exhaustedFlightGravityElapsed += Mathf.Max(0f, deltaTime);
+                    float blend = _exhaustedFlightGravityBlendDuration > 0f
+                        ? Mathf.Clamp01(_exhaustedFlightGravityElapsed / _exhaustedFlightGravityBlendDuration)
+                        : 1f;
+                    gravityMultiplier = Mathf.Lerp(1f, _exhaustedFlightGravityMultiplier, blend);
+                }
+
+                currentVelocity += Gravity * gravityMultiplier * deltaTime;
                 currentVelocity *= 1f / (1f + (AirDrag * deltaTime));
             }
 
@@ -1107,6 +1127,8 @@ namespace DuneVector
             {
                 if (Motor.GroundingStatus.IsStableOnGround)
                 {
+                    _exhaustedFlightGravityActive = false;
+                    _exhaustedFlightGravityElapsed = 0f;
                     _timeSinceStableGround = 0f;
                     if (!_jumpedThisUpdate)
                     {
@@ -1295,6 +1317,11 @@ namespace DuneVector
             _lookInputWorld = landingForward;
             CurrentMode = DroneTraversalMode.Normal;
             FlightEndedByMeterExhaustion = meterExhausted;
+            if (meterExhausted)
+            {
+                _exhaustedFlightGravityActive = true;
+                _exhaustedFlightGravityElapsed = 0f;
+            }
             Motor.SetGroundSolvingActivation(true);
             _flightElapsedTime = 0f;
             _flightSpeedMultiplier = 1f;
