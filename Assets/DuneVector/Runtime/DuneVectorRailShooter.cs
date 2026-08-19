@@ -413,6 +413,7 @@ namespace DuneVector
                 return;
             }
 
+            MaintainActiveCursorLock();
             float deltaTime = Time.deltaTime;
             if (deltaTime <= 0f)
             {
@@ -454,6 +455,33 @@ namespace DuneVector
                 case RailShooterPhase.Results:
                     TickResults(command);
                     break;
+            }
+        }
+
+        private void MaintainActiveCursorLock()
+        {
+            if (!Application.isFocused ||
+                Time.timeScale <= 0f ||
+                DuneVectorMapHUD.IsWorldMapOpen ||
+                (_health != null && _health.IsDead))
+            {
+                return;
+            }
+            if (Cursor.lockState != CursorLockMode.Locked)
+            {
+                Cursor.lockState = CursorLockMode.Locked;
+            }
+            if (Cursor.visible)
+            {
+                Cursor.visible = false;
+            }
+        }
+
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (hasFocus && IsActive)
+            {
+                MaintainActiveCursorLock();
             }
         }
 
