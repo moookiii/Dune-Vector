@@ -62,9 +62,11 @@ Shader "DuneVector/URP Sand Macro Variation"
             #pragma multi_compile_fragment _ _SHADOWS_SOFT _SHADOWS_SOFT_LOW _SHADOWS_SOFT_MEDIUM _SHADOWS_SOFT_HIGH
             #pragma multi_compile_fog
             #pragma multi_compile_instancing
-            #pragma shader_feature_local_fragment _NORMALMAP
             // The sand material is created and configured at runtime, so no authored
-            // material tells the player build to retain the parallax variant.
+            // material tells the player build to retain either texture keyword. Both
+            // variants must survive stripping because the shipped WORLD settings enable
+            // the normal and height maps together after the player has started.
+            #pragma multi_compile_local_fragment _ _NORMALMAP
             #pragma multi_compile_local_fragment _ _PARALLAXMAP
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
