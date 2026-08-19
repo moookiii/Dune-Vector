@@ -7751,7 +7751,11 @@ namespace DuneVector
         [Header("Seeker Flight")]
         [Tooltip("Visual prefab used by the homing glyph missile.")]
         public GameObject SeekerPrefab;
-        [Min(0.01f)] public float SeekerPrefabScale = 1f;
+        [Tooltip("Maximum model dimension before the gameplay seeker radius and pulse are applied. This normalizes differently sized prefabs.")]
+        [FormerlySerializedAs("SeekerPrefabScale")]
+        [Min(0.01f)] public float SeekerPrefabMaximumDimension = 2f;
+        [Tooltip("Local rotation that points the missile model toward the drone as it approaches from ahead.")]
+        public Vector3 SeekerPrefabLocalEulerAngles = new Vector3(0f, 180f, 0f);
         [Tooltip("Forward gap the seeker holds when it appears.")]
         [Min(1f)] public float SpawnAheadDistance = 210f;
         [Tooltip("Lateral and vertical offset the seeker appears at before it homes in.")]

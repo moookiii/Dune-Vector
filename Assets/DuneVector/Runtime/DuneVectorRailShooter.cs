@@ -3815,8 +3815,12 @@ namespace DuneVector
             if (missile != null)
             {
                 missile.name = "MissilePrefab Sigil Seeker";
-                missile.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
-                missile.transform.localScale = Vector3.one * _settings.Sigils.SeekerPrefabScale;
+                missile.transform.SetLocalPositionAndRotation(
+                    Vector3.zero,
+                    Quaternion.Euler(_settings.Sigils.SeekerPrefabLocalEulerAngles));
+                missile.transform.localScale = FitVisualToMaximumDimension(
+                    missile.transform,
+                    _settings.Sigils.SeekerPrefabMaximumDimension);
                 DisableVisualPhysics(missile.transform);
             }
             else
@@ -3826,6 +3830,26 @@ namespace DuneVector
             _sigilHalo = null;
             _sigilCage = null;
             _sigilRoot.gameObject.SetActive(false);
+        }
+
+        private static Vector3 FitVisualToMaximumDimension(Transform root, float targetMaximumDimension)
+        {
+            root.localScale = Vector3.one;
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+            {
+                return Vector3.one * targetMaximumDimension;
+            }
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+            float maximumDimension = Mathf.Max(bounds.size.x, bounds.size.y, bounds.size.z);
+            float fittedScale = maximumDimension > 0.001f
+                ? targetMaximumDimension / maximumDimension
+                : targetMaximumDimension;
+            return Vector3.one * fittedScale;
         }
 
         private GameObject InstantiateConfiguredPrefab(GameObject prefab, Transform parent, string label)
