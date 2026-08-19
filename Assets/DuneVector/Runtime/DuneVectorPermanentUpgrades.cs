@@ -306,6 +306,7 @@ namespace DuneVector
     {
         public bool IsInitialized { get; private set; }
         public DroneGoldWallet Wallet { get; private set; }
+        public DroneTrailCosmeticSystem DroneTrails { get; private set; }
         public IReadOnlyList<DroneUpgradeDefinition> Definitions =>
             _tuning != null && _tuning.Definitions != null
                 ? _tuning.Definitions
@@ -358,6 +359,8 @@ namespace DuneVector
             CaptureTierZeroValues(runtimeSettings);
             _tierState.Initialize(Definitions);
             _saveRepository.LoadInto(_tierState);
+            DroneTrails = gameObject.AddComponent<DroneTrailCosmeticSystem>();
+            DroneTrails.Initialize(drone != null ? drone.DroneVisualRoot : null, _tuning.DroneTrails, wallet);
             IsInitialized = true;
             ApplyAllStats();
             _saveRepository.Save(_tierState, Definitions);

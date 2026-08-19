@@ -315,6 +315,17 @@ namespace DuneVector
     }
 
     [Serializable]
+    public sealed class DroneTrailCosmeticTuning
+    {
+        [Tooltip("Authored child object enabled for a new save and always available without a contract.")]
+        public string DefaultTrailObjectName = "BlueRing2Missile";
+        [Tooltip("Gold price of each trail whose authored object name contains Modular.")]
+        [Min(1)] public int ModularTrailGoldCost = 5000;
+        [TextArea] public string ContractTrailDescription = "Unlocked by completing courier contracts.";
+        [TextArea] public string ModularTrailDescription = "Modular trail available for purchase.";
+    }
+
+    [Serializable]
     public sealed class DronePermanentUpgradeTuning
     {
         [Tooltip("Gold prices are rounded upward to this increment.")]
@@ -322,6 +333,7 @@ namespace DuneVector
 
         public HubRgbTerminalUnlockTuning HubRgbTerminals = new HubRgbTerminalUnlockTuning();
         public AtlasGlyphMaterialUnlockTuning AtlasGlyphMaterial = new AtlasGlyphMaterialUnlockTuning();
+        public DroneTrailCosmeticTuning DroneTrails = new DroneTrailCosmeticTuning();
         public List<DroneUpgradeDefinition> Definitions = CreateDefaultDefinitions();
         public UpgradeShopVisualTuning ShopVisuals = new UpgradeShopVisualTuning();
 
@@ -334,6 +346,7 @@ namespace DuneVector
             }
             HubRgbTerminals ??= new HubRgbTerminalUnlockTuning();
             AtlasGlyphMaterial ??= new AtlasGlyphMaterialUnlockTuning();
+            DroneTrails ??= new DroneTrailCosmeticTuning();
             ShopVisuals ??= new UpgradeShopVisualTuning();
         }
 

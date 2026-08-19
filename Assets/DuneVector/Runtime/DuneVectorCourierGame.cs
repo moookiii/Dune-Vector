@@ -747,6 +747,10 @@ namespace DuneVector
             _vesperKiteDirector = vesperKiteDirector;
             Progress = gameObject.AddComponent<DuneVectorCourierProgress>();
             Progress.Initialize();
+            if (Progress.PendingDeliveryMessageIndex < 0)
+            {
+                _permanentUpgrades?.DroneTrails?.SynchronizeContractUnlocks(Progress.CompletedDeliveries);
+            }
             DesertAtlas = gameObject.AddComponent<DuneVectorDesertAtlas>();
             DesertAtlas.Initialize(
                 _player, _health, _world, _materials, _wallet, Progress, this,
@@ -3346,7 +3350,13 @@ namespace DuneVector
             EnterHubImmediate(openTerminal: false, placePlayerAtSpawn: false);
             EndDeliveryMessageSafety();
             _player.PlayHubReturnEffect(HubFloorPosition);
-            ShowStatus("RETURNED TO COURIER AERIE", 2.5f);
+            string unlockedTrail = _permanentUpgrades?.DroneTrails?.SynchronizeContractUnlocks(
+                Progress != null ? Progress.CompletedDeliveries : 0);
+            ShowStatus(
+                string.IsNullOrEmpty(unlockedTrail)
+                    ? "RETURNED TO COURIER AERIE"
+                    : $"TRAIL UNLOCKED — {unlockedTrail.ToUpperInvariant()}",
+                2.5f);
         }
 
         private void BeginDeliveryMessageSafety()

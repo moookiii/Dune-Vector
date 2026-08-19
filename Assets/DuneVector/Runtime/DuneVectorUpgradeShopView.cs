@@ -227,6 +227,20 @@ namespace DuneVector
                             scale);
                         y += (_visuals.RowHeight + _visuals.RowGap) * scale;
                     }
+                    DroneTrailCosmeticSystem droneTrails = _upgrades.DroneTrails;
+                    if (droneTrails != null)
+                    {
+                        IReadOnlyList<DroneTrailOption> trailOptions = droneTrails.Options;
+                        for (int trailIndex = 0; trailIndex < trailOptions.Count; trailIndex++)
+                        {
+                            DrawDroneTrailRow(
+                                new Rect(0f, y, width, _visuals.RowHeight * scale),
+                                trailOptions[trailIndex],
+                                groupColor,
+                                scale);
+                            y += (_visuals.RowHeight + _visuals.RowGap) * scale;
+                        }
+                    }
                     continue;
                 }
 
@@ -437,6 +451,144 @@ namespace DuneVector
                     ? "GLYPH MATERIAL SETTING COULD NOT BE SAVED"
                     : "GLYPH MATERIAL SETTING UNAVAILABLE";
             _statusUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
+        }
+
+        private void DrawDroneTrailRow(Rect row, DroneTrailOption option, Color groupColor, float scale)
+        {
+            DroneTrailCosmeticSystem trails = _upgrades.DroneTrails;
+            if (trails == null || option == null)
+            {
+                return;
+            }
+
+            bool unlocked = trails.IsUnlocked(option);
+            bool equipped = trails.IsEquipped(option);
+            bool hovered = row.Contains(Event.current.mousePosition);
+            DrawRowPlate(row, groupColor, hovered, false, scale);
+
+            float columnGap = _visuals.ColumnGap * scale;
+            float iconSize = _visuals.IconSize * scale;
+            Rect iconPanel = new Rect(row.x + columnGap, row.y + ((row.height - iconSize) * 0.5f), iconSize, iconSize);
+            float hue = GetTrailHue(option.ObjectName);
+            Color trailColor = Color.HSVToRGB(hue, 0.7f, unlocked ? 1f : 0.35f);
+            DrawSolidRect(iconPanel, Color.Lerp(_visuals.RowColor, trailColor, _visuals.IconPanelTintAmount * 2f));
+            DrawGradientRect(iconPanel, WithAlpha(trailColor, 0.4f), _fadeUpTexture);
+            DrawIconFrame(iconPanel, groupColor, scale);
+
+            float detailsX = iconPanel.xMax + columnGap;
+            float detailsWidth = _visuals.DetailsColumnWidth * scale;
+            float rowPadding = _visuals.RowVerticalPadding * scale;
+            Rect nameRect = new Rect(detailsX, row.y + rowPadding, detailsWidth, _nameStyle.lineHeight);
+            GUI.Label(nameRect, option.DisplayName.ToUpperInvariant(), _nameStyle);
+            GUI.Label(
+                new Rect(detailsX, nameRect.yMax + (_visuals.ValueLineGap * scale), detailsWidth, _valueStyle.lineHeight),
+                (option.IsModular ? trails.ModularTrailDescription : trails.ContractTrailDescription).ToUpperInvariant(),
+                _valueStyle);
+
+            float actionWidth = _visuals.ActionColumnWidth * scale;
+            float statusX = detailsX + detailsWidth + columnGap;
+            float statusWidth = Mathf.Max(
+                _visuals.MinimumTierIndicatorWidth * scale,
+                row.xMax - statusX - actionWidth - (columnGap * 2f));
+            _valueRightStyle.normal.textColor = equipped
+                ? _visuals.MaximumColor
+                : unlocked ? groupColor : _visuals.MutedTextColor;
+            string status = equipped
+                ? "TRAIL ACTIVE"
+                : unlocked
+                    ? "READY TO ENABLE"
+                    : option.IsModular ? "SHOP UNLOCK" : "CONTRACT LOCKED";
+            GUI.Label(
+                new Rect(statusX, row.y + ((row.height - _valueRightStyle.lineHeight) * 0.5f), statusWidth, _valueRightStyle.lineHeight),
+                status,
+                _valueRightStyle);
+
+            float actionX = row.xMax - actionWidth - columnGap;
+            Rect action = new Rect(actionX, row.y, actionWidth, row.height);
+            Rect buttonRect = new Rect(
+                action.x + ((action.width - (_visuals.PurchaseButtonWidth * scale)) * 0.5f),
+                action.yMax - (_visuals.PurchaseButtonHeight * scale) - rowPadding,
+                _visuals.PurchaseButtonWidth * scale,
+                _visuals.PurchaseButtonHeight * scale);
+
+            if (equipped)
+            {
+                _costStyle.normal.textColor = _visuals.MaximumColor;
+                GUI.Label(new Rect(action.x, action.y + rowPadding, action.width, _costStyle.lineHeight), "ENABLED", _costStyle);
+                GUI.Button(buttonRect, "ACTIVE", _maximumButtonStyle);
+                return;
+            }
+            if (unlocked)
+            {
+                _costStyle.normal.textColor = groupColor;
+                GUI.Label(new Rect(action.x, action.y + rowPadding, action.width, _costStyle.lineHeight), "UNLOCKED", _costStyle);
+                if (GUI.Button(buttonRect, "ENABLE", _buttonStyle))
+                {
+                    HandleDroneTrailEquip(option);
+                }
+                return;
+            }
+            if (!option.IsModular)
+            {
+                _costStyle.normal.textColor = _visuals.MutedTextColor;
+                GUI.Label(new Rect(action.x, action.y + rowPadding, action.width, _costStyle.lineHeight), "COMPLETE A CONTRACT", _costStyle);
+                GUI.Button(buttonRect, "LOCKED", _disabledButtonStyle);
+                return;
+            }
+
+            int cost = trails.ModularTrailGoldCost;
+            bool affordable = trails.CanAffordModularTrail(option);
+            _costStyle.normal.textColor = affordable ? _visuals.GoldColor : _visuals.MutedTextColor;
+            GUI.Label(new Rect(action.x, action.y + rowPadding, action.width, _costStyle.lineHeight), $"COST  {cost:N0} GOLD", _costStyle);
+            if (GUI.Button(
+                buttonRect,
+                affordable ? "UNLOCK" : "INSUFFICIENT GOLD",
+                affordable ? _buttonStyle : _disabledButtonStyle) && affordable)
+            {
+                HandleDroneTrailPurchase(option);
+            }
+        }
+
+        private void HandleDroneTrailEquip(DroneTrailOption option)
+        {
+            UpgradePurchaseFailure failure = _upgrades.DroneTrails.TryEquip(option);
+            _statusMessage = failure == UpgradePurchaseFailure.None
+                ? $"{option.DisplayName.ToUpperInvariant()} ENABLED"
+                : "TRAIL SELECTION COULD NOT BE SAVED";
+            _statusUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
+        }
+
+        private void HandleDroneTrailPurchase(DroneTrailOption option)
+        {
+            DroneTrailCosmeticSystem trails = _upgrades.DroneTrails;
+            UpgradePurchaseFailure failure = trails.TryPurchaseModularTrail(option);
+            if (failure == UpgradePurchaseFailure.None)
+            {
+                _lastGoldCost = trails.ModularTrailGoldCost;
+                _goldDeductionUntil = Time.unscaledTime + _visuals.GoldDeductionDuration;
+                _statusMessage = $"{option.DisplayName.ToUpperInvariant()} UNLOCKED AND ENABLED";
+            }
+            else
+            {
+                _statusMessage = failure switch
+                {
+                    UpgradePurchaseFailure.CannotAfford => "INSUFFICIENT GOLD",
+                    UpgradePurchaseFailure.CurrencySaveFailed => "CURRENCY TRANSACTION COULD NOT BE SAVED",
+                    UpgradePurchaseFailure.UpgradeSaveFailed => "TRAIL SAVE FAILED  /  GOLD REFUNDED",
+                    _ => "TRAIL UNLOCK UNAVAILABLE",
+                };
+            }
+            _statusUntil = Time.unscaledTime + _visuals.RecentPurchaseDuration;
+        }
+
+        private static float GetTrailHue(string objectName)
+        {
+            int hash = 0;
+            for (int i = 0; i < objectName.Length; i++)
+            {
+                hash = ((hash * 31) + objectName[i]) & 0x7fffffff;
+            }
+            return (hash % 360) / 360f;
         }
 
         private void DrawUpgradeRow(Rect row, DroneUpgradeDefinition definition, Color groupColor, float scale)
@@ -683,7 +835,8 @@ namespace DuneVector
                 }
             }
 
-            int cosmeticRowCount = 1 + (_upgrades.IsAtlasGlyphMaterialAvailable ? 1 : 0);
+            int trailRowCount = _upgrades.DroneTrails != null ? _upgrades.DroneTrails.Options.Count : 0;
+            int cosmeticRowCount = 1 + (_upgrades.IsAtlasGlyphMaterialAvailable ? 1 : 0) + trailRowCount;
             return ((4f * _visuals.GroupHeaderHeight)
                 + ((definitionCount + cosmeticRowCount) * (_visuals.RowHeight + _visuals.RowGap))
                 + (3f * _visuals.GroupGap)
