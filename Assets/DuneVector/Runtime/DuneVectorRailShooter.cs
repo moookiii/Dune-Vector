@@ -499,6 +499,7 @@ namespace DuneVector
                     Vector2.zero,
                     DuneVectorMath.Sharpness(_settings.PositionRecenterSharpness, deltaTime));
             }
+            RebaseFlightSpaceIfNeeded();
             float attitudeSharpness = steering
                 ? _settings.AttitudeInputSharpness
                 : _settings.AttitudeReturnSharpness;
@@ -559,6 +560,31 @@ namespace DuneVector
                 DuneVectorMath.Sharpness(_settings.FieldOfViewSharpness, deltaTime));
             _cameraShake = Mathf.MoveTowards(_cameraShake, 0f, _settings.CameraShakeDecay * deltaTime);
             _fovImpulse = Mathf.MoveTowards(_fovImpulse, 0f, _settings.FieldOfViewSharpness * deltaTime);
+        }
+
+        private void RebaseFlightSpaceIfNeeded()
+        {
+            float threshold = Mathf.Max(1f, _settings.FlightRebaseDistance);
+            if (Mathf.Abs(_state.FlightOffset.x) < threshold &&
+                Mathf.Abs(_state.FlightOffset.y) < threshold)
+            {
+                return;
+            }
+
+            Vector3 shift = new Vector3(_state.FlightOffset.x, _state.FlightOffset.y, 0f);
+            if (_modeRoot != null)
+            {
+                _modeRoot.position -= shift;
+            }
+            for (int i = 0; i < _popups.Count; i++)
+            {
+                if (_popups[i].Active)
+                {
+                    _popups[i].World -= shift;
+                }
+            }
+            _laneCenterX -= shift.x;
+            _state.FlightOffset = Vector2.zero;
         }
 
         private void TryBeginTrick(Vector2 move)
@@ -2254,6 +2280,10 @@ namespace DuneVector
 
         private void ResetPools()
         {
+            if (_modeRoot != null)
+            {
+                _modeRoot.position = Vector3.zero;
+            }
             for (int i = 0; i < _enemies.Count; i++)
             {
                 _enemies[i].Active = false;
