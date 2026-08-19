@@ -1,4 +1,5 @@
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.Reflection;
 using NUnit.Framework;
 using UnityEditor;
@@ -20,6 +21,49 @@ namespace DuneVector.Tests
                 Is.GreaterThan(0f),
                 "WORLD dune shadow attenuation must stay above zero or built terrain can render black beneath large shadow casters.");
         }
+
+        [Test]
+        public void GraphicsSettings_RuntimeShadersSurviveTheBuild()
+        {
+            SerializedObject graphicsSettings = new SerializedObject(
+                AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset")[0]);
+            SerializedProperty includedShaders =
+                graphicsSettings.FindProperty("m_AlwaysIncludedShaders");
+            Assert.That(includedShaders, Is.Not.Null);
+
+            HashSet<string> included = new HashSet<string>(StringComparer.Ordinal);
+            for (int i = 0; i < includedShaders.arraySize; i++)
+            {
+                if (includedShaders.GetArrayElementAtIndex(i).objectReferenceValue is Shader shader)
+                {
+                    included.Add(shader.name);
+                }
+            }
+
+            // Every shader below is only ever reached through Shader.Find on a material the
+            // game builds at runtime. Nothing authored references them, so a player build
+            // drops them unless they are listed here, and the runtime fallback material then
+            // paints over the world.
+            foreach (string shaderName in RuntimeOnlyShaderNames)
+            {
+                Assert.That(
+                    included,
+                    Contains.Item(shaderName),
+                    $"'{shaderName}' is created at runtime, so it must stay in Always Included Shaders or Shader.Find returns null in a player build.");
+            }
+        }
+
+        private static readonly string[] RuntimeOnlyShaderNames =
+        {
+            "DuneVector/URP Dune Heat Distortion",
+            "DuneVector/URP Heat Plume Distortion",
+            "DuneVector/URP Sand Fracture",
+            "DuneVector/URP Sand Macro Variation",
+            "DuneVector/URP Weather Particle",
+            "DuneVector/URP Portal Energy",
+            "DuneVector/URP Music Reactive Additive",
+            "DuneVector/URP World Geoglyph Overlay",
+        };
 
         private const int RegressionWorldSeed = 47169;
         private const int PortalRegressionWorldSeed = 49109;

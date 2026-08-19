@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -364,6 +364,16 @@ namespace DuneVector
             Material material = new Material(Shader.Find("Universal Render Pipeline/Unlit")) { name = name };
             material.SetFloat("_Surface", 1f);
             material.SetFloat("_ZWrite", 0f);
+            // _Surface only drives the URP material inspector. A material built at runtime
+            // keeps the shader's default One/Zero blend, so a clear base color would still
+            // write opaque black over the dunes. Set the blend state the inspector would
+            // have written or the fallback mesh paints a black disc around the player.
+            material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+            material.SetFloat("_DstBlend", (float)BlendMode.OneMinusSrcAlpha);
+            material.SetFloat("_Blend", 0f);
+            material.SetFloat("_AlphaClip", 0f);
+            material.DisableKeyword("_ALPHATEST_ON");
+            material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
             material.SetColor("_BaseColor", Color.clear);
             material.SetOverrideTag("RenderType", "Transparent");
             material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
