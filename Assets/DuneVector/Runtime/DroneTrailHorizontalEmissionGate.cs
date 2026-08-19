@@ -9,6 +9,7 @@ namespace DuneVector
         private sealed class DistanceEmitterState
         {
             public ParticleSystem ParticleSystem;
+            public bool UsesDistanceEmission;
             public ParticleSystem.Particle[] Particles = new ParticleSystem.Particle[32];
             public readonly Dictionary<uint, Color32> OriginalColors = new Dictionary<uint, Color32>();
             public readonly HashSet<uint> ActiveSeeds = new HashSet<uint>();
@@ -18,7 +19,10 @@ namespace DuneVector
         private readonly List<DistanceEmitterState> _distanceEmitters = new List<DistanceEmitterState>();
         private float _minimumHorizontalSpeed;
         private float _minimumEffectDistance;
+        private float _nearCameraHiddenDistance;
+        private float _nearCameraFadeEndDistance;
         private Transform _clearanceOrigin;
+        private Camera _camera;
         private Vector3 _previousPosition;
         private bool _initialized;
         private bool _emissionEnabled = true;
@@ -26,20 +30,31 @@ namespace DuneVector
         public void Initialize(
             float minimumHorizontalSpeed,
             float minimumEffectDistance,
+            float nearCameraHiddenDistance,
+            float nearCameraFadeEndDistance,
             Transform clearanceOrigin)
         {
             _minimumHorizontalSpeed = Mathf.Max(0f, minimumHorizontalSpeed);
             _minimumEffectDistance = Mathf.Max(0f, minimumEffectDistance);
+            _nearCameraHiddenDistance = Mathf.Max(0f, nearCameraHiddenDistance);
+            _nearCameraFadeEndDistance = Mathf.Max(
+                _nearCameraHiddenDistance + 0.01f,
+                nearCameraFadeEndDistance);
             _clearanceOrigin = clearanceOrigin != null ? clearanceOrigin : transform;
+            _camera = Camera.main;
             _distanceEmitters.Clear();
 
             ParticleSystem[] particleSystems = GetComponentsInChildren<ParticleSystem>(true);
             for (int i = 0; i < particleSystems.Length; i++)
             {
                 ParticleSystem particleSystem = particleSystems[i];
-                if (particleSystem != null && particleSystem.emission.rateOverDistanceMultiplier > 0f)
+                if (particleSystem != null)
                 {
-                    _distanceEmitters.Add(new DistanceEmitterState { ParticleSystem = particleSystem });
+                    _distanceEmitters.Add(new DistanceEmitterState
+                    {
+                        ParticleSystem = particleSystem,
+                        UsesDistanceEmission = particleSystem.emission.rateOverDistanceMultiplier > 0f,
+                    });
                 }
             }
 
@@ -62,7 +77,7 @@ namespace DuneVector
             float deltaTime = Mathf.Max(Time.deltaTime, 0.0001f);
             float horizontalSpeed = new Vector2(displacement.x, displacement.z).magnitude / deltaTime;
             SetEmissionEnabled(horizontalSpeed >= _minimumHorizontalSpeed);
-            ApplyParticleClearance();
+            ApplyParticleVisibility();
         }
 
         private void SetEmissionEnabled(bool enabled)
@@ -76,7 +91,7 @@ namespace DuneVector
             for (int i = 0; i < _distanceEmitters.Count; i++)
             {
                 ParticleSystem particleSystem = _distanceEmitters[i].ParticleSystem;
-                if (particleSystem == null)
+                if (particleSystem == null || !_distanceEmitters[i].UsesDistanceEmission)
                 {
                     continue;
                 }
@@ -86,10 +101,15 @@ namespace DuneVector
             }
         }
 
-        private void ApplyParticleClearance()
+        private void ApplyParticleVisibility()
         {
             float clearanceSqr = _minimumEffectDistance * _minimumEffectDistance;
             Vector3 origin = _clearanceOrigin.position;
+            if (_camera == null || !_camera.isActiveAndEnabled)
+            {
+                _camera = Camera.main;
+            }
+            Vector3 cameraPosition = _camera != null ? _camera.transform.position : Vector3.zero;
 
             for (int i = 0; i < _distanceEmitters.Count; i++)
             {
@@ -126,6 +146,18 @@ namespace DuneVector
                     if ((worldPosition - origin).sqrMagnitude < clearanceSqr)
                     {
                         displayColor.a = 0;
+                    }
+                    else if (_camera != null)
+                    {
+                        float cameraDistance = Vector3.Distance(worldPosition, cameraPosition);
+                        float cameraVisibility = Mathf.SmoothStep(
+                            0f,
+                            1f,
+                            Mathf.InverseLerp(
+                                _nearCameraHiddenDistance,
+                                _nearCameraFadeEndDistance,
+                                cameraDistance));
+                        displayColor.a = (byte)Mathf.RoundToInt(originalColor.a * cameraVisibility);
                     }
 
                     particle.startColor = displayColor;

@@ -5436,6 +5436,8 @@ namespace DuneVector
                     .Initialize(
                         settings.TrailMinimumHorizontalSpeed,
                         settings.TrailParticleClearanceDistance,
+                        settings.TrailNearCameraHiddenDistance,
+                        settings.TrailNearCameraFadeEndDistance,
                         droneVisual);
                 return;
             }
