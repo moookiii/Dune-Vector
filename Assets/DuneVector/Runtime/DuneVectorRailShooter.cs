@@ -2338,11 +2338,6 @@ namespace DuneVector
                     _furthestSegmentZ += _settings.EnvironmentSegmentSpacing;
                     ResetSegment(segment, _furthestSegmentZ, i + Mathf.RoundToInt(_state.Distance));
                 }
-                Vector2 planeCenter = CurrentFlightPlaneCenter();
-                Vector3 segmentPosition = segment.Root.position;
-                segmentPosition.x = planeCenter.x + segment.PlaneOffset.x;
-                segmentPosition.y = planeCenter.y + segment.PlaneOffset.y;
-                segment.Root.position = segmentPosition;
                 for (int rotorIndex = 0; rotorIndex < segment.Rotators.Count; rotorIndex++)
                 {
                     segment.Rotators[rotorIndex].Rotate(
@@ -2363,7 +2358,6 @@ namespace DuneVector
                 }
             }
 
-            Vector2 satelliteCenter = CurrentFlightPlaneCenter();
             for (int i = 0; i < _satellites.Count; i++)
             {
                 RailSatellite satellite = _satellites[i];
@@ -2390,9 +2384,6 @@ namespace DuneVector
                     continue;
                 }
                 Vector3 position = satellite.Transform.position;
-                position.x = satelliteCenter.x + satellite.PlaneOffset.x;
-                position.y = satelliteCenter.y + satellite.PlaneOffset.y;
-                satellite.Transform.position = position;
                 satellite.Transform.Rotate(
                     satellite.RotationAxis,
                     _settings.SatelliteRotationSpeed * deltaTime,
