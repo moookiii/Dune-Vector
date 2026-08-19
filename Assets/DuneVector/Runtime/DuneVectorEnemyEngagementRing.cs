@@ -12,7 +12,7 @@ namespace DuneVector
     {
         private const float DefaultAttackRangeMargin = 1.2f;
         private const float DefaultRepositionHeadroom = 1.15f;
-        private const float DefaultDesertDeploymentMaximumDistance = 50f;
+        private const float DefaultDesertDeploymentMaximumDistance = 360f;
 
         /// <summary>Fraction of the attack range kept clear beyond it when placing an enemy.</summary>
         public static float AttackRangeMargin { get; private set; } = DefaultAttackRangeMargin;
