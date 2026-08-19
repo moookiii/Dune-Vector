@@ -158,7 +158,9 @@ def build_animation():
         pose_bone.scale = (1.0, 1.0, 1.0)
     bpy.context.view_layer.update()
 
-    keyed_frames = sorted(set([1, 215] + list(range(36, 193, 4)) + [48, 72, 94, 96, 120, 144, 168, 192]))
+    # Bake every display frame. Sparse keys can cross an Euler wrap between two
+    # otherwise-correct poses (the bad frame 95 between correct 94 and 96).
+    keyed_frames = list(range(scene.frame_start, scene.frame_end + 1))
     for frame in keyed_frames:
         scene.frame_set(frame)
         head_progress = progress_at_frame(frame)
