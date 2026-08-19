@@ -7688,7 +7688,6 @@ namespace DuneVector
         [Min(0f)] public float EntryHoldDuration = 1.25f;
         [Min(0f)] public float ResultHoldDuration = 4f;
         [Min(1f)] public float TemporaryHull = 140f;
-        [Min(0f)] public float CollisionDamage = 18f;
         [Min(0f)] public float CollisionInvulnerabilityDuration = 0.7f;
 
         [Header("Rail Flight")]
@@ -7905,34 +7904,14 @@ namespace DuneVector
         [Min(1f)] public float EnemyHitFlashScale = 1.14f;
         [Range(0f, 1f)] public float LowHullWarningFraction = 0.3f;
         [Min(0f)] public float LowHullPulseSpeed = 4.5f;
-        [Tooltip("Rift distance ahead of the drone at which a solid wreck raises a hazard bracket.")]
-        [Min(0f)] public float ObstacleTelegraphDistance = 170f;
-
         [Header("Pooled Rift Environment")]
         [Min(2)] public int EnvironmentSegmentCount = 12;
         [Min(10f)] public float EnvironmentSegmentSpacing = 92f;
         [Min(0f)] public float EnvironmentRecycleBehindDistance = 45f;
         [Min(0f)] public float CorridorHalfWidth = 48f;
         [Min(0f)] public float CorridorHalfHeight = 25f;
-        public string SideStructurePrefabResourcePath = "FallenOrbitalArrayPrefab";
-        public Vector3 SideStructureScale = new Vector3(0.16f, 0.16f, 0.16f);
-        public Vector3 SideStructureEuler = new Vector3(0f, 90f, 18f);
-        public string PrimaryWreckagePrefabResourcePath = "RuinedRingsPrefab";
-        public string SecondaryWreckagePrefabResourcePath = "turbine/turbinePrefab";
-        [Min(0f)] public float WreckagePrefabScaleMultiplier = 0.16f;
-        [Min(0f)] public float WreckageMinimumScale = 3f;
-        [Min(0f)] public float WreckageMaximumScale = 12f;
         [Min(0f)] public float WreckageRotationSpeed = 13f;
-        [Min(1)] public int WreckagePiecesPerSegment = 4;
         [Min(0f)] public float GateRadius = 13f;
-        [Min(0f)] public float ObstacleRadius = 4.5f;
-        [Min(0f)] public float ObstacleChance = 0.38f;
-        [Tooltip("Collision radius per unit of a solid wreck's random scale, so its hazard matches its size.")]
-        [Min(0f)] public float ObstacleRadiusPerScale = 0.62f;
-        [Tooltip("Upper bound of the solid wreck scale, as a fraction of the decorative wreckage scale range.")]
-        [Range(0f, 1f)] public float ObstacleMaximumScaleFraction = 0.55f;
-        [Tooltip("Fraction of the corridor kept clear of decorative wreckage so the flight lane stays readable.")]
-        [Range(0f, 1f)] public float WreckageCorridorClearance = 0.55f;
         [Min(1)] public int SpeedStreakPoolSize = 52;
         [Min(0f)] public float SpeedStreakMinimumLength = 5f;
         [Min(0f)] public float SpeedStreakMaximumLength = 18f;

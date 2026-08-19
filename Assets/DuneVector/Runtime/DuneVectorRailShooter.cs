@@ -174,11 +174,7 @@ namespace DuneVector
         private sealed class RiftSegment
         {
             public Transform Root;
-            public Transform Obstacle;
             public readonly List<Transform> Rotators = new List<Transform>();
-            public float Radius;
-            public bool HasObstacle;
-            public bool CollisionConsumed;
         }
 
         public static bool IsAnyRailShooterActive { get; private set; }
@@ -1690,19 +1686,6 @@ namespace DuneVector
                         _settings.WreckageRotationSpeed * 0.22f * deltaTime,
                         Space.Self);
                 }
-                if (segment.HasObstacle && !segment.CollisionConsumed &&
-                    Mathf.Abs(_player.transform.position.z - segment.Obstacle.position.z) <= segment.Radius)
-                {
-                    float planar = Vector2.Distance(
-                        new Vector2(_player.transform.position.x, _player.transform.position.y),
-                        new Vector2(segment.Obstacle.position.x, segment.Obstacle.position.y));
-                    if (planar <= segment.Radius + _settings.PlayerCollisionRadius)
-                    {
-                        segment.CollisionConsumed = true;
-                        DamagePlayer(_settings.CollisionDamage, "Orbital rift wreckage collision");
-                        SpawnImpact(_player.transform.position, segment.Radius);
-                    }
-                }
             }
 
             for (int i = 0; i < _speedStreaks.Count; i++)
@@ -2045,46 +2028,7 @@ namespace DuneVector
                 RiftSegment segment = new RiftSegment
                 {
                     Root = NewRoot($"Rift Segment {i + 1:00}", _environmentRoot),
-                    Radius = _settings.ObstacleRadius,
                 };
-                Transform leftPylon = CreatePrefabVisual(
-                    _settings.SideStructurePrefabResourcePath,
-                    "Left Rift Array Structure",
-                    segment.Root,
-                    new Vector3(-_settings.CorridorHalfWidth, 0f, 0f),
-                    _settings.SideStructureScale,
-                    Quaternion.Euler(_settings.SideStructureEuler));
-                Transform rightPylon = CreatePrefabVisual(
-                    _settings.SideStructurePrefabResourcePath,
-                    "Right Rift Array Structure",
-                    segment.Root,
-                    new Vector3(_settings.CorridorHalfWidth, 0f, 0f),
-                    _settings.SideStructureScale,
-                    Quaternion.Euler(
-                        _settings.SideStructureEuler.x,
-                        -_settings.SideStructureEuler.y,
-                        -_settings.SideStructureEuler.z));
-                segment.Rotators.Add(leftPylon);
-                segment.Rotators.Add(rightPylon);
-                for (int piece = 0; piece < _settings.WreckagePiecesPerSegment; piece++)
-                {
-                    bool solid = piece == 0;
-                    string resourcePath = piece % 2 == 0
-                        ? _settings.PrimaryWreckagePrefabResourcePath
-                        : _settings.SecondaryWreckagePrefabResourcePath;
-                    Transform wreck = CreatePrefabVisual(
-                        resourcePath,
-                        solid ? "Solid Rift Wreck" : $"Floating Wreckage {piece + 1}",
-                        segment.Root,
-                        Vector3.zero,
-                        Vector3.one * _settings.WreckagePrefabScaleMultiplier,
-                        Quaternion.identity);
-                    segment.Rotators.Add(wreck);
-                    if (solid)
-                    {
-                        segment.Obstacle = wreck;
-                    }
-                }
                 if (i % 3 == 0)
                 {
                     Transform gate = DuneVectorVisuals.CreateRingVisual(
@@ -2380,81 +2324,6 @@ namespace DuneVector
         {
             segment.Root.position = new Vector3(_arenaOrigin.x, _arenaOrigin.y, z);
             segment.Root.rotation = Quaternion.identity;
-            segment.HasObstacle = NextFloat(0f, 1f) <= _settings.ObstacleChance;
-            segment.CollisionConsumed = false;
-            for (int i = 0; i < segment.Rotators.Count; i++)
-            {
-                Transform wreck = segment.Rotators[i];
-                if (wreck == null || wreck == segment.Root)
-                {
-                    continue;
-                }
-                bool solid = wreck == segment.Obstacle;
-                if (wreck.name.EndsWith("Rift Array Structure", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-                if (!solid && !wreck.name.StartsWith("Floating Wreckage", StringComparison.Ordinal))
-                {
-                    continue;
-                }
-                float depth = NextFloat(
-                    -_settings.EnvironmentSegmentSpacing * 0.35f,
-                    _settings.EnvironmentSegmentSpacing * 0.35f);
-                float scale = solid
-                    ? NextFloat(
-                        _settings.WreckageMinimumScale,
-                        Mathf.Lerp(
-                            _settings.WreckageMinimumScale,
-                            _settings.WreckageMaximumScale,
-                            _settings.ObstacleMaximumScaleFraction))
-                    : NextFloat(_settings.WreckageMinimumScale, _settings.WreckageMaximumScale);
-                Vector2 planar = solid ? SampleLaneOffset() : SampleWreckageShellOffset();
-                wreck.localPosition = new Vector3(planar.x, planar.y, depth);
-                wreck.localRotation = Quaternion.Euler(
-                    NextFloat(0f, 360f),
-                    NextFloat(0f, 360f),
-                    NextFloat(0f, 360f));
-                wreck.localScale = Vector3.one * (scale * _settings.WreckagePrefabScaleMultiplier);
-                if (solid)
-                {
-                    segment.Radius = Mathf.Max(
-                        _settings.ObstacleRadius,
-                        scale * _settings.ObstacleRadiusPerScale);
-                }
-            }
-            if (segment.Obstacle != null)
-            {
-                segment.Obstacle.gameObject.SetActive(segment.HasObstacle);
-            }
-        }
-
-        // Decorative wreckage lives in the shell between the flight lane and the corridor
-        // wall so the lane the drone actually flies through stays readable.
-        private Vector2 SampleWreckageShellOffset()
-        {
-            float clearance = Mathf.Clamp01(_settings.WreckageCorridorClearance);
-            float marginX = Mathf.Lerp(_settings.FlightBounds.x, _settings.CorridorHalfWidth, clearance);
-            float marginY = Mathf.Lerp(_settings.FlightBounds.y, _settings.CorridorHalfHeight, clearance);
-            bool sideWall = NextFloat(0f, 1f) < 0.5f;
-            if (sideWall)
-            {
-                float x = NextFloat(marginX, _settings.CorridorHalfWidth);
-                return new Vector2(
-                    NextFloat(0f, 1f) < 0.5f ? -x : x,
-                    NextFloat(-_settings.CorridorHalfHeight, _settings.CorridorHalfHeight));
-            }
-            float y = NextFloat(marginY, _settings.CorridorHalfHeight);
-            return new Vector2(
-                NextFloat(-_settings.CorridorHalfWidth, _settings.CorridorHalfWidth),
-                NextFloat(0f, 1f) < 0.5f ? -y : y);
-        }
-
-        private Vector2 SampleLaneOffset()
-        {
-            return new Vector2(
-                NextFloat(-_settings.FlightBounds.x, _settings.FlightBounds.x),
-                NextFloat(-_settings.FlightBounds.y, _settings.FlightBounds.y));
         }
 
         private void ResetSpeedStreak(Transform streak, int identity)
@@ -2747,33 +2616,6 @@ namespace DuneVector
             return part.transform;
         }
 
-        private static Transform CreatePrefabVisual(
-            string resourcePath,
-            string name,
-            Transform parent,
-            Vector3 localPosition,
-            Vector3 localScale,
-            Quaternion localRotation)
-        {
-            GameObject prefab = string.IsNullOrWhiteSpace(resourcePath)
-                ? null
-                : Resources.Load<GameObject>(resourcePath);
-            GameObject instance = prefab != null
-                ? Instantiate(prefab, parent, false)
-                : new GameObject(name);
-            if (prefab == null)
-            {
-                instance.transform.SetParent(parent, false);
-                Debug.LogWarning($"Rail-shooter environment prefab was not found at Resources/{resourcePath}.");
-            }
-            instance.name = name;
-            instance.transform.localPosition = localPosition;
-            instance.transform.localScale = localScale;
-            instance.transform.localRotation = localRotation;
-            DisableVisualPhysics(instance.transform);
-            return instance.transform;
-        }
-
         private static void DisableVisualPhysics(Transform root)
         {
             Collider[] colliders = root.GetComponentsInChildren<Collider>(true);
@@ -2798,7 +2640,6 @@ namespace DuneVector
             // World-anchored layers first so the chrome always sits on top of them.
             DrawLaneHudWarning();
             DrawDamageVignette();
-            DrawHazardBrackets();
             DrawScorePopups();
             DrawReticles();
             DrawRoutePrompt();
@@ -3174,37 +3015,6 @@ namespace DuneVector
                     popup.Text,
                     _popupStyle,
                     WithAlpha(popup.Color, fade));
-            }
-        }
-
-        private void DrawHazardBrackets()
-        {
-            float playerZ = _player.transform.position.z;
-            for (int i = 0; i < _segments.Count; i++)
-            {
-                RiftSegment segment = _segments[i];
-                if (!segment.HasObstacle || segment.CollisionConsumed || segment.Obstacle == null)
-                {
-                    continue;
-                }
-                float ahead = segment.Obstacle.position.z - playerZ;
-                if (ahead <= 0f || ahead > _settings.ObstacleTelegraphDistance)
-                {
-                    continue;
-                }
-                if (!TryProject(segment.Obstacle.position, out Vector2 screen))
-                {
-                    continue;
-                }
-                float proximity = 1f - (ahead / Mathf.Max(1f, _settings.ObstacleTelegraphDistance));
-                float size = Mathf.Lerp(_settings.TargetBracketSize, _settings.LockBracketSize * 1.6f, proximity);
-                Color color = WithAlpha(_settings.RiftDangerColor, 0.35f + (0.55f * proximity));
-                DrawBracket(screen, size, color);
-                DrawLabel(
-                    new Rect(screen.x - 80f, screen.y + (size * 0.5f) + 2f, 160f, 20f),
-                    _settings.HazardLabel,
-                    _centeredSmallStyle,
-                    color);
             }
         }
 
