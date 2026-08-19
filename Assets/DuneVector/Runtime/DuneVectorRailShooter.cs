@@ -244,6 +244,7 @@ namespace DuneVector
         private bool _rewardCommitted;
         private float _cameraShake;
         private float _fovImpulse;
+        private float _timeSinceSteeringInput;
 
         private Vector3 _savedPlayerPosition;
         private Quaternion _savedPlayerRotation;
@@ -345,6 +346,7 @@ namespace DuneVector
             _resultSuccess = false;
             _cameraShake = 0f;
             _fovImpulse = 0f;
+            _timeSinceSteeringInput = 0f;
             AwardedGold = 0;
             ResultGrade = "C";
             ResetPools();
@@ -436,12 +438,26 @@ namespace DuneVector
                 targetSpeed,
                 DuneVectorMath.Sharpness(_settings.ForwardSpeedSharpness, deltaTime));
 
-            Vector2 targetVelocity = command.Move * _settings.LateralSpeed;
+            bool steering = command.Move.sqrMagnitude >
+                _settings.RecenterInputDeadzone * _settings.RecenterInputDeadzone;
+            _timeSinceSteeringInput = steering
+                ? 0f
+                : _timeSinceSteeringInput + deltaTime;
+            Vector2 targetVelocity = steering
+                ? command.Move * _settings.LateralSpeed
+                : Vector2.zero;
             _state.LateralVelocity = Vector2.Lerp(
                 _state.LateralVelocity,
                 targetVelocity,
                 DuneVectorMath.Sharpness(_settings.LateralAccelerationSharpness, deltaTime));
             _state.FlightOffset += _state.LateralVelocity * deltaTime;
+            if (!steering && _timeSinceSteeringInput >= _settings.PositionRecenterDelay)
+            {
+                _state.FlightOffset = Vector2.Lerp(
+                    _state.FlightOffset,
+                    Vector2.zero,
+                    DuneVectorMath.Sharpness(_settings.PositionRecenterSharpness, deltaTime));
+            }
             _state.FlightOffset.x = SoftClamp(
                 _state.FlightOffset.x,
                 _settings.FlightBounds.x,
@@ -450,12 +466,12 @@ namespace DuneVector
                 _state.FlightOffset.y,
                 _settings.FlightBounds.y,
                 _settings.BoundarySoftness);
-            float attitudeSharpness = command.Move.sqrMagnitude > 0.001f
+            float attitudeSharpness = steering
                 ? _settings.AttitudeInputSharpness
                 : _settings.AttitudeReturnSharpness;
             _state.Attitude = Vector2.Lerp(
                 _state.Attitude,
-                command.Move,
+                steering ? command.Move : Vector2.zero,
                 DuneVectorMath.Sharpness(attitudeSharpness, deltaTime));
 
             if (command.TrickPressed && _state.Trick == RailShooterTrick.None)

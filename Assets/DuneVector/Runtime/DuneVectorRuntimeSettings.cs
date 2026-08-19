@@ -7634,6 +7634,9 @@ namespace DuneVector
         [Min(0f)] public float BoundarySoftness = 2.5f;
         [Min(0f)] public float AttitudeInputSharpness = 10f;
         [Min(0f)] public float AttitudeReturnSharpness = 3.8f;
+        [Range(0f, 0.5f)] public float RecenterInputDeadzone = 0.08f;
+        [Min(0f)] public float PositionRecenterDelay = 0.12f;
+        [Min(0f)] public float PositionRecenterSharpness = 1.35f;
         [Range(0f, 60f)] public float MaximumYaw = 24f;
         [Range(0f, 60f)] public float MaximumPitch = 20f;
         [Range(0f, 90f)] public float MaximumBank = 42f;
