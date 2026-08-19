@@ -212,8 +212,16 @@ namespace DuneVector
                 return;
             }
 
-            _shieldEffect = Instantiate(prefab, transform, false);
+            DroneCharacterController drone = GetComponent<DroneCharacterController>();
+            Transform effectParent = drone != null && drone.DroneVisualRoot != null
+                ? drone.DroneVisualRoot
+                : transform;
+            Vector3 effectWorldCenter = drone != null
+                ? drone.VisualWorldCenter
+                : transform.position;
+            _shieldEffect = Instantiate(prefab, effectParent, false);
             _shieldEffect.name = "BlueSparkleShield";
+            _shieldEffect.transform.position = effectWorldCenter;
         }
 
         private void RemoveShield()
