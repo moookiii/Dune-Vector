@@ -2658,6 +2658,12 @@ namespace DuneVector
         public Vector3 PrefabLocalEulerAngles = Vector3.zero;
         [Tooltip("Local scale applied to the instantiated drone prefab.")]
         public Vector3 PrefabLocalScale = Vector3.one * 0.15f;
+        [Tooltip("Play the drone prefab's imported Animator. Disable to freeze the prefab on its bind pose.")]
+        public bool PlayPrefabAnimation = true;
+        [Tooltip("Full Animator state path played when the drone prefab spawns.")]
+        public string PrefabAnimationStateName = "Base Layer.DroneHoverWobble";
+        [Tooltip("Playback speed for the drone prefab's imported animation.")]
+        [Min(0f)] public float PrefabAnimationSpeed = 1f;
 
         [Header("Materials")]
         [ColorUsage(false)] public Color BodyColor = new Color(0.68f, 0.72f, 0.74f);

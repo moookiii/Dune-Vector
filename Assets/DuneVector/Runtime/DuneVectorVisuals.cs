@@ -1359,7 +1359,18 @@ namespace DuneVector
                 model.transform.localPosition = settings.PrefabLocalPosition;
                 model.transform.localRotation = Quaternion.Euler(settings.PrefabLocalEulerAngles);
                 model.transform.localScale = settings.PrefabLocalScale;
-                DisableImportedAnimationPlayback(model);
+                if (settings.PlayPrefabAnimation)
+                {
+                    EnableImportedAnimationPlayback(
+                        model,
+                        settings.PrefabAnimationStateName,
+                        settings.PrefabAnimationSpeed,
+                        "Drone");
+                }
+                else
+                {
+                    DisableImportedAnimationPlayback(model);
+                }
 
                 CreateDroneTrails(visual, materials.Trail, settings);
 
@@ -1535,18 +1546,31 @@ namespace DuneVector
             GameObject model,
             VesperKiteTuning settings)
         {
+            EnableImportedAnimationPlayback(
+                model,
+                settings.PrefabAnimationStateName,
+                settings.PrefabAnimationSpeed,
+                "Vesper Kite");
+        }
+
+        private static void EnableImportedAnimationPlayback(
+            GameObject model,
+            string stateName,
+            float speed,
+            string label)
+        {
             Animator[] animators = model.GetComponentsInChildren<Animator>(true);
             for (int i = 0; i < animators.Length; i++)
             {
                 Animator animator = animators[i];
                 animator.enabled = true;
+                animator.avatar = null;
                 animator.applyRootMotion = false;
                 animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
-                animator.speed = Mathf.Max(0f, settings.PrefabAnimationSpeed);
+                animator.speed = Mathf.Max(0f, speed);
                 animator.Rebind();
 
-                int stateHash = Animator.StringToHash(
-                    settings.PrefabAnimationStateName);
+                int stateHash = Animator.StringToHash(stateName);
                 if (animator.HasState(0, stateHash))
                 {
                     animator.Play(stateHash, 0, 0f);
@@ -1554,8 +1578,8 @@ namespace DuneVector
                 else
                 {
                     Debug.LogWarning(
-                        $"Vesper Kite Animator does not contain state " +
-                        $"'{settings.PrefabAnimationStateName}'.");
+                        $"{label} Animator does not contain state " +
+                        $"'{stateName}'.");
                 }
 
                 animator.Update(0f);
