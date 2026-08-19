@@ -784,7 +784,7 @@ namespace DuneVector
                 return;
             }
             _state.TrickElapsed += deltaTime;
-            float duration = GetTrickDuration();
+            float duration = GetTrickDuration() + Mathf.Max(0f, _settings.TrickRecoveryDuration);
             if (_state.TrickElapsed >= duration)
             {
                 _state.Trick = RailShooterTrick.None;
@@ -798,9 +798,10 @@ namespace DuneVector
             {
                 return Quaternion.identity;
             }
-            float normalized = Mathf.Clamp01(_state.TrickElapsed / GetTrickDuration());
+            float activeDuration = GetTrickDuration();
+            float normalized = Mathf.Clamp01(_state.TrickElapsed / activeDuration);
             float turn = normalized * 360f;
-            return _state.Trick switch
+            Quaternion rotation = _state.Trick switch
             {
                 RailShooterTrick.BarrelRollLeft => Quaternion.Euler(0f, 0f, turn),
                 RailShooterTrick.BarrelRollRight => Quaternion.Euler(0f, 0f, -turn),
@@ -811,6 +812,13 @@ namespace DuneVector
                 RailShooterTrick.Loop => Quaternion.Euler(-turn, 0f, 0f),
                 _ => Quaternion.identity,
             };
+            if (_state.TrickElapsed <= activeDuration)
+            {
+                return rotation;
+            }
+            float recoveryDuration = Mathf.Max(0.001f, _settings.TrickRecoveryDuration);
+            float recovery = Mathf.Clamp01((_state.TrickElapsed - activeDuration) / recoveryDuration);
+            return Quaternion.Slerp(rotation, Quaternion.identity, Mathf.SmoothStep(0f, 1f, recovery));
         }
 
         private float GetTrickDuration()

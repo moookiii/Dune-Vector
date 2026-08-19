@@ -8059,6 +8059,8 @@ namespace DuneVector
         [Min(0.01f)] public float BarrelRollDuration = 0.58f;
         [Min(0.01f)] public float CorkscrewDuration = 0.82f;
         [Min(0.01f)] public float LoopDuration = 1.15f;
+        [Tooltip("Seconds used to smoothly return the ship from its final maneuver rotation to its resting attitude.")]
+        [Min(0f)] public float TrickRecoveryDuration = 0.25f;
         [Min(0f)] public float TrickInvulnerabilityFraction = 0.78f;
         [Min(0f)] public float RollProjectileDeflectRadius = 8f;
         [Min(0f)] public float RollPickupMagnetRadius = 12f;
