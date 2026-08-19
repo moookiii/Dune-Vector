@@ -2067,7 +2067,7 @@ namespace DuneVector
                 return;
             }
             _backdrop.SetParent(null, true);
-            _backdrop.position = _arenaOrigin + _settings.BackdropSourcePosition;
+            _backdrop.position = _settings.BackdropWorldPosition;
             SetBackdropActive(true);
         }
 

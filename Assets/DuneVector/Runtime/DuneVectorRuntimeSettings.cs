@@ -7915,8 +7915,8 @@ namespace DuneVector
         [Tooltip("Scene object name used for the distant rail-shooter backdrop. If it is absent, the Resources prefab path is used as a fallback.")]
         public string BackdropSceneObjectName = "StarFoxBackdrop";
         public string BackdropPrefabResourcePath = "StarFoxBackdrop";
-        [Tooltip("World-space offset added once to the drone's rail-subgame starting position.")]
-        public Vector3 BackdropSourcePosition = new Vector3(-100.5f, -4352f, 0f);
+        [Tooltip("Absolute world position assigned to the backdrop when the rail sequence begins.")]
+        public Vector3 BackdropWorldPosition = new Vector3(-100.5f, -4352f, 0f);
         [Tooltip("Backdrop rotation in Euler degrees per second.")]
         public Vector3 BackdropEulerDegreesPerSecond = new Vector3(0f, 0.001f, 0f);
         [Min(1)] public int SpeedStreakPoolSize = 52;
