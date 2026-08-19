@@ -80,6 +80,20 @@ namespace DuneVector
             ApplyParticleVisibility();
         }
 
+        public void ResetAfterTeleport()
+        {
+            _previousPosition = transform.position;
+            for (int i = 0; i < _distanceEmitters.Count; i++)
+            {
+                DistanceEmitterState state = _distanceEmitters[i];
+                state.ParticleSystem?.Clear(true);
+                state.OriginalColors.Clear();
+                state.ActiveSeeds.Clear();
+                state.ExpiredSeeds.Clear();
+            }
+            SetEmissionEnabled(false);
+        }
+
         private void SetEmissionEnabled(bool enabled)
         {
             if (_emissionEnabled == enabled)

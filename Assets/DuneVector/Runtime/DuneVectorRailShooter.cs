@@ -571,6 +571,16 @@ namespace DuneVector
                 _modeRoot.position -= shift;
             }
             _cameraBasePosition -= shift;
+            _player.HandleWorldShift(-shift);
+            if (_player.DroneVisualRoot != null)
+            {
+                DroneTrailHorizontalEmissionGate[] trailGates =
+                    _player.DroneVisualRoot.GetComponentsInChildren<DroneTrailHorizontalEmissionGate>(true);
+                for (int i = 0; i < trailGates.Length; i++)
+                {
+                    trailGates[i].ResetAfterTeleport();
+                }
+            }
             for (int i = 0; i < _popups.Count; i++)
             {
                 if (_popups[i].Active)
@@ -937,10 +947,10 @@ namespace DuneVector
                 ? 3
                 : health01 <= _settings.BossPhaseTwoHealthFraction ? 2 : 1;
             float orbit = _boss.Age * _settings.EnemyStrafeFrequency * (0.5f + (phase * 0.18f));
-            Vector3 bossPosition = _arenaOrigin + new Vector3(
+            Vector3 bossPosition = _player.transform.position + new Vector3(
                 Mathf.Sin(orbit) * _settings.FormationWidth * 0.45f,
                 Mathf.Cos(orbit * 0.7f) * _settings.FormationHeight * 0.4f,
-                _state.Distance + (_settings.EnemySpawnAheadDistance * 0.72f));
+                _settings.EnemySpawnAheadDistance * 0.72f);
             _boss.Transform.position = bossPosition;
             _boss.Transform.rotation = Quaternion.LookRotation(
                 (_player.transform.position - bossPosition).normalized,
@@ -958,7 +968,8 @@ namespace DuneVector
             }
             if (_boss.Age >= _boss.NextSpecialAt && !float.IsFinite(_laneElapsed))
             {
-                BeginLaneAttack(_arenaOrigin.x + (Mathf.Sin(_boss.Age) * _settings.FormationWidth * 0.35f));
+                BeginLaneAttack(_player.transform.position.x +
+                    (Mathf.Sin(_boss.Age) * _settings.FormationWidth * 0.35f));
                 _boss.NextSpecialAt += _settings.BossLaneAttackInterval / (1f + ((phase - 1) * 0.2f));
             }
             if (Vector3.Distance(bossPosition, _player.transform.position) <=
@@ -1636,10 +1647,7 @@ namespace DuneVector
 
         private void BeginLaneAttack(float worldX)
         {
-            _laneCenterX = Mathf.Clamp(
-                worldX,
-                _arenaOrigin.x - _settings.FlightBounds.x,
-                _arenaOrigin.x + _settings.FlightBounds.x);
+            _laneCenterX = worldX;
             _laneElapsed = 0f;
             _laneDamageApplied = false;
             _laneWarning.gameObject.SetActive(true);
@@ -1652,8 +1660,15 @@ namespace DuneVector
                 return;
             }
             _laneElapsed += deltaTime;
-            Vector3 start = new Vector3(_laneCenterX, _arenaOrigin.y - _settings.CorridorHalfHeight, _player.transform.position.z);
-            Vector3 end = new Vector3(_laneCenterX, _arenaOrigin.y + _settings.CorridorHalfHeight, _player.transform.position.z + _settings.EnemySpawnAheadDistance);
+            float playerY = _player.transform.position.y;
+            Vector3 start = new Vector3(
+                _laneCenterX,
+                playerY - _settings.CorridorHalfHeight,
+                _player.transform.position.z);
+            Vector3 end = new Vector3(
+                _laneCenterX,
+                playerY + _settings.CorridorHalfHeight,
+                _player.transform.position.z + _settings.EnemySpawnAheadDistance);
             _laneWarning.SetPosition(0, start);
             _laneWarning.SetPosition(1, end);
             bool active = _laneElapsed >= _settings.LightningLaneTelegraphDuration;
