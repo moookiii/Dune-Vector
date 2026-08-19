@@ -6421,6 +6421,8 @@ namespace DuneVector
         public MusicPlaylistTrack[] BackgroundMusicPlaylist = System.Array.Empty<MusicPlaylistTrack>();
         [Tooltip("Separate playlist used only by the post-contract rail subgame.")]
         public MusicPlaylistTrack[] RailSubgameMusicPlaylist = System.Array.Empty<MusicPlaylistTrack>();
+        [Tooltip("Choose the first rail-subgame song from the shuffled playlist each time the minigame starts. When disabled, the first authored rail-subgame entry starts first.")]
+        public bool RandomizeStartingRailSubgameMusicTrack = true;
         [Tooltip("Choose the first song from the shuffled playlist when the game starts.")]
         public bool RandomizeStartingBackgroundMusicTrack = true;
         [Tooltip("Playlist entry played first when startup randomization is disabled. Remaining entries stay shuffled.")]

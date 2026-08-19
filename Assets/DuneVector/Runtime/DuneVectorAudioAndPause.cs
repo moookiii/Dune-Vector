@@ -982,7 +982,10 @@ namespace DuneVector
             }
             _trackBeforeSubgame = ActiveMusicTrack;
             _subgameMusicActive = true;
-            SetActivePlaylist(subgameTracks, false, 0);
+            SetActivePlaylist(
+                subgameTracks,
+                _settings.RandomizeStartingRailSubgameMusicTrack,
+                0);
             StartMusicTrackAtCurrentPosition();
         }
 
