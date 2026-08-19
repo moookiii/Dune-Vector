@@ -869,6 +869,13 @@ namespace DuneVector
             }
             if (_shotTelegraphTimer > 0f)
             {
+                float shotRange = _settings.EvaluateShotRange(DuneVectorContractRisk.CurrentRisk);
+                if (Vector3.Distance(transform.position, _player.WorldCenter) > shotRange)
+                {
+                    _shotTelegraphTimer = 0f;
+                    _shotLine.enabled = false;
+                    return;
+                }
                 _shotTelegraphTimer -= deltaTime;
                 _shotLine.enabled = true;
                 float pulse = Mathf.Lerp(
@@ -881,7 +888,8 @@ namespace DuneVector
                 _shotLine.SetPosition(1, _telegraphedPoint);
                 if (_shotTelegraphTimer <= 0f)
                 {
-                    if (Vector3.Distance(_player.WorldCenter, _telegraphedPoint) <= _settings.ShotHitRadius)
+                    if (Vector3.Distance(transform.position, _player.WorldCenter) <= shotRange &&
+                        Vector3.Distance(_player.WorldCenter, _telegraphedPoint) <= _settings.ShotHitRadius)
                     {
                         _health.TakeDamage(
                             _settings.ShotDamage * _damageMultiplier * DuneVectorContractRisk.EnemyDamageMultiplier,
@@ -894,7 +902,9 @@ namespace DuneVector
                 return;
             }
             _shotTimer -= deltaTime * DuneVectorContractRisk.EnemyAttackRateMultiplier;
-            if (_shotTimer <= 0f)
+            if (_shotTimer <= 0f &&
+                Vector3.Distance(transform.position, _player.WorldCenter) <=
+                    _settings.EvaluateShotRange(DuneVectorContractRisk.CurrentRisk))
             {
                 float prediction = _settings.ShotTelegraphDuration;
                 _telegraphedPoint = _player.WorldCenter + (_player.Motor.BaseVelocity * prediction);

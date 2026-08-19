@@ -9,6 +9,24 @@ namespace DuneVector.Tests
 {
     public sealed class DuneVectorSpawnRegressionTests
     {
+        [TestCase(0, 100f)]
+        [TestCase(10, 150f)]
+        [TestCase(20, 200f)]
+        [TestCase(30, 200f)]
+        public void RouteEncounterSkyPiercer_ShotRangeScalesAcrossRisk(
+            int risk,
+            float expectedRange)
+        {
+            var settings = new RouteEncounterTuning
+            {
+                ShotRangeAtRiskZero = 100f,
+                ShotRangeAtRiskCeiling = 200f,
+                ShotRangeRiskCeiling = 20,
+            };
+
+            Assert.That(settings.EvaluateShotRange(risk), Is.EqualTo(expectedRange).Within(0.001f));
+        }
+
         [Test]
         public void RuntimeSettings_DunesRetainLightInsideWorldShadows()
         {

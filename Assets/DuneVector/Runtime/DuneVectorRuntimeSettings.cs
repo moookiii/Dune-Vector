@@ -2156,6 +2156,12 @@ namespace DuneVector
         [Min(0.1f)] public float ContactRadius = 2.4f;
         [Min(0f)] public float ShotDamage = 7f;
         public string ShotDeathMessage = "Destroyed by a Sky Piercer shot.";
+        [Tooltip("Maximum distance at which a formation Sky Piercer can shoot at risk 0.")]
+        [Min(0.1f)] public float ShotRangeAtRiskZero = 100f;
+        [Tooltip("Maximum shot distance reached at the shot range risk ceiling.")]
+        [Min(0.1f)] public float ShotRangeAtRiskCeiling = 200f;
+        [Tooltip("Risk at which formation Sky Piercer shot range reaches Shot Range At Risk Ceiling.")]
+        [Min(1)] public int ShotRangeRiskCeiling = 20;
         [Min(0.1f)] public float ShotInterval = 1.1f;
         [Min(0.1f)] public float ShotTelegraphDuration = 0.22f;
         [Min(0.1f)] public float ShotHitRadius = 2.2f;
@@ -2204,6 +2210,16 @@ namespace DuneVector
         [Min(0f)] public float TelegraphMinimumWidthMultiplier = 0.35f;
         [Min(0f)] public float FlyThroughGuideDuration = 5.5f;
         [Range(2, 8)] public int FlyThroughGuideGateCount = 4;
+
+        public float EvaluateShotRange(int risk)
+        {
+            float riskProgress = Mathf.Clamp01(
+                Mathf.Max(0, risk) / (float)Mathf.Max(1, ShotRangeRiskCeiling));
+            return Mathf.Max(0.1f, Mathf.Lerp(
+                ShotRangeAtRiskZero,
+                ShotRangeAtRiskCeiling,
+                riskProgress));
+        }
         [Min(0f)] public float FlyThroughGuideGateSpacing = 28f;
         [Min(0f)] public float FlyThroughGuideGateRadius = 6.5f;
         [Min(0f)] public float FlyThroughGuideGateThickness = 0.18f;
