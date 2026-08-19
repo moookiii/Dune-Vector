@@ -3443,7 +3443,10 @@ namespace DuneVector
 
         private void ResetSatellite(RailSatellite satellite, float z)
         {
-            float extent = Mathf.Max(0f, _settings.SatellitePlaneHalfExtent);
+            bool obstructFlightPath = NextFloat(0f, 1f) < _settings.SatellitePathSpawnChance;
+            float extent = obstructFlightPath
+                ? Mathf.Max(0f, _settings.SatellitePathHalfExtent)
+                : Mathf.Max(0f, _settings.SatellitePlaneHalfExtent);
             satellite.PlaneOffset = new Vector2(NextFloat(-extent, extent), NextFloat(-extent, extent));
             Vector2 center = CurrentFlightPlaneCenter();
             satellite.Transform.position = new Vector3(

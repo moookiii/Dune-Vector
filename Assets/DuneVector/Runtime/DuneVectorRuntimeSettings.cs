@@ -8279,6 +8279,10 @@ namespace DuneVector
         [Min(1f)] public float SatelliteSpacing = 92f;
         [Min(0f)] public float SatelliteSpawnAheadDistance = 110f;
         [Min(0f)] public float SatellitePlaneHalfExtent = 32f;
+        [Tooltip("Fraction of recycled satellites placed close to the drone's current flight path instead of across the full procedural plane.")]
+        [Range(0f, 1f)] public float SatellitePathSpawnChance = 0.65f;
+        [Tooltip("Maximum horizontal and vertical offset for satellites selected to obstruct the current flight path.")]
+        [Min(0f)] public float SatellitePathHalfExtent = 7f;
         [Min(0.01f)] public float SatelliteVisualScale = 12f;
         [Min(0.01f)] public float SatelliteHitRadius = 5f;
         [Min(0.01f)] public float SatelliteCollisionRadius = 4f;
