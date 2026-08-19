@@ -41,6 +41,54 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void RailShooter_RestingAimMapsFlightBoundsIntoCenteredHalfScreenRegion()
+        {
+            Vector2 bounds = new Vector2(28f, 15f);
+
+            Assert.That(
+                DuneVectorRailShooterController.CalculateRestingAimViewport(
+                    Vector2.zero,
+                    bounds,
+                    0.5f),
+                Is.EqualTo(new Vector2(0.5f, 0.5f)));
+            Assert.That(
+                DuneVectorRailShooterController.CalculateRestingAimViewport(
+                    new Vector2(-bounds.x, bounds.y),
+                    bounds,
+                    0.5f),
+                Is.EqualTo(new Vector2(0.25f, 0.75f)));
+        }
+
+        [Test]
+        public void RailShooter_TemporaryHullDepletionDoesNotKillPersistentPlayer()
+        {
+            GameObject player = new GameObject("Rail Shooter Health Test");
+            try
+            {
+                DroneHealth health = player.AddComponent<DroneHealth>();
+                health.Initialize(100f, 0f);
+                bool died = false;
+                bool temporaryPoolDepleted = false;
+                health.Died += () => died = true;
+                health.TemporaryHealthPoolDepleted += () => temporaryPoolDepleted = true;
+
+                Assert.That(health.BeginTemporaryHealthPool(40f), Is.True);
+                Assert.That(health.TakeDamage(40f, "test"), Is.True);
+                Assert.That(temporaryPoolDepleted, Is.True);
+                Assert.That(died, Is.False);
+
+                Assert.That(health.EndTemporaryHealthPool(), Is.True);
+                Assert.That(health.CurrentHealth, Is.EqualTo(100f));
+                Assert.That(health.MaximumHealth, Is.EqualTo(100f));
+                Assert.That(health.IsDead, Is.False);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(player);
+            }
+        }
+
+        [Test]
         public void GraphicsSettings_RuntimeShadersSurviveTheBuild()
         {
             SerializedObject graphicsSettings = new SerializedObject(

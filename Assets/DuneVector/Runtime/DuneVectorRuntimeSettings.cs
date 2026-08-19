@@ -7611,6 +7611,10 @@ namespace DuneVector
     {
         [Header("Mode Lifecycle")]
         public bool Enabled = true;
+        [Tooltip("Debug only: enter the post-contract rift intercept immediately after the game initializes.")]
+        public bool DebugStartOnLaunch;
+        public int DebugSeed = 82031;
+        [Min(1)] public int DebugDifficulty = 1;
         public int SeedOffset = 82031;
         [Min(0f)] public float RiftWorldAltitude = 4200f;
         [Min(0f)] public float EntryHoldDuration = 1.25f;

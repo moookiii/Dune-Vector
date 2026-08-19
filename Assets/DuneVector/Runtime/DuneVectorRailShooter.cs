@@ -480,11 +480,10 @@ namespace DuneVector
                 Quaternion.identity,
                 DuneVectorMath.Sharpness(_settings.CameraRotationSharpness, deltaTime));
 
-            Vector2 normalizedPosition = new Vector2(
-                _state.FlightOffset.x / _settings.FlightBounds.x,
-                _state.FlightOffset.y / _settings.FlightBounds.y);
-            Vector2 restingViewport = Vector2.one * 0.5f +
-                (normalizedPosition * (_settings.RestingAimRegionFraction * 0.5f));
+            Vector2 restingViewport = CalculateRestingAimViewport(
+                _state.FlightOffset,
+                _settings.FlightBounds,
+                _settings.RestingAimRegionFraction);
             Vector2 aimViewport = restingViewport + Vector2.Scale(
                 _state.Attitude,
                 _settings.SteeringAimViewportSwing);
@@ -2213,6 +2212,21 @@ namespace DuneVector
             float edge = Mathf.InverseLerp(edgeStart, limit, absolute);
             float eased = Mathf.Lerp(edgeStart, limit, Mathf.SmoothStep(0f, 1f, edge));
             return Mathf.Sign(clamped) * eased;
+        }
+
+        public static Vector2 CalculateRestingAimViewport(
+            Vector2 flightOffset,
+            Vector2 flightBounds,
+            float regionFraction)
+        {
+            Vector2 safeBounds = new Vector2(
+                Mathf.Max(0.001f, Mathf.Abs(flightBounds.x)),
+                Mathf.Max(0.001f, Mathf.Abs(flightBounds.y)));
+            Vector2 normalizedPosition = new Vector2(
+                Mathf.Clamp(flightOffset.x / safeBounds.x, -1f, 1f),
+                Mathf.Clamp(flightOffset.y / safeBounds.y, -1f, 1f));
+            return Vector2.one * 0.5f +
+                (normalizedPosition * (Mathf.Clamp01(regionFraction) * 0.5f));
         }
 
         private static bool SegmentIntersectsSphere(

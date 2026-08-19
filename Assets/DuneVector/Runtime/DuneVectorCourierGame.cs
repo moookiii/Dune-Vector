@@ -858,6 +858,22 @@ namespace DuneVector
                 groundExploders,
                 rings,
                 _droneVisualOriginalScale);
+
+            if (settings.DebugStartOnLaunch &&
+                State == CourierRunState.Hub &&
+                !IsDeliveryMessageOpen)
+            {
+                BeginDeliveryMessageSafety();
+                if (_player.DroneVisualRoot != null)
+                {
+                    _player.DroneVisualRoot.localScale = Vector3.zero;
+                }
+                _playerInput.SetInputEnabled(false);
+                _pendingRailSeed = settings.DebugSeed;
+                _pendingRailDifficulty = Mathf.Max(1, settings.DebugDifficulty);
+                State = CourierRunState.DeliveryMessage;
+                BeginPostContractRailOrReturn();
+            }
         }
 
         public void BindDustDevils(DuneVectorDustDevilSystem dustDevils)
