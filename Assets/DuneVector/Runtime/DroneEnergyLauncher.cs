@@ -1357,7 +1357,6 @@ namespace DuneVector
                 height);
 
             DrawRect(track, ScaleAlpha(_settings.OverheatBarTrackColor, _visibleAlpha));
-            DrawSegments(track, scale);
 
             float heat01 = Mathf.Clamp01(_displayedHeat);
             if (heat01 > 0f)
@@ -1372,23 +1371,6 @@ namespace DuneVector
                 Mathf.Max(1f, _settings.OverheatBarBorderThickness * scale),
                 ScaleAlpha(_settings.OverheatBarBorderColor, _visibleAlpha));
             DrawVentingLabel(track, scale);
-        }
-
-        private void DrawSegments(Rect track, float scale)
-        {
-            int segmentCount = Mathf.Max(0, _settings.OverheatBarSegmentCount);
-            if (segmentCount < 2)
-            {
-                return;
-            }
-
-            Color segmentColor = ScaleAlpha(_settings.OverheatBarSegmentColor, _visibleAlpha);
-            float segmentWidth = Mathf.Max(0.5f, _settings.OverheatBarSegmentWidth * scale);
-            for (int segment = 1; segment < segmentCount; segment++)
-            {
-                float x = track.x + (track.width * (segment / (float)segmentCount));
-                DrawRect(new Rect(x - (segmentWidth * 0.5f), track.y, segmentWidth, track.height), segmentColor);
-            }
         }
 
         private Color GetFillColor(float heat01)
