@@ -509,7 +509,11 @@ namespace DuneVector
                 _state.FlightOffset.x,
                 _state.FlightOffset.y,
                 _state.Distance);
-            Vector3 cameraAnchor = _arenaOrigin + new Vector3(0f, 0f, _state.Distance);
+            float cameraFollow = Mathf.Clamp01(_settings.CameraLateralFollowFraction);
+            Vector3 cameraAnchor = new Vector3(
+                Mathf.Lerp(_arenaOrigin.x, playerPosition.x, cameraFollow),
+                Mathf.Lerp(_arenaOrigin.y, playerPosition.y, cameraFollow),
+                _arenaOrigin.z + _state.Distance);
             Vector3 desiredCameraPosition = cameraAnchor + _settings.CameraLocalOffset;
             _cameraBasePosition = Vector3.Lerp(
                 _cameraBasePosition,
@@ -523,7 +527,7 @@ namespace DuneVector
                 DuneVectorMath.Sharpness(_settings.CameraRotationSharpness, deltaTime));
 
             Vector2 restingViewport = CalculateRestingAimViewport(
-                _state.FlightOffset,
+                _state.FlightOffset * (1f - cameraFollow),
                 _settings.FlightBounds,
                 _settings.RestingAimRegionFraction);
             _aimViewport = restingViewport + Vector2.Scale(
@@ -566,6 +570,7 @@ namespace DuneVector
             {
                 _modeRoot.position -= shift;
             }
+            _cameraBasePosition -= shift;
             for (int i = 0; i < _popups.Count; i++)
             {
                 if (_popups[i].Active)
@@ -2049,17 +2054,14 @@ namespace DuneVector
                 {
                     Root = NewRoot($"Rift Segment {i + 1:00}", _environmentRoot),
                 };
-                if (i % 3 == 0)
-                {
-                    Transform gate = DuneVectorVisuals.CreateRingVisual(
-                        segment.Root,
-                        TraversalRingType.Flight,
-                        _materials,
-                        _settings.GateRadius,
-                        _ringSettings);
-                    gate.name = "Rift Signal Gate Architecture";
-                    RegisterRailRing(gate);
-                }
+                Transform gate = DuneVectorVisuals.CreateRingVisual(
+                    segment.Root,
+                    TraversalRingType.Flight,
+                    _materials,
+                    _settings.GateRadius,
+                    _ringSettings);
+                gate.name = "Procedural Rift Navigation Ring";
+                RegisterRailRing(gate);
                 _segments.Add(segment);
             }
 
@@ -2362,7 +2364,12 @@ namespace DuneVector
 
         private void ResetSegment(RiftSegment segment, float z, int identity)
         {
-            segment.Root.position = new Vector3(_arenaOrigin.x, _arenaOrigin.y, z);
+            float extent = Mathf.Max(1f, _settings.ProceduralPlaneHalfExtent);
+            float depthJitter = Mathf.Max(0f, _settings.ProceduralRingDepthJitter);
+            segment.Root.position = new Vector3(
+                _arenaOrigin.x + NextFloat(-extent, extent),
+                _arenaOrigin.y + NextFloat(-extent, extent),
+                z + NextFloat(-depthJitter, depthJitter));
             segment.Root.rotation = Quaternion.identity;
         }
 

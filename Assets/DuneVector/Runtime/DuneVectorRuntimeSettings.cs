@@ -7716,6 +7716,8 @@ namespace DuneVector
         public Vector3 CameraLocalOffset = new Vector3(0f, 4.6f, -13.5f);
         [Min(0f)] public float CameraPositionSharpness = 16f;
         [Min(0f)] public float CameraRotationSharpness = 12f;
+        [Tooltip("How strongly the rail camera follows the drone across the unlocked procedural X/Y plane.")]
+        [Range(0f, 1f)] public float CameraLateralFollowFraction = 1f;
         [Range(30f, 100f)] public float CameraFieldOfView = 68f;
         [Range(0f, 25f)] public float BoostFieldOfView = 9f;
         [Range(0f, 20f)] public float BombFieldOfViewImpulse = 5f;
@@ -7914,6 +7916,10 @@ namespace DuneVector
         [Min(0f)] public float CorridorHalfHeight = 25f;
         [Min(0f)] public float WreckageRotationSpeed = 13f;
         [Min(0f)] public float GateRadius = 13f;
+        [Tooltip("Half-size of the procedural X/Y plane used to scatter pooled course rings around the floating origin.")]
+        [Min(1f)] public float ProceduralPlaneHalfExtent = 95f;
+        [Tooltip("Random forward-depth variation added when a procedural ring segment is recycled.")]
+        [Min(0f)] public float ProceduralRingDepthJitter = 24f;
         [Min(1)] public int SpeedStreakPoolSize = 52;
         [Min(0f)] public float SpeedStreakMinimumLength = 5f;
         [Min(0f)] public float SpeedStreakMaximumLength = 18f;
