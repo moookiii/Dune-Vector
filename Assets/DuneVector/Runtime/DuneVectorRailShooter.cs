@@ -24,6 +24,16 @@ namespace DuneVector
         VesperKite,
     }
 
+    public enum RailShooterBulletPattern
+    {
+        Aimed,
+        Spread,
+        Ring,
+        Spiral,
+        Wall,
+        Weave,
+    }
+
     public enum RailShooterTrick
     {
         None,
@@ -50,6 +60,8 @@ namespace DuneVector
         public readonly bool BombPressed;
         public readonly bool TrickPressed;
         public readonly bool ConfirmPressed;
+        public readonly Vector2 Look;
+        public readonly Vector2 Stick;
 
         public RailShooterCommand(in DroneRawInputFrame input)
         {
@@ -62,6 +74,8 @@ namespace DuneVector
             BombPressed = input.BombPressed;
             TrickPressed = input.JumpPressed;
             ConfirmPressed = input.ConfirmPressed;
+            Look = input.LookDelta;
+            Stick = input.LookRate;
         }
     }
 
@@ -89,7 +103,11 @@ namespace DuneVector
         public int FormationClears;
         public int Pickups;
         public int ProjectileDeflections;
+        public int Grazes;
         public int RouteGatesCleared;
+        public int SigilsBroken;
+        public int ChainSigilsBroken;
+        public int SigilStrikes;
         public bool TookDamage;
         public RailShooterRoute Route;
     }
@@ -109,11 +127,29 @@ namespace DuneVector
         {
             public GameObject Root;
             public Transform Transform;
+            public Transform Core;
+            public Transform Cage;
+            public Transform Halo;
+            public Renderer CoreRenderer;
+            public Renderer CageRenderer;
+            public Renderer HaloRenderer;
+            public TrailRenderer Trail;
             public bool Active;
             public bool EnemyOwned;
             public Vector3 Velocity;
+            public Vector3 Heading;
+            public float Speed;
             public float Remaining;
             public float Radius;
+            public float Age;
+            public float ArmDuration;
+            public float CurveDegreesPerSecond;
+            public float WeaveSwing;
+            public float WeaveFrequency;
+            public float WeavePhase;
+            public float PulsePhase;
+            public float CoreStretch;
+            public bool Grazed;
         }
 
         private sealed class PooledImpact
@@ -199,6 +235,9 @@ namespace DuneVector
         private readonly List<Transform> _railRings = new List<Transform>();
         private readonly List<ScorePopup> _popups = new List<ScorePopup>();
         private readonly List<RailEnemy> _chargeLocks = new List<RailEnemy>();
+        private readonly List<RailSigilDefinition> _sigilDemand = new List<RailSigilDefinition>();
+        private readonly List<RailSigilDefinition> _sigilCandidates = new List<RailSigilDefinition>();
+        private readonly List<Vector2> _sigilGlyphPoints = new List<Vector2>();
 
         private DronePlayer _input;
         private DroneCharacterController _player;
@@ -258,6 +297,20 @@ namespace DuneVector
         private int _killsSinceDrop;
         private bool _resultSuccess;
         private bool _rewardCommitted;
+        private readonly List<RailShooterBulletPattern> _patternCandidates =
+            new List<RailShooterBulletPattern>(6);
+        private Material[] _bulletCoreMaterials;
+        private Material[] _bulletGlowMaterials;
+        private Material _playerBoltCoreMaterial;
+        private Material _playerBoltGlowMaterial;
+        private float _bossNextRingAt;
+        private float _bossNextSpiralAt;
+        private float _bossNextWallAt;
+        private float _bossSpiralBurstEndsAt;
+        private float _bossSpiralNextShotAt;
+        private float _bossSpiralAngle;
+        private int _bossSpiralDirection = 1;
+        private float _nextGrazePopupAt;
         private float _cameraShake;
         private float _fovImpulse;
         private int _difficulty = 1;
@@ -273,6 +326,24 @@ namespace DuneVector
         private bool _applicationPaused;
         private bool _skipResumeFrame;
         private float _bossBannerElapsed = float.PositiveInfinity;
+        private Transform _sigilRoot;
+        private Transform _sigilCage;
+        private Transform _sigilHalo;
+        private bool _sigilActive;
+        private bool _sigilChain;
+        private bool _sigilVerdictBroken;
+        private float _sigilElapsed;
+        private float _sigilDuration;
+        private Vector2 _sigilPlaneOffset;
+        private Vector2 _sigilStrokeAccumulator;
+        private int _sigilSymbolIndex;
+        private int _sigilStrokeIndex;
+        private int _sigilAttackCount;
+        private int _sigilChainCycle;
+        private float _sigilNextAttackDistance;
+        private float _sigilNextBossAttackAt = float.PositiveInfinity;
+        private float _sigilFaultElapsed = float.PositiveInfinity;
+        private float _sigilVerdictElapsed = float.PositiveInfinity;
         private Component _massiveClouds;
         private readonly List<object> _savedMassiveCloudParameters = new List<object>();
 
@@ -303,6 +374,7 @@ namespace DuneVector
         private GUIStyle _centeredSmallStyle;
         private GUIStyle _statLabelStyle;
         private GUIStyle _statValueStyle;
+        private GUIStyle _sigilCountdownStyle;
 
         public void Initialize(
             DronePlayer input,
@@ -378,6 +450,8 @@ namespace DuneVector
             _bombElapsed = float.PositiveInfinity;
             _chargedBeamElapsed = float.PositiveInfinity;
             _laneElapsed = float.PositiveInfinity;
+            _nextGrazePopupAt = float.NegativeInfinity;
+            ResetBossBulletPatterns();
             _fireWasHeld = false;
             _routeGateActive = false;
             _nextRouteGateIndex = 0;
@@ -403,6 +477,7 @@ namespace DuneVector
             ResultGrade = "C";
             ResetPools();
             ResetCourse();
+            ResetSigilDuel();
             EnterRailPresentation();
             _modeRoot.gameObject.SetActive(true);
             DuneVectorAudioManager.Instance?.EnterRailSubgameMusic();
@@ -454,6 +529,7 @@ namespace DuneVector
                 TickEnemies(deltaTime);
                 TickProjectiles(deltaTime);
                 TickLaneAttack(deltaTime);
+                TickSigilDuel(command, deltaTime);
                 TickImpacts(deltaTime);
                 TickPresentation(deltaTime);
             }
@@ -749,6 +825,7 @@ namespace DuneVector
                 _bossBannerElapsed = 0f;
             }
 
+            TickSigilDirector();
             if (_state.Distance >= _settings.BossSpawnDistance)
             {
                 BeginBoss();
@@ -935,7 +1012,7 @@ namespace DuneVector
                 }
                 else
                 {
-                    FireEnemyProjectile(enemy, 1);
+                    FireEnemyPattern(enemy);
                 }
                 enemy.NextFireAt += ScaledEnemyFireInterval();
             }
@@ -985,6 +1062,8 @@ namespace DuneVector
             PlayCue(_settings.BossSpawnEvent, _player.transform.position);
             _boss.NextFireAt = _settings.BossFireInterval;
             _boss.NextSpecialAt = _settings.BossLaneAttackInterval;
+            ResetBossBulletPatterns();
+            _sigilNextBossAttackAt = _state.Elapsed + _settings.Sigils.BossAttackInterval;
             _boss.Root.SetActive(true);
         }
 
@@ -1016,9 +1095,13 @@ namespace DuneVector
             }
             if (_boss.Age >= _boss.NextFireAt)
             {
-                FireEnemyProjectile(_boss, _settings.BossProjectileFanCount + ((phase - 1) * 2));
+                FireAimedBullets(
+                    _boss,
+                    _settings.BossProjectileFanCount + ((phase - 1) * 2),
+                    _settings.BossProjectileFanAngle);
                 _boss.NextFireAt += _settings.BossFireInterval / (1f + ((phase - 1) * 0.25f));
             }
+            TickBossBulletPatterns(phase, deltaTime);
             if (_boss.Age >= _boss.NextSpecialAt && !float.IsFinite(_laneElapsed))
             {
                 BeginLaneAttack(PredictLaneInterceptX());
@@ -1029,6 +1112,7 @@ namespace DuneVector
             {
                 DamagePlayer(_settings.BossContactDamage, "Vesper Sovereign hull grind");
             }
+            TickSigilDirector();
         }
 
         private void TickWeapons(in RailShooterCommand command, float deltaTime)
@@ -1091,16 +1175,38 @@ namespace DuneVector
             Vector3 direction = ResolveShotDirection();
             projectile.Active = true;
             projectile.EnemyOwned = false;
+            projectile.Heading = direction;
+            projectile.Speed = _settings.RegularShotSpeed;
             projectile.Transform.position = _player.transform.position + (direction * 2.2f);
             projectile.Velocity = direction * _settings.RegularShotSpeed;
             projectile.Remaining = _settings.RegularShotLifetime;
             projectile.Radius = _settings.RegularShotRadius;
+            projectile.Age = 0f;
             projectile.Transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
-            projectile.Transform.localScale = new Vector3(
-                _settings.RegularShotRadius,
-                _settings.RegularShotRadius,
-                _settings.RegularShotVisualLength);
+            if (projectile.Core != null)
+            {
+                projectile.Core.localScale = new Vector3(
+                    _settings.RegularShotRadius,
+                    _settings.RegularShotRadius,
+                    _settings.RegularShotVisualLength);
+            }
+            if (projectile.Halo != null)
+            {
+                float boltGlow = _settings.RegularShotRadius * _settings.BulletHaloScale;
+                projectile.Halo.localScale = new Vector3(
+                    boltGlow,
+                    boltGlow,
+                    _settings.RegularShotVisualLength * 1.1f);
+            }
             projectile.Root.SetActive(true);
+            if (projectile.Trail != null)
+            {
+                projectile.Trail.Clear();
+                projectile.Trail.time = _settings.BulletTrailDuration;
+                projectile.Trail.widthMultiplier =
+                    _settings.RegularShotRadius * _settings.BulletTrailWidthFraction;
+                projectile.Trail.emitting = _settings.BulletTrailDuration > 0f;
+            }
             PlayCue(_settings.FireEvent, _player.transform.position);
         }
 
@@ -1334,41 +1440,371 @@ namespace DuneVector
             PlayCue(_settings.BombEvent, _player.transform.position);
         }
 
-        private void FireEnemyProjectile(RailEnemy source, int fanCount)
+        private Vector3 PredictedPlayerPosition()
         {
-            Vector3 predictedPlayer = _player.transform.position + new Vector3(
+            return _player.transform.position + (new Vector3(
                 _state.LateralVelocity.x,
                 _state.LateralVelocity.y,
-                0f) * _settings.EnemyPredictiveLeadSeconds;
-            Vector3 baseDirection = (predictedPlayer - source.Transform.position).normalized;
-            int count = Mathf.Max(1, fanCount);
-            for (int i = 0; i < count; i++)
+                0f) * _settings.EnemyPredictiveLeadSeconds);
+        }
+
+        private int ActiveEnemyBulletCount()
+        {
+            int active = 0;
+            for (int i = 0; i < _enemyProjectiles.Count; i++)
             {
-                PooledProjectile projectile = AcquireProjectile(_enemyProjectiles);
-                if (projectile == null)
+                if (_enemyProjectiles[i].Active)
                 {
-                    break;
+                    active++;
                 }
-                float normalized = count > 1 ? i / (float)(count - 1) : 0.5f;
-                float angle = Mathf.Lerp(
-                    -_settings.BossProjectileFanAngle * 0.5f,
-                    _settings.BossProjectileFanAngle * 0.5f,
-                    normalized);
-                Vector3 direction = Quaternion.AngleAxis(angle, Vector3.forward) * baseDirection;
-                projectile.Active = true;
-                projectile.EnemyOwned = true;
-                projectile.Transform.position = source.Transform.position;
-                projectile.Velocity = direction * _settings.EnemyProjectileSpeed;
-                projectile.Remaining = _settings.EnemyProjectileLifetime;
-                projectile.Radius = _settings.EnemyProjectileRadius;
-                projectile.Transform.localScale = Vector3.one * (_settings.EnemyProjectileRadius * 2f);
-                projectile.Root.SetActive(true);
+            }
+            return active;
+        }
+
+        // A curtain the drone cannot physically thread is not a bullet hell, it is a wall,
+        // so the live bullet count is capped no matter how many emitters are firing.
+        private int RemainingBulletBudget()
+        {
+            return Mathf.Max(0, _settings.MaximumActiveEnemyBullets - ActiveEnemyBulletCount());
+        }
+
+        private static int BulletStyleIndex(RailShooterBulletPattern pattern)
+        {
+            switch (pattern)
+            {
+                case RailShooterBulletPattern.Ring:
+                case RailShooterBulletPattern.Spiral:
+                    return 1;
+                case RailShooterBulletPattern.Wall:
+                    return 2;
+                case RailShooterBulletPattern.Weave:
+                    return 3;
+                default:
+                    return 0;
+            }
+        }
+
+        private PooledProjectile SpawnEnemyBullet(
+            Vector3 origin,
+            Vector3 heading,
+            float speed,
+            RailShooterBulletPattern pattern,
+            float curveDegreesPerSecond,
+            float weaveSwing)
+        {
+            PooledProjectile projectile = AcquireProjectile(_enemyProjectiles);
+            if (projectile == null || heading.sqrMagnitude <= 0.0001f)
+            {
+                return null;
+            }
+            int style = BulletStyleIndex(pattern);
+            ApplyBulletStyle(projectile, _bulletCoreMaterials[style], _bulletGlowMaterials[style]);
+            projectile.Active = true;
+            projectile.EnemyOwned = true;
+            projectile.Heading = heading.normalized;
+            projectile.Speed = Mathf.Max(1f, speed);
+            projectile.Velocity = projectile.Heading * projectile.Speed;
+            projectile.Remaining = _settings.EnemyProjectileLifetime;
+            projectile.Radius = _settings.EnemyProjectileRadius;
+            projectile.Age = 0f;
+            projectile.ArmDuration = _settings.BulletArmDuration;
+            projectile.CurveDegreesPerSecond = curveDegreesPerSecond;
+            projectile.WeaveSwing = weaveSwing;
+            projectile.WeaveFrequency = _settings.WeaveFrequency;
+            projectile.WeavePhase = (float)(_random.NextDouble() * Mathf.PI * 2f);
+            projectile.PulsePhase = (float)(_random.NextDouble() * Mathf.PI * 2f);
+            projectile.CoreStretch = _settings.BulletVelocityStretch;
+            projectile.Grazed = false;
+            projectile.Transform.position = origin;
+            projectile.Transform.rotation = Quaternion.LookRotation(projectile.Heading, Vector3.up);
+            projectile.Root.SetActive(true);
+            if (projectile.Trail != null)
+            {
+                projectile.Trail.Clear();
+                projectile.Trail.time = _settings.BulletTrailDuration;
+                float width = _settings.EnemyProjectileRadius * 2f * _settings.BulletTrailWidthFraction;
+                projectile.Trail.widthMultiplier = width;
+                projectile.Trail.emitting = _settings.BulletTrailDuration > 0f;
+            }
+            UpdateBulletVisual(projectile, 0f);
+            return projectile;
+        }
+
+        // Rings and spirals fan out sideways while still closing on the drone, so the
+        // player flies into an expanding lattice rather than past a stationary one.
+        private Vector3 RadialHeading(Vector3 origin, float planarAngleDegrees)
+        {
+            Vector3 approach = PredictedPlayerPosition() - origin;
+            if (approach.sqrMagnitude <= 0.0001f)
+            {
+                approach = Vector3.back;
+            }
+            approach.Normalize();
+            float cone = _settings.RadialPatternConeAngle * Mathf.Deg2Rad;
+            float radians = planarAngleDegrees * Mathf.Deg2Rad;
+            Vector3 planar = new Vector3(Mathf.Cos(radians), Mathf.Sin(radians), 0f);
+            return ((planar * Mathf.Sin(cone)) + (approach * Mathf.Cos(cone))).normalized;
+        }
+
+        private void FireAimedBullets(RailEnemy source, int count, float spreadAngle)
+        {
+            int budget = Mathf.Min(Mathf.Max(1, count), RemainingBulletBudget());
+            Vector3 origin = source.Transform.position;
+            Vector3 baseDirection = (PredictedPlayerPosition() - origin).normalized;
+            for (int i = 0; i < budget; i++)
+            {
+                float normalized = budget > 1 ? i / (float)(budget - 1) : 0.5f;
+                float angle = Mathf.Lerp(-spreadAngle * 0.5f, spreadAngle * 0.5f, normalized);
+                Vector3 heading = Quaternion.AngleAxis(angle, Vector3.forward) * baseDirection;
+                SpawnEnemyBullet(
+                    origin,
+                    heading,
+                    _settings.EnemyProjectileSpeed,
+                    budget > 1 ? RailShooterBulletPattern.Spread : RailShooterBulletPattern.Aimed,
+                    0f,
+                    0f);
+            }
+        }
+
+        private void FireWeavingBullets(RailEnemy source, int count)
+        {
+            int budget = Mathf.Min(Mathf.Max(1, count), RemainingBulletBudget());
+            Vector3 origin = source.Transform.position;
+            Vector3 baseDirection = (PredictedPlayerPosition() - origin).normalized;
+            for (int i = 0; i < budget; i++)
+            {
+                // Alternating swing directions braid the bullets around each other, which
+                // leaves a moving gap between them instead of a solid pair.
+                float swing = _settings.WeaveSwingDegreesPerSecond * ((i % 2 == 0) ? 1f : -1f);
+                SpawnEnemyBullet(
+                    origin,
+                    baseDirection,
+                    _settings.EnemyProjectileSpeed,
+                    RailShooterBulletPattern.Weave,
+                    0f,
+                    swing);
+            }
+        }
+
+        private void FireBulletRing(RailEnemy source, int count, float angleOffset)
+        {
+            int requested = Mathf.Max(3, count);
+            int budget = Mathf.Min(requested, RemainingBulletBudget());
+            Vector3 origin = source.Transform.position;
+            float step = 360f / requested;
+            for (int i = 0; i < budget; i++)
+            {
+                Vector3 heading = RadialHeading(origin, angleOffset + (step * i));
+                SpawnEnemyBullet(
+                    origin,
+                    heading,
+                    _settings.EnemyProjectileSpeed * _settings.RingBulletSpeedMultiplier,
+                    RailShooterBulletPattern.Ring,
+                    0f,
+                    0f);
+            }
+        }
+
+        private void FireBulletSpiral(RailEnemy source, int arms, float angle)
+        {
+            int requested = Mathf.Max(1, arms);
+            int budget = Mathf.Min(requested, RemainingBulletBudget());
+            Vector3 origin = source.Transform.position;
+            float step = 360f / requested;
+            for (int i = 0; i < budget; i++)
+            {
+                Vector3 heading = RadialHeading(origin, angle + (step * i));
+                SpawnEnemyBullet(
+                    origin,
+                    heading,
+                    _settings.EnemyProjectileSpeed * _settings.RingBulletSpeedMultiplier,
+                    RailShooterBulletPattern.Spiral,
+                    _settings.SpiralCurveDegreesPerSecond,
+                    0f);
+            }
+        }
+
+        // The curtain always carries one opening wide enough to fly through, and the
+        // opening is placed away from the drone so it has to be flown to, not sat in.
+        private void FireBulletWall(RailEnemy source)
+        {
+            int requested = Mathf.Max(3, _settings.BossWallBulletCount);
+            int budget = Mathf.Min(requested, RemainingBulletBudget());
+            if (budget < 3)
+            {
+                return;
+            }
+            Vector3 origin = source.Transform.position;
+            Vector3 approach = PredictedPlayerPosition() - origin;
+            approach.x = 0f;
+            approach.y = 0f;
+            if (approach.sqrMagnitude <= 0.0001f)
+            {
+                approach = Vector3.back;
+            }
+            approach.Normalize();
+
+            float halfWidth = _settings.BossWallWidth * 0.5f;
+            float gapHalfWidth = Mathf.Min(
+                _settings.BossWallGapWidth * 0.5f,
+                _settings.BossWallWidth * 0.4f);
+            float playerX = _player.transform.position.x - _arenaOrigin.x;
+            float gapCenter = Mathf.Clamp(
+                -Mathf.Sign(playerX == 0f ? 1f : playerX) * (halfWidth * 0.45f),
+                -halfWidth + gapHalfWidth,
+                halfWidth - gapHalfWidth);
+            float step = _settings.BossWallWidth / (requested - 1);
+            int spawned = 0;
+            for (int i = 0; i < requested && spawned < budget; i++)
+            {
+                float offset = -halfWidth + (step * i);
+                if (Mathf.Abs(offset - gapCenter) <= gapHalfWidth)
+                {
+                    continue;
+                }
+                Vector3 slot = new Vector3(_arenaOrigin.x + offset, origin.y, origin.z);
+                SpawnEnemyBullet(
+                    slot,
+                    approach,
+                    _settings.EnemyProjectileSpeed * _settings.BossWallBulletSpeedMultiplier,
+                    RailShooterBulletPattern.Wall,
+                    0f,
+                    0f);
+                spawned++;
+            }
+        }
+
+        private RailShooterBulletPattern ChooseGruntPattern(RailEnemy enemy)
+        {
+            if (!_settings.BulletPatternsEnabled)
+            {
+                return RailShooterBulletPattern.Aimed;
+            }
+            _patternCandidates.Clear();
+            _patternCandidates.Add(RailShooterBulletPattern.Aimed);
+            if (_waveIndex >= _settings.PatternUnlockWaveSpread)
+            {
+                _patternCandidates.Add(RailShooterBulletPattern.Spread);
+            }
+            if (_waveIndex >= _settings.PatternUnlockWaveRing)
+            {
+                _patternCandidates.Add(RailShooterBulletPattern.Ring);
+            }
+            if (_waveIndex >= _settings.PatternUnlockWaveWeave)
+            {
+                _patternCandidates.Add(RailShooterBulletPattern.Weave);
+            }
+            // Each silhouette leans on one pattern so the player can read the threat from
+            // the hostile rather than only from the bullets already in the air.
+            RailShooterBulletPattern signature = enemy.Kind switch
+            {
+                RailShooterEnemyKind.StrikeOrb => RailShooterBulletPattern.Ring,
+                RailShooterEnemyKind.VesperKite => RailShooterBulletPattern.Weave,
+                _ => RailShooterBulletPattern.Spread,
+            };
+            if (_patternCandidates.Contains(signature))
+            {
+                _patternCandidates.Add(signature);
+                if (enemy.Elite)
+                {
+                    _patternCandidates.Add(signature);
+                }
+            }
+            return _patternCandidates[_random.Next(_patternCandidates.Count)];
+        }
+
+        private void FireEnemyPattern(RailEnemy source)
+        {
+            if (RemainingBulletBudget() <= 0)
+            {
+                return;
+            }
+            switch (ChooseGruntPattern(source))
+            {
+                case RailShooterBulletPattern.Spread:
+                    FireAimedBullets(
+                        source,
+                        _settings.GruntSpreadBulletCount + (source.Elite ? 2 : 0),
+                        _settings.GruntSpreadAngle);
+                    break;
+                case RailShooterBulletPattern.Ring:
+                    FireBulletRing(
+                        source,
+                        _settings.GruntRingBulletCount + (source.Elite ? 3 : 0),
+                        (float)(_random.NextDouble() * 360.0));
+                    break;
+                case RailShooterBulletPattern.Weave:
+                    FireWeavingBullets(source, source.Elite ? 4 : 2);
+                    break;
+                default:
+                    FireAimedBullets(source, 1, 0f);
+                    break;
+            }
+        }
+
+        private void ResetBossBulletPatterns()
+        {
+            _bossNextRingAt = _settings.BossRingInterval;
+            _bossNextSpiralAt = _settings.BossSpiralCooldown;
+            _bossNextWallAt = _settings.BossWallInterval;
+            _bossSpiralBurstEndsAt = float.NegativeInfinity;
+            _bossSpiralNextShotAt = 0f;
+            _bossSpiralAngle = 0f;
+            _bossSpiralDirection = 1;
+        }
+
+        private void TickBossBulletPatterns(int phase, float deltaTime)
+        {
+            if (!_settings.BulletPatternsEnabled || _boss == null || !_boss.Active)
+            {
+                return;
+            }
+            float age = _boss.Age;
+            if (age >= _bossNextRingAt)
+            {
+                FireBulletRing(
+                    _boss,
+                    _settings.BossRingBulletCount + ((phase - 1) * 4),
+                    _bossSpiralAngle);
+                _bossNextRingAt = age + (_settings.BossRingInterval / (1f + ((phase - 1) * 0.22f)));
+            }
+            if (phase >= 2)
+            {
+                if (age >= _bossNextSpiralAt && age >= _bossSpiralBurstEndsAt)
+                {
+                    _bossSpiralBurstEndsAt = age + _settings.BossSpiralBurstDuration;
+                    _bossSpiralNextShotAt = age;
+                    // Reversing each burst stops the spiral from becoming a memorised
+                    // one-way drift the player can simply hold a stick against.
+                    _bossSpiralDirection = -_bossSpiralDirection;
+                    _bossNextSpiralAt = _bossSpiralBurstEndsAt +
+                        (_settings.BossSpiralCooldown / (1f + ((phase - 2) * 0.35f)));
+                }
+                if (age < _bossSpiralBurstEndsAt)
+                {
+                    _bossSpiralAngle +=
+                        _settings.BossSpiralRotationDegreesPerSecond * _bossSpiralDirection * deltaTime;
+                    float interval = Mathf.Max(0.02f, _settings.BossSpiralShotInterval);
+                    int guard = 0;
+                    while (age >= _bossSpiralNextShotAt && guard < 8)
+                    {
+                        FireBulletSpiral(_boss, _settings.BossSpiralArms, _bossSpiralAngle);
+                        _bossSpiralNextShotAt += interval;
+                        guard++;
+                    }
+                }
+            }
+            if (phase >= 3 && age >= _bossNextWallAt)
+            {
+                FireBulletWall(_boss);
+                _bossNextWallAt = age + _settings.BossWallInterval;
             }
         }
 
         private void TickProjectiles(float deltaTime)
         {
             TickPlayerProjectiles(deltaTime);
+            Vector3 playerPosition = _player.transform.position;
             for (int i = 0; i < _enemyProjectiles.Count; i++)
             {
                 PooledProjectile projectile = _enemyProjectiles[i];
@@ -1376,17 +1812,19 @@ namespace DuneVector
                 {
                     continue;
                 }
+                projectile.Age += deltaTime;
                 projectile.Remaining -= deltaTime;
-                projectile.Transform.position += projectile.Velocity * deltaTime;
+                AdvanceBullet(projectile, deltaTime);
+                UpdateBulletVisual(projectile, deltaTime);
                 if (projectile.Remaining <= 0f ||
-                    projectile.Transform.position.z < _player.transform.position.z - _settings.EnemyDespawnBehindDistance)
+                    projectile.Transform.position.z < playerPosition.z - _settings.EnemyDespawnBehindDistance)
                 {
                     DeactivateProjectile(projectile);
                     continue;
                 }
                 float playerDistance = Vector3.Distance(
                     projectile.Transform.position,
-                    _player.transform.position);
+                    playerPosition);
                 if (_state.Trick != RailShooterTrick.None &&
                     playerDistance <= _settings.RollProjectileDeflectRadius)
                 {
@@ -1396,11 +1834,104 @@ namespace DuneVector
                     SpawnImpact(projectile.Transform.position, _settings.RegularShotRadius * 3f);
                     continue;
                 }
-                if (playerDistance <= projectile.Radius + _settings.PlayerCollisionRadius)
+                // A bullet is inert while it is still growing out of its muzzle flash, so
+                // point-blank spawns can never be an unavoidable hit.
+                if (projectile.Age < projectile.ArmDuration)
                 {
-                    DamagePlayer(_settings.EnemyProjectileDamage, "Predictive rift projectile");
-                    DeactivateProjectile(projectile);
+                    continue;
                 }
+                if (playerDistance <= projectile.Radius + _settings.BulletPlayerHitRadius)
+                {
+                    DamagePlayer(_settings.EnemyProjectileDamage, "Rift bullet pattern");
+                    DeactivateProjectile(projectile);
+                    continue;
+                }
+                if (_settings.GrazeEnabled && !projectile.Grazed &&
+                    playerDistance <= projectile.Radius + _settings.BulletGrazeRadius)
+                {
+                    RegisterGraze(projectile);
+                }
+            }
+        }
+
+        private void AdvanceBullet(PooledProjectile projectile, float deltaTime)
+        {
+            float steer = projectile.CurveDegreesPerSecond;
+            if (!Mathf.Approximately(projectile.WeaveSwing, 0f))
+            {
+                steer += Mathf.Cos(
+                    (projectile.Age * projectile.WeaveFrequency * Mathf.PI * 2f) + projectile.WeavePhase) *
+                    projectile.WeaveSwing;
+            }
+            if (!Mathf.Approximately(steer, 0f))
+            {
+                // Curling around the rail axis keeps the closing speed intact while the
+                // bullet sweeps across the screen plane the player is dodging in.
+                projectile.Heading =
+                    (Quaternion.AngleAxis(steer * deltaTime, Vector3.forward) * projectile.Heading).normalized;
+            }
+            projectile.Velocity = projectile.Heading * projectile.Speed;
+            projectile.Transform.position += projectile.Velocity * deltaTime;
+        }
+
+        private void UpdateBulletVisual(PooledProjectile projectile, float deltaTime)
+        {
+            float grow = Mathf.Clamp01(projectile.Age / Mathf.Max(0.01f, _settings.BulletGrowDuration));
+            float eased = grow * grow * (3f - (2f * grow));
+            float diameter = projectile.Radius * 2f;
+            if (projectile.Core != null)
+            {
+                float coreScale = Mathf.Lerp(0.2f, 1f, eased);
+                projectile.Core.localScale = new Vector3(
+                    diameter * coreScale,
+                    diameter * coreScale,
+                    diameter * coreScale * Mathf.Max(1f, projectile.CoreStretch));
+            }
+            if (projectile.Cage != null)
+            {
+                projectile.Cage.localScale = Vector3.one * (diameter * 1.35f * eased);
+                projectile.Cage.Rotate(
+                    _settings.BulletCoreSpinDegreesPerSecond * deltaTime * 0.6f,
+                    _settings.BulletCoreSpinDegreesPerSecond * deltaTime,
+                    0f,
+                    Space.Self);
+            }
+            if (projectile.Halo != null)
+            {
+                float pulse = 1f + (Mathf.Sin(
+                    (projectile.Age * _settings.BulletHaloPulseSpeed) + projectile.PulsePhase) *
+                    _settings.BulletHaloPulseAmplitude);
+                // The halo starts as a wide flash and collapses into the bullet, which is
+                // the tell that a new bullet just appeared there.
+                float envelope = Mathf.Lerp(
+                    Mathf.Max(_settings.BulletSpawnFlashScale, _settings.BulletHaloScale),
+                    _settings.BulletHaloScale,
+                    eased);
+                projectile.Halo.localScale = Vector3.one * (diameter * envelope * pulse);
+            }
+            if (projectile.Velocity.sqrMagnitude > 0.0001f)
+            {
+                projectile.Transform.rotation =
+                    Quaternion.LookRotation(projectile.Velocity.normalized, Vector3.up);
+            }
+        }
+
+        private void RegisterGraze(PooledProjectile projectile)
+        {
+            projectile.Grazed = true;
+            _state.Grazes++;
+            AddScore(_settings.BulletGrazeScore);
+            _state.ManeuverEnergy = Mathf.Clamp(
+                _state.ManeuverEnergy + _settings.BulletGrazeEnergyReward,
+                0f,
+                _settings.ManeuverEnergyCapacity);
+            if (_state.Elapsed >= _nextGrazePopupAt)
+            {
+                _nextGrazePopupAt = _state.Elapsed + _settings.BulletGrazePopupInterval;
+                SpawnScorePopup(
+                    projectile.Transform.position,
+                    "GRAZE",
+                    _settings.HudReticleColor);
             }
         }
 
@@ -2039,6 +2570,16 @@ namespace DuneVector
             _bossBannerElapsed = float.PositiveInfinity;
             _chargeLocks.Clear();
             _chargeLock = null;
+            _sigilActive = false;
+            _sigilVerdictElapsed = float.PositiveInfinity;
+            if (_sigilRoot != null)
+            {
+                _sigilRoot.gameObject.SetActive(false);
+            }
+            if (_state.SigilsBroken >= _settings.Sigils.SigilChallengeCount)
+            {
+                AddScore(_settings.Sigils.SigilChallengeBonus);
+            }
             if (!_state.TookDamage)
             {
                 AddScore(_settings.NoDamageChallengeBonus);
@@ -2132,6 +2673,7 @@ namespace DuneVector
             BuildEffectsPool();
             BuildRouteGates();
             BuildLaneWarning();
+            BuildSigilSeeker();
             _modeRoot.gameObject.SetActive(false);
         }
 
@@ -2221,41 +2763,159 @@ namespace DuneVector
             return enemy;
         }
 
+        private void BuildBulletMaterials()
+        {
+            if (_bulletCoreMaterials != null)
+            {
+                return;
+            }
+            Color[] palette =
+            {
+                _settings.AimedBulletColor,
+                _settings.RingBulletColor,
+                _settings.WallBulletColor,
+                _settings.WeaveBulletColor,
+            };
+            string[] names = { "Aimed", "Radial", "Curtain", "Weaving" };
+            _bulletCoreMaterials = new Material[palette.Length];
+            _bulletGlowMaterials = new Material[palette.Length];
+            for (int i = 0; i < palette.Length; i++)
+            {
+                _bulletCoreMaterials[i] = _materials.CreateRailBulletMaterial(
+                    $"Rift Bullet Core - {names[i]}",
+                    BulletCoreColor(palette[i]),
+                    additive: false);
+                _bulletGlowMaterials[i] = _materials.CreateRailBulletMaterial(
+                    $"Rift Bullet Glow - {names[i]}",
+                    BulletGlowColor(palette[i]),
+                    additive: true);
+            }
+            _playerBoltCoreMaterial = _materials.CreateRailBulletMaterial(
+                "Rift Player Bolt Core",
+                BulletCoreColor(_settings.PlayerBoltColor),
+                additive: false);
+            _playerBoltGlowMaterial = _materials.CreateRailBulletMaterial(
+                "Rift Player Bolt Glow",
+                BulletGlowColor(_settings.PlayerBoltColor),
+                additive: true);
+        }
+
+        // The core reads as the white-hot centre of a bullet, so it keeps the hue of its
+        // family but is pushed most of the way toward white.
+        private static Color BulletCoreColor(Color tint)
+        {
+            float peak = Mathf.Max(0.001f, tint.maxColorComponent);
+            Color normalized = new Color(tint.r / peak, tint.g / peak, tint.b / peak);
+            Color washed = Color.Lerp(normalized, Color.white, 0.62f);
+            return new Color(washed.r * peak, washed.g * peak, washed.b * peak, 1f);
+        }
+
+        private Color BulletGlowColor(Color tint)
+        {
+            float fraction = Mathf.Max(0.01f, _settings.BulletHaloBrightnessFraction);
+            return new Color(tint.r * fraction, tint.g * fraction, tint.b * fraction, fraction);
+        }
+
         private void BuildProjectilePools()
         {
+            BuildBulletMaterials();
             for (int i = 0; i < _settings.PlayerProjectilePoolSize; i++)
             {
-                _playerProjectiles.Add(CreateProjectile(
+                PooledProjectile bolt = CreateBullet(
                     $"Player Energy Bolt {i + 1:00}",
                     PrimitiveType.Cube,
-                    _materials.DroneAccent));
+                    includeCage: false);
+                ApplyBulletStyle(bolt, _playerBoltCoreMaterial, _playerBoltGlowMaterial);
+                _playerProjectiles.Add(bolt);
             }
             for (int i = 0; i < _settings.EnemyProjectilePoolSize; i++)
             {
-                _enemyProjectiles.Add(CreateProjectile(
-                    $"Enemy Predictive Bolt {i + 1:00}",
+                PooledProjectile bullet = CreateBullet(
+                    $"Rift Bullet {i + 1:000}",
                     PrimitiveType.Sphere,
-                    _materials.EnemyCore));
+                    includeCage: true);
+                ApplyBulletStyle(bullet, _bulletCoreMaterials[0], _bulletGlowMaterials[0]);
+                _enemyProjectiles.Add(bullet);
             }
         }
 
-        private PooledProjectile CreateProjectile(string name, PrimitiveType primitive, Material material)
+        private PooledProjectile CreateBullet(string name, PrimitiveType coreShape, bool includeCage)
         {
-            Transform visual = CreatePart(
-                primitive,
-                name,
-                _projectileRoot,
+            Transform root = NewRoot(name, _projectileRoot);
+            Transform core = CreatePart(
+                coreShape,
+                "Core",
+                root,
                 Vector3.zero,
                 Vector3.one,
                 Quaternion.identity,
-                material);
+                _materials.EnemyCore);
+            Transform cage = null;
+            if (includeCage)
+            {
+                cage = CreatePart(
+                    PrimitiveType.Cube,
+                    "Spin Cage",
+                    root,
+                    Vector3.zero,
+                    Vector3.one,
+                    Quaternion.identity,
+                    _materials.EnemyCore);
+            }
+            Transform halo = CreatePart(
+                PrimitiveType.Sphere,
+                "Halo",
+                root,
+                Vector3.zero,
+                Vector3.one,
+                Quaternion.identity,
+                _materials.EnemyCore);
+            TrailRenderer trail = root.gameObject.AddComponent<TrailRenderer>();
+            trail.time = _settings.BulletTrailDuration;
+            trail.minVertexDistance = 0.35f;
+            trail.autodestruct = false;
+            trail.emitting = false;
+            trail.alignment = LineAlignment.View;
+            trail.textureMode = LineTextureMode.Stretch;
+            trail.numCapVertices = 2;
+            trail.shadowCastingMode = ShadowCastingMode.Off;
+            trail.receiveShadows = false;
+            trail.widthCurve = AnimationCurve.Linear(0f, 1f, 1f, 0f);
+
             PooledProjectile projectile = new PooledProjectile
             {
-                Root = visual.gameObject,
-                Transform = visual,
+                Root = root.gameObject,
+                Transform = root,
+                Core = core,
+                Cage = cage,
+                Halo = halo,
+                CoreRenderer = core.GetComponent<Renderer>(),
+                CageRenderer = cage != null ? cage.GetComponent<Renderer>() : null,
+                HaloRenderer = halo.GetComponent<Renderer>(),
+                Trail = trail,
             };
             projectile.Root.SetActive(false);
             return projectile;
+        }
+
+        private static void ApplyBulletStyle(PooledProjectile projectile, Material core, Material glow)
+        {
+            if (projectile.CoreRenderer != null)
+            {
+                projectile.CoreRenderer.sharedMaterial = core;
+            }
+            if (projectile.CageRenderer != null)
+            {
+                projectile.CageRenderer.sharedMaterial = glow;
+            }
+            if (projectile.HaloRenderer != null)
+            {
+                projectile.HaloRenderer.sharedMaterial = glow;
+            }
+            if (projectile.Trail != null)
+            {
+                projectile.Trail.sharedMaterial = glow;
+            }
         }
 
         private void BuildPickupPool()
@@ -2439,6 +3099,10 @@ namespace DuneVector
             _safeGate.gameObject.SetActive(false);
             _riskGate.gameObject.SetActive(false);
             _laneWarning.gameObject.SetActive(false);
+            if (_sigilRoot != null)
+            {
+                _sigilRoot.gameObject.SetActive(false);
+            }
         }
 
         private void ResetCourse()
@@ -2699,6 +3363,11 @@ namespace DuneVector
                 return;
             }
             projectile.Active = false;
+            if (projectile.Trail != null)
+            {
+                projectile.Trail.emitting = false;
+                projectile.Trail.Clear();
+            }
             projectile.Root.SetActive(false);
         }
 
@@ -2842,6 +3511,680 @@ namespace DuneVector
             }
         }
 
+        // The null sigil duel. A seeker fades in ahead of the drone, homes onto it, and
+        // counts down. Breaking it means drawing the glyph it demands with the mouse or the
+        // right stick before the countdown expires. Powered seekers demand a whole chain of
+        // glyphs under one shared timer and close in faster.
+
+        private void BuildSigilSeeker()
+        {
+            _sigilRoot = NewRoot("Pooled Null Sigil Seeker", _effectsRoot);
+            CreatePart(
+                PrimitiveType.Sphere,
+                "Sigil Core",
+                _sigilRoot,
+                Vector3.zero,
+                Vector3.one,
+                Quaternion.identity,
+                _materials.EnemyCore);
+            _sigilHalo = CreatePart(
+                PrimitiveType.Sphere,
+                "Sigil Choir Halo",
+                _sigilRoot,
+                Vector3.zero,
+                Vector3.one * 1.85f,
+                Quaternion.identity,
+                _materials.LightningWarning);
+            _sigilCage = NewRoot("Sigil Shard Cage", _sigilRoot);
+            const int ShardCount = 4;
+            for (int i = 0; i < ShardCount; i++)
+            {
+                float angle = (i / (float)ShardCount) * Mathf.PI * 2f;
+                CreatePart(
+                    PrimitiveType.Cube,
+                    $"Sigil Shard {i + 1:00}",
+                    _sigilCage,
+                    new Vector3(Mathf.Cos(angle) * 1.45f, Mathf.Sin(angle) * 1.45f, 0f),
+                    new Vector3(0.26f, 1.1f, 0.26f),
+                    Quaternion.Euler(0f, 0f, (angle * Mathf.Rad2Deg) - 90f),
+                    _materials.PlayerStrikeOrbCore);
+            }
+            _sigilRoot.gameObject.SetActive(false);
+        }
+
+        private void ResetSigilDuel()
+        {
+            _sigilActive = false;
+            _sigilChain = false;
+            _sigilElapsed = 0f;
+            _sigilDuration = 0f;
+            _sigilDemand.Clear();
+            _sigilSymbolIndex = 0;
+            _sigilStrokeIndex = 0;
+            _sigilStrokeAccumulator = Vector2.zero;
+            _sigilPlaneOffset = Vector2.zero;
+            _sigilFaultElapsed = float.PositiveInfinity;
+            _sigilVerdictElapsed = float.PositiveInfinity;
+            _sigilVerdictBroken = false;
+            _sigilAttackCount = 0;
+            _sigilChainCycle = 0;
+            _sigilNextAttackDistance = _settings.Sigils.FirstAttackDistance;
+            _sigilNextBossAttackAt = float.PositiveInfinity;
+            if (_sigilRoot != null)
+            {
+                _sigilRoot.gameObject.SetActive(false);
+            }
+        }
+
+        private void TickSigilDirector()
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            if (!sigils.Enabled || _sigilActive || Phase == RailShooterPhase.Results)
+            {
+                return;
+            }
+            if (Phase == RailShooterPhase.Boss)
+            {
+                if (sigils.BossAttackInterval > 0f && _state.Elapsed >= _sigilNextBossAttackAt)
+                {
+                    BeginSigilAttack();
+                }
+                return;
+            }
+            if (Phase == RailShooterPhase.Combat && _state.Distance >= _sigilNextAttackDistance)
+            {
+                BeginSigilAttack();
+            }
+        }
+
+        private void BeginSigilAttack()
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            if (sigils.Symbols == null || sigils.Symbols.Count == 0)
+            {
+                return;
+            }
+            _sigilAttackCount++;
+            _sigilChain = sigils.ChainEveryAttacks > 1 &&
+                _sigilAttackCount % sigils.ChainEveryAttacks == 0 &&
+                sigils.ChainSymbolCounts != null &&
+                sigils.ChainSymbolCounts.Count > 0;
+            int demandCount = 1;
+            if (_sigilChain)
+            {
+                demandCount = Mathf.Max(
+                    2,
+                    sigils.ChainSymbolCounts[_sigilChainCycle % sigils.ChainSymbolCounts.Count]);
+                _sigilChainCycle++;
+            }
+
+            int maximumStrokes = CurrentSigilStrokeCeiling();
+            _sigilDemand.Clear();
+            float duration = 0f;
+            for (int i = 0; i < demandCount; i++)
+            {
+                RailSigilDefinition definition = PickSigilDefinition(maximumStrokes);
+                if (definition == null)
+                {
+                    break;
+                }
+                _sigilDemand.Add(definition);
+                duration += sigils.CountdownForStrokes(definition.StrokeCount);
+            }
+            if (_sigilDemand.Count == 0)
+            {
+                return;
+            }
+            if (_sigilChain)
+            {
+                // One timer covers the whole chain, and it is tighter than drawing each
+                // glyph on its own would be.
+                duration *= sigils.ChainTimeFraction;
+            }
+
+            _sigilActive = true;
+            _sigilDuration = Mathf.Max(0.5f, duration);
+            _sigilElapsed = 0f;
+            _sigilSymbolIndex = 0;
+            _sigilStrokeIndex = 0;
+            _sigilStrokeAccumulator = Vector2.zero;
+            _sigilFaultElapsed = float.PositiveInfinity;
+            _sigilVerdictElapsed = float.PositiveInfinity;
+            float spawnAngle = NextFloat(0f, Mathf.PI * 2f);
+            _sigilPlaneOffset = new Vector2(Mathf.Cos(spawnAngle), Mathf.Sin(spawnAngle)) *
+                sigils.SpawnLateralSpread;
+            UpdateSigilTransform();
+            _sigilRoot.gameObject.SetActive(true);
+            PlayCue(sigils.SpawnEvent, _sigilRoot.position);
+        }
+
+        private int CurrentSigilStrokeCeiling()
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            int depthUnlocks = Mathf.FloorToInt(
+                _state.Distance / Mathf.Max(1f, sigils.StrokeUnlockDistance));
+            int difficultyUnlocks = Mathf.FloorToInt(
+                DifficultyLevels() * sigils.DifficultyStrokesPerLevel);
+            return Mathf.Clamp(
+                sigils.StartingMaximumStrokes + depthUnlocks + difficultyUnlocks,
+                1,
+                sigils.MaximumStrokes);
+        }
+
+        private RailSigilDefinition PickSigilDefinition(int maximumStrokes)
+        {
+            List<RailSigilDefinition> symbols = _settings.Sigils.Symbols;
+            _sigilCandidates.Clear();
+            RailSigilDefinition shortest = null;
+            for (int i = 0; i < symbols.Count; i++)
+            {
+                RailSigilDefinition definition = symbols[i];
+                if (definition == null || definition.StrokeCount < 1)
+                {
+                    continue;
+                }
+                if (shortest == null || definition.StrokeCount < shortest.StrokeCount)
+                {
+                    shortest = definition;
+                }
+                if (definition.StrokeCount <= maximumStrokes && !_sigilDemand.Contains(definition))
+                {
+                    _sigilCandidates.Add(definition);
+                }
+            }
+            if (_sigilCandidates.Count == 0)
+            {
+                return shortest;
+            }
+            return _sigilCandidates[NextInt(0, _sigilCandidates.Count)];
+        }
+
+        private void TickSigilDuel(in RailShooterCommand command, float deltaTime)
+        {
+            AdvanceTimer(ref _sigilVerdictElapsed, deltaTime, _settings.Sigils.VerdictDuration);
+            AdvanceTimer(ref _sigilFaultElapsed, deltaTime, _settings.Sigils.FaultFlashDuration);
+            if (!_sigilActive)
+            {
+                return;
+            }
+            _sigilElapsed += deltaTime;
+            float speedScale = _sigilChain ? _settings.Sigils.ChainSpeedMultiplier : 1f;
+            _sigilPlaneOffset = Vector2.MoveTowards(
+                _sigilPlaneOffset,
+                Vector2.zero,
+                _settings.Sigils.HomingLateralSpeed * speedScale * deltaTime);
+            UpdateSigilTransform();
+            if (_sigilCage != null)
+            {
+                _sigilCage.Rotate(
+                    0f,
+                    0f,
+                    _settings.Sigils.SeekerSpinSpeed * speedScale * deltaTime,
+                    Space.Self);
+            }
+            TickSigilDrawing(command, deltaTime);
+            if (_sigilActive && _sigilElapsed >= _sigilDuration)
+            {
+                StrikeWithSigil();
+            }
+        }
+
+        private void UpdateSigilTransform()
+        {
+            if (_sigilRoot == null)
+            {
+                return;
+            }
+            RailSigilTuning sigils = _settings.Sigils;
+            // The approach is driven by the countdown, so the seeker always arrives exactly
+            // when the timer runs out no matter how the drone is flying.
+            float normalized = Mathf.Clamp01(_sigilElapsed / Mathf.Max(0.01f, _sigilDuration));
+            float gap = Mathf.Lerp(sigils.SpawnAheadDistance, sigils.StrikeDistance, normalized);
+            Vector3 playerPosition = _player.transform.position;
+            _sigilRoot.position = new Vector3(
+                playerPosition.x + _sigilPlaneOffset.x,
+                playerPosition.y + _sigilPlaneOffset.y,
+                playerPosition.z + gap);
+            float pulse = 1f + (Mathf.Sin(_sigilElapsed * sigils.SeekerPulseSpeed) * sigils.SeekerPulseAmount);
+            float scale = sigils.SeekerRadius * pulse * (_sigilChain ? 1.4f : 1f);
+            _sigilRoot.localScale = Vector3.one * Mathf.Max(0.01f, scale);
+            if (_sigilHalo != null)
+            {
+                _sigilHalo.gameObject.SetActive(_sigilChain);
+            }
+        }
+
+        private void TickSigilDrawing(in RailShooterCommand command, float deltaTime)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            // Screen space grows downward, so both drawing devices are flipped into it.
+            Vector2 drawn = new Vector2(command.Look.x, -command.Look.y) * sigils.MouseStrokeSensitivity;
+            drawn += new Vector2(command.Stick.x, -command.Stick.y) * sigils.StickStrokeSpeed * deltaTime;
+            if (drawn.sqrMagnitude > 0f)
+            {
+                _sigilStrokeAccumulator += drawn;
+            }
+            else
+            {
+                _sigilStrokeAccumulator = Vector2.MoveTowards(
+                    _sigilStrokeAccumulator,
+                    Vector2.zero,
+                    sigils.StrokeDecayPerSecond * deltaTime);
+            }
+
+            float commit = Mathf.Max(1f, sigils.StrokeCommitDistance);
+            if (_sigilStrokeAccumulator.magnitude < commit)
+            {
+                return;
+            }
+            RailSigilDefinition definition = CurrentSigilDefinition();
+            if (definition == null)
+            {
+                return;
+            }
+            Vector2 demanded = SigilStrokeVector(definition.Strokes[_sigilStrokeIndex]);
+            float error = Vector2.Angle(_sigilStrokeAccumulator, demanded);
+            _sigilStrokeAccumulator = Vector2.zero;
+            if (error > sigils.StrokeAngleTolerance)
+            {
+                FaultSigilStroke();
+                return;
+            }
+
+            _sigilStrokeIndex++;
+            if (_sigilStrokeIndex < definition.StrokeCount)
+            {
+                PlayCue(sigils.StrokeEvent, _player.transform.position);
+                return;
+            }
+
+            _sigilStrokeIndex = 0;
+            _sigilSymbolIndex++;
+            if (_sigilSymbolIndex < _sigilDemand.Count)
+            {
+                PlayCue(sigils.GlyphClearedEvent, _player.transform.position);
+                return;
+            }
+            BreakSigil();
+        }
+
+        private void FaultSigilStroke()
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            _sigilFaultElapsed = 0f;
+            _sigilElapsed += sigils.FaultTimePenalty;
+            _cameraShake = Mathf.Max(_cameraShake, sigils.FaultCameraShake);
+            if (sigils.FaultRestartsGlyph)
+            {
+                _sigilStrokeIndex = 0;
+            }
+            PlayCue(sigils.FaultEvent, _player.transform.position);
+        }
+
+        private void BreakSigil()
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            Vector3 position = _sigilRoot != null ? _sigilRoot.position : _player.transform.position;
+            int strokes = 0;
+            for (int i = 0; i < _sigilDemand.Count; i++)
+            {
+                strokes += _sigilDemand[i].StrokeCount;
+            }
+            _state.Combo++;
+            _state.ComboMultiplier = Mathf.Clamp(
+                1f + ((_state.Combo - 1) * 0.18f),
+                1f,
+                _settings.MaximumComboMultiplier);
+            _comboExpiresAt = _state.Elapsed + _settings.ComboWindow;
+            int score = Mathf.RoundToInt(
+                (sigils.BanishScore + (sigils.BanishScorePerStroke * strokes)) *
+                _state.ComboMultiplier *
+                (_sigilChain ? sigils.ChainScoreMultiplier : 1f));
+            AddScore(score);
+            SpawnScorePopup(
+                position,
+                _state.Combo > 1 ? $"+{score}  x{_state.ComboMultiplier:0.0}" : $"+{score}",
+                _sigilChain ? sigils.ChainColor : sigils.CompletedStrokeColor);
+            SpawnImpact(position, _settings.ImpactFlashMaximumScale * (_sigilChain ? 1.6f : 1f));
+            _cameraShake = Mathf.Max(_cameraShake, sigils.BanishCameraShake);
+            _killMarkerElapsed = 0f;
+            PlayCue(sigils.BanishEvent, position);
+            _state.SigilsBroken++;
+            if (_sigilChain)
+            {
+                _state.ChainSigilsBroken++;
+            }
+            EndSigilAttack(true);
+        }
+
+        private void StrikeWithSigil()
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            Vector3 position = _player.transform.position;
+            DamagePlayer(
+                sigils.StrikeDamage * (_sigilChain ? sigils.ChainDamageMultiplier : 1f),
+                _sigilChain ? "Null choir sigil" : "Null sigil");
+            SpawnImpact(position, _settings.ImpactFlashMaximumScale * (_sigilChain ? 1.6f : 1f));
+            PlayCue(sigils.StrikeEvent, position);
+            _state.SigilStrikes++;
+            EndSigilAttack(false);
+        }
+
+        private void EndSigilAttack(bool broken)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            _sigilActive = false;
+            _sigilVerdictBroken = broken;
+            _sigilVerdictElapsed = 0f;
+            _sigilStrokeAccumulator = Vector2.zero;
+            if (_sigilRoot != null)
+            {
+                _sigilRoot.gameObject.SetActive(false);
+            }
+            _sigilNextAttackDistance = _state.Distance + SigilAttackSpacing();
+            _sigilNextBossAttackAt = _state.Elapsed + sigils.BossAttackInterval;
+        }
+
+        private float SigilAttackSpacing()
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            float scale = 1f - (DifficultyLevels() * sigils.DifficultySpacingReductionPerLevel);
+            return Mathf.Max(
+                sigils.MinimumAttackSpacingDistance,
+                sigils.AttackSpacingDistance * Mathf.Max(0.2f, scale));
+        }
+
+        private RailSigilDefinition CurrentSigilDefinition()
+        {
+            return _sigilSymbolIndex >= 0 && _sigilSymbolIndex < _sigilDemand.Count
+                ? _sigilDemand[_sigilSymbolIndex]
+                : null;
+        }
+
+        private float SigilCountdownRemaining()
+        {
+            return Mathf.Max(0f, _sigilDuration - _sigilElapsed);
+        }
+
+        private static Vector2 SigilStrokeVector(RailSigilStroke stroke)
+        {
+            float radians = (int)stroke * Mathf.PI * 0.25f;
+            // Negated Y so the authored compass reads the same way it is drawn on screen.
+            return new Vector2(Mathf.Cos(radians), -Mathf.Sin(radians));
+        }
+
+        private static void BuildSigilGlyphPoints(
+            RailSigilDefinition definition,
+            Rect box,
+            List<Vector2> points)
+        {
+            points.Clear();
+            if (definition == null || definition.StrokeCount < 1)
+            {
+                return;
+            }
+            Vector2 cursor = Vector2.zero;
+            Vector2 minimum = Vector2.zero;
+            Vector2 maximum = Vector2.zero;
+            points.Add(cursor);
+            for (int i = 0; i < definition.Strokes.Count; i++)
+            {
+                cursor += SigilStrokeVector(definition.Strokes[i]);
+                points.Add(cursor);
+                minimum = Vector2.Min(minimum, cursor);
+                maximum = Vector2.Max(maximum, cursor);
+            }
+            Vector2 span = maximum - minimum;
+            float horizontal = span.x > 0.001f ? box.width / span.x : float.PositiveInfinity;
+            float vertical = span.y > 0.001f ? box.height / span.y : float.PositiveInfinity;
+            float scale = Mathf.Min(horizontal, vertical);
+            if (!float.IsFinite(scale))
+            {
+                scale = Mathf.Min(box.width, box.height);
+            }
+            Vector2 origin = box.center - (((minimum + maximum) * 0.5f) * scale);
+            for (int i = 0; i < points.Count; i++)
+            {
+                points[i] = origin + (points[i] * scale);
+            }
+        }
+
+        private void DrawSigilDuel()
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            if (!sigils.Enabled)
+            {
+                return;
+            }
+            if (_sigilActive)
+            {
+                DrawSigilWorldMarker();
+                DrawSigilPanel();
+            }
+            DrawSigilVerdict();
+        }
+
+        private void DrawSigilWorldMarker()
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            if (_sigilRoot == null || !TryProject(_sigilRoot.position, out Vector2 screen))
+            {
+                return;
+            }
+            float urgency = Mathf.Clamp01(_sigilElapsed / Mathf.Max(0.01f, _sigilDuration));
+            Color marker = Color.Lerp(
+                _sigilChain ? sigils.ChainColor : _settings.HudPrimaryColor,
+                sigils.FaultColor,
+                urgency);
+            float size = sigils.SeekerMarkerSize * (1f + (urgency * 0.65f));
+            DrawBracket(screen, size, marker);
+            RailSigilDefinition definition = CurrentSigilDefinition();
+            if (definition != null)
+            {
+                DrawLabel(
+                    new Rect(screen.x - 130f, screen.y - (size * 0.5f) - 26f, 260f, 22f),
+                    definition.Name,
+                    _centeredSmallStyle,
+                    marker);
+            }
+        }
+
+        private void DrawSigilPanel()
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            RailSigilDefinition definition = CurrentSigilDefinition();
+            if (definition == null)
+            {
+                return;
+            }
+            float pad = _settings.HudPanelPadding;
+            float line = _settings.HudLineHeight;
+            float box = sigils.GlyphBoxSize;
+            float chainRow = _sigilDemand.Count > 1 ? sigils.ChainThumbnailSize + 12f : 0f;
+            float width = Mathf.Max(box, sigils.CountdownBarWidth) + (pad * 2f);
+            float height = (pad * 2f) + line + chainRow + box + 12f + sigils.CountdownBarHeight + line;
+            Vector2 center = new Vector2(
+                Screen.width * sigils.PanelViewportCenter.x,
+                Screen.height * (1f - sigils.PanelViewportCenter.y));
+            Rect panel = new Rect(center.x - (width * 0.5f), center.y - (height * 0.5f), width, height);
+            DrawPanel(panel);
+
+            bool faulted = float.IsFinite(_sigilFaultElapsed);
+            Color accent = _sigilChain ? sigils.ChainColor : _settings.HudPrimaryColor;
+            float cursor = panel.y + pad;
+            DrawLabel(
+                new Rect(panel.x + pad, cursor, panel.width - (pad * 2f), line),
+                _sigilChain
+                    ? $"{sigils.ChainPromptLabel}   {_sigilSymbolIndex + 1}/{_sigilDemand.Count}"
+                    : $"{sigils.PromptLabel}   {definition.Name}",
+                _centeredSmallStyle,
+                faulted ? sigils.FaultColor : accent);
+            cursor += line;
+
+            if (chainRow > 0f)
+            {
+                DrawSigilChainRow(
+                    new Rect(panel.x + pad, cursor, panel.width - (pad * 2f), sigils.ChainThumbnailSize));
+                cursor += chainRow;
+            }
+
+            Rect glyphBox = new Rect(
+                panel.x + ((panel.width - box) * 0.5f),
+                cursor,
+                box,
+                box);
+            float remaining = SigilCountdownRemaining();
+            DrawLabel(
+                glyphBox,
+                Mathf.CeilToInt(remaining).ToString(),
+                _sigilCountdownStyle,
+                WithAlpha(faulted ? sigils.FaultColor : accent, 0.22f));
+            DrawSigilGlyph(
+                definition,
+                new Rect(
+                    glyphBox.x + (box * 0.14f),
+                    glyphBox.y + (box * 0.14f),
+                    box * 0.72f,
+                    box * 0.72f),
+                _sigilStrokeIndex,
+                sigils.GlyphLineThickness,
+                true);
+            cursor += box + 12f;
+
+            float countdown = Mathf.Clamp01(remaining / Mathf.Max(0.01f, _sigilDuration));
+            DrawMeter(
+                new Rect(
+                    panel.x + ((panel.width - sigils.CountdownBarWidth) * 0.5f),
+                    cursor,
+                    sigils.CountdownBarWidth,
+                    sigils.CountdownBarHeight),
+                countdown,
+                Color.Lerp(sigils.FaultColor, sigils.CompletedStrokeColor, countdown));
+            cursor += sigils.CountdownBarHeight + 4f;
+            DrawLabel(
+                new Rect(panel.x + pad, cursor, panel.width - (pad * 2f), line),
+                $"{remaining:0.0}s   {sigils.HintLabel}",
+                _centeredSmallStyle,
+                _settings.HudSecondaryColor);
+        }
+
+        private void DrawSigilChainRow(Rect row)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            float size = sigils.ChainThumbnailSize;
+            float spacing = sigils.ChainThumbnailSpacing;
+            float total = (_sigilDemand.Count * size) + ((_sigilDemand.Count - 1) * spacing);
+            float x = row.center.x - (total * 0.5f);
+            for (int i = 0; i < _sigilDemand.Count; i++)
+            {
+                Rect cell = new Rect(x, row.y, size, size);
+                x += size + spacing;
+                int strokeProgress = i < _sigilSymbolIndex
+                    ? _sigilDemand[i].StrokeCount
+                    : i == _sigilSymbolIndex ? _sigilStrokeIndex : 0;
+                DrawSigilGlyph(
+                    _sigilDemand[i],
+                    new Rect(cell.x + (size * 0.16f), cell.y + (size * 0.16f), size * 0.68f, size * 0.68f),
+                    strokeProgress,
+                    Mathf.Max(1f, sigils.GlyphLineThickness * 0.5f),
+                    false);
+                if (i == _sigilSymbolIndex)
+                {
+                    DrawBracket(cell.center, size, sigils.ActiveStrokeColor);
+                }
+            }
+        }
+
+        private void DrawSigilGlyph(
+            RailSigilDefinition definition,
+            Rect box,
+            int completedStrokes,
+            float thickness,
+            bool showStylus)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            BuildSigilGlyphPoints(definition, box, _sigilGlyphPoints);
+            if (_sigilGlyphPoints.Count < 2)
+            {
+                return;
+            }
+            bool faulted = float.IsFinite(_sigilFaultElapsed);
+            for (int i = 0; i < _sigilGlyphPoints.Count - 1; i++)
+            {
+                Color color = i < completedStrokes
+                    ? sigils.CompletedStrokeColor
+                    : i == completedStrokes
+                        ? (faulted ? sigils.FaultColor : sigils.ActiveStrokeColor)
+                        : sigils.PendingStrokeColor;
+                float width = i == completedStrokes ? thickness * 1.5f : thickness;
+                DrawSigilLine(_sigilGlyphPoints[i], _sigilGlyphPoints[i + 1], width, color);
+            }
+            // The start pip tells the player which end of the glyph the trace begins at.
+            float pip = Mathf.Max(3f, thickness * 1.4f);
+            DrawRect(
+                new Rect(
+                    _sigilGlyphPoints[0].x - pip,
+                    _sigilGlyphPoints[0].y - pip,
+                    pip * 2f,
+                    pip * 2f),
+                sigils.CompletedStrokeColor);
+            if (!showStylus || completedStrokes >= _sigilGlyphPoints.Count - 1)
+            {
+                return;
+            }
+            // Live stylus: the drawn direction hanging off the node the trace is sitting on,
+            // so a wrong-way flick is visible before it commits.
+            Vector2 node = _sigilGlyphPoints[completedStrokes];
+            float commit = Mathf.Max(1f, sigils.StrokeCommitDistance);
+            float reach = Vector2.Distance(_sigilGlyphPoints[completedStrokes], _sigilGlyphPoints[completedStrokes + 1]);
+            Vector2 offset = _sigilStrokeAccumulator / commit;
+            if (offset.magnitude > sigils.StylusReachFraction)
+            {
+                offset = offset.normalized * sigils.StylusReachFraction;
+            }
+            Vector2 stylus = node + (offset * reach);
+            DrawSigilLine(node, stylus, Mathf.Max(1f, thickness * 0.6f), sigils.StylusColor);
+            float dot = Mathf.Max(2f, thickness);
+            DrawRect(new Rect(stylus.x - dot, stylus.y - dot, dot * 2f, dot * 2f), sigils.StylusColor);
+        }
+
+        private void DrawSigilLine(Vector2 from, Vector2 to, float thickness, Color color)
+        {
+            Vector2 delta = to - from;
+            float length = delta.magnitude;
+            if (length < 0.01f)
+            {
+                return;
+            }
+            float angle = Mathf.Atan2(delta.y, delta.x) * Mathf.Rad2Deg;
+            Matrix4x4 previousMatrix = GUI.matrix;
+            GUIUtility.RotateAroundPivot(angle, from);
+            DrawRect(new Rect(from.x, from.y - (thickness * 0.5f), length, thickness), color);
+            GUI.matrix = previousMatrix;
+        }
+
+        private void DrawSigilVerdict()
+        {
+            if (!float.IsFinite(_sigilVerdictElapsed))
+            {
+                return;
+            }
+            RailSigilTuning sigils = _settings.Sigils;
+            float fade = 1f - Mathf.Clamp01(
+                _sigilVerdictElapsed / Mathf.Max(0.01f, sigils.VerdictDuration));
+            DrawLabel(
+                new Rect(
+                    0f,
+                    Screen.height * (1f - sigils.PanelViewportCenter.y) - (sigils.GlyphBoxSize * 0.9f),
+                    Screen.width,
+                    32f),
+                _sigilVerdictBroken ? sigils.BanishLabel : sigils.StrikeLabel,
+                _centeredSmallStyle,
+                WithAlpha(
+                    _sigilVerdictBroken ? sigils.CompletedStrokeColor : sigils.FaultColor,
+                    fade));
+        }
+
         private void OnGUI()
         {
             if (!IsActive || Event.current.type != EventType.Repaint || _settings == null ||
@@ -2857,6 +4200,7 @@ namespace DuneVector
             DrawScorePopups();
             DrawReticles();
             DrawRoutePrompt();
+            DrawSigilDuel();
             DrawHudPanels();
             if (_boss != null && _boss.Active)
             {
@@ -2915,6 +4259,11 @@ namespace DuneVector
             _statValueStyle = new GUIStyle(_bodyStyle)
             {
                 alignment = TextAnchor.MiddleRight,
+            };
+            _sigilCountdownStyle = new GUIStyle(_titleStyle)
+            {
+                fontSize = _settings.Sigils.CountdownFontSize,
+                alignment = TextAnchor.MiddleCenter,
             };
         }
 
@@ -3426,7 +4775,12 @@ namespace DuneVector
                 ("FORMATION CLEARS", _state.FormationClears.ToString("00"), _settings.HudPrimaryColor),
                 ("CHARGED KILLS", _state.ChargeKills.ToString("00"), _settings.HudPrimaryColor),
                 ("PROJECTILES DEFLECTED", _state.ProjectileDeflections.ToString("00"), _settings.HudPrimaryColor),
+                ("BULLETS GRAZED", _state.Grazes.ToString("000"), _settings.HudReticleColor),
                 ("PICKUPS RECOVERED", _state.Pickups.ToString("00"), _settings.HudPrimaryColor),
+                ("SIGILS BROKEN", _state.SigilsBroken.ToString("00"), _settings.Sigils.CompletedStrokeColor),
+                ("CHOIR CHAINS BROKEN", _state.ChainSigilsBroken.ToString("00"), _settings.Sigils.ChainColor),
+                ("SIGIL STRIKES TAKEN", _state.SigilStrikes.ToString("00"),
+                    _state.SigilStrikes > 0 ? _settings.Sigils.FaultColor : _settings.HudSecondaryColor),
                 ("ROUTE GATES", $"{_state.RouteGatesCleared:00} / {_settings.BranchGateCount:00}", _settings.HudPrimaryColor),
                 ("RIFT DEPTH", $"{Mathf.RoundToInt(_state.Distance)} M", _settings.HudSecondaryColor),
                 ("FLAWLESS RUN", _state.TookDamage ? "NO" : "YES",

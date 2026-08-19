@@ -7676,6 +7676,261 @@ namespace DuneVector
         [Min(0f)] public float StepPenalty = 0.00002f;
     }
 
+    /// <summary>
+    /// Eight-way stroke directions a rift sigil can demand. The value order walks
+    /// counter-clockwise from screen right, so stroke angle is always index * 45 degrees.
+    /// </summary>
+    public enum RailSigilStroke
+    {
+        Right,
+        UpRight,
+        Up,
+        UpLeft,
+        Left,
+        DownLeft,
+        Down,
+        DownRight,
+    }
+
+    [System.Serializable]
+    public sealed class RailSigilDefinition
+    {
+        [Tooltip("Callsign shown above the glyph while a seeker demands it.")]
+        public string Name = "VEK";
+        [Tooltip("Ordered strokes the drone must draw. More strokes means a harder glyph and a longer countdown.")]
+        public List<RailSigilStroke> Strokes = new List<RailSigilStroke>();
+
+        public int StrokeCount => Strokes != null ? Strokes.Count : 0;
+    }
+
+    [System.Serializable]
+    public sealed class RailSigilTuning
+    {
+        [Header("Sigil Duel Lifecycle")]
+        [Tooltip("Homing null sigils that appear ahead of the drone, count down, and demand a drawn glyph before they strike.")]
+        public bool Enabled = true;
+        [Tooltip("Rift depth at which the first sigil seeker launches.")]
+        [Min(0f)] public float FirstAttackDistance = 300f;
+        [Tooltip("Rift depth between sigil seekers during the cruise phase.")]
+        [Min(1f)] public float AttackSpacingDistance = 430f;
+        [Tooltip("Fraction the spacing shortens per contract difficulty level above 1.")]
+        [Range(0f, 0.5f)] public float DifficultySpacingReductionPerLevel = 0.07f;
+        [Min(1f)] public float MinimumAttackSpacingDistance = 190f;
+        [Tooltip("Seconds between sigils launched by the Vesper Sovereign during the boss climax. Zero silences boss sigils.")]
+        [Min(0f)] public float BossAttackInterval = 9.5f;
+
+        [Header("Countdown")]
+        [Tooltip("Seconds granted for the simplest glyph, the one with StrokesAtBaseCountdown strokes.")]
+        [Min(0.5f)] public float CountdownBaseSeconds = 3f;
+        [Min(1)] public int StrokesAtBaseCountdown = 2;
+        [Tooltip("Extra seconds granted for every stroke beyond StrokesAtBaseCountdown, so harder glyphs get more time.")]
+        [Min(0f)] public float CountdownPerExtraStrokeSeconds = 0.55f;
+
+        [Header("Glyph Difficulty Ramp")]
+        [Tooltip("Longest glyph the rift may demand at the very start of a run.")]
+        [Min(1)] public int StartingMaximumStrokes = 3;
+        [Tooltip("Rift depth that unlocks one more stroke of glyph complexity.")]
+        [Min(1f)] public float StrokeUnlockDistance = 900f;
+        [Tooltip("Longest glyph the rift may ever demand.")]
+        [Min(1)] public int MaximumStrokes = 5;
+        [Tooltip("Extra glyph strokes unlocked immediately per contract difficulty level above 1.")]
+        [Min(0f)] public float DifficultyStrokesPerLevel = 0.5f;
+
+        [Header("Powered Chain Sigil")]
+        [Tooltip("Every Nth seeker arrives powered, demanding several glyphs in a row under one shared timer.")]
+        [Min(2)] public int ChainEveryAttacks = 4;
+        [Tooltip("Glyph counts a powered chain can demand. The list is cycled in order.")]
+        public List<int> ChainSymbolCounts = new List<int> { 3, 5 };
+        [Tooltip("Fraction of the summed per-glyph countdowns granted to the whole chain. Below 1 makes a chain tighter than drawing each glyph on its own.")]
+        [Range(0.4f, 1.5f)] public float ChainTimeFraction = 0.82f;
+        [Tooltip("How much faster a powered chain seeker closes and homes than a single-glyph seeker.")]
+        [Min(1f)] public float ChainSpeedMultiplier = 1.18f;
+        [Min(1f)] public float ChainDamageMultiplier = 1.6f;
+        [Min(1f)] public float ChainScoreMultiplier = 2.4f;
+
+        [Header("Seeker Flight")]
+        [Tooltip("Forward gap the seeker holds when it appears.")]
+        [Min(1f)] public float SpawnAheadDistance = 210f;
+        [Tooltip("Lateral and vertical offset the seeker appears at before it homes in.")]
+        [Min(0f)] public float SpawnLateralSpread = 22f;
+        [Tooltip("Forward gap the seeker has closed to when its countdown expires.")]
+        [Min(0.5f)] public float StrikeDistance = 5f;
+        [Tooltip("World speed at which the seeker slides across the flight plane onto the drone.")]
+        [Min(0f)] public float HomingLateralSpeed = 26f;
+        [Min(0.1f)] public float SeekerRadius = 3.2f;
+        [Min(0f)] public float SeekerSpinSpeed = 140f;
+        [Min(0f)] public float SeekerPulseSpeed = 6f;
+        [Range(0f, 1f)] public float SeekerPulseAmount = 0.18f;
+        [Min(0f)] public float StrikeDamage = 26f;
+        [Min(0f)] public float BanishCameraShake = 0.5f;
+        [Min(0f)] public float FaultCameraShake = 0.2f;
+        [Tooltip("Seconds the banish or strike verdict stays on the HUD.")]
+        [Min(0f)] public float VerdictDuration = 1.1f;
+
+        [Header("Stroke Recognition")]
+        [Tooltip("Screen distance the stylus must travel in one direction before that stroke commits.")]
+        [Min(4f)] public float StrokeCommitDistance = 80f;
+        [Tooltip("Mouse delta multiplier applied to the drawing stylus.")]
+        [Min(0.01f)] public float MouseStrokeSensitivity = 1f;
+        [Tooltip("Screen units per second the gamepad right stick pushes the drawing stylus.")]
+        [Min(1f)] public float StickStrokeSpeed = 900f;
+        [Tooltip("Widest angle between the drawn direction and the demanded stroke that still counts as a match.")]
+        [Range(5f, 80f)] public float StrokeAngleTolerance = 38f;
+        [Tooltip("Screen units per second an uncommitted stroke bleeds away while the stylus is still.")]
+        [Min(0f)] public float StrokeDecayPerSecond = 90f;
+        [Tooltip("Seconds burned off the countdown when a stroke is drawn in the wrong direction.")]
+        [Min(0f)] public float FaultTimePenalty = 0.25f;
+        [Tooltip("A wrong stroke restarts the current glyph instead of only costing time.")]
+        public bool FaultRestartsGlyph = true;
+        [Min(0f)] public float FaultFlashDuration = 0.22f;
+        [Tooltip("How far past the commit distance the live stylus line may stretch on the glyph diagram.")]
+        [Range(1f, 2.5f)] public float StylusReachFraction = 1.35f;
+
+        [Header("Sigil Rewards")]
+        [Min(0)] public int BanishScore = 260;
+        [Tooltip("Extra score for every stroke in a banished glyph.")]
+        [Min(0)] public int BanishScorePerStroke = 45;
+        [Min(0)] public int SigilChallengeCount = 6;
+        [Min(0)] public int SigilChallengeBonus = 1600;
+
+        [Header("Sigil HUD")]
+        [Tooltip("Viewport position of the drawing panel. Y is measured from the bottom of the screen.")]
+        public Vector2 PanelViewportCenter = new Vector2(0.5f, 0.27f);
+        [Min(40f)] public float GlyphBoxSize = 190f;
+        [Min(1f)] public float GlyphLineThickness = 5f;
+        [Min(20f)] public float ChainThumbnailSize = 52f;
+        [Min(0f)] public float ChainThumbnailSpacing = 12f;
+        [Min(10f)] public float CountdownBarWidth = 320f;
+        [Min(2f)] public float CountdownBarHeight = 10f;
+        [Min(8)] public int CountdownFontSize = 42;
+        [Min(0f)] public float SeekerMarkerSize = 64f;
+        public Color PendingStrokeColor = new Color(0.34f, 0.62f, 0.7f, 0.75f);
+        public Color ActiveStrokeColor = new Color(1f, 0.86f, 0.3f, 1f);
+        public Color CompletedStrokeColor = new Color(0.32f, 1f, 0.58f, 1f);
+        public Color FaultColor = new Color(1f, 0.24f, 0.3f, 1f);
+        public Color ChainColor = new Color(0.78f, 0.42f, 1f, 1f);
+        public Color StylusColor = new Color(0.76f, 0.96f, 1f, 0.9f);
+        public string PromptLabel = "TRACE THE SIGIL";
+        public string ChainPromptLabel = "NULL CHOIR // TRACE THE CHAIN";
+        public string BanishLabel = "SIGIL BROKEN";
+        public string StrikeLabel = "SIGIL STRUCK";
+        public string HintLabel = "MOUSE OR RIGHT STICK DRAWS";
+
+        [Header("Sigil Audio")]
+        public string SpawnEvent = "event:/Alert";
+        public string StrokeEvent = "event:/Lock_On";
+        public string GlyphClearedEvent = "event:/Lock_On_Full";
+        public string FaultEvent = "event:/Okay";
+        public string BanishEvent = "event:/Explosion_Strike_Orb";
+        public string StrikeEvent = "event:/Drone_Damage";
+
+        [Header("Glyph Library")]
+        [Tooltip("Every glyph the rift can demand. Empty the list to restore the authored default library on load.")]
+        public List<RailSigilDefinition> Symbols = new List<RailSigilDefinition>();
+
+        public void EnsureInitialized()
+        {
+            MaximumStrokes = Mathf.Max(1, MaximumStrokes);
+            StartingMaximumStrokes = Mathf.Clamp(StartingMaximumStrokes, 1, MaximumStrokes);
+            MinimumAttackSpacingDistance = Mathf.Min(MinimumAttackSpacingDistance, AttackSpacingDistance);
+            ChainSymbolCounts ??= new List<int>();
+            for (int i = 0; i < ChainSymbolCounts.Count; i++)
+            {
+                ChainSymbolCounts[i] = Mathf.Max(2, ChainSymbolCounts[i]);
+            }
+            if (ChainSymbolCounts.Count == 0)
+            {
+                ChainSymbolCounts.Add(3);
+                ChainSymbolCounts.Add(5);
+            }
+            Symbols ??= new List<RailSigilDefinition>();
+            for (int i = Symbols.Count - 1; i >= 0; i--)
+            {
+                if (Symbols[i] == null || Symbols[i].StrokeCount < 1)
+                {
+                    Symbols.RemoveAt(i);
+                }
+            }
+            if (Symbols.Count == 0)
+            {
+                BuildDefaultLibrary(Symbols);
+            }
+        }
+
+        /// <summary>
+        /// Countdown a single glyph is worth. Longer glyphs always buy more time.
+        /// </summary>
+        public float CountdownForStrokes(int strokeCount)
+        {
+            int extra = Mathf.Max(0, strokeCount - Mathf.Max(1, StrokesAtBaseCountdown));
+            return Mathf.Max(0.5f, CountdownBaseSeconds + (extra * CountdownPerExtraStrokeSeconds));
+        }
+
+        private static void BuildDefaultLibrary(List<RailSigilDefinition> target)
+        {
+            // Two strokes: the cruise glyphs, drawn inside the base countdown.
+            target.Add(Glyph("VEK", RailSigilStroke.DownRight, RailSigilStroke.UpRight));
+            target.Add(Glyph("LODE", RailSigilStroke.Down, RailSigilStroke.Right));
+            target.Add(Glyph("CANT", RailSigilStroke.UpRight, RailSigilStroke.DownRight));
+            target.Add(Glyph("RIME", RailSigilStroke.Right, RailSigilStroke.DownLeft));
+            // Three strokes.
+            target.Add(Glyph("ZAHR", RailSigilStroke.Right, RailSigilStroke.DownLeft, RailSigilStroke.Right));
+            target.Add(Glyph("ARCH", RailSigilStroke.Up, RailSigilStroke.Right, RailSigilStroke.Down));
+            target.Add(Glyph("FLUX", RailSigilStroke.DownRight, RailSigilStroke.UpRight, RailSigilStroke.DownRight));
+            target.Add(Glyph("SPUR", RailSigilStroke.UpRight, RailSigilStroke.DownRight, RailSigilStroke.Left));
+            // Four strokes.
+            target.Add(Glyph(
+                "GATE",
+                RailSigilStroke.Right,
+                RailSigilStroke.Down,
+                RailSigilStroke.Left,
+                RailSigilStroke.Up));
+            target.Add(Glyph(
+                "DUNE",
+                RailSigilStroke.UpRight,
+                RailSigilStroke.DownRight,
+                RailSigilStroke.UpRight,
+                RailSigilStroke.DownRight));
+            target.Add(Glyph(
+                "KITE",
+                RailSigilStroke.UpRight,
+                RailSigilStroke.DownRight,
+                RailSigilStroke.DownLeft,
+                RailSigilStroke.UpLeft));
+            // Five strokes: the deep-rift glyphs.
+            target.Add(Glyph(
+                "OBEL",
+                RailSigilStroke.Up,
+                RailSigilStroke.Right,
+                RailSigilStroke.Down,
+                RailSigilStroke.Right,
+                RailSigilStroke.Up));
+            target.Add(Glyph(
+                "HELIX",
+                RailSigilStroke.Right,
+                RailSigilStroke.DownLeft,
+                RailSigilStroke.Right,
+                RailSigilStroke.DownLeft,
+                RailSigilStroke.Right));
+            target.Add(Glyph(
+                "CHOIR",
+                RailSigilStroke.Up,
+                RailSigilStroke.DownRight,
+                RailSigilStroke.Up,
+                RailSigilStroke.DownRight,
+                RailSigilStroke.Up));
+        }
+
+        private static RailSigilDefinition Glyph(string name, params RailSigilStroke[] strokes)
+        {
+            return new RailSigilDefinition
+            {
+                Name = name,
+                Strokes = new List<RailSigilStroke>(strokes),
+            };
+        }
+    }
+
     [System.Serializable]
     public sealed class RailShooterTuning
     {
@@ -7802,7 +8057,7 @@ namespace DuneVector
 
         [Header("Encounter Course")]
         [Min(1)] public int EnemyPoolSize = 42;
-        [Min(1)] public int EnemyProjectilePoolSize = 64;
+        [Min(1)] public int EnemyProjectilePoolSize = 220;
         [Min(0f)] public float FirstWaveDistance = 260f;
         [Min(1f)] public float WaveSpacing = 315f;
         [Min(1)] public int FormationMinimumSize = 4;
@@ -7851,6 +8106,71 @@ namespace DuneVector
         [Min(0f)] public float MineExplosionRadius = 7.5f;
         [Min(0f)] public float MineDamage = 34f;
 
+        [Header("Enemy Bullet Patterns")]
+        [Tooltip("Enables the layered bullet-hell fire patterns. Disable to fall back to single aimed bolts.")]
+        public bool BulletPatternsEnabled = true;
+        [Tooltip("Hard cap on live enemy bullets so a dense screen still stays readable and dodgeable.")]
+        [Min(1)] public int MaximumActiveEnemyBullets = 170;
+        [Tooltip("Seconds a fresh bullet stays harmless while it fades in, guaranteeing a reaction window.")]
+        [Min(0f)] public float BulletArmDuration = 0.16f;
+        [Tooltip("Seconds a bullet takes to grow from its spawn spark to full size.")]
+        [Min(0.01f)] public float BulletGrowDuration = 0.2f;
+        [Tooltip("Tight bullet-hell hit radius used only against enemy bullets, separate from the wider collision radius.")]
+        [Min(0.05f)] public float BulletPlayerHitRadius = 1.05f;
+        [Tooltip("Bullets in a spread pattern fired by a regular hostile.")]
+        [Min(1)] public int GruntSpreadBulletCount = 3;
+        [Tooltip("Total arc a regular hostile spread covers, in degrees.")]
+        [Min(0f)] public float GruntSpreadAngle = 24f;
+        [Tooltip("Bullets in the omnidirectional ring a regular hostile can release.")]
+        [Min(2)] public int GruntRingBulletCount = 12;
+        [Tooltip("Ring bullets travel at this fraction of the base bullet speed so rings stay weaveable.")]
+        [Min(0.05f)] public float RingBulletSpeedMultiplier = 0.72f;
+        [Tooltip("Half-angle of the cone rings and spirals expand into as they close on the drone. Wide angles scatter the pattern past the flight bounds before it arrives.")]
+        [Range(3f, 85f)] public float RadialPatternConeAngle = 18f;
+        [Tooltip("Peak swing rate of a weaving bullet, in degrees per second.")]
+        [Min(0f)] public float WeaveSwingDegreesPerSecond = 155f;
+        [Tooltip("Oscillations per second of a weaving bullet.")]
+        [Min(0f)] public float WeaveFrequency = 1.55f;
+        [Tooltip("Constant curl applied to spiral bullets, in degrees per second.")]
+        public float SpiralCurveDegreesPerSecond = 24f;
+        [Tooltip("Wave index from which regular hostiles start firing spreads instead of single bolts.")]
+        [Min(0)] public int PatternUnlockWaveSpread = 1;
+        [Tooltip("Wave index from which regular hostiles start releasing rings.")]
+        [Min(0)] public int PatternUnlockWaveRing = 3;
+        [Tooltip("Wave index from which regular hostiles start firing weaving bullets.")]
+        [Min(0)] public int PatternUnlockWaveWeave = 5;
+
+        [Header("Enemy Bullet Grazing")]
+        [Tooltip("Rewards score and maneuver energy for skimming a live bullet without being hit.")]
+        public bool GrazeEnabled = true;
+        [Tooltip("Distance from the drone at which a passing bullet counts as a graze.")]
+        [Min(0f)] public float BulletGrazeRadius = 4.6f;
+        [Min(0)] public int BulletGrazeScore = 30;
+        [Tooltip("Maneuver energy refunded per graze, which pays for the roll that earned it.")]
+        [Min(0f)] public float BulletGrazeEnergyReward = 4f;
+        [Tooltip("Minimum seconds between graze score popups so dense patterns do not flood the screen.")]
+        [Min(0f)] public float BulletGrazePopupInterval = 0.45f;
+
+        [Header("Enemy Bullet Visuals")]
+        [Tooltip("Halo diameter as a multiple of the bullet core diameter.")]
+        [Min(1f)] public float BulletHaloScale = 2.4f;
+        [Range(0f, 1f)] public float BulletHaloPulseAmplitude = 0.16f;
+        [Min(0f)] public float BulletHaloPulseSpeed = 9f;
+        [Min(0f)] public float BulletCoreSpinDegreesPerSecond = 320f;
+        [Tooltip("How far a bullet core stretches along its heading, as a multiple of its diameter.")]
+        [Min(1f)] public float BulletVelocityStretch = 1.8f;
+        [Tooltip("Halo diameter at the instant a bullet spawns, which reads as the muzzle flash.")]
+        [Min(1f)] public float BulletSpawnFlashScale = 3.6f;
+        [Min(0f)] public float BulletTrailDuration = 0.17f;
+        [Range(0f, 4f)] public float BulletTrailWidthFraction = 0.8f;
+        [Tooltip("Halo brightness as a fraction of the bullet core colour.")]
+        [Range(0f, 1f)] public float BulletHaloBrightnessFraction = 0.34f;
+        [ColorUsage(true, true)] public Color AimedBulletColor = new Color(5.4f, 0.28f, 1.15f);
+        [ColorUsage(true, true)] public Color RingBulletColor = new Color(0.24f, 3.6f, 5.6f);
+        [ColorUsage(true, true)] public Color WallBulletColor = new Color(5.8f, 2.3f, 0.16f);
+        [ColorUsage(true, true)] public Color WeaveBulletColor = new Color(2.5f, 0.5f, 6.2f);
+        [ColorUsage(true, true)] public Color PlayerBoltColor = new Color(0.3f, 4.4f, 5.4f);
+
         [Header("Boss Climax")]
         [Min(1f)] public float BossSpawnDistance = 3150f;
         [Min(1f)] public float BossHealth = 2400f;
@@ -7867,6 +8187,22 @@ namespace DuneVector
         [Min(0)] public int BossKillScore = 6500;
         [Min(0)] public int BossGoldReward = 450;
         [Min(0f)] public float BossContactDamage = 34f;
+        [Tooltip("Bullets in the boss omnidirectional ring burst.")]
+        [Min(3)] public int BossRingBulletCount = 16;
+        [Min(0.05f)] public float BossRingInterval = 3.6f;
+        [Tooltip("Rotating spiral arms the boss sweeps across the rift.")]
+        [Min(1)] public int BossSpiralArms = 3;
+        [Min(0.02f)] public float BossSpiralShotInterval = 0.1f;
+        public float BossSpiralRotationDegreesPerSecond = 132f;
+        [Min(0.05f)] public float BossSpiralBurstDuration = 2.1f;
+        [Min(0.05f)] public float BossSpiralCooldown = 6.5f;
+        [Tooltip("Bullets in the boss curtain wall, which always leaves one gap to fly through.")]
+        [Min(3)] public int BossWallBulletCount = 16;
+        [Min(1f)] public float BossWallWidth = 68f;
+        [Tooltip("Width of the guaranteed opening in a boss curtain wall.")]
+        [Min(1f)] public float BossWallGapWidth = 18f;
+        [Min(0.05f)] public float BossWallInterval = 8f;
+        [Min(0.05f)] public float BossWallBulletSpeedMultiplier = 0.85f;
 
         [Header("Difficulty Scaling")]
         [Tooltip("Contract difficulty above 1 adds this fraction of enemy health per level.")]
@@ -8000,7 +8336,7 @@ namespace DuneVector
         public string BossTitle = "VESPER SOVEREIGN // NULL CHOIR";
         public string SafeRouteLabel = "SIGNAL ROUTE";
         public string RiskRouteLabel = "BLACK ROUTE";
-        public string ControlsLabel = "WASD MOVE   SHIFT BOOST   CTRL BRAKE   SPACE MANEUVER   LMB FIRE/CHARGE   RMB/Q BOMB";
+        public string ControlsLabel = "WASD MOVE   SHIFT BOOST   CTRL BRAKE   SPACE MANEUVER   LMB FIRE/CHARGE   RMB/Q BOMB   MOUSE DRAWS SIGILS";
 
         [Header("Rail Audio")]
         [Tooltip("FMOD events played by the rift intercept. Leave any entry blank to silence that cue.")]
@@ -8016,6 +8352,10 @@ namespace DuneVector
         public string RouteGateEvent = "event:/Flight_Ring_Swoosh";
         public string BossSpawnEvent = "event:/Alert";
         [Min(0f)] public float HitCueMinimumInterval = 0.07f;
+
+        [Header("Sigil Seeker Duel")]
+        [Tooltip("Homing null sigils that demand a drawn glyph before the countdown runs out.")]
+        public RailSigilTuning Sigils = new RailSigilTuning();
 
         public void EnsureInitialized()
         {
@@ -8034,6 +8374,8 @@ namespace DuneVector
                 SpeedStreakConeOuterRadius);
             SpeedStreakDepth = Mathf.Max(SpeedStreakNearDistance + 1f, SpeedStreakDepth);
             RiftFogEndDistance = Mathf.Max(RiftFogStartDistance + 1f, RiftFogEndDistance);
+            Sigils ??= new RailSigilTuning();
+            Sigils.EnsureInitialized();
         }
     }
 

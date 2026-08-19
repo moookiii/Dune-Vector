@@ -787,6 +787,40 @@ namespace DuneVector
             return material;
         }
 
+        public Material CreateRailBulletMaterial(string name, Color color, bool additive)
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Unlit");
+            if (shader == null)
+            {
+                throw new InvalidOperationException(
+                    "Dune Vector requires the URP Unlit shader for rift bullet visuals.");
+            }
+
+            Material material = new Material(shader) { name = name };
+            material.enableInstancing = true;
+            if (material.HasProperty("_BaseColor"))
+            {
+                material.SetColor("_BaseColor", color);
+            }
+            if (additive)
+            {
+                // Bullet halos and trails overlap constantly, so they have to add light
+                // through one another instead of writing depth over the cores behind them.
+                material.SetFloat("_Surface", 1f);
+                material.SetFloat("_Blend", 1f);
+                material.SetFloat("_AlphaClip", 0f);
+                material.SetFloat("_SrcBlend", (float)BlendMode.SrcAlpha);
+                material.SetFloat("_DstBlend", (float)BlendMode.One);
+                material.SetFloat("_ZWrite", 0f);
+                material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+                material.DisableKeyword("_ALPHAPREMULTIPLY_ON");
+                material.renderQueue = (int)RenderQueue.Transparent;
+            }
+
+            _ownedMaterials.Add(material);
+            return material;
+        }
+
         public void SetGeoglyphOverlayMaterial(
             Material sourceMaterial,
             Vector2 surfaceTextureTiling,
