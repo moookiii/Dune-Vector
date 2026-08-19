@@ -5530,8 +5530,13 @@ namespace DuneVector
             _timer -= Time.deltaTime;
             if (_timer <= 0f)
             {
+                // Always flipping is a symmetric random walk: the forward and
+                // backward steps cancel and the wobble never leaves the stretch of
+                // the loop it started in. Bias the roll so it advances on average
+                // and reversals read as occasional stumbles.
                 _timer = NextInterval();
-                _direction = -_direction;
+                _direction = UnityEngine.Random.value
+                    < Mathf.Clamp01(_settings.PrefabAnimationReverseChance) ? -1 : 1;
             }
 
             float speed = Mathf.Max(0f, _settings.PrefabAnimationSpeed);

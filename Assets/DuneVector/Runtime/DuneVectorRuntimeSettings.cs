@@ -2670,6 +2670,8 @@ namespace DuneVector
         [Min(0f)] public float PrefabAnimationReverseIntervalMinimum = 0.5f;
         [Tooltip("Longest wait before the drone prefab's animation reverses direction, in seconds.")]
         [Min(0f)] public float PrefabAnimationReverseIntervalMaximum = 1.5f;
+        [Tooltip("Chance each roll runs the drone prefab's animation backwards. Below 0.5 the wobble still advances overall.")]
+        [Range(0f, 1f)] public float PrefabAnimationReverseChance = 0.3f;
 
         [Header("Materials")]
         [ColorUsage(false)] public Color BodyColor = new Color(0.68f, 0.72f, 0.74f);
