@@ -1116,11 +1116,13 @@ def main():
     meshes = [o for o in root.children_recursive if o.type == "MESH"]
     return {
         "objects": len(meshes),
-        # DuneVectorLandmarks grounds this prefab by lifting its lowest rendered
-        # bound onto the dunes and then sinking it by OrbitalBurialDepth. This
-        # mesh already bakes its own bedding in, so that setting must equal the
-        # figure below or the dish rim lifts clear of the sand again.
-        "required_OrbitalBurialDepth": round(-unity_lowest_bound(root), 2),
+        # Depth of the lowest rendered bound below the origin. This is what
+        # OrbitalBurialDepth would need to be to land the origin exactly on the
+        # sand -- but only over FLAT ground. Grounding actually uses the lowest
+        # terrain sampled across the whole footprint, and that footprint spans
+        # several dunes, so the shipped setting is well under this figure.
+        # Treat it as the ceiling, not the target.
+        "flat_ground_OrbitalBurialDepth": round(-unity_lowest_bound(root), 2),
         "tris": sum(len(o.data.loop_triangles) if o.data.loop_triangles
                     else sum(len(p.vertices) - 2 for p in o.data.polygons) for o in meshes),
         "faces": sum(len(o.data.polygons) for o in meshes),
