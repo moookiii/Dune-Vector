@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -119,6 +119,16 @@ namespace DuneVector
             public Transform Transform;
             public bool Active;
             public float Elapsed;
+            public float Scale;
+        }
+
+        private sealed class ScorePopup
+        {
+            public bool Active;
+            public float Elapsed;
+            public Vector3 World;
+            public string Text;
+            public Color Color;
         }
 
         private sealed class PooledPickup
@@ -141,7 +151,10 @@ namespace DuneVector
             public int FormationId;
             public float Health;
             public float MaximumHealth;
-            public float CollisionRadius;
+            public float HitRadius;
+            public float ContactRadius;
+            public float HitFlashElapsed;
+            public Vector3 BaseScale;
             public float Age;
             public float NextFireAt;
             public float NextSpecialAt;
@@ -183,6 +196,8 @@ namespace DuneVector
         private readonly List<FormationRecord> _formations = new List<FormationRecord>();
         private readonly List<RiftSegment> _segments = new List<RiftSegment>();
         private readonly List<Transform> _speedStreaks = new List<Transform>();
+        private readonly List<ScorePopup> _popups = new List<ScorePopup>();
+        private readonly List<RailEnemy> _chargeLocks = new List<RailEnemy>();
 
         private DronePlayer _input;
         private DroneCharacterController _player;
@@ -245,6 +260,16 @@ namespace DuneVector
         private float _cameraShake;
         private float _fovImpulse;
         private float _timeSinceSteeringInput;
+        private int _difficulty = 1;
+        private Vector3 _cameraBasePosition;
+        private Vector2 _aimViewport = new Vector2(0.5f, 0.5f);
+        private float _hitMarkerElapsed = float.PositiveInfinity;
+        private float _killMarkerElapsed = float.PositiveInfinity;
+        private float _damageFlashElapsed = float.PositiveInfinity;
+        private float _lastHitCueAt = float.NegativeInfinity;
+        private bool _chargeReadyCued;
+        private bool _bossAnnounced;
+        private float _bossBannerElapsed = float.PositiveInfinity;
 
         private Vector3 _savedPlayerPosition;
         private Quaternion _savedPlayerRotation;
@@ -259,11 +284,20 @@ namespace DuneVector
         private CameraClearFlags _savedClearFlags;
         private Color _savedBackgroundColor;
         private float _savedFieldOfView;
+        private bool _savedFogEnabled;
+        private FogMode _savedFogMode;
+        private Color _savedFogColor;
+        private float _savedFogStartDistance;
+        private float _savedFogEndDistance;
 
         private GUIStyle _smallStyle;
         private GUIStyle _bodyStyle;
         private GUIStyle _titleStyle;
         private GUIStyle _resultStyle;
+        private GUIStyle _popupStyle;
+        private GUIStyle _centeredSmallStyle;
+        private GUIStyle _statLabelStyle;
+        private GUIStyle _statValueStyle;
 
         public void Initialize(
             DronePlayer input,
@@ -311,6 +345,7 @@ namespace DuneVector
             }
 
             _completed = completed;
+            _difficulty = Mathf.Clamp(difficulty, 1, Mathf.Max(1, _settings.DifficultyCeiling));
             _random = new System.Random(unchecked(seed ^ _settings.SeedOffset ^ (difficulty * 73856093)));
             SaveWorldState();
             _arenaOrigin = new Vector3(_savedPlayerPosition.x, _settings.RiftWorldAltitude, _savedPlayerPosition.z);
@@ -347,6 +382,15 @@ namespace DuneVector
             _cameraShake = 0f;
             _fovImpulse = 0f;
             _timeSinceSteeringInput = 0f;
+            _aimViewport = new Vector2(0.5f, 0.5f);
+            _hitMarkerElapsed = float.PositiveInfinity;
+            _killMarkerElapsed = float.PositiveInfinity;
+            _damageFlashElapsed = float.PositiveInfinity;
+            _lastHitCueAt = float.NegativeInfinity;
+            _chargeReadyCued = false;
+            _bossAnnounced = false;
+            _bossBannerElapsed = float.PositiveInfinity;
+            _chargeLocks.Clear();
             AwardedGold = 0;
             ResultGrade = "C";
             ResetPools();
@@ -357,7 +401,8 @@ namespace DuneVector
             IsAnyRailShooterActive = true;
             _health.TemporaryHealthPoolDepleted += HandleTemporaryHullDepleted;
             _health.Damaged += HandlePlayerDamaged;
-            _health.BeginTemporaryHealthPool(_settings.TemporaryHull);
+            _health.BeginTemporaryHealthPool(
+                _settings.TemporaryHull + (DifficultyLevels() * _settings.DifficultyHullPerLevel));
             return true;
         }
 
@@ -407,7 +452,7 @@ namespace DuneVector
                     TickBoss(deltaTime);
                     break;
                 case RailShooterPhase.Results:
-                    TickResults();
+                    TickResults(command);
                     break;
             }
         }
@@ -487,10 +532,12 @@ namespace DuneVector
                 _state.Distance);
             Vector3 cameraAnchor = _arenaOrigin + new Vector3(0f, 0f, _state.Distance);
             Vector3 desiredCameraPosition = cameraAnchor + _settings.CameraLocalOffset;
-            _camera.transform.position = Vector3.Lerp(
-                _camera.transform.position,
-                desiredCameraPosition + (UnityEngine.Random.insideUnitSphere * _cameraShake),
+            _cameraBasePosition = Vector3.Lerp(
+                _cameraBasePosition,
+                desiredCameraPosition,
                 DuneVectorMath.Sharpness(_settings.CameraPositionSharpness, deltaTime));
+            _camera.transform.position = _cameraBasePosition +
+                (UnityEngine.Random.insideUnitSphere * _cameraShake);
             _camera.transform.rotation = Quaternion.Slerp(
                 _camera.transform.rotation,
                 Quaternion.identity,
@@ -500,17 +547,19 @@ namespace DuneVector
                 _state.FlightOffset,
                 _settings.FlightBounds,
                 _settings.RestingAimRegionFraction);
-            Vector2 aimViewport = restingViewport + Vector2.Scale(
+            _aimViewport = restingViewport + Vector2.Scale(
                 _state.Attitude,
                 _settings.SteeringAimViewportSwing);
-            Ray aimRay = _camera.ViewportPointToRay(new Vector3(aimViewport.x, aimViewport.y, 0f));
+            Ray aimRay = _camera.ViewportPointToRay(new Vector3(_aimViewport.x, _aimViewport.y, 0f));
             Quaternion aimRotation = Quaternion.LookRotation(aimRay.direction, Vector3.up);
+            // Weapons and reticles follow the aim ray exactly. The cosmetic bank, pitch, and
+            // trick spin stay on the hull so shots never leave the crosshair.
+            _state.AimDirection = aimRotation * Vector3.forward;
             Quaternion trickRotation = GetTrickRotation();
             Quaternion shipRotation = aimRotation * trickRotation * Quaternion.Euler(
                 -_state.Attitude.y * _settings.MaximumPitch,
                 _state.Attitude.x * _settings.MaximumYaw,
                 -_state.Attitude.x * _settings.MaximumBank);
-            _state.AimDirection = shipRotation * Vector3.forward;
             _player.transform.SetPositionAndRotation(playerPosition, shipRotation);
 
             float targetFov = _settings.CameraFieldOfView +
@@ -628,6 +677,13 @@ namespace DuneVector
                 _nextPickupDistance += _settings.PickupSpacing;
             }
 
+            if (!_bossAnnounced &&
+                _state.Distance >= _settings.BossSpawnDistance - _settings.BossApproachLeadDistance)
+            {
+                _bossAnnounced = true;
+                _bossBannerElapsed = 0f;
+            }
+
             if (_state.Distance >= _settings.BossSpawnDistance)
             {
                 BeginBoss();
@@ -638,7 +694,10 @@ namespace DuneVector
         {
             RailShooterEnemyKind kind = (RailShooterEnemyKind)(_waveIndex % 5);
             bool elite = (_waveIndex + 1) % Mathf.Max(1, _settings.EliteEveryWaves) == 0;
-            int baseCount = NextInt(_settings.FormationMinimumSize, _settings.FormationMaximumSize + 1);
+            int baseCount = Mathf.RoundToInt(
+                NextInt(_settings.FormationMinimumSize, _settings.FormationMaximumSize + 1) *
+                DifficultyCountMultiplier());
+            baseCount = Mathf.Max(_settings.FormationMinimumSize, baseCount);
             int riskExtra = Mathf.CeilToInt(baseCount *
                 (Mathf.Pow(_settings.RiskRouteEnemyMultiplier, _riskRouteCount) - 1f));
             int requestedCount = baseCount + riskExtra;
@@ -699,14 +758,19 @@ namespace DuneVector
             enemy.Age = 0f;
             enemy.BaseOffset = offset;
             enemy.SpawnZ = spawnZ;
-            enemy.MaximumHealth = _settings.EnemyHealth *
+            enemy.MaximumHealth = _settings.EnemyHealth * DifficultyHealthMultiplier() *
                 (elite ? _settings.EliteHealthMultiplier : 1f);
             enemy.Health = enemy.MaximumHealth;
-            enemy.NextFireAt = _settings.EnemyEntryDuration +
-                NextFloat(0f, _settings.EnemyFireInterval);
-            enemy.NextSpecialAt = _settings.EnemyEntryDuration + _settings.EnemyFireInterval;
+            float fireInterval = ScaledEnemyFireInterval();
+            enemy.NextFireAt = _settings.EnemyEntryDuration + NextFloat(0f, fireInterval);
+            enemy.NextSpecialAt = _settings.EnemyEntryDuration + fireInterval;
+            enemy.HitRadius = HitRadiusForKind(enemy.Kind) *
+                (elite ? _settings.EliteHitRadiusMultiplier : 1f);
+            enemy.ContactRadius = enemy.HitRadius * _settings.ContactRadiusFraction;
+            enemy.HitFlashElapsed = float.PositiveInfinity;
+            enemy.BaseScale = elite ? Vector3.one * 1.35f : Vector3.one;
             enemy.Transform.position = _arenaOrigin + new Vector3(offset.x, offset.y, spawnZ - _startZ);
-            enemy.Transform.localScale = elite ? Vector3.one * 1.35f : Vector3.one;
+            enemy.Transform.localScale = enemy.BaseScale;
             enemy.Root.SetActive(true);
         }
 
@@ -778,6 +842,7 @@ namespace DuneVector
             {
                 enemy.Visual.Rotate(0f, _settings.WreckageRotationSpeed * deltaTime, 0f, Space.Self);
             }
+            TickEnemyHitFlash(enemy, deltaTime);
 
             float relativeZ = position.z - _player.transform.position.z;
             if (enemy.Kind == RailShooterEnemyKind.GroundExploder &&
@@ -807,11 +872,11 @@ namespace DuneVector
                 {
                     FireEnemyProjectile(enemy, 1);
                 }
-                enemy.NextFireAt += _settings.EnemyFireInterval;
+                enemy.NextFireAt += ScaledEnemyFireInterval();
             }
 
             if (Vector3.Distance(position, _player.transform.position) <=
-                enemy.CollisionRadius + _settings.PlayerCollisionRadius)
+                enemy.ContactRadius + _settings.PlayerCollisionRadius)
             {
                 DamagePlayer(_settings.EnemyContactDamage, $"{enemy.Kind} rail collision");
                 EscapeEnemy(enemy);
@@ -846,8 +911,13 @@ namespace DuneVector
             _boss.Elite = true;
             _boss.MaximumHealth = _settings.BossHealth;
             _boss.Health = _boss.MaximumHealth;
-            _boss.CollisionRadius = _settings.BossCollisionRadius;
+            _boss.HitRadius = _settings.BossHitRadius;
+            _boss.ContactRadius = _settings.BossCollisionRadius;
+            _boss.HitFlashElapsed = float.PositiveInfinity;
+            _boss.BaseScale = Vector3.one;
             _boss.Age = 0f;
+            _bossBannerElapsed = 0f;
+            PlayCue(_settings.BossSpawnEvent, _player.transform.position);
             _boss.NextFireAt = _settings.BossFireInterval;
             _boss.NextSpecialAt = _settings.BossLaneAttackInterval;
             _boss.Root.SetActive(true);
@@ -889,6 +959,11 @@ namespace DuneVector
                 BeginLaneAttack(_arenaOrigin.x + (Mathf.Sin(_boss.Age) * _settings.FormationWidth * 0.35f));
                 _boss.NextSpecialAt += _settings.BossLaneAttackInterval / (1f + ((phase - 1) * 0.2f));
             }
+            if (Vector3.Distance(bossPosition, _player.transform.position) <=
+                _boss.ContactRadius + _settings.PlayerCollisionRadius)
+            {
+                DamagePlayer(_settings.BossContactDamage, "Vesper Sovereign hull grind");
+            }
         }
 
         private void TickWeapons(in RailShooterCommand command, float deltaTime)
@@ -909,16 +984,29 @@ namespace DuneVector
                         _cameraShake,
                         _settings.ChargeCameraShake * ChargeNormalized());
                 }
+                if (!_chargeReadyCued && _state.ChargeElapsed >= _settings.ChargeFullDuration)
+                {
+                    _chargeReadyCued = true;
+                    PlayCue(_settings.ChargeReadyEvent, _player.transform.position);
+                }
             }
-            if ((command.FireReleased || (_fireWasHeld && !command.FireHeld)) &&
-                _state.ChargeElapsed >= _settings.ChargeMinimumDuration)
+            bool released = command.FireReleased || (_fireWasHeld && !command.FireHeld);
+            if (released && _state.ChargeElapsed >= _settings.ChargeMinimumDuration)
             {
                 FireChargedBeam();
+            }
+            else if (released && _state.ChargeElapsed > _settings.RegularFireBeforeChargeDuration)
+            {
+                // A press let go before the charge threshold still spends as a normal bolt
+                // instead of silently discarding the shot.
+                FireRegularShot();
             }
             if (!command.FireHeld)
             {
                 _state.ChargeElapsed = 0f;
                 _chargeLock = null;
+                _chargeReadyCued = false;
+                _chargeLocks.Clear();
             }
             _fireWasHeld = command.FireHeld;
 
@@ -935,18 +1023,78 @@ namespace DuneVector
             {
                 return;
             }
+            Vector3 direction = ResolveShotDirection();
             projectile.Active = true;
             projectile.EnemyOwned = false;
-            projectile.Transform.position = _player.transform.position + (_state.AimDirection * 2.2f);
-            projectile.Velocity = _state.AimDirection * _settings.RegularShotSpeed;
+            projectile.Transform.position = _player.transform.position + (direction * 2.2f);
+            projectile.Velocity = direction * _settings.RegularShotSpeed;
             projectile.Remaining = _settings.RegularShotLifetime;
             projectile.Radius = _settings.RegularShotRadius;
-            projectile.Transform.rotation = Quaternion.LookRotation(_state.AimDirection, Vector3.up);
+            projectile.Transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
             projectile.Transform.localScale = new Vector3(
                 _settings.RegularShotRadius,
                 _settings.RegularShotRadius,
                 _settings.RegularShotVisualLength);
             projectile.Root.SetActive(true);
+            PlayCue(_settings.FireEvent, _player.transform.position);
+        }
+
+        private Vector3 ResolveShotDirection()
+        {
+            Vector3 direction = _state.AimDirection.normalized;
+            if (_settings.AimAssistStrength <= 0f)
+            {
+                return direction;
+            }
+            RailEnemy target = FindViewportTarget(
+                _settings.AimAssistViewportRadius,
+                _settings.AimAssistRange);
+            if (target == null)
+            {
+                return direction;
+            }
+            Vector3 toTarget = target.Transform.position - _player.transform.position;
+            if (toTarget.sqrMagnitude <= 0.001f)
+            {
+                return direction;
+            }
+            return Vector3.Slerp(
+                direction,
+                toTarget.normalized,
+                Mathf.Clamp01(_settings.AimAssistStrength)).normalized;
+        }
+
+        private float HitRadiusForKind(RailShooterEnemyKind kind)
+        {
+            return kind switch
+            {
+                RailShooterEnemyKind.SkyPiercer => _settings.SkyPiercerHitRadius,
+                RailShooterEnemyKind.GroundExploder => _settings.GroundExploderHitRadius,
+                RailShooterEnemyKind.StormPyramid => _settings.StormPyramidHitRadius,
+                RailShooterEnemyKind.StrikeOrb => _settings.StrikeOrbHitRadius,
+                _ => _settings.VesperKiteHitRadius,
+            };
+        }
+
+        private float DifficultyLevels()
+        {
+            return Mathf.Max(0, _difficulty - 1);
+        }
+
+        private float DifficultyHealthMultiplier()
+        {
+            return 1f + (DifficultyLevels() * _settings.DifficultyHealthPerLevel);
+        }
+
+        private float DifficultyCountMultiplier()
+        {
+            return 1f + (DifficultyLevels() * _settings.DifficultyCountPerLevel);
+        }
+
+        private float ScaledEnemyFireInterval()
+        {
+            float scale = 1f - (DifficultyLevels() * _settings.DifficultyFireRatePerLevel);
+            return Mathf.Max(0.05f, _settings.EnemyFireInterval * Mathf.Max(0.25f, scale));
         }
 
         private void FireChargedBeam()
@@ -970,9 +1118,9 @@ namespace DuneVector
                 }
                 Vector3 nearest = origin + (direction * along);
                 bool inBeam = Vector3.Distance(nearest, enemy.Transform.position) <=
-                    _settings.ChargedBeamRadius + enemy.CollisionRadius;
+                    _settings.ChargedBeamRadius + enemy.HitRadius;
                 bool inBlast = Vector3.Distance(lockPosition, enemy.Transform.position) <=
-                    _settings.ChargedBlastRadius + enemy.CollisionRadius;
+                    _settings.ChargedBlastRadius + enemy.HitRadius;
                 if (inBeam || inBlast)
                 {
                     ApplyDamage(enemy, _settings.ChargedShotDamage, charged: true, bomb: false);
@@ -984,7 +1132,7 @@ namespace DuneVector
                 Vector3 nearest = origin + (direction * Mathf.Clamp(along, 0f, _settings.ChargedBeamRange));
                 if (along >= 0f && along <= _settings.ChargedBeamRange &&
                     Vector3.Distance(nearest, _boss.Transform.position) <=
-                    _settings.ChargedBeamRadius + _boss.CollisionRadius)
+                    _settings.ChargedBeamRadius + _boss.HitRadius)
                 {
                     ApplyDamage(_boss, _settings.ChargedShotDamage, charged: true, bomb: false);
                 }
@@ -994,43 +1142,101 @@ namespace DuneVector
             _cameraShake = Mathf.Max(_cameraShake, _settings.ImpactCameraShake * 1.6f);
             _state.ChargeElapsed = 0f;
             _chargeLock = null;
+            _chargeReadyCued = false;
+            _chargeLocks.Clear();
+            PlayCue(_settings.ChargedFireEvent, _player.transform.position);
         }
 
         private void UpdateChargeLock()
         {
+            RailEnemy previous = _chargeLock;
+            // The reticle rides the aim viewport, so lock-on has to search around the
+            // crosshair rather than the middle of the screen.
+            float radius = Mathf.Max(
+                _settings.ChargeLockViewportRadius,
+                _settings.ChargeLockViewportRadius * ChargeNormalized() * 2f);
+            _chargeLock = FindViewportTarget(radius, _settings.ChargedBeamRange);
+            CollectChargeLocks(radius);
+            if (_chargeLock != null && _chargeLock != previous)
+            {
+                PlayCue(_settings.TargetLockEvent, _chargeLock.Transform.position);
+            }
+        }
+
+        private void CollectChargeLocks(float viewportRadius)
+        {
+            _chargeLocks.Clear();
+            int capacity = Mathf.Max(1, _settings.ChargedLockCapacity);
+            for (int i = 0; i < _enemies.Count && _chargeLocks.Count < capacity; i++)
+            {
+                RailEnemy enemy = _enemies[i];
+                if (enemy.Active &&
+                    TryScoreViewportTarget(enemy, viewportRadius, _settings.ChargedBeamRange, out _))
+                {
+                    _chargeLocks.Add(enemy);
+                }
+            }
+            if (_boss != null && _boss.Active && _chargeLocks.Count < capacity &&
+                TryScoreViewportTarget(_boss, viewportRadius, _settings.ChargedBeamRange, out _))
+            {
+                _chargeLocks.Add(_boss);
+            }
+        }
+
+        private RailEnemy FindViewportTarget(float viewportRadius, float maximumRange)
+        {
             RailEnemy best = null;
-            float bestViewportDistance = float.PositiveInfinity;
-            Vector2 center = new Vector2(0.5f, 0.5f);
+            float bestScore = float.PositiveInfinity;
             for (int i = 0; i < _enemies.Count; i++)
             {
                 RailEnemy enemy = _enemies[i];
-                if (!enemy.Active)
+                if (!enemy.Active ||
+                    !TryScoreViewportTarget(enemy, viewportRadius, maximumRange, out float score))
                 {
                     continue;
                 }
-                Vector3 viewport = _camera.WorldToViewportPoint(enemy.Transform.position);
-                if (viewport.z <= 0f)
-                {
-                    continue;
-                }
-                float distance = Vector2.Distance(new Vector2(viewport.x, viewport.y), center);
-                if (distance <= _settings.ChargeLockViewportRadius && distance < bestViewportDistance)
+                if (score < bestScore)
                 {
                     best = enemy;
-                    bestViewportDistance = distance;
+                    bestScore = score;
                 }
             }
-            if (_boss != null && _boss.Active)
+            if (_boss != null && _boss.Active &&
+                TryScoreViewportTarget(_boss, viewportRadius, maximumRange, out float bossScore) &&
+                bossScore < bestScore)
             {
-                Vector3 viewport = _camera.WorldToViewportPoint(_boss.Transform.position);
-                float distance = Vector2.Distance(new Vector2(viewport.x, viewport.y), center);
-                if (viewport.z > 0f && distance <= _settings.ChargeLockViewportRadius &&
-                    distance < bestViewportDistance)
-                {
-                    best = _boss;
-                }
+                best = _boss;
             }
-            _chargeLock = best;
+            return best;
+        }
+
+        private bool TryScoreViewportTarget(
+            RailEnemy enemy,
+            float viewportRadius,
+            float maximumRange,
+            out float score)
+        {
+            score = float.PositiveInfinity;
+            if (_camera == null || enemy == null || enemy.Transform == null)
+            {
+                return false;
+            }
+            Vector3 viewport = _camera.WorldToViewportPoint(enemy.Transform.position);
+            if (viewport.z <= 0f)
+            {
+                return false;
+            }
+            if (Vector3.Distance(_player.transform.position, enemy.Transform.position) > maximumRange)
+            {
+                return false;
+            }
+            float offset = Vector2.Distance(new Vector2(viewport.x, viewport.y), _aimViewport);
+            if (offset > viewportRadius)
+            {
+                return false;
+            }
+            score = offset;
+            return true;
         }
 
         private void DetonateBomb()
@@ -1043,8 +1249,9 @@ namespace DuneVector
             for (int i = 0; i < _enemies.Count; i++)
             {
                 RailEnemy enemy = _enemies[i];
-                if (enemy.Active && Vector3.Distance(enemy.Transform.position, _player.transform.position) <=
-                    _settings.BombRange)
+                if (enemy.Active &&
+                    Vector3.Distance(enemy.Transform.position, _player.transform.position) <=
+                    _settings.BombRange + enemy.HitRadius)
                 {
                     ApplyDamage(enemy, _settings.BombDamage, charged: false, bomb: true);
                 }
@@ -1059,6 +1266,7 @@ namespace DuneVector
             }
             _cameraShake = Mathf.Max(_cameraShake, _settings.BombCameraShake);
             _fovImpulse = Mathf.Max(_fovImpulse, _settings.BombFieldOfViewImpulse);
+            PlayCue(_settings.BombEvent, _player.transform.position);
         }
 
         private void FireEnemyProjectile(RailEnemy source, int fanCount)
@@ -1166,7 +1374,11 @@ namespace DuneVector
             {
                 RailEnemy enemy = _enemies[i];
                 if (!enemy.Active || !SegmentIntersectsSphere(
-                        start, end, enemy.Transform.position, radius + enemy.CollisionRadius, out float distance))
+                        start,
+                        end,
+                        enemy.Transform.position,
+                        radius + enemy.HitRadius + _settings.ShotHitRadiusBonus,
+                        out float distance))
                 {
                     continue;
                 }
@@ -1177,7 +1389,11 @@ namespace DuneVector
                 }
             }
             if (_boss != null && _boss.Active && SegmentIntersectsSphere(
-                    start, end, _boss.Transform.position, radius + _boss.CollisionRadius, out float bossDistance) &&
+                    start,
+                    end,
+                    _boss.Transform.position,
+                    radius + _boss.HitRadius + _settings.ShotHitRadiusBonus,
+                    out float bossDistance) &&
                 bossDistance < bestDistance)
             {
                 best = _boss;
@@ -1192,9 +1408,16 @@ namespace DuneVector
                 return;
             }
             enemy.Health = Mathf.Max(0f, enemy.Health - damage);
+            enemy.HitFlashElapsed = 0f;
+            _hitMarkerElapsed = 0f;
+            if (_state.Elapsed - _lastHitCueAt >= _settings.HitCueMinimumInterval)
+            {
+                _lastHitCueAt = _state.Elapsed;
+                PlayCue(_settings.EnemyHitEvent, enemy.Transform.position);
+            }
             if (enemy.Health > 0f)
             {
-                SpawnImpact(enemy.Transform.position, _settings.RegularShotRadius * 1.8f);
+                SpawnImpact(enemy.Transform.position, enemy.HitRadius * 0.5f);
                 return;
             }
 
@@ -1211,6 +1434,9 @@ namespace DuneVector
             enemy.Active = false;
             enemy.Root.SetActive(false);
             _state.Kills++;
+            _killMarkerElapsed = 0f;
+            _cameraShake = Mathf.Max(_cameraShake, _settings.KillCameraShake);
+            PlayCue(_settings.EnemyKillEvent, deathPosition);
             if (charged)
             {
                 _state.ChargeKills++;
@@ -1225,8 +1451,15 @@ namespace DuneVector
                 ? _settings.ChargedShotScoreMultiplier
                 : bomb ? _settings.BombScoreMultiplier : 1f;
             float eliteMultiplier = enemy.Elite ? _settings.EliteScoreMultiplier : 1f;
-            AddScore(Mathf.RoundToInt(
-                _settings.KillScore * _state.ComboMultiplier * weaponMultiplier * eliteMultiplier));
+            int killScore = Mathf.RoundToInt(
+                _settings.KillScore * _state.ComboMultiplier * weaponMultiplier * eliteMultiplier);
+            AddScore(killScore);
+            SpawnScorePopup(
+                deathPosition,
+                _state.Combo > 1
+                    ? $"+{killScore}  x{_state.ComboMultiplier:0.0}"
+                    : $"+{killScore}",
+                enemy.Elite ? _settings.HudComboColor : _settings.HudPrimaryColor);
             FormationRecord formation = FindFormation(enemy.FormationId);
             if (formation != null)
             {
@@ -1236,9 +1469,13 @@ namespace DuneVector
                     formation.Awarded = true;
                     _state.FormationClears++;
                     AddScore(_settings.FormationClearScore);
+                    SpawnScorePopup(
+                        deathPosition,
+                        $"FORMATION CLEAR  +{_settings.FormationClearScore}",
+                        _settings.HudChargeColor);
                 }
             }
-            SpawnImpact(deathPosition, _settings.ImpactFlashMaximumScale);
+            SpawnImpact(deathPosition, Mathf.Max(_settings.ImpactFlashMaximumScale, enemy.HitRadius));
             _killsSinceDrop++;
             if (_killsSinceDrop >= Mathf.Max(1, _settings.EnemyDropEveryKills))
             {
@@ -1287,6 +1524,11 @@ namespace DuneVector
                 _riskRouteCount++;
                 _state.RouteGatesCleared++;
                 AddScore(_settings.RiskRouteScoreBonus);
+                SpawnScorePopup(
+                    _riskGate.position,
+                    $"{_settings.RiskRouteLabel}  +{_settings.RiskRouteScoreBonus}",
+                    _settings.RiftDangerColor);
+                PlayCue(_settings.RouteGateEvent, _riskGate.position);
             }
             else
             {
@@ -1295,6 +1537,11 @@ namespace DuneVector
                 {
                     _state.RouteGatesCleared++;
                     _health.RestoreHealth(_settings.HealthPickupAmount * 0.5f);
+                    SpawnScorePopup(
+                        _safeGate.position,
+                        _settings.SafeGateLabel,
+                        _settings.RiftSignalColor);
+                    PlayCue(_settings.RouteGateEvent, _safeGate.position);
                 }
             }
             _safeGate.gameObject.SetActive(false);
@@ -1366,6 +1613,21 @@ namespace DuneVector
             }
             _state.Pickups++;
             AddScore(_settings.PickupScore);
+            SpawnScorePopup(
+                pickup.Transform.position,
+                pickup.Kind switch
+                {
+                    PickupKind.Gold => $"+{_settings.GoldPickupAmount} GOLD",
+                    PickupKind.Health => $"+{Mathf.RoundToInt(_settings.HealthPickupAmount)} HULL",
+                    _ => "+1 BOMB",
+                },
+                pickup.Kind switch
+                {
+                    PickupKind.Gold => _settings.RiftGoldColor,
+                    PickupKind.Health => _settings.HudReticleColor,
+                    _ => _settings.HudBombColor,
+                });
+            PlayCue(_settings.PickupEvent, pickup.Transform.position);
             SpawnImpact(pickup.Transform.position, _settings.PickupRadius);
             DeactivatePickup(pickup);
         }
@@ -1507,6 +1769,40 @@ namespace DuneVector
                 _state.Combo = 0;
                 _state.ComboMultiplier = 1f;
             }
+            AdvanceTimer(ref _hitMarkerElapsed, deltaTime, _settings.HitMarkerDuration);
+            AdvanceTimer(ref _killMarkerElapsed, deltaTime, _settings.KillMarkerDuration);
+            AdvanceTimer(ref _damageFlashElapsed, deltaTime, _settings.DamageFlashDuration);
+            AdvanceTimer(ref _bossBannerElapsed, deltaTime, _settings.EntryCardDuration * 2f);
+            for (int i = 0; i < _popups.Count; i++)
+            {
+                ScorePopup popup = _popups[i];
+                if (!popup.Active)
+                {
+                    continue;
+                }
+                popup.Elapsed += deltaTime;
+                popup.World += new Vector3(
+                    0f,
+                    _settings.ScorePopupRiseSpeed,
+                    _state.ForwardSpeed) * deltaTime;
+                if (popup.Elapsed >= _settings.ScorePopupDuration)
+                {
+                    popup.Active = false;
+                }
+            }
+        }
+
+        private static void AdvanceTimer(ref float elapsed, float deltaTime, float duration)
+        {
+            if (!float.IsFinite(elapsed))
+            {
+                return;
+            }
+            elapsed += deltaTime;
+            if (elapsed >= Mathf.Max(0.01f, duration))
+            {
+                elapsed = float.PositiveInfinity;
+            }
         }
 
         private void TickImpacts(float deltaTime)
@@ -1520,8 +1816,7 @@ namespace DuneVector
                 }
                 impact.Elapsed += deltaTime;
                 float normalized = Mathf.Clamp01(impact.Elapsed / _settings.ImpactFlashDuration);
-                impact.Transform.localScale = Vector3.one *
-                    (_settings.ImpactFlashMaximumScale * (1f - normalized));
+                impact.Transform.localScale = Vector3.one * (impact.Scale * (1f - normalized));
                 if (normalized >= 1f)
                 {
                     impact.Active = false;
@@ -1541,10 +1836,61 @@ namespace DuneVector
                 }
                 impact.Active = true;
                 impact.Elapsed = 0f;
+                impact.Scale = Mathf.Max(0.01f, scale);
                 impact.Transform.position = position;
-                impact.Transform.localScale = Vector3.one * Mathf.Max(0.01f, scale);
+                impact.Transform.localScale = Vector3.one * impact.Scale;
                 impact.Root.SetActive(true);
                 return;
+            }
+        }
+
+        private void TickEnemyHitFlash(RailEnemy enemy, float deltaTime)
+        {
+            if (enemy.Visual == null || !float.IsFinite(enemy.HitFlashElapsed))
+            {
+                return;
+            }
+            enemy.HitFlashElapsed += deltaTime;
+            float duration = Mathf.Max(0.01f, _settings.EnemyHitFlashDuration);
+            if (enemy.HitFlashElapsed >= duration)
+            {
+                enemy.HitFlashElapsed = float.PositiveInfinity;
+                enemy.Transform.localScale = enemy.BaseScale;
+                return;
+            }
+            float pulse = 1f + ((_settings.EnemyHitFlashScale - 1f) *
+                (1f - (enemy.HitFlashElapsed / duration)));
+            enemy.Transform.localScale = enemy.BaseScale * pulse;
+        }
+
+        private void SpawnScorePopup(Vector3 world, string text, Color color)
+        {
+            for (int i = 0; i < _popups.Count; i++)
+            {
+                ScorePopup popup = _popups[i];
+                if (popup.Active)
+                {
+                    continue;
+                }
+                popup.Active = true;
+                popup.Elapsed = 0f;
+                popup.World = world;
+                popup.Text = text;
+                popup.Color = color;
+                return;
+            }
+        }
+
+        private void PlayCue(string eventPath, Vector3 position)
+        {
+            if (string.IsNullOrWhiteSpace(eventPath))
+            {
+                return;
+            }
+            DuneVectorAudioManager audio = DuneVectorAudioManager.Instance;
+            if (audio != null)
+            {
+                audio.PlayRiftInterceptCue(eventPath, position);
             }
         }
 
@@ -1559,6 +1905,8 @@ namespace DuneVector
             {
                 _nextDamageAt = _state.Elapsed + _settings.CollisionInvulnerabilityDuration;
                 _cameraShake = Mathf.Max(_cameraShake, _settings.ImpactCameraShake);
+                _damageFlashElapsed = 0f;
+                PlayCue(_settings.PlayerDamageEvent, _player.transform.position);
             }
         }
 
@@ -1589,6 +1937,12 @@ namespace DuneVector
             _resultSuccess = success;
             Phase = RailShooterPhase.Results;
             _phaseElapsed = 0f;
+            _hitMarkerElapsed = float.PositiveInfinity;
+            _killMarkerElapsed = float.PositiveInfinity;
+            _damageFlashElapsed = float.PositiveInfinity;
+            _bossBannerElapsed = float.PositiveInfinity;
+            _chargeLocks.Clear();
+            _chargeLock = null;
             if (!_state.TookDamage)
             {
                 AddScore(_settings.NoDamageChallengeBonus);
@@ -1614,9 +1968,11 @@ namespace DuneVector
             }
         }
 
-        private void TickResults()
+        private void TickResults(in RailShooterCommand command)
         {
-            if (_phaseElapsed < _settings.ResultHoldDuration)
+            bool skipRequested = _phaseElapsed >= _settings.ResultsSkipDelay &&
+                (command.FirePressed || command.BombPressed || command.TrickPressed);
+            if (_phaseElapsed < _settings.ResultHoldDuration && !skipRequested)
             {
                 return;
             }
@@ -1711,16 +2067,19 @@ namespace DuneVector
                 segment.Rotators.Add(rightPylon);
                 for (int piece = 0; piece < _settings.WreckagePiecesPerSegment; piece++)
                 {
+                    bool solid = piece == 0;
                     Transform wreck = CreatePart(
                         piece % 2 == 0 ? PrimitiveType.Cube : PrimitiveType.Cylinder,
-                        $"Floating Wreckage {piece + 1}",
+                        solid ? "Solid Rift Wreck" : $"Floating Wreckage {piece + 1}",
                         segment.Root,
                         Vector3.zero,
                         Vector3.one,
                         Quaternion.identity,
-                        piece % 3 == 0 ? _materials.LandmarkAccent : _materials.LandmarkMetal);
+                        solid
+                            ? _materials.GroundEnemyWarning
+                            : piece % 3 == 0 ? _materials.LandmarkAccent : _materials.LandmarkMetal);
                     segment.Rotators.Add(wreck);
-                    if (piece == 0)
+                    if (solid)
                     {
                         segment.Obstacle = wreck;
                     }
@@ -1768,6 +2127,10 @@ namespace DuneVector
             }
             _boss = CreateRailEnemy(RailShooterEnemyKind.VesperKite, _settings.EnemyPoolSize, true);
             _boss.Root.name = "Vesper Sovereign Boss - Pooled";
+            for (int i = 0; i < _settings.ScorePopupPoolSize; i++)
+            {
+                _popups.Add(new ScorePopup());
+            }
         }
 
         private RailEnemy CreateRailEnemy(RailShooterEnemyKind kind, int identity, bool boss)
@@ -1796,7 +2159,12 @@ namespace DuneVector
                 Kind = kind,
                 Boss = boss,
                 Identity = identity,
-                CollisionRadius = boss ? _settings.BossCollisionRadius : _settings.EnemyCollisionRadius,
+                HitRadius = boss ? _settings.BossHitRadius : HitRadiusForKind(kind),
+                ContactRadius = boss
+                    ? _settings.BossCollisionRadius
+                    : HitRadiusForKind(kind) * _settings.ContactRadiusFraction,
+                HitFlashElapsed = float.PositiveInfinity,
+                BaseScale = Vector3.one,
             };
             root.gameObject.SetActive(false);
             return enemy;
@@ -1981,6 +2349,10 @@ namespace DuneVector
                 _impacts[i].Root.SetActive(false);
             }
             _formations.Clear();
+            for (int i = 0; i < _popups.Count; i++)
+            {
+                _popups[i].Active = false;
+            }
             _chargeVisual.gameObject.SetActive(false);
             _chargedBeamVisual.gameObject.SetActive(false);
             _bombVisual.gameObject.SetActive(false);
@@ -2016,42 +2388,96 @@ namespace DuneVector
                 {
                     continue;
                 }
-                if (i >= 2 && wreck != null && wreck.name.StartsWith("Floating Wreckage", StringComparison.Ordinal))
+                bool solid = wreck == segment.Obstacle;
+                if (i < 2)
                 {
-                    float scale = NextFloat(
+                    continue;
+                }
+                if (!solid && !wreck.name.StartsWith("Floating Wreckage", StringComparison.Ordinal))
+                {
+                    continue;
+                }
+                float depth = NextFloat(
+                    -_settings.EnvironmentSegmentSpacing * 0.35f,
+                    _settings.EnvironmentSegmentSpacing * 0.35f);
+                float scale = solid
+                    ? NextFloat(
                         _settings.WreckageMinimumScale,
-                        _settings.WreckageMaximumScale);
-                    wreck.localPosition = new Vector3(
-                        NextFloat(-_settings.CorridorHalfWidth, _settings.CorridorHalfWidth),
-                        NextFloat(-_settings.CorridorHalfHeight, _settings.CorridorHalfHeight),
-                        NextFloat(-_settings.EnvironmentSegmentSpacing * 0.35f,
-                            _settings.EnvironmentSegmentSpacing * 0.35f));
-                    wreck.localRotation = Quaternion.Euler(
-                        NextFloat(0f, 360f),
-                        NextFloat(0f, 360f),
-                        NextFloat(0f, 360f));
-                    wreck.localScale = Vector3.one * scale;
+                        Mathf.Lerp(
+                            _settings.WreckageMinimumScale,
+                            _settings.WreckageMaximumScale,
+                            _settings.ObstacleMaximumScaleFraction))
+                    : NextFloat(_settings.WreckageMinimumScale, _settings.WreckageMaximumScale);
+                Vector2 planar = solid ? SampleLaneOffset() : SampleWreckageShellOffset();
+                wreck.localPosition = new Vector3(planar.x, planar.y, depth);
+                wreck.localRotation = Quaternion.Euler(
+                    NextFloat(0f, 360f),
+                    NextFloat(0f, 360f),
+                    NextFloat(0f, 360f));
+                wreck.localScale = Vector3.one * scale;
+                if (solid)
+                {
+                    segment.Radius = Mathf.Max(
+                        _settings.ObstacleRadius,
+                        scale * _settings.ObstacleRadiusPerScale);
                 }
             }
             if (segment.Obstacle != null)
             {
                 segment.Obstacle.gameObject.SetActive(segment.HasObstacle);
-                segment.Radius = _settings.ObstacleRadius;
             }
+        }
+
+        // Decorative wreckage lives in the shell between the flight lane and the corridor
+        // wall so the lane the drone actually flies through stays readable.
+        private Vector2 SampleWreckageShellOffset()
+        {
+            float clearance = Mathf.Clamp01(_settings.WreckageCorridorClearance);
+            float marginX = Mathf.Lerp(_settings.FlightBounds.x, _settings.CorridorHalfWidth, clearance);
+            float marginY = Mathf.Lerp(_settings.FlightBounds.y, _settings.CorridorHalfHeight, clearance);
+            bool sideWall = NextFloat(0f, 1f) < 0.5f;
+            if (sideWall)
+            {
+                float x = NextFloat(marginX, _settings.CorridorHalfWidth);
+                return new Vector2(
+                    NextFloat(0f, 1f) < 0.5f ? -x : x,
+                    NextFloat(-_settings.CorridorHalfHeight, _settings.CorridorHalfHeight));
+            }
+            float y = NextFloat(marginY, _settings.CorridorHalfHeight);
+            return new Vector2(
+                NextFloat(-_settings.CorridorHalfWidth, _settings.CorridorHalfWidth),
+                NextFloat(0f, 1f) < 0.5f ? -y : y);
+        }
+
+        private Vector2 SampleLaneOffset()
+        {
+            return new Vector2(
+                NextFloat(-_settings.FlightBounds.x, _settings.FlightBounds.x),
+                NextFloat(-_settings.FlightBounds.y, _settings.FlightBounds.y));
         }
 
         private void ResetSpeedStreak(Transform streak, int identity)
         {
+            if (_camera == null)
+            {
+                streak.position = Vector3.zero;
+                return;
+            }
             float length = NextFloat(
                 _settings.SpeedStreakMinimumLength,
                 _settings.SpeedStreakMaximumLength);
-            streak.position = _camera != null
-                ? _camera.transform.position + new Vector3(
-                    NextFloat(-_settings.CorridorHalfWidth, _settings.CorridorHalfWidth),
-                    NextFloat(-_settings.CorridorHalfHeight, _settings.CorridorHalfHeight),
-                    NextFloat(8f, _settings.SpeedStreakDepth))
-                : Vector3.zero;
-            streak.rotation = Quaternion.identity;
+            float angle = NextFloat(0f, Mathf.PI * 2f);
+            float radius = NextFloat(
+                _settings.SpeedStreakConeInnerRadius,
+                _settings.SpeedStreakConeOuterRadius);
+            // Seed the streaks in a ring around the view axis and point them down the ray they
+            // sit on, so they read as warp lines converging on the vanishing point.
+            Vector3 local = new Vector3(
+                Mathf.Cos(angle) * radius,
+                Mathf.Sin(angle) * radius,
+                NextFloat(_settings.SpeedStreakNearDistance, _settings.SpeedStreakDepth));
+            streak.position = _camera.transform.position + local;
+            streak.rotation = Quaternion.LookRotation(local.normalized, Vector3.up);
             streak.localScale = new Vector3(
                 _settings.SpeedStreakWidth,
                 _settings.SpeedStreakWidth,
@@ -2074,6 +2500,11 @@ namespace DuneVector
             _savedClearFlags = _camera.clearFlags;
             _savedBackgroundColor = _camera.backgroundColor;
             _savedFieldOfView = _camera.fieldOfView;
+            _savedFogEnabled = RenderSettings.fog;
+            _savedFogMode = RenderSettings.fogMode;
+            _savedFogColor = RenderSettings.fogColor;
+            _savedFogStartDistance = RenderSettings.fogStartDistance;
+            _savedFogEndDistance = RenderSettings.fogEndDistance;
         }
 
         private void EnterRailPresentation()
@@ -2096,6 +2527,17 @@ namespace DuneVector
             _camera.fieldOfView = _settings.CameraFieldOfView;
             _camera.transform.position = _arenaOrigin + _settings.CameraLocalOffset;
             _camera.transform.rotation = Quaternion.identity;
+            _cameraBasePosition = _camera.transform.position;
+            if (_settings.RiftFogEnabled)
+            {
+                RenderSettings.fog = true;
+                RenderSettings.fogMode = FogMode.Linear;
+                RenderSettings.fogColor = _settings.RiftFogColor;
+                RenderSettings.fogStartDistance = _settings.RiftFogStartDistance;
+                RenderSettings.fogEndDistance = _settings.RiftFogEndDistance;
+            }
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
         }
 
         private void RestoreWorldState()
@@ -2120,6 +2562,13 @@ namespace DuneVector
                 _cameraController.enabled = _savedCameraControllerEnabled;
                 _cameraController.SnapToTarget(_savedPlayerRotation * Vector3.forward);
             }
+            RenderSettings.fog = _savedFogEnabled;
+            RenderSettings.fogMode = _savedFogMode;
+            RenderSettings.fogColor = _savedFogColor;
+            RenderSettings.fogStartDistance = _savedFogStartDistance;
+            RenderSettings.fogEndDistance = _savedFogEndDistance;
+            Cursor.lockState = _savedInputEnabled ? CursorLockMode.Locked : CursorLockMode.None;
+            Cursor.visible = !_savedInputEnabled;
             _input?.SetInputEnabled(_savedInputEnabled);
         }
 
@@ -2311,19 +2760,26 @@ namespace DuneVector
 
         private void OnGUI()
         {
-            if (!IsActive || Event.current.type != EventType.Repaint || _settings == null)
+            if (!IsActive || Event.current.type != EventType.Repaint || _settings == null ||
+                Time.timeScale <= 0f)
             {
                 return;
             }
             EnsureHudStyles();
             GUI.depth = -1300;
-            DrawHudPanels();
-            DrawReticles();
+            // World-anchored layers first so the chrome always sits on top of them.
             DrawLaneHudWarning();
+            DrawDamageVignette();
+            DrawHazardBrackets();
+            DrawScorePopups();
+            DrawReticles();
+            DrawRoutePrompt();
+            DrawHudPanels();
             if (_boss != null && _boss.Active)
             {
                 DrawBossMeter();
             }
+            DrawBanner();
             if (Phase == RailShooterPhase.Results)
             {
                 DrawResults();
@@ -2359,48 +2815,213 @@ namespace DuneVector
                 fontSize = _settings.HudResultFontSize,
                 alignment = TextAnchor.MiddleCenter,
             };
+            _popupStyle = new GUIStyle(_bodyStyle)
+            {
+                fontSize = _settings.ScorePopupFontSize,
+                alignment = TextAnchor.MiddleCenter,
+            };
+            _centeredSmallStyle = new GUIStyle(_smallStyle)
+            {
+                alignment = TextAnchor.MiddleCenter,
+            };
+            _statLabelStyle = new GUIStyle(_smallStyle)
+            {
+                fontSize = _settings.HudBodyFontSize,
+                alignment = TextAnchor.MiddleLeft,
+            };
+            _statValueStyle = new GUIStyle(_bodyStyle)
+            {
+                alignment = TextAnchor.MiddleRight,
+            };
+        }
+
+        private void DrawLabel(Rect rect, string text, GUIStyle style, Color color)
+        {
+            Color previous = style.normal.textColor;
+            style.normal.textColor = color;
+            GUI.Label(rect, text, style);
+            style.normal.textColor = previous;
+        }
+
+        private static Color WithAlpha(Color color, float alpha)
+        {
+            color.a *= Mathf.Clamp01(alpha);
+            return color;
         }
 
         private void DrawHudPanels()
         {
             float margin = _settings.HudMargin;
-            Rect left = new Rect(margin, margin, _settings.HudPanelWidth, _settings.HudPanelHeight);
+            float pad = _settings.HudPanelPadding;
+            float line = _settings.HudLineHeight;
+            float meter = _settings.HudMeterHeight;
+            float width = _settings.HudPanelWidth;
+            float inner = width - (pad * 2f);
+
+            // Every row is laid out from a running cursor and the panel is sized to match, so
+            // no label can ever spill past the panel or off the top of the screen.
+            float leftHeight = (pad * 2f) + _settings.HudTitleHeight + (line * 4f) +
+                (_settings.ProgressMeterHeight * 2f) + 10f;
+            Rect left = new Rect(margin, margin, width, leftHeight);
             DrawPanel(left);
-            GUI.Label(new Rect(left.x + 16f, left.y + 10f, left.width - 32f, 30f), _settings.MissionTitle, _titleStyle);
-            GUI.Label(new Rect(left.x + 16f, left.y + 44f, left.width - 32f, 26f),
-                $"SCORE  {_state.Score:0000000}    HIT  {_state.Kills:000}", _bodyStyle);
-            GUI.Label(new Rect(left.x + 16f, left.y + 72f, left.width - 32f, 24f),
-                $"COMBO  x{_state.ComboMultiplier:0.0}    FORMATIONS  {_state.FormationClears:00}", _smallStyle);
-            GUI.Label(new Rect(left.x + 16f, left.y + 98f, left.width - 32f, 24f),
-                _state.Route == RailShooterRoute.Black ? _settings.RiskRouteLabel : _settings.SafeRouteLabel,
-                _smallStyle);
+            float cursor = left.y + pad;
+            DrawLabel(
+                new Rect(left.x + pad, cursor, inner, _settings.HudTitleHeight),
+                _settings.MissionTitle,
+                _titleStyle,
+                _settings.HudPrimaryColor);
+            cursor += _settings.HudTitleHeight;
+            DrawLabel(
+                new Rect(left.x + pad, cursor, inner, line),
+                _settings.MissionSubtitle,
+                _smallStyle,
+                _settings.HudSecondaryColor);
+            cursor += line;
+            DrawLabel(
+                new Rect(left.x + pad, cursor, inner, line),
+                $"SCORE  {_state.Score:0000000}",
+                _bodyStyle,
+                _settings.HudPrimaryColor);
+            DrawLabel(
+                new Rect(left.x + pad, cursor, inner, line),
+                $"HIT  {_state.Kills:000}",
+                _statValueStyle,
+                _settings.HudPrimaryColor);
+            cursor += line;
 
-            Rect right = new Rect(Screen.width - margin - _settings.HudPanelWidth, margin,
-                _settings.HudPanelWidth, _settings.HudPanelHeight);
+            float comboFill = _state.Combo > 1 && float.IsFinite(_comboExpiresAt)
+                ? Mathf.Clamp01((_comboExpiresAt - _state.Elapsed) / Mathf.Max(0.01f, _settings.ComboWindow))
+                : 0f;
+            DrawLabel(
+                new Rect(left.x + pad, cursor, inner, line),
+                $"COMBO  x{_state.ComboMultiplier:0.0}",
+                _smallStyle,
+                _state.Combo > 1 ? _settings.HudComboColor : _settings.HudSecondaryColor);
+            DrawLabel(
+                new Rect(left.x + pad, cursor, inner, line),
+                $"FORMATIONS  {_state.FormationClears:00}",
+                _statValueStyle,
+                _settings.HudSecondaryColor);
+            cursor += line;
+            DrawMeter(
+                new Rect(left.x + pad, cursor, inner, _settings.ProgressMeterHeight),
+                comboFill,
+                _settings.HudComboColor);
+            cursor += _settings.ProgressMeterHeight + 6f;
+
+            float depth = Mathf.Clamp01(_state.Distance / Mathf.Max(1f, _settings.BossSpawnDistance));
+            DrawLabel(
+                new Rect(left.x + pad, cursor, inner, line),
+                _settings.ProgressLabel,
+                _smallStyle,
+                _settings.HudSecondaryColor);
+            DrawLabel(
+                new Rect(left.x + pad, cursor, inner, line),
+                _state.Route == RailShooterRoute.Black
+                    ? _settings.RiskRouteLabel
+                    : _settings.SafeRouteLabel,
+                _statValueStyle,
+                _state.Route == RailShooterRoute.Black
+                    ? _settings.RiftDangerColor
+                    : _settings.RiftSignalColor);
+            cursor += line;
+            DrawMeter(
+                new Rect(left.x + pad, cursor, inner, _settings.ProgressMeterHeight),
+                depth,
+                _settings.HudChargeColor);
+
+            float rightHeight = (pad * 2f) + (line * 3f) + (meter * 2f) + 16f;
+            Rect right = new Rect(Screen.width - margin - width, margin, width, rightHeight);
             DrawPanel(right);
+            cursor = right.y + pad;
             float hull = _health != null ? _health.NormalizedHealth : 0f;
-            GUI.Label(new Rect(right.x + 16f, right.y + 12f, right.width - 32f, 24f),
-                $"RIFT HULL  {Mathf.CeilToInt(hull * 100f):000}%", _bodyStyle);
-            DrawMeter(new Rect(right.x + 16f, right.y + 42f, right.width - 32f, _settings.HudMeterHeight),
-                hull, Color.Lerp(_settings.HudDamageColor, _settings.HudReticleColor, hull));
-            GUI.Label(new Rect(right.x + 16f, right.y + 62f, right.width - 32f, 24f),
-                $"BOMBS  {_state.Bombs} / {_settings.MaximumBombs}", _bodyStyle);
-            GUI.Label(new Rect(right.x + 16f, right.y + 88f, right.width - 32f, 20f), "MANEUVER", _smallStyle);
-            DrawMeter(new Rect(right.x + 16f, right.y + 112f, right.width - 32f, _settings.HudMeterHeight),
-                _state.ManeuverEnergy / _settings.ManeuverEnergyCapacity, _settings.HudChargeColor);
+            bool lowHull = hull <= _settings.LowHullWarningFraction;
+            float hullPulse = lowHull
+                ? 0.55f + (0.45f * Mathf.Abs(Mathf.Sin(_state.Elapsed * _settings.LowHullPulseSpeed)))
+                : 1f;
+            DrawLabel(
+                new Rect(right.x + pad, cursor, inner, line),
+                $"RIFT HULL  {Mathf.CeilToInt(hull * 100f):000}%",
+                _bodyStyle,
+                WithAlpha(lowHull ? _settings.HudDamageColor : _settings.HudPrimaryColor, hullPulse));
+            cursor += line;
+            DrawMeter(
+                new Rect(right.x + pad, cursor, inner, meter),
+                hull,
+                Color.Lerp(_settings.HudDamageColor, _settings.HudReticleColor, hull));
+            cursor += meter + 8f;
+            DrawLabel(
+                new Rect(right.x + pad, cursor, inner, line),
+                "BOMBS",
+                _bodyStyle,
+                _settings.HudPrimaryColor);
+            DrawBombPips(new Rect(right.x + pad, cursor, inner, line));
+            cursor += line;
+            DrawLabel(
+                new Rect(right.x + pad, cursor, inner, line),
+                "MANEUVER",
+                _smallStyle,
+                _settings.HudSecondaryColor);
+            cursor += line;
+            DrawMeter(
+                new Rect(right.x + pad, cursor, inner, meter),
+                _state.ManeuverEnergy / Mathf.Max(1f, _settings.ManeuverEnergyCapacity),
+                _settings.HudChargeColor);
 
+            float chargeHeight = (pad * 0.5f * 2f) + line + meter;
             Rect chargeRect = new Rect(
-                (Screen.width - _settings.HudPanelWidth) * 0.5f,
-                Screen.height - margin - 64f,
-                _settings.HudPanelWidth,
-                46f);
+                (Screen.width - width) * 0.5f,
+                Screen.height - margin - chargeHeight - line,
+                width,
+                chargeHeight);
             DrawPanel(chargeRect);
-            GUI.Label(new Rect(chargeRect.x + 12f, chargeRect.y + 3f, chargeRect.width - 24f, 18f),
-                _chargeLock != null ? "CHARGE // TARGET RESONANCE" : "CHARGE // PENETRATION", _smallStyle);
-            DrawMeter(new Rect(chargeRect.x + 12f, chargeRect.y + 25f, chargeRect.width - 24f, _settings.HudMeterHeight),
-                ChargeNormalized(), _settings.HudChargeColor);
-            GUI.Label(new Rect(margin, Screen.height - margin - 24f, Screen.width - (margin * 2f), 24f),
-                _settings.ControlsLabel, _smallStyle);
+            DrawLabel(
+                new Rect(chargeRect.x + 12f, chargeRect.y + (pad * 0.5f), chargeRect.width - 24f, line),
+                _chargeLock != null
+                    ? $"CHARGE // LOCK {_chargeLocks.Count:00}"
+                    : "CHARGE // PENETRATION",
+                _smallStyle,
+                _chargeLock != null ? _settings.HudChargeColor : _settings.HudSecondaryColor);
+            DrawMeter(
+                new Rect(
+                    chargeRect.x + 12f,
+                    chargeRect.y + (pad * 0.5f) + line,
+                    chargeRect.width - 24f,
+                    meter),
+                ChargeNormalized(),
+                _settings.HudChargeColor);
+
+            DrawLabel(
+                new Rect(margin, Screen.height - margin - line, Screen.width - (margin * 2f), line),
+                _settings.ControlsLabel,
+                _smallStyle,
+                WithAlpha(_settings.HudSecondaryColor, 0.85f));
+        }
+
+        private void DrawBombPips(Rect row)
+        {
+            int capacity = Mathf.Max(1, _settings.MaximumBombs);
+            float size = Mathf.Min(row.height * 0.45f, 14f);
+            float spacing = size + 8f;
+            float x = row.xMax - (capacity * spacing) + (spacing - size);
+            float y = row.y + ((row.height - size) * 0.5f);
+            for (int i = 0; i < capacity; i++)
+            {
+                Rect pip = new Rect(x + (i * spacing), y, size, size);
+                DrawRect(pip, new Color(0f, 0f, 0f, 0.72f));
+                if (i < _state.Bombs)
+                {
+                    DrawRect(
+                        new Rect(pip.x + 2f, pip.y + 2f, pip.width - 4f, pip.height - 4f),
+                        _settings.HudBombColor);
+                }
+                else
+                {
+                    DrawRect(
+                        new Rect(pip.x, pip.y, pip.width, 1f),
+                        WithAlpha(_settings.HudSecondaryColor, 0.6f));
+                }
+            }
         }
 
         private void DrawReticles()
@@ -2408,19 +3029,252 @@ namespace DuneVector
             DrawWorldReticle(
                 _player.transform.position + (_state.AimDirection * _settings.NearReticleDistance),
                 _settings.ReticleNearSize);
-            DrawWorldReticle(
-                _player.transform.position + (_state.AimDirection * _settings.FarReticleDistance),
-                _settings.ReticleFarSize);
-            if (_chargeLock != null && _chargeLock.Active)
+            Vector3 farAim = _player.transform.position +
+                (_state.AimDirection * _settings.FarReticleDistance);
+            DrawWorldReticle(farAim, _settings.ReticleFarSize);
+
+            RailEnemy assist = FindViewportTarget(
+                _settings.AimAssistViewportRadius,
+                _settings.AimAssistRange);
+            if (assist != null && assist != _chargeLock &&
+                TryProject(assist.Transform.position, out Vector2 assistScreen))
             {
-                Vector3 screen = _camera.WorldToScreenPoint(_chargeLock.Transform.position);
-                if (screen.z > 0f)
+                DrawBracket(
+                    assistScreen,
+                    _settings.TargetBracketSize,
+                    WithAlpha(_settings.HudReticleColor, 0.6f));
+                DrawTargetHealth(assist, assistScreen, _settings.TargetBracketSize);
+            }
+            for (int i = 0; i < _chargeLocks.Count; i++)
+            {
+                RailEnemy locked = _chargeLocks[i];
+                if (locked != null && locked.Active &&
+                    TryProject(locked.Transform.position, out Vector2 lockScreen))
                 {
-                    DrawBracket(
-                        new Vector2(screen.x, Screen.height - screen.y),
-                        _settings.LockBracketSize,
-                        _settings.HudChargeColor);
+                    DrawBracket(lockScreen, _settings.LockBracketSize, _settings.HudChargeColor);
                 }
+            }
+            if (TryProject(farAim, out Vector2 markerAnchor))
+            {
+                DrawHitMarkers(markerAnchor);
+            }
+        }
+
+        private void DrawTargetHealth(RailEnemy enemy, Vector2 center, float size)
+        {
+            float health = Mathf.Clamp01(enemy.Health / Mathf.Max(1f, enemy.MaximumHealth));
+            if (health >= 0.999f)
+            {
+                return;
+            }
+            float width = size * 1.6f;
+            Rect bar = new Rect(
+                center.x - (width * 0.5f),
+                center.y + (size * 0.5f) + 4f,
+                width,
+                Mathf.Max(2f, _settings.ProgressMeterHeight * 0.5f));
+            DrawMeter(bar, health, Color.Lerp(_settings.RiftDangerColor, _settings.HudReticleColor, health));
+        }
+
+        private bool TryProject(Vector3 world, out Vector2 screenPoint)
+        {
+            screenPoint = Vector2.zero;
+            if (_camera == null)
+            {
+                return false;
+            }
+            Vector3 screen = _camera.WorldToScreenPoint(world);
+            if (screen.z <= 0f)
+            {
+                return false;
+            }
+            screenPoint = new Vector2(screen.x, Screen.height - screen.y);
+            return true;
+        }
+
+        private void DrawHitMarkers(Vector2 center)
+        {
+            if (float.IsFinite(_hitMarkerElapsed))
+            {
+                float fade = 1f - Mathf.Clamp01(
+                    _hitMarkerElapsed / Mathf.Max(0.01f, _settings.HitMarkerDuration));
+                DrawCross(
+                    center,
+                    _settings.HitMarkerSize,
+                    WithAlpha(_settings.HudPrimaryColor, fade));
+            }
+            if (float.IsFinite(_killMarkerElapsed))
+            {
+                float normalized = Mathf.Clamp01(
+                    _killMarkerElapsed / Mathf.Max(0.01f, _settings.KillMarkerDuration));
+                DrawCross(
+                    center,
+                    Mathf.Lerp(_settings.HitMarkerSize, _settings.KillMarkerSize, normalized),
+                    WithAlpha(_settings.HudComboColor, 1f - normalized));
+            }
+        }
+
+        private void DrawCross(Vector2 center, float size, Color color)
+        {
+            float half = size * 0.5f;
+            float thickness = Mathf.Max(1f, _settings.ReticleLineThickness);
+            float arm = size * 0.32f;
+            DrawRect(new Rect(center.x - half, center.y - half, arm, thickness), color);
+            DrawRect(new Rect(center.x + half - arm, center.y - half, arm, thickness), color);
+            DrawRect(new Rect(center.x - half, center.y + half - thickness, arm, thickness), color);
+            DrawRect(new Rect(center.x + half - arm, center.y + half - thickness, arm, thickness), color);
+            DrawRect(new Rect(center.x - half, center.y - half, thickness, arm), color);
+            DrawRect(new Rect(center.x - half, center.y + half - arm, thickness, arm), color);
+            DrawRect(new Rect(center.x + half - thickness, center.y - half, thickness, arm), color);
+            DrawRect(new Rect(center.x + half - thickness, center.y + half - arm, thickness, arm), color);
+        }
+
+        private void DrawScorePopups()
+        {
+            for (int i = 0; i < _popups.Count; i++)
+            {
+                ScorePopup popup = _popups[i];
+                if (!popup.Active || !TryProject(popup.World, out Vector2 screen))
+                {
+                    continue;
+                }
+                float normalized = Mathf.Clamp01(
+                    popup.Elapsed / Mathf.Max(0.01f, _settings.ScorePopupDuration));
+                float fade = 1f - (normalized * normalized);
+                DrawLabel(
+                    new Rect(screen.x - 140f, screen.y - 16f, 280f, 32f),
+                    popup.Text,
+                    _popupStyle,
+                    WithAlpha(popup.Color, fade));
+            }
+        }
+
+        private void DrawHazardBrackets()
+        {
+            float playerZ = _player.transform.position.z;
+            for (int i = 0; i < _segments.Count; i++)
+            {
+                RiftSegment segment = _segments[i];
+                if (!segment.HasObstacle || segment.CollisionConsumed || segment.Obstacle == null)
+                {
+                    continue;
+                }
+                float ahead = segment.Obstacle.position.z - playerZ;
+                if (ahead <= 0f || ahead > _settings.ObstacleTelegraphDistance)
+                {
+                    continue;
+                }
+                if (!TryProject(segment.Obstacle.position, out Vector2 screen))
+                {
+                    continue;
+                }
+                float proximity = 1f - (ahead / Mathf.Max(1f, _settings.ObstacleTelegraphDistance));
+                float size = Mathf.Lerp(_settings.TargetBracketSize, _settings.LockBracketSize * 1.6f, proximity);
+                Color color = WithAlpha(_settings.RiftDangerColor, 0.35f + (0.55f * proximity));
+                DrawBracket(screen, size, color);
+                DrawLabel(
+                    new Rect(screen.x - 80f, screen.y + (size * 0.5f) + 2f, 160f, 20f),
+                    _settings.HazardLabel,
+                    _centeredSmallStyle,
+                    color);
+            }
+        }
+
+        private void DrawRoutePrompt()
+        {
+            if (!_routeGateActive || _safeGate == null || _riskGate == null)
+            {
+                return;
+            }
+            float ahead = _safeGate.position.z - _player.transform.position.z;
+            if (ahead <= 0f || ahead > _settings.RoutePromptLeadDistance)
+            {
+                return;
+            }
+            float urgency = 1f - (ahead / Mathf.Max(1f, _settings.RoutePromptLeadDistance));
+            DrawLabel(
+                new Rect(0f, Screen.height * 0.24f, Screen.width, 30f),
+                _settings.RoutePromptLabel,
+                _centeredSmallStyle,
+                WithAlpha(_settings.HudPrimaryColor, 0.45f + (0.55f * urgency)));
+            if (TryProject(_safeGate.position, out Vector2 safeScreen))
+            {
+                DrawLabel(
+                    new Rect(safeScreen.x - 130f, safeScreen.y - 12f, 260f, 24f),
+                    _settings.SafeGateLabel,
+                    _centeredSmallStyle,
+                    _settings.RiftSignalColor);
+            }
+            if (TryProject(_riskGate.position, out Vector2 riskScreen))
+            {
+                DrawLabel(
+                    new Rect(riskScreen.x - 130f, riskScreen.y - 12f, 260f, 24f),
+                    _settings.RiskGateLabel,
+                    _centeredSmallStyle,
+                    _settings.RiftDangerColor);
+            }
+        }
+
+        private void DrawBanner()
+        {
+            string text = null;
+            string subtitle = null;
+            float alpha = 0f;
+            if (Phase == RailShooterPhase.Entry)
+            {
+                text = _settings.MissionTitle;
+                subtitle = _settings.EntrySubtitle;
+                float duration = Mathf.Max(0.01f, _settings.EntryCardDuration);
+                alpha = 1f - Mathf.Clamp01((_phaseElapsed - (duration * 0.6f)) / (duration * 0.4f));
+            }
+            else if (float.IsFinite(_bossBannerElapsed))
+            {
+                text = _settings.BossApproachLabel;
+                subtitle = _settings.BossTitle;
+                float duration = Mathf.Max(0.01f, _settings.EntryCardDuration * 2f);
+                alpha = 1f - Mathf.Clamp01((_bossBannerElapsed - (duration * 0.6f)) / (duration * 0.4f));
+                alpha *= 0.55f + (0.45f * Mathf.Abs(Mathf.Sin(_bossBannerElapsed * 6f)));
+            }
+            if (string.IsNullOrEmpty(text) || alpha <= 0.01f)
+            {
+                return;
+            }
+            DrawLabel(
+                new Rect(0f, (Screen.height * 0.38f) - 40f, Screen.width, 60f),
+                text,
+                _resultStyle,
+                WithAlpha(_settings.HudPrimaryColor, alpha));
+            DrawLabel(
+                new Rect(0f, (Screen.height * 0.38f) + 26f, Screen.width, 28f),
+                subtitle,
+                _centeredSmallStyle,
+                WithAlpha(_settings.HudChargeColor, alpha));
+        }
+
+        private void DrawDamageVignette()
+        {
+            if (!float.IsFinite(_damageFlashElapsed))
+            {
+                return;
+            }
+            float fade = 1f - Mathf.Clamp01(
+                _damageFlashElapsed / Mathf.Max(0.01f, _settings.DamageFlashDuration));
+            float strength = _settings.DamageFlashStrength * fade;
+            if (strength <= 0.001f)
+            {
+                return;
+            }
+            const int Bands = 7;
+            float bandWidth = Screen.height * 0.045f;
+            for (int i = 0; i < Bands; i++)
+            {
+                float band = 1f - (i / (float)Bands);
+                Color color = WithAlpha(_settings.HudDamageColor, strength * band * band);
+                float inset = i * bandWidth;
+                DrawRect(new Rect(0f, inset, Screen.width, bandWidth), color);
+                DrawRect(new Rect(0f, Screen.height - inset - bandWidth, Screen.width, bandWidth), color);
+                DrawRect(new Rect(inset, 0f, bandWidth, Screen.height), color);
+                DrawRect(new Rect(Screen.width - inset - bandWidth, 0f, bandWidth, Screen.height), color);
             }
         }
 
@@ -2457,14 +3311,37 @@ namespace DuneVector
             {
                 return;
             }
-            float normalizedX = Mathf.InverseLerp(
-                _arenaOrigin.x - _settings.FlightBounds.x,
-                _arenaOrigin.x + _settings.FlightBounds.x,
-                _laneCenterX);
-            float width = Screen.width * (_settings.LightningLaneHalfWidth / (_settings.FlightBounds.x * 2f));
-            Color color = _settings.HudDamageColor;
-            color.a = _laneElapsed < _settings.LightningLaneTelegraphDuration ? 0.18f : 0.42f;
-            DrawRect(new Rect((Screen.width * normalizedX) - width, 0f, width * 2f, Screen.height), color);
+            Vector3 laneWorld = new Vector3(
+                _laneCenterX,
+                _arenaOrigin.y,
+                _player.transform.position.z + _settings.EnemySpawnAheadDistance * 0.5f);
+            if (!TryProject(laneWorld, out Vector2 laneScreen))
+            {
+                return;
+            }
+            float width = Screen.width *
+                (_settings.LightningLaneHalfWidth / Mathf.Max(1f, _settings.FlightBounds.x * 2f));
+            bool active = _laneElapsed >= _settings.LightningLaneTelegraphDuration;
+            float telegraph = Mathf.Clamp01(
+                _laneElapsed / Mathf.Max(0.01f, _settings.LightningLaneTelegraphDuration));
+            // A soft-edged band that tracks the lane in world space instead of a hard slab
+            // painted across the whole screen.
+            float peak = active
+                ? 0.34f
+                : 0.16f * telegraph * (0.55f + (0.45f * Mathf.Abs(Mathf.Sin(_laneElapsed * 11f))));
+            const int Steps = 5;
+            for (int i = Steps; i >= 1; i--)
+            {
+                float spread = width * (i / (float)Steps);
+                float alpha = peak * (1f - ((i - 1) / (float)Steps)) * 0.5f;
+                DrawRect(
+                    new Rect(laneScreen.x - spread, 0f, spread * 2f, Screen.height),
+                    WithAlpha(_settings.RiftDangerColor, alpha));
+            }
+            float edge = Mathf.Max(1f, _settings.ReticleLineThickness);
+            Color edgeColor = WithAlpha(_settings.RiftDangerColor, active ? 0.9f : 0.35f + (0.4f * telegraph));
+            DrawRect(new Rect(laneScreen.x - width, 0f, edge, Screen.height), edgeColor);
+            DrawRect(new Rect(laneScreen.x + width - edge, 0f, edge, Screen.height), edgeColor);
         }
 
         private void DrawBossMeter()
@@ -2484,24 +3361,68 @@ namespace DuneVector
 
         private void DrawResults()
         {
-            Color backdrop = Color.black;
-            backdrop.a = 0.72f;
-            DrawRect(new Rect(0f, 0f, Screen.width, Screen.height), backdrop);
+            float fade = Mathf.Clamp01(
+                _phaseElapsed / Mathf.Max(0.01f, _settings.ResultsFadeDuration));
+            DrawRect(new Rect(0f, 0f, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.82f * fade));
+
+            float line = _settings.HudLineHeight;
+            float pad = _settings.HudPanelPadding;
+            (string Label, string Value, Color Color)[] rows =
+            {
+                ("SCORE", _state.Score.ToString("0000000"), _settings.HudPrimaryColor),
+                ("HOSTILES DOWNED", _state.Kills.ToString("000"), _settings.HudPrimaryColor),
+                ("FORMATION CLEARS", _state.FormationClears.ToString("00"), _settings.HudPrimaryColor),
+                ("CHARGED KILLS", _state.ChargeKills.ToString("00"), _settings.HudPrimaryColor),
+                ("PROJECTILES DEFLECTED", _state.ProjectileDeflections.ToString("00"), _settings.HudPrimaryColor),
+                ("PICKUPS RECOVERED", _state.Pickups.ToString("00"), _settings.HudPrimaryColor),
+                ("ROUTE GATES", $"{_state.RouteGatesCleared:00} / {_settings.BranchGateCount:00}", _settings.HudPrimaryColor),
+                ("RIFT DEPTH", $"{Mathf.RoundToInt(_state.Distance)} M", _settings.HudSecondaryColor),
+                ("FLAWLESS RUN", _state.TookDamage ? "NO" : "YES",
+                    _state.TookDamage ? _settings.HudSecondaryColor : _settings.HudReticleColor),
+                ("COMBAT PAYOUT", $"+{AwardedGold} GOLD", _settings.RiftGoldColor),
+            };
+
             float width = Mathf.Min(760f, Screen.width - (_settings.HudMargin * 2f));
-            Rect panel = new Rect((Screen.width - width) * 0.5f, (Screen.height - 420f) * 0.5f, width, 420f);
+            float height = (pad * 2f) + 76f + 56f + (rows.Length * line) + line + 16f;
+            Rect panel = new Rect(
+                (Screen.width - width) * 0.5f,
+                (Screen.height - height) * 0.5f,
+                width,
+                height);
             DrawPanel(panel);
-            GUI.Label(new Rect(panel.x + 20f, panel.y + 20f, panel.width - 40f, 70f),
-                _resultSuccess ? "RIFT INTERCEPT CLEARED" : "EMERGENCY EXTRACTION", _resultStyle);
-            GUI.Label(new Rect(panel.x + 20f, panel.y + 100f, panel.width - 40f, 60f),
-                $"COMBAT RATING  {ResultGrade}", _resultStyle);
-            GUI.Label(new Rect(panel.x + 80f, panel.y + 180f, panel.width - 160f, 180f),
-                $"SCORE                 {_state.Score:0000000}\n" +
-                $"HOSTILES              {_state.Kills:000}\n" +
-                $"FORMATION CLEARS      {_state.FormationClears:00}\n" +
-                $"CHARGED KILLS          {_state.ChargeKills:00}\n" +
-                $"PROJECTILES DEFLECTED {_state.ProjectileDeflections:00}\n" +
-                $"COMBAT PAYOUT          +{AwardedGold} GOLD",
-                _bodyStyle);
+            float cursor = panel.y + pad;
+            DrawLabel(
+                new Rect(panel.x + pad, cursor, panel.width - (pad * 2f), 70f),
+                _resultSuccess ? "RIFT INTERCEPT CLEARED" : "EMERGENCY EXTRACTION",
+                _resultStyle,
+                WithAlpha(_resultSuccess ? _settings.HudPrimaryColor : _settings.HudDamageColor, fade));
+            cursor += 76f;
+            DrawLabel(
+                new Rect(panel.x + pad, cursor, panel.width - (pad * 2f), 50f),
+                $"COMBAT RATING  {ResultGrade}",
+                _resultStyle,
+                WithAlpha(_settings.HudChargeColor, fade));
+            cursor += 56f;
+
+            float columnX = panel.x + (pad * 3f);
+            float columnWidth = panel.width - (pad * 6f);
+            for (int i = 0; i < rows.Length; i++)
+            {
+                Rect row = new Rect(columnX, cursor, columnWidth, line);
+                DrawLabel(row, rows[i].Label, _statLabelStyle, WithAlpha(_settings.HudSecondaryColor, fade));
+                DrawLabel(row, rows[i].Value, _statValueStyle, WithAlpha(rows[i].Color, fade));
+                cursor += line;
+            }
+
+            if (_phaseElapsed >= _settings.ResultsSkipDelay)
+            {
+                float pulse = 0.5f + (0.5f * Mathf.Abs(Mathf.Sin(_phaseElapsed * 3.2f)));
+                DrawLabel(
+                    new Rect(panel.x + pad, cursor + 8f, panel.width - (pad * 2f), line),
+                    _settings.ResultsSkipLabel,
+                    _centeredSmallStyle,
+                    WithAlpha(_settings.HudSecondaryColor, pulse * fade));
+            }
         }
 
         private void DrawPanel(Rect rect)

@@ -7748,6 +7748,26 @@ namespace DuneVector
         [Min(0f)] public float ChargeCameraShake = 0.35f;
         [Min(0f)] public float ChargeLockViewportRadius = 0.09f;
 
+        [Header("Targeting and Hit Resolution")]
+        [Tooltip("Shot hit radius for each rail adaptation. Author these to match the drawn model so bolts register where the enemy is visible.")]
+        [Min(0.1f)] public float SkyPiercerHitRadius = 4.2f;
+        [Min(0.1f)] public float GroundExploderHitRadius = 5.4f;
+        [Min(0.1f)] public float StormPyramidHitRadius = 12f;
+        [Min(0.1f)] public float StrikeOrbHitRadius = 8.5f;
+        [Min(0.1f)] public float VesperKiteHitRadius = 9f;
+        [Min(1f)] public float EliteHitRadiusMultiplier = 1.3f;
+        [Tooltip("Extra forgiveness added to every shot hit test.")]
+        [Min(0f)] public float ShotHitRadiusBonus = 1.1f;
+        [Tooltip("Fraction of the shot hit radius that counts as a solid hull for body collisions.")]
+        [Range(0.05f, 1f)] public float ContactRadiusFraction = 0.5f;
+        [Tooltip("Viewport radius around the reticle that recruits a shot-assist target.")]
+        [Range(0f, 0.5f)] public float AimAssistViewportRadius = 0.17f;
+        [Min(0f)] public float AimAssistRange = 300f;
+        [Tooltip("How far each bolt is turned from the reticle toward the assisted target.")]
+        [Range(0f, 1f)] public float AimAssistStrength = 0.8f;
+        [Min(1)] public int ChargedLockCapacity = 4;
+        [Min(0f)] public float TargetBracketSize = 30f;
+
         [Header("Bombs")]
         [Min(0)] public int StartingBombs = 1;
         [Min(1)] public int MaximumBombs = 3;
@@ -7799,7 +7819,6 @@ namespace DuneVector
 
         [Header("Enemy Combat")]
         [Min(1f)] public float EnemyHealth = 70f;
-        [Min(0f)] public float EnemyCollisionRadius = 2.6f;
         [Min(0f)] public float PlayerCollisionRadius = 1.7f;
         [Min(0f)] public float EnemyContactDamage = 20f;
         [Min(0f)] public float EnemyProjectileDamage = 14f;
@@ -7822,6 +7841,9 @@ namespace DuneVector
         [Min(1f)] public float BossSpawnDistance = 3150f;
         [Min(1f)] public float BossHealth = 2400f;
         [Min(0f)] public float BossCollisionRadius = 10f;
+        [Min(0.1f)] public float BossHitRadius = 17f;
+        [Tooltip("Rift distance at which the boss banner and approach cue fire.")]
+        [Min(0f)] public float BossApproachLeadDistance = 420f;
         [Min(0f)] public float BossPhaseTwoHealthFraction = 0.66f;
         [Min(0f)] public float BossPhaseThreeHealthFraction = 0.33f;
         [Min(0.01f)] public float BossFireInterval = 0.62f;
@@ -7830,6 +7852,17 @@ namespace DuneVector
         [Min(0f)] public float BossProjectileFanAngle = 36f;
         [Min(0)] public int BossKillScore = 6500;
         [Min(0)] public int BossGoldReward = 450;
+        [Min(0f)] public float BossContactDamage = 34f;
+
+        [Header("Difficulty Scaling")]
+        [Tooltip("Contract difficulty above 1 adds this fraction of enemy health per level.")]
+        [Min(0f)] public float DifficultyHealthPerLevel = 0.16f;
+        [Min(0f)] public float DifficultyCountPerLevel = 0.14f;
+        [Tooltip("Fraction the enemy fire interval shortens per difficulty level.")]
+        [Range(0f, 0.5f)] public float DifficultyFireRatePerLevel = 0.09f;
+        [Tooltip("Extra temporary hull granted per difficulty level so higher tiers stay survivable.")]
+        [Min(0f)] public float DifficultyHullPerLevel = 10f;
+        [Min(1)] public int DifficultyCeiling = 8;
 
         [Header("Pickups and Economy")]
         [Min(1)] public int PickupPoolSize = 28;
@@ -7856,6 +7889,25 @@ namespace DuneVector
         [Min(0)] public int GradeAScore = 10500;
         [Min(0)] public int GradeBScore = 6500;
 
+        [Header("Rail Feedback")]
+        [Min(1)] public int ScorePopupPoolSize = 18;
+        [Min(0.05f)] public float ScorePopupDuration = 0.95f;
+        [Min(0f)] public float ScorePopupRiseSpeed = 46f;
+        [Min(8)] public int ScorePopupFontSize = 20;
+        [Min(0f)] public float HitMarkerDuration = 0.16f;
+        [Min(0f)] public float HitMarkerSize = 30f;
+        [Min(0f)] public float KillMarkerDuration = 0.32f;
+        [Min(0f)] public float KillMarkerSize = 46f;
+        [Min(0f)] public float DamageFlashDuration = 0.5f;
+        [Range(0f, 1f)] public float DamageFlashStrength = 0.42f;
+        [Min(0f)] public float KillCameraShake = 0.3f;
+        [Min(0f)] public float EnemyHitFlashDuration = 0.12f;
+        [Min(1f)] public float EnemyHitFlashScale = 1.14f;
+        [Range(0f, 1f)] public float LowHullWarningFraction = 0.3f;
+        [Min(0f)] public float LowHullPulseSpeed = 4.5f;
+        [Tooltip("Rift distance ahead of the drone at which a solid wreck raises a hazard bracket.")]
+        [Min(0f)] public float ObstacleTelegraphDistance = 170f;
+
         [Header("Pooled Rift Environment")]
         [Min(2)] public int EnvironmentSegmentCount = 12;
         [Min(10f)] public float EnvironmentSegmentSpacing = 92f;
@@ -7869,17 +7921,31 @@ namespace DuneVector
         [Min(0f)] public float GateRadius = 13f;
         [Min(0f)] public float ObstacleRadius = 4.5f;
         [Min(0f)] public float ObstacleChance = 0.38f;
+        [Tooltip("Collision radius per unit of a solid wreck's random scale, so its hazard matches its size.")]
+        [Min(0f)] public float ObstacleRadiusPerScale = 0.62f;
+        [Tooltip("Upper bound of the solid wreck scale, as a fraction of the decorative wreckage scale range.")]
+        [Range(0f, 1f)] public float ObstacleMaximumScaleFraction = 0.55f;
+        [Tooltip("Fraction of the corridor kept clear of decorative wreckage so the flight lane stays readable.")]
+        [Range(0f, 1f)] public float WreckageCorridorClearance = 0.55f;
         [Min(1)] public int SpeedStreakPoolSize = 52;
         [Min(0f)] public float SpeedStreakMinimumLength = 5f;
         [Min(0f)] public float SpeedStreakMaximumLength = 18f;
         [Min(0f)] public float SpeedStreakWidth = 0.08f;
         [Min(0f)] public float SpeedStreakDepth = 80f;
+        [Tooltip("Inner and outer radius of the ring the streaks are seeded into, measured around the camera forward axis.")]
+        [Min(0f)] public float SpeedStreakConeInnerRadius = 5f;
+        [Min(0f)] public float SpeedStreakConeOuterRadius = 30f;
+        [Min(1f)] public float SpeedStreakNearDistance = 16f;
         [Min(0f)] public float SpeedStreakDriftSpeed = 110f;
         [Min(1)] public int ImpactFlashPoolSize = 24;
         [Min(0.01f)] public float ImpactFlashDuration = 0.28f;
         [Min(0f)] public float ImpactFlashMaximumScale = 4.5f;
         public Color RiftBackgroundColor = new Color(0.006f, 0.008f, 0.022f, 1f);
+        [Tooltip("Linear distance fog applied while the rift owns the camera. It buries the streamed desert sky and keeps the corridor readable.")]
+        public bool RiftFogEnabled = true;
         public Color RiftFogColor = new Color(0.035f, 0.07f, 0.11f, 1f);
+        [Min(0f)] public float RiftFogStartDistance = 130f;
+        [Min(1f)] public float RiftFogEndDistance = 640f;
         public Color RiftSignalColor = new Color(0.16f, 0.92f, 1f, 1f);
         public Color RiftDangerColor = new Color(1f, 0.18f, 0.32f, 1f);
         public Color RiftGoldColor = new Color(1f, 0.68f, 0.16f, 1f);
@@ -7892,7 +7958,6 @@ namespace DuneVector
         [Min(8)] public int HudResultFontSize = 48;
         [Min(0f)] public float HudMargin = 32f;
         [Min(0f)] public float HudPanelWidth = 330f;
-        [Min(0f)] public float HudPanelHeight = 148f;
         [Min(0f)] public float HudMeterHeight = 12f;
         [Min(0f)] public float ReticleNearSize = 34f;
         [Min(0f)] public float ReticleFarSize = 20f;
@@ -7900,6 +7965,15 @@ namespace DuneVector
         [Min(0f)] public float LockBracketSize = 44f;
         [Min(0f)] public float BossMeterWidth = 560f;
         [Min(0f)] public float BossMeterTop = 42f;
+        [Min(0f)] public float HudPanelPadding = 16f;
+        [Min(0f)] public float HudTitleHeight = 34f;
+        [Min(0f)] public float HudLineHeight = 26f;
+        [Min(0f)] public float ProgressMeterHeight = 8f;
+        [Min(0f)] public float ResultsFadeDuration = 0.45f;
+        [Min(0f)] public float ResultsSkipDelay = 1.1f;
+        [Min(0f)] public float EntryCardDuration = 1.15f;
+        [Tooltip("Rift distance ahead of a route split at which the branch prompt appears.")]
+        [Min(0f)] public float RoutePromptLeadDistance = 330f;
         public Color HudPanelColor = new Color(0.012f, 0.03f, 0.052f, 0.88f);
         public Color HudBorderColor = new Color(0.12f, 0.72f, 0.82f, 0.86f);
         public Color HudPrimaryColor = new Color(0.76f, 0.96f, 1f, 1f);
@@ -7908,11 +7982,36 @@ namespace DuneVector
         public Color HudChargeColor = new Color(0.24f, 0.86f, 1f, 1f);
         public Color HudBombColor = new Color(1f, 0.45f, 0.16f, 1f);
         public Color HudDamageColor = new Color(1f, 0.16f, 0.24f, 1f);
-        public string MissionTitle = "RIFT INTERCEPT // POST-CONTRACT";
+        public Color HudComboColor = new Color(1f, 0.62f, 0.2f, 1f);
+        public string MissionTitle = "RIFT INTERCEPT";
+        public string MissionSubtitle = "POST-CONTRACT";
+        public string EntrySubtitle = "SIGNAL BLEED DETECTED // WEAPONS FREE";
+        public string ProgressLabel = "RIFT DEPTH";
+        public string RoutePromptLabel = "ROUTE SPLIT AHEAD";
+        public string SafeGateLabel = "SIGNAL // REPAIR";
+        public string RiskGateLabel = "BLACK // BOUNTY";
+        public string BossApproachLabel = "SOVEREIGN INBOUND";
+        public string ResultsSkipLabel = "FIRE TO CONTINUE";
+        public string HazardLabel = "SOLID";
         public string BossTitle = "VESPER SOVEREIGN // NULL CHOIR";
         public string SafeRouteLabel = "SIGNAL ROUTE";
         public string RiskRouteLabel = "BLACK ROUTE";
         public string ControlsLabel = "WASD MOVE   SHIFT BOOST   CTRL BRAKE   SPACE MANEUVER   LMB FIRE/CHARGE   RMB/Q BOMB";
+
+        [Header("Rail Audio")]
+        [Tooltip("FMOD events played by the rift intercept. Leave any entry blank to silence that cue.")]
+        public string FireEvent = "event:/Drone_Fire";
+        public string ChargedFireEvent = "event:/Explosion_Strike_Orb";
+        public string EnemyHitEvent = "event:/Okay";
+        public string EnemyKillEvent = "event:/Explosion_Ground_Exploder";
+        public string PlayerDamageEvent = "event:/Drone_Damage";
+        public string PickupEvent = "event:/Delivery";
+        public string BombEvent = "event:/Explosion_Strike_Orb";
+        public string ChargeReadyEvent = "event:/Lock_On_Full";
+        public string TargetLockEvent = "event:/Lock_On";
+        public string RouteGateEvent = "event:/Flight_Ring_Swoosh";
+        public string BossSpawnEvent = "event:/Alert";
+        [Min(0f)] public float HitCueMinimumInterval = 0.07f;
 
         public void EnsureInitialized()
         {
@@ -7923,6 +8022,14 @@ namespace DuneVector
             StartingBombs = Mathf.Clamp(StartingBombs, 0, MaximumBombs);
             GradeAScore = Mathf.Min(GradeAScore, GradeSScore);
             GradeBScore = Mathf.Min(GradeBScore, GradeAScore);
+            DifficultyCeiling = Mathf.Max(1, DifficultyCeiling);
+            ChargedLockCapacity = Mathf.Max(1, ChargedLockCapacity);
+            ScorePopupPoolSize = Mathf.Max(1, ScorePopupPoolSize);
+            SpeedStreakConeOuterRadius = Mathf.Max(
+                SpeedStreakConeInnerRadius + 1f,
+                SpeedStreakConeOuterRadius);
+            SpeedStreakDepth = Mathf.Max(SpeedStreakNearDistance + 1f, SpeedStreakDepth);
+            RiftFogEndDistance = Mathf.Max(RiftFogStartDistance + 1f, RiftFogEndDistance);
         }
     }
 
