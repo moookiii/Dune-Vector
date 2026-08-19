@@ -8297,7 +8297,7 @@ namespace DuneVector
         [Min(0f)] public float WreckageRotationSpeed = 13f;
         [Min(0f)] public float GateRadius = 13f;
         [Tooltip("Half-size of the procedural X/Y plane used to scatter pooled course rings around the floating origin.")]
-        [Min(1f)] public float ProceduralPlaneHalfExtent = 95f;
+        [Min(1f)] public float ProceduralPlaneHalfExtent = 100f;
         [Tooltip("Random forward-depth variation added when a procedural ring segment is recycled.")]
         [Min(0f)] public float ProceduralRingDepthJitter = 24f;
         [Header("Environment Obstacles")]
@@ -8306,7 +8306,7 @@ namespace DuneVector
         [Min(1)] public int SatellitePoolSize = 12;
         [Min(1f)] public float SatelliteSpacing = 92f;
         [Min(0f)] public float SatelliteSpawnAheadDistance = 110f;
-        [Min(0f)] public float SatellitePlaneHalfExtent = 32f;
+        [Min(0f)] public float SatellitePlaneHalfExtent = 100f;
         [Tooltip("Every Nth satellite is placed close to the current flight path; the satellites between use the full procedural plane.")]
         [Min(1)] public int SatellitePathSpawnInterval = 3;
         [Tooltip("Maximum horizontal and vertical offset for satellites selected to obstruct the current flight path.")]

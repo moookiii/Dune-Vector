@@ -3506,9 +3506,7 @@ namespace DuneVector
         {
             float extent = Mathf.Max(1f, _settings.ProceduralPlaneHalfExtent);
             float depthJitter = Mathf.Max(0f, _settings.ProceduralRingDepthJitter);
-            segment.PlaneOffset = new Vector2(
-                NextFloat(-extent, extent),
-                NextFloat(-extent, extent));
+            segment.PlaneOffset = EvenPlaneOffset(identity, extent, 0);
             Vector2 planeCenter = CurrentFlightPlaneCenter();
             segment.Root.position = new Vector3(
                 planeCenter.x + segment.PlaneOffset.x,
@@ -3615,7 +3613,9 @@ namespace DuneVector
             float extent = obstructFlightPath
                 ? Mathf.Max(0f, _settings.SatellitePathHalfExtent)
                 : Mathf.Max(0f, _settings.SatellitePlaneHalfExtent);
-            satellite.PlaneOffset = new Vector2(NextFloat(-extent, extent), NextFloat(-extent, extent));
+            satellite.PlaneOffset = obstructFlightPath
+                ? new Vector2(NextFloat(-extent, extent), NextFloat(-extent, extent))
+                : EvenPlaneOffset(sequence, extent, 17);
             Vector2 center = CurrentFlightPlaneCenter();
             satellite.Transform.position = new Vector3(
                 center.x + satellite.PlaneOffset.x,
@@ -3639,6 +3639,28 @@ namespace DuneVector
             satellite.Exploding = false;
             satellite.Explosion?.SetActive(false);
             satellite.Root.SetActive(true);
+        }
+
+        private static Vector2 EvenPlaneOffset(int identity, float halfExtent, int sequenceSalt)
+        {
+            int sequence = Mathf.Abs(identity) + Mathf.Max(0, sequenceSalt) + 1;
+            float x = (RadicalInverse(sequence, 2) * 2f) - 1f;
+            float y = (RadicalInverse(sequence, 3) * 2f) - 1f;
+            return new Vector2(x * halfExtent, y * halfExtent);
+        }
+
+        private static float RadicalInverse(int value, int radix)
+        {
+            float inverseRadix = 1f / Mathf.Max(2, radix);
+            float fraction = inverseRadix;
+            float result = 0f;
+            while (value > 0)
+            {
+                result += (value % radix) * fraction;
+                value /= radix;
+                fraction *= inverseRadix;
+            }
+            return result;
         }
 
         private Vector3 FitSatelliteScale(Transform root)
