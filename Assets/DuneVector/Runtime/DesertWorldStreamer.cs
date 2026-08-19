@@ -3729,16 +3729,42 @@ namespace DuneVector
                 || type == TraversalRingType.Health
                 || type == TraversalRingType.Shield)
             {
-                float minimumLift = Mathf.Max(0f, ringTuning.FlightModeMinimumHeightOffset);
-                float maximumLift = Mathf.Max(minimumLift, ringTuning.FlightModeMaximumHeightOffset);
-                ring.FlightModeHeightOffset = DuneVectorMath.HashRange(
-                    Coordinate.x,
-                    Coordinate.y,
-                    worldSeed,
-                    heightSalt ^ 486187739,
-                    minimumLift,
-                    maximumLift);
-                ring.FlightModeHeightSharpness = ringTuning.FlightModeHeightSharpness;
+                if (type == TraversalRingType.Shield)
+                {
+                    float minimumUpperHeight = Mathf.Max(0f, ringTuning.UpperFlightRingMinimumHeight);
+                    float maximumUpperHeight = Mathf.Max(minimumUpperHeight, ringTuning.UpperFlightRingMaximumHeight);
+                    float upperHeight = DuneVectorMath.HashRange(
+                        Coordinate.x,
+                        Coordinate.y,
+                        worldSeed + ringTuning.UpperFlightRingSeedOffset,
+                        heightSalt ^ 486187739,
+                        minimumUpperHeight,
+                        maximumUpperHeight);
+                    float minimumUpperLift = Mathf.Max(0f, ringTuning.UpperFlightModeMinimumHeightOffset);
+                    float maximumUpperLift = Mathf.Max(minimumUpperLift, ringTuning.UpperFlightModeMaximumHeightOffset);
+                    float upperFlightLift = DuneVectorMath.HashRange(
+                        Coordinate.x,
+                        Coordinate.y,
+                        worldSeed + ringTuning.UpperFlightRingSeedOffset,
+                        heightSalt ^ 982451653,
+                        minimumUpperLift,
+                        maximumUpperLift);
+                    ring.FlightModeHeightOffset = Mathf.Max(0f, upperHeight + upperFlightLift - heightOffset);
+                    ring.FlightModeHeightSharpness = ringTuning.UpperFlightModeHeightSharpness;
+                }
+                else
+                {
+                    float minimumLift = Mathf.Max(0f, ringTuning.FlightModeMinimumHeightOffset);
+                    float maximumLift = Mathf.Max(minimumLift, ringTuning.FlightModeMaximumHeightOffset);
+                    ring.FlightModeHeightOffset = DuneVectorMath.HashRange(
+                        Coordinate.x,
+                        Coordinate.y,
+                        worldSeed,
+                        heightSalt ^ 486187739,
+                        minimumLift,
+                        maximumLift);
+                    ring.FlightModeHeightSharpness = ringTuning.FlightModeHeightSharpness;
+                }
                 ring.FlightModeGroundResetHeightSharpness = ringTuning.FlightModeGroundResetHeightSharpness;
                 ring.ApplyInitialFlightModePresentation(ringTuning.FlightRingSpawnScale);
             }

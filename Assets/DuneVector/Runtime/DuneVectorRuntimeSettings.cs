@@ -4749,6 +4749,13 @@ namespace DuneVector
         [Range(0f, 1f)] public float HealthMaterialSmoothness = 0.72f;
         [Range(0f, 1f)] public float HealthMaterialMetallic = 0.22f;
 
+        [Header("Shield Ring Appearance")]
+        [ColorUsage(false, true)] public Color ShieldRingEmissionColor = new Color(0.08f, 2.8f, 8f);
+        [Tooltip("Scale of the BlueSparkleShield preview displayed at the center of shield rings.")]
+        [Min(0.01f)] public float ShieldRingEffectScale = 1.5f;
+        public Vector3 ShieldRingEffectOffset;
+        public Vector3 ShieldRingEffectEulerAngles;
+
         [Header("Health Pickup Feedback")]
         [Min(0.1f)] public float HealthPickupFeedbackDuration = 1.3f;
         [Min(8)] public int HealthPickupFeedbackFontSize = 22;

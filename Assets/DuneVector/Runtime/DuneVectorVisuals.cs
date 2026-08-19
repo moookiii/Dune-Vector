@@ -50,8 +50,10 @@ namespace DuneVector
         public Material FlightRing { get; }
         public Material UpperFlightRing { get; }
         public Material HealthRing { get; }
+        public Material ShieldRing { get; }
         public Material HealthHeart { get; }
         public GameObject HealthHeartModel { get; }
+        public GameObject ShieldEffectModel { get; }
         public Material CoinRing { get; }
         public Material Coin { get; }
         public GameObject CoinModel { get; }
@@ -346,6 +348,7 @@ namespace DuneVector
                 rings.FlightPortalEmissionEnabled);
             UpperFlightRing = CreatePortal("Portal - Upper Flight Violet", rings.UpperFlightRingEmissionColor, rings, rings.UpperFlightPortalSolidity);
             HealthRing = CreatePortal("Portal - Health Green", rings.HealthRingEmissionColor, rings, rings.HealthPortalSolidity);
+            ShieldRing = CreatePortal("Portal - Shield Blue", rings.ShieldRingEmissionColor, rings, rings.HealthPortalSolidity);
             HealthHeart = CreateLit(
                 "Ring - Health Heart",
                 rings.HealthHeartBaseColor,
@@ -356,6 +359,11 @@ namespace DuneVector
             if (HealthHeartModel == null)
             {
                 Debug.LogError("Health rings require Assets/DuneVector/Resources/heartpiece.glb.");
+            }
+            ShieldEffectModel = Resources.Load<GameObject>("vfx/BlueSparkleShield");
+            if (ShieldEffectModel == null)
+            {
+                Debug.LogError("Shield rings require Assets/DuneVector/Resources/vfx/BlueSparkleShield.prefab.");
             }
             CoinRing = CreatePortal("Portal - Coin Gold", rings.CoinRingEmissionColor, rings, rings.CoinPortalSolidity);
             Coin = CreateLit(
@@ -2311,7 +2319,7 @@ namespace DuneVector
                 TraversalRingType.Flight => materials.FlightRing,
                 TraversalRingType.UpperFlight => materials.UpperFlightRing,
                 TraversalRingType.Health => materials.HealthRing,
-                TraversalRingType.Shield => materials.FlightRing,
+                TraversalRingType.Shield => materials.ShieldRing,
                 _ => materials.CoinRing,
             };
             GameObject visualRoot = new GameObject("Ring Visual Root");
@@ -2348,6 +2356,15 @@ namespace DuneVector
                     settings.HealthHeartScale,
                     settings.HealthHeartOffset,
                     settings.HealthHeartEulerAngles);
+            }
+            else if (type == TraversalRingType.Shield)
+            {
+                CreateShieldEffectVisual(
+                    visualRoot.transform,
+                    materials.ShieldEffectModel,
+                    settings.ShieldRingEffectScale,
+                    settings.ShieldRingEffectOffset,
+                    settings.ShieldRingEffectEulerAngles);
             }
             else if (type == TraversalRingType.Coin)
             {
@@ -2774,6 +2791,45 @@ namespace DuneVector
                     }
                     modelTransform.position += pivot.position - scaledBounds.center;
                 }
+            }
+            return pivot;
+        }
+
+        private static Transform CreateShieldEffectVisual(
+            Transform parent,
+            GameObject shieldEffect,
+            float scale,
+            Vector3 localOffset,
+            Vector3 localEulerAngles)
+        {
+            if (shieldEffect == null)
+            {
+                return null;
+            }
+
+            GameObject pivotObject = new GameObject("Collectible Icon");
+            Transform pivot = pivotObject.transform;
+            pivot.SetParent(parent, false);
+            pivot.localPosition = localOffset;
+            pivot.localRotation = Quaternion.Euler(localEulerAngles);
+
+            GameObject effectObject = UnityEngine.Object.Instantiate(shieldEffect, pivot, false);
+            effectObject.name = "Shield Effect Preview";
+            effectObject.transform.localPosition = Vector3.zero;
+            effectObject.transform.localRotation = Quaternion.identity;
+            effectObject.transform.localScale = Vector3.one * Mathf.Max(0.01f, scale);
+
+            ParticleSystem[] particleSystems = effectObject.GetComponentsInChildren<ParticleSystem>(true);
+            for (int i = 0; i < particleSystems.Length; i++)
+            {
+                ParticleSystem.MainModule main = particleSystems[i].main;
+                main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+                particleSystems[i].Play(true);
+            }
+            Collider[] colliders = effectObject.GetComponentsInChildren<Collider>(true);
+            for (int i = 0; i < colliders.Length; i++)
+            {
+                colliders[i].enabled = false;
             }
             return pivot;
         }
