@@ -83,6 +83,7 @@ namespace DuneVector
         private float _stateTime;
         private float _attackTimer;
         private int _identity;
+        private int _attackSequence;
         private bool _gameplayActive = true;
         private bool _proximityDetonationActive = true;
 
@@ -102,6 +103,7 @@ namespace DuneVector
             _materials = materials;
             _explosionSettings = explosionSettings;
             _identity = identity;
+            _attackSequence = 0;
 
             _visual = DuneVectorVisuals.CreateStormPyramidVisual(transform, materials, settings);
             _core = _visual.Find("Storm Core");
@@ -281,7 +283,7 @@ namespace DuneVector
         {
             if (_stateTime >= _settings.EvaluateCooldown(DuneVectorContractRisk.CurrentRisk))
             {
-                _attackTimer = GetAttackInterval();
+                _attackTimer = GetRecurringAttackDelay();
                 SetState(StormPyramidState.IdleHovering);
             }
         }
@@ -464,6 +466,21 @@ namespace DuneVector
             float minimumMultiplier = Mathf.Clamp01(_settings.MinimumInitialAttackDelayMultiplier);
             float identityPhase = Mathf.Repeat((_identity * 0.417f) + 0.21f, 1f);
             return GetAttackInterval() * Mathf.Lerp(minimumMultiplier, 1f, identityPhase);
+        }
+
+        private float GetRecurringAttackDelay()
+        {
+            float cadencePhase = EvaluateAttackCadencePhase(_identity, _attackSequence);
+            _attackSequence++;
+            return GetAttackInterval() +
+                (Mathf.Max(0f, _settings.RecurringAttackCadenceSpread) * cadencePhase);
+        }
+
+        private static float EvaluateAttackCadencePhase(int identity, int attackSequence)
+        {
+            return Mathf.Repeat(
+                (identity * 0.417f) + ((attackSequence + 1) * 0.6180339f) + 0.21f,
+                1f);
         }
 
         private void SetState(StormPyramidState state)

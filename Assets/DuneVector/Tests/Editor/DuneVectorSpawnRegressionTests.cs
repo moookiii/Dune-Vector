@@ -15,6 +15,25 @@ namespace DuneVector.Tests
             "Assets/DuneVector/ScriptableObjects/Dune Vector Runtime Settings.asset";
 
         [Test]
+        public void StormPyramidRecurringCadenceVariesByEnemyAndAttack()
+        {
+            MethodInfo cadencePhase = typeof(StormPyramidEnemy).GetMethod(
+                "EvaluateAttackCadencePhase",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.That(cadencePhase, Is.Not.Null);
+
+            float firstEnemyFirstAttack = (float)cadencePhase.Invoke(null, new object[] { 0, 0 });
+            float secondEnemyFirstAttack = (float)cadencePhase.Invoke(null, new object[] { 1, 0 });
+            float firstEnemySecondAttack = (float)cadencePhase.Invoke(null, new object[] { 0, 1 });
+
+            Assert.That(secondEnemyFirstAttack, Is.Not.EqualTo(firstEnemyFirstAttack).Within(0.0001f));
+            Assert.That(firstEnemySecondAttack, Is.Not.EqualTo(firstEnemyFirstAttack).Within(0.0001f));
+            Assert.That(firstEnemyFirstAttack, Is.InRange(0f, 1f));
+            Assert.That(secondEnemyFirstAttack, Is.InRange(0f, 1f));
+            Assert.That(firstEnemySecondAttack, Is.InRange(0f, 1f));
+        }
+
+        [Test]
         public void FullyFramedAirborneGlyphOutranksHigherScoringOrdinarySubject()
         {
             Assert.That(

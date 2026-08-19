@@ -3126,6 +3126,8 @@ namespace DuneVector
         [Min(0f)] public float AttackInterval = 4.5f;
         [Tooltip("Smallest fraction of the current attack interval used when staggering Storm Pyramid attacks after spawning, repositioning, or reactivation.")]
         [Range(0f, 1f)] public float MinimumInitialAttackDelayMultiplier = 0.35f;
+        [Tooltip("Additional per-pyramid delay range applied after every attack so groups do not settle into one synchronized cadence.")]
+        [Min(0f)] public float RecurringAttackCadenceSpread = 1.5f;
         [Tooltip("Delay between ground strikes at the attack interval risk ceiling.")]
         [Min(0f)] public float AttackIntervalAtRiskCeiling = 0f;
         [Tooltip("Risk at which the storm pyramid reaches Attack Interval At Risk Ceiling.")]
