@@ -1117,6 +1117,8 @@ namespace DuneVector
         public GameObject SandAmbusherBodyPrefab;
         [Tooltip("Resources path used for the Sand Ambusher body when no prefab is assigned above. Leave empty to fall back to the procedural segmented creature.")]
         public string SandAmbusherBodyPrefabResourcePath = "Worm/wormPrefab";
+        [Tooltip("Animator trigger fired on the Sand Ambusher body when it jumps out of the sand. Leave empty to disable the trigger.")]
+        public string SandAmbusherJumpAnimatorTrigger = "WormJump";
         [Tooltip("Local position applied to the spawned Sand Ambusher body prefab.")]
         public Vector3 SandAmbusherBodyPrefabLocalPosition = Vector3.zero;
         [Tooltip("Local Euler rotation offset added to the Sand Ambusher body prefab's authored rotation. The ambusher emerges and attacks along its local +Y, so a model whose front is +Z needs X = -90.")]

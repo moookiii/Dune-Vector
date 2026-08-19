@@ -145,6 +145,7 @@ namespace DuneVector
         private DuneVectorSandAmbusherPalette _palette;
         private Transform _visualRoot;
         private Transform _body;
+        private Animator _bodyAnimator;
         private Quaternion _bodyBaseRotation = Quaternion.identity;
         private Transform _leftProng;
         private Transform _rightProng;
@@ -168,6 +169,10 @@ namespace DuneVector
             _emerging = true;
             _retreating = false;
             _emergenceAge = 0f;
+            if (_bodyAnimator != null && !string.IsNullOrWhiteSpace(_settings.SandAmbusherJumpAnimatorTrigger))
+            {
+                _bodyAnimator.SetTrigger(_settings.SandAmbusherJumpAnimatorTrigger.Trim());
+            }
             _trickleRemaining = Mathf.Max(0f, _settings.SandAmbusherTrickleDuration);
             if (_trickle != null)
             {
@@ -398,6 +403,7 @@ namespace DuneVector
             GameObject body = Instantiate(prefab, _visualRoot, false);
             body.name = "Sand Ambusher Body";
             _body = body.transform;
+            _bodyAnimator = body.GetComponentInChildren<Animator>(true);
             _body.localPosition = _settings.SandAmbusherBodyPrefabLocalPosition;
             _bodyBaseRotation = _body.localRotation *
                 Quaternion.Euler(_settings.SandAmbusherBodyPrefabLocalEulerAngles);
