@@ -13,7 +13,7 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DuneVectorTrainingAgent : Agent
     {
-        public const int ObservationCount = 92;
+        public const int ObservationCount = 90;
         public const int ActionCount = 11;
         public static readonly int[] ActionBranches = { 7, 7, 7, 7, 2, 2, 2, 2, 3, 2, 2 };
 
@@ -316,9 +316,6 @@ namespace DuneVector
             Add(sensor, _bootstrap.EnergyLauncher != null && _bootstrap.EnergyLauncher.CanFire ? 1f : 0f, ref count);
             Add(sensor, targetValid ? target.NormalizedHealth : 0f, ref count);
 
-            DuneVectorEnvironmentalHazardSystem hazards = _bootstrap.EnvironmentalHazardSystem;
-            Add(sensor, hazards != null ? Mathf.Clamp01(hazards.HeatZoneIntensity) : 0f, ref count);
-            Add(sensor, hazards != null ? hazards.NormalizedTemperature : 0f, ref count);
             AddCollisionProbes(sensor, drone, ref count);
 
             if (count != ObservationCount)

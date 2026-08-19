@@ -548,7 +548,6 @@ namespace DuneVector
         private DuneVectorStormPyramidDirector _stormDirector;
         private DuneVectorVesperKiteDirector _vesperKiteDirector;
         private DuneVectorRouteEncounterDirector _routeEncounterDirector;
-        private DuneVectorEnvironmentalHazardSystem _environmentalHazards;
         private DuneVectorDeliveryMessagePresenter _messagePresenter;
         private DuneVectorSandAmbusherSystem _sandAmbusherSystem;
 
@@ -802,17 +801,6 @@ namespace DuneVector
                 _playerInput.SetInputEnabled(false);
                 _messagePresenter.Open(pendingMessage, HandleDeliveryMessageCompleted);
             }
-        }
-
-        public void BindEnvironmentalHazardSystem(DuneVectorEnvironmentalHazardSystem environmentalHazards)
-        {
-            _environmentalHazards = environmentalHazards;
-            _environmentalHazards?.SetGameplayActive(
-                State != CourierRunState.Hub &&
-                State != CourierRunState.DeliveryComplete &&
-                State != CourierRunState.TeleportOut &&
-                State != CourierRunState.DeliveryMessage &&
-                State != CourierRunState.ReturnToBase);
         }
 
         public void BindEncounterDirector(DuneVectorRouteEncounterDirector director)
@@ -3369,7 +3357,6 @@ namespace DuneVector
             _deliveryMessageSafetyActive = true;
             _infiniteHealthBeforeDeliveryMessage = _health.HasInfiniteHealth;
             _health.SetInfiniteHealth(true);
-            _environmentalHazards?.SetGameplayActive(false);
         }
 
         private void EndDeliveryMessageSafety()
@@ -3388,7 +3375,6 @@ namespace DuneVector
             _enemyDirector?.SetGameplayActive(active);
             _stormDirector?.SetGameplayActive(active);
             _vesperKiteDirector?.SetGameplayActive(active);
-            _environmentalHazards?.SetGameplayActive(active);
             if (_routeEncounterDirector != null) _routeEncounterDirector.enabled = active;
         }
 
@@ -3759,10 +3745,7 @@ namespace DuneVector
             else if (IsContractActive && !IsGameplayHudSuppressed)
             {
                 DrawContractHUD();
-                if (_environmentalHazards == null || !_environmentalHazards.IsElectricalInterferenceActive)
-                {
-                    DrawObjectiveMarker();
-                }
+                DrawObjectiveMarker();
             }
             if (State == CourierRunState.TeleportingToDesert ||
                 State == CourierRunState.TeleportOut ||

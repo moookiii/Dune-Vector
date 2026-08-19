@@ -5448,6 +5448,86 @@ namespace DuneVector
     }
 
     [System.Serializable]
+    public sealed class GroundHeatFieldTuning
+    {
+        public bool Enabled = true;
+        [Min(2)] public int GroundMirageRings = 7;
+        [Min(8)] public int GroundMirageSegments = 48;
+        [Min(0f)] public float GroundMirageHeightOffset = 0.16f;
+        [Range(1, 8)] public int DistortionShellCount = 3;
+        [Min(0f)] public float DistortionShellSpacing = 0.55f;
+        [Range(0f, 1f)] public float DistortionShellStrengthFalloff = 0.72f;
+        [Min(20f)] public float FollowRadius = 420f;
+        [Min(5f)] public float RecenterDistance = 40f;
+        [Range(1, 64)] public int HeatVeilRingCount = 48;
+        [Range(16, 192)] public int HeatVeilSegments = 128;
+        [Min(0.25f)] public float HeatVeilMinimumRadius = 1.5f;
+        [Range(0.25f, 4f)] public float HeatVeilRadiusDistribution = 1.6f;
+        [Min(0.1f)] public float HeatVeilMinimumHeight = 1.5f;
+        [Min(0.1f)] public float HeatVeilMaximumHeight = 3.5f;
+        [Min(0f)] public float HeatVeilBaseOffset = 0.1f;
+        [Range(0f, 0.3f)] public float ShimmerOpacity = 0.14f;
+        [ColorUsage(false, true)] public Color ShimmerColor = new Color(1.15f, 0.9f, 0.62f, 1f);
+        [Range(0.05f, 1f)] public float RadiusMultiplier = 0.98f;
+        [Min(0f)] public float DistortionStrength = 0.34f;
+        [Min(0f)] public float DistortionBlurStrength = 0.18f;
+        [Min(0f)] public float DistortionTextureScale = 4.5f;
+        public Vector2 DistortionScrollVelocity = new Vector2(0.035f, 0.12f);
+        [Range(16, 256)] public int DistortionTextureResolution = 96;
+        public int RandomSeedOffset = 30871;
+
+        [Header("Sparse Rising Heat Columns")]
+        [Range(0, 240)] public int PlumeParticleBudget = 72;
+        [Min(0f)] public float PlumeEmissionRate = 7f;
+        [Min(0.1f)] public float PlumeMinimumLifetime = 4.5f;
+        [Min(0.1f)] public float PlumeMaximumLifetime = 8f;
+        [Min(0.01f)] public float PlumeMinimumSize = 4f;
+        [Min(0.01f)] public float PlumeMaximumSize = 10f;
+        [Min(1f)] public float PlumeMinimumHeightMultiplier = 3.2f;
+        [Min(1f)] public float PlumeMaximumHeightMultiplier = 5.8f;
+        [Min(0f)] public float PlumeRiseSpeed = 5.5f;
+        [Min(0f)] public float PlumeTurbulence = 0.45f;
+        [Min(0f)] public float PlumeDistortionStrength = 0.12f;
+        [Range(0f, 1f)] public float PlumeDistortionBlur = 0.04f;
+        public Vector2 PlumePrimaryTiling = new Vector2(2.4f, 3.2f);
+        public Vector2 PlumeSecondaryTiling = new Vector2(4.1f, 2.3f);
+        public Vector2 PlumePrimaryVelocity = new Vector2(0.035f, 0.12f);
+        public Vector2 PlumeSecondaryVelocity = new Vector2(-0.055f, 0.073f);
+        [Range(0f, 1f)] public float PlumeSecondaryStrength = 0.48f;
+        [Range(0f, 1f)] public float PlumeHorizontalTurbulence = 0.24f;
+        [Range(0.05f, 0.5f)] public float PlumeCoreWidth = 0.28f;
+        [Range(0.05f, 0.5f)] public float PlumeTopWidth = 0.4f;
+        [Range(0f, 0.5f)] public float PlumeWidthVariation = 0.16f;
+        [Min(0f)] public float PlumeWidthFrequency = 5.2f;
+        [Range(0.01f, 1f)] public float PlumeSideFeather = 0.42f;
+        [Range(0.01f, 1f)] public float PlumeBottomFeather = 0.2f;
+        [Range(0.01f, 1f)] public float PlumeTopFeather = 0.34f;
+        [Range(0f, 1f)] public float PlumeVerticalDissipationStart = 0.3f;
+        [Min(0.01f)] public float PlumeVerticalDissipationPower = 1.4f;
+        [Range(0f, 0.5f)] public float PlumeMaximumLean = 0.12f;
+        [Min(0f)] public float PlumeMinimumAnimationSpeedMultiplier = 0.78f;
+        [Min(0f)] public float PlumeMaximumAnimationSpeedMultiplier = 1.22f;
+        [Min(0f)] public float PlumeMinimumStrengthMultiplier = 0.75f;
+        [Min(0f)] public float PlumeMaximumStrengthMultiplier = 1.2f;
+        [Min(0f)] public float PlumePhaseRange = 17.371f;
+        public float PlumePrimaryPhaseOffset = 0.37f;
+        public float PlumeSecondaryPhaseOffset = -0.23f;
+        [Range(0.001f, 0.25f)] public float PlumeCardEdgeFeather = 0.04f;
+        [Range(0f, 1f)] public float PlumeEdgeNoiseBase = 0.72f;
+        [Range(0f, 1f)] public float PlumePrimaryEdgeNoise = 0.56f;
+        [Range(0f, 1f)] public float PlumeSecondaryEdgeNoise = 0.28f;
+        [Range(0f, 1f)] public float PlumeFadeProfileVariation = 0.18f;
+        [Range(0f, 1f)] public float PlumeLifetimeFadeInFraction = 0.12f;
+        [Range(0f, 1f)] public float PlumeLifetimeFadeOutFraction = 0.72f;
+        [Min(0f)] public float PlumeDistanceFadeStart = 160f;
+        [Min(0f)] public float PlumeDistanceFadeEnd = 480f;
+        [Min(0f)] public float PlumeDetailFadeStart = 120f;
+        [Min(0f)] public float PlumeDetailFadeEnd = 320f;
+        [Min(0f)] public float PlumeDepthFadeDistance = 2.5f;
+        [Min(0f)] public float PlumeMaskClipThreshold = 0.001f;
+    }
+
+#if false // Removed Electrical Sandstorms and Heat Zones legacy tuning definitions.
     public sealed class ElectricalStormVisualTuning
     {
         public bool Enabled = true;
@@ -5976,6 +6056,7 @@ namespace DuneVector
             HeatZones ??= new HeatZoneTuning();
         }
     }
+#endif
 
     [System.Serializable]
     public sealed class PauseMenuVisualTuning
@@ -7554,8 +7635,8 @@ namespace DuneVector
         [Tooltip("Dynamic clear-weather dust, sandstorm timing, wind, URP atmosphere, and particle layers.")]
         public DesertWeatherTuning Weather = new DesertWeatherTuning();
 
-        [Tooltip("Electrical sandstorm strikes, regional heat, temperature, cooling, and gameplay consequences.")]
-        public EnvironmentalHazardTuning EnvironmentalHazards = new EnvironmentalHazardTuning();
+        [Tooltip("Player-centered terrain mirage and rising heat distortion. This is independent of the removed Heat Zones feature.")]
+        public GroundHeatFieldTuning GroundHeatField = new GroundHeatFieldTuning();
 
         [Tooltip("FMOD background music, July mixer bus routing, and pause-menu volume defaults.")]
         public AudioTuning Audio = new AudioTuning();
@@ -7807,8 +7888,7 @@ namespace DuneVector
             Clouds.EnsureInitialized();
             Weather ??= new DesertWeatherTuning();
             Weather.EnsureInitialized();
-            EnvironmentalHazards ??= new EnvironmentalHazardTuning();
-            EnvironmentalHazards.EnsureInitialized();
+            GroundHeatField ??= new GroundHeatFieldTuning();
             Audio ??= new AudioTuning();
             Audio.EnsureInitialized();
             MusicReactiveSky ??= new MusicReactiveSkyTuning();

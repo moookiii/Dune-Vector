@@ -22,7 +22,6 @@ namespace DuneVector
         private Camera _camera;
         private DuneVectorMaterials _materials;
         private DeliveryTuning _settings;
-        private DuneVectorEnvironmentalHazardSystem _environmentalHazards;
         private Transform _package;
         private JobTraversalRing _pickupRing;
         private JobTraversalRing _deliveryRing;
@@ -54,11 +53,6 @@ namespace DuneVector
                 ^ settings.JobSeedOffset
                 ^ (settings.RandomizeLocationsEachPlay ? Environment.TickCount : 0));
             BeginNextJob();
-        }
-
-        public void BindEnvironmentalHazardSystem(DuneVectorEnvironmentalHazardSystem environmentalHazards)
-        {
-            _environmentalHazards = environmentalHazards;
         }
 
         private void HandleWorldShift(Vector3 shift)
@@ -317,12 +311,9 @@ namespace DuneVector
             }
             EnsureStyles();
 
-            if (_environmentalHazards == null || !_environmentalHazards.IsElectricalInterferenceActive)
-            {
-                float distance = Vector3.Distance(_player.WorldCenter, ActiveObjective.position);
-                string objectiveLabel = Phase == DeliveryJobPhase.FindPackage ? "PICKUP" : "DELIVER";
-                _objectiveIndicator.Draw(_camera, ActiveObjective, objectiveLabel, distance, _settings);
-            }
+            float distance = Vector3.Distance(_player.WorldCenter, ActiveObjective.position);
+            string objectiveLabel = Phase == DeliveryJobPhase.FindPackage ? "PICKUP" : "DELIVER";
+            _objectiveIndicator.Draw(_camera, ActiveObjective, objectiveLabel, distance, _settings);
 
             if (_completionMessageTime > 0f)
             {

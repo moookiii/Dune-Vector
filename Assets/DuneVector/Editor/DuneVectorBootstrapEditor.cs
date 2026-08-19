@@ -143,7 +143,7 @@ namespace DuneVector.Editor
         private SerializedProperty _clouds;
         private SerializedProperty _weather;
         private SerializedProperty _musicReactiveSky;
-        private SerializedProperty _environmentalHazards;
+        private SerializedProperty _groundHeatField;
         private SerializedProperty _deliveries;
         private SerializedProperty _contracts;
         private SerializedProperty _freeRoamDeliveries;
@@ -227,7 +227,7 @@ namespace DuneVector.Editor
             _clouds = serializedObject.FindProperty("Clouds");
             _weather = serializedObject.FindProperty("Weather");
             _musicReactiveSky = serializedObject.FindProperty("MusicReactiveSky");
-            _environmentalHazards = serializedObject.FindProperty("EnvironmentalHazards");
+            _groundHeatField = serializedObject.FindProperty("GroundHeatField");
             _deliveries = serializedObject.FindProperty("Deliveries");
             _contracts = serializedObject.FindProperty("Contracts");
             _freeRoamDeliveries = serializedObject.FindProperty("FreeRoamDeliveries");
@@ -687,9 +687,9 @@ namespace DuneVector.Editor
                 "FMOD spectrum bands, rolling pressure fronts, melodic currents, percussive filaments, and global bloom response.",
                 _musicReactiveSky);
             DuneVectorSettingsInspector.DrawSection(
-                "Environmental Hazards",
-                "Electrical sandstorm strikes, interference, deterministic heat zones, drone temperature, cooling, and gameplay consequences.",
-                _environmentalHazards);
+                "Ground Heat Field",
+                "Player-centered terrain mirage, dune-rising heat veils, and sparse refractive heat columns.",
+                _groundHeatField);
             DuneVectorSettingsInspector.DrawSection(
                 "Wind Fields",
                 "World-space wind regions, gameplay forces, falloff, streamlines, surface sand, and distance LOD.",
