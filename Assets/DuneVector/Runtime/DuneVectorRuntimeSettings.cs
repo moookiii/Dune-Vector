@@ -2664,6 +2664,12 @@ namespace DuneVector
         public string PrefabAnimationStateName = "Base Layer.DroneHoverWobble";
         [Tooltip("Playback speed for the drone prefab's imported animation.")]
         [Min(0f)] public float PrefabAnimationSpeed = 1f;
+        [Tooltip("Randomly reverse the drone prefab's animation playback direction as it hovers.")]
+        public bool PrefabAnimationRandomReverse = true;
+        [Tooltip("Shortest wait before the drone prefab's animation reverses direction, in seconds.")]
+        [Min(0f)] public float PrefabAnimationReverseIntervalMinimum = 0.5f;
+        [Tooltip("Longest wait before the drone prefab's animation reverses direction, in seconds.")]
+        [Min(0f)] public float PrefabAnimationReverseIntervalMaximum = 1.5f;
 
         [Header("Materials")]
         [ColorUsage(false)] public Color BodyColor = new Color(0.68f, 0.72f, 0.74f);

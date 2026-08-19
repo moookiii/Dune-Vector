@@ -1366,6 +1366,11 @@ namespace DuneVector
                         settings.PrefabAnimationStateName,
                         settings.PrefabAnimationSpeed,
                         "Drone");
+                    if (settings.PrefabAnimationRandomReverse)
+                    {
+                        model.AddComponent<DronePrefabAnimationReverser>()
+                            .Initialize(model.GetComponentsInChildren<Animator>(true), settings);
+                    }
                 }
                 else
                 {
@@ -5450,6 +5455,61 @@ namespace DuneVector
         private static Color NormalizeTrailColor(Color color, float intensity)
         {
             return new Color(color.r / intensity, color.g / intensity, color.b / intensity, 1f);
+        }
+    }
+
+    [DisallowMultipleComponent]
+    public sealed class DronePrefabAnimationReverser : MonoBehaviour
+    {
+        private Animator[] _animators;
+        private DroneVisualTuning _settings;
+        private float _timer;
+        private int _direction = 1;
+
+        public void Initialize(Animator[] animators, DroneVisualTuning settings)
+        {
+            _animators = animators;
+            _settings = settings;
+            _direction = 1;
+            _timer = NextInterval();
+        }
+
+        private float NextInterval()
+        {
+            if (_settings == null)
+            {
+                return 1f;
+            }
+
+            float minimum = Mathf.Max(0f, _settings.PrefabAnimationReverseIntervalMinimum);
+            float maximum = Mathf.Max(minimum, _settings.PrefabAnimationReverseIntervalMaximum);
+            return UnityEngine.Random.Range(minimum, maximum);
+        }
+
+        private void Update()
+        {
+            if (_settings == null || _animators == null || _animators.Length == 0)
+            {
+                return;
+            }
+
+            _timer -= Time.deltaTime;
+            if (_timer > 0f)
+            {
+                return;
+            }
+
+            _timer = NextInterval();
+            _direction = -_direction;
+
+            float speed = Mathf.Max(0f, _settings.PrefabAnimationSpeed) * _direction;
+            for (int i = 0; i < _animators.Length; i++)
+            {
+                if (_animators[i] != null)
+                {
+                    _animators[i].speed = speed;
+                }
+            }
         }
     }
 
