@@ -7715,7 +7715,6 @@ namespace DuneVector
         [Header("Rail Camera")]
         public Vector3 CameraLocalOffset = new Vector3(0f, 4.6f, -13.5f);
         [Min(0f)] public float CameraPositionSharpness = 16f;
-        [Min(0f)] public float CameraRotationSharpness = 12f;
         [Tooltip("How strongly the rail camera follows the drone across the unlocked procedural X/Y plane.")]
         [Range(0f, 1f)] public float CameraLateralFollowFraction = 1f;
         [Range(30f, 100f)] public float CameraFieldOfView = 68f;

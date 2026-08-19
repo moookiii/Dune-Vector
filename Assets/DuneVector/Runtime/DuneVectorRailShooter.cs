@@ -524,10 +524,7 @@ namespace DuneVector
                 DuneVectorMath.Sharpness(_settings.CameraPositionSharpness, deltaTime));
             _camera.transform.position = _cameraBasePosition +
                 (UnityEngine.Random.insideUnitSphere * _cameraShake);
-            _camera.transform.rotation = Quaternion.Slerp(
-                _camera.transform.rotation,
-                Quaternion.identity,
-                DuneVectorMath.Sharpness(_settings.CameraRotationSharpness, deltaTime));
+            _camera.transform.rotation = Quaternion.identity;
 
             Vector2 restingViewport = CalculateRestingAimViewport(
                 _state.FlightOffset * (1f - cameraFollow),
