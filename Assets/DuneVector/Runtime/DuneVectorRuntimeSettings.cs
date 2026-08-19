@@ -3585,6 +3585,8 @@ namespace DuneVector
         [Tooltip("Multiplier applied to the Vesper Kite's detection range while the player is stably grounded.")]
         [Range(0f, 1f)] public float GroundedTargetDetectionRangeMultiplier = 0.2f;
         [Min(0.1f)] public float AttackInterval = 10f;
+        [Tooltip("Attack-interval multiplier reached when the drone is at the Pilgrim altitude scaling height. A value of 0.5 halves the Redshift Procession interval.")]
+        [Range(0.1f, 1f)] public float AttackIntervalMultiplierAtAltitudeCeiling = 0.5f;
         [Range(0f, 1f)] public float MinimumInitialAttackDelayMultiplier = 0.25f;
         [Range(0f, 1f)] public float MaximumInitialAttackDelayMultiplier = 0.85f;
         [Min(0f)] public float AttackWindUpDuration = 2.25f;
@@ -3661,6 +3663,16 @@ namespace DuneVector
                 ? Mathf.InverseLerp(1, ceilingRank, Mathf.Clamp(rank, 1, ceilingRank))
                 : 1f;
             return Mathf.RoundToInt(Mathf.Lerp(rankOneCount, ceilingCount, rankProgress));
+        }
+
+        public float EvaluateAttackInterval(float droneHeightAboveGround)
+        {
+            float altitudeProgress = EvaluatePilgrimAltitude(droneHeightAboveGround);
+            float intervalMultiplier = Mathf.Lerp(
+                1f,
+                Mathf.Clamp(AttackIntervalMultiplierAtAltitudeCeiling, 0.1f, 1f),
+                altitudeProgress);
+            return Mathf.Max(0.1f, AttackInterval) * intervalMultiplier;
         }
 
         public float EvaluatePilgrimAcceleration(

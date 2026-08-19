@@ -69,7 +69,8 @@ namespace DuneVector
                 Mathf.Max(settings.MinimumAltitude, settings.MaximumAltitude));
             _patrolAngle = Mathf.Repeat(identity * 137.50776f, 360f);
             _presentationPhase = Mathf.Repeat(identity * 0.6180339f, 1f) * Mathf.PI * 2f;
-            _attackCooldown = settings.AttackInterval *
+            _attackCooldown = settings.EvaluateAttackInterval(
+                GetPlayerHeightAboveGround()) *
                 Mathf.Lerp(
                     Mathf.Min(
                         settings.MinimumInitialAttackDelayMultiplier,
@@ -187,7 +188,8 @@ namespace DuneVector
                 {
                     _isWindingUp = false;
                     SpawnProcession();
-                    _attackCooldown = _settings.AttackInterval;
+                    _attackCooldown = _settings.EvaluateAttackInterval(
+                        GetPlayerHeightAboveGround());
                 }
                 return;
             }
@@ -208,6 +210,20 @@ namespace DuneVector
 
             _isWindingUp = true;
             _windUpRemaining = Mathf.Max(0f, _settings.AttackWindUpDuration);
+        }
+
+        private float GetPlayerHeightAboveGround()
+        {
+            if (_player == null)
+            {
+                return 0f;
+            }
+
+            Vector3 position = _player.WorldCenter;
+            float groundHeight = _world != null
+                ? _world.SampleHeightAtLocal(position.x, position.z)
+                : position.y;
+            return Mathf.Max(0f, position.y - groundHeight);
         }
 
         private void SpawnProcession()
