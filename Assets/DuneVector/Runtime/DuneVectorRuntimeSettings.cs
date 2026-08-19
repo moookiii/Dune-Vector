@@ -7920,6 +7920,16 @@ namespace DuneVector
         [Min(1f)] public float ProceduralPlaneHalfExtent = 95f;
         [Tooltip("Random forward-depth variation added when a procedural ring segment is recycled.")]
         [Min(0f)] public float ProceduralRingDepthJitter = 24f;
+        [Min(1)] public int SpeedStreakPoolSize = 52;
+        [Min(0f)] public float SpeedStreakMinimumLength = 5f;
+        [Min(0f)] public float SpeedStreakMaximumLength = 18f;
+        [Min(0f)] public float SpeedStreakWidth = 0.08f;
+        [Min(0f)] public float SpeedStreakDepth = 80f;
+        [Tooltip("Inner and outer radius of the ring the streaks are seeded into, measured around the camera forward axis.")]
+        [Min(0f)] public float SpeedStreakConeInnerRadius = 5f;
+        [Min(0f)] public float SpeedStreakConeOuterRadius = 30f;
+        [Min(1f)] public float SpeedStreakNearDistance = 16f;
+        [Min(0f)] public float SpeedStreakDriftSpeed = 110f;
         [Min(1)] public int ImpactFlashPoolSize = 24;
         [Min(0.01f)] public float ImpactFlashDuration = 0.28f;
         [Min(0f)] public float ImpactFlashMaximumScale = 4.5f;
@@ -8008,6 +8018,10 @@ namespace DuneVector
             DifficultyCeiling = Mathf.Max(1, DifficultyCeiling);
             ChargedLockCapacity = Mathf.Max(1, ChargedLockCapacity);
             ScorePopupPoolSize = Mathf.Max(1, ScorePopupPoolSize);
+            SpeedStreakConeOuterRadius = Mathf.Max(
+                SpeedStreakConeInnerRadius + 1f,
+                SpeedStreakConeOuterRadius);
+            SpeedStreakDepth = Mathf.Max(SpeedStreakNearDistance + 1f, SpeedStreakDepth);
             RiftFogEndDistance = Mathf.Max(RiftFogStartDistance + 1f, RiftFogEndDistance);
         }
     }
