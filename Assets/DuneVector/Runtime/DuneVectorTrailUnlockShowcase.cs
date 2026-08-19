@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 using UnityEngine.Rendering.Universal;
 
@@ -203,6 +203,11 @@ namespace DuneVector
             {
                 ApplyLayerRecursively(_rigRoot, _previewLayer);
             }
+
+            // The music glitch is a full-screen renderer feature, so it runs on every base game
+            // camera unless it is told otherwise. Left alone it smears its displacement band
+            // across the render view.
+            DuneVectorMusicGlitchRuntime.ExcludeCamera(_previewCamera);
 
             UpdatePreviewCamera();
             root.SetActive(true);
@@ -412,6 +417,7 @@ namespace DuneVector
         {
             if (_previewCamera != null)
             {
+                DuneVectorMusicGlitchRuntime.IncludeCamera(_previewCamera);
                 _previewCamera.targetTexture = null;
             }
             if (_rigRoot != null)

@@ -32,6 +32,7 @@ namespace DuneVector
         DeliveryComplete,
         TeleportOut,
         DeliveryMessage,
+        RailShooter,
         ReturnToBase,
         ContractFailed,
     }
@@ -508,7 +509,8 @@ namespace DuneVector
                     (DuneVectorPhotographySystem.IsCameraModeActive ||
                      bootstrap.CourierGame.IsTerminalOpen ||
                      bootstrap.CourierGame.IsTrailUnlockShowcaseOpen ||
-                     bootstrap.CourierGame.State == CourierRunState.DeliveryMessage);
+                     bootstrap.CourierGame.State == CourierRunState.DeliveryMessage ||
+                     bootstrap.CourierGame.State == CourierRunState.RailShooter);
             }
         }
         public float CargoIntegrity { get; private set; } = 100f;
@@ -546,6 +548,9 @@ namespace DuneVector
         private FreeRoamDeliveryTuning _freeRoamSettings;
         private GeoglyphSystemTuning _geoglyphs;
         private RingTuning _ringSettings;
+        private DuneVectorRailShooterController _railShooter;
+        private int _pendingRailSeed;
+        private int _pendingRailDifficulty = 1;
         private DuneVectorFreeRoamDeliverySystem _freeRoamDeliveries;
         private DuneVectorEnemyDirector _enemyDirector;
         private DuneVectorStormPyramidDirector _stormDirector;
@@ -821,6 +826,40 @@ namespace DuneVector
             }
         }
 
+        public void ConfigureRailShooter(
+            RailShooterTuning settings,
+            FlyingEnemyTuning flyingEnemies,
+            StormPyramidTuning stormPyramids,
+            PlayerStrikeOrbTuning strikeOrbs,
+            VesperKiteTuning vesperKites,
+            GroundExploderTuning groundExploders,
+            RingTuning rings)
+        {
+            if (settings == null || !settings.Enabled || _railShooter != null)
+            {
+                return;
+            }
+
+            _railShooter = gameObject.AddComponent<DuneVectorRailShooterController>();
+            _railShooter.Initialize(
+                _playerInput,
+                _player,
+                _health,
+                _camera,
+                _cameraController,
+                _world,
+                _materials,
+                _wallet,
+                settings,
+                flyingEnemies,
+                stormPyramids,
+                strikeOrbs,
+                vesperKites,
+                groundExploders,
+                rings,
+                _droneVisualOriginalScale);
+        }
+
         public void BindDustDevils(DuneVectorDustDevilSystem dustDevils)
         {
             _dustDevils = dustDevils;
@@ -832,6 +871,7 @@ namespace DuneVector
                 State == CourierRunState.DeliveryComplete ||
                 State == CourierRunState.TeleportOut ||
                 State == CourierRunState.DeliveryMessage ||
+                State == CourierRunState.RailShooter ||
                 State == CourierRunState.ReturnToBase)
             {
                 return;
@@ -1025,6 +1065,11 @@ namespace DuneVector
                 return;
             }
 
+            if (State == CourierRunState.RailShooter)
+            {
+                return;
+            }
+
             if (State == CourierRunState.Hub)
             {
                 UpdateHub();
@@ -1040,7 +1085,8 @@ namespace DuneVector
                 _stateTimer -= Time.deltaTime;
                 if (_stateTimer <= 0f)
                 {
-                    if (State == CourierRunState.DeliveryComplete && Progress.PendingDeliveryMessageIndex >= 0)
+                    if (State == CourierRunState.DeliveryComplete &&
+                        (Progress.PendingDeliveryMessageIndex >= 0 || _railShooter != null))
                     {
                         BeginDeliveryTeleportOut();
                     }
@@ -2664,6 +2710,8 @@ namespace DuneVector
             }
             _deliveryCompletionInProgress = true;
             CourierContract completed = ActiveContract;
+            _pendingRailSeed = completed.Seed;
+            _pendingRailDifficulty = Mathf.Max(1, completed.Difficulty);
             float integrityFactor = CargoUsesIntegrity()
                 ? Mathf.Lerp(
                     _settings.IntegrityRewardFloor,
@@ -2978,7 +3026,7 @@ namespace DuneVector
             int pendingIndex = Progress.PendingDeliveryMessageIndex;
             if (pendingIndex < 0)
             {
-                BeginReturnToBaseAfterMessage();
+                BeginPostContractRailOrReturn();
                 return;
             }
 
@@ -2988,7 +3036,7 @@ namespace DuneVector
                 Debug.LogError(
                     $"Pending delivery message {pendingIndex} is unavailable. Its progression index remains pending.",
                     this);
-                BeginReturnToBaseAfterMessage();
+                BeginPostContractRailOrReturn();
             }
         }
 
@@ -3005,6 +3053,42 @@ namespace DuneVector
                 Progress.CompletePendingDeliveryMessage(completedMessageIndex);
             }
 
+            BeginPostContractRailOrReturn();
+        }
+
+        private void BeginPostContractRailOrReturn()
+        {
+            if (State != CourierRunState.DeliveryMessage)
+            {
+                return;
+            }
+
+            int seed = _pendingRailSeed != 0
+                ? _pendingRailSeed
+                : unchecked((Progress.CompletedDeliveries * 73856093) ^ 82031);
+            if (_railShooter != null &&
+                _railShooter.Begin(seed, Mathf.Max(1, _pendingRailDifficulty), HandleRailShooterCompleted))
+            {
+                State = CourierRunState.RailShooter;
+                return;
+            }
+
+            BeginReturnToBaseAfterMessage();
+        }
+
+        private void HandleRailShooterCompleted(bool success, int gold, string grade)
+        {
+            if (State != CourierRunState.RailShooter)
+            {
+                return;
+            }
+
+            State = CourierRunState.DeliveryMessage;
+            ShowStatus(
+                success
+                    ? $"RIFT INTERCEPT {grade}  +{gold} GOLD"
+                    : $"RIFT EXTRACTION {grade}  +{gold} GOLD",
+                _settings.CompletionReturnDelay);
             BeginReturnToBaseAfterMessage();
         }
 

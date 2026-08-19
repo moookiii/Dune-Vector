@@ -14,6 +14,10 @@ namespace DuneVector
         public bool JumpHeld;
         public bool BoostHeld;
         public bool FirePressed;
+        public bool FireHeld;
+        public bool FireReleased;
+        public bool BrakeHeld;
+        public bool BombPressed;
         public bool InteractPressed;
         public float MenuNavigate;
         public bool ConfirmPressed;
@@ -39,6 +43,7 @@ namespace DuneVector
             bool jumpPressed = false;
             bool jumpHeld = false;
             bool boostHeld = false;
+            bool brakeHeld = false;
             if (keyboard != null)
             {
                 move.x = (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f);
@@ -46,6 +51,7 @@ namespace DuneVector
                 jumpPressed = keyboard.spaceKey.wasPressedThisFrame;
                 jumpHeld = keyboard.spaceKey.isPressed;
                 boostHeld = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
+                brakeHeld = keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed;
             }
 
             if (gamepad != null)
@@ -58,9 +64,12 @@ namespace DuneVector
                 jumpPressed |= gamepad.buttonSouth.wasPressedThisFrame;
                 jumpHeld |= gamepad.buttonSouth.isPressed;
                 boostHeld |= gamepad.rightTrigger.ReadValue() >= ControllerTriggerThreshold;
+                brakeHeld |= gamepad.leftTrigger.ReadValue() >= ControllerTriggerThreshold;
             }
 
             bool gamepadFirePressed = gamepad != null && gamepad.buttonWest.wasPressedThisFrame;
+            bool gamepadFireHeld = gamepad != null && gamepad.buttonWest.isPressed;
+            bool gamepadFireReleased = gamepad != null && gamepad.buttonWest.wasReleasedThisFrame;
             float gamepadMenuNavigate = ReadGamepadMenuNavigate(gamepad);
 
             Current = new DroneRawInputFrame
@@ -73,6 +82,12 @@ namespace DuneVector
                 JumpHeld = jumpHeld,
                 BoostHeld = boostHeld,
                 FirePressed = (mouse != null && mouse.leftButton.wasPressedThisFrame) || gamepadFirePressed,
+                FireHeld = (mouse != null && mouse.leftButton.isPressed) || gamepadFireHeld,
+                FireReleased = (mouse != null && mouse.leftButton.wasReleasedThisFrame) || gamepadFireReleased,
+                BrakeHeld = brakeHeld,
+                BombPressed = (mouse != null && mouse.rightButton.wasPressedThisFrame) ||
+                              (keyboard != null && keyboard.qKey.wasPressedThisFrame) ||
+                              (gamepad != null && gamepad.rightShoulder.wasPressedThisFrame),
                 InteractPressed = (keyboard != null && keyboard.eKey.wasPressedThisFrame) ||
                                   (gamepad != null && gamepad.buttonNorth.wasPressedThisFrame),
                 MenuNavigate = (keyboard != null

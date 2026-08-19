@@ -7590,6 +7590,251 @@ namespace DuneVector
         [Min(0f)] public float StepPenalty = 0.00002f;
     }
 
+    [System.Serializable]
+    public sealed class RailShooterTuning
+    {
+        [Header("Mode Lifecycle")]
+        public bool Enabled = true;
+        public int SeedOffset = 82031;
+        [Min(0f)] public float RiftWorldAltitude = 4200f;
+        [Min(0f)] public float EntryHoldDuration = 1.25f;
+        [Min(0f)] public float ResultHoldDuration = 4f;
+        [Min(1f)] public float TemporaryHull = 140f;
+        [Min(0f)] public float CollisionDamage = 18f;
+        [Min(0f)] public float CollisionInvulnerabilityDuration = 0.7f;
+
+        [Header("Rail Flight")]
+        [Min(1f)] public float ForwardSpeed = 74f;
+        [Min(1f)] public float BoostSpeedMultiplier = 1.55f;
+        [Range(0.05f, 1f)] public float BrakeSpeedMultiplier = 0.52f;
+        [Min(0f)] public float ForwardSpeedSharpness = 5f;
+        public Vector2 FlightBounds = new Vector2(28f, 15f);
+        [Min(0f)] public float LateralSpeed = 30f;
+        [Min(0f)] public float LateralAccelerationSharpness = 7.5f;
+        [Min(0f)] public float BoundarySoftness = 2.5f;
+        [Min(0f)] public float AttitudeInputSharpness = 10f;
+        [Min(0f)] public float AttitudeReturnSharpness = 3.8f;
+        [Range(0f, 60f)] public float MaximumYaw = 24f;
+        [Range(0f, 60f)] public float MaximumPitch = 20f;
+        [Range(0f, 90f)] public float MaximumBank = 42f;
+        [Range(0f, 1f)] public float RestingAimRegionFraction = 0.5f;
+        public Vector2 SteeringAimViewportSwing = new Vector2(0.34f, 0.3f);
+
+        [Header("Rail Camera")]
+        public Vector3 CameraLocalOffset = new Vector3(0f, 4.6f, -13.5f);
+        [Min(0f)] public float CameraPositionSharpness = 16f;
+        [Min(0f)] public float CameraRotationSharpness = 12f;
+        [Range(30f, 100f)] public float CameraFieldOfView = 68f;
+        [Range(0f, 25f)] public float BoostFieldOfView = 9f;
+        [Range(0f, 20f)] public float BombFieldOfViewImpulse = 5f;
+        [Min(0f)] public float FieldOfViewSharpness = 7f;
+        [Min(0f)] public float CameraShakeDecay = 5f;
+        [Min(0f)] public float ImpactCameraShake = 0.9f;
+        [Min(0f)] public float BombCameraShake = 2.2f;
+        [Min(1f)] public float NearReticleDistance = 35f;
+        [Min(1f)] public float FarReticleDistance = 105f;
+
+        [Header("Primary Weapon")]
+        [Min(1)] public int PlayerProjectilePoolSize = 40;
+        [Min(0.01f)] public float RegularShotInterval = 0.105f;
+        [Min(0f)] public float RegularShotDamage = 16f;
+        [Min(1f)] public float RegularShotSpeed = 175f;
+        [Min(0.01f)] public float RegularShotLifetime = 1.8f;
+        [Min(0.01f)] public float RegularShotRadius = 0.52f;
+        [Min(0.01f)] public float RegularShotVisualLength = 3.2f;
+        [Min(0f)] public float RegularFireBeforeChargeDuration = 0.26f;
+        [Min(0f)] public float ChargeMinimumDuration = 0.7f;
+        [Min(0.01f)] public float ChargeFullDuration = 2f;
+        [Min(0f)] public float ChargedShotDamage = 180f;
+        [Min(0.01f)] public float ChargedBeamRadius = 3.5f;
+        [Min(1f)] public float ChargedBeamRange = 260f;
+        [Min(0.01f)] public float ChargedBeamPresentationDuration = 0.24f;
+        [Min(0f)] public float ChargedBlastRadius = 7f;
+        [Min(0f)] public float ChargedShotScoreMultiplier = 1.5f;
+        [Min(0f)] public float ChargeVisualMinimumScale = 0.35f;
+        [Min(0f)] public float ChargeVisualMaximumScale = 2.4f;
+        [Min(0f)] public float ChargeVisualPulseSpeed = 12f;
+        [Min(0f)] public float ChargeCameraShake = 0.35f;
+        [Min(0f)] public float ChargeLockViewportRadius = 0.09f;
+
+        [Header("Bombs")]
+        [Min(0)] public int StartingBombs = 1;
+        [Min(1)] public int MaximumBombs = 3;
+        [Min(0f)] public float BombDamage = 360f;
+        [Min(1f)] public float BombRange = 240f;
+        [Min(0.01f)] public float BombExpansionDuration = 0.7f;
+        [Min(0.01f)] public float BombPresentationDuration = 1.2f;
+        [Min(0f)] public float BombScoreMultiplier = 0.72f;
+
+        [Header("Maneuver Energy and Tricks")]
+        [Min(1f)] public float ManeuverEnergyCapacity = 100f;
+        [Min(0f)] public float ManeuverEnergyRegeneration = 28f;
+        [Min(0f)] public float BoostEnergyPerSecond = 31f;
+        [Min(0f)] public float BrakeEnergyPerSecond = 18f;
+        [Min(0f)] public float BarrelRollEnergy = 24f;
+        [Min(0f)] public float LoopEnergy = 40f;
+        [Min(0.01f)] public float BarrelRollDuration = 0.58f;
+        [Min(0.01f)] public float CorkscrewDuration = 0.82f;
+        [Min(0.01f)] public float LoopDuration = 1.15f;
+        [Min(0f)] public float TrickInvulnerabilityFraction = 0.78f;
+        [Min(0f)] public float RollProjectileDeflectRadius = 8f;
+        [Min(0f)] public float RollPickupMagnetRadius = 12f;
+        [Min(0f)] public int ProjectileDeflectScore = 35;
+
+        [Header("Encounter Course")]
+        [Min(1)] public int EnemyPoolSize = 42;
+        [Min(1)] public int EnemyProjectilePoolSize = 64;
+        [Min(0f)] public float FirstWaveDistance = 260f;
+        [Min(1f)] public float WaveSpacing = 315f;
+        [Min(1)] public int FormationMinimumSize = 4;
+        [Min(1)] public int FormationMaximumSize = 8;
+        [Min(0f)] public float FormationWidth = 30f;
+        [Min(0f)] public float FormationHeight = 15f;
+        [Min(0f)] public float EnemySpawnAheadDistance = 215f;
+        [Min(0f)] public float EnemyDespawnBehindDistance = 30f;
+        [Min(0f)] public float EnemyEntryDuration = 1.2f;
+        [Min(0f)] public float EnemyEngagementDuration = 6.5f;
+        [Min(0f)] public float EnemyExitDuration = 1.8f;
+        [Min(1)] public int EliteEveryWaves = 4;
+        [Min(1f)] public float EliteHealthMultiplier = 2.2f;
+        [Min(1f)] public float EliteScoreMultiplier = 1.8f;
+        [Min(1)] public int BranchGateCount = 2;
+        [Min(1f)] public float BranchGateFirstDistance = 780f;
+        [Min(1f)] public float BranchGateSpacing = 980f;
+        [Min(0f)] public float BranchGateHorizontalOffset = 14f;
+        [Min(0f)] public float BranchGateRadius = 6f;
+        [Min(0)] public int RiskRouteScoreBonus = 1200;
+        [Min(1f)] public float RiskRouteEnemyMultiplier = 1.35f;
+
+        [Header("Enemy Combat")]
+        [Min(1f)] public float EnemyHealth = 70f;
+        [Min(0f)] public float EnemyCollisionRadius = 2.6f;
+        [Min(0f)] public float PlayerCollisionRadius = 1.7f;
+        [Min(0f)] public float EnemyContactDamage = 20f;
+        [Min(0f)] public float EnemyProjectileDamage = 14f;
+        [Min(1f)] public float EnemyProjectileSpeed = 62f;
+        [Min(0.01f)] public float EnemyProjectileLifetime = 5f;
+        [Min(0.01f)] public float EnemyProjectileRadius = 0.8f;
+        [Min(0.01f)] public float EnemyFireInterval = 1.45f;
+        [Min(0f)] public float EnemyPredictiveLeadSeconds = 0.55f;
+        [Min(0f)] public float EnemyStrafeAmplitude = 13f;
+        [Min(0f)] public float EnemyStrafeFrequency = 1.3f;
+        [Min(0f)] public float LightningLaneTelegraphDuration = 1.35f;
+        [Min(0f)] public float LightningLaneActiveDuration = 0.45f;
+        [Min(0f)] public float LightningLaneHalfWidth = 5.5f;
+        [Min(0f)] public float LightningLaneDamage = 30f;
+        [Min(0f)] public float MineTriggerDistance = 8f;
+        [Min(0f)] public float MineExplosionRadius = 7.5f;
+        [Min(0f)] public float MineDamage = 34f;
+
+        [Header("Boss Climax")]
+        [Min(1f)] public float BossSpawnDistance = 3150f;
+        [Min(1f)] public float BossHealth = 2400f;
+        [Min(0f)] public float BossCollisionRadius = 10f;
+        [Min(0f)] public float BossPhaseTwoHealthFraction = 0.66f;
+        [Min(0f)] public float BossPhaseThreeHealthFraction = 0.33f;
+        [Min(0.01f)] public float BossFireInterval = 0.62f;
+        [Min(0.01f)] public float BossLaneAttackInterval = 5.2f;
+        [Min(1)] public int BossProjectileFanCount = 7;
+        [Min(0f)] public float BossProjectileFanAngle = 36f;
+        [Min(0)] public int BossKillScore = 6500;
+        [Min(0)] public int BossGoldReward = 450;
+
+        [Header("Pickups and Economy")]
+        [Min(1)] public int PickupPoolSize = 28;
+        [Min(1f)] public float PickupSpacing = 235f;
+        [Min(0f)] public float PickupSpawnAheadDistance = 175f;
+        [Min(0f)] public float PickupRadius = 2.7f;
+        [Min(0f)] public float PickupRiskLineFraction = 0.82f;
+        [Min(1)] public int EnemyDropEveryKills = 4;
+        [Min(0f)] public float HealthPickupAmount = 28f;
+        [Min(1)] public int GoldPickupAmount = 18;
+        [Min(0)] public int PickupScore = 120;
+        [Min(0)] public int KillScore = 140;
+        [Min(0)] public int FormationClearScore = 850;
+        [Min(0.01f)] public float ComboWindow = 3.4f;
+        [Min(1f)] public float MaximumComboMultiplier = 8f;
+        [Min(0f)] public int NoDamageChallengeBonus = 2200;
+        [Min(0f)] public int ChargeKillChallengeCount = 5;
+        [Min(0f)] public int ChargeKillChallengeBonus = 1800;
+        [Min(0f)] public int FormationChallengeCount = 4;
+        [Min(0f)] public int FormationChallengeBonus = 1800;
+        [Min(0f)] public float GoldPerScore = 0.035f;
+        [Range(0f, 1f)] public float FailureRewardFraction = 0.3f;
+        [Min(0)] public int GradeSScore = 15000;
+        [Min(0)] public int GradeAScore = 10500;
+        [Min(0)] public int GradeBScore = 6500;
+
+        [Header("Pooled Rift Environment")]
+        [Min(2)] public int EnvironmentSegmentCount = 12;
+        [Min(10f)] public float EnvironmentSegmentSpacing = 92f;
+        [Min(0f)] public float EnvironmentRecycleBehindDistance = 45f;
+        [Min(0f)] public float CorridorHalfWidth = 48f;
+        [Min(0f)] public float CorridorHalfHeight = 25f;
+        [Min(0f)] public float WreckageMinimumScale = 3f;
+        [Min(0f)] public float WreckageMaximumScale = 12f;
+        [Min(0f)] public float WreckageRotationSpeed = 13f;
+        [Min(1)] public int WreckagePiecesPerSegment = 4;
+        [Min(0f)] public float GateRadius = 13f;
+        [Min(0f)] public float ObstacleRadius = 4.5f;
+        [Min(0f)] public float ObstacleChance = 0.38f;
+        [Min(1)] public int SpeedStreakPoolSize = 52;
+        [Min(0f)] public float SpeedStreakMinimumLength = 5f;
+        [Min(0f)] public float SpeedStreakMaximumLength = 18f;
+        [Min(0f)] public float SpeedStreakWidth = 0.08f;
+        [Min(0f)] public float SpeedStreakDepth = 80f;
+        [Min(0f)] public float SpeedStreakDriftSpeed = 110f;
+        [Min(1)] public int ImpactFlashPoolSize = 24;
+        [Min(0.01f)] public float ImpactFlashDuration = 0.28f;
+        [Min(0f)] public float ImpactFlashMaximumScale = 4.5f;
+        public Color RiftBackgroundColor = new Color(0.006f, 0.008f, 0.022f, 1f);
+        public Color RiftFogColor = new Color(0.035f, 0.07f, 0.11f, 1f);
+        public Color RiftSignalColor = new Color(0.16f, 0.92f, 1f, 1f);
+        public Color RiftDangerColor = new Color(1f, 0.18f, 0.32f, 1f);
+        public Color RiftGoldColor = new Color(1f, 0.68f, 0.16f, 1f);
+
+        [Header("Rail HUD")]
+        public Font HudFont;
+        [Min(8)] public int HudSmallFontSize = 14;
+        [Min(8)] public int HudBodyFontSize = 19;
+        [Min(8)] public int HudTitleFontSize = 27;
+        [Min(8)] public int HudResultFontSize = 48;
+        [Min(0f)] public float HudMargin = 32f;
+        [Min(0f)] public float HudPanelWidth = 330f;
+        [Min(0f)] public float HudPanelHeight = 148f;
+        [Min(0f)] public float HudMeterHeight = 12f;
+        [Min(0f)] public float ReticleNearSize = 34f;
+        [Min(0f)] public float ReticleFarSize = 20f;
+        [Min(0f)] public float ReticleLineThickness = 2f;
+        [Min(0f)] public float LockBracketSize = 44f;
+        [Min(0f)] public float BossMeterWidth = 560f;
+        [Min(0f)] public float BossMeterTop = 42f;
+        public Color HudPanelColor = new Color(0.012f, 0.03f, 0.052f, 0.88f);
+        public Color HudBorderColor = new Color(0.12f, 0.72f, 0.82f, 0.86f);
+        public Color HudPrimaryColor = new Color(0.76f, 0.96f, 1f, 1f);
+        public Color HudSecondaryColor = new Color(0.34f, 0.62f, 0.7f, 1f);
+        public Color HudReticleColor = new Color(0.32f, 1f, 0.58f, 0.95f);
+        public Color HudChargeColor = new Color(0.24f, 0.86f, 1f, 1f);
+        public Color HudBombColor = new Color(1f, 0.45f, 0.16f, 1f);
+        public Color HudDamageColor = new Color(1f, 0.16f, 0.24f, 1f);
+        public string MissionTitle = "RIFT INTERCEPT // POST-CONTRACT";
+        public string BossTitle = "VESPER SOVEREIGN // NULL CHOIR";
+        public string SafeRouteLabel = "SIGNAL ROUTE";
+        public string RiskRouteLabel = "BLACK ROUTE";
+        public string ControlsLabel = "WASD MOVE   SHIFT BOOST   CTRL BRAKE   SPACE MANEUVER   LMB FIRE/CHARGE   RMB/Q BOMB";
+
+        public void EnsureInitialized()
+        {
+            FlightBounds.x = Mathf.Max(1f, FlightBounds.x);
+            FlightBounds.y = Mathf.Max(1f, FlightBounds.y);
+            FormationMaximumSize = Mathf.Max(FormationMinimumSize, FormationMaximumSize);
+            MaximumBombs = Mathf.Max(1, MaximumBombs);
+            StartingBombs = Mathf.Clamp(StartingBombs, 0, MaximumBombs);
+            GradeAScore = Mathf.Min(GradeAScore, GradeSScore);
+            GradeBScore = Mathf.Min(GradeBScore, GradeAScore);
+        }
+    }
+
     [CreateAssetMenu(fileName = "Dune Vector Runtime Settings", menuName = "Dune Vector/Runtime Settings", order = 0)]
     public sealed class DuneVectorRuntimeSettings : ScriptableObject
     {
@@ -7662,6 +7907,9 @@ namespace DuneVector
 
         [Tooltip("Authored post-delivery narrative sequence, typewriter timing, and FMOD typing loop.")]
         public DeliveryMessageTuning DeliveryMessages = new DeliveryMessageTuning();
+
+        [Tooltip("Post-contract orbital-rift rail shooter, including controls, encounters, weapons, scoring, course presentation, and HUD.")]
+        public RailShooterTuning RailShooter = new RailShooterTuning();
 
         [Tooltip("World hub geometry, terminal interaction, and teleport presentation.")]
         public WorldHubTuning WorldHub = new WorldHubTuning();
@@ -7904,6 +8152,8 @@ namespace DuneVector
             Contracts ??= new CourierContractTuning();
             DeliveryMessages ??= new DeliveryMessageTuning();
             DeliveryMessages.EnsureInitialized();
+            RailShooter ??= new RailShooterTuning();
+            RailShooter.EnsureInitialized();
             WorldHub ??= new WorldHubTuning();
             Landmarks ??= new LandmarkSystemTuning();
             Buildings ??= new ProceduralBuildingSystemTuning();

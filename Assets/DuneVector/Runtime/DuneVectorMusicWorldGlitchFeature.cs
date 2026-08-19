@@ -1,4 +1,4 @@
-using Unity.Profiling;
+﻿using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.RenderGraphModule;
@@ -43,7 +43,8 @@ namespace DuneVector
             if (material == null
                 || DuneVectorMusicGlitchRuntime.Intensity <= 0f
                 || renderingData.cameraData.cameraType != CameraType.Game
-                || renderingData.cameraData.renderType != CameraRenderType.Base)
+                || renderingData.cameraData.renderType != CameraRenderType.Base
+                || DuneVectorMusicGlitchRuntime.IsCameraExcluded(renderingData.cameraData.camera))
             {
                 return;
             }

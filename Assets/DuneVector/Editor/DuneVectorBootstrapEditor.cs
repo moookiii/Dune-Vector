@@ -148,6 +148,7 @@ namespace DuneVector.Editor
         private SerializedProperty _contracts;
         private SerializedProperty _freeRoamDeliveries;
         private SerializedProperty _deliveryMessages;
+        private SerializedProperty _railShooter;
         private SerializedProperty _worldHub;
         private SerializedProperty _landmarks;
         private SerializedProperty _buildings;
@@ -232,6 +233,7 @@ namespace DuneVector.Editor
             _contracts = serializedObject.FindProperty("Contracts");
             _freeRoamDeliveries = serializedObject.FindProperty("FreeRoamDeliveries");
             _deliveryMessages = serializedObject.FindProperty("DeliveryMessages");
+            _railShooter = serializedObject.FindProperty("RailShooter");
             _worldHub = serializedObject.FindProperty("WorldHub");
             _landmarks = serializedObject.FindProperty("Landmarks");
             _buildings = serializedObject.FindProperty("Buildings");
@@ -536,6 +538,10 @@ namespace DuneVector.Editor
                 "Delivery Messages",
                 "Authored narrative order, typewriter timing, replay policy, and per-page FMOD voice events.",
                 _deliveryMessages);
+            DuneVectorSettingsInspector.DrawSection(
+                "Post-Contract Rift Intercept",
+                "Isolated rail-shooter lifecycle, flight, aim, weapons, maneuvers, branching encounters, boss, pickups, scoring, pooled rift course, and HUD.",
+                _railShooter);
             DuneVectorSettingsInspector.DrawSection(
                 "Photography & Glyph Documentation",
                 "Camera mode, subject recognition, capture validation, persistent photographs, Gallery, and Atlas registration.",

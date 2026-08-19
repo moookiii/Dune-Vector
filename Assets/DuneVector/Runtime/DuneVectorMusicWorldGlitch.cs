@@ -1,13 +1,38 @@
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace DuneVector
 {
     public static class DuneVectorMusicGlitchRuntime
     {
+        // Offscreen cameras that render their own isolated subject, such as the drone trail
+        // unlock showcase. The glitch is a world-view effect, so it must not reach them.
+        private static readonly HashSet<Camera> ExcludedCameras = new HashSet<Camera>();
         private static int _availableFeatureCount;
 
         public static float Intensity { get; private set; }
         public static bool FeatureAvailable => _availableFeatureCount > 0;
+
+        public static void ExcludeCamera(Camera camera)
+        {
+            if (camera != null)
+            {
+                ExcludedCameras.Add(camera);
+            }
+        }
+
+        public static void IncludeCamera(Camera camera)
+        {
+            if (camera != null)
+            {
+                ExcludedCameras.Remove(camera);
+            }
+        }
+
+        public static bool IsCameraExcluded(Camera camera)
+        {
+            return camera != null && ExcludedCameras.Count > 0 && ExcludedCameras.Contains(camera);
+        }
 
         internal static void RegisterFeature()
         {

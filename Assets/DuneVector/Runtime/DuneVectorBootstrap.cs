@@ -35,6 +35,7 @@ namespace DuneVector
         public DeliveryTuning Deliveries => RuntimeSettings.Deliveries;
         public CourierContractTuning Contracts => RuntimeSettings.Contracts;
         public DeliveryMessageTuning DeliveryMessages => RuntimeSettings.DeliveryMessages;
+        public RailShooterTuning RailShooterSettings => RuntimeSettings.RailShooter;
         public WorldHubTuning WorldHubSettings => RuntimeSettings.WorldHub;
         public LandmarkSystemTuning LandmarkSettings => RuntimeSettings.Landmarks;
         public RouteEncounterTuning RouteEncounterSettings => RuntimeSettings.RouteEncounters;
@@ -1187,6 +1188,14 @@ namespace DuneVector
                     EnemyDirector,
                     StormPyramidDirector,
                     VesperKiteDirector);
+                CourierGame.ConfigureRailShooter(
+                    RailShooterSettings,
+                    FlyingEnemies,
+                    StormPyramids,
+                    PlayerStrikeOrbs,
+                    VesperKites,
+                    GroundExploders,
+                    Rings);
                 DesertAtlas = CourierGame.DesertAtlas;
                 PermanentUpgrades.BindAtlasGlyphMaterial(DesertAtlas, _materials);
 

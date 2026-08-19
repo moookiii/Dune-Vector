@@ -15,6 +15,7 @@ namespace DuneVector
         public bool IsDamageImmune { get; private set; }
         public bool HasInfiniteHealth { get; private set; }
         public bool HasShield { get; private set; }
+        public bool HasTemporaryHealthPool { get; private set; }
 
         /// <summary>
         /// True while the post-hit grace period from <c>DamageInvulnerability</c> is still running.
@@ -29,6 +30,7 @@ namespace DuneVector
         public event Action<float> Healed;
         public event Action<bool> ShieldChanged;
         public event Action Died;
+        public event Action TemporaryHealthPoolDepleted;
 
         private const string DeathEffectResourcePath = "vfx/RedFireImpactV2";
         private const string ShieldEffectResourcePath = "vfx/BlueSparkleShield";
@@ -41,6 +43,12 @@ namespace DuneVector
         private PlayerHealthTuning _settings;
         private float _timeSinceDamage;
         private GameObject _shieldEffect;
+        private float _healthBeforeTemporaryPool;
+        private float _maximumHealthBeforeTemporaryPool;
+        private bool _deadBeforeTemporaryPool;
+        private bool _damageImmuneBeforeTemporaryPool;
+        private bool _infiniteHealthBeforeTemporaryPool;
+        private bool _shieldBeforeTemporaryPool;
 
         public void Initialize(float maximumHealth, float damageInvulnerability, bool infiniteHealth = false)
         {
@@ -50,6 +58,7 @@ namespace DuneVector
             IsDead = false;
             IsDamageImmune = false;
             HasInfiniteHealth = infiniteHealth;
+            HasTemporaryHealthPool = false;
             RemoveShield();
             LastDamageSource = "Unknown damage source";
             LastDeathMessage = "Destroyed by an unknown damage source.";
@@ -63,7 +72,8 @@ namespace DuneVector
 
         private void Update()
         {
-            if (_settings == null || !_settings.OutOfCombatRepairEnabled || IsDead || HasInfiniteHealth)
+            if (_settings == null || !_settings.OutOfCombatRepairEnabled || IsDead || HasInfiniteHealth ||
+                HasTemporaryHealthPool)
             {
                 return;
             }
@@ -140,6 +150,11 @@ namespace DuneVector
             if (CurrentHealth <= 0f)
             {
                 IsDead = true;
+                if (HasTemporaryHealthPool)
+                {
+                    TemporaryHealthPoolDepleted?.Invoke();
+                    return true;
+                }
                 Debug.Log($"Player killed by {LastDamageSource} (final hit: {previousHealth - CurrentHealth:0.##} damage).", this);
                 SpawnDeathEffect();
                 Died?.Invoke();
@@ -185,6 +200,56 @@ namespace DuneVector
         public void SetInfiniteHealth(bool enabled)
         {
             HasInfiniteHealth = enabled;
+        }
+
+        public bool BeginTemporaryHealthPool(float maximumHealth)
+        {
+            if (HasTemporaryHealthPool)
+            {
+                return false;
+            }
+
+            _healthBeforeTemporaryPool = CurrentHealth;
+            _maximumHealthBeforeTemporaryPool = MaximumHealth;
+            _deadBeforeTemporaryPool = IsDead;
+            _damageImmuneBeforeTemporaryPool = IsDamageImmune;
+            _infiniteHealthBeforeTemporaryPool = HasInfiniteHealth;
+            _shieldBeforeTemporaryPool = HasShield;
+            HasTemporaryHealthPool = true;
+            MaximumHealth = Mathf.Max(1f, maximumHealth);
+            CurrentHealth = MaximumHealth;
+            IsDead = false;
+            IsDamageImmune = false;
+            HasInfiniteHealth = false;
+            RemoveShield();
+            _nextDamageTime = Time.time;
+            _timeSinceDamage = 0f;
+            HealthChanged?.Invoke(CurrentHealth, MaximumHealth);
+            return true;
+        }
+
+        public bool EndTemporaryHealthPool()
+        {
+            if (!HasTemporaryHealthPool)
+            {
+                return false;
+            }
+
+            HasTemporaryHealthPool = false;
+            MaximumHealth = Mathf.Max(1f, _maximumHealthBeforeTemporaryPool);
+            CurrentHealth = Mathf.Clamp(_healthBeforeTemporaryPool, 0f, MaximumHealth);
+            IsDead = _deadBeforeTemporaryPool;
+            IsDamageImmune = _damageImmuneBeforeTemporaryPool;
+            HasInfiniteHealth = _infiniteHealthBeforeTemporaryPool;
+            RemoveShield();
+            if (_shieldBeforeTemporaryPool && !IsDead)
+            {
+                GrantShield();
+            }
+            _nextDamageTime = Time.time;
+            _timeSinceDamage = 0f;
+            HealthChanged?.Invoke(CurrentHealth, MaximumHealth);
+            return true;
         }
 
         public bool GrantShield()
