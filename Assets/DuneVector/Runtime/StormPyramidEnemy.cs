@@ -3034,17 +3034,6 @@ namespace DuneVector
             spawnPosition.y = _world.SampleHeightAtLocal(spawnPosition.x, spawnPosition.z)
                 + _orbSettings.HoverHeight
                 + heightVariation;
-            _useDesertDeploymentSpawnDistance = true;
-            _desertDeploymentSpawnIndex = 0;
-            _desertDeploymentSpawnCount = GetHubDeploymentSpawnCount();
-            try
-            {
-                RespawnBaseEnemies();
-            }
-            finally
-            {
-                _useDesertDeploymentSpawnDistance = false;
-            }
 
             GameObject enemyObject = new GameObject(objectName);
             enemyObject.transform.SetParent(transform, true);
@@ -3064,20 +3053,6 @@ namespace DuneVector
                 _desertDeploymentSpawnIndex = 0;
                 _desertDeploymentSpawnCount = GetDesertDeploymentSpawnCount();
                 try
-
-        private int GetHubDeploymentSpawnCount()
-        {
-            int count = 0;
-            if (_settings.Enabled)
-            {
-                count += Mathf.Max(1, _settings.EnemyCount);
-            }
-            if (_orbSettings.Enabled)
-            {
-                count += Mathf.Max(1, _orbSettings.EnemyCount);
-            }
-            return Mathf.Max(1, count);
-        }
                 {
                     RespawnBaseEnemies();
                     SpawnRiskEnemies();
