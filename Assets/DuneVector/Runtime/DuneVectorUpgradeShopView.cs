@@ -248,9 +248,14 @@ namespace DuneVector
                         IReadOnlyList<DroneTrailOption> trailOptions = droneTrails.Options;
                         for (int trailIndex = 0; trailIndex < trailOptions.Count; trailIndex++)
                         {
+                            DroneTrailOption trailOption = trailOptions[trailIndex];
+                            if (!ShouldShowDroneTrail(droneTrails, trailOption))
+                            {
+                                continue;
+                            }
                             DrawDroneTrailRow(
                                 new Rect(0f, y, width, _visuals.RowHeight * scale),
-                                trailOptions[trailIndex],
+                                trailOption,
                                 groupColor,
                                 scale);
                             y += (_visuals.RowHeight + _visuals.RowGap) * scale;
@@ -575,6 +580,13 @@ namespace DuneVector
             }
         }
 
+        private static bool ShouldShowDroneTrail(
+            DroneTrailCosmeticSystem trails,
+            DroneTrailOption option)
+        {
+            return trails != null && option != null && (option.IsModular || trails.IsUnlocked(option));
+        }
+
         private void HandleDroneTrailEquip(DroneTrailOption option)
         {
             UpgradePurchaseFailure failure = _upgrades.DroneTrails.TryEquip(option);
@@ -861,7 +873,19 @@ namespace DuneVector
                 }
             }
 
-            int trailRowCount = _upgrades.DroneTrails != null ? _upgrades.DroneTrails.Options.Count : 0;
+            int trailRowCount = 0;
+            DroneTrailCosmeticSystem droneTrails = _upgrades.DroneTrails;
+            if (droneTrails != null)
+            {
+                IReadOnlyList<DroneTrailOption> trailOptions = droneTrails.Options;
+                for (int index = 0; index < trailOptions.Count; index++)
+                {
+                    if (ShouldShowDroneTrail(droneTrails, trailOptions[index]))
+                    {
+                        trailRowCount++;
+                    }
+                }
+            }
             int cosmeticRowCount = 1 + (_upgrades.IsAtlasGlyphMaterialAvailable ? 1 : 0) + trailRowCount;
             return ((4f * _visuals.GroupHeaderHeight)
                 + ((definitionCount + cosmeticRowCount) * (_visuals.RowHeight + _visuals.RowGap))
