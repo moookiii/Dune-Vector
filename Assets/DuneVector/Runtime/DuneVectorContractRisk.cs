@@ -92,6 +92,7 @@ namespace DuneVector
             public DuneVectorSandAmbusherEmergence Emergence;
             public Vector3 BuriedPosition;
             public Vector3 AttackEnd;
+            public Vector3 DiveDirection;
             public float StateTime;
             public bool DamagedPlayer;
             public AmbushState State;
@@ -281,11 +282,19 @@ namespace DuneVector
         private void TickExposed(SandAmbusher ambusher)
         {
             TryDamagePlayerOnBodyContact(ambusher);
-            if (ambusher.StateTime < Mathf.Max(0f, _settings.SandAmbusherExposedDuration))
+            bool attackAnimationComplete = ambusher.Visual != null && ambusher.Visual.HasAttackAnimator
+                ? ambusher.Visual.IsAttackAnimationComplete()
+                : ambusher.StateTime >= Mathf.Max(0f, _settings.SandAmbusherExposedDuration);
+            if (!attackAnimationComplete)
             {
                 return;
             }
-            ambusher.CombatTarget?.SetTargetable(false);
+
+            Vector3 attackDirection = ambusher.Root.transform.up;
+            ambusher.DiveDirection = new Vector3(
+                attackDirection.x,
+                -Mathf.Abs(attackDirection.y),
+                attackDirection.z).normalized;
             ambusher.Visual?.BeginRetreat();
             ambusher.State = AmbushState.Retreating;
             ambusher.StateTime = 0f;
@@ -294,16 +303,14 @@ namespace DuneVector
         private bool TickRetreat(SandAmbusher ambusher, float deltaTime)
         {
             float speed = GetRetreatSpeed();
-            ambusher.Root.transform.position = Vector3.MoveTowards(
-                ambusher.Root.transform.position,
-                ambusher.BuriedPosition,
-                speed * deltaTime);
+            ambusher.Root.transform.position += ambusher.DiveDirection * speed * deltaTime;
             TryDamagePlayerOnBodyContact(ambusher);
-            if (ambusher.Root.transform.position != ambusher.BuriedPosition)
+            if (ambusher.Visual != null && !ambusher.Visual.IsFullyBelowTerrain(_world))
             {
                 return false;
             }
 
+            ambusher.CombatTarget?.SetTargetable(false);
             Destroy(ambusher.Root);
             return true;
         }

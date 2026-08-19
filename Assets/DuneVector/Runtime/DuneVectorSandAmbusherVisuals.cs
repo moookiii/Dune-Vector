@@ -155,6 +155,7 @@ namespace DuneVector
         private float _trickleRemaining;
         private bool _emerging;
         private bool _retreating;
+        private bool _attackAnimationObserved;
 
         public void Initialize(CourierContractTuning settings, DuneVectorSandAmbusherPalette palette, int seed)
         {
@@ -180,10 +181,54 @@ namespace DuneVector
 
         public void PlayAttackAnimation()
         {
+            _attackAnimationObserved = false;
             if (_bodyAnimator != null && !string.IsNullOrWhiteSpace(_settings.SandAmbusherJumpAnimatorTrigger))
             {
                 _bodyAnimator.SetTrigger(_settings.SandAmbusherJumpAnimatorTrigger.Trim());
             }
+        }
+
+        public bool HasAttackAnimator => _bodyAnimator != null &&
+            !string.IsNullOrWhiteSpace(_settings.SandAmbusherAttackAnimatorState);
+
+        public bool IsAttackAnimationComplete()
+        {
+            if (!HasAttackAnimator)
+            {
+                return false;
+            }
+
+            AnimatorStateInfo state = _bodyAnimator.GetCurrentAnimatorStateInfo(0);
+            if (state.IsName(_settings.SandAmbusherAttackAnimatorState.Trim()))
+            {
+                _attackAnimationObserved = true;
+                return false;
+            }
+
+            return _attackAnimationObserved && !_bodyAnimator.IsInTransition(0);
+        }
+
+        public bool IsFullyBelowTerrain(DesertWorldStreamer world)
+        {
+            if (world == null || _visualRoot == null)
+            {
+                return false;
+            }
+
+            Renderer[] renderers = _visualRoot.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+            {
+                return false;
+            }
+
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+
+            float terrainHeight = world.SampleHeightAtLocal(bounds.center.x, bounds.center.z);
+            return bounds.max.y < terrainHeight;
         }
 
         public void BeginRetreat()
