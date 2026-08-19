@@ -14,6 +14,7 @@ namespace DuneVector
         [Range(0f, 1f)] public float SpawnChancePerCell = 0.36f;
         [Range(1, 6)] public int ActiveCellRadius = 2;
         [Min(0.05f)] public float StreamingRefreshInterval = 0.45f;
+        [Tooltip("Radius around the starting hub kept clear of dust devils both when they spawn and while they travel.")]
         [Min(0f)] public float StartingAreaExclusionRadius = 115f;
         [Range(0f, 89f)] public float MaximumGroundSlope = 30f;
         public int RandomSeedOffset = 8849;
@@ -415,11 +416,88 @@ namespace DuneVector
 
                 float headingRadians = devil.TravelHeading * Mathf.Deg2Rad;
                 double distance = speed * step;
-                devil.LogicalPosition = new LogicalPosition(
+                LogicalPosition nextPosition = new LogicalPosition(
                     devil.LogicalPosition.X + (Math.Cos(headingRadians) * distance),
                     devil.LogicalPosition.Z + (Math.Sin(headingRadians) * distance));
+                devil.LogicalPosition = ResolveHubBoundaryCollision(
+                    devil.LogicalPosition,
+                    nextPosition,
+                    ref devil.TravelHeading);
                 Reposition(devil);
             }
+        }
+
+        private LogicalPosition ResolveHubBoundaryCollision(
+            LogicalPosition current,
+            LogicalPosition proposed,
+            ref float travelHeading)
+        {
+            double radius = Math.Max(0.0, _settings.StartingAreaExclusionRadius);
+            if (radius <= 0.0)
+            {
+                return proposed;
+            }
+
+            double hubX = DesertWorldStreamer.StartingLogicalPosition.x;
+            double hubZ = DesertWorldStreamer.StartingLogicalPosition.y;
+            double startX = current.X - hubX;
+            double startZ = current.Z - hubZ;
+            double moveX = proposed.X - current.X;
+            double moveZ = proposed.Z - current.Z;
+            double moveLengthSquared = (moveX * moveX) + (moveZ * moveZ);
+            if (moveLengthSquared <= double.Epsilon)
+            {
+                return current;
+            }
+
+            double startDistanceSquared = (startX * startX) + (startZ * startZ);
+            double radiusSquared = radius * radius;
+            if (startDistanceSquared < radiusSquared)
+            {
+                double startDistance = Math.Sqrt(startDistanceSquared);
+                double normalX = startDistance > double.Epsilon ? startX / startDistance : -moveX / Math.Sqrt(moveLengthSquared);
+                double normalZ = startDistance > double.Epsilon ? startZ / startDistance : -moveZ / Math.Sqrt(moveLengthSquared);
+                travelHeading = Mathf.Atan2((float)normalZ, (float)normalX) * Mathf.Rad2Deg;
+                return new LogicalPosition(hubX + (normalX * radius), hubZ + (normalZ * radius));
+            }
+
+            double b = 2.0 * ((startX * moveX) + (startZ * moveZ));
+            double c = startDistanceSquared - radiusSquared;
+            double discriminant = (b * b) - (4.0 * moveLengthSquared * c);
+            if (discriminant < 0.0)
+            {
+                return proposed;
+            }
+
+            double hitFraction = (-b - Math.Sqrt(discriminant)) / (2.0 * moveLengthSquared);
+            if (hitFraction < 0.0 || hitFraction > 1.0)
+            {
+                return proposed;
+            }
+
+            double hitX = startX + (moveX * hitFraction);
+            double hitZ = startZ + (moveZ * hitFraction);
+            double normalLength = Math.Sqrt((hitX * hitX) + (hitZ * hitZ));
+            if (normalLength <= double.Epsilon)
+            {
+                return current;
+            }
+
+            double normalHitX = hitX / normalLength;
+            double normalHitZ = hitZ / normalLength;
+            double normalMovement = (moveX * normalHitX) + (moveZ * normalHitZ);
+            if (normalMovement >= 0.0)
+            {
+                return proposed;
+            }
+
+            double reflectedX = moveX - (2.0 * normalMovement * normalHitX);
+            double reflectedZ = moveZ - (2.0 * normalMovement * normalHitZ);
+            double remainingFraction = 1.0 - hitFraction;
+            travelHeading = Mathf.Atan2((float)reflectedZ, (float)reflectedX) * Mathf.Rad2Deg;
+            return new LogicalPosition(
+                hubX + hitX + (reflectedX * remainingFraction),
+                hubZ + hitZ + (reflectedZ * remainingFraction));
         }
 
         private void TickCargoHazard(float deltaTime)
