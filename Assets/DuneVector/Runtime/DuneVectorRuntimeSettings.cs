@@ -3510,9 +3510,9 @@ namespace DuneVector
         [Min(0f)] public float PilgrimTurnRateAtRiskCeiling = 100f;
         [Tooltip("Risk at which pilgrim acceleration, maximum speed, and turn rate reach their ceiling values.")]
         [Min(1)] public int PilgrimMovementRiskCeiling = 20;
-        [Tooltip("Height above the local dune surface where pilgrim movement scaling and perfect turn tracking reach their maximum.")]
-        [Min(0.1f)] public float PilgrimAltitudeScalingHeight = 225f;
-        [Tooltip("Ease-in curve used to scale Pilgrim maximum speed from ground level to the altitude scaling height.")]
+        [Tooltip("Drone height above the local dune surface where pilgrim acceleration and maximum-speed scaling reach their maximum. Set this to the second flight-ring layer height.")]
+        [Min(0.1f)] public float PilgrimAltitudeScalingHeight = 100f;
+        [Tooltip("Ease-in curve used to scale Pilgrim maximum speed as the drone rises from ground level to the altitude scaling height.")]
         public AnimationCurve PilgrimAltitudeSpeedCurve = new AnimationCurve(
             new Keyframe(0f, 0f, 0f, 0f),
             new Keyframe(1f, 1f, 2f, 2f));
@@ -3561,7 +3561,7 @@ namespace DuneVector
 
         public float EvaluatePilgrimAcceleration(
             int risk,
-            float heightAboveGround,
+            float droneHeightAboveGround,
             float droneSpeed,
             float droneMaximumSpeed)
         {
@@ -3572,7 +3572,7 @@ namespace DuneVector
             float altitudeScaledAcceleration = riskScaledAcceleration * Mathf.Lerp(
                 1f,
                 Mathf.Max(1f, PilgrimAccelerationAltitudeMultiplier),
-                EvaluatePilgrimAltitude(heightAboveGround));
+                EvaluatePilgrimAltitude(droneHeightAboveGround));
             return altitudeScaledAcceleration * EvaluatePilgrimDroneSpeedMultiplier(
                 droneSpeed,
                 droneMaximumSpeed);
@@ -3580,7 +3580,7 @@ namespace DuneVector
 
         public float EvaluatePilgrimMaximumSpeed(
             int risk,
-            float heightAboveGround,
+            float droneHeightAboveGround,
             float droneSpeed,
             float droneMaximumSpeed)
         {
@@ -3591,7 +3591,7 @@ namespace DuneVector
             float altitudeScaledMaximumSpeed = riskScaledMaximumSpeed * Mathf.Lerp(
                 1f,
                 Mathf.Max(1f, PilgrimMaximumSpeedAltitudeMultiplier),
-                EvaluatePilgrimAltitudeSpeed(heightAboveGround));
+                EvaluatePilgrimAltitudeSpeed(droneHeightAboveGround));
             return altitudeScaledMaximumSpeed * EvaluatePilgrimDroneSpeedMultiplier(
                 droneSpeed,
                 droneMaximumSpeed);
