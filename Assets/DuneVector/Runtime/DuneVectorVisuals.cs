@@ -1361,12 +1361,7 @@ namespace DuneVector
                 model.transform.localScale = settings.PrefabLocalScale;
                 DisableImportedAnimationPlayback(model);
 
-                CreateTrail(
-                    visual,
-                    new Vector3(-settings.TrailPosition.x, settings.TrailPosition.y, settings.TrailPosition.z),
-                    materials.Trail,
-                    settings);
-                CreateTrail(visual, settings.TrailPosition, materials.Trail, settings);
+                CreateDroneTrails(visual, materials.Trail, settings);
 
                 Transform[] propellers = FindPropellerRotors(model.transform);
                 DroneVisualAnimator prefabAnimator = visualObject.AddComponent<DroneVisualAnimator>();
@@ -1514,12 +1509,7 @@ namespace DuneVector
                     topMaterial);
             }
 
-            CreateTrail(
-                visual,
-                new Vector3(-settings.TrailPosition.x, settings.TrailPosition.y, settings.TrailPosition.z),
-                materials.Trail,
-                settings);
-            CreateTrail(visual, settings.TrailPosition, materials.Trail, settings);
+            CreateDroneTrails(visual, materials.Trail, settings);
 
             DroneVisualAnimator animator = visualObject.AddComponent<DroneVisualAnimator>();
             animator.Initialize(bladeRotors, glowRings, settings);
@@ -5339,6 +5329,38 @@ namespace DuneVector
             }
 
             return part.transform;
+        }
+
+        private static void CreateDroneTrails(
+            Transform droneVisual,
+            Material material,
+            DroneVisualTuning settings)
+        {
+            GameObject trailPrefab = string.IsNullOrWhiteSpace(settings.TrailPrefabResourcePath)
+                ? null
+                : Resources.Load<GameObject>(settings.TrailPrefabResourcePath);
+            if (trailPrefab != null)
+            {
+                GameObject trail = UnityEngine.Object.Instantiate(trailPrefab, droneVisual);
+                trail.name = trailPrefab.name;
+                trail.transform.localPosition = Vector3.zero;
+                trail.transform.localRotation = Quaternion.identity;
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(settings.TrailPrefabResourcePath))
+            {
+                Debug.LogError(
+                    $"Drone trail prefab was not found at Resources/{settings.TrailPrefabResourcePath}. " +
+                    "Using the procedural trail fallback.");
+            }
+
+            CreateTrail(
+                droneVisual,
+                new Vector3(-settings.TrailPosition.x, settings.TrailPosition.y, settings.TrailPosition.z),
+                material,
+                settings);
+            CreateTrail(droneVisual, settings.TrailPosition, material, settings);
         }
 
         private static void CreateTrail(
