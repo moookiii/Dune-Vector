@@ -851,7 +851,8 @@ namespace DuneVector
                 _desertDeploymentSpawnIndex++;
                 distance = DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(
                     deploymentIndex,
-                    _desertDeploymentSpawnCount);
+                    _desertDeploymentSpawnCount,
+                    _world);
             }
             else
             {

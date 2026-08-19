@@ -2065,8 +2065,8 @@ namespace DuneVector
         [Header("Player Deployment Clearance")]
         [Tooltip("Radius around the drone's contract or free roam deployment point that must stay free of enemies. Enemies inside the radius are never placed there, and any that already exist are removed when the drone arrives.")]
         [Min(0f)] public float PlayerSpawnClearanceRadius = 20f;
-        [Tooltip("Farthest distance from the drone where persistent enemies may be placed during the one-time hub-to-desert deployment spawn. Normal gameplay spawns and repositioning still use the distant traversal-ring horizon.")]
-        [Min(0f)] public float DesertDeploymentMaximumEnemyDistance = 360f;
+        [Tooltip("Maximum cap for persistent enemy placement during the one-time hub-to-desert deployment spawn. The effective outer edge also follows the WORLD streaming horizon so enemies load across the same footprint as terrain and portals.")]
+        [Min(0f)] public float DesertDeploymentMaximumEnemyDistance = 1800f;
         [Tooltip("Closest distance from the drone where persistent enemies may be placed during the one-time hub-to-desert deployment spawn.")]
         [Min(0f)] public float DesertDeploymentMinimumEnemyDistance = 50f;
 

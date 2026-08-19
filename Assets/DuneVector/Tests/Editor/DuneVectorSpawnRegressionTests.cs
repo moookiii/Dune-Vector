@@ -118,6 +118,10 @@ namespace DuneVector.Tests
                 DesertWorldStreamer world = worldObject.AddComponent<DesertWorldStreamer>();
                 world.ChunkSize = settings.DuneChunkSize;
                 world.PreloadRadius = settings.WorldStreaming.PreloadRadius;
+                world.EnableCameraFrustumTerrainStreaming =
+                    settings.WorldStreaming.EnableCameraFrustumTerrainStreaming;
+                world.CameraFrustumMaximumDistance =
+                    settings.WorldStreaming.CameraFrustumMaximumDistance;
                 AssertAuthoredRings(settings, world);
                 Assert.That(
                     DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(0f),
@@ -144,6 +148,11 @@ namespace DuneVector.Tests
                     Is.EqualTo(settings.EnemySpawnSafety.DesertDeploymentMaximumEnemyDistance)
                         .Within(0.001f),
                     "Deployment slots must span the complete authored distance band.");
+                Assert.That(
+                    DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(2, 3, world),
+                    Is.EqualTo(settings.WorldStreaming.CameraFrustumMaximumDistance)
+                        .Within(0.001f),
+                    "The deployment outer edge must match the loaded terrain and portal horizon.");
             }
             finally
             {

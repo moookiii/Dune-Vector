@@ -12,7 +12,7 @@ namespace DuneVector
     {
         private const float DefaultAttackRangeMargin = 1.2f;
         private const float DefaultRepositionHeadroom = 1.15f;
-        private const float DefaultDesertDeploymentMaximumDistance = 360f;
+        private const float DefaultDesertDeploymentMaximumDistance = 1800f;
         private const float DefaultDesertDeploymentMinimumDistance = 50f;
 
         /// <summary>Fraction of the attack range kept clear beyond it when placing an enemy.</summary>
@@ -76,6 +76,43 @@ namespace DuneVector
                 ? 0.5f
                 : Mathf.Clamp01(index / (float)(count - 1));
             return ResolveDesertDeploymentDistance(distance01);
+        }
+
+        /// <summary>
+        /// Returns an evenly spaced deployment slot capped by the farthest currently authored
+        /// terrain or portal-content streaming horizon.
+        /// </summary>
+        public static float ResolveDesertDeploymentDistance(
+            int index,
+            int count,
+            DesertWorldStreamer world)
+        {
+            float minimumDistance = DuneVectorEnemySpawnClearance.ApplyMinimumDistance(
+                DesertDeploymentMinimumDistance);
+            float streamingHorizon = ResolveStreamingHorizonDistance(world);
+            float maximumDistance = Mathf.Max(
+                minimumDistance,
+                Mathf.Min(DesertDeploymentMaximumDistance, streamingHorizon));
+            float distance01 = count <= 1
+                ? 0.5f
+                : Mathf.Clamp01(index / (float)(count - 1));
+            return Mathf.Lerp(minimumDistance, maximumDistance, distance01);
+        }
+
+        public static float ResolveStreamingHorizonDistance(DesertWorldStreamer world)
+        {
+            if (world == null)
+            {
+                return DesertDeploymentMaximumDistance;
+            }
+
+            float portalContentDiagonal = Mathf.Max(0f, world.ChunkSize)
+                * Mathf.Max(1, world.PreloadRadius)
+                * Mathf.Sqrt(2f);
+            float terrainHorizon = world.EnableCameraFrustumTerrainStreaming
+                ? Mathf.Max(0f, world.CameraFrustumMaximumDistance)
+                : 0f;
+            return Mathf.Max(portalContentDiagonal, terrainHorizon);
         }
 
         /// <summary>
