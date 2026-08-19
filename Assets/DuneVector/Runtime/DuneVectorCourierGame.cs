@@ -1894,6 +1894,9 @@ namespace DuneVector
             // Returning to the hub ends the free-roam run and breaks any delivery streak.
             _freeRoamDeliveries?.EndDeployment();
             _landmarks?.ClearContractLandmarks();
+            // The drone has left the desert, so its deployment point no longer needs to hold
+            // portals off. Every return to the hub funnels through here.
+            _world?.ClearPlayerDeploymentPortalReservation();
             ActiveContract = null;
             CargoIntegrity = 100f;
             _player.SetCargoHandlingModifiers(1f, 1f, 1f);
@@ -3222,6 +3225,7 @@ namespace DuneVector
                 }
 
                 _buildings?.ReservePlayerDeployment(resolved);
+                _world.ReservePlayerDeploymentAgainstPortals(resolved);
                 if (ActiveContract != null)
                 {
                     ProtectContractObjectivesFromWind();

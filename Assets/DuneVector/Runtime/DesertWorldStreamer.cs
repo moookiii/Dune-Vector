@@ -224,6 +224,36 @@ namespace DuneVector
         }
 
         /// <summary>
+        /// Reserves the drone's desert deployment point against portal generation. Deployment only
+        /// pushes the drone clear of the portals that exist at that instant, so without this the
+        /// chunks that stream in over the following frames can open a portal on top of the drone.
+        /// </summary>
+        public void ReservePlayerDeploymentAgainstPortals(LogicalPosition position)
+        {
+            ClearPlayerDeploymentPortalReservation();
+            float clearance = Rings != null
+                ? Mathf.Max(0f, Rings.MinimumDroneSpawnSeparation)
+                : 0f;
+            if (clearance <= 0f)
+            {
+                return;
+            }
+
+            _playerDeploymentOccupancyHandle = DuneVectorWorldOccupancy.Register(
+                position.X,
+                position.Z,
+                clearance,
+                WorldOccupancyKind.PlayerDeployment);
+        }
+
+        /// <summary>Drops the deployment reservation once the drone is no longer in the desert.</summary>
+        public void ClearPlayerDeploymentPortalReservation()
+        {
+            DuneVectorWorldOccupancy.Release(_playerDeploymentOccupancyHandle);
+            _playerDeploymentOccupancyHandle = DuneVectorWorldOccupancy.InvalidHandle;
+        }
+
+        /// <summary>
         /// Finds the nearest cactus within <paramref name="clearance"/> of a logical point by
         /// replaying the deterministic cactus placement for every chunk the disc touches.
         /// </summary>
@@ -279,6 +309,11 @@ namespace DuneVector
         private const int MaximumCactusSpawnPushPasses = 8;
 
         private readonly List<CactusPlacement> _cactusPlacementQueryBuffer = new List<CactusPlacement>();
+
+        // Occupancy reservation covering the drone's desert deployment point. Chunks keep
+        // streaming in after the teleport lands, so portals generated a moment later must be
+        // able to see where the drone materialised and yield.
+        private int _playerDeploymentOccupancyHandle = DuneVectorWorldOccupancy.InvalidHandle;
 
         public event Action<Vector3> WorldShifted;
 
@@ -354,6 +389,7 @@ namespace DuneVector
 
             _initialized = true;
             DuneVectorWorldOccupancy.Clear();
+            _playerDeploymentOccupancyHandle = DuneVectorWorldOccupancy.InvalidHandle;
             _materials = materials ?? throw new ArgumentNullException(nameof(materials));
             _materials.SetTerrainLogicalOrigin(OriginOffsetX, OriginOffsetZ);
             SetVolumetricCloudsLogicalOrigin();
@@ -3509,6 +3545,17 @@ namespace DuneVector
                     logicalZ,
                     clearanceRadius,
                     WorldOccupancyKind.Structure))
+            {
+                return;
+            }
+
+            // The drone's deployment point is reserved for the length of its desert run, so a
+            // portal from a chunk that streams in after the teleport never swallows the drone.
+            if (DuneVectorWorldOccupancy.Overlaps(
+                    logicalX,
+                    logicalZ,
+                    clearanceRadius,
+                    WorldOccupancyKind.PlayerDeployment))
             {
                 return;
             }
