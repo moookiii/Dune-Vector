@@ -1541,6 +1541,7 @@ namespace DuneVector
         private bool _showControls;
         private bool _showVideoSettings;
         private bool _showMusicVisualizerSettings;
+        private bool _playerInputEnabledBeforePause = true;
         private float _controlsFade;
         private Keyboard _textInputKeyboard;
         private int _upgradeCheatProgress;
@@ -1924,6 +1925,12 @@ namespace DuneVector
                 return;
             }
 
+            bool wasPaused = IsPaused;
+            if (paused && !wasPaused)
+            {
+                _playerInputEnabledBeforePause = _player == null || _player.InputEnabled;
+            }
+
             IsPaused = paused;
             if (paused)
             {
@@ -1934,8 +1941,11 @@ namespace DuneVector
             Time.timeScale = paused || DuneVectorMapHUD.IsWorldMapPausingGameplay
                 ? 0f
                 : 1f;
-            _player?.SetInputEnabled(!paused);
-            bool keepCursorFree = paused || DuneVectorMapHUD.IsWorldMapOpen;
+            bool playerInputEnabled = paused
+                ? false
+                : wasPaused ? _playerInputEnabledBeforePause : _player == null || _player.InputEnabled;
+            _player?.SetInputEnabled(playerInputEnabled);
+            bool keepCursorFree = paused || DuneVectorMapHUD.IsWorldMapOpen || !playerInputEnabled;
             Cursor.lockState = keepCursorFree
                 ? CursorLockMode.None
                 : CursorLockMode.Locked;
