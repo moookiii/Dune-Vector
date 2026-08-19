@@ -3141,7 +3141,7 @@ namespace DuneVector
             }
             if (_warningHud != null)
             {
-                _warningHud.enabled = true;
+                _warningHud.enabled = false;
             }
         }
 
