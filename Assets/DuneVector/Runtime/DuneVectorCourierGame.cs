@@ -550,6 +550,7 @@ namespace DuneVector
         private RingTuning _ringSettings;
         private DuneVectorRailShooterController _railShooter;
         private int _pendingRailSeed;
+        private RailShooterTuning _railSettings;
         private int _pendingRailDifficulty = 1;
         private DuneVectorFreeRoamDeliverySystem _freeRoamDeliveries;
         private DuneVectorEnemyDirector _enemyDirector;
@@ -840,6 +841,7 @@ namespace DuneVector
                 return;
             }
 
+            _railSettings = settings;
             _railShooter = gameObject.AddComponent<DuneVectorRailShooterController>();
             _railShooter.Initialize(
                 _playerInput,
@@ -869,7 +871,7 @@ namespace DuneVector
                     _player.DroneVisualRoot.localScale = Vector3.zero;
                 }
                 _playerInput.SetInputEnabled(false);
-                _pendingRailSeed = settings.DebugSeed;
+                _pendingRailSeed = settings.RandomizeRunSeed ? 0 : settings.DebugSeed;
                 _pendingRailDifficulty = Mathf.Max(1, settings.DebugDifficulty);
                 State = CourierRunState.DeliveryMessage;
                 BeginPostContractRailOrReturn();
@@ -3079,9 +3081,7 @@ namespace DuneVector
                 return;
             }
 
-            int seed = _pendingRailSeed != 0
-                ? _pendingRailSeed
-                : unchecked((Progress.CompletedDeliveries * 73856093) ^ 82031);
+            int seed = _pendingRailSeed != 0 ? _pendingRailSeed : NextRailSeed();
             if (_railShooter != null &&
                 _railShooter.Begin(seed, Mathf.Max(1, _pendingRailDifficulty), HandleRailShooterCompleted))
             {
@@ -3090,6 +3090,22 @@ namespace DuneVector
             }
 
             BeginReturnToBaseAfterMessage();
+        }
+
+        // Without a fresh draw every rift laid out identically for a given delivery count, so the
+        // corridor, the satellite field, and the wave order repeated run after run.
+        private int NextRailSeed()
+        {
+            if (_railSettings != null && !_railSettings.RandomizeRunSeed)
+            {
+                return unchecked((Progress.CompletedDeliveries * 73856093) ^ 82031);
+            }
+            int seed = 0;
+            while (seed == 0)
+            {
+                seed = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
+            }
+            return seed;
         }
 
         private void HandleRailShooterCompleted(bool success, int gold, string grade)

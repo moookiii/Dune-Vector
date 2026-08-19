@@ -7975,6 +7975,8 @@ namespace DuneVector
         public bool Enabled = true;
         [Tooltip("Debug only: enter the post-contract rift intercept immediately after the game initializes.")]
         public bool DebugStartOnLaunch;
+        [Tooltip("Draw a fresh random seed for every rift run. Turn this off to replay the same layout for a given delivery count, or to pin the run to DebugSeed while testing.")]
+        public bool RandomizeRunSeed = true;
         public int DebugSeed = 82031;
         [Min(1)] public int DebugDifficulty = 1;
         public int SeedOffset = 82031;

@@ -301,6 +301,7 @@ namespace DuneVector
         private float _startZ;
         private float _furthestSegmentZ;
         private float _furthestSatelliteZ;
+        private Vector2 _planeRotation;
         private float _phaseElapsed;
         private float _nextWaveDistance;
         private float _nextPickupDistance;
@@ -467,6 +468,7 @@ namespace DuneVector
             _input?.ClearCapturedInput();
             _difficulty = Mathf.Clamp(difficulty, 1, Mathf.Max(1, _settings.DifficultyCeiling));
             _random = new System.Random(unchecked(seed ^ _settings.SeedOffset ^ (difficulty * 73856093)));
+            _planeRotation = new Vector2(NextFloat(0f, 1f), NextFloat(0f, 1f));
             SaveWorldState();
             _arenaOrigin = new Vector3(_savedPlayerPosition.x, _settings.RiftWorldAltitude, _savedPlayerPosition.z);
             _startZ = _arenaOrigin.z;
@@ -3697,12 +3699,15 @@ namespace DuneVector
             satellite.Root.SetActive(true);
         }
 
-        private static Vector2 EvenPlaneOffset(int identity, float halfExtent, int sequenceSalt)
+        // The Halton points keep the field evenly spread, but on their own they depend only on the
+        // spawn index, so every run laid the corridor and the satellites out in exactly the same
+        // places. The per-run rotation shifts the whole sequence without clumping it.
+        private Vector2 EvenPlaneOffset(int identity, float halfExtent, int sequenceSalt)
         {
             int sequence = Mathf.Abs(identity) + Mathf.Max(0, sequenceSalt) + 1;
-            float x = (RadicalInverse(sequence, 2) * 2f) - 1f;
-            float y = (RadicalInverse(sequence, 3) * 2f) - 1f;
-            return new Vector2(x * halfExtent, y * halfExtent);
+            float x = Mathf.Repeat(RadicalInverse(sequence, 2) + _planeRotation.x, 1f);
+            float y = Mathf.Repeat(RadicalInverse(sequence, 3) + _planeRotation.y, 1f);
+            return new Vector2(((x * 2f) - 1f) * halfExtent, ((y * 2f) - 1f) * halfExtent);
         }
 
         private static float RadicalInverse(int value, int radix)
