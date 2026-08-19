@@ -14,6 +14,12 @@ namespace DuneVector
         public bool IsDead { get; private set; }
         public bool IsDamageImmune { get; private set; }
         public bool HasInfiniteHealth { get; private set; }
+
+        /// <summary>
+        /// True while the post-hit grace period from <c>DamageInvulnerability</c> is still running.
+        /// This is the window the drone blinks through, so a player can see why a hit did nothing.
+        /// </summary>
+        public bool HasDamageGrace => !IsDead && Time.time < _nextDamageTime;
         public string LastDamageSource { get; private set; } = "Unknown damage source";
         public string LastDeathMessage { get; private set; } = "Destroyed by an unknown damage source.";
 

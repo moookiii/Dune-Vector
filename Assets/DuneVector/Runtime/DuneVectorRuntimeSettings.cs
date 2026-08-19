@@ -2490,6 +2490,18 @@ namespace DuneVector
         [Tooltip("Grace period after any hit during which the drone cannot be damaged again. This is what stops a dense encounter from chaining several hits into one unrecoverable burst.")]
         [Min(0f)] public float DamageInvulnerability = 0.9f;
 
+        [Header("Invulnerability Blink")]
+        [Tooltip("Pulses the drone hull toward a tint while the post-hit grace period runs, so a hit that does no damage reads as invulnerability rather than as a miss. The hull never goes invisible.")]
+        public bool InvulnerabilityBlinkEnabled = true;
+        [Tooltip("Blink cycles per second during the grace period. Higher reads as more urgent; too high smears into a flicker.")]
+        [Min(0.1f)] public float InvulnerabilityBlinkFrequency = 9f;
+        [Tooltip("Fraction of each blink cycle the hull keeps its normal colour. The rest of the cycle it sits at the tint.")]
+        [Range(0.05f, 0.95f)] public float InvulnerabilityBlinkNormalFraction = 0.5f;
+        [Tooltip("Colour the hull pulses toward on each blink.")]
+        public Color InvulnerabilityBlinkTint = new Color(0.68f, 0.92f, 1f, 1f);
+        [Tooltip("How far the hull moves toward the blink tint at the peak of each blink. 1 fully replaces the hull colour; the hull stays solid and visible at every value.")]
+        [Range(0.1f, 1f)] public float InvulnerabilityBlinkStrength = 0.8f;
+
         [Header("Out Of Combat Repair")]
         [Tooltip("Repairs hull integrity once the drone has gone long enough without taking damage. Disable to require pickups for every point of healing.")]
         public bool OutOfCombatRepairEnabled = true;

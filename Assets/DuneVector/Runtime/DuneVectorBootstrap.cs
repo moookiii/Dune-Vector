@@ -565,6 +565,9 @@ namespace DuneVector
             cameraTargetObject.transform.localPosition = new Vector3(0f, 1.35f, 0f);
             Drone.ConfigurePresentation(visualRoot, cameraTargetObject.transform, World);
 
+            droneObject.AddComponent<DroneInvulnerabilityBlink>()
+                .Initialize(DroneHealth, visualRoot, HealthSettings);
+
             DroneStaminaSystem stamina = droneObject.AddComponent<DroneStaminaSystem>();
             stamina.Initialize(PlayerTuning.StaminaBoost);
             DroneBoostSpeedModifier boostSpeedModifier = droneObject.AddComponent<DroneBoostSpeedModifier>();
