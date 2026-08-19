@@ -305,8 +305,9 @@ namespace DuneVector
             float rowPadding = _visuals.RowVerticalPadding * scale;
             Rect nameRect = new Rect(detailsX, row.y + rowPadding, detailsWidth, _nameStyle.lineHeight);
             GUI.Label(nameRect, (tuning.DisplayName ?? string.Empty).ToUpperInvariant(), _nameStyle);
+            float descriptionY = nameRect.yMax + (_visuals.ValueLineGap * scale);
             GUI.Label(
-                new Rect(detailsX, nameRect.yMax + (_visuals.ValueLineGap * scale), detailsWidth, _valueStyle.lineHeight),
+                new Rect(detailsX, descriptionY, detailsWidth, Mathf.Max(_valueStyle.lineHeight, row.yMax - rowPadding - descriptionY)),
                 (tuning.Description ?? string.Empty).ToUpperInvariant(),
                 _valueStyle);
 
@@ -429,8 +430,9 @@ namespace DuneVector
             float rowPadding = _visuals.RowVerticalPadding * scale;
             Rect nameRect = new Rect(detailsX, row.y + rowPadding, detailsWidth, _nameStyle.lineHeight);
             GUI.Label(nameRect, (tuning.DisplayName ?? string.Empty).ToUpperInvariant(), _nameStyle);
+            float descriptionY = nameRect.yMax + (_visuals.ValueLineGap * scale);
             GUI.Label(
-                new Rect(detailsX, nameRect.yMax + (_visuals.ValueLineGap * scale), detailsWidth, _valueStyle.lineHeight),
+                new Rect(detailsX, descriptionY, detailsWidth, Mathf.Max(_valueStyle.lineHeight, row.yMax - rowPadding - descriptionY)),
                 (tuning.Description ?? string.Empty).ToUpperInvariant(),
                 _valueStyle);
 
@@ -511,8 +513,9 @@ namespace DuneVector
             float rowPadding = _visuals.RowVerticalPadding * scale;
             Rect nameRect = new Rect(detailsX, row.y + rowPadding, detailsWidth, _nameStyle.lineHeight);
             GUI.Label(nameRect, option.DisplayName.ToUpperInvariant(), _nameStyle);
+            float descriptionY = nameRect.yMax + (_visuals.ValueLineGap * scale);
             GUI.Label(
-                new Rect(detailsX, nameRect.yMax + (_visuals.ValueLineGap * scale), detailsWidth, _valueStyle.lineHeight),
+                new Rect(detailsX, descriptionY, detailsWidth, Mathf.Max(_valueStyle.lineHeight, row.yMax - rowPadding - descriptionY)),
                 (option.IsModular ? trails.ModularTrailDescription : trails.ContractTrailDescription).ToUpperInvariant(),
                 _valueStyle);
 
@@ -916,6 +919,7 @@ namespace DuneVector
             _groupStyle = CreateLabelStyle(_visuals.GroupFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _visuals.CoreColor, scale);
             _nameStyle = CreateLabelStyle(_visuals.UpgradeNameFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _visuals.PrimaryTextColor, scale);
             _valueStyle = CreateLabelStyle(_visuals.ValueFontSize, FontStyle.Normal, TextAnchor.MiddleLeft, _visuals.SecondaryTextColor, scale);
+            _valueStyle.wordWrap = true;
             _valueRightStyle = CreateLabelStyle(_visuals.ValueFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _visuals.CoreColor, scale);
             _tierStyle = CreateLabelStyle(_visuals.TierFontSize, FontStyle.Bold, TextAnchor.MiddleLeft, _visuals.PrimaryTextColor, scale);
             _tierRightStyle = CreateLabelStyle(_visuals.TierFontSize, FontStyle.Normal, TextAnchor.MiddleRight, _visuals.SecondaryTextColor, scale);
