@@ -3171,6 +3171,15 @@ namespace DuneVector
                     _settings.PickupRadius,
                     _ringSettings,
                     faceForward: true);
+                if (kind == PickupKind.Health)
+                {
+                    Transform heart = pickupRing.Find("Collectible Icon");
+                    if (heart != null)
+                    {
+                        heart.localScale = Vector3.one * _settings.PickupHealthHeartScaleMultiplier;
+                        heart.localRotation = Quaternion.Euler(_settings.PickupHealthHeartEulerAngles);
+                    }
+                }
                 RegisterRailRing(pickupRing);
                 if (kind == PickupKind.Bomb)
                 {

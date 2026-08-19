@@ -8246,6 +8246,10 @@ namespace DuneVector
         [Min(1f)] public float PickupSpacing = 235f;
         [Min(0f)] public float PickupSpawnAheadDistance = 175f;
         [Min(0f)] public float PickupRadius = 2.7f;
+        [Tooltip("Scale multiplier applied to the health heart inside rail-subgame pickup rings.")]
+        [Min(0.01f)] public float PickupHealthHeartScaleMultiplier = 0.55f;
+        [Tooltip("Local orientation of the health heart inside a screen-facing rail-subgame pickup ring.")]
+        public Vector3 PickupHealthHeartEulerAngles = new Vector3(90f, 0f, 180f);
         [Min(0f)] public float PickupRiskLineFraction = 0.82f;
         [Min(1)] public int EnemyDropEveryKills = 4;
         [Min(0f)] public float HealthPickupAmount = 28f;
