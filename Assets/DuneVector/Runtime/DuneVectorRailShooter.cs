@@ -499,14 +499,6 @@ namespace DuneVector
                     Vector2.zero,
                     DuneVectorMath.Sharpness(_settings.PositionRecenterSharpness, deltaTime));
             }
-            _state.FlightOffset.x = SoftClamp(
-                _state.FlightOffset.x,
-                _settings.FlightBounds.x,
-                _settings.BoundarySoftness);
-            _state.FlightOffset.y = SoftClamp(
-                _state.FlightOffset.y,
-                _settings.FlightBounds.y,
-                _settings.BoundarySoftness);
             float attitudeSharpness = steering
                 ? _settings.AttitudeInputSharpness
                 : _settings.AttitudeReturnSharpness;
