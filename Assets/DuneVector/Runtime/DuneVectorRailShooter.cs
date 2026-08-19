@@ -222,6 +222,7 @@ namespace DuneVector
         {
             public GameObject Root;
             public Transform Transform;
+            public Vector3 LocalTargetOffset;
             public GameObject Explosion;
             public ParticleSystem[] ExplosionParticles;
             public bool Active;
@@ -1343,7 +1344,7 @@ namespace DuneVector
             Vector3 lockPosition = _chargeLock != null && _chargeLock.Active
                 ? _chargeLock.Transform.position
                 : _satelliteChargeLock != null && _satelliteChargeLock.Active
-                    ? _satelliteChargeLock.Transform.position
+                    ? SatelliteTargetPosition(_satelliteChargeLock)
                     : origin + (direction * _settings.ChargedBeamRange);
             for (int i = 0; i < _enemies.Count; i++)
             {
@@ -1385,12 +1386,13 @@ namespace DuneVector
                 {
                     continue;
                 }
-                float along = Vector3.Dot(satellite.Transform.position - origin, direction);
+                Vector3 targetPosition = SatelliteTargetPosition(satellite);
+                float along = Vector3.Dot(targetPosition - origin, direction);
                 Vector3 nearest = origin + (direction * Mathf.Clamp(along, 0f, _settings.ChargedBeamRange));
                 bool inBeam = along >= 0f && along <= _settings.ChargedBeamRange &&
-                    Vector3.Distance(nearest, satellite.Transform.position) <=
+                    Vector3.Distance(nearest, targetPosition) <=
                     _settings.ChargedBeamRadius + _settings.SatelliteHitRadius;
-                bool inBlast = Vector3.Distance(lockPosition, satellite.Transform.position) <=
+                bool inBlast = Vector3.Distance(lockPosition, targetPosition) <=
                     _settings.ChargedBlastRadius + _settings.SatelliteHitRadius;
                 if (inBeam || inBlast)
                 {
@@ -1418,9 +1420,10 @@ namespace DuneVector
             float radius = Mathf.Max(
                 _settings.ChargeLockViewportRadius,
                 _settings.ChargeLockViewportRadius * ChargeNormalized() * 2f);
+            float satelliteRadius = Mathf.Max(radius, _settings.SatelliteLockViewportRadius);
             _chargeLock = FindViewportTarget(radius, _settings.ChargedBeamRange);
             _satelliteChargeLock = FindViewportSatelliteTarget(
-                radius,
+                satelliteRadius,
                 _settings.ChargedBeamRange,
                 out float satelliteScore);
             if (_chargeLock != null &&
@@ -1433,18 +1436,18 @@ namespace DuneVector
             {
                 _chargeLock = null;
             }
-            CollectChargeLocks(radius);
+            CollectChargeLocks(radius, satelliteRadius);
             if (_chargeLock != null && _chargeLock != previous)
             {
                 PlayCue(_settings.TargetLockEvent, _chargeLock.Transform.position);
             }
             else if (_satelliteChargeLock != null && _satelliteChargeLock != previousSatellite)
             {
-                PlayCue(_settings.TargetLockEvent, _satelliteChargeLock.Transform.position);
+                PlayCue(_settings.TargetLockEvent, SatelliteTargetPosition(_satelliteChargeLock));
             }
         }
 
-        private void CollectChargeLocks(float viewportRadius)
+        private void CollectChargeLocks(float viewportRadius, float satelliteViewportRadius)
         {
             _chargeLocks.Clear();
             _satelliteChargeLocks.Clear();
@@ -1482,8 +1485,8 @@ namespace DuneVector
                 RailSatellite satellite = _satellites[i];
                 if (satellite.Active && satellite != _satelliteChargeLock &&
                     TryScoreViewportTarget(
-                        satellite.Transform,
-                        viewportRadius,
+                        SatelliteTargetPosition(satellite),
+                        satelliteViewportRadius,
                         _settings.ChargedBeamRange,
                         out _))
                 {
@@ -1504,7 +1507,7 @@ namespace DuneVector
                 RailSatellite satellite = _satellites[i];
                 if (!satellite.Active ||
                     !TryScoreViewportTarget(
-                        satellite.Transform,
+                        SatelliteTargetPosition(satellite),
                         viewportRadius,
                         maximumRange,
                         out float score) ||
@@ -1560,17 +1563,31 @@ namespace DuneVector
             float maximumRange,
             out float score)
         {
+            if (target == null)
+            {
+                score = float.PositiveInfinity;
+                return false;
+            }
+            return TryScoreViewportTarget(target.position, viewportRadius, maximumRange, out score);
+        }
+
+        private bool TryScoreViewportTarget(
+            Vector3 targetPosition,
+            float viewportRadius,
+            float maximumRange,
+            out float score)
+        {
             score = float.PositiveInfinity;
-            if (_camera == null || target == null)
+            if (_camera == null)
             {
                 return false;
             }
-            Vector3 viewport = _camera.WorldToViewportPoint(target.position);
+            Vector3 viewport = _camera.WorldToViewportPoint(targetPosition);
             if (viewport.z <= 0f)
             {
                 return false;
             }
-            if (Vector3.Distance(_player.transform.position, target.position) > maximumRange)
+            if (Vector3.Distance(_player.transform.position, targetPosition) > maximumRange)
             {
                 return false;
             }
@@ -2534,11 +2551,11 @@ namespace DuneVector
                 {
                     continue;
                 }
-                Vector3 position = satellite.Transform.position;
                 satellite.Transform.Rotate(
                     satellite.RotationAxis,
                     _settings.SatelliteRotationSpeed * deltaTime,
                     Space.Self);
+                Vector3 position = SatelliteTargetPosition(satellite);
                 if (Vector3.Distance(position, _player.transform.position) <=
                     _settings.SatelliteCollisionRadius)
                 {
@@ -2558,7 +2575,7 @@ namespace DuneVector
                 if (!satellite.Active || !SegmentIntersectsSphere(
                         start,
                         end,
-                        satellite.Transform.position,
+                        SatelliteTargetPosition(satellite),
                         radius + _settings.SatelliteHitRadius,
                         out float distance) || distance >= bestDistance)
                 {
@@ -2576,7 +2593,7 @@ namespace DuneVector
             {
                 return;
             }
-            Vector3 position = satellite.Transform.position;
+            Vector3 position = SatelliteTargetPosition(satellite);
             satellite.Active = false;
             satellite.Root.SetActive(false);
             satellite.Exploding = satellite.Explosion != null;
@@ -2606,7 +2623,7 @@ namespace DuneVector
                 return;
             }
             satellite.Health = Mathf.Max(0f, satellite.Health - Mathf.Max(0f, damage));
-            SpawnImpact(satellite.Transform.position, _settings.SatelliteHitRadius * 0.35f);
+            SpawnImpact(SatelliteTargetPosition(satellite), _settings.SatelliteHitRadius * 0.35f);
             if (satellite.Health <= 0f)
             {
                 ExplodeSatellite(satellite, true);
@@ -3030,6 +3047,7 @@ namespace DuneVector
                     root.name = $"Destructible Satellite {i + 1:00} - Pooled";
                     DisableVisualPhysics(root.transform);
                     Vector3 fittedScale = FitSatelliteScale(root.transform);
+                    Vector3 localTargetOffset = CalculateRendererCenterLocal(root.transform);
                     GameObject explosion = null;
                     ParticleSystem[] particles = Array.Empty<ParticleSystem>();
                     GameObject explosionPrefab = _settings.SatelliteExplosionPrefab != null
@@ -3053,6 +3071,7 @@ namespace DuneVector
                     {
                         Root = root,
                         Transform = root.transform,
+                        LocalTargetOffset = localTargetOffset,
                         Explosion = explosion,
                         ExplosionParticles = particles,
                         BaseScale = fittedScale,
@@ -3310,7 +3329,12 @@ namespace DuneVector
                     if (heart != null)
                     {
                         heart.localScale = Vector3.one * _settings.PickupHealthHeartScaleMultiplier;
-                        heart.localRotation = Quaternion.Euler(_settings.PickupHealthHeartEulerAngles);
+                        // Apply the final roll in the screen-facing ring's plane after the imported
+                        // GLB orientation. This makes the visual flip deterministic regardless of
+                        // which local axis the source mesh used as its authored up direction.
+                        heart.localRotation = Quaternion.AngleAxis(
+                            _settings.PickupHealthHeartScreenRotationDegrees,
+                            Vector3.forward) * Quaternion.Euler(_settings.PickupHealthHeartEulerAngles);
                     }
                 }
                 RegisterRailRing(pickupRing);
@@ -3697,6 +3721,26 @@ namespace DuneVector
                 ? _settings.SatelliteVisualScale / maximumDimension
                 : _settings.SatelliteVisualScale;
             return Vector3.one * Mathf.Max(0.001f, fitted);
+        }
+
+        private static Vector3 CalculateRendererCenterLocal(Transform root)
+        {
+            Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+            {
+                return Vector3.zero;
+            }
+            Bounds bounds = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+            {
+                bounds.Encapsulate(renderers[i].bounds);
+            }
+            return root.InverseTransformPoint(bounds.center);
+        }
+
+        private static Vector3 SatelliteTargetPosition(RailSatellite satellite)
+        {
+            return satellite.Transform.TransformPoint(satellite.LocalTargetOffset);
         }
 
         private static void ApplyRailCursorState()
@@ -5236,7 +5280,7 @@ namespace DuneVector
             {
                 RailSatellite locked = _satelliteChargeLocks[i];
                 if (locked != null && locked.Active &&
-                    TryProject(locked.Transform.position, out Vector2 lockScreen))
+                    TryProject(SatelliteTargetPosition(locked), out Vector2 lockScreen))
                 {
                     DrawBracket(lockScreen, _settings.LockBracketSize, _settings.HudChargeColor);
                 }

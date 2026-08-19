@@ -8007,9 +8007,9 @@ namespace DuneVector
         [Tooltip("Temporarily overrides every Massive Clouds layer on the gameplay camera while the rail subgame is active.")]
         public bool OverrideMassiveCloudsDuringSubgame = true;
         [Tooltip("Camera-relative lower cloud height used only during the rail subgame.")]
-        public float MassiveCloudsRelativeFromHeight = -1890f;
+        public float MassiveCloudsRelativeFromHeight = -2188.507f;
         [Tooltip("Camera-relative upper cloud height used only during the rail subgame.")]
-        public float MassiveCloudsRelativeToHeight = -1115f;
+        public float MassiveCloudsRelativeToHeight = -891.1193f;
         [Range(0f, 25f)] public float BoostFieldOfView = 9f;
         [Range(0f, 20f)] public float BombFieldOfViewImpulse = 5f;
         [Min(0f)] public float FieldOfViewSharpness = 7f;
@@ -8041,6 +8041,8 @@ namespace DuneVector
         [Min(0f)] public float ChargeVisualPulseSpeed = 12f;
         [Min(0f)] public float ChargeCameraShake = 0.35f;
         [Min(0f)] public float ChargeLockViewportRadius = 0.09f;
+        [Tooltip("Minimum viewport radius used when acquiring destructible satellites with the rail charge lock.")]
+        [Min(0f)] public float SatelliteLockViewportRadius = 0.18f;
 
         [Header("Targeting and Hit Resolution")]
         [Tooltip("Shot hit radius for each rail adaptation. Author these to match the drawn model so bolts register where the enemy is visible.")]
@@ -8258,6 +8260,8 @@ namespace DuneVector
         [Min(0.01f)] public float PickupHealthHeartScaleMultiplier = 0.55f;
         [Tooltip("Local orientation of the health heart inside a screen-facing rail-subgame pickup ring.")]
         public Vector3 PickupHealthHeartEulerAngles = new Vector3(90f, 180f, 0f);
+        [Tooltip("Final screen-plane rotation applied after orienting the imported rail health-heart model.")]
+        [Range(-180f, 180f)] public float PickupHealthHeartScreenRotationDegrees = 180f;
         [Min(0f)] public float PickupRiskLineFraction = 0.82f;
         [Min(1)] public int EnemyDropEveryKills = 4;
         [Min(0f)] public float HealthPickupAmount = 28f;
