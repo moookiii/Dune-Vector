@@ -97,6 +97,8 @@ namespace DuneVector
             public AmbushState State;
         }
 
+        private const int InterceptSolverIterations = 4;
+
         private readonly List<SandAmbusher> _ambushers = new List<SandAmbusher>();
         private DroneCharacterController _player;
         private DroneHealth _health;
@@ -225,8 +227,7 @@ namespace DuneVector
                 return;
             }
 
-            Vector3 prediction = _player.Motor.BaseVelocity * GetTargetPredictionTime();
-            Vector3 attackTarget = _player.WorldCenter + prediction;
+            Vector3 attackTarget = SolveInterceptPoint(ambusher.BuriedPosition);
             Vector3 attackOffset = attackTarget - ambusher.BuriedPosition;
             Vector3 attackDirection = ApplyMinimumElevation(
                 attackOffset.normalized,
@@ -257,9 +258,7 @@ namespace DuneVector
         private void TickAttack(SandAmbusher ambusher, float deltaTime)
         {
             Vector3 previous = ambusher.Root.transform.position;
-            float speed = Mathf.Max(0.1f, _settings.SandAmbusherAttackSpeed) *
-                DuneVectorContractRisk.EnemySpeedMultiplier;
-            Vector3 next = Vector3.MoveTowards(previous, ambusher.AttackEnd, speed * deltaTime);
+            Vector3 next = Vector3.MoveTowards(previous, ambusher.AttackEnd, GetAttackSpeed() * deltaTime);
             ambusher.Root.transform.position = next;
 
             float collisionRadius = Mathf.Max(0.1f, _settings.SandAmbusherCollisionRadius) +
@@ -418,8 +417,22 @@ namespace DuneVector
                 _settings.SandAmbusherMaximumTargetOffset,
                 _settings.SandAmbusherMaximumTargetOffsetAtRiskCeiling,
                 riskProgress));
-            Vector3 prediction = Vector3.ProjectOnPlane(_player.Motor.BaseVelocity, Vector3.up) *
-                GetTargetPredictionTime();
+            // An ambusher cannot chase: it is slower than a boosting drone and it fires along a
+            // fixed line. It only ever threatens by being buried where the drone is going to be.
+            // The lead therefore has to cover the whole delay before it arrives, which is the
+            // telegraph plus the time it needs to climb from its burial depth to the drone's
+            // altitude. Leading by a fixed span instead left it erupting into empty sand behind
+            // a drone at flight speed, so straight-line flight never had to react to it at all.
+            float leadProgress = Mathf.Clamp01(
+                _risk / (float)Mathf.Max(1, _settings.SandAmbusherInterceptLeadRiskCeiling));
+            float leadMultiplier = Mathf.Max(0f, Mathf.Lerp(
+                _settings.SandAmbusherInterceptLeadMultiplier,
+                _settings.SandAmbusherInterceptLeadMultiplierAtRiskCeiling,
+                leadProgress));
+            float leadTime = (GetWarningDuration() + EstimateRiseTime()) * leadMultiplier;
+            Vector3 prediction = Vector3.ClampMagnitude(
+                Vector3.ProjectOnPlane(_player.Motor.BaseVelocity, Vector3.up) * leadTime,
+                Mathf.Max(0f, _settings.SandAmbusherMaximumInterceptLeadDistance));
             Vector3 origin = _player.WorldCenter + prediction;
 
             // Ambushers erupt in a ring around the drone rather than underneath it, so the crack
@@ -495,14 +508,48 @@ namespace DuneVector
             return Mathf.Lerp(minimum, maximum, (float)_random.NextDouble());
         }
 
-        private float GetTargetPredictionTime()
+        private float GetAttackSpeed()
         {
-            float riskProgress = Mathf.Clamp01(
-                _risk / (float)Mathf.Max(1, _settings.SandAmbusherTargetPredictionRiskCeiling));
-            return Mathf.Max(0f, Mathf.Lerp(
-                _settings.SandAmbusherTargetPredictionTime,
-                _settings.SandAmbusherTargetPredictionTimeAtRiskCeiling,
-                riskProgress));
+            return Mathf.Max(0.1f, _settings.SandAmbusherAttackSpeed) *
+                DuneVectorContractRisk.EnemySpeedMultiplier;
+        }
+
+        private float EstimateRiseTime()
+        {
+            float terrainHeight = _world.SampleHeightAtLocal(
+                _player.WorldCenter.x,
+                _player.WorldCenter.z);
+            float altitude = Mathf.Max(0f, _player.WorldCenter.y - terrainHeight);
+            float depth = Mathf.Max(0.1f, _settings.SandAmbusherBuriedDepth);
+            return (depth + altitude) / GetAttackSpeed();
+        }
+
+        private Vector3 SolveInterceptPoint(Vector3 buriedPosition)
+        {
+            float speed = GetAttackSpeed();
+            float maximumDuration = Mathf.Max(0.1f, _settings.SandAmbusherMaximumAttackDuration);
+            Vector3 playerPosition = _player.WorldCenter;
+            Vector3 playerVelocity = _player.Motor.BaseVelocity;
+
+            // Seeding from a straight vertical rise keeps this an ambush rather than a pursuit.
+            // Solving the unconstrained intercept instead runs away to a stern chase whenever the
+            // drone is faster than the ambusher, which aims it almost flat and guarantees a miss.
+            float time = Mathf.Clamp(
+                (playerPosition.y - buriedPosition.y) / speed,
+                0f,
+                maximumDuration);
+            for (int i = 0; i < InterceptSolverIterations; i++)
+            {
+                Vector3 candidate = playerPosition + (playerVelocity * time);
+                float nextTime = Vector3.Distance(candidate, buriedPosition) / speed;
+                if (nextTime > maximumDuration)
+                {
+                    break;
+                }
+                time = nextTime;
+            }
+
+            return playerPosition + (playerVelocity * time);
         }
 
         private float GetWarningDuration()

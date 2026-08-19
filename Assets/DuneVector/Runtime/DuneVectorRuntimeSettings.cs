@@ -1062,12 +1062,14 @@ namespace DuneVector
         [Min(0f)] public float SandAmbusherMinimumSeparation = 9f;
         [Tooltip("Placement attempts made to satisfy Sand Ambusher Minimum Separation before the spawn is skipped for this interval.")]
         [Range(1, 24)] public int SandAmbusherSeparationAttempts = 10;
-        [Tooltip("Target prediction time at risk 0.")]
-        [Min(0f)] public float SandAmbusherTargetPredictionTime = 1.7f;
-        [Tooltip("Target prediction time at the configured risk ceiling.")]
-        [Min(0f)] public float SandAmbusherTargetPredictionTimeAtRiskCeiling = 0.7f;
-        [Tooltip("Risk where target prediction time reaches its ceiling value.")]
-        [Min(1)] public int SandAmbusherTargetPredictionRiskCeiling = 20;
+        [Tooltip("Scales how far ahead of the drone an ambush is buried at risk 0. The lead itself is solved from the telegraph length plus the time the ambusher needs to rise through the sand and reach the drone's altitude, so 1 buries it exactly where the drone will be when it breaks the surface. Below 1 it lags behind and can only threaten slower traversal.")]
+        [Min(0f)] public float SandAmbusherInterceptLeadMultiplier = 1f;
+        [Tooltip("Scales the solved intercept lead at the intercept lead risk ceiling.")]
+        [Min(0f)] public float SandAmbusherInterceptLeadMultiplierAtRiskCeiling = 1f;
+        [Tooltip("Risk where the intercept lead multiplier reaches its ceiling value.")]
+        [Min(1)] public int SandAmbusherInterceptLeadRiskCeiling = 20;
+        [Tooltip("Furthest ahead of the drone an ambush can be buried. Beyond this the drone has genuinely outrun the ambush and the eruption falls behind it.")]
+        [Min(0f)] public float SandAmbusherMaximumInterceptLeadDistance = 340f;
         [InspectorName("Sand Ambusher Minimum Attack Angle")]
         [Tooltip("Minimum angle above the horizon for a Sand Ambusher's full attack path, whether the drone is grounded or airborne.")]
         [Range(0f, 90f)] public float SandAmbusherGroundedMinimumAttackAngle = 65f;
