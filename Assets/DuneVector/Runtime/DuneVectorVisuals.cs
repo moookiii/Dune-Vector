@@ -1329,19 +1329,6 @@ namespace DuneVector
         private static readonly Dictionary<string, Mesh> MeshCache = new Dictionary<string, Mesh>();
         private static GameObject[] _cactusModels;
 
-        // Stone hues the miniature pyramids weather into. Quantising to a fixed
-        // palette keeps GPU instancing batching by material instead of exploding
-        // into one draw per pyramid.
-        private static readonly Color[] PyramidHueTints =
-        {
-            new Color(1.00f, 0.97f, 0.90f), // bleached limestone
-            new Color(1.00f, 0.84f, 0.66f), // sun-baked ochre
-            new Color(0.93f, 0.70f, 0.55f), // red sandstone
-            new Color(0.78f, 0.74f, 0.72f), // cold grey granite
-            new Color(0.86f, 0.84f, 0.62f), // pale desert olive
-            new Color(0.72f, 0.66f, 0.74f), // dusk violet stone
-        };
-
         private static readonly Dictionary<string, Material> PyramidTintCache =
             new Dictionary<string, Material>();
 
@@ -1996,20 +1983,25 @@ namespace DuneVector
                 material);
         }
 
-        private static Material GetPyramidTintedMaterial(Material source, int hueIndex)
+        private static Material GetPyramidTintedMaterial(
+            Material source,
+            int hueIndex,
+            Color[] hueTints)
         {
             if (source == null)
             {
                 return null;
             }
 
-            string key = $"pyramid-tint:{source.GetEntityId()}:{hueIndex}";
+            Color tint = hueTints != null && hueTints.Length > 0
+                ? hueTints[Mathf.Clamp(hueIndex, 0, hueTints.Length - 1)]
+                : Color.white;
+            string key = $"pyramid-tint:{source.GetEntityId()}:{tint.GetHashCode()}";
             if (PyramidTintCache.TryGetValue(key, out Material tinted) && tinted != null)
             {
                 return tinted;
             }
 
-            Color tint = PyramidHueTints[hueIndex];
             tinted = new Material(source) { name = $"{source.name} (Hue {hueIndex})" };
             tinted.enableInstancing = true;
             if (tinted.HasProperty("_BaseColor"))
@@ -2039,17 +2031,21 @@ namespace DuneVector
             return tinted;
         }
 
-        private static int ResolvePyramidHueIndex(float hue)
+        private static int ResolvePyramidHueIndex(float hue, Color[] hueTints)
         {
+            int tintCount = hueTints != null && hueTints.Length > 0 ? hueTints.Length : 1;
             return Mathf.Clamp(
-                Mathf.FloorToInt(Mathf.Repeat(hue, 1f) * PyramidHueTints.Length),
+                Mathf.FloorToInt(Mathf.Repeat(hue, 1f) * tintCount),
                 0,
-                PyramidHueTints.Length - 1);
+                tintCount - 1);
         }
 
-        private static void ApplyPyramidHue(MeshRenderer[] renderers, float hue)
+        private static void ApplyPyramidHue(
+            MeshRenderer[] renderers,
+            float hue,
+            Color[] hueTints)
         {
-            int hueIndex = ResolvePyramidHueIndex(hue);
+            int hueIndex = ResolvePyramidHueIndex(hue, hueTints);
 
             for (int i = 0; i < renderers.Length; i++)
             {
@@ -2058,7 +2054,7 @@ namespace DuneVector
                 for (int materialIndex = 0; materialIndex < sourceMaterials.Length; materialIndex++)
                 {
                     tintedMaterials[materialIndex] =
-                        GetPyramidTintedMaterial(sourceMaterials[materialIndex], hueIndex);
+                        GetPyramidTintedMaterial(sourceMaterials[materialIndex], hueIndex, hueTints);
                 }
                 renderers[i].sharedMaterials = tintedMaterials;
             }
@@ -2088,7 +2084,9 @@ namespace DuneVector
 
             Mesh mesh = GetPyramidMesh();
             float targetHalfExtent = Mathf.Max(0.1f, scale);
-            Material tintedFallback = GetPyramidTintedMaterial(fallbackMaterial, ResolvePyramidHueIndex(hue));
+            Color[] hueTints = pyramidLodTuning != null ? pyramidLodTuning.HueTints : null;
+            int hueIndex = ResolvePyramidHueIndex(hue, hueTints);
+            Material tintedFallback = GetPyramidTintedMaterial(fallbackMaterial, hueIndex, hueTints);
 
             if (model == null)
             {
@@ -2156,7 +2154,7 @@ namespace DuneVector
             MeshCollider modelCollider = colliderObject.AddComponent<MeshCollider>();
             modelCollider.sharedMesh = mesh;
 
-            ApplyPyramidHue(renderers, hue);
+            ApplyPyramidHue(renderers, hue, hueTints);
             for (int i = 0; i < renderers.Length; i++)
             {
                 renderers[i].shadowCastingMode = ShadowCastingMode.On;

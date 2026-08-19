@@ -2239,6 +2239,18 @@ namespace DuneVector
         [Min(0f)] public float MinimumBurialDepth = 0.75f;
         [Min(0f)] public float MaximumBurialDepth = 1.25f;
 
+        [Header("Hue Variation")]
+        [Tooltip("Stone-color tints selected at random for generated pyramids. The prefab material color is multiplied by the selected tint.")]
+        public Color[] HueTints =
+        {
+            new Color(1.00f, 0.97f, 0.90f, 1f),
+            new Color(1.00f, 0.84f, 0.66f, 1f),
+            new Color(0.93f, 0.70f, 0.55f, 1f),
+            new Color(0.78f, 0.74f, 0.72f, 1f),
+            new Color(0.86f, 0.84f, 0.62f, 1f),
+            new Color(0.72f, 0.66f, 0.74f, 1f),
+        };
+
         [Header("GPU-Instanced LOD")]
         [Tooltip("Maximum camera distance for the highest-detail imported pyramid mesh.")]
         [Min(0.1f)] public float Lod1MaximumDistance = 120f;

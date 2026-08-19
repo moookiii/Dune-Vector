@@ -718,7 +718,7 @@ namespace DuneVector.Editor
                 _obelisks);
             DuneVectorSettingsInspector.DrawSection(
                 "Dark Pyramids",
-                "PyramidDarker variant density, independent size range, burial, and LOD distances.",
+                "PyramidDarker variant density, randomized stone hues, independent size range, burial, and LOD distances.",
                 _darkPyramids);
             DuneVectorSettingsInspector.DrawSection(
                 "Pyramid 2",
