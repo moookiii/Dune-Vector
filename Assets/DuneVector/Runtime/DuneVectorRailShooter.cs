@@ -225,6 +225,7 @@ namespace DuneVector
         private Transform _bombVisual;
         private Transform _safeGate;
         private Transform _riskGate;
+        private Transform _backdrop;
         private LineRenderer _laneWarning;
         private RailEnemy _boss;
         private RailEnemy _chargeLock;
@@ -393,6 +394,7 @@ namespace DuneVector
             ResetCourse();
             EnterRailPresentation();
             _modeRoot.gameObject.SetActive(true);
+            ActivateBackdrop();
             Phase = RailShooterPhase.Entry;
             IsAnyRailShooterActive = true;
             _health.TemporaryHealthPoolDepleted += HandleTemporaryHullDepleted;
@@ -1670,6 +1672,11 @@ namespace DuneVector
 
         private void TickEnvironment(float deltaTime)
         {
+            if (_backdrop != null)
+            {
+                _backdrop.Rotate(_settings.BackdropEulerDegreesPerSecond * deltaTime, Space.Self);
+            }
+
             for (int i = 0; i < _segments.Count; i++)
             {
                 RiftSegment segment = _segments[i];
@@ -1980,6 +1987,7 @@ namespace DuneVector
             _health.Damaged -= HandlePlayerDamaged;
             _health.EndTemporaryHealthPool();
             RestoreWorldState();
+            SetBackdropActive(false);
             _modeRoot.gameObject.SetActive(false);
             Phase = RailShooterPhase.Inactive;
             IsAnyRailShooterActive = false;
@@ -2011,6 +2019,7 @@ namespace DuneVector
             _projectileRoot = NewRoot("Pooled Rail Projectiles", _modeRoot);
             _pickupRoot = NewRoot("Pooled Rail Pickups", _modeRoot);
             _effectsRoot = NewRoot("Pooled Rail Presentation", _modeRoot);
+            BindBackdrop();
             BuildEnvironmentPool();
             BuildEnemyPool();
             BuildProjectilePools();
@@ -2019,6 +2028,54 @@ namespace DuneVector
             BuildRouteGates();
             BuildLaneWarning();
             _modeRoot.gameObject.SetActive(false);
+        }
+
+        private void BindBackdrop()
+        {
+            if (!string.IsNullOrWhiteSpace(_settings.BackdropSceneObjectName))
+            {
+                GameObject sceneBackdrop = GameObject.Find(_settings.BackdropSceneObjectName);
+                if (sceneBackdrop != null)
+                {
+                    _backdrop = sceneBackdrop.transform;
+                }
+            }
+
+            if (_backdrop == null && !string.IsNullOrWhiteSpace(_settings.BackdropPrefabResourcePath))
+            {
+                GameObject prefab = Resources.Load<GameObject>(_settings.BackdropPrefabResourcePath);
+                if (prefab != null)
+                {
+                    _backdrop = Instantiate(prefab).transform;
+                    _backdrop.name = string.IsNullOrWhiteSpace(_settings.BackdropSceneObjectName)
+                        ? prefab.name
+                        : _settings.BackdropSceneObjectName;
+                }
+            }
+
+            if (_backdrop != null)
+            {
+                DisableVisualPhysics(_backdrop);
+                SetBackdropActive(false);
+            }
+        }
+
+        private void ActivateBackdrop()
+        {
+            if (_backdrop == null)
+            {
+                return;
+            }
+            _backdrop.position = _settings.BackdropSourcePosition - _savedPlayerPosition;
+            SetBackdropActive(true);
+        }
+
+        private void SetBackdropActive(bool active)
+        {
+            if (_backdrop != null && _backdrop.gameObject.activeSelf != active)
+            {
+                _backdrop.gameObject.SetActive(active);
+            }
         }
 
         private void BuildEnvironmentPool()
@@ -3304,6 +3361,7 @@ namespace DuneVector
             {
                 RestoreWorldState();
             }
+            SetBackdropActive(false);
             IsAnyRailShooterActive = false;
         }
     }
