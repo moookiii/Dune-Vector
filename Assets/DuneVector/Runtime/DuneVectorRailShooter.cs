@@ -592,7 +592,7 @@ namespace DuneVector
             HandleApplicationSuspensionChange(wasSuspended);
             if (hasFocus && IsActive && Time.timeScale > 0f)
             {
-                ApplyRailCursorState();
+                ApplyActiveRailCursorState();
             }
         }
 
@@ -2737,6 +2737,7 @@ namespace DuneVector
             {
                 _sigilDrawingCursor.gameObject.SetActive(false);
             }
+            ApplyRailCursorState();
             if (_state.SigilsBroken >= _settings.Sigils.SigilChallengeCount)
             {
                 AddScore(_settings.Sigils.SigilChallengeBonus);
@@ -3532,6 +3533,22 @@ namespace DuneVector
             Cursor.visible = false;
         }
 
+        private void ApplyActiveRailCursorState()
+        {
+            if (_sigilActive)
+            {
+                ApplySigilDrawingCursorState();
+                return;
+            }
+            ApplyRailCursorState();
+        }
+
+        private static void ApplySigilDrawingCursorState()
+        {
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = false;
+        }
+
         private void RestoreWorldState()
         {
             if (_player.DroneVisualRoot != null)
@@ -4030,6 +4047,10 @@ namespace DuneVector
             _sigilSymbolIndex = 0;
             CancelSigilDrawingAttempt();
             _sigilCursorScreen = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
+            ApplySigilDrawingCursorState();
+            Mouse.current?.WarpCursorPosition(new Vector2(
+                _sigilCursorScreen.x,
+                Screen.height - _sigilCursorScreen.y));
             _sigilFaultElapsed = float.PositiveInfinity;
             _sigilVerdictElapsed = float.PositiveInfinity;
             float spawnAngle = NextFloat(0f, Mathf.PI * 2f);
@@ -4144,14 +4165,29 @@ namespace DuneVector
         private void TickSigilDrawing(in RailShooterCommand command, float deltaTime)
         {
             RailSigilTuning sigils = _settings.Sigils;
-            Vector2 cursorDelta = new Vector2(command.Look.x, -command.Look.y) *
-                sigils.MouseStrokeSensitivity;
-            cursorDelta += new Vector2(command.Stick.x, -command.Stick.y) *
+            Mouse mouse = Mouse.current;
+            if (mouse != null)
+            {
+                Vector2 pointerPosition = mouse.position.ReadValue();
+                _sigilCursorScreen = new Vector2(pointerPosition.x, Screen.height - pointerPosition.y);
+            }
+            else
+            {
+                _sigilCursorScreen += new Vector2(command.Look.x, -command.Look.y) *
+                    sigils.MouseStrokeSensitivity;
+            }
+            Vector2 stickDelta = new Vector2(command.Stick.x, -command.Stick.y) *
                 sigils.StickStrokeSpeed * deltaTime;
-            _sigilCursorScreen += cursorDelta;
+            _sigilCursorScreen += stickDelta;
             float margin = Mathf.Max(0f, sigils.DrawingCursorScreenMargin);
             _sigilCursorScreen.x = Mathf.Clamp(_sigilCursorScreen.x, margin, Screen.width - margin);
             _sigilCursorScreen.y = Mathf.Clamp(_sigilCursorScreen.y, margin, Screen.height - margin);
+            if (mouse != null && stickDelta.sqrMagnitude > 0f)
+            {
+                mouse.WarpCursorPosition(new Vector2(
+                    _sigilCursorScreen.x,
+                    Screen.height - _sigilCursorScreen.y));
+            }
             UpdateSigilDrawingCursorWorld();
 
             if (!_sigilDrawing && (command.FirePressed || command.FireHeld))
@@ -4431,6 +4467,7 @@ namespace DuneVector
             {
                 _sigilDrawingCursor.gameObject.SetActive(false);
             }
+            ApplyRailCursorState();
             _sigilNextAttackDistance = _state.Distance + SigilAttackSpacing();
             _sigilNextBossAttackAt = _state.Elapsed + sigils.BossAttackInterval;
         }
