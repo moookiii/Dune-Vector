@@ -101,6 +101,7 @@ namespace DuneVector
         public DroneLockOnController LockOnController { get; private set; }
         public DroneEnergyLauncher EnergyLauncher { get; private set; }
         public DroneLockOnHUD LockOnHUD { get; private set; }
+        public DroneOverheatHUD OverheatHUD { get; private set; }
         public DuneVectorEnemyDirector EnemyDirector { get; private set; }
         public DuneVectorStormPyramidDirector StormPyramidDirector { get; private set; }
         public DuneVectorVesperKiteDirector VesperKiteDirector { get; private set; }
@@ -1323,6 +1324,8 @@ namespace DuneVector
                 EnergyLauncherSettings);
             LockOnHUD = weaponObject.AddComponent<DroneLockOnHUD>();
             LockOnHUD.Initialize(Drone, DroneCamera.Camera, LockOnController, EnergyLauncherSettings);
+            OverheatHUD = weaponObject.AddComponent<DroneOverheatHUD>();
+            OverheatHUD.Initialize(Drone, EnergyLauncher, EnergyLauncherSettings);
             Player.EnergyLauncher = EnergyLauncher;
         }
 

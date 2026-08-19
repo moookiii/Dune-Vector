@@ -435,8 +435,19 @@ namespace DuneVector
     [DisallowMultipleComponent]
     public sealed class DroneEnergyLauncher : MonoBehaviour
     {
-        public bool CanFire => _cooldownRemaining <= 0f;
+        public bool CanFire => _cooldownRemaining <= 0f && !IsVenting;
+
+        /// <summary>Current heat as a 0..1 fraction of the configured capacity.</summary>
+        public float NormalizedHeat => _settings != null && _settings.HeatCapacity > 0f
+            ? Mathf.Clamp01(_heat / _settings.HeatCapacity)
+            : 0f;
+
+        /// <summary>True while an overheat is venting and firing is locked out.</summary>
+        public bool IsVenting { get; private set; }
+
         public event System.Action Fired;
+        public event System.Action Overheated;
+        public event System.Action VentCompleted;
 
         private DroneCharacterController _drone;
         private Camera _camera;
@@ -449,6 +460,8 @@ namespace DuneVector
         private float _cooldownRemaining;
         private bool _fireRequested;
         private float _environmentalCooldownMultiplier = 1f;
+        private float _heat;
+        private float _coolingDelayRemaining;
 
         public void Initialize(
             DroneCharacterController drone,
@@ -481,6 +494,7 @@ namespace DuneVector
         private void LateUpdate()
         {
             _cooldownRemaining = Mathf.Max(0f, _cooldownRemaining - Time.deltaTime);
+            TickHeat(Time.deltaTime);
             if (!_fireRequested)
             {
                 return;
@@ -488,6 +502,65 @@ namespace DuneVector
 
             _fireRequested = false;
             TryFire();
+        }
+
+        private void TickHeat(float deltaTime)
+        {
+            if (_settings == null || !_settings.OverheatEnabled)
+            {
+                _heat = 0f;
+                _coolingDelayRemaining = 0f;
+                if (IsVenting)
+                {
+                    IsVenting = false;
+                    VentCompleted?.Invoke();
+                }
+                return;
+            }
+
+            if (IsVenting)
+            {
+                // Venting ignores the post-shot cooling delay: the barrel is already dumping heat.
+                _heat = Mathf.Max(0f, _heat - (_settings.OverheatVentCoolingRate * deltaTime));
+                if (_heat <= _settings.HeatCapacity * Mathf.Clamp01(_settings.OverheatRecoveryFraction))
+                {
+                    IsVenting = false;
+                    VentCompleted?.Invoke();
+                }
+                return;
+            }
+
+            if (_heat <= 0f)
+            {
+                _coolingDelayRemaining = 0f;
+                return;
+            }
+
+            if (_coolingDelayRemaining > 0f)
+            {
+                _coolingDelayRemaining = Mathf.Max(0f, _coolingDelayRemaining - deltaTime);
+                return;
+            }
+
+            _heat = Mathf.Max(0f, _heat - (_settings.HeatCoolingRate * deltaTime));
+        }
+
+        private void AddShotHeat()
+        {
+            if (_settings == null || !_settings.OverheatEnabled)
+            {
+                return;
+            }
+
+            _heat = Mathf.Min(_settings.HeatCapacity, _heat + Mathf.Max(0f, _settings.HeatPerShot));
+            _coolingDelayRemaining = Mathf.Max(0f, _settings.HeatCoolingDelay);
+            if (_heat < _settings.HeatCapacity)
+            {
+                return;
+            }
+
+            IsVenting = true;
+            Overheated?.Invoke();
         }
 
         private bool TryFire()
@@ -535,6 +608,7 @@ namespace DuneVector
                 "Energy Launch Flash");
             _audioManager?.PlayDroneFire(muzzlePosition);
             _cooldownRemaining = GetCurrentCooldown();
+            AddShotHeat();
             Fired?.Invoke();
             return true;
         }
@@ -1170,6 +1244,232 @@ namespace DuneVector
 
         private static void DrawRect(Rect rect, Color color)
         {
+            Color previousColor = GUI.color;
+            GUI.color = color;
+            GUI.DrawTexture(rect, Texture2D.whiteTexture);
+            GUI.color = previousColor;
+        }
+    }
+
+    /// <summary>
+    /// Screen-center overheat meter for the lock-on energy launcher. Fills as shots stack heat,
+    /// flashes while venting, and fades out once the barrel is cold and idle.
+    /// </summary>
+    [DefaultExecutionOrder(500)]
+    [DisallowMultipleComponent]
+    public sealed class DroneOverheatHUD : MonoBehaviour
+    {
+        private DroneEnergyLauncher _launcher;
+        private DroneHealth _health;
+        private EnergyLauncherTuning _settings;
+        private GUIStyle _ventingLabelStyle;
+        private float _displayedHeat;
+        private bool _hasDisplayedHeat;
+        private float _coldIdleTime;
+        private float _visibleAlpha;
+
+        public void Initialize(
+            DroneCharacterController drone,
+            DroneEnergyLauncher launcher,
+            EnergyLauncherTuning settings)
+        {
+            _launcher = launcher;
+            _health = drone != null ? drone.GetComponent<DroneHealth>() : null;
+            _settings = settings;
+            _displayedHeat = 0f;
+            _hasDisplayedHeat = false;
+            _coldIdleTime = 0f;
+            _visibleAlpha = 0f;
+        }
+
+        private void Update()
+        {
+            if (_launcher == null || _settings == null || !_settings.OverheatEnabled)
+            {
+                return;
+            }
+
+            float deltaTime = Time.unscaledDeltaTime;
+            float heat01 = Mathf.Clamp01(_launcher.NormalizedHeat);
+            if (!_hasDisplayedHeat)
+            {
+                _displayedHeat = heat01;
+                _hasDisplayedHeat = true;
+            }
+            else
+            {
+                _displayedHeat = Mathf.Lerp(
+                    _displayedHeat,
+                    heat01,
+                    DuneVectorMath.Sharpness(_settings.OverheatBarFillSharpness, deltaTime));
+            }
+
+            bool coldAndIdle = heat01 <= 0f && !_launcher.IsVenting;
+            _coldIdleTime = coldAndIdle ? _coldIdleTime + deltaTime : 0f;
+            float targetAlpha = coldAndIdle && _coldIdleTime >= _settings.OverheatBarIdleFadeDelay
+                ? Mathf.Clamp01(_settings.OverheatBarIdleAlpha)
+                : 1f;
+            _visibleAlpha = Mathf.MoveTowards(
+                _visibleAlpha,
+                targetAlpha,
+                Mathf.Max(0f, _settings.OverheatBarFadeSpeed) * deltaTime);
+        }
+
+        private void OnGUI()
+        {
+            // Draw-only overlay: it owns no controls, so only the Repaint pass does work.
+            if (Event.current.type != EventType.Repaint)
+            {
+                return;
+            }
+
+            if (DuneVectorCourierGame.IsGameplayHudSuppressed)
+            {
+                return;
+            }
+            if (_launcher == null || _settings == null || !_settings.Enabled)
+            {
+                return;
+            }
+            if (!_settings.OverheatEnabled || !_settings.OverheatBarEnabled)
+            {
+                return;
+            }
+            if (_health != null && _health.IsDead)
+            {
+                return;
+            }
+            if (_visibleAlpha <= 0f)
+            {
+                return;
+            }
+
+            float scale = Screen.height / Mathf.Max(Mathf.Epsilon, _settings.HudReferenceHeight);
+            float width = _settings.OverheatBarWidth * scale;
+            float height = _settings.OverheatBarHeight * scale;
+            Vector2 center = new Vector2(
+                (Screen.width * 0.5f) + (_settings.OverheatBarScreenOffset.x * scale),
+                (Screen.height * 0.5f) + (_settings.OverheatBarScreenOffset.y * scale));
+            Rect track = new Rect(
+                center.x - (width * 0.5f),
+                center.y - (height * 0.5f),
+                width,
+                height);
+
+            DrawRect(track, ScaleAlpha(_settings.OverheatBarTrackColor, _visibleAlpha));
+            DrawSegments(track, scale);
+
+            float heat01 = Mathf.Clamp01(_displayedHeat);
+            if (heat01 > 0f)
+            {
+                DrawRect(
+                    new Rect(track.x, track.y, track.width * heat01, track.height),
+                    ScaleAlpha(GetFillColor(heat01), _visibleAlpha));
+            }
+
+            DrawBorder(
+                track,
+                Mathf.Max(1f, _settings.OverheatBarBorderThickness * scale),
+                ScaleAlpha(_settings.OverheatBarBorderColor, _visibleAlpha));
+            DrawVentingLabel(track, scale);
+        }
+
+        private void DrawSegments(Rect track, float scale)
+        {
+            int segmentCount = Mathf.Max(0, _settings.OverheatBarSegmentCount);
+            if (segmentCount < 2)
+            {
+                return;
+            }
+
+            Color segmentColor = ScaleAlpha(_settings.OverheatBarSegmentColor, _visibleAlpha);
+            float segmentWidth = Mathf.Max(0.5f, _settings.OverheatBarSegmentWidth * scale);
+            for (int segment = 1; segment < segmentCount; segment++)
+            {
+                float x = track.x + (track.width * (segment / (float)segmentCount));
+                DrawRect(new Rect(x - (segmentWidth * 0.5f), track.y, segmentWidth, track.height), segmentColor);
+            }
+        }
+
+        private Color GetFillColor(float heat01)
+        {
+            float warningFraction = Mathf.Clamp01(_settings.OverheatBarWarningFraction);
+            float criticalBlend = warningFraction >= 1f
+                ? 0f
+                : Mathf.Clamp01((heat01 - warningFraction) / (1f - warningFraction));
+            Color fill = Color.Lerp(
+                _settings.OverheatBarCoolColor,
+                _settings.OverheatBarCriticalColor,
+                criticalBlend);
+            if (!_launcher.IsVenting)
+            {
+                return fill;
+            }
+
+            float pulse = (Mathf.Sin(
+                Time.unscaledTime * _settings.OverheatBarVentPulseSpeed * Mathf.PI * 2f) + 1f) * 0.5f;
+            Color venting = _settings.OverheatBarVentingColor;
+            return Color.Lerp(
+                venting,
+                Color.Lerp(venting, fill, Mathf.Clamp01(_settings.OverheatBarVentPulseStrength)),
+                pulse);
+        }
+
+        private void DrawVentingLabel(Rect track, float scale)
+        {
+            if (!_launcher.IsVenting || string.IsNullOrEmpty(_settings.OverheatBarVentingLabel))
+            {
+                return;
+            }
+
+            _ventingLabelStyle ??= new GUIStyle(GUI.skin.label)
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Bold,
+                clipping = TextClipping.Clip,
+            };
+            _ventingLabelStyle.fontSize = Mathf.Max(
+                1,
+                Mathf.RoundToInt(_settings.OverheatBarVentingLabelFontSize * scale));
+            _ventingLabelStyle.normal.textColor =
+                ScaleAlpha(_settings.OverheatBarVentingColor, _visibleAlpha);
+
+            GUI.Label(
+                new Rect(
+                    track.center.x - (_settings.HudLabelWidth * scale * 0.5f),
+                    track.yMax + (_settings.OverheatBarVentingLabelOffset * scale),
+                    _settings.HudLabelWidth * scale,
+                    _settings.HudLabelHeight * scale),
+                _settings.OverheatBarVentingLabel,
+                _ventingLabelStyle);
+        }
+
+        private static Color ScaleAlpha(Color color, float alpha)
+        {
+            color.a *= Mathf.Clamp01(alpha);
+            return color;
+        }
+
+        private static void DrawBorder(Rect rect, float thickness, Color color)
+        {
+            if (thickness <= 0f || color.a <= 0f)
+            {
+                return;
+            }
+
+            DrawRect(new Rect(rect.x, rect.y, rect.width, thickness), color);
+            DrawRect(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), color);
+            DrawRect(new Rect(rect.x, rect.y, thickness, rect.height), color);
+            DrawRect(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), color);
+        }
+
+        private static void DrawRect(Rect rect, Color color)
+        {
+            if (color.a <= 0f)
+            {
+                return;
+            }
+
             Color previousColor = GUI.color;
             GUI.color = color;
             GUI.DrawTexture(rect, Texture2D.whiteTexture);

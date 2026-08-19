@@ -2991,6 +2991,58 @@ namespace DuneVector
         [Tooltip("Ship-relative launch offset from the drone center.")]
         public Vector3 MuzzleOffset = new Vector3(0f, 0.2f, 2.4f);
 
+        [Header("Overheat")]
+        [Tooltip("Firing builds heat. Reaching capacity forces a vent that blocks fire until the barrel cools.")]
+        public bool OverheatEnabled = true;
+        [Tooltip("Heat units the launcher holds before it overheats and vents.")]
+        [Min(1f)] public float HeatCapacity = 100f;
+        [Tooltip("Heat units added by each shot.")]
+        [Min(0f)] public float HeatPerShot = 11f;
+        [Tooltip("Heat units shed per second during normal cooling.")]
+        [Min(0f)] public float HeatCoolingRate = 34f;
+        [Tooltip("Seconds after the last shot before normal cooling starts.")]
+        [Min(0f)] public float HeatCoolingDelay = 0.35f;
+        [Tooltip("Heat units shed per second while venting after an overheat.")]
+        [Min(0f)] public float OverheatVentCoolingRate = 48f;
+        [Tooltip("Heat must fall to this fraction of capacity before firing resumes after an overheat.")]
+        [Range(0f, 1f)] public float OverheatRecoveryFraction = 0.2f;
+
+        [Header("Overheat HUD")]
+        [Tooltip("Draw the overheat bar beneath the screen-center aim reticle.")]
+        public bool OverheatBarEnabled = true;
+        [Tooltip("Screen-center offset of the bar in reference-height pixels. Positive Y is downward.")]
+        public Vector2 OverheatBarScreenOffset = new Vector2(0f, 104f);
+        [Min(8f)] public float OverheatBarWidth = 172f;
+        [Min(2f)] public float OverheatBarHeight = 9f;
+        [Min(0f)] public float OverheatBarBorderThickness = 1.5f;
+        [Tooltip("Tick marks drawn across the bar track. Zero hides them.")]
+        [Min(0)] public int OverheatBarSegmentCount = 8;
+        [Min(0.5f)] public float OverheatBarSegmentWidth = 1f;
+        [Tooltip("Heat fraction where the fill starts blending toward the critical color.")]
+        [Range(0f, 1f)] public float OverheatBarWarningFraction = 0.65f;
+        [Tooltip("Fill catch-up sharpness. Higher reaches the true heat value faster.")]
+        [Min(0f)] public float OverheatBarFillSharpness = 22f;
+        [Tooltip("Flash cycles per second applied to the fill while venting.")]
+        [Min(0f)] public float OverheatBarVentPulseSpeed = 6f;
+        [Range(0f, 1f)] public float OverheatBarVentPulseStrength = 0.5f;
+        [Tooltip("Seconds the bar stays fully visible after heat returns to zero.")]
+        [Min(0f)] public float OverheatBarIdleFadeDelay = 0.7f;
+        [Tooltip("Alpha the bar fades to once cold and idle.")]
+        [Range(0f, 1f)] public float OverheatBarIdleAlpha = 0f;
+        [Tooltip("Alpha units per second used when fading the bar in and out.")]
+        [Min(0f)] public float OverheatBarFadeSpeed = 3.5f;
+        [ColorUsage(false)] public Color OverheatBarTrackColor = new Color(0.04f, 0.07f, 0.09f, 0.68f);
+        [ColorUsage(false)] public Color OverheatBarBorderColor = new Color(0.72f, 0.96f, 1f, 0.55f);
+        [ColorUsage(false)] public Color OverheatBarSegmentColor = new Color(0.72f, 0.96f, 1f, 0.22f);
+        [ColorUsage(false)] public Color OverheatBarCoolColor = new Color(0.15f, 0.86f, 1f, 0.95f);
+        [ColorUsage(false)] public Color OverheatBarCriticalColor = new Color(1f, 0.62f, 0.12f, 0.98f);
+        [ColorUsage(false)] public Color OverheatBarVentingColor = new Color(1f, 0.24f, 0.2f, 1f);
+        [Tooltip("Text shown beneath the bar while the launcher is venting.")]
+        public string OverheatBarVentingLabel = "OVERHEAT";
+        [Min(8)] public int OverheatBarVentingLabelFontSize = 13;
+        [Tooltip("Gap in reference-height pixels between the bar and the venting label.")]
+        [Min(0f)] public float OverheatBarVentingLabelOffset = 8f;
+
         [Header("Projectile Feedback")]
         [Tooltip("Resources path of the shot sprite drawn in place of the energy core.")]
         public string ShotSpriteResourcePath = "UI/T_SentryShot";
