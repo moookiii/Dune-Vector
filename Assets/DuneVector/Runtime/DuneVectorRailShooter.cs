@@ -2380,7 +2380,10 @@ namespace DuneVector
                     _player.transform.position.z - _settings.EnvironmentRecycleBehindDistance)
                 {
                     _furthestSatelliteZ += _settings.SatelliteSpacing;
-                    ResetSatellite(satellite, _furthestSatelliteZ);
+                    ResetSatellite(
+                        satellite,
+                        _furthestSatelliteZ,
+                        i + Mathf.RoundToInt(_state.Distance / Mathf.Max(1f, _settings.SatelliteSpacing)));
                 }
                 if (!satellite.Active)
                 {
@@ -3327,7 +3330,7 @@ namespace DuneVector
             for (int i = 0; i < _satellites.Count; i++)
             {
                 _furthestSatelliteZ += _settings.SatelliteSpacing;
-                ResetSatellite(_satellites[i], _furthestSatelliteZ);
+                ResetSatellite(_satellites[i], _furthestSatelliteZ, i);
             }
             for (int i = 0; i < _speedStreaks.Count; i++)
             {
@@ -3441,9 +3444,10 @@ namespace DuneVector
             ApplyRailCursorState();
         }
 
-        private void ResetSatellite(RailSatellite satellite, float z)
+        private void ResetSatellite(RailSatellite satellite, float z, int sequence)
         {
-            bool obstructFlightPath = NextFloat(0f, 1f) < _settings.SatellitePathSpawnChance;
+            int pathInterval = Mathf.Max(1, _settings.SatellitePathSpawnInterval);
+            bool obstructFlightPath = Mathf.Abs(sequence) % pathInterval == 0;
             float extent = obstructFlightPath
                 ? Mathf.Max(0f, _settings.SatellitePathHalfExtent)
                 : Mathf.Max(0f, _settings.SatellitePlaneHalfExtent);
