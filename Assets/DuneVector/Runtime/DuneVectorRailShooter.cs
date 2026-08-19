@@ -1861,7 +1861,11 @@ namespace DuneVector
             }
             if (_waveIndex >= _settings.PatternUnlockWaveRing)
             {
-                _patternCandidates.Add(RailShooterBulletPattern.Ring);
+                int ringWeight = Mathf.Max(1, _settings.RingPatternSelectionWeight);
+                for (int i = 0; i < ringWeight; i++)
+                {
+                    _patternCandidates.Add(RailShooterBulletPattern.Ring);
+                }
             }
             if (_waveIndex >= _settings.PatternUnlockWaveWeave)
             {
@@ -1910,7 +1914,10 @@ namespace DuneVector
                     FireWeavingBullets(source, source.Elite ? 4 : 2);
                     break;
                 default:
-                    FireAimedBullets(source, 1, 0f);
+                    FireAimedBullets(
+                        source,
+                        Mathf.Max(1, (_settings.GruntSpreadBulletCount + 1) / 2),
+                        _settings.GruntSpreadAngle * 0.5f);
                     break;
             }
         }

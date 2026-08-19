@@ -7839,6 +7839,12 @@ namespace DuneVector
         public string StrikeLabel = "SIGIL STRUCK";
         public string HintLabel = "HOLD LMB TO PAINT // DRAW THE WHOLE GLYPH";
         public string ReleaseHintLabel = "RELEASE LMB TO SUBMIT";
+        [Tooltip("Backing plate drawn behind the trace prompt and countdown so they stay readable against the starfield.")]
+        [Min(0f)] public float PromptPanelWidth = 560f;
+        [Min(0f)] public float PromptPanelPadding = 10f;
+        [Min(0f)] public float PromptChainPipSize = 9f;
+        [Min(0f)] public float PromptChainPipGap = 6f;
+        [Min(0f)] public float CountdownBarSegmentWidth = 1f;
 
         [Header("Sigil Audio")]
         public string SpawnEvent = "event:/Alert";
@@ -8115,7 +8121,7 @@ namespace DuneVector
         [Min(1f)] public float EnemyProjectileSpeed = 62f;
         [Min(0.01f)] public float EnemyProjectileLifetime = 5f;
         [Min(0.01f)] public float EnemyProjectileRadius = 0.8f;
-        [Min(0.01f)] public float EnemyFireInterval = 1.45f;
+        [Min(0.01f)] public float EnemyFireInterval = 0.95f;
         [Min(0f)] public float EnemyPredictiveLeadSeconds = 0.55f;
         [Min(0f)] public float EnemyStrafeAmplitude = 13f;
         [Min(0f)] public float EnemyStrafeFrequency = 1.3f;
@@ -8137,7 +8143,7 @@ namespace DuneVector
         [Tooltip("Enables the layered bullet-hell fire patterns. Disable to fall back to single aimed bolts.")]
         public bool BulletPatternsEnabled = true;
         [Tooltip("Hard cap on live enemy bullets so a dense screen still stays readable and dodgeable.")]
-        [Min(1)] public int MaximumActiveEnemyBullets = 170;
+        [Min(1)] public int MaximumActiveEnemyBullets = 260;
         [Tooltip("Seconds a fresh bullet stays harmless while it fades in, guaranteeing a reaction window.")]
         [Min(0f)] public float BulletArmDuration = 0.16f;
         [Tooltip("Seconds a bullet takes to grow from its spawn spark to full size.")]
@@ -8145,11 +8151,13 @@ namespace DuneVector
         [Tooltip("Tight bullet-hell hit radius used only against enemy bullets, separate from the wider collision radius.")]
         [Min(0.05f)] public float BulletPlayerHitRadius = 1.05f;
         [Tooltip("Bullets in a spread pattern fired by a regular hostile.")]
-        [Min(1)] public int GruntSpreadBulletCount = 3;
+        [Min(1)] public int GruntSpreadBulletCount = 7;
         [Tooltip("Total arc a regular hostile spread covers, in degrees.")]
-        [Min(0f)] public float GruntSpreadAngle = 24f;
+        [Min(0f)] public float GruntSpreadAngle = 42f;
         [Tooltip("Bullets in the omnidirectional ring a regular hostile can release.")]
         [Min(2)] public int GruntRingBulletCount = 12;
+        [Tooltip("Relative chance for regular hostiles to choose a blue ring whenever that pattern is unlocked.")]
+        [Min(1)] public int RingPatternSelectionWeight = 2;
         [Tooltip("Ring bullets travel at this fraction of the base bullet speed so rings stay weaveable.")]
         [Min(0.05f)] public float RingBulletSpeedMultiplier = 0.72f;
         [Tooltip("Half-angle of the cone rings and spirals expand into as they close on the drone. Wide angles scatter the pattern past the flight bounds before it arrives.")]
@@ -8207,16 +8215,16 @@ namespace DuneVector
         [Min(0f)] public float BossApproachLeadDistance = 420f;
         [Min(0f)] public float BossPhaseTwoHealthFraction = 0.66f;
         [Min(0f)] public float BossPhaseThreeHealthFraction = 0.33f;
-        [Min(0.01f)] public float BossFireInterval = 0.62f;
+        [Min(0.01f)] public float BossFireInterval = 0.38f;
         [Min(0.01f)] public float BossLaneAttackInterval = 5.2f;
-        [Min(1)] public int BossProjectileFanCount = 7;
-        [Min(0f)] public float BossProjectileFanAngle = 36f;
+        [Min(1)] public int BossProjectileFanCount = 13;
+        [Min(0f)] public float BossProjectileFanAngle = 56f;
         [Min(0)] public int BossKillScore = 6500;
         [Min(0)] public int BossGoldReward = 450;
         [Min(0f)] public float BossContactDamage = 34f;
         [Tooltip("Bullets in the boss omnidirectional ring burst.")]
         [Min(3)] public int BossRingBulletCount = 16;
-        [Min(0.05f)] public float BossRingInterval = 3.6f;
+        [Min(0.05f)] public float BossRingInterval = 1.8f;
         [Tooltip("Rotating spiral arms the boss sweeps across the rift.")]
         [Min(1)] public int BossSpiralArms = 3;
         [Min(0.02f)] public float BossSpiralShotInterval = 0.1f;
@@ -8393,6 +8401,135 @@ namespace DuneVector
         public string RiskRouteLabel = "BLACK ROUTE";
         public string ControlsLabel = "WASD MOVE   SHIFT BOOST   CTRL BRAKE   SPACE MANEUVER   LMB FIRE/CHARGE   RMB/Q BOMB   MOUSE DRAWS SIGILS";
 
+        [Header("Rail HUD Layout")]
+        [Tooltip("Screen height the rail HUD chrome was authored against. Panels, fonts, and meters scale from this so the readout keeps its proportion on any display.")]
+        [Min(240f)] public float HudReferenceHeight = 1080f;
+        [Range(0.25f, 2f)] public float HudMinimumScale = 0.72f;
+        [Range(0.25f, 3f)] public float HudMaximumScale = 1.6f;
+        [Min(0f)] public float HudPanelCornerLength = 18f;
+        [Min(0f)] public float HudPanelAccentWidth = 3f;
+        [Min(0f)] public float HudPanelHeaderRuleHeight = 2f;
+        [Min(0f)] public float HudRowGap = 5f;
+        [Min(0f)] public float HudSectionGap = 11f;
+        [Min(0f)] public float HudDividerHeight = 1f;
+        [Min(0f)] public float HudPanelScanlineSpacing = 5f;
+        public Vector2 HudPanelShadowOffset = new Vector2(5f, 6f);
+        public Color HudPanelShadowColor = new Color(0f, 0.004f, 0.012f, 0.45f);
+        public Color HudPanelHeaderColor = new Color(0.03f, 0.09f, 0.13f, 0.92f);
+        public Color HudPanelScanlineColor = new Color(0.28f, 0.78f, 0.92f, 0.05f);
+        public Color HudDividerColor = new Color(0.14f, 0.5f, 0.6f, 0.5f);
+
+        [Header("Rail HUD Meters")]
+        public Color HudMeterTrackColor = new Color(0.015f, 0.04f, 0.06f, 0.92f);
+        [Min(0f)] public float HudMeterInset = 2f;
+        [Range(0, 40)] public int HudMeterSegmentCount = 12;
+        [Min(0f)] public float HudMeterSegmentWidth = 1f;
+        public Color HudMeterSegmentColor = new Color(0f, 0.02f, 0.03f, 0.6f);
+        [Min(0f)] public float HudMeterCapWidth = 2f;
+        [Range(0f, 1f)] public float HudMeterCapOpacity = 0.9f;
+        [Tooltip("Seconds the trailing damage ghost holds before it drains toward the live hull value.")]
+        [Min(0f)] public float HudMeterGhostHoldDuration = 0.35f;
+        [Tooltip("Normalized meter fill drained per second by the trailing damage ghost.")]
+        [Min(0f)] public float HudMeterGhostDrainSpeed = 0.5f;
+        public Color HudMeterGhostColor = new Color(1f, 0.34f, 0.28f, 0.6f);
+
+        [Header("Rail HUD Readouts")]
+        public string ScoreLabel = "SCORE";
+        public string ScoreValueFormat = "{0:0000000}";
+        [Tooltip("Score points per second the displayed score counts toward the awarded total.")]
+        [Min(0f)] public float ScoreTickerSpeed = 2600f;
+        public string KillsLabel = "HIT";
+        public string KillsValueFormat = "{0:000}";
+        public string ComboLabel = "COMBO";
+        public string ComboValueFormat = "x{0:0.0}";
+        public string FormationsLabel = "FORMATIONS";
+        public string FormationsValueFormat = "{0:00}";
+        public string HullLabel = "RIFT HULL";
+        public string HullValueFormat = "{0:000}%";
+        public string BombsLabel = "BOMBS";
+        public string BombsValueFormat = "{0} / {1}";
+        public string ManeuverLabel = "MANEUVER";
+        public string ManeuverValueFormat = "{0:000}%";
+        public string ManeuverReadyLabel = "READY";
+        public string ChargeLabel = "CHARGE // PENETRATION";
+        public string ChargeLockFormat = "CHARGE // LOCK {0:00}";
+        public string ChargeReadyLabel = "CHARGE READY // RELEASE";
+        public string DepthValueFormat = "{0} M";
+        public string StatusPanelTitle = "RIFT STATUS";
+        [Min(0f)] public float HudReadyPulseSpeed = 7f;
+        [Min(0f)] public float BombPipSize = 15f;
+        [Min(0f)] public float BombPipGap = 6f;
+        [Min(0f)] public float RouteChipPadding = 9f;
+        [Min(0f)] public float RouteChipHeight = 19f;
+        [Tooltip("Width of the marker drawn on the depth meter at the rift distance where the sovereign spawns.")]
+        [Min(0f)] public float DepthBossMarkerWidth = 2f;
+
+        [Header("Rail HUD Boss Meter")]
+        [Min(0f)] public float BossMeterHeight = 68f;
+        [Range(1, 12)] public int BossMeterPhaseCount = 4;
+        public string BossHealthFormat = "{0:000}%";
+
+        [Header("Rail HUD Threat Indicators")]
+        [Tooltip("Screen-edge chevrons pointing at hostiles that are alive but outside the view.")]
+        public bool ThreatIndicatorsEnabled = true;
+        [Min(0f)] public float ThreatIndicatorEdgeMargin = 62f;
+        [Min(0f)] public float ThreatIndicatorSize = 17f;
+        [Range(1, 16)] public int ThreatIndicatorMaximumCount = 6;
+        [Min(0f)] public float ThreatIndicatorRange = 340f;
+        public Color ThreatIndicatorColor = new Color(1f, 0.42f, 0.32f, 0.85f);
+        public Color ThreatIndicatorEliteColor = new Color(1f, 0.72f, 0.2f, 0.95f);
+
+        [Header("Rail HUD Warnings")]
+        [Min(0f)] public float LowHullEdgeThickness = 30f;
+        [Range(0f, 1f)] public float LowHullEdgeOpacity = 0.32f;
+
+        [Header("Rail HUD Banner")]
+        [Min(0f)] public float BannerWidth = 720f;
+        [Min(0f)] public float BannerHeight = 118f;
+        [Range(0f, 1f)] public float BannerViewportY = 0.32f;
+        [Min(0f)] public float BannerRuleHeight = 2f;
+
+        [Header("Rail HUD Route Prompt")]
+        [Range(0f, 1f)] public float RoutePromptViewportY = 0.2f;
+        [Min(0f)] public float RoutePromptWidth = 440f;
+        [Min(0f)] public float RoutePromptHeight = 34f;
+        [Min(0f)] public float GateLabelWidth = 250f;
+        [Min(0f)] public float GateLabelHeight = 26f;
+        [Min(0f)] public float GateLabelVerticalOffset = 34f;
+        [Tooltip("Extra vertical separation applied when both gate chips would otherwise overlap on screen.")]
+        [Min(0f)] public float GateLabelSeparation = 34f;
+
+        [Header("Rail HUD Results")]
+        [Min(0f)] public float ResultsPanelWidth = 880f;
+        [Min(0f)] public float ResultsColumnGap = 30f;
+        [Min(0f)] public float ResultsRowStagger = 0.028f;
+        [Min(0f)] public float ResultsGradeBadgeSize = 96f;
+        [Min(0f)] public float ResultsSectionLabelHeight = 22f;
+        public string ResultsSuccessLabel = "RIFT INTERCEPT CLEARED";
+        public string ResultsFailureLabel = "EMERGENCY EXTRACTION";
+        public string ResultsGradeLabel = "COMBAT RATING";
+        public string ResultsCombatSectionLabel = "COMBAT LOG";
+        public string ResultsRunSectionLabel = "RUN LOG";
+        public string ResultsScoreLabel = "SCORE";
+        public string ResultsKillsLabel = "HOSTILES DOWNED";
+        public string ResultsFormationsLabel = "FORMATION CLEARS";
+        public string ResultsChargeKillsLabel = "CHARGED KILLS";
+        public string ResultsDeflectionsLabel = "PROJECTILES DEFLECTED";
+        public string ResultsGrazesLabel = "BULLETS GRAZED";
+        public string ResultsPickupsLabel = "PICKUPS RECOVERED";
+        public string ResultsSigilsLabel = "SIGILS BROKEN";
+        public string ResultsChainSigilsLabel = "CHOIR CHAINS BROKEN";
+        public string ResultsSigilStrikesLabel = "SIGIL STRIKES TAKEN";
+        public string ResultsRouteGatesLabel = "ROUTE GATES";
+        public string ResultsDepthLabel = "RIFT DEPTH";
+        public string ResultsDistanceBonusLabel = "DISTANCE BONUS";
+        public string ResultsFlawlessLabel = "FLAWLESS RUN";
+        public string ResultsPayoutLabel = "COMBAT PAYOUT";
+        public string ResultsGoldFormat = "+{0} GOLD";
+        public string ResultsAffirmativeLabel = "YES";
+        public string ResultsNegativeLabel = "NO";
+        public string ResultsRouteGateFormat = "{0:00} / {1:00}";
+
         [Header("Rail Audio")]
         [Tooltip("FMOD events played by the rift intercept. Leave any entry blank to silence that cue.")]
         public string FireEvent = "event:/Drone_Fire";
@@ -8429,6 +8566,8 @@ namespace DuneVector
                 SpeedStreakConeOuterRadius);
             SpeedStreakDepth = Mathf.Max(SpeedStreakNearDistance + 1f, SpeedStreakDepth);
             RiftFogEndDistance = Mathf.Max(RiftFogStartDistance + 1f, RiftFogEndDistance);
+            HudMaximumScale = Mathf.Max(HudMinimumScale, HudMaximumScale);
+            ResultsPanelWidth = Mathf.Max(320f, ResultsPanelWidth);
             Sigils ??= new RailSigilTuning();
             Sigils.EnsureInitialized();
         }
