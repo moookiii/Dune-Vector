@@ -7704,8 +7704,6 @@ namespace DuneVector
         [Min(0f)] public float AttitudeInputSharpness = 10f;
         [Min(0f)] public float AttitudeReturnSharpness = 3.8f;
         [Range(0f, 0.5f)] public float RecenterInputDeadzone = 0.08f;
-        [Min(0f)] public float PositionRecenterDelay = 0.12f;
-        [Min(0f)] public float PositionRecenterSharpness = 1.35f;
         [Tooltip("Horizontal or vertical distance from the rail start that triggers a floating-origin rebase. The drone returns to its start while all pooled rail-space objects shift with it.")]
         [Min(1f)] public float FlightRebaseDistance = 100f;
         [Range(0f, 60f)] public float MaximumYaw = 24f;

@@ -256,7 +256,6 @@ namespace DuneVector
         private bool _rewardCommitted;
         private float _cameraShake;
         private float _fovImpulse;
-        private float _timeSinceSteeringInput;
         private int _difficulty = 1;
         private Vector3 _cameraBasePosition;
         private Vector2 _aimViewport = new Vector2(0.5f, 0.5f);
@@ -378,7 +377,6 @@ namespace DuneVector
             _resultSuccess = false;
             _cameraShake = 0f;
             _fovImpulse = 0f;
-            _timeSinceSteeringInput = 0f;
             _aimViewport = new Vector2(0.5f, 0.5f);
             _hitMarkerElapsed = float.PositiveInfinity;
             _killMarkerElapsed = float.PositiveInfinity;
@@ -483,9 +481,6 @@ namespace DuneVector
 
             bool steering = command.Move.sqrMagnitude >
                 _settings.RecenterInputDeadzone * _settings.RecenterInputDeadzone;
-            _timeSinceSteeringInput = steering
-                ? 0f
-                : _timeSinceSteeringInput + deltaTime;
             Vector2 targetVelocity = steering
                 ? command.Move * _settings.LateralSpeed
                 : Vector2.zero;
@@ -494,13 +489,6 @@ namespace DuneVector
                 targetVelocity,
                 DuneVectorMath.Sharpness(_settings.LateralAccelerationSharpness, deltaTime));
             _state.FlightOffset += _state.LateralVelocity * deltaTime;
-            if (!steering && _timeSinceSteeringInput >= _settings.PositionRecenterDelay)
-            {
-                _state.FlightOffset = Vector2.Lerp(
-                    _state.FlightOffset,
-                    Vector2.zero,
-                    DuneVectorMath.Sharpness(_settings.PositionRecenterSharpness, deltaTime));
-            }
             RebaseFlightSpaceIfNeeded();
             float attitudeSharpness = steering
                 ? _settings.AttitudeInputSharpness
