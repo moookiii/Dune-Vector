@@ -8331,10 +8331,10 @@ namespace DuneVector
         [Header("Environment Obstacles")]
         public GameObject SatellitePrefab;
         public GameObject SatelliteExplosionPrefab;
-        [Min(1)] public int SatellitePoolSize = 12;
-        [Min(1f)] public float SatelliteSpacing = 92f;
+        [Min(1)] public int SatellitePoolSize = 30;
+        [Min(1f)] public float SatelliteSpacing = 52f;
         [Min(0f)] public float SatelliteSpawnAheadDistance = 110f;
-        [Min(0f)] public float SatellitePlaneHalfExtent = 100f;
+        [Min(0f)] public float SatellitePlaneHalfExtent = 58f;
         [Tooltip("Every Nth satellite is placed close to the current flight path; the satellites between use the full procedural plane.")]
         [Min(1)] public int SatellitePathSpawnInterval = 3;
         [Tooltip("Maximum horizontal and vertical offset for satellites selected to obstruct the current flight path.")]
