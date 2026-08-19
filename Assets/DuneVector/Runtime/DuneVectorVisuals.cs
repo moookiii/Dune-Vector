@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -369,12 +369,7 @@ namespace DuneVector
             {
                 Debug.LogError("Coin rings require Assets/DuneVector/Resources/coin.glb.");
             }
-            Trail = CreateLit(
-                "Drone - Trail",
-                droneVisuals.TrailColor,
-                droneVisuals.TrailSmoothness,
-                droneVisuals.TrailMetallic,
-                droneVisuals.TrailEmission);
+            Trail = CreateTrailMaterial("Drone - Trail", droneVisuals);
             MusicReactiveAdditive = CreateMusicReactiveAdditive(runtimeSettings.MusicReactiveSky);
             Cloud = CreateLit(
                 "Cloud - Sunlit",
@@ -726,6 +721,37 @@ namespace DuneVector
             {
                 material.SetColor("_EmissionColor", emission.Value);
                 material.EnableKeyword("_EMISSION");
+            }
+
+            _ownedMaterials.Add(material);
+            return material;
+        }
+
+        private Material CreateTrailMaterial(string name, DroneVisualTuning settings)
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+            if (shader == null)
+            {
+                shader = Shader.Find("Universal Render Pipeline/Unlit");
+            }
+
+            if (shader == null)
+            {
+                throw new InvalidOperationException("Dune Vector requires a URP unlit shader for the drone speed trail.");
+            }
+
+            Material material = new Material(shader) { name = name };
+            material.enableInstancing = true;
+            // The trail ribbon carries its blue-to-white blend in vertex colours, which are clamped to
+            // low dynamic range, so the HDR intensity has to live in the material tint instead.
+            float intensity = DuneVectorVisuals.TrailEmissionIntensity(settings);
+            if (material.HasProperty("_BaseColor"))
+            {
+                material.SetColor("_BaseColor", new Color(intensity, intensity, intensity, 1f));
+            }
+            if (material.HasProperty("_EmissionColor"))
+            {
+                material.SetColor("_EmissionColor", Color.black);
             }
 
             _ownedMaterials.Add(material);
@@ -5331,8 +5357,45 @@ namespace DuneVector
             trail.endWidth = settings.TrailEndWidth;
             trail.minVertexDistance = settings.TrailMinimumVertexDistance;
             trail.emitting = true;
+            trail.colorGradient = BuildTrailGradient(settings);
             trail.shadowCastingMode = ShadowCastingMode.Off;
             trail.receiveShadows = false;
+        }
+
+        internal static float TrailEmissionIntensity(DroneVisualTuning settings)
+        {
+            float peak = Mathf.Max(
+                settings.TrailEmission.maxColorComponent,
+                settings.TrailTailEmission.maxColorComponent);
+            return Mathf.Max(1f, peak);
+        }
+
+        private static Gradient BuildTrailGradient(DroneVisualTuning settings)
+        {
+            float intensity = TrailEmissionIntensity(settings);
+            Color head = NormalizeTrailColor(settings.TrailEmission, intensity);
+            Color tail = NormalizeTrailColor(settings.TrailTailEmission, intensity);
+            float tailStart = Mathf.Clamp01(1f - settings.TrailTailColorFraction);
+
+            Gradient gradient = new Gradient();
+            gradient.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(head, 0f),
+                    new GradientColorKey(tail, tailStart),
+                    new GradientColorKey(tail, 1f),
+                },
+                new[]
+                {
+                    new GradientAlphaKey(1f, 0f),
+                    new GradientAlphaKey(1f, 1f),
+                });
+            return gradient;
+        }
+
+        private static Color NormalizeTrailColor(Color color, float intensity)
+        {
+            return new Color(color.r / intensity, color.g / intensity, color.b / intensity, 1f);
         }
     }
 

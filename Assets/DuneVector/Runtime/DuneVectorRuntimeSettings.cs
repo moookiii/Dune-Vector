@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
@@ -2711,6 +2711,10 @@ namespace DuneVector
         [Min(0f)] public float TrailStartWidth = 0.065f;
         [Min(0f)] public float TrailEndWidth;
         [Min(0.001f)] public float TrailMinimumVertexDistance = 0.12f;
+        [Tooltip("Colour the far end of the speed trail fades into. The trail leaves the drone at Trail Emission and blends to this along its length.")]
+        [ColorUsage(false, true)] public Color TrailTailEmission = new Color(1.4f, 1.4f, 1.4f);
+        [Tooltip("Fraction of the trail's length, measured back from its oldest end, held at Trail Tail Emission before the blend back toward Trail Emission begins.")]
+        [Range(0f, 1f)] public float TrailTailColorFraction = 0.33f;
     }
 
     [System.Serializable]
