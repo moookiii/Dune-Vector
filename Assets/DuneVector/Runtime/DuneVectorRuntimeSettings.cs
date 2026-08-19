@@ -3166,14 +3166,18 @@ namespace DuneVector
         [Range(0.05f, 0.95f)] public float GroundWarningInnerRingRadiusFraction = 0.55f;
         [Tooltip("Thickness of the inner danger ring as a fraction of the strike radius.")]
         [Range(0.005f, 0.3f)] public float GroundWarningInnerRingThickness = 0.03f;
-        [Tooltip("Radial spokes drawn across the danger zone so it reads from directly overhead. Set to 0 for rings only.")]
-        [Range(0, 12)] public int GroundWarningSpokeCount = 4;
-        [Tooltip("Width of each radial spoke as a fraction of the strike radius.")]
-        [Range(0.005f, 0.2f)] public float GroundWarningSpokeWidth = 0.028f;
+        [Tooltip("Arc segments the outer danger ring is broken into so the perimeter reads as machined instrument work. 0 draws one unbroken ring.")]
+        [Range(0, 12)] public int GroundWarningRingSegments = 4;
+        [Tooltip("Fraction of each outer ring segment's slot that is drawn, leaving the rest as a gap. 1 closes the ring.")]
+        [Range(0.05f, 1f)] public float GroundWarningRingFill = 0.87f;
         [Tooltip("Radius the closing countdown ring starts at, as a multiple of the strike radius. It shrinks onto the danger zone edge exactly as the charge begins.")]
         [Range(1f, 8f)] public float GroundWarningClosingRingStartMultiplier = 3.2f;
         [Tooltip("Thickness of the closing countdown ring as a fraction of the strike radius.")]
         [Range(0.005f, 0.3f)] public float GroundWarningClosingRingThickness = 0.05f;
+        [Tooltip("Arc segments the closing countdown ring is broken into. 0 draws one unbroken ring.")]
+        [Range(0, 12)] public int GroundWarningClosingRingSegments = 3;
+        [Tooltip("Fraction of each closing ring segment's slot that is drawn, leaving the rest as a gap. 1 closes the ring.")]
+        [Range(0.05f, 1f)] public float GroundWarningClosingRingFill = 0.52f;
         [Tooltip("Width of the vertical warning beam linking the pyramid to its impact point, as a fraction of the strike radius. Set to 0 to hide the beam.")]
         [Range(0f, 0.5f)] public float GroundWarningBeamWidth = 0.05f;
         [Tooltip("Pulse speed of the danger zone when the warning first appears.")]
@@ -3186,6 +3190,54 @@ namespace DuneVector
         [Min(0f)] public float GroundWarningBrightnessMultiplier = 1.6f;
         [Tooltip("Optional FMOD event played once when a ground strike warning appears. Leave empty for no sound.")]
         public string GroundWarningAudioEvent = string.Empty;
+
+        [Header("Ground Strike Warning Hazard Bezel")]
+        [Tooltip("Leaning hazard bars ringing the danger zone between its outer and inner rings. Set to 0 to hide the bezel.")]
+        [Range(0, 48)] public int GroundWarningBezelBarCount = 20;
+        [Tooltip("Radius the hazard bezel sits at as a fraction of the strike radius.")]
+        [Range(0.1f, 1f)] public float GroundWarningBezelRadiusFraction = 0.85f;
+        [Tooltip("Radial length of each hazard bar as a fraction of the strike radius.")]
+        [Range(0.01f, 0.5f)] public float GroundWarningBezelBarLength = 0.14f;
+        [Tooltip("Width and standing height of each hazard bar as a fraction of the strike radius.")]
+        [Range(0.004f, 0.2f)] public float GroundWarningBezelBarWidth = 0.026f;
+        [Tooltip("Lean of each hazard bar away from radial, in degrees, giving the bezel its swept blade look.")]
+        [Range(-80f, 80f)] public float GroundWarningBezelBarLean = 36f;
+        [Tooltip("Bezel spin in degrees per second when the warning first appears.")]
+        public float GroundWarningBezelSpinStart = 9f;
+        [Tooltip("Bezel spin in degrees per second in the last moments before the strike fires.")]
+        public float GroundWarningBezelSpinEnd = 64f;
+
+        [Header("Ground Strike Warning Sigil")]
+        [Tooltip("Sides of the sigil frame inscribed at the centre of the danger zone. 3 echoes the storm pyramid silhouette. Set to 0 to hide the frame.")]
+        [Range(0, 8)] public int GroundWarningSigilSides = 3;
+        [Tooltip("Radius of the sigil frame as a fraction of the strike radius.")]
+        [Range(0.05f, 0.9f)] public float GroundWarningSigilRadiusFraction = 0.5f;
+        [Tooltip("Thickness of each sigil frame bar as a fraction of the strike radius.")]
+        [Range(0.004f, 0.2f)] public float GroundWarningSigilBarThickness = 0.03f;
+        [Tooltip("Sigil spin in degrees per second when the warning first appears. Use the opposite sign to the bezel so the two counter-rotate.")]
+        public float GroundWarningSigilSpinStart = -13f;
+        [Tooltip("Sigil spin in degrees per second in the last moments before the strike fires.")]
+        public float GroundWarningSigilSpinEnd = -125f;
+        [Tooltip("Base width of the pyramid pip standing at the centre of the sigil, as a fraction of the strike radius. Set to 0 to hide the pip.")]
+        [Range(0f, 0.4f)] public float GroundWarningCorePipWidth = 0.11f;
+        [Tooltip("Height of the centre pip as a fraction of the strike radius.")]
+        [Range(0f, 1f)] public float GroundWarningCorePipHeight = 0.17f;
+
+        [Header("Ground Strike Warning Ion Columns")]
+        [Tooltip("Vertical ion columns standing on the sigil vertices so the danger zone still reads when the drone is low and the flat ground rings foreshorten away. Set to 0 to hide them.")]
+        [Range(0, 12)] public int GroundWarningIonColumnCount = 3;
+        [Tooltip("Radius the ion columns stand at as a fraction of the strike radius. Match this to Ground Warning Sigil Radius Fraction to seat them on the sigil vertices.")]
+        [Range(0.05f, 1f)] public float GroundWarningIonColumnRadiusFraction = 0.5f;
+        [Tooltip("Base width of each ion column as a fraction of the strike radius.")]
+        [Range(0.004f, 0.2f)] public float GroundWarningIonColumnWidth = 0.085f;
+        [Tooltip("Height of the ion columns when the warning first appears, as a fraction of the strike radius.")]
+        [Range(0f, 3f)] public float GroundWarningIonColumnHeightStart = 0.2f;
+        [Tooltip("Height of the ion columns in the last moments before the strike fires, as a fraction of the strike radius.")]
+        [Range(0f, 3f)] public float GroundWarningIonColumnHeightEnd = 0.62f;
+        [Tooltip("Extra height each ion column gains at the crest of the shimmer wave travelling around the sigil, as a fraction of its current height.")]
+        [Range(0f, 1f)] public float GroundWarningIonColumnShimmer = 0.24f;
+        [Tooltip("Speed of the shimmer wave travelling around the ion columns.")]
+        [Min(0f)] public float GroundWarningIonColumnShimmerSpeed = 5.5f;
 
         [Header("Ground Impact Effect")]
         [Tooltip("Optional effect spawned at the lightning strike point. If empty, the procedural ground shockwave is used.")]

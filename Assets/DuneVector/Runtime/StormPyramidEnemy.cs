@@ -815,6 +815,7 @@ namespace DuneVector
         private const int LightningSegments = 11;
         private readonly Vector3[] _lightningPositions = new Vector3[LightningSegments];
         private readonly List<Renderer> _warningRenderers = new List<Renderer>();
+        private readonly List<Transform> _ionColumns = new List<Transform>();
         private MaterialPropertyBlock _warningBlock;
         private Transform _owner;
         private Transform _origin;
@@ -824,6 +825,8 @@ namespace DuneVector
         private Transform _impactFlash;
         private Transform _warningZone;
         private Transform _closingRing;
+        private Transform _hazardBezel;
+        private Transform _warningSigil;
         private Transform _groundImpactWave;
         private Transform _spawnedGroundImpact;
         private LineRenderer _chargeLine;
@@ -836,6 +839,9 @@ namespace DuneVector
         private float _chargeDuration;
         private float _warningDuration;
         private float _warningPulsePhase;
+        private float _bezelSpinDegrees;
+        private float _sigilSpinDegrees;
+        private float _ionShimmerPhase;
         private float _strikeRadius;
         private float _strikeRadiusScale = 1f;
         private int _identity;
@@ -864,6 +870,9 @@ namespace DuneVector
             _impactFlash = _marker.Find("Strike Impact Flash");
             _warningZone = _marker.Find("Ground Warning Zone");
             _closingRing = _marker.Find("Closing Countdown Ring");
+            _hazardBezel = _warningZone != null ? _warningZone.Find("Hazard Bezel") : null;
+            _warningSigil = _warningZone != null ? _warningZone.Find("Warning Sigil") : null;
+            CacheIonColumns();
             CacheWarningRenderers();
             if (settings.GroundImpactPrefab == null)
             {
@@ -1078,6 +1087,9 @@ namespace DuneVector
             _strikeRadiusScale = _strikeRadius / Mathf.Max(0.1f, _settings.StrikeRadius);
             _timer = 0f;
             _warningPulsePhase = 0f;
+            _bezelSpinDegrees = 0f;
+            _sigilSpinDegrees = 0f;
+            _ionShimmerPhase = 0f;
             _firing = false;
             _marker.gameObject.SetActive(true);
             _marker.position = target.Position;
@@ -1123,8 +1135,67 @@ namespace DuneVector
                 _closingRing.localScale = Vector3.one * closingScale;
             }
 
+            AnimateWarningSigil(warning01);
             ApplyWarningPulse(warning01);
             UpdateWarningBeam(warning01);
+        }
+
+        /// <summary>
+        /// Counter-rotates the hazard bezel against the sigil and drives the ion columns up out of
+        /// the ground, both accelerating as the strike closes in. Everything here is authored at
+        /// the base strike radius, because the marker root already carries the risk-scaled radius.
+        /// </summary>
+        private void AnimateWarningSigil(float urgency01)
+        {
+            float urgency = Mathf.Clamp01(urgency01);
+            float deltaTime = Time.deltaTime;
+
+            if (_hazardBezel != null)
+            {
+                _bezelSpinDegrees += Mathf.Lerp(
+                    _settings.GroundWarningBezelSpinStart,
+                    _settings.GroundWarningBezelSpinEnd,
+                    urgency) * deltaTime;
+                _hazardBezel.localRotation = Quaternion.Euler(0f, _bezelSpinDegrees, 0f);
+            }
+
+            if (_warningSigil != null)
+            {
+                _sigilSpinDegrees += Mathf.Lerp(
+                    _settings.GroundWarningSigilSpinStart,
+                    _settings.GroundWarningSigilSpinEnd,
+                    urgency) * deltaTime;
+                _warningSigil.localRotation = Quaternion.Euler(0f, _sigilSpinDegrees, 0f);
+            }
+
+            if (_ionColumns.Count == 0)
+            {
+                return;
+            }
+
+            _ionShimmerPhase += deltaTime * Mathf.Max(0f, _settings.GroundWarningIonColumnShimmerSpeed);
+            float authoredRadius = Mathf.Max(0.2f, _settings.StrikeRadius);
+            float columnHeight = authoredRadius * Mathf.Lerp(
+                Mathf.Max(0f, _settings.GroundWarningIonColumnHeightStart),
+                Mathf.Max(0f, _settings.GroundWarningIonColumnHeightEnd),
+                urgency);
+            float shimmer = Mathf.Clamp01(_settings.GroundWarningIonColumnShimmer);
+            float phaseStep = (Mathf.PI * 2f) / _ionColumns.Count;
+            for (int i = 0; i < _ionColumns.Count; i++)
+            {
+                Transform column = _ionColumns[i];
+                if (column == null)
+                {
+                    continue;
+                }
+                float wave = Mathf.Sin(_ionShimmerPhase - (i * phaseStep) + _identity);
+                float height = columnHeight * (1f + (shimmer * wave));
+                Vector3 scale = column.localScale;
+                column.localScale = new Vector3(
+                    scale.x,
+                    Mathf.Max(0.0001f, height / DuneVectorVisuals.PyramidMeshApexHeight),
+                    scale.z);
+            }
         }
 
         private void ApplyWarningPulse(float urgency01)
@@ -1185,11 +1256,23 @@ namespace DuneVector
             }
             if (_closingRing != null)
             {
-                Renderer closingRenderer = _closingRing.GetComponent<Renderer>();
-                if (closingRenderer != null)
-                {
-                    _warningRenderers.Add(closingRenderer);
-                }
+                // The countdown ring is a parent over its arc segments, so its own transform
+                // carries no renderer of its own.
+                _warningRenderers.AddRange(_closingRing.GetComponentsInChildren<Renderer>(true));
+            }
+        }
+
+        private void CacheIonColumns()
+        {
+            _ionColumns.Clear();
+            Transform columns = _warningSigil != null ? _warningSigil.Find("Ion Columns") : null;
+            if (columns == null)
+            {
+                return;
+            }
+            for (int i = 0; i < columns.childCount; i++)
+            {
+                _ionColumns.Add(columns.GetChild(i));
             }
         }
 
@@ -1242,6 +1325,7 @@ namespace DuneVector
             {
                 _closingRing.localScale = Vector3.one;
             }
+            AnimateWarningSigil(1f);
             ApplyWarningPulse(1f);
             UpdateWarningBeam(1f);
             if (_halo != null)

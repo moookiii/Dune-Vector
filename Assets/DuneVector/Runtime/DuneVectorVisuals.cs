@@ -3530,53 +3530,46 @@ namespace DuneVector
             warningZone.SetParent(root, false);
             warningZone.localPosition = Vector3.up * Mathf.Max(0f, settings.GroundWarningHeightOffset);
 
+            // The perimeter is a broken ring of arcs rather than one closed circle. The gaps give
+            // the zone an orientation the eye can lock onto, so a drone reading it from a shallow
+            // angle can still tell which way the boundary is turning.
             float ringThickness = Mathf.Max(0.01f, radius * settings.GroundWarningRingThickness);
-            GameObject boundaryRing = CreateMeshObject(
+            CreateStormWarningRing(
                 "Danger Zone Ring",
                 warningZone,
-                GetTorusMesh(radius - ringThickness, ringThickness, 56, 6),
-                warningMaterial);
-            boundaryRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            DisableRendererShadows(boundaryRing);
+                warningMaterial,
+                radius - ringThickness,
+                ringThickness,
+                settings.GroundWarningRingSegments,
+                settings.GroundWarningRingFill);
 
             float innerRadius = Mathf.Max(
                 0.05f,
                 radius * Mathf.Clamp01(settings.GroundWarningInnerRingRadiusFraction));
             float innerThickness = Mathf.Max(0.008f, radius * settings.GroundWarningInnerRingThickness);
-            GameObject innerRing = CreateMeshObject(
+            CreateStormWarningRing(
                 "Danger Zone Inner Ring",
                 warningZone,
-                GetTorusMesh(innerRadius, innerThickness, 48, 6),
-                warningMaterial);
-            innerRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            DisableRendererShadows(innerRing);
+                warningMaterial,
+                innerRadius,
+                innerThickness,
+                0,
+                1f);
 
-            int spokeCount = Mathf.Clamp(settings.GroundWarningSpokeCount, 0, 12);
-            float spokeWidth = Mathf.Max(0.008f, radius * settings.GroundWarningSpokeWidth);
-            for (int i = 0; i < spokeCount; i++)
-            {
-                float angle = (360f / spokeCount) * i;
-                Quaternion rotation = Quaternion.Euler(0f, angle, 0f);
-                Transform spoke = CreatePart(
-                    PrimitiveType.Cube,
-                    $"Danger Zone Spoke {i + 1}",
-                    warningZone,
-                    rotation * (Vector3.forward * (radius * 0.5f)),
-                    new Vector3(spokeWidth, spokeWidth, radius),
-                    rotation,
-                    warningMaterial);
-                DisableRendererShadows(spoke.gameObject);
-            }
+            CreateStormWarningBezel(warningZone, warningMaterial, radius, settings);
+            Transform sigil = CreateStormWarningSigil(warningZone, warningMaterial, radius, settings);
+            CreateStormWarningIonColumns(sigil, warningMaterial, radius, settings);
 
             float closingThickness = Mathf.Max(0.01f, radius * settings.GroundWarningClosingRingThickness);
-            GameObject closingRing = CreateMeshObject(
+            Transform closingRing = CreateStormWarningRing(
                 "Closing Countdown Ring",
                 root,
-                GetTorusMesh(radius - closingThickness, closingThickness, 56, 6),
-                warningMaterial);
-            closingRing.transform.localPosition = Vector3.up * Mathf.Max(0f, settings.GroundWarningHeightOffset);
-            closingRing.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
-            DisableRendererShadows(closingRing);
+                warningMaterial,
+                radius - closingThickness,
+                closingThickness,
+                settings.GroundWarningClosingRingSegments,
+                settings.GroundWarningClosingRingFill);
+            closingRing.localPosition = Vector3.up * Mathf.Max(0f, settings.GroundWarningHeightOffset);
 
             Transform impactFlash = CreatePart(
                 PrimitiveType.Sphere,
@@ -3589,6 +3582,194 @@ namespace DuneVector
             DisableRendererShadows(impactFlash.gameObject);
             rootObject.SetActive(false);
             return root;
+        }
+
+        /// <summary>
+        /// Builds one flat ring of the ground warning under a parent already laid into the ground
+        /// plane, returning the ring transform so callers can scale or spin the whole ring. A
+        /// segment count of zero, or a fill of one, draws a single closed torus instead.
+        /// </summary>
+        private static Transform CreateStormWarningRing(
+            string name,
+            Transform parent,
+            Material material,
+            float majorRadius,
+            float tubeRadius,
+            int segments,
+            float fillFraction)
+        {
+            GameObject ringObject = new GameObject(name);
+            Transform ring = ringObject.transform;
+            ring.SetParent(parent, false);
+            ring.localRotation = Quaternion.Euler(90f, 0f, 0f);
+
+            float safeRadius = Mathf.Max(0.01f, majorRadius);
+            float safeTube = Mathf.Max(0.004f, tubeRadius);
+            int arcCount = Mathf.Clamp(segments, 0, 12);
+            float fill = Mathf.Clamp(fillFraction, 0.05f, 1f);
+            if (arcCount <= 0 || fill >= 0.999f)
+            {
+                GameObject band = CreateMeshObject(
+                    $"{name} Band",
+                    ring,
+                    GetTorusMesh(safeRadius, safeTube, 56, 6),
+                    material);
+                DisableRendererShadows(band);
+                return ring;
+            }
+
+            float slotDegrees = 360f / arcCount;
+            float sweepDegrees = slotDegrees * fill;
+            int arcSegments = Mathf.Clamp(Mathf.CeilToInt(sweepDegrees / 6f), 3, 48);
+            for (int i = 0; i < arcCount; i++)
+            {
+                GameObject arc = CreateMeshObject(
+                    $"{name} Arc {i + 1}",
+                    ring,
+                    GetArcTorusMesh(
+                        safeRadius,
+                        safeTube,
+                        arcSegments,
+                        6,
+                        (slotDegrees * i) - (sweepDegrees * 0.5f),
+                        sweepDegrees),
+                    material);
+                DisableRendererShadows(arc);
+            }
+            return ring;
+        }
+
+        /// <summary>
+        /// Ring of leaning blades sitting between the outer and inner boundary rings. The lean is
+        /// what stops the zone reading as plain concentric circles, and the standing height keeps
+        /// the bezel catching light after the flat rings have foreshortened to a line.
+        /// </summary>
+        private static Transform CreateStormWarningBezel(
+            Transform parent,
+            Material material,
+            float radius,
+            StormPyramidTuning settings)
+        {
+            GameObject bezelObject = new GameObject("Hazard Bezel");
+            Transform bezel = bezelObject.transform;
+            bezel.SetParent(parent, false);
+
+            int barCount = Mathf.Clamp(settings.GroundWarningBezelBarCount, 0, 48);
+            if (barCount <= 0)
+            {
+                return bezel;
+            }
+
+            float bezelRadius = radius * Mathf.Clamp01(settings.GroundWarningBezelRadiusFraction);
+            float barLength = Mathf.Max(0.01f, radius * settings.GroundWarningBezelBarLength);
+            float barWidth = Mathf.Max(0.004f, radius * settings.GroundWarningBezelBarWidth);
+            for (int i = 0; i < barCount; i++)
+            {
+                Quaternion placement = Quaternion.Euler(0f, (360f / barCount) * i, 0f);
+                Transform blade = CreatePart(
+                    PrimitiveType.Cube,
+                    $"Hazard Blade {i + 1}",
+                    bezel,
+                    placement * (Vector3.forward * bezelRadius),
+                    new Vector3(barWidth, barWidth, barLength),
+                    placement * Quaternion.Euler(0f, settings.GroundWarningBezelBarLean, 0f),
+                    material);
+                DisableRendererShadows(blade.gameObject);
+            }
+            return bezel;
+        }
+
+        /// <summary>
+        /// The mark at the middle of the zone is a polygon frame around a standing pyramid pip, so
+        /// the warning names the enemy that cast it instead of reading as generic crosshairs.
+        /// Returned so the caller can counter-rotate it against the bezel.
+        /// </summary>
+        private static Transform CreateStormWarningSigil(
+            Transform parent,
+            Material material,
+            float radius,
+            StormPyramidTuning settings)
+        {
+            GameObject sigilObject = new GameObject("Warning Sigil");
+            Transform sigil = sigilObject.transform;
+            sigil.SetParent(parent, false);
+
+            int sides = Mathf.Clamp(settings.GroundWarningSigilSides, 0, 8);
+            float sigilRadius = radius * Mathf.Clamp01(settings.GroundWarningSigilRadiusFraction);
+            float barThickness = Mathf.Max(0.004f, radius * settings.GroundWarningSigilBarThickness);
+            if (sides >= 3)
+            {
+                float halfSlot = Mathf.PI / sides;
+                float apothem = sigilRadius * Mathf.Cos(halfSlot);
+                float edgeLength = 2f * sigilRadius * Mathf.Sin(halfSlot);
+                for (int i = 0; i < sides; i++)
+                {
+                    Quaternion placement = Quaternion.Euler(0f, (360f / sides) * i, 0f);
+                    Transform edge = CreatePart(
+                        PrimitiveType.Cube,
+                        $"Sigil Edge {i + 1}",
+                        sigil,
+                        placement * (Vector3.forward * apothem),
+                        new Vector3(edgeLength + barThickness, barThickness, barThickness),
+                        placement,
+                        material);
+                    DisableRendererShadows(edge.gameObject);
+                }
+            }
+
+            float pipWidth = radius * Mathf.Max(0f, settings.GroundWarningCorePipWidth);
+            float pipHeight = radius * Mathf.Max(0f, settings.GroundWarningCorePipHeight);
+            if (pipWidth > 0f && pipHeight > 0f)
+            {
+                GameObject pip = CreateMeshObject("Sigil Core Pip", sigil, GetPyramidMesh(), material);
+                pip.transform.localScale = new Vector3(
+                    pipWidth * 0.5f,
+                    pipHeight / PyramidMeshApexHeight,
+                    pipWidth * 0.5f);
+                DisableRendererShadows(pip);
+            }
+            return sigil;
+        }
+
+        /// <summary>
+        /// Standing spires on the sigil vertices. Everything else in the warning lies flat, which
+        /// collapses to nothing when the drone is at ground level looking along a dune, so these
+        /// are the part of the mark that survives a shallow approach. Their height is animated.
+        /// </summary>
+        private static Transform CreateStormWarningIonColumns(
+            Transform parent,
+            Material material,
+            float radius,
+            StormPyramidTuning settings)
+        {
+            GameObject columnsObject = new GameObject("Ion Columns");
+            Transform columns = columnsObject.transform;
+            columns.SetParent(parent, false);
+
+            int columnCount = Mathf.Clamp(settings.GroundWarningIonColumnCount, 0, 12);
+            if (columnCount <= 0)
+            {
+                return columns;
+            }
+
+            float columnRadius = radius * Mathf.Clamp01(settings.GroundWarningIonColumnRadiusFraction);
+            float columnWidth = Mathf.Max(0.004f, radius * settings.GroundWarningIonColumnWidth);
+            for (int i = 0; i < columnCount; i++)
+            {
+                // Half a slot of offset lands the columns on the sigil vertices whenever the column
+                // count matches its side count, which is the authored pairing.
+                Quaternion placement = Quaternion.Euler(0f, (360f / columnCount) * (i + 0.5f), 0f);
+                GameObject column = CreateMeshObject(
+                    $"Ion Column {i + 1}",
+                    columns,
+                    GetPyramidMesh(),
+                    material);
+                column.transform.localPosition = placement * (Vector3.forward * columnRadius);
+                column.transform.localRotation = placement;
+                column.transform.localScale = new Vector3(columnWidth * 0.5f, 0f, columnWidth * 0.5f);
+                DisableRendererShadows(column);
+            }
+            return columns;
         }
 
         public static Transform CreateStormGroundImpactWave(
@@ -4815,12 +4996,18 @@ namespace DuneVector
             return mesh;
         }
 
+        /// <summary>
+        /// Apex height of the unscaled procedural pyramid mesh. Callers that need a pyramid of a
+        /// given world height divide by this rather than assuming a unit-tall mesh.
+        /// </summary>
+        public const float PyramidMeshApexHeight = 1.35f;
+
         private static Mesh CreatePyramidMesh()
         {
             Vector3[] vertices =
             {
                 new Vector3(-1f, 0f, -1f), new Vector3(1f, 0f, -1f), new Vector3(1f, 0f, 1f), new Vector3(-1f, 0f, 1f),
-                new Vector3(0f, 1.35f, 0f),
+                new Vector3(0f, PyramidMeshApexHeight, 0f),
             };
             int[] triangles =
             {
