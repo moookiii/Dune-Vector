@@ -49,6 +49,7 @@ namespace DuneVector
         public readonly bool FireReleased;
         public readonly bool BombPressed;
         public readonly bool TrickPressed;
+        public readonly bool ConfirmPressed;
 
         public RailShooterCommand(in DroneRawInputFrame input)
         {
@@ -60,6 +61,7 @@ namespace DuneVector
             FireReleased = input.FireReleased;
             BombPressed = input.BombPressed;
             TrickPressed = input.JumpPressed;
+            ConfirmPressed = input.ConfirmPressed;
         }
     }
 
@@ -2064,9 +2066,9 @@ namespace DuneVector
 
         private void TickResults(in RailShooterCommand command)
         {
-            bool skipRequested = _phaseElapsed >= _settings.ResultsSkipDelay &&
-                (command.FirePressed || command.BombPressed || command.TrickPressed);
-            if (_phaseElapsed < _settings.ResultHoldDuration && !skipRequested)
+            bool continueRequested = _phaseElapsed >= _settings.ResultsSkipDelay &&
+                (command.FirePressed || command.TrickPressed || command.ConfirmPressed);
+            if (!continueRequested)
             {
                 return;
             }
