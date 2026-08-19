@@ -1587,10 +1587,28 @@ namespace DuneVector
             _flyThroughTriggered = false;
             _facingLockedForClosePass = false;
             SetState(StormPyramidState.IdleHovering);
+            DuneVectorPortalEvents.PlayerCrossed += HandlePlayerCrossedPortal;
             DuneVectorPhotographableMarker.Register(
                 gameObject,
                 DuneVectorCompendiumSubjectIds.PlayerStrikeOrb,
                 PhotographableSubjectCategory.Enemy);
+        }
+
+        private void HandlePlayerCrossedPortal(DuneVectorPortalCrossing crossing)
+        {
+            if (!_gameplayActive)
+            {
+                return;
+            }
+
+            if (CurrentState == StormPyramidState.TrackingPlayer)
+            {
+                _stateTime = 0f;
+            }
+            else if (CurrentState == StormPyramidState.ChargingAttack)
+            {
+                _lightning?.ResetWarningTimer();
+            }
         }
 
         private void Update()
@@ -1963,6 +1981,11 @@ namespace DuneVector
         {
             CurrentState = state;
             _stateTime = 0f;
+        }
+
+        private void OnDestroy()
+        {
+            DuneVectorPortalEvents.PlayerCrossed -= HandlePlayerCrossedPortal;
         }
 
         public bool TryGetThreatWarning(out StormPyramidThreatWarning warning)
@@ -2359,6 +2382,17 @@ namespace DuneVector
             }
 
             _targetPosition = targetPosition;
+        }
+
+        public void ResetWarningTimer()
+        {
+            if (!_charging)
+            {
+                return;
+            }
+
+            _timer = 0f;
+            UpdateChargeVisual(0f);
         }
 
         public bool TickCharge(float deltaTime)
