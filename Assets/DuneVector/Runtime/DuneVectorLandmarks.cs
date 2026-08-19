@@ -2102,85 +2102,40 @@ namespace DuneVector
 
         private void BuildFallenOrbitalArray(Transform root, int seed, DuneVectorLandmarkAnimator animator)
         {
-            float radius = Mathf.Max(4f, _settings.OrbitalDishRadius);
-            float tilt = SeedRange(seed, 0, 7201, _settings.OrbitalDishTiltMinimum,
-                Mathf.Max(_settings.OrbitalDishTiltMinimum, _settings.OrbitalDishTiltMaximum));
-            Transform impactFrame = new GameObject("Orbital Array Impact Frame").transform;
-            impactFrame.SetParent(root, false);
-            impactFrame.localPosition = new Vector3(0f, radius * 0.18f - _settings.OrbitalBurialDepth, 0f);
-            impactFrame.localRotation = Quaternion.Euler(tilt, 0f, SeedRange(seed, 1, 7203, -9f, 9f));
-
-            MeshPart("Broken Parabolic Dish", impactFrame, Vector3.zero, Quaternion.identity,
-                Vector3.one, CreateParabolicDishMesh(radius, _settings.OrbitalDishSegmentCount,
-                    _settings.OrbitalDishMissingSegmentCount, seed),
-                _materials.LandmarkSecondary, true);
-            HorizontalSegmentedRing(impactFrame, "Orbital Dish Rim", radius, radius * 0.055f,
-                _settings.OrbitalDishSegmentCount, _settings.OrbitalDishMissingSegmentCount,
-                seed, _materials.OrbitalConcreteGray, true);
-
-            Part(PrimitiveType.Cube, "Orbital Equipment Bus", impactFrame,
-                new Vector3(0f, -radius * 0.24f, -radius * 0.18f),
-                new Vector3(radius * 0.82f, radius * 0.3f, radius * 0.48f),
-                Quaternion.Euler(0f, 0f, 4f), _materials.LandmarkSecondary, true);
-            Part(PrimitiveType.Cylinder, "Orbital Gimbal Housing", impactFrame,
-                new Vector3(0f, -radius * 0.06f, -radius * 0.05f),
-                new Vector3(radius * 0.18f, radius * 0.34f, radius * 0.18f),
-                Quaternion.Euler(0f, 0f, 90f), _materials.LandmarkInterior, true);
-            for (int brace = -1; brace <= 1; brace += 2)
+            GameObject orbitalArrayPrefab = null;
+            if (!string.IsNullOrWhiteSpace(_settings.OrbitalArrayResourcePath))
             {
-                BeamBetween(impactFrame, $"Dish Gimbal Brace {brace}",
-                    new Vector3(brace * radius * 0.32f, -radius * 0.2f, -radius * 0.1f),
-                    new Vector3(brace * radius * 0.13f, radius * 0.08f, 0f),
-                    radius * 0.045f, _materials.LandmarkInterior, true);
+                orbitalArrayPrefab = Resources.Load<GameObject>(_settings.OrbitalArrayResourcePath);
+            }
+            if (orbitalArrayPrefab == null)
+            {
+                orbitalArrayPrefab = _settings.OrbitalArrayPrefab;
+            }
+            if (orbitalArrayPrefab == null)
+            {
+                Debug.LogWarning("Fallen Orbital Array replacement prefab could not be resolved from Dune Vector Runtime Settings.", root);
+                return;
             }
 
-            float mastHeight = Mathf.Max(1f, _settings.OrbitalMastHeight);
-            BeamBetween(impactFrame, "Snapped Dish Feed Mast", Vector3.up * (radius * 0.08f),
-                new Vector3(radius * 0.06f, mastHeight, radius * 0.08f), radius * 0.035f,
-                _materials.LandmarkInterior, true);
-            Part(PrimitiveType.Sphere, "Dish Receiver", impactFrame,
-                new Vector3(radius * 0.06f, mastHeight, radius * 0.08f),
-                Vector3.one * (radius * 0.1f), Quaternion.identity, _materials.LandmarkAccent, false);
+            Vector3 prefabScale = orbitalArrayPrefab.transform.localScale;
+            Quaternion prefabRotation = orbitalArrayPrefab.transform.localRotation;
+            GameObject orbitalArray = UnityEngine.Object.Instantiate(orbitalArrayPrefab, root, false);
+            orbitalArray.name = orbitalArrayPrefab.name;
+            orbitalArray.transform.localPosition = Vector3.zero;
+            // The mesh already bakes its own impact tilt, so only the yaw varies per site.
+            orbitalArray.transform.localRotation =
+                Quaternion.Euler(0f, SeedRange(seed, 0, 7201, -180f, 180f), 0f) * prefabRotation;
+            orbitalArray.transform.localScale = prefabScale;
+            GroundPrefabToDunes(
+                orbitalArray.transform,
+                _settings.OrbitalArrayGroundingSamplesPerAxis,
+                _settings.OrbitalBurialDepth);
+            orbitalArray.transform.localScale = prefabScale;
 
-            int frameworkCount = Mathf.Max(3, _settings.OrbitalDishSegmentCount / 6);
-            for (int i = 0; i < frameworkCount; i++)
+            if (_settings.OrbitalArrayGenerateMeshColliders)
             {
-                float angle = (360f / frameworkCount) * i;
-                Vector3 rim = Quaternion.Euler(0f, angle, 0f) * Vector3.forward * (radius * 0.86f);
-                BeamBetween(impactFrame, $"Exposed Dish Truss {i + 1}", Vector3.zero, rim,
-                    radius * 0.022f, _materials.LandmarkInterior, false);
+                AddMissingMeshColliders(orbitalArray);
             }
-
-            int wingCount = Mathf.Max(0, _settings.OrbitalSolarWingCount);
-            for (int i = 0; i < wingCount; i++)
-            {
-                float side = i % 2 == 0 ? -1f : 1f;
-                float trail = radius + (i * _settings.OrbitalSolarWingLength * 0.7f);
-                Vector3 offset = new Vector3(side * radius * SeedRange(seed, i, 7211, 0.65f, 1.35f), 0f, -trail);
-                offset.y = TerrainLocalHeight(root, offset) + SeedRange(seed, i, 7213, -0.8f, 1.5f);
-                Quaternion wingRotation = Quaternion.Euler(SeedRange(seed, i, 7215, -12f, 18f),
-                    SeedRange(seed, i, 7217, -28f, 28f), SeedRange(seed, i, 7219, -18f, 18f));
-                Part(PrimitiveType.Cube, $"Scattered Solar Wing {i + 1}", root, offset,
-                    new Vector3(_settings.OrbitalSolarWingLength, radius * 0.03f,
-                        _settings.OrbitalSolarWingLength * 0.36f),
-                    wingRotation, i % 2 == 0 ? _materials.LandmarkMetal : _materials.LandmarkSecondary, true);
-                int panelLines = 4;
-                for (int panel = 1; panel < panelLines; panel++)
-                {
-                    Part(PrimitiveType.Cube, $"Solar Wing {i + 1} Divider {panel}", root,
-                        offset + (wingRotation * Vector3.right *
-                            Mathf.Lerp(-_settings.OrbitalSolarWingLength * 0.5f,
-                                _settings.OrbitalSolarWingLength * 0.5f, panel / (float)panelLines)),
-                        new Vector3(radius * 0.025f, radius * 0.035f,
-                            _settings.OrbitalSolarWingLength * 0.38f),
-                        wingRotation,
-                        _materials.LandmarkInterior, false);
-                }
-            }
-
-            BuildDebrisTrail(root, "Orbital Impact Debris", seed, _settings.OrbitalDebrisCount,
-                _settings.OrbitalDebrisSpread, radius * 0.12f, Vector3.back,
-                _materials.OrbitalConcreteGray, 7221, true);
         }
 
         private void BuildDesertMegagate(Transform root, int seed, DuneVectorLandmarkAnimator animator)
@@ -2573,26 +2528,6 @@ namespace DuneVector
             }
         }
 
-        private void HorizontalSegmentedRing(Transform parent, string partName, float radius,
-            float thickness, int segmentCount, int missingCount, int seed, Material material, bool collider)
-        {
-            int count = Mathf.Max(3, segmentCount);
-            float segmentLength = ((Mathf.PI * 2f * Mathf.Max(0.01f, radius)) / count) *
-                _settings.LandmarkRingSegmentFill;
-            for (int i = 0; i < count; i++)
-            {
-                if (IsMissingSegment(i, count, missingCount, seed))
-                {
-                    continue;
-                }
-                float angle = (360f / count) * i;
-                Vector3 direction = Quaternion.Euler(0f, angle, 0f) * Vector3.forward;
-                TexturedBoxPart($"{partName} {i + 1:00}", parent, direction * radius,
-                    new Vector3(thickness, thickness, segmentLength),
-                    Quaternion.Euler(0f, angle + 90f, 0f), material, collider);
-            }
-        }
-
         private static bool IsMissingSegment(int index, int segmentCount, int missingCount, int seed)
         {
             int targetCount = Mathf.Clamp(missingCount, 0, Mathf.Max(0, segmentCount - 3));
@@ -2746,90 +2681,6 @@ namespace DuneVector
                 meshCollider.sharedMesh = mesh;
             }
             return part.transform;
-        }
-
-        private static Mesh CreateParabolicDishMesh(float radius, int segmentCount,
-            int missingSegmentCount, int seed)
-        {
-            int segments = Mathf.Max(8, segmentCount);
-            int rings = Mathf.Max(4, segments / 4);
-            int layerVertexCount = (rings + 1) * segments;
-            Vector3[] vertices = new Vector3[layerVertexCount * 2];
-            Vector2[] uv = new Vector2[vertices.Length];
-            float depth = radius * 0.32f;
-            float shellThickness = radius * 0.035f;
-            for (int layer = 0; layer < 2; layer++)
-            {
-                for (int ring = 0; ring <= rings; ring++)
-                {
-                    float t = ring / (float)rings;
-                    float ringRadius = radius * t;
-                    float y = depth * t * t - (layer * shellThickness);
-                    for (int segment = 0; segment < segments; segment++)
-                    {
-                        float angle = (Mathf.PI * 2f * segment) / segments;
-                        int index = (layer * layerVertexCount) + (ring * segments) + segment;
-                        vertices[index] = new Vector3(Mathf.Cos(angle) * ringRadius, y,
-                            Mathf.Sin(angle) * ringRadius);
-                        uv[index] = new Vector2(segment / (float)segments, t);
-                    }
-                }
-            }
-
-            List<int> triangles = new List<int>(rings * segments * 12 + segments * 6);
-            for (int layer = 0; layer < 2; layer++)
-            {
-                int layerStart = layer * layerVertexCount;
-                for (int ring = 0; ring < rings; ring++)
-                {
-                    for (int segment = 0; segment < segments; segment++)
-                    {
-                        if (IsMissingSegment(segment, segments, missingSegmentCount, seed))
-                        {
-                            continue;
-                        }
-                        int next = (segment + 1) % segments;
-                        int a = layerStart + (ring * segments) + segment;
-                        int b = layerStart + (ring * segments) + next;
-                        int c = layerStart + ((ring + 1) * segments) + segment;
-                        int d = layerStart + ((ring + 1) * segments) + next;
-                        if (layer == 0)
-                        {
-                            triangles.Add(a); triangles.Add(b); triangles.Add(c);
-                            triangles.Add(b); triangles.Add(d); triangles.Add(c);
-                        }
-                        else
-                        {
-                            triangles.Add(a); triangles.Add(c); triangles.Add(b);
-                            triangles.Add(b); triangles.Add(c); triangles.Add(d);
-                        }
-                    }
-                }
-            }
-            int frontRim = rings * segments;
-            int backRim = layerVertexCount + frontRim;
-            for (int segment = 0; segment < segments; segment++)
-            {
-                if (IsMissingSegment(segment, segments, missingSegmentCount, seed))
-                {
-                    continue;
-                }
-                int next = (segment + 1) % segments;
-                triangles.Add(frontRim + segment);
-                triangles.Add(frontRim + next);
-                triangles.Add(backRim + segment);
-                triangles.Add(frontRim + next);
-                triangles.Add(backRim + next);
-                triangles.Add(backRim + segment);
-            }
-
-            Mesh mesh = new Mesh { name = "Procedural Parabolic Dish" };
-            mesh.vertices = vertices;
-            mesh.uv = uv;
-            mesh.SetTriangles(triangles, 0);
-            mesh.RecalculateNormals();
-            mesh.RecalculateBounds();
-            return mesh;
         }
 
         private static Mesh CreateTaperedPrismMesh(float width, float height, float depth, float taper)

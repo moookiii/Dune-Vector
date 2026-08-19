@@ -1869,16 +1869,15 @@ namespace DuneVector
         public Texture2D OrbitalConcreteTexture;
         [Tooltip("World-space width and height filled by one complete concrete image before the texture repeats across orbital rim and rubble pieces.")]
         [Min(0.01f)] public float OrbitalConcreteTileWorldSize = 4f;
-        [Min(4f)] public float OrbitalDishRadius;
-        [Range(8, 48)] public int OrbitalDishSegmentCount;
-        [Range(0, 12)] public int OrbitalDishMissingSegmentCount;
-        [Range(0f, 89f)] public float OrbitalDishTiltMinimum;
-        [Range(0f, 89f)] public float OrbitalDishTiltMaximum;
-        [Min(1f)] public float OrbitalMastHeight;
-        [Range(0, 8)] public int OrbitalSolarWingCount;
-        [Min(1f)] public float OrbitalSolarWingLength;
-        [Range(0, 40)] public int OrbitalDebrisCount;
-        [Min(0f)] public float OrbitalDebrisSpread;
+        [Tooltip("Optional direct fallback prefab used when the Fallen Orbital Array Resources path cannot be resolved. Its authored scale and rotation are preserved.")]
+        public GameObject OrbitalArrayPrefab;
+        [Tooltip("Primary Resources path used to load the Fallen Orbital Array prefab authored in ArtSource/Blender/FallenOrbitalArray.")]
+        public string OrbitalArrayResourcePath = "FallenOrbitalArray/FallenOrbitalArray";
+        [Tooltip("Samples per axis used to ground the Fallen Orbital Array across the dunes.")]
+        [Range(2, 9)] public int OrbitalArrayGroundingSamplesPerAxis = 5;
+        [Tooltip("Adds mesh colliders to Fallen Orbital Array meshes that do not already have colliders.")]
+        public bool OrbitalArrayGenerateMeshColliders = true;
+        [Tooltip("Extra depth the Fallen Orbital Array is sunk below the dunes once grounded, bedding its leading dish rim and equipment bus into the sand.")]
         [Min(0f)] public float OrbitalBurialDepth;
 
         [Header("Desert Megagate Detail")]
