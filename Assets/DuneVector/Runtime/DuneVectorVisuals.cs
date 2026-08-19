@@ -5463,6 +5463,9 @@ namespace DuneVector
     {
         private Animator[] _animators;
         private DroneVisualTuning _settings;
+        private int _stateHash;
+        private float _stateLength;
+        private float _normalizedTime;
         private float _timer;
         private int _direction = 1;
 
@@ -5470,8 +5473,39 @@ namespace DuneVector
         {
             _animators = animators;
             _settings = settings;
+            _stateHash = Animator.StringToHash(settings.PrefabAnimationStateName);
             _direction = 1;
+            _normalizedTime = 0f;
             _timer = NextInterval();
+
+            // A negative Animator.speed does not run a Mecanim state backwards, it
+            // simply stalls at the start of the clip, so drive the state clock here
+            // instead and leave the Animator itself paused.
+            _stateLength = 0f;
+            for (int i = 0; i < _animators.Length; i++)
+            {
+                Animator animator = _animators[i];
+                if (animator == null)
+                {
+                    continue;
+                }
+
+                animator.speed = 0f;
+                _stateLength = Mathf.Max(_stateLength, animator.GetCurrentAnimatorStateInfo(0).length);
+                if (_stateLength > 0f || animator.runtimeAnimatorController == null)
+                {
+                    continue;
+                }
+
+                AnimationClip[] clips = animator.runtimeAnimatorController.animationClips;
+                for (int clipIndex = 0; clipIndex < clips.Length; clipIndex++)
+                {
+                    if (clips[clipIndex] != null)
+                    {
+                        _stateLength = Mathf.Max(_stateLength, clips[clipIndex].length);
+                    }
+                }
+            }
         }
 
         private float NextInterval()
@@ -5488,26 +5522,27 @@ namespace DuneVector
 
         private void Update()
         {
-            if (_settings == null || _animators == null || _animators.Length == 0)
+            if (_settings == null || _animators == null || _animators.Length == 0 || _stateLength <= 0f)
             {
                 return;
             }
 
             _timer -= Time.deltaTime;
-            if (_timer > 0f)
+            if (_timer <= 0f)
             {
-                return;
+                _timer = NextInterval();
+                _direction = -_direction;
             }
 
-            _timer = NextInterval();
-            _direction = -_direction;
+            float speed = Mathf.Max(0f, _settings.PrefabAnimationSpeed);
+            _normalizedTime += _direction * speed * Time.deltaTime / _stateLength;
+            _normalizedTime -= Mathf.Floor(_normalizedTime);
 
-            float speed = Mathf.Max(0f, _settings.PrefabAnimationSpeed) * _direction;
             for (int i = 0; i < _animators.Length; i++)
             {
                 if (_animators[i] != null)
                 {
-                    _animators[i].speed = speed;
+                    _animators[i].Play(_stateHash, 0, _normalizedTime);
                 }
             }
         }
