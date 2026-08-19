@@ -968,8 +968,7 @@ namespace DuneVector
             }
             if (_boss.Age >= _boss.NextSpecialAt && !float.IsFinite(_laneElapsed))
             {
-                BeginLaneAttack(_player.transform.position.x +
-                    (Mathf.Sin(_boss.Age) * _settings.FormationWidth * 0.35f));
+                BeginLaneAttack(PredictLaneInterceptX());
                 _boss.NextSpecialAt += _settings.BossLaneAttackInterval / (1f + ((phase - 1) * 0.2f));
             }
             if (Vector3.Distance(bossPosition, _player.transform.position) <=
@@ -1660,6 +1659,17 @@ namespace DuneVector
                 return;
             }
             _laneElapsed += deltaTime;
+            float trackingEnd = Mathf.Max(
+                0f,
+                _settings.LightningLaneTelegraphDuration -
+                    _settings.LightningLaneLockBeforeActivation);
+            if (_laneElapsed < trackingEnd)
+            {
+                _laneCenterX = Mathf.MoveTowards(
+                    _laneCenterX,
+                    PredictLaneInterceptX(),
+                    _settings.LightningLaneTrackingSpeed * deltaTime);
+            }
             float playerY = _player.transform.position.y;
             Vector3 start = new Vector3(
                 _laneCenterX,
@@ -1687,6 +1697,12 @@ namespace DuneVector
                 _laneElapsed = float.PositiveInfinity;
                 _laneWarning.gameObject.SetActive(false);
             }
+        }
+
+        private float PredictLaneInterceptX()
+        {
+            return _player.transform.position.x +
+                (_state.LateralVelocity.x * _settings.LightningLanePredictiveLeadSeconds);
         }
 
         private void TickEnvironment(float deltaTime)

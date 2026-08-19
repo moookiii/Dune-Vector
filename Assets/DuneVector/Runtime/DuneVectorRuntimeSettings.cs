@@ -7836,6 +7836,12 @@ namespace DuneVector
         [Min(0f)] public float LightningLaneActiveDuration = 0.45f;
         [Min(0f)] public float LightningLaneHalfWidth = 5.5f;
         [Min(0f)] public float LightningLaneDamage = 30f;
+        [Tooltip("How far ahead of the drone's lateral velocity a red lightning lane predicts its intercept point.")]
+        [Min(0f)] public float LightningLanePredictiveLeadSeconds = 0.75f;
+        [Tooltip("Maximum world-space speed at which a telegraph can chase its predicted intercept point.")]
+        [Min(0f)] public float LightningLaneTrackingSpeed = 85f;
+        [Tooltip("Time before activation when the red lane stops tracking, leaving a final dodge window.")]
+        [Min(0f)] public float LightningLaneLockBeforeActivation = 0.2f;
         [Min(0f)] public float MineTriggerDistance = 8f;
         [Min(0f)] public float MineExplosionRadius = 7.5f;
         [Min(0f)] public float MineDamage = 34f;
