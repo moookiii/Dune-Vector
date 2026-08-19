@@ -252,6 +252,7 @@ namespace DuneVector
         private readonly List<RailSatellite> _satellites = new List<RailSatellite>();
         private readonly List<ScorePopup> _popups = new List<ScorePopup>();
         private readonly List<RailEnemy> _chargeLocks = new List<RailEnemy>();
+        private readonly List<RailSatellite> _satelliteChargeLocks = new List<RailSatellite>();
         private readonly List<RailSigilDefinition> _sigilDemand = new List<RailSigilDefinition>();
         private readonly List<RailSigilDefinition> _sigilCandidates = new List<RailSigilDefinition>();
         private readonly List<Vector2> _sigilGlyphPoints = new List<Vector2>();
@@ -293,6 +294,7 @@ namespace DuneVector
         private LineRenderer _laneWarning;
         private RailEnemy _boss;
         private RailEnemy _chargeLock;
+        private RailSatellite _satelliteChargeLock;
 
         private Vector3 _arenaOrigin;
         private float _startZ;
@@ -498,6 +500,9 @@ namespace DuneVector
             _bossAnnounced = false;
             _bossBannerElapsed = float.PositiveInfinity;
             _chargeLocks.Clear();
+            _satelliteChargeLocks.Clear();
+            _chargeLock = null;
+            _satelliteChargeLock = null;
             _distanceGoldBonus = 0;
             AwardedGold = 0;
             ResultGrade = "C";
@@ -1166,8 +1171,10 @@ namespace DuneVector
             {
                 _state.ChargeElapsed = 0f;
                 _chargeLock = null;
+                _satelliteChargeLock = null;
                 _chargeReadyCued = false;
                 _chargeLocks.Clear();
+                _satelliteChargeLocks.Clear();
                 _fireWasHeld = false;
                 if (command.BombPressed && _state.Bombs > 0 && !float.IsFinite(_bombElapsed))
                 {
@@ -1212,8 +1219,10 @@ namespace DuneVector
             {
                 _state.ChargeElapsed = 0f;
                 _chargeLock = null;
+                _satelliteChargeLock = null;
                 _chargeReadyCued = false;
                 _chargeLocks.Clear();
+                _satelliteChargeLocks.Clear();
             }
             _fireWasHeld = command.FireHeld;
 
@@ -1332,7 +1341,9 @@ namespace DuneVector
             Vector3 direction = _state.AimDirection.normalized;
             Vector3 lockPosition = _chargeLock != null && _chargeLock.Active
                 ? _chargeLock.Transform.position
-                : origin + (direction * _settings.ChargedBeamRange);
+                : _satelliteChargeLock != null && _satelliteChargeLock.Active
+                    ? _satelliteChargeLock.Transform.position
+                    : origin + (direction * _settings.ChargedBeamRange);
             for (int i = 0; i < _enemies.Count; i++)
             {
                 RailEnemy enemy = _enemies[i];
@@ -1366,50 +1377,144 @@ namespace DuneVector
                     ApplyDamage(_boss, _settings.ChargedShotDamage, charged: true, bomb: false);
                 }
             }
+            for (int i = 0; i < _satellites.Count; i++)
+            {
+                RailSatellite satellite = _satellites[i];
+                if (!satellite.Active)
+                {
+                    continue;
+                }
+                float along = Vector3.Dot(satellite.Transform.position - origin, direction);
+                Vector3 nearest = origin + (direction * Mathf.Clamp(along, 0f, _settings.ChargedBeamRange));
+                bool inBeam = along >= 0f && along <= _settings.ChargedBeamRange &&
+                    Vector3.Distance(nearest, satellite.Transform.position) <=
+                    _settings.ChargedBeamRadius + _settings.SatelliteHitRadius;
+                bool inBlast = Vector3.Distance(lockPosition, satellite.Transform.position) <=
+                    _settings.ChargedBlastRadius + _settings.SatelliteHitRadius;
+                if (inBeam || inBlast)
+                {
+                    DamageSatellite(satellite, _settings.ChargedShotDamage);
+                }
+            }
             _chargedBeamElapsed = 0f;
             _chargedBeamVisual.gameObject.SetActive(true);
             _cameraShake = Mathf.Max(_cameraShake, _settings.ImpactCameraShake * 1.6f);
             _state.ChargeElapsed = 0f;
             _chargeLock = null;
+            _satelliteChargeLock = null;
             _chargeReadyCued = false;
             _chargeLocks.Clear();
+            _satelliteChargeLocks.Clear();
             PlayCue(_settings.ChargedFireEvent, _player.transform.position);
         }
 
         private void UpdateChargeLock()
         {
             RailEnemy previous = _chargeLock;
+            RailSatellite previousSatellite = _satelliteChargeLock;
             // The reticle rides the aim viewport, so lock-on has to search around the
             // crosshair rather than the middle of the screen.
             float radius = Mathf.Max(
                 _settings.ChargeLockViewportRadius,
                 _settings.ChargeLockViewportRadius * ChargeNormalized() * 2f);
             _chargeLock = FindViewportTarget(radius, _settings.ChargedBeamRange);
+            _satelliteChargeLock = FindViewportSatelliteTarget(
+                radius,
+                _settings.ChargedBeamRange,
+                out float satelliteScore);
+            if (_chargeLock != null &&
+                TryScoreViewportTarget(_chargeLock, radius, _settings.ChargedBeamRange, out float enemyScore) &&
+                enemyScore <= satelliteScore)
+            {
+                _satelliteChargeLock = null;
+            }
+            else if (_satelliteChargeLock != null)
+            {
+                _chargeLock = null;
+            }
             CollectChargeLocks(radius);
             if (_chargeLock != null && _chargeLock != previous)
             {
                 PlayCue(_settings.TargetLockEvent, _chargeLock.Transform.position);
+            }
+            else if (_satelliteChargeLock != null && _satelliteChargeLock != previousSatellite)
+            {
+                PlayCue(_settings.TargetLockEvent, _satelliteChargeLock.Transform.position);
             }
         }
 
         private void CollectChargeLocks(float viewportRadius)
         {
             _chargeLocks.Clear();
+            _satelliteChargeLocks.Clear();
             int capacity = Mathf.Max(1, _settings.ChargedLockCapacity);
-            for (int i = 0; i < _enemies.Count && _chargeLocks.Count < capacity; i++)
+            if (_chargeLock != null && _chargeLock.Active)
+            {
+                _chargeLocks.Add(_chargeLock);
+            }
+            if (_satelliteChargeLock != null && _satelliteChargeLock.Active &&
+                _chargeLocks.Count < capacity)
+            {
+                _satelliteChargeLocks.Add(_satelliteChargeLock);
+            }
+            for (int i = 0;
+                 i < _enemies.Count && _chargeLocks.Count + _satelliteChargeLocks.Count < capacity;
+                 i++)
             {
                 RailEnemy enemy = _enemies[i];
-                if (enemy.Active &&
+                if (enemy.Active && enemy != _chargeLock &&
                     TryScoreViewportTarget(enemy, viewportRadius, _settings.ChargedBeamRange, out _))
                 {
                     _chargeLocks.Add(enemy);
                 }
             }
-            if (_boss != null && _boss.Active && _chargeLocks.Count < capacity &&
+            if (_boss != null && _boss.Active && _boss != _chargeLock &&
+                _chargeLocks.Count + _satelliteChargeLocks.Count < capacity &&
                 TryScoreViewportTarget(_boss, viewportRadius, _settings.ChargedBeamRange, out _))
             {
                 _chargeLocks.Add(_boss);
             }
+            for (int i = 0;
+                 i < _satellites.Count && _chargeLocks.Count + _satelliteChargeLocks.Count < capacity;
+                 i++)
+            {
+                RailSatellite satellite = _satellites[i];
+                if (satellite.Active && satellite != _satelliteChargeLock &&
+                    TryScoreViewportTarget(
+                        satellite.Transform,
+                        viewportRadius,
+                        _settings.ChargedBeamRange,
+                        out _))
+                {
+                    _satelliteChargeLocks.Add(satellite);
+                }
+            }
+        }
+
+        private RailSatellite FindViewportSatelliteTarget(
+            float viewportRadius,
+            float maximumRange,
+            out float bestScore)
+        {
+            RailSatellite best = null;
+            bestScore = float.PositiveInfinity;
+            for (int i = 0; i < _satellites.Count; i++)
+            {
+                RailSatellite satellite = _satellites[i];
+                if (!satellite.Active ||
+                    !TryScoreViewportTarget(
+                        satellite.Transform,
+                        viewportRadius,
+                        maximumRange,
+                        out float score) ||
+                    score >= bestScore)
+                {
+                    continue;
+                }
+                best = satellite;
+                bestScore = score;
+            }
+            return best;
         }
 
         private RailEnemy FindViewportTarget(float viewportRadius, float maximumRange)
@@ -1445,17 +1550,26 @@ namespace DuneVector
             float maximumRange,
             out float score)
         {
+            return TryScoreViewportTarget(enemy?.Transform, viewportRadius, maximumRange, out score);
+        }
+
+        private bool TryScoreViewportTarget(
+            Transform target,
+            float viewportRadius,
+            float maximumRange,
+            out float score)
+        {
             score = float.PositiveInfinity;
-            if (_camera == null || enemy == null || enemy.Transform == null)
+            if (_camera == null || target == null)
             {
                 return false;
             }
-            Vector3 viewport = _camera.WorldToViewportPoint(enemy.Transform.position);
+            Vector3 viewport = _camera.WorldToViewportPoint(target.position);
             if (viewport.z <= 0f)
             {
                 return false;
             }
-            if (Vector3.Distance(_player.transform.position, enemy.Transform.position) > maximumRange)
+            if (Vector3.Distance(_player.transform.position, target.position) > maximumRange)
             {
                 return false;
             }
@@ -2016,12 +2130,7 @@ namespace DuneVector
                     projectile.Radius);
                 if (satelliteHit != null)
                 {
-                    satelliteHit.Health = Mathf.Max(0f, satelliteHit.Health - _settings.RegularShotDamage);
-                    SpawnImpact(satelliteHit.Transform.position, _settings.SatelliteHitRadius * 0.35f);
-                    if (satelliteHit.Health <= 0f)
-                    {
-                        ExplodeSatellite(satelliteHit, true);
-                    }
+                    DamageSatellite(satelliteHit, _settings.RegularShotDamage);
                     DeactivateProjectile(projectile);
                     continue;
                 }
@@ -2482,6 +2591,20 @@ namespace DuneVector
             }
         }
 
+        private void DamageSatellite(RailSatellite satellite, float damage)
+        {
+            if (satellite == null || !satellite.Active)
+            {
+                return;
+            }
+            satellite.Health = Mathf.Max(0f, satellite.Health - Mathf.Max(0f, damage));
+            SpawnImpact(satellite.Transform.position, _settings.SatelliteHitRadius * 0.35f);
+            if (satellite.Health <= 0f)
+            {
+                ExplodeSatellite(satellite, true);
+            }
+        }
+
         private void TickPresentation(float deltaTime)
         {
             float charge = ChargeNormalized();
@@ -2726,7 +2849,9 @@ namespace DuneVector
             _damageFlashElapsed = float.PositiveInfinity;
             _bossBannerElapsed = float.PositiveInfinity;
             _chargeLocks.Clear();
+            _satelliteChargeLocks.Clear();
             _chargeLock = null;
+            _satelliteChargeLock = null;
             _sigilActive = false;
             _sigilVerdictElapsed = float.PositiveInfinity;
             if (_sigilRoot != null)
@@ -4993,11 +5118,13 @@ namespace DuneVector
             DrawPanel(chargeRect);
             DrawLabel(
                 new Rect(chargeRect.x + 12f, chargeRect.y + (pad * 0.5f), chargeRect.width - 24f, line),
-                _chargeLock != null
-                    ? $"CHARGE // LOCK {_chargeLocks.Count:00}"
+                _chargeLock != null || _satelliteChargeLock != null
+                    ? $"CHARGE // LOCK {_chargeLocks.Count + _satelliteChargeLocks.Count:00}"
                     : "CHARGE // PENETRATION",
                 _smallStyle,
-                _chargeLock != null ? _settings.HudChargeColor : _settings.HudSecondaryColor);
+                _chargeLock != null || _satelliteChargeLock != null
+                    ? _settings.HudChargeColor
+                    : _settings.HudSecondaryColor);
             DrawMeter(
                 new Rect(
                     chargeRect.x + 12f,
@@ -5059,6 +5186,15 @@ namespace DuneVector
             for (int i = 0; i < _chargeLocks.Count; i++)
             {
                 RailEnemy locked = _chargeLocks[i];
+                if (locked != null && locked.Active &&
+                    TryProject(locked.Transform.position, out Vector2 lockScreen))
+                {
+                    DrawBracket(lockScreen, _settings.LockBracketSize, _settings.HudChargeColor);
+                }
+            }
+            for (int i = 0; i < _satelliteChargeLocks.Count; i++)
+            {
+                RailSatellite locked = _satelliteChargeLocks[i];
                 if (locked != null && locked.Active &&
                     TryProject(locked.Transform.position, out Vector2 lockScreen))
                 {
