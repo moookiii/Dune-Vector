@@ -5346,7 +5346,10 @@ namespace DuneVector
                 trail.transform.localPosition = settings.TrailPrefabLocalPosition;
                 trail.transform.localRotation = Quaternion.identity;
                 trail.AddComponent<DroneTrailHorizontalEmissionGate>()
-                    .Initialize(settings.TrailMinimumHorizontalSpeed);
+                    .Initialize(
+                        settings.TrailMinimumHorizontalSpeed,
+                        settings.TrailParticleClearanceDistance,
+                        droneVisual);
                 return;
             }
 
