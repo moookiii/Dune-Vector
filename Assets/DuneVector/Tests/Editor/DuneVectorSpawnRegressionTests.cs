@@ -8,6 +8,19 @@ namespace DuneVector.Tests
 {
     public sealed class DuneVectorSpawnRegressionTests
     {
+        [Test]
+        public void RuntimeSettings_DunesRetainLightInsideWorldShadows()
+        {
+            DuneVectorRuntimeSettings settings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(
+                settings.DuneMinimumShadowAttenuation,
+                Is.GreaterThan(0f),
+                "WORLD dune shadow attenuation must stay above zero or built terrain can render black beneath large shadow casters.");
+        }
+
         private const int RegressionWorldSeed = 47169;
         private const int PortalRegressionWorldSeed = 49109;
         private const float Stage2DistanceScale = 0.2f;
