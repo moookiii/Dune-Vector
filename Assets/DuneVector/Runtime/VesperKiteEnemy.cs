@@ -428,10 +428,24 @@ namespace DuneVector
                 ? toPlayer.normalized
                 : _cachedTransform.forward;
 
-            _visual = DuneVectorVisuals.CreateVesperPilgrimVisual(
-                _cachedTransform,
-                materials,
-                settings);
+            if (settings.PilgrimPrefab != null)
+            {
+                GameObject visualObject = Instantiate(
+                    settings.PilgrimPrefab,
+                    _cachedTransform,
+                    false);
+                visualObject.name = settings.PilgrimPrefab.name;
+                _visual = visualObject.transform;
+                _visual.localPosition = Vector3.zero;
+                _visual.localRotation = Quaternion.identity;
+            }
+            else
+            {
+                _visual = DuneVectorVisuals.CreateVesperPilgrimVisual(
+                    _cachedTransform,
+                    materials,
+                    settings);
+            }
             _vowRing = _visual.Find("Pilgrim Vow Ring");
             Renderer[] visualRenderers = _visual.GetComponentsInChildren<Renderer>(true);
             List<Renderer> reflectedRenderers = new List<Renderer>();

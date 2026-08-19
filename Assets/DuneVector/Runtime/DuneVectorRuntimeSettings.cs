@@ -3784,6 +3784,8 @@ namespace DuneVector
         [Min(0f)] public float FacingSharpness = 4.5f;
 
         [Header("Pilgrim Presentation")]
+        [Tooltip("Prefab used for Vesper Kite pilgrim missiles.")]
+        public GameObject PilgrimPrefab;
         [Min(0.1f)] public float PilgrimVisualScale = 1.15f;
         public Vector3 PilgrimCoreScale = new Vector3(0.42f, 0.42f, 0.72f);
         [Min(0.1f)] public float PilgrimRingRadius = 0.72f;
