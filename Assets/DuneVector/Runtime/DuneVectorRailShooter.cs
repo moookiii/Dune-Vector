@@ -2047,37 +2047,38 @@ namespace DuneVector
                     Root = NewRoot($"Rift Segment {i + 1:00}", _environmentRoot),
                     Radius = _settings.ObstacleRadius,
                 };
-                Transform leftPylon = CreatePart(
-                    PrimitiveType.Cube,
-                    "Left Orbital Rail",
+                Transform leftPylon = CreatePrefabVisual(
+                    _settings.SideStructurePrefabResourcePath,
+                    "Left Rift Array Structure",
                     segment.Root,
                     new Vector3(-_settings.CorridorHalfWidth, 0f, 0f),
-                    new Vector3(3f, _settings.CorridorHalfHeight * 2f, 18f),
-                    Quaternion.Euler(0f, 0f, 8f),
-                    _materials.LandmarkInterior);
-                Transform rightPylon = CreatePart(
-                    PrimitiveType.Cube,
-                    "Right Orbital Rail",
+                    _settings.SideStructureScale,
+                    Quaternion.Euler(_settings.SideStructureEuler));
+                Transform rightPylon = CreatePrefabVisual(
+                    _settings.SideStructurePrefabResourcePath,
+                    "Right Rift Array Structure",
                     segment.Root,
                     new Vector3(_settings.CorridorHalfWidth, 0f, 0f),
-                    new Vector3(3f, _settings.CorridorHalfHeight * 2f, 18f),
-                    Quaternion.Euler(0f, 0f, -8f),
-                    _materials.LandmarkInterior);
+                    _settings.SideStructureScale,
+                    Quaternion.Euler(
+                        _settings.SideStructureEuler.x,
+                        -_settings.SideStructureEuler.y,
+                        -_settings.SideStructureEuler.z));
                 segment.Rotators.Add(leftPylon);
                 segment.Rotators.Add(rightPylon);
                 for (int piece = 0; piece < _settings.WreckagePiecesPerSegment; piece++)
                 {
                     bool solid = piece == 0;
-                    Transform wreck = CreatePart(
-                        piece % 2 == 0 ? PrimitiveType.Cube : PrimitiveType.Cylinder,
+                    string resourcePath = piece % 2 == 0
+                        ? _settings.PrimaryWreckagePrefabResourcePath
+                        : _settings.SecondaryWreckagePrefabResourcePath;
+                    Transform wreck = CreatePrefabVisual(
+                        resourcePath,
                         solid ? "Solid Rift Wreck" : $"Floating Wreckage {piece + 1}",
                         segment.Root,
                         Vector3.zero,
-                        Vector3.one,
-                        Quaternion.identity,
-                        solid
-                            ? _materials.GroundEnemyWarning
-                            : piece % 3 == 0 ? _materials.LandmarkAccent : _materials.LandmarkMetal);
+                        Vector3.one * _settings.WreckagePrefabScaleMultiplier,
+                        Quaternion.identity);
                     segment.Rotators.Add(wreck);
                     if (solid)
                     {
@@ -2389,7 +2390,7 @@ namespace DuneVector
                     continue;
                 }
                 bool solid = wreck == segment.Obstacle;
-                if (i < 2)
+                if (wreck.name.EndsWith("Rift Array Structure", StringComparison.Ordinal))
                 {
                     continue;
                 }
@@ -2414,7 +2415,7 @@ namespace DuneVector
                     NextFloat(0f, 360f),
                     NextFloat(0f, 360f),
                     NextFloat(0f, 360f));
-                wreck.localScale = Vector3.one * scale;
+                wreck.localScale = Vector3.one * (scale * _settings.WreckagePrefabScaleMultiplier);
                 if (solid)
                 {
                     segment.Radius = Mathf.Max(
@@ -2744,6 +2745,33 @@ namespace DuneVector
                 collider.enabled = false;
             }
             return part.transform;
+        }
+
+        private static Transform CreatePrefabVisual(
+            string resourcePath,
+            string name,
+            Transform parent,
+            Vector3 localPosition,
+            Vector3 localScale,
+            Quaternion localRotation)
+        {
+            GameObject prefab = string.IsNullOrWhiteSpace(resourcePath)
+                ? null
+                : Resources.Load<GameObject>(resourcePath);
+            GameObject instance = prefab != null
+                ? Instantiate(prefab, parent, false)
+                : new GameObject(name);
+            if (prefab == null)
+            {
+                instance.transform.SetParent(parent, false);
+                Debug.LogWarning($"Rail-shooter environment prefab was not found at Resources/{resourcePath}.");
+            }
+            instance.name = name;
+            instance.transform.localPosition = localPosition;
+            instance.transform.localScale = localScale;
+            instance.transform.localRotation = localRotation;
+            DisableVisualPhysics(instance.transform);
+            return instance.transform;
         }
 
         private static void DisableVisualPhysics(Transform root)

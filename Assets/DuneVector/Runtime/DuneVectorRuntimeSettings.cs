@@ -7914,6 +7914,12 @@ namespace DuneVector
         [Min(0f)] public float EnvironmentRecycleBehindDistance = 45f;
         [Min(0f)] public float CorridorHalfWidth = 48f;
         [Min(0f)] public float CorridorHalfHeight = 25f;
+        public string SideStructurePrefabResourcePath = "FallenOrbitalArrayPrefab";
+        public Vector3 SideStructureScale = new Vector3(0.16f, 0.16f, 0.16f);
+        public Vector3 SideStructureEuler = new Vector3(0f, 90f, 18f);
+        public string PrimaryWreckagePrefabResourcePath = "RuinedRingsPrefab";
+        public string SecondaryWreckagePrefabResourcePath = "turbine/turbinePrefab";
+        [Min(0f)] public float WreckagePrefabScaleMultiplier = 0.16f;
         [Min(0f)] public float WreckageMinimumScale = 3f;
         [Min(0f)] public float WreckageMaximumScale = 12f;
         [Min(0f)] public float WreckageRotationSpeed = 13f;
