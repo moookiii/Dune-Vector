@@ -267,6 +267,9 @@ namespace DuneVector
         private float _lastHitCueAt = float.NegativeInfinity;
         private bool _chargeReadyCued;
         private bool _bossAnnounced;
+        private bool _hasApplicationFocus = true;
+        private bool _applicationPaused;
+        private bool _skipResumeFrame;
         private float _bossBannerElapsed = float.PositiveInfinity;
         private Component _massiveClouds;
         private readonly List<object> _savedMassiveCloudParameters = new List<object>();
@@ -345,6 +348,10 @@ namespace DuneVector
             }
 
             _completed = completed;
+            _hasApplicationFocus = Application.isFocused;
+            _applicationPaused = false;
+            _skipResumeFrame = false;
+            _input?.ClearCapturedInput();
             _difficulty = Mathf.Clamp(difficulty, 1, Mathf.Max(1, _settings.DifficultyCeiling));
             _random = new System.Random(unchecked(seed ^ _settings.SeedOffset ^ (difficulty * 73856093)));
             SaveWorldState();
@@ -413,6 +420,19 @@ namespace DuneVector
                 return;
             }
 
+            if (!_hasApplicationFocus || _applicationPaused || !Application.isFocused)
+            {
+                return;
+            }
+
+            if (_skipResumeFrame)
+            {
+                _skipResumeFrame = false;
+                _input?.ClearCapturedInput();
+                _fireWasHeld = false;
+                return;
+            }
+
             float deltaTime = Time.deltaTime;
             if (deltaTime <= 0f)
             {
@@ -454,6 +474,36 @@ namespace DuneVector
                 case RailShooterPhase.Results:
                     TickResults(command);
                     break;
+            }
+        }
+
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            bool wasSuspended = !_hasApplicationFocus || _applicationPaused;
+            _hasApplicationFocus = hasFocus;
+            HandleApplicationSuspensionChange(wasSuspended);
+        }
+
+        private void OnApplicationPause(bool pauseStatus)
+        {
+            bool wasSuspended = !_hasApplicationFocus || _applicationPaused;
+            _applicationPaused = pauseStatus;
+            HandleApplicationSuspensionChange(wasSuspended);
+        }
+
+        private void HandleApplicationSuspensionChange(bool wasSuspended)
+        {
+            if (!IsActive)
+            {
+                return;
+            }
+
+            _input?.ClearCapturedInput();
+            _fireWasHeld = false;
+            bool isSuspended = !_hasApplicationFocus || _applicationPaused;
+            if (wasSuspended && !isSuspended)
+            {
+                _skipResumeFrame = true;
             }
         }
 

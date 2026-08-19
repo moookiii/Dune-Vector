@@ -102,6 +102,12 @@ namespace DuneVector
             };
         }
 
+        public void ClearCurrent()
+        {
+            Current = default;
+            _menuAxisEngaged = false;
+        }
+
         private float ControllerTriggerThreshold => _tuning != null ? _tuning.ControllerTriggerThreshold : 1f;
 
         private float ReadGamepadMenuNavigate(Gamepad gamepad)
@@ -269,6 +275,11 @@ namespace DuneVector
         {
             AutomatedInputEnabled = false;
             AutomatedInput = default;
+        }
+
+        public void ClearCapturedInput()
+        {
+            InputSource?.ClearCurrent();
         }
 
         public void ConsumeContextualActions()
