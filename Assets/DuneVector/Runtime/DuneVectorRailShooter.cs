@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -266,6 +267,8 @@ namespace DuneVector
         private bool _chargeReadyCued;
         private bool _bossAnnounced;
         private float _bossBannerElapsed = float.PositiveInfinity;
+        private Component _massiveClouds;
+        private readonly List<object> _savedMassiveCloudParameters = new List<object>();
 
         private Vector3 _savedPlayerPosition;
         private Quaternion _savedPlayerRotation;
@@ -2476,6 +2479,7 @@ namespace DuneVector
             _camera.transform.position = _arenaOrigin + _settings.CameraLocalOffset;
             _camera.transform.rotation = Quaternion.identity;
             _cameraBasePosition = _camera.transform.position;
+            ApplyRailMassiveCloudOverride();
             if (_settings.RiftFogEnabled)
             {
                 RenderSettings.fog = true;
@@ -2515,9 +2519,71 @@ namespace DuneVector
             RenderSettings.fogColor = _savedFogColor;
             RenderSettings.fogStartDistance = _savedFogStartDistance;
             RenderSettings.fogEndDistance = _savedFogEndDistance;
+            RestoreMassiveCloudParameters();
             Cursor.lockState = _savedInputEnabled ? CursorLockMode.Locked : CursorLockMode.None;
             Cursor.visible = !_savedInputEnabled;
             _input?.SetInputEnabled(_savedInputEnabled);
+        }
+
+        private void ApplyRailMassiveCloudOverride()
+        {
+            _savedMassiveCloudParameters.Clear();
+            _massiveClouds = null;
+            if (!_settings.OverrideMassiveCloudsDuringSubgame || _camera == null)
+            {
+                return;
+            }
+
+            MonoBehaviour[] cameraBehaviours = _camera.GetComponents<MonoBehaviour>();
+            for (int i = 0; i < cameraBehaviours.Length; i++)
+            {
+                MonoBehaviour behaviour = cameraBehaviours[i];
+                if (behaviour != null && behaviour.GetType().FullName == "Mewlist.MassiveClouds")
+                {
+                    _massiveClouds = behaviour;
+                    break;
+                }
+            }
+            IList parameters = GetMassiveCloudParameters();
+            if (parameters == null)
+            {
+                _massiveClouds = null;
+                return;
+            }
+
+            for (int i = 0; i < parameters.Count; i++)
+            {
+                object parameter = parameters[i];
+                _savedMassiveCloudParameters.Add(parameter);
+                Type parameterType = parameter.GetType();
+                parameterType.GetField("RelativeHeight")?.SetValue(parameter, true);
+                parameterType.GetField("FromHeight")?.SetValue(
+                    parameter,
+                    _settings.MassiveCloudsRelativeFromHeight);
+                parameterType.GetField("ToHeight")?.SetValue(
+                    parameter,
+                    _settings.MassiveCloudsRelativeToHeight);
+                parameters[i] = parameter;
+            }
+        }
+
+        private void RestoreMassiveCloudParameters()
+        {
+            IList parameters = GetMassiveCloudParameters();
+            if (parameters != null && parameters.Count == _savedMassiveCloudParameters.Count)
+            {
+                for (int i = 0; i < parameters.Count; i++)
+                {
+                    parameters[i] = _savedMassiveCloudParameters[i];
+                }
+            }
+            _savedMassiveCloudParameters.Clear();
+            _massiveClouds = null;
+        }
+
+        private IList GetMassiveCloudParameters()
+        {
+            return _massiveClouds?.GetType().GetProperty("Parameters")?.GetValue(_massiveClouds) as IList;
         }
 
         private RailEnemy AcquireEnemy(RailShooterEnemyKind kind)

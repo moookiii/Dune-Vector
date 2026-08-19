@@ -7719,6 +7719,12 @@ namespace DuneVector
         [Tooltip("How strongly the rail camera follows the drone across the unlocked procedural X/Y plane.")]
         [Range(0f, 1f)] public float CameraLateralFollowFraction = 1f;
         [Range(30f, 100f)] public float CameraFieldOfView = 68f;
+        [Tooltip("Temporarily overrides every Massive Clouds layer on the gameplay camera while the rail subgame is active.")]
+        public bool OverrideMassiveCloudsDuringSubgame = true;
+        [Tooltip("Camera-relative lower cloud height used only during the rail subgame.")]
+        public float MassiveCloudsRelativeFromHeight = -1890f;
+        [Tooltip("Camera-relative upper cloud height used only during the rail subgame.")]
+        public float MassiveCloudsRelativeToHeight = -1115f;
         [Range(0f, 25f)] public float BoostFieldOfView = 9f;
         [Range(0f, 20f)] public float BombFieldOfViewImpulse = 5f;
         [Min(0f)] public float FieldOfViewSharpness = 7f;
