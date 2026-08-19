@@ -12,12 +12,17 @@ namespace DuneVector
     {
         private const float DefaultAttackRangeMargin = 1.2f;
         private const float DefaultRepositionHeadroom = 1.15f;
+        private const float DefaultDesertDeploymentMaximumDistance = 50f;
 
         /// <summary>Fraction of the attack range kept clear beyond it when placing an enemy.</summary>
         public static float AttackRangeMargin { get; private set; } = DefaultAttackRangeMargin;
 
         /// <summary>How far past the outer ring the reposition threshold must sit.</summary>
         public static float RepositionHeadroom { get; private set; } = DefaultRepositionHeadroom;
+
+        /// <summary>Outer edge of the one-time enemy band used when arriving from the hub.</summary>
+        public static float DesertDeploymentMaximumDistance { get; private set; } =
+            DefaultDesertDeploymentMaximumDistance;
 
         /// <summary>Applies the authored clearance margins. Call once while building the world.</summary>
         public static void Configure(EnemySpawnSafetyTuning settings)
@@ -28,6 +33,9 @@ namespace DuneVector
             RepositionHeadroom = settings != null
                 ? Mathf.Max(1f, settings.EnemyRepositionHeadroom)
                 : DefaultRepositionHeadroom;
+            DesertDeploymentMaximumDistance = settings != null
+                ? Mathf.Max(0f, settings.DesertDeploymentMaximumEnemyDistance)
+                : DefaultDesertDeploymentMaximumDistance;
         }
 
         /// <summary>Restores the built-in margins. Used by tests between cases.</summary>
@@ -35,6 +43,20 @@ namespace DuneVector
         {
             AttackRangeMargin = DefaultAttackRangeMargin;
             RepositionHeadroom = DefaultRepositionHeadroom;
+            DesertDeploymentMaximumDistance = DefaultDesertDeploymentMaximumDistance;
+        }
+
+        /// <summary>
+        /// Places an enemy in the close band used only while completing a hub-to-desert teleport.
+        /// The protected player clearance radius remains the inner edge.
+        /// </summary>
+        public static float ResolveDesertDeploymentDistance(float distance01)
+        {
+            float minimumDistance = DuneVectorEnemySpawnClearance.ApplyMinimumDistance(0f);
+            float maximumDistance = Mathf.Max(
+                minimumDistance,
+                DesertDeploymentMaximumDistance);
+            return Mathf.Lerp(minimumDistance, maximumDistance, Mathf.Clamp01(distance01));
         }
 
         /// <summary>

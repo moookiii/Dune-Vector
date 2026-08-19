@@ -2640,6 +2640,7 @@ namespace DuneVector
         private GroundExploderTuning _groundExploderSettings;
         private PlayerStrikeOrbTuning _orbSettings;
         private StormPyramidThreatHUD _warningHud;
+        private bool _useDesertDeploymentSpawnDistance;
 
         public void Initialize(
             DroneCharacterController player,
@@ -2748,17 +2749,26 @@ namespace DuneVector
             float normalizedHeight)
         {
             float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
-            float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
-                _settings.MinimumSpawnDistance,
-                _settings.DetectionRange,
-                _world);
-            float distance = Mathf.Lerp(
-                minimumDistance,
-                DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
-                    minimumDistance,
+            float distance01 = (float)random.NextDouble();
+            float distance;
+            if (_useDesertDeploymentSpawnDistance)
+            {
+                distance = DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(distance01);
+            }
+            else
+            {
+                float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
                     _settings.MinimumSpawnDistance,
-                    _settings.MaximumSpawnDistance),
-                (float)random.NextDouble());
+                    _settings.DetectionRange,
+                    _world);
+                distance = Mathf.Lerp(
+                    minimumDistance,
+                    DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
+                        minimumDistance,
+                        _settings.MinimumSpawnDistance,
+                        _settings.MaximumSpawnDistance),
+                    distance01);
+            }
             Vector3 playerPosition = _player.WorldCenter;
             Vector3 spawnPosition = playerPosition + new Vector3(
                 Mathf.Cos(angle) * distance,
@@ -2795,17 +2805,26 @@ namespace DuneVector
             float normalizedHeight)
         {
             float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
-            float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
-                _orbSettings.MinimumSpawnDistance,
-                _orbSettings.EvaluateDetectionRange(DuneVectorContractRisk.CurrentRisk),
-                _world);
-            float distance = Mathf.Lerp(
-                minimumDistance,
-                DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
-                    minimumDistance,
+            float distance01 = (float)random.NextDouble();
+            float distance;
+            if (_useDesertDeploymentSpawnDistance)
+            {
+                distance = DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(distance01);
+            }
+            else
+            {
+                float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
                     _orbSettings.MinimumSpawnDistance,
-                    _orbSettings.MaximumSpawnDistance),
-                (float)random.NextDouble());
+                    _orbSettings.EvaluateDetectionRange(DuneVectorContractRisk.CurrentRisk),
+                    _world);
+                distance = Mathf.Lerp(
+                    minimumDistance,
+                    DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
+                        minimumDistance,
+                        _orbSettings.MinimumSpawnDistance,
+                        _orbSettings.MaximumSpawnDistance),
+                    distance01);
+            }
             Vector3 playerPosition = _player.WorldCenter;
             Vector3 spawnPosition = playerPosition + new Vector3(
                 Mathf.Cos(angle) * distance,
@@ -2833,8 +2852,16 @@ namespace DuneVector
             enabled = active;
             if (active)
             {
-                RespawnBaseEnemies();
-                SpawnRiskEnemies();
+                _useDesertDeploymentSpawnDistance = true;
+                try
+                {
+                    RespawnBaseEnemies();
+                    SpawnRiskEnemies();
+                }
+                finally
+                {
+                    _useDesertDeploymentSpawnDistance = false;
+                }
             }
             else
             {

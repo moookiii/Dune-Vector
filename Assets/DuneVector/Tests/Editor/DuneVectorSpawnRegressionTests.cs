@@ -109,6 +109,7 @@ namespace DuneVector.Tests
             Assert.That(settings, Is.Not.Null);
 
             DuneVectorEnemySpawnClearance.Clear();
+            DuneVectorEnemySpawnClearance.Configure(settings.EnemySpawnSafety);
             DuneVectorEnemyEngagementRing.Configure(settings.EnemySpawnSafety);
             GameObject worldObject = new GameObject("Enemy Ring Spawn Horizon Test World");
 
@@ -118,6 +119,14 @@ namespace DuneVector.Tests
                 world.ChunkSize = settings.DuneChunkSize;
                 world.PreloadRadius = settings.WorldStreaming.PreloadRadius;
                 AssertAuthoredRings(settings, world);
+                Assert.That(
+                    DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(0f),
+                    Is.GreaterThanOrEqualTo(settings.EnemySpawnSafety.PlayerSpawnClearanceRadius));
+                Assert.That(
+                    DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(1f),
+                    Is.EqualTo(settings.EnemySpawnSafety.DesertDeploymentMaximumEnemyDistance)
+                        .Within(0.001f),
+                    "The one-time desert deployment spawn must use the authored close-range cap.");
             }
             finally
             {

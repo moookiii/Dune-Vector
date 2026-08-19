@@ -752,6 +752,7 @@ namespace DuneVector
         private DuneVectorMaterials _materials;
         private VesperKiteTuning _settings;
         private bool _gameplayActive = true;
+        private bool _useDesertDeploymentSpawnDistance;
 
         public int ActivePilgrimCount
         {
@@ -787,7 +788,15 @@ namespace DuneVector
             _gameplayActive = active;
             if (active)
             {
-                RespawnBaseEnemies();
+                _useDesertDeploymentSpawnDistance = true;
+                try
+                {
+                    RespawnBaseEnemies();
+                }
+                finally
+                {
+                    _useDesertDeploymentSpawnDistance = false;
+                }
             }
 
             for (int i = 0; i < _enemies.Count; i++)
@@ -828,17 +837,26 @@ namespace DuneVector
             float altitudeProgress)
         {
             float angle = (float)(random.NextDouble() * Mathf.PI * 2f);
-            float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
-                _settings.MinimumSpawnDistance,
-                _settings.DetectionRange,
-                _world);
-            float distance = Mathf.Lerp(
-                minimumDistance,
-                DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
-                    minimumDistance,
+            float distance01 = (float)random.NextDouble();
+            float distance;
+            if (_useDesertDeploymentSpawnDistance)
+            {
+                distance = DuneVectorEnemyEngagementRing.ResolveDesertDeploymentDistance(distance01);
+            }
+            else
+            {
+                float minimumDistance = DuneVectorEnemyEngagementRing.ResolveMinimumDistance(
                     _settings.MinimumSpawnDistance,
-                    _settings.MaximumSpawnDistance),
-                (float)random.NextDouble());
+                    _settings.DetectionRange,
+                    _world);
+                distance = Mathf.Lerp(
+                    minimumDistance,
+                    DuneVectorEnemyEngagementRing.ResolveMaximumDistance(
+                        minimumDistance,
+                        _settings.MinimumSpawnDistance,
+                        _settings.MaximumSpawnDistance),
+                    distance01);
+            }
             Vector3 playerPosition = _player.WorldCenter;
             Vector3 spawnPosition = playerPosition + new Vector3(
                 Mathf.Cos(angle) * distance,
