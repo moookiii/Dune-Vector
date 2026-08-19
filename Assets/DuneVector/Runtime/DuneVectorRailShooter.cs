@@ -192,6 +192,7 @@ namespace DuneVector
         private readonly List<FormationRecord> _formations = new List<FormationRecord>();
         private readonly List<RiftSegment> _segments = new List<RiftSegment>();
         private readonly List<Transform> _speedStreaks = new List<Transform>();
+        private readonly List<Transform> _railRings = new List<Transform>();
         private readonly List<ScorePopup> _popups = new List<ScorePopup>();
         private readonly List<RailEnemy> _chargeLocks = new List<RailEnemy>();
 
@@ -1785,6 +1786,24 @@ namespace DuneVector
                     popup.Active = false;
                 }
             }
+            FaceRailRingsToCamera();
+        }
+
+        private void FaceRailRingsToCamera()
+        {
+            if (_camera == null)
+            {
+                return;
+            }
+            Quaternion screenFacingRotation = _camera.transform.rotation;
+            for (int i = 0; i < _railRings.Count; i++)
+            {
+                Transform ring = _railRings[i];
+                if (ring != null && ring.gameObject.activeInHierarchy)
+                {
+                    ring.rotation = screenFacingRotation;
+                }
+            }
         }
 
         private static void AdvanceTimer(ref float elapsed, float deltaTime, float duration)
@@ -2051,7 +2070,7 @@ namespace DuneVector
                         _settings.GateRadius,
                         _ringSettings);
                     gate.name = "Rift Signal Gate Architecture";
-                    segment.Rotators.Add(gate);
+                    RegisterRailRing(gate);
                 }
                 _segments.Add(segment);
             }
@@ -2171,12 +2190,13 @@ namespace DuneVector
                     PickupKind.Health => TraversalRingType.Health,
                     _ => TraversalRingType.UpperFlight,
                 };
-                DuneVectorVisuals.CreateRingVisual(
+                Transform pickupRing = DuneVectorVisuals.CreateRingVisual(
                     root,
                     ringType,
                     _materials,
                     _settings.PickupRadius,
                     _ringSettings);
+                RegisterRailRing(pickupRing);
                 if (kind == PickupKind.Bomb)
                 {
                     CreatePart(
@@ -2252,20 +2272,41 @@ namespace DuneVector
         {
             _safeGate = NewRoot("Signal Route Gate - Repair", _environmentRoot);
             _riskGate = NewRoot("Black Route Gate - Elite Reward", _environmentRoot);
-            DuneVectorVisuals.CreateRingVisual(
+            Transform safeRing = DuneVectorVisuals.CreateRingVisual(
                 _safeGate,
                 TraversalRingType.Flight,
                 _materials,
                 _settings.BranchGateRadius,
                 _ringSettings);
-            DuneVectorVisuals.CreateRingVisual(
+            Transform riskRing = DuneVectorVisuals.CreateRingVisual(
                 _riskGate,
                 TraversalRingType.UpperFlight,
                 _materials,
                 _settings.BranchGateRadius,
                 _ringSettings);
+            RegisterRailRing(safeRing);
+            RegisterRailRing(riskRing);
             _safeGate.gameObject.SetActive(false);
             _riskGate.gameObject.SetActive(false);
+        }
+
+        private void RegisterRailRing(Transform ring)
+        {
+            if (ring == null)
+            {
+                return;
+            }
+            _railRings.Add(ring);
+            Renderer[] renderers = ring.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                string layerName = renderers[i].gameObject.name;
+                if (string.Equals(layerName, "Portal Drop Shadow", StringComparison.Ordinal) ||
+                    string.Equals(layerName, "Portal Contrast Outline", StringComparison.Ordinal))
+                {
+                    renderers[i].enabled = false;
+                }
+            }
         }
 
         private void BuildLaneWarning()
