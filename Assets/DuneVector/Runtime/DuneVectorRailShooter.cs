@@ -388,6 +388,7 @@ namespace DuneVector
         private Color _savedBackgroundColor;
         private float _savedFieldOfView;
         private Material _savedSkybox;
+        private Material _railSkyboxInstance;
         private bool _savedFogEnabled;
         private FogMode _savedFogMode;
         private Color _savedFogColor;
@@ -3596,7 +3597,24 @@ namespace DuneVector
             _camera.backgroundColor = _settings.RiftBackgroundColor;
             if (_settings.RailSkybox != null)
             {
-                RenderSettings.skybox = _settings.RailSkybox;
+                if (_railSkyboxInstance != null)
+                {
+                    Destroy(_railSkyboxInstance);
+                }
+                _railSkyboxInstance = new Material(_settings.RailSkybox)
+                {
+                    name = $"{_settings.RailSkybox.name} (Rail Runtime)",
+                };
+                if (_railSkyboxInstance.HasProperty("_Exposure"))
+                {
+                    _railSkyboxInstance.SetFloat("_Exposure", _settings.RailSkyboxExposure);
+                }
+                if (_railSkyboxInstance.HasProperty("_Tint"))
+                {
+                    _railSkyboxInstance.SetColor("_Tint", _settings.RailSkyboxTint);
+                }
+                RenderSettings.skybox = _railSkyboxInstance;
+                DynamicGI.UpdateEnvironment();
             }
             _camera.fieldOfView = _settings.CameraFieldOfView;
             _camera.transform.position = _arenaOrigin + _settings.CameraLocalOffset;
@@ -3730,6 +3748,12 @@ namespace DuneVector
             _camera.backgroundColor = _savedBackgroundColor;
             _camera.fieldOfView = _savedFieldOfView;
             RenderSettings.skybox = _savedSkybox;
+            if (_railSkyboxInstance != null)
+            {
+                Destroy(_railSkyboxInstance);
+                _railSkyboxInstance = null;
+            }
+            DynamicGI.UpdateEnvironment();
             _camera.transform.SetPositionAndRotation(_savedCameraPosition, _savedCameraRotation);
             if (_cameraController != null)
             {

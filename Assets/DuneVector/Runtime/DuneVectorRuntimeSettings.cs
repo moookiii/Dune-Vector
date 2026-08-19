@@ -8335,6 +8335,10 @@ namespace DuneVector
         [Min(0f)] public float ImpactFlashMaximumScale = 4.5f;
         [Tooltip("Skybox material used while the rail subgame owns the camera. Leave empty to use the solid rift background.")]
         public Material RailSkybox;
+        [Tooltip("Exposure applied to the rail-only skybox material instance so small stars survive the rail post-processing stack.")]
+        [Range(0f, 8f)] public float RailSkyboxExposure = 3f;
+        [Tooltip("Tint applied to the rail-only skybox material instance.")]
+        [ColorUsage(false)] public Color RailSkyboxTint = Color.white;
         public Color RiftBackgroundColor = new Color(0.006f, 0.008f, 0.022f, 1f);
         [Tooltip("Linear distance fog applied while the rift owns the camera. It buries the streamed desert sky and keeps the corridor readable.")]
         public bool RiftFogEnabled = true;
