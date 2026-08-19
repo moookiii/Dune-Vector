@@ -2985,6 +2985,8 @@ namespace DuneVector
         [Min(0f)] public float TargetDetectedDuration = 0.12f;
         [Tooltip("Grace time before an acquired target outside the cone or range is released.")]
         [Min(0f)] public float TargetLossTolerance = 0.32f;
+        [Tooltip("Freeze lock acquisition while the held target sits outside the cone during the grace window, so swinging away stops the lock from completing.")]
+        public bool PauseAcquisitionOutsideCone = true;
         [Tooltip("Seconds between candidate scoring passes. Current-target validity is still checked every frame.")]
         [Min(0.01f)] public float TargetScanInterval = 0.05f;
         [Tooltip("How much better a new view-center score must be before replacing the current target.")]
@@ -8051,6 +8053,24 @@ namespace DuneVector
         [Min(0f)] public float ChargeLockViewportRadius = 0.09f;
         [Tooltip("Minimum viewport radius used when acquiring destructible satellites with the rail charge lock.")]
         [Min(0f)] public float SatelliteLockViewportRadius = 0.18f;
+        [Tooltip("Seconds a satellite reads as DETECTED before acquisition starts counting.")]
+        [Min(0f)] public float SatelliteLockDetectedDuration = 0.12f;
+        [Tooltip("Seconds of held aim after detection before a satellite is fully locked.")]
+        [Min(0f)] public float SatelliteLockAcquisitionTime = 0.45f;
+        [Tooltip("Grace time a partially acquired satellite keeps its progress after leaving the lock radius.")]
+        [Min(0f)] public float SatelliteLockLossTolerance = 0.3f;
+        [Tooltip("Bracket size for a satellite that has only just been detected. Grows toward LockBracketSize as the lock completes.")]
+        [Min(0f)] public float SatelliteDetectedBracketSize = 26f;
+        [Tooltip("Extra bracket size added by the pulse once a satellite is locked.")]
+        [Min(0f)] public float SatelliteLockedPulseAmount = 5f;
+        [Tooltip("Gap between the satellite bracket and its lock status label.")]
+        [Min(0f)] public float SatelliteLockStatusOffset = 10f;
+        [ColorUsage(false)] public Color SatelliteDetectedColor = new Color(1f, 0.83f, 0.32f, 0.85f);
+        [ColorUsage(false)] public Color SatelliteLockingColor = new Color(1f, 0.62f, 0.2f, 0.95f);
+        [ColorUsage(false)] public Color SatelliteLockedColor = new Color(0.4f, 1f, 0.86f, 1f);
+        public string SatelliteDetectedLabel = "SATELLITE";
+        public string SatelliteLockingFormat = "LOCKING {0:00}%";
+        public string SatelliteLockedLabel = "SAT LOCKED";
 
         [Header("Targeting and Hit Resolution")]
         [Tooltip("Shot hit radius for each rail adaptation. Author these to match the drawn model so bolts register where the enemy is visible.")]

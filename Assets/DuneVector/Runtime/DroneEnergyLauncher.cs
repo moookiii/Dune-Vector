@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -176,6 +176,13 @@ namespace DuneVector
     {
         public EnemyCombatTarget SelectedTarget { get; private set; }
 
+        /// <summary>
+        /// True while the selected target still passes the strict cone and range test. It goes
+        /// false during the loss-tolerance grace window, where the target is retained but is no
+        /// longer actually being aimed at.
+        /// </summary>
+        public bool SelectedTargetInCone { get; private set; }
+
         private DroneCharacterController _drone;
         private Camera _camera;
         private EnergyLauncherTuning _settings;
@@ -266,9 +273,11 @@ namespace DuneVector
             if (IsStrictlyEligible(SelectedTarget))
             {
                 _outsideTargetAreaTime = 0f;
+                SelectedTargetInCone = true;
                 return;
             }
 
+            SelectedTargetInCone = false;
             _outsideTargetAreaTime += deltaTime;
             if (_outsideTargetAreaTime >= _settings.TargetLossTolerance)
             {
@@ -352,6 +361,7 @@ namespace DuneVector
                 return;
             }
             SelectedTarget = target;
+            SelectedTargetInCone = target != null && IsStrictlyEligible(target);
             _outsideTargetAreaTime = 0f;
         }
     }
@@ -395,7 +405,7 @@ namespace DuneVector
         private void LateUpdate()
         {
             EnemyCombatTarget detectedTarget = _detector != null ? _detector.SelectedTarget : null;
-            if (detectedTarget == null || !detectedTarget.IsValid)
+            if (detectedTarget == null || !detectedTarget.IsValid || _settings == null)
             {
                 SetState(DroneLockOnState.None, null);
                 return;
@@ -404,6 +414,13 @@ namespace DuneVector
             if (detectedTarget != Target)
             {
                 SetState(DroneLockOnState.TargetDetected, detectedTarget);
+            }
+
+            // The detector holds a target through a short grace window after it leaves the cone.
+            // Acquisition must not keep counting there, or a target the player has already swung
+            // away from still completes its lock.
+            if (_settings.PauseAcquisitionOutsideCone && !_detector.SelectedTargetInCone)
+            {
                 return;
             }
 

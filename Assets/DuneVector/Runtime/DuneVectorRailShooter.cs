@@ -44,6 +44,18 @@ namespace DuneVector
         Loop,
     }
 
+    /// <summary>
+    /// Staged charge lock applied to rift satellites, mirroring the free-roam energy launcher so
+    /// both weapons read the same: a target is spotted, held, and only then locked.
+    /// </summary>
+    public enum RailSatelliteLockState
+    {
+        None,
+        Detected,
+        Locking,
+        Locked,
+    }
+
     public enum RailShooterRoute
     {
         Signal,
@@ -221,6 +233,9 @@ namespace DuneVector
         private sealed class RailSatellite
         {
             public GameObject Root;
+            public RailSatelliteLockState LockState;
+            public float LockElapsed;
+            public float LockGrace;
             public Transform Transform;
             public Vector3 LocalTargetOffset;
             public GameObject Explosion;
@@ -1194,7 +1209,7 @@ namespace DuneVector
                 _satelliteChargeLock = null;
                 _chargeReadyCued = false;
                 _chargeLocks.Clear();
-                _satelliteChargeLocks.Clear();
+                ClearSatelliteLocks();
                 _fireWasHeld = false;
                 if (command.BombPressed && _state.Bombs > 0 && !float.IsFinite(_bombElapsed))
                 {
@@ -1213,7 +1228,7 @@ namespace DuneVector
                 }
                 if (_state.ChargeElapsed >= _settings.ChargeMinimumDuration)
                 {
-                    UpdateChargeLock();
+                    UpdateChargeLock(deltaTime);
                     _cameraShake = Mathf.Max(
                         _cameraShake,
                         _settings.ChargeCameraShake * ChargeNormalized());
@@ -1242,7 +1257,7 @@ namespace DuneVector
                 _satelliteChargeLock = null;
                 _chargeReadyCued = false;
                 _chargeLocks.Clear();
-                _satelliteChargeLocks.Clear();
+                ClearSatelliteLocks();
             }
             _fireWasHeld = command.FireHeld;
 
@@ -1361,7 +1376,7 @@ namespace DuneVector
             Vector3 direction = _state.AimDirection.normalized;
             Vector3 lockPosition = _chargeLock != null && _chargeLock.Active
                 ? _chargeLock.Transform.position
-                : _satelliteChargeLock != null && _satelliteChargeLock.Active
+                : IsSatelliteLocked(_satelliteChargeLock)
                     ? SatelliteTargetPosition(_satelliteChargeLock)
                     : origin + (direction * _settings.ChargedBeamRange);
             for (int i = 0; i < _enemies.Count; i++)
@@ -1425,32 +1440,35 @@ namespace DuneVector
             _satelliteChargeLock = null;
             _chargeReadyCued = false;
             _chargeLocks.Clear();
-            _satelliteChargeLocks.Clear();
+            ClearSatelliteLocks();
             PlayCue(_settings.ChargedFireEvent, _player.transform.position);
         }
 
-        private void UpdateChargeLock()
+        private void UpdateChargeLock(float deltaTime)
         {
             RailEnemy previous = _chargeLock;
-            RailSatellite previousSatellite = _satelliteChargeLock;
             // The reticle rides the aim viewport, so lock-on has to search around the
             // crosshair rather than the middle of the screen.
             float radius = Mathf.Max(
                 _settings.ChargeLockViewportRadius,
                 _settings.ChargeLockViewportRadius * ChargeNormalized() * 2f);
             float satelliteRadius = Mathf.Max(radius, _settings.SatelliteLockViewportRadius);
+            TickSatelliteLockAcquisition(satelliteRadius, deltaTime);
             _chargeLock = FindViewportTarget(radius, _settings.ChargedBeamRange);
             _satelliteChargeLock = FindViewportSatelliteTarget(
                 satelliteRadius,
                 _settings.ChargedBeamRange,
                 out float satelliteScore);
+            // A satellite only takes the primary slot from an enemy once its staged lock has
+            // actually completed, so a half-acquired satellite cannot blank the enemy lock.
             if (_chargeLock != null &&
                 TryScoreViewportTarget(_chargeLock, radius, _settings.ChargedBeamRange, out float enemyScore) &&
-                enemyScore <= satelliteScore)
+                (!IsSatelliteLocked(_satelliteChargeLock) || enemyScore <= satelliteScore))
             {
-                _satelliteChargeLock = null;
+                // The enemy keeps the primary slot. The satellite stays tracked for the HUD and
+                // still joins the multi-lock list once it finishes acquiring.
             }
-            else if (_satelliteChargeLock != null)
+            else if (IsSatelliteLocked(_satelliteChargeLock))
             {
                 _chargeLock = null;
             }
@@ -1459,9 +1477,102 @@ namespace DuneVector
             {
                 PlayCue(_settings.TargetLockEvent, _chargeLock.Transform.position);
             }
-            else if (_satelliteChargeLock != null && _satelliteChargeLock != previousSatellite)
+        }
+
+        /// <summary>
+        /// Advances the staged satellite lock. Holding a satellite inside the lock radius carries
+        /// it from Detected through Locking to Locked; drifting off it freezes the progress for a
+        /// grace window before the acquisition is dropped entirely.
+        /// </summary>
+        private void TickSatelliteLockAcquisition(float viewportRadius, float deltaTime)
+        {
+            float detectedDuration = Mathf.Max(0f, _settings.SatelliteLockDetectedDuration);
+            float acquisitionTime = Mathf.Max(0f, _settings.SatelliteLockAcquisitionTime);
+            for (int i = 0; i < _satellites.Count; i++)
             {
-                PlayCue(_settings.TargetLockEvent, SatelliteTargetPosition(_satelliteChargeLock));
+                RailSatellite satellite = _satellites[i];
+                if (satellite == null)
+                {
+                    continue;
+                }
+                if (!satellite.Active ||
+                    !TryScoreViewportTarget(
+                        SatelliteTargetPosition(satellite),
+                        viewportRadius,
+                        _settings.ChargedBeamRange,
+                        out _))
+                {
+                    if (satellite.LockState == RailSatelliteLockState.None)
+                    {
+                        continue;
+                    }
+                    satellite.LockGrace += deltaTime;
+                    if (!satellite.Active ||
+                        satellite.LockGrace >= _settings.SatelliteLockLossTolerance)
+                    {
+                        ResetSatelliteLock(satellite);
+                    }
+                    continue;
+                }
+
+                satellite.LockGrace = 0f;
+                satellite.LockElapsed += deltaTime;
+                RailSatelliteLockState state = satellite.LockElapsed >= detectedDuration + acquisitionTime
+                    ? RailSatelliteLockState.Locked
+                    : satellite.LockElapsed >= detectedDuration
+                        ? RailSatelliteLockState.Locking
+                        : RailSatelliteLockState.Detected;
+                if (state == satellite.LockState)
+                {
+                    continue;
+                }
+                satellite.LockState = state;
+                if (state == RailSatelliteLockState.Locked)
+                {
+                    PlayCue(_settings.TargetLockEvent, SatelliteTargetPosition(satellite));
+                }
+            }
+        }
+
+        private float SatelliteLockProgress(RailSatellite satellite)
+        {
+            if (satellite == null || satellite.LockState == RailSatelliteLockState.None)
+            {
+                return 0f;
+            }
+            if (satellite.LockState == RailSatelliteLockState.Locked)
+            {
+                return 1f;
+            }
+            float detectedDuration = Mathf.Max(0f, _settings.SatelliteLockDetectedDuration);
+            float acquisitionTime = Mathf.Max(Mathf.Epsilon, _settings.SatelliteLockAcquisitionTime);
+            return Mathf.Clamp01((satellite.LockElapsed - detectedDuration) / acquisitionTime);
+        }
+
+        private static bool IsSatelliteLocked(RailSatellite satellite)
+        {
+            return satellite != null && satellite.Active &&
+                satellite.LockState == RailSatelliteLockState.Locked;
+        }
+
+        private static void ResetSatelliteLock(RailSatellite satellite)
+        {
+            if (satellite == null)
+            {
+                return;
+            }
+            satellite.LockState = RailSatelliteLockState.None;
+            satellite.LockElapsed = 0f;
+            satellite.LockGrace = 0f;
+        }
+
+        private void ClearSatelliteLocks()
+        {
+            _satelliteChargeLocks.Clear();
+            _satelliteChargeLock = null;
+            for (int i = 0; i < _satellites.Count; i++)
+            {
+                ResetSatelliteLock(_satellites[i]);
             }
         }
 
@@ -1474,8 +1585,7 @@ namespace DuneVector
             {
                 _chargeLocks.Add(_chargeLock);
             }
-            if (_satelliteChargeLock != null && _satelliteChargeLock.Active &&
-                _chargeLocks.Count < capacity)
+            if (IsSatelliteLocked(_satelliteChargeLock) && _chargeLocks.Count < capacity)
             {
                 _satelliteChargeLocks.Add(_satelliteChargeLock);
             }
@@ -1501,7 +1611,7 @@ namespace DuneVector
                  i++)
             {
                 RailSatellite satellite = _satellites[i];
-                if (satellite.Active && satellite != _satelliteChargeLock &&
+                if (IsSatelliteLocked(satellite) && satellite != _satelliteChargeLock &&
                     TryScoreViewportTarget(
                         SatelliteTargetPosition(satellite),
                         satelliteViewportRadius,
@@ -2655,6 +2765,12 @@ namespace DuneVector
             }
             Vector3 position = SatelliteTargetPosition(satellite);
             satellite.Active = false;
+            ResetSatelliteLock(satellite);
+            _satelliteChargeLocks.Remove(satellite);
+            if (_satelliteChargeLock == satellite)
+            {
+                _satelliteChargeLock = null;
+            }
             satellite.Root.SetActive(false);
             satellite.Exploding = satellite.Explosion != null;
             satellite.ExplosionElapsed = 0f;
@@ -5723,18 +5839,7 @@ namespace DuneVector
                     DrawTargetHealth(locked, lockScreen, Scaled(_settings.LockBracketSize));
                 }
             }
-            for (int i = 0; i < _satelliteChargeLocks.Count; i++)
-            {
-                RailSatellite locked = _satelliteChargeLocks[i];
-                if (locked != null && locked.Active &&
-                    TryProject(SatelliteTargetPosition(locked), out Vector2 lockScreen))
-                {
-                    DrawBracket(
-                        lockScreen,
-                        Scaled(_settings.LockBracketSize),
-                        WithAlpha(_settings.HudChargeColor, lockPulse));
-                }
-            }
+            DrawSatelliteLocks(lockPulse);
             if (TryProject(farAim, out Vector2 markerAnchor))
             {
                 DrawHitMarkers(markerAnchor);
@@ -5843,6 +5948,107 @@ namespace DuneVector
             GUIUtility.RotateAroundPivot(angle - 145f, tip);
             DrawRect(new Rect(tip.x, tip.y - (thickness * 0.5f), size * 0.6f, thickness), color);
             GUI.matrix = previous;
+        }
+
+        // Satellites acquire in stages like the free-roam energy launcher, so the reticle has to
+        // show the stage as well as the target: the bracket tightens and recolors as the lock
+        // completes, and only a finished lock gets the pulsing confirmation box.
+        private void DrawSatelliteLocks(float lockPulse)
+        {
+            RailSatellite statusSatellite = null;
+            Vector2 statusScreen = Vector2.zero;
+            float statusSize = 0f;
+            for (int i = 0; i < _satellites.Count; i++)
+            {
+                RailSatellite satellite = _satellites[i];
+                if (satellite == null || !satellite.Active ||
+                    satellite.LockState == RailSatelliteLockState.None ||
+                    !TryProject(SatelliteTargetPosition(satellite), out Vector2 screen))
+                {
+                    continue;
+                }
+
+                float progress = SatelliteLockProgress(satellite);
+                float size = Scaled(Mathf.Lerp(
+                    _settings.SatelliteDetectedBracketSize,
+                    _settings.LockBracketSize,
+                    progress));
+                Color color = SatelliteLockColor(satellite.LockState);
+                if (satellite.LockState == RailSatelliteLockState.Locked)
+                {
+                    size += Scaled(_settings.SatelliteLockedPulseAmount) * lockPulse;
+                    color = WithAlpha(color, lockPulse);
+                }
+                DrawBracket(screen, size, color);
+                DrawSatelliteHealth(satellite, screen, size);
+                if (satellite == _satelliteChargeLock)
+                {
+                    statusSatellite = satellite;
+                    statusScreen = screen;
+                    statusSize = size;
+                }
+            }
+
+            if (statusSatellite == null)
+            {
+                return;
+            }
+            DrawSatelliteLockStatus(statusSatellite, statusScreen, statusSize);
+        }
+
+        private void DrawSatelliteLockStatus(RailSatellite satellite, Vector2 center, float size)
+        {
+            string status = satellite.LockState switch
+            {
+                RailSatelliteLockState.Detected => _settings.SatelliteDetectedLabel,
+                RailSatelliteLockState.Locking => string.Format(
+                    _settings.SatelliteLockingFormat,
+                    Mathf.RoundToInt(SatelliteLockProgress(satellite) * 100f)),
+                RailSatelliteLockState.Locked => _settings.SatelliteLockedLabel,
+                _ => string.Empty,
+            };
+            if (string.IsNullOrEmpty(status))
+            {
+                return;
+            }
+            float line = Scaled(_settings.HudLineHeight);
+            float width = Scaled(_settings.HudPanelWidth) * 0.5f;
+            DrawLabel(
+                new Rect(
+                    center.x - (width * 0.5f),
+                    center.y - (size * 0.5f) - Scaled(_settings.SatelliteLockStatusOffset) - line,
+                    width,
+                    line),
+                status,
+                _centeredSmallStyle,
+                SatelliteLockColor(satellite.LockState));
+        }
+
+        private Color SatelliteLockColor(RailSatelliteLockState state)
+        {
+            return state switch
+            {
+                RailSatelliteLockState.Detected => _settings.SatelliteDetectedColor,
+                RailSatelliteLockState.Locking => _settings.SatelliteLockingColor,
+                RailSatelliteLockState.Locked => _settings.SatelliteLockedColor,
+                _ => Color.clear,
+            };
+        }
+
+        private void DrawSatelliteHealth(RailSatellite satellite, Vector2 center, float size)
+        {
+            float health = Mathf.Clamp01(satellite.Health / Mathf.Max(1f, _settings.SatelliteHealth));
+            if (health >= 0.999f)
+            {
+                return;
+            }
+            float width = size * 1.6f;
+            Rect bar = new Rect(
+                center.x - (width * 0.5f),
+                center.y + (size * 0.5f) + Scaled(_settings.TargetHealthBarGap),
+                width,
+                Mathf.Max(2f, Scaled(_settings.ProgressMeterHeight) * 0.5f));
+            DrawMeter(bar, health, Color.Lerp(_settings.RiftDangerColor, _settings.HudReticleColor, health));
         }
 
         private void DrawTargetHealth(RailEnemy enemy, Vector2 center, float size)
