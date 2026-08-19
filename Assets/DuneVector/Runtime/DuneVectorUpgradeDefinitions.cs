@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -323,6 +323,87 @@ namespace DuneVector
         [Min(1)] public int ModularTrailGoldCost = 5000;
         [TextArea] public string ContractTrailDescription = "Unlocked by completing courier contracts.";
         [TextArea] public string ModularTrailDescription = "Modular trail available for purchase.";
+
+        [Tooltip("Full-screen unlock showcase played when a contract grants a new drone trail.")]
+        public DroneTrailUnlockShowcaseTuning UnlockShowcase = new DroneTrailUnlockShowcaseTuning();
+    }
+
+    [Serializable]
+    public sealed class DroneTrailUnlockShowcaseTuning
+    {
+        [Header("Copy")]
+        public string HeaderText = "TRAIL UNLOCKED";
+        [TextArea] public string BodyText =
+            "A new drone trail joined your collection. Equip it at the Aerie upgrade terminal.";
+        public string ContinuePrompt = "CLICK OR PRESS SPACE TO CONTINUE";
+        [Tooltip("Seconds the showcase ignores input after opening so the return-to-hub press cannot dismiss it.")]
+        [Min(0f)] public float OpenInputDelay = 0.35f;
+        [Min(0.01f)] public float OpenFadeDuration = 0.28f;
+
+        [Header("Responsive Page Layout")]
+        [Min(320f)] public float ReferenceWidth = 1920f;
+        [Min(240f)] public float ReferenceHeight = 1080f;
+        [Range(0.5f, 2f)] public float MinimumScale = 0.68f;
+        [Range(0.5f, 2f)] public float MaximumScale = 1.15f;
+        [Min(360f)] public float PanelWidth = 940f;
+        [Min(280f)] public float PanelHeight = 760f;
+        [Min(8f)] public float PanelPadding = 34f;
+        [Min(1f)] public float AccentBarHeight = 5f;
+        [Min(0f)] public float ShadowOffset = 10f;
+        [Min(40f)] public float HeaderHeight = 84f;
+        [Min(80f)] public float PreviewHeight = 400f;
+        [Min(1f)] public float BorderThickness = 1f;
+        [Min(0f)] public float CornerBracketLength = 26f;
+        [Min(1f)] public float CornerBracketThickness = 2f;
+        [Min(0f)] public float NameTopGap = 24f;
+        [Min(0f)] public float BodyTopGap = 16f;
+        [Min(0f)] public float PromptBottomGap = 26f;
+
+        [Header("Typography")]
+        [Min(10)] public int HeaderFontSize = 30;
+        [Min(10)] public int NameFontSize = 24;
+        [Min(9)] public int BodyFontSize = 15;
+        [Min(9)] public int PromptFontSize = 14;
+
+        [Header("Palette")]
+        [ColorUsage(false)] public Color BackdropColor = new Color(0f, 0f, 0f, 0.78f);
+        [ColorUsage(false)] public Color ShadowColor = new Color(0f, 0f, 0f, 0.52f);
+        [ColorUsage(false)] public Color PanelColor = new Color(0.025f, 0.045f, 0.065f, 0.98f);
+        [ColorUsage(false)] public Color PanelBorderColor = new Color(0.32f, 0.48f, 0.58f, 0.8f);
+        [ColorUsage(false)] public Color HeaderColor = new Color(0.035f, 0.075f, 0.1f, 0.98f);
+        [ColorUsage(false)] public Color AccentColor = new Color(1f, 0.52f, 0.16f, 1f);
+        [ColorUsage(false)] public Color PrimaryTextColor = new Color(0.9f, 0.97f, 1f, 1f);
+        [ColorUsage(false)] public Color SecondaryTextColor = new Color(0.52f, 0.68f, 0.74f, 1f);
+        [ColorUsage(false)] public Color PromptColor = new Color(0.82f, 0.92f, 1f, 1f);
+        [Range(0f, 1f)] public float PromptMinimumAlpha = 0.35f;
+        [Min(0f)] public float PromptPulseSpeed = 3.2f;
+
+        [Header("Render View")]
+        [Tooltip("Layer the showcase preview rig is moved to. The gameplay camera stops drawing this layer so the preview only appears inside the render view.")]
+        public string PreviewLayerName = "TrailShowcase";
+        [Min(64)] public int RenderTextureWidth = 1024;
+        [Min(64)] public int RenderTextureHeight = 470;
+        [Tooltip("World position the isolated preview rig is built at, far from any streamed desert geometry.")]
+        public Vector3 PreviewWorldOrigin = new Vector3(0f, 12000f, 0f);
+        [ColorUsage(false)] public Color PreviewBackgroundColor = new Color(0.012f, 0.02f, 0.032f, 1f);
+        [Range(10f, 120f)] public float PreviewFieldOfView = 42f;
+        [Min(0.01f)] public float PreviewNearClip = 0.05f;
+        [Min(1f)] public float PreviewFarClip = 300f;
+        [Tooltip("Preview camera position relative to the rig origin the trail orbits around.")]
+        public Vector3 PreviewCameraOffset = new Vector3(0f, 3.2f, -13f);
+        [Tooltip("Point the preview camera aims at, relative to the rig origin.")]
+        public Vector3 PreviewLookOffset = new Vector3(0f, 0.4f, 0f);
+        [Tooltip("Uniform scale applied to the cloned trail effect inside the render view.")]
+        [Min(0.01f)] public float PreviewScale = 1f;
+
+        [Header("Preview Flight Path")]
+        [Tooltip("Radius of the horizontal loop the trail flies. Distance-based emitters only produce a plume while the effect is moving.")]
+        [Min(0.1f)] public float OrbitRadius = 5.5f;
+        [Min(1f)] public float OrbitDegreesPerSecond = 95f;
+        [Tooltip("Height the flight path rises and falls by across the loop.")]
+        [Min(0f)] public float OrbitVerticalAmplitude = 0.9f;
+        [Tooltip("Rise-and-fall cycles completed per full loop.")]
+        [Min(0f)] public float OrbitVerticalCycles = 2f;
     }
 
     [Serializable]

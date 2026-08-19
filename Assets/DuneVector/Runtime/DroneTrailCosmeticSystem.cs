@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -74,6 +74,7 @@ namespace DuneVector
         public int ModularTrailGoldCost => Mathf.Max(1, _tuning?.ModularTrailGoldCost ?? 1);
         public string ContractTrailDescription => _tuning?.ContractTrailDescription ?? string.Empty;
         public string ModularTrailDescription => _tuning?.ModularTrailDescription ?? string.Empty;
+        public DroneTrailUnlockShowcaseTuning UnlockShowcaseTuning => _tuning?.UnlockShowcase;
 
         public void Initialize(Transform droneVisualRoot, DroneTrailCosmeticTuning tuning, DroneGoldWallet wallet)
         {
@@ -176,10 +177,15 @@ namespace DuneVector
             return UpgradePurchaseFailure.None;
         }
 
-        public string SynchronizeContractUnlocks(int completedContracts)
+        /// <summary>
+        /// Grants every contract trail the completed-contract count has earned and returns the
+        /// newest one, or null when nothing was unlocked. The option itself is returned so the
+        /// unlock showcase can clone the authored effect for its render view.
+        /// </summary>
+        public DroneTrailOption SynchronizeContractUnlocks(int completedContracts)
         {
             int targetCount = Mathf.Max(0, completedContracts);
-            string newestDisplayName = null;
+            DroneTrailOption newestUnlock = null;
             bool changed = false;
             while (_contractUnlocksGranted < targetCount)
             {
@@ -187,7 +193,7 @@ namespace DuneVector
                 if (next != null)
                 {
                     _unlocked.Add(next.ObjectName);
-                    newestDisplayName = next.DisplayName;
+                    newestUnlock = next;
                 }
                 _contractUnlocksGranted++;
                 changed = true;
@@ -197,7 +203,7 @@ namespace DuneVector
             {
                 Save();
             }
-            return newestDisplayName;
+            return newestUnlock;
         }
 
         private void DiscoverOptions(Transform droneVisualRoot)

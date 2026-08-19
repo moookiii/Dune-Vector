@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -423,6 +423,8 @@ namespace DuneVector
         public DuneVectorFreeRoamDeliverySystem FreeRoamDeliveries => _freeRoamDeliveries;
         public bool IsTerminalOpen => _hubTerminalMode != HubTerminalMode.None;
         public bool IsDeliveryMessageOpen => _messagePresenter != null && _messagePresenter.IsOpen;
+        public bool IsTrailUnlockShowcaseOpen =>
+            _trailUnlockShowcase != null && _trailUnlockShowcase.IsOpen;
         public Vector3 HubSpawnPosition => _hubSpawn;
 
         /// <summary>
@@ -505,6 +507,7 @@ namespace DuneVector
                 return bootstrap != null && bootstrap.CourierGame != null &&
                     (DuneVectorPhotographySystem.IsCameraModeActive ||
                      bootstrap.CourierGame.IsTerminalOpen ||
+                     bootstrap.CourierGame.IsTrailUnlockShowcaseOpen ||
                      bootstrap.CourierGame.State == CourierRunState.DeliveryMessage);
             }
         }
@@ -549,6 +552,7 @@ namespace DuneVector
         private DuneVectorVesperKiteDirector _vesperKiteDirector;
         private DuneVectorRouteEncounterDirector _routeEncounterDirector;
         private DuneVectorDeliveryMessagePresenter _messagePresenter;
+        private DuneVectorTrailUnlockShowcase _trailUnlockShowcase;
         private DuneVectorSandAmbusherSystem _sandAmbusherSystem;
 
         private Transform _hubRoot;
@@ -760,6 +764,11 @@ namespace DuneVector
                 audio,
                 Progress.DeliveryMessageInputHintAcknowledged,
                 Progress.AcknowledgeDeliveryMessageInputHint);
+            _trailUnlockShowcase = gameObject.AddComponent<DuneVectorTrailUnlockShowcase>();
+            _trailUnlockShowcase.Initialize(
+                _permanentUpgrades?.DroneTrails?.UnlockShowcaseTuning,
+                _playerInput,
+                _camera);
             if (!DuneTrainingRuntime.ControlledPreHazardStage)
             {
                 _sandAmbusherSystem = gameObject.AddComponent<DuneVectorSandAmbusherSystem>();
@@ -3338,13 +3347,22 @@ namespace DuneVector
             EnterHubImmediate(openTerminal: false, placePlayerAtSpawn: false);
             EndDeliveryMessageSafety();
             _player.PlayHubReturnEffect(HubFloorPosition);
-            string unlockedTrail = _permanentUpgrades?.DroneTrails?.SynchronizeContractUnlocks(
+            DroneTrailOption unlockedTrail = _permanentUpgrades?.DroneTrails?.SynchronizeContractUnlocks(
                 Progress != null ? Progress.CompletedDeliveries : 0);
-            ShowStatus(
-                string.IsNullOrEmpty(unlockedTrail)
-                    ? "RETURNED TO COURIER AERIE"
-                    : $"TRAIL UNLOCKED — {unlockedTrail.ToUpperInvariant()}",
-                2.5f);
+            if (unlockedTrail == null)
+            {
+                ShowStatus("RETURNED TO COURIER AERIE", 2.5f);
+                return;
+            }
+
+            // The showcase films the unlocked effect in world space, so the status line only
+            // stands in for it when the render view could not be built.
+            string unlockedName = (unlockedTrail.DisplayName ?? string.Empty).ToUpperInvariant();
+            if (_trailUnlockShowcase == null ||
+                !_trailUnlockShowcase.Open(unlockedTrail, () => ShowStatus($"TRAIL UNLOCKED — {unlockedName}", 2.5f)))
+            {
+                ShowStatus($"TRAIL UNLOCKED — {unlockedName}", 2.5f);
+            }
         }
 
         private void BeginDeliveryMessageSafety()

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -1593,7 +1593,9 @@ namespace DuneVector
                 return;
             }
             if (_courierGame != null &&
-                (_courierGame.IsTerminalOpen || _courierGame.IsDeliveryMessageOpen))
+                (_courierGame.IsTerminalOpen ||
+                 _courierGame.IsDeliveryMessageOpen ||
+                 _courierGame.IsTrailUnlockShowcaseOpen))
             {
                 return;
             }
