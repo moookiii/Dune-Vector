@@ -389,17 +389,17 @@ namespace DuneVector
         [Range(10f, 120f)] public float PreviewFieldOfView = 42f;
         [Min(0.01f)] public float PreviewNearClip = 0.05f;
         [Min(1f)] public float PreviewFarClip = 300f;
-        [Tooltip("Preview camera position relative to the rig origin the trail orbits around.")]
-        public Vector3 PreviewCameraOffset = new Vector3(0f, 3.2f, -13f);
-        [Tooltip("Point the preview camera aims at, relative to the rig origin.")]
-        public Vector3 PreviewLookOffset = new Vector3(0f, 0.4f, 0f);
+        [Tooltip("Preview camera position in the flying effect's own frame: X to its right, Y world up, Z along its heading. The camera rides with the effect so the plume stays framed however wide the loop is.")]
+        public Vector3 PreviewCameraChaseOffset = new Vector3(8f, 2.2f, -3f);
+        [Tooltip("Distance ahead of the flying effect the preview camera aims at.")]
+        public float PreviewCameraLookAhead = 1.5f;
         [Tooltip("Uniform scale applied to the cloned trail effect inside the render view.")]
         [Min(0.01f)] public float PreviewScale = 1f;
 
         [Header("Preview Flight Path")]
         [Tooltip("Radius of the horizontal loop the trail flies. Distance-based emitters only produce a plume while the effect is moving.")]
-        [Min(0.1f)] public float OrbitRadius = 5.5f;
-        [Min(1f)] public float OrbitDegreesPerSecond = 95f;
+        [Min(0.1f)] public float OrbitRadius = 12f;
+        [Min(1f)] public float OrbitDegreesPerSecond = 115f;
         [Tooltip("Height the flight path rises and falls by across the loop.")]
         [Min(0f)] public float OrbitVerticalAmplitude = 0.9f;
         [Tooltip("Rise-and-fall cycles completed per full loop.")]

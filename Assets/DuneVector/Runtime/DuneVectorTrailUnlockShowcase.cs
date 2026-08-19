@@ -23,6 +23,8 @@ namespace DuneVector
         private Transform _previewMover;
         private Camera _previewCamera;
         private ParticleSystem[] _previewParticles = Array.Empty<ParticleSystem>();
+        private TrailRenderer[] _previewTrails = Array.Empty<TrailRenderer>();
+        private int _trailClearTicksRemaining;
         private GUIStyle _headerStyle;
         private GUIStyle _nameStyle;
         private GUIStyle _bodyStyle;
@@ -113,6 +115,14 @@ namespace DuneVector
             }
 
             AdvancePreviewFlight();
+            if (_trailClearTicksRemaining > 0)
+            {
+                _trailClearTicksRemaining--;
+                for (int i = 0; i < _previewTrails.Length; i++)
+                {
+                    _previewTrails[i]?.Clear();
+                }
+            }
             RestartFinishedPreviewEffects();
 
             bool inputAllowed = Time.frameCount != _openedFrame &&
@@ -148,22 +158,29 @@ namespace DuneVector
             mover.transform.SetParent(_rigRoot, false);
             mover.transform.localScale = Vector3.one * Mathf.Max(0.01f, _tuning.PreviewScale);
             _previewMover = mover.transform;
+            _orbitAngle = 0f;
+            ApplyFlightPose();
 
-            GameObject clone = Instantiate(option.TrailObject, _previewMover);
+            // Spawned straight onto the flight path. Cloning it where the drone stands and
+            // moving it afterwards makes the effect's Trail Renderer record one enormous
+            // segment stretching from the hub up to the rig.
+            GameObject clone = Instantiate(
+                option.TrailObject,
+                _previewMover.position,
+                _previewMover.rotation,
+                _previewMover);
             clone.name = option.ObjectName;
             clone.transform.localPosition = Vector3.zero;
             clone.transform.localRotation = Quaternion.identity;
-            // Reparenting keeps world scale, which bakes the drone visual's own scale into the
-            // clone. The authored local scale is what the effect was tuned at.
             clone.transform.localScale = option.TrailObject.transform.localScale;
             clone.SetActive(true);
             SilenceClonedEffect(clone);
+            RestoreGatedDistanceEmission(clone);
             _previewParticles = clone.GetComponentsInChildren<ParticleSystem>(true);
+            _previewTrails = clone.GetComponentsInChildren<TrailRenderer>(true);
 
             GameObject cameraObject = new GameObject("Trail Preview Camera");
             cameraObject.transform.SetParent(_rigRoot, false);
-            cameraObject.transform.localPosition = _tuning.PreviewCameraOffset;
-            cameraObject.transform.LookAt(_rigRoot.TransformPoint(_tuning.PreviewLookOffset), Vector3.up);
             _previewCamera = cameraObject.AddComponent<Camera>();
             _previewCamera.clearFlags = CameraClearFlags.SolidColor;
             _previewCamera.backgroundColor = _tuning.PreviewBackgroundColor;
@@ -187,10 +204,52 @@ namespace DuneVector
                 ApplyLayerRecursively(_rigRoot, _previewLayer);
             }
 
-            _orbitAngle = 0f;
-            AdvancePreviewFlight();
+            UpdatePreviewCamera();
             root.SetActive(true);
+            ClearPreviewHistory();
+            _trailClearTicksRemaining = 2;
             return true;
+        }
+
+        /// <summary>
+        /// The drone's own trail gate switches every distance emitter off whenever the drone is
+        /// not moving horizontally, and Instantiate copies that live component state. The
+        /// showcase clone flies under its own power, so the gated emitters are switched back
+        /// on or the preview shows the effect's core with no plume behind it.
+        /// </summary>
+        private static void RestoreGatedDistanceEmission(GameObject clone)
+        {
+            ParticleSystem[] particleSystems = clone.GetComponentsInChildren<ParticleSystem>(true);
+            for (int i = 0; i < particleSystems.Length; i++)
+            {
+                ParticleSystem particleSystem = particleSystems[i];
+                if (particleSystem == null)
+                {
+                    continue;
+                }
+
+                ParticleSystem.EmissionModule emission = particleSystem.emission;
+                if (emission.rateOverDistanceMultiplier > 0f)
+                {
+                    emission.enabled = true;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Drops anything the effect recorded before or during its first activated frame, so no
+        /// spawn-position artefact is left hanging in the render view.
+        /// </summary>
+        private void ClearPreviewHistory()
+        {
+            for (int i = 0; i < _previewTrails.Length; i++)
+            {
+                _previewTrails[i]?.Clear();
+            }
+            for (int i = 0; i < _previewParticles.Length; i++)
+            {
+                _previewParticles[i]?.Clear(false);
+            }
         }
 
         /// <summary>
@@ -241,6 +300,12 @@ namespace DuneVector
             _orbitAngle = Mathf.Repeat(
                 _orbitAngle + (_tuning.OrbitDegreesPerSecond * Time.unscaledDeltaTime),
                 360f);
+            ApplyFlightPose();
+            UpdatePreviewCamera();
+        }
+
+        private void ApplyFlightPose()
+        {
             _previewMover.localPosition = FlightPathPoint(_orbitAngle);
 
             // A tangent sample keeps the effect nose-forward, which is the orientation the
@@ -251,6 +316,30 @@ namespace DuneVector
             {
                 _previewMover.localRotation = Quaternion.LookRotation(forward.normalized, Vector3.up);
             }
+        }
+
+        /// <summary>
+        /// The camera rides in the effect's own frame rather than watching the loop from a
+        /// fixed point, so the subject stays the same size in the card no matter how wide or
+        /// fast the flight path is tuned.
+        /// </summary>
+        private void UpdatePreviewCamera()
+        {
+            if (_previewCamera == null || _previewMover == null)
+            {
+                return;
+            }
+
+            Vector3 offset = _tuning.PreviewCameraChaseOffset;
+            Vector3 subject = _previewMover.position;
+            Transform cameraTransform = _previewCamera.transform;
+            cameraTransform.position = subject +
+                (_previewMover.right * offset.x) +
+                (Vector3.up * offset.y) +
+                (_previewMover.forward * offset.z);
+            cameraTransform.LookAt(
+                subject + (_previewMover.forward * _tuning.PreviewCameraLookAhead),
+                Vector3.up);
         }
 
         private Vector3 FlightPathPoint(float degrees)
@@ -333,6 +422,8 @@ namespace DuneVector
             _previewMover = null;
             _previewCamera = null;
             _previewParticles = Array.Empty<ParticleSystem>();
+            _previewTrails = Array.Empty<TrailRenderer>();
+            _trailClearTicksRemaining = 0;
         }
 
         private void OnGUI()
