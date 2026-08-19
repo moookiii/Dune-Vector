@@ -545,6 +545,10 @@ namespace DuneVector
                 TickFlight(command, deltaTime);
                 TickEnvironment(deltaTime);
                 TickRouteGates();
+                if (Phase == RailShooterPhase.Combat || Phase == RailShooterPhase.Boss)
+                {
+                    TickCoursePickups();
+                }
                 TickPickups(deltaTime);
                 TickWeapons(command, deltaTime);
                 TickEnemies(deltaTime);
@@ -843,14 +847,6 @@ namespace DuneVector
 
         private void TickEncounterDirector()
         {
-            while (_state.Distance >= _nextPickupDistance &&
-                   _nextPickupDistance < _settings.BossSpawnDistance)
-            {
-                SpawnCoursePickup((PickupKind)(_pickupSequence % 3), null);
-                _pickupSequence++;
-                _nextPickupDistance += _settings.PickupSpacing;
-            }
-
             if (!_bossAnnounced &&
                 _state.Distance >= _settings.BossSpawnDistance - _settings.BossApproachLeadDistance)
             {
@@ -862,6 +858,16 @@ namespace DuneVector
             if (_state.Distance >= _settings.BossSpawnDistance)
             {
                 BeginBoss();
+            }
+        }
+
+        private void TickCoursePickups()
+        {
+            while (_state.Distance >= _nextPickupDistance)
+            {
+                SpawnCoursePickup((PickupKind)(_pickupSequence % 3), null);
+                _pickupSequence++;
+                _nextPickupDistance += _settings.PickupSpacing;
             }
         }
 
