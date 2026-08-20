@@ -213,6 +213,43 @@ namespace DuneVector
             _musicStarted = false;
         }
 
+        private void PlayButtonSound()
+        {
+            if (string.IsNullOrWhiteSpace(_settings.ButtonEventPath))
+            {
+                return;
+            }
+
+            try
+            {
+                EventInstance instance = RuntimeManager.CreateInstance(_settings.ButtonEventPath);
+                instance.setVolume(Mathf.Clamp01(_settings.ButtonVolume));
+                instance.start();
+                instance.release();
+            }
+            catch (EventNotFoundException exception)
+            {
+                Debug.LogWarning(
+                    $"Title button event '{_settings.ButtonEventPath}' was not found. {exception.Message}",
+                    this);
+            }
+        }
+
+        /// <summary>
+        /// Moves the highlight, sounding the button event only when the entry actually changes so
+        /// held keys and idle mouse movement stay silent.
+        /// </summary>
+        private void SetSelectedEntry(DuneVectorTitleMenuEntry entry)
+        {
+            if (_selectedEntry == entry)
+            {
+                return;
+            }
+
+            _selectedEntry = entry;
+            PlayButtonSound();
+        }
+
         private void Update()
         {
             if (_confirmed)
@@ -243,7 +280,7 @@ namespace DuneVector
                 }
 
                 hoveringAnyEntry = true;
-                _selectedEntry = MenuOrder[index];
+                SetSelectedEntry(MenuOrder[index]);
                 break;
             }
 
@@ -278,11 +315,16 @@ namespace DuneVector
         {
             int current = Array.IndexOf(MenuOrder, _selectedEntry);
             int next = ((current + direction) % MenuOrder.Length + MenuOrder.Length) % MenuOrder.Length;
-            _selectedEntry = MenuOrder[next];
+            SetSelectedEntry(MenuOrder[next]);
         }
 
         private void Confirm(DuneVectorTitleMenuEntry entry)
         {
+            if (_settings.PlayButtonOnConfirm)
+            {
+                PlayButtonSound();
+            }
+
             switch (entry)
             {
                 case DuneVectorTitleMenuEntry.Start:

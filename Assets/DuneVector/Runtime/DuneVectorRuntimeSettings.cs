@@ -8757,10 +8757,15 @@ namespace DuneVector
 
         [Header("Music")]
         [Tooltip("FMOD event started with the title screen and released when the gameplay scene loads.")]
-        public string MusicEventPath = "event:/Titletheme";
+        public string MusicEventPath = "event:/titletheme";
         [Range(0f, 1f)] public float MusicVolume = 1f;
         [Tooltip("Seconds the title theme fades out over before the gameplay scene loads.")]
         [Min(0f)] public float MusicFadeOutSeconds = 0.35f;
+        [Tooltip("FMOD event fired when the highlight moves between entries and when one is confirmed. Leave empty for a silent menu.")]
+        public string ButtonEventPath = "event:/titlebutton";
+        [Range(0f, 1f)] public float ButtonVolume = 1f;
+        [Tooltip("Play the button event when an entry is confirmed as well as when the highlight moves.")]
+        public bool PlayButtonOnConfirm = true;
 
         [Header("Responsive Layout")]
         [Min(320f)] public float ReferenceWidth = 1920f;
