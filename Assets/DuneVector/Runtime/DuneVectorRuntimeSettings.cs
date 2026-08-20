@@ -8270,6 +8270,10 @@ namespace DuneVector
         [Min(1f)] public float BranchGateSpacing = 980f;
         [Min(0f)] public float BranchGateHorizontalOffset = 14f;
         [Min(0f)] public float BranchGateRadius = 6f;
+        [Tooltip("Forward distance from the drone at which the paired route-decision rings begin moving with it. Zero disables the hold.")]
+        [Min(0f)] public float BranchGateHoverTriggerDistance = 260f;
+        [Tooltip("How long the paired route-decision rings move with the drone before returning to fixed world positions.")]
+        [Min(0f)] public float BranchGateHoverDuration = 3f;
         [Min(0)] public int RiskRouteScoreBonus = 1200;
         [Min(1f)] public float RiskRouteEnemyMultiplier = 1.35f;
 

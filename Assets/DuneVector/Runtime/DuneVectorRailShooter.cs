@@ -341,6 +341,9 @@ namespace DuneVector
         private bool _laneDamageApplied;
         private bool _fireWasHeld;
         private bool _routeGateActive;
+        private bool _routeGateHoverArmed;
+        private bool _routeGateHovering;
+        private float _routeGateHoverElapsed;
         private int _nextRouteGateIndex;
         private int _waveIndex;
         private int _formationSequence;
@@ -525,6 +528,9 @@ namespace DuneVector
             ResetBossBulletPatterns();
             _fireWasHeld = false;
             _routeGateActive = false;
+            _routeGateHoverArmed = false;
+            _routeGateHovering = false;
+            _routeGateHoverElapsed = 0f;
             _nextRouteGateIndex = 0;
             _waveIndex = 0;
             _formationSequence = 0;
@@ -604,7 +610,7 @@ namespace DuneVector
             {
                 TickFlight(command, deltaTime);
                 TickEnvironment(deltaTime);
-                TickRouteGates();
+                TickRouteGates(deltaTime);
                 if (Phase == RailShooterPhase.Combat || Phase == RailShooterPhase.Boss)
                 {
                     TickCoursePickups();
@@ -2525,7 +2531,7 @@ namespace DuneVector
             }
         }
 
-        private void TickRouteGates()
+        private void TickRouteGates(float deltaTime)
         {
             if (_nextRouteGateIndex >= _settings.BranchGateCount)
             {
@@ -2566,7 +2572,11 @@ namespace DuneVector
                     _riskGate.gameObject.SetActive(false);
                 }
                 _routeGateActive = true;
+                _routeGateHoverArmed = true;
+                _routeGateHovering = false;
+                _routeGateHoverElapsed = 0f;
             }
+            TickRouteGateHover(deltaTime);
             if (!_routeGateActive || _player.transform.position.z < _safeGate.position.z)
             {
                 return;
@@ -2607,7 +2617,55 @@ namespace DuneVector
             _safeGate.gameObject.SetActive(false);
             _riskGate.gameObject.SetActive(false);
             _routeGateActive = false;
+            _routeGateHoverArmed = false;
+            _routeGateHovering = false;
+            _routeGateHoverElapsed = 0f;
             _nextRouteGateIndex++;
+        }
+
+        // The paired route-choice rings hold their screen-relative depth long enough for the
+        // player to read and choose between them, then return to fixed world positions.
+        private void TickRouteGateHover(float deltaTime)
+        {
+            if (!_routeGateActive)
+            {
+                return;
+            }
+
+            float hoverDuration = Mathf.Max(0f, _settings.BranchGateHoverDuration);
+            float triggerDistance = Mathf.Max(0f, _settings.BranchGateHoverTriggerDistance);
+            if (hoverDuration <= 0f || triggerDistance <= 0f)
+            {
+                _routeGateHoverArmed = false;
+                _routeGateHovering = false;
+                return;
+            }
+
+            if (_routeGateHoverArmed &&
+                _safeGate.position.z - _player.transform.position.z <= triggerDistance)
+            {
+                _routeGateHoverArmed = false;
+                _routeGateHovering = true;
+                _routeGateHoverElapsed = 0f;
+            }
+
+            if (!_routeGateHovering)
+            {
+                return;
+            }
+
+            float heldDeltaTime = Mathf.Min(
+                Mathf.Max(0f, deltaTime),
+                Mathf.Max(0f, hoverDuration - _routeGateHoverElapsed));
+            float forwardAdvance = _state.ForwardSpeed * heldDeltaTime;
+            Vector3 gateAdvance = Vector3.forward * forwardAdvance;
+            _safeGate.position += gateAdvance;
+            _riskGate.position += gateAdvance;
+            _routeGateHoverElapsed += heldDeltaTime;
+            if (_routeGateHoverElapsed >= hoverDuration)
+            {
+                _routeGateHovering = false;
+            }
         }
 
         private void SpawnCoursePickup(PickupKind kind, Vector3? worldPosition)
