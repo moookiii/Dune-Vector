@@ -1580,6 +1580,7 @@ namespace DuneVector
         private string _titleFooterHint = "ESC  /  BACK TO TITLE";
         private float _titlePanelWidth;
         private float _titlePanelHeight;
+        private float _titlePanelVerticalOffset;
 
         private DronePlayer _player;
         private DroneHealth _health;
@@ -1694,11 +1695,13 @@ namespace DuneVector
             string subheading,
             string footerHint,
             float panelWidth,
-            float panelHeight)
+            float panelHeight,
+            float panelVerticalOffset)
         {
             TitleMode = true;
             _titlePanelWidth = panelWidth;
             _titlePanelHeight = panelHeight;
+            _titlePanelVerticalOffset = panelVerticalOffset;
             _audio = audio;
             _playerTuning = playerTuning;
             _visuals = visuals;
@@ -3348,9 +3351,12 @@ namespace DuneVector
             // The panel settles downward as it fades in, so the open reads as a
             // deliberate motion instead of a hard cut.
             float rise = (1f - Mathf.Clamp01(_openFade)) * _visuals.OpenAnimationRise * scale;
+            // Title mode nudges the panel down from centre so that its taller body hangs below
+            // the headline rather than climbing up into it.
+            float drop = TitleMode ? _titlePanelVerticalOffset * scale : 0f;
             return new Rect(
                 Mathf.Round((Screen.width - panelWidth) * 0.5f),
-                Mathf.Round(((Screen.height - panelHeight) * 0.5f) - rise),
+                Mathf.Round(((Screen.height - panelHeight) * 0.5f) + drop - rise),
                 panelWidth,
                 panelHeight);
         }
