@@ -373,6 +373,9 @@ namespace DuneVector
             };
             _titleStyle.font = font;
             _titleStyle.fontSize = Mathf.Max(16, Mathf.RoundToInt(_settings.TitleFontSize * scale));
+            // DrawLabel tints with GUI.color, which multiplies this. Leave it white or the
+            // authored colors come out black.
+            _titleStyle.normal.textColor = Color.white;
 
             _menuStyle ??= new GUIStyle
             {
@@ -383,6 +386,7 @@ namespace DuneVector
             };
             _menuStyle.font = font;
             _menuStyle.fontSize = Mathf.Max(9, Mathf.RoundToInt(_settings.MenuFontSize * scale));
+            _menuStyle.normal.textColor = Color.white;
         }
 
         private void OnGUI()
