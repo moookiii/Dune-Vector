@@ -7979,7 +7979,7 @@ namespace DuneVector
         public Texture2D DrawingFinalGlyphTexture;
         [Min(0)] public int DrawingFinalGlyphIndex = 13;
         [Tooltip("Square size of the sigil symbol reference in the bottom-left corner.")]
-        [Min(32f)] public float DrawingIndicatorSize = 220f;
+        [Min(32f)] public float DrawingIndicatorSize = 440f;
         [Tooltip("Distance between the symbol indicator and the left/bottom screen edges.")]
         [Min(0f)] public float DrawingIndicatorMargin = 32f;
         [Tooltip("Transparent black backing behind the symbol reference.")]
