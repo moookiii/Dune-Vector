@@ -8786,10 +8786,10 @@ namespace DuneVector
         [Min(0f)] public float TextShadowOffset = 4f;
 
         [Header("Colors")]
-        public Color TitleColor = new Color(1f, 0.85f, 0.42f, 1f);
-        public Color TextShadowColor = new Color(0f, 0f, 0f, 0.75f);
-        public Color MenuItemColor = new Color(0.92f, 0.92f, 0.92f, 1f);
-        public Color SelectedMenuItemColor = new Color(1f, 0.65f, 0.18f, 1f);
+        public Color TitleColor = new Color(1f, 1f, 1f, 1f);
+        public Color TextShadowColor = new Color(0f, 0f, 0f, 0.9f);
+        public Color MenuItemColor = new Color(1f, 1f, 1f, 1f);
+        public Color SelectedMenuItemColor = new Color(0.32f, 0.95f, 0.45f, 1f);
 
         [Header("Selection Box")]
         [Tooltip("Horizontal padding between the menu label and the highlight box.")]
@@ -8797,8 +8797,8 @@ namespace DuneVector
         [Tooltip("Vertical padding between the menu label and the highlight box.")]
         [Min(0f)] public float SelectionBoxPaddingY = 8f;
         [Min(1f)] public float SelectionBoxThickness = 2f;
-        public Color SelectionBoxColor = new Color(1f, 0.65f, 0.18f, 1f);
-        public Color SelectionBoxFillColor = new Color(1f, 0.45f, 0.08f, 0.14f);
+        public Color SelectionBoxColor = new Color(0.32f, 0.95f, 0.45f, 1f);
+        public Color SelectionBoxFillColor = new Color(0.32f, 0.95f, 0.45f, 0.14f);
         [Tooltip("Highlight pulses per second. Zero holds a steady box.")]
         [Min(0f)] public float SelectionBoxPulseSpeed = 2.2f;
         [Range(0f, 1f)] public float SelectionBoxPulseMinimumAlpha = 0.55f;
