@@ -368,6 +368,9 @@ namespace DuneVector
         private float _blackRingBoostTimeRemaining;
         private int _difficulty = 1;
         private Vector3 _cameraBasePosition;
+        // Half extents of the full play area the drone flies inside, which is the screen rectangle
+        // grown by ScreenSpacePlayAreaMultiplier. Cached from the flight tick for the edge fade.
+        private Vector2 _playAreaHalfExtents = Vector2.one;
         private Vector2 _aimViewport = new Vector2(0.5f, 0.5f);
         private float _hitMarkerElapsed = float.PositiveInfinity;
         private float _killMarkerElapsed = float.PositiveInfinity;
@@ -737,6 +740,7 @@ namespace DuneVector
             _state.FlightOffset = new Vector2(
                 SoftClamp(_state.FlightOffset.x, screenSpaceBounds.x, _settings.BoundarySoftness),
                 SoftClamp(_state.FlightOffset.y, screenSpaceBounds.y, _settings.BoundarySoftness));
+            _playAreaHalfExtents = screenSpaceBounds;
             RebaseFlightSpaceIfNeeded();
             float attitudeSharpness = steering
                 ? _settings.AttitudeInputSharpness
@@ -5631,6 +5635,7 @@ namespace DuneVector
             // World-anchored layers first so the chrome always sits on top of them.
             DrawLaneHudWarning();
             DrawLowHullEdge();
+            DrawPlayAreaEdge();
             DrawDamageVignette();
             DrawScorePopups();
             DrawReticles();
@@ -6676,6 +6681,64 @@ namespace DuneVector
                 subtitle,
                 _centeredSmallStyle,
                 WithAlpha(_settings.HudChargeColor, alpha));
+        }
+
+        // The play area is larger than the screen, so its edge is off-frame and the drone simply
+        // stops. Fading the matching side of the frame as the drone presses into that edge is what
+        // makes the limit readable without drawing a wall the camera would have to show.
+        private void DrawPlayAreaEdge()
+        {
+            if (_settings.BoundaryEdgeOpacity <= 0.001f || _settings.BoundaryEdgeThickness <= 0f)
+            {
+                return;
+            }
+            float thickness = Scaled(_settings.BoundaryEdgeThickness);
+            const int Bands = 6;
+            float slice = thickness / Bands;
+            DrawPlayAreaEdgeSide(
+                EdgeProximity(_state.FlightOffset.x, _playAreaHalfExtents.x, false), Bands, slice, 0);
+            DrawPlayAreaEdgeSide(
+                EdgeProximity(_state.FlightOffset.x, _playAreaHalfExtents.x, true), Bands, slice, 1);
+            DrawPlayAreaEdgeSide(
+                EdgeProximity(_state.FlightOffset.y, _playAreaHalfExtents.y, true), Bands, slice, 2);
+            DrawPlayAreaEdgeSide(
+                EdgeProximity(_state.FlightOffset.y, _playAreaHalfExtents.y, false), Bands, slice, 3);
+        }
+
+        // Signed proximity to one side of the play area, ramped from BoundaryEdgeFadeStart to the
+        // edge itself. The soft clamp lets the drone drift slightly past the limit, so this is
+        // clamped rather than allowed to overshoot into a brighter fade than the edge earns.
+        private static float EdgeProximity(float offset, float halfExtent, bool positiveSide)
+        {
+            return positiveSide ? offset / Mathf.Max(0.0001f, halfExtent)
+                : -offset / Mathf.Max(0.0001f, halfExtent);
+        }
+
+        // Side order matches the DrawPlayAreaEdge calls: 0 left, 1 right, 2 top, 3 bottom.
+        private void DrawPlayAreaEdgeSide(float normalized, int bands, float slice, int side)
+        {
+            float start = Mathf.Clamp(_settings.BoundaryEdgeFadeStart, 0f, 0.99f);
+            float strength = Mathf.Clamp01((Mathf.Clamp01(normalized) - start) / (1f - start));
+            if (strength <= 0.001f)
+            {
+                return;
+            }
+            for (int i = 0; i < bands; i++)
+            {
+                float band = 1f - (i / (float)bands);
+                Color color = WithAlpha(
+                    _settings.BoundaryEdgeColor,
+                    _settings.BoundaryEdgeOpacity * strength * band * band);
+                float inset = i * slice;
+                Rect rect = side switch
+                {
+                    0 => new Rect(inset, 0f, slice, Screen.height),
+                    1 => new Rect(Screen.width - inset - slice, 0f, slice, Screen.height),
+                    2 => new Rect(0f, inset, Screen.width, slice),
+                    _ => new Rect(0f, Screen.height - inset - slice, Screen.width, slice),
+                };
+                DrawRect(rect, color);
+            }
         }
 
         // A persistent bleed on the frame edge while the hull is critical, so the state reads even

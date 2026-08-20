@@ -8666,6 +8666,14 @@ namespace DuneVector
         [Header("Rail HUD Warnings")]
         [Min(0f)] public float LowHullEdgeThickness = 30f;
         [Range(0f, 1f)] public float LowHullEdgeOpacity = 0.32f;
+        [Tooltip("Fraction of the way to the flight play-area edge where the boundary fade starts appearing. 0.75 means the fade begins once the drone is three quarters of the way out. The edge measured is the full play area (Screen Space Play Area Multiplier), not the screen rectangle.")]
+        [Range(0f, 0.99f)] public float BoundaryEdgeFadeStart = 0.72f;
+        [Tooltip("Screen thickness of the boundary fade drawn on the side of the frame the drone is pressing toward.")]
+        [Min(0f)] public float BoundaryEdgeThickness = 96f;
+        [Tooltip("Opacity of the boundary fade when the drone is hard against the play-area edge. Set to 0 to remove the fade.")]
+        [Range(0f, 1f)] public float BoundaryEdgeOpacity = 0.5f;
+        [Tooltip("Colour of the play-area boundary fade.")]
+        public Color BoundaryEdgeColor = new Color(0.55f, 0.78f, 1f, 1f);
 
         [Header("Rail HUD Banner")]
         [Min(0f)] public float BannerWidth = 720f;
