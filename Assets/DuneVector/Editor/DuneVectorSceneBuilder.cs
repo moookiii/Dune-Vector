@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -21,7 +21,7 @@ namespace DuneVector.Editor
 
             Directory.CreateDirectory(Path.GetDirectoryName(ScenePath) ?? "Assets/DuneVector/Scenes");
             EditorSceneManager.SaveScene(scene, ScenePath);
-            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
+            DuneVectorTitleSceneBuilder.RegisterBuildScenes();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Selection.activeGameObject = root;

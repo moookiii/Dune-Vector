@@ -1,0 +1,33 @@
+fileFormatVersion: 2
+guid: a92a11a30e4d4330a90bf8064088d8b5
+VideoClipImporter:
+  externalObjects: {}
+  serializedVersion: 2
+  frameRange: 0
+  startFrame: -1
+  endFrame: -1
+  colorSpace: 0
+  deinterlaceMode: 0
+  encodeAlpha: 0
+  flipVertical: 0
+  flipHorizontal: 0
+  importAudio: 0
+  targetSettings:
+    2:
+      enabled: 1
+      codec: 0
+      resizeMode: 0
+      aspectRatio: 1
+      targetBitRate: 0
+      customWidth: 0
+      customHeight: 0
+      bitrateMode: 1
+      spatialQuality: 0
+      transcodeSkipped: 1
+  sourceHadAlpha: 0
+  sourceFileSize: 45124989
+  pixelAspectRatioNumerator: 1
+  pixelAspectRatioDenominator: 1
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

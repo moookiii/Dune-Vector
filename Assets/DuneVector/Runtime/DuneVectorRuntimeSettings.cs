@@ -4,6 +4,7 @@ using UnityEngine.InputSystem;
 using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 using UnityEngine.Serialization;
+using UnityEngine.Video;
 
 namespace DuneVector
 {
@@ -8723,6 +8724,99 @@ namespace DuneVector
         }
     }
 
+    [System.Serializable]
+    public sealed class TitleScreenTuning
+    {
+        [Header("Copy")]
+        [Tooltip("Bold headline drawn across the top of the title screen.")]
+        public string TitleText = "DUNE VECTOR";
+        [Tooltip("Label of the first menu entry, which loads the gameplay scene.")]
+        public string StartLabel = "START";
+        [Tooltip("Label of the second menu entry. Its screen is not built yet.")]
+        public string OptionsLabel = "OPTIONS";
+
+        [Header("Navigation")]
+        [Tooltip("Scene loaded when START is confirmed. It must be listed in Build Settings.")]
+        public string GameplaySceneName = "DuneVector";
+        [Tooltip("Enable once the options screen exists. While disabled, confirming OPTIONS does nothing.")]
+        public bool OptionsEnabled;
+
+        [Header("Background Video")]
+        [Tooltip("Fullscreen looping video played behind the menu. Imported without transcoding so it stays uncompressed by Unity.")]
+        public VideoClip BackgroundVideo;
+        [Tooltip("Restart the clip when it reaches the end.")]
+        public bool LoopBackgroundVideo = true;
+        [Tooltip("Volume of the video file's own audio track. Leave at zero so the FMOD title theme carries the music.")]
+        [Range(0f, 1f)] public float BackgroundVideoAudioVolume;
+        [Tooltip("Crop the video so it covers the whole screen instead of letterboxing it.")]
+        public bool FillScreenWithVideo = true;
+        [Tooltip("Drawn behind the video while the first frame is still preparing.")]
+        public Color BackgroundColor = new Color(0f, 0f, 0f, 1f);
+        [Tooltip("Tint multiplied into the video so the menu text stays readable.")]
+        public Color VideoTint = new Color(1f, 1f, 1f, 1f);
+
+        [Header("Music")]
+        [Tooltip("FMOD event started with the title screen and released when the gameplay scene loads.")]
+        public string MusicEventPath = "event:/titletheme";
+        [Range(0f, 1f)] public float MusicVolume = 1f;
+        [Tooltip("Seconds the title theme fades out over before the gameplay scene loads.")]
+        [Min(0f)] public float MusicFadeOutSeconds = 0.35f;
+
+        [Header("Responsive Layout")]
+        [Min(320f)] public float ReferenceWidth = 1920f;
+        [Min(240f)] public float ReferenceHeight = 1080f;
+        [Range(0.25f, 3f)] public float MinimumScale = 0.6f;
+        [Range(0.25f, 3f)] public float MaximumScale = 1.6f;
+        [Tooltip("Padding between the top of the screen and the headline.")]
+        [Min(0f)] public float TitleTopPadding = 110f;
+        [Min(24f)] public float TitleHeight = 132f;
+        [Tooltip("Padding between the headline and the first menu entry.")]
+        [Min(0f)] public float TitleToMenuGap = 84f;
+        [Min(120f)] public float MenuItemWidth = 460f;
+        [Min(16f)] public float MenuItemHeight = 56f;
+        [Min(0f)] public float MenuItemGap = 20f;
+
+        [Header("Typography")]
+        [Tooltip("Interface font asset. When empty the fallback operating-system font is created at runtime.")]
+        public Font InterfaceFont;
+        public string FallbackOsFontName = "Arial";
+        [Min(16)] public int TitleFontSize = 108;
+        [Min(9)] public int MenuFontSize = 34;
+        [Tooltip("Drop-shadow offset in reference pixels, keeping text legible over bright video frames.")]
+        [Min(0f)] public float TextShadowOffset = 4f;
+
+        [Header("Colors")]
+        public Color TitleColor = new Color(1f, 0.85f, 0.42f, 1f);
+        public Color TextShadowColor = new Color(0f, 0f, 0f, 0.75f);
+        public Color MenuItemColor = new Color(0.92f, 0.92f, 0.92f, 1f);
+        public Color SelectedMenuItemColor = new Color(1f, 0.65f, 0.18f, 1f);
+
+        [Header("Selection Box")]
+        [Tooltip("Horizontal padding between the menu label and the highlight box.")]
+        [Min(0f)] public float SelectionBoxPaddingX = 44f;
+        [Tooltip("Vertical padding between the menu label and the highlight box.")]
+        [Min(0f)] public float SelectionBoxPaddingY = 8f;
+        [Min(1f)] public float SelectionBoxThickness = 2f;
+        public Color SelectionBoxColor = new Color(1f, 0.65f, 0.18f, 1f);
+        public Color SelectionBoxFillColor = new Color(1f, 0.45f, 0.08f, 0.14f);
+        [Tooltip("Highlight pulses per second. Zero holds a steady box.")]
+        [Min(0f)] public float SelectionBoxPulseSpeed = 2.2f;
+        [Range(0f, 1f)] public float SelectionBoxPulseMinimumAlpha = 0.55f;
+        [Range(0f, 1f)] public float SelectionBoxPulseMaximumAlpha = 1f;
+
+        public void EnsureInitialized()
+        {
+            MaximumScale = Mathf.Max(MinimumScale, MaximumScale);
+            SelectionBoxPulseMaximumAlpha = Mathf.Max(
+                SelectionBoxPulseMinimumAlpha,
+                SelectionBoxPulseMaximumAlpha);
+            if (string.IsNullOrWhiteSpace(FallbackOsFontName))
+            {
+                FallbackOsFontName = "Arial";
+            }
+        }
+    }
+
     [CreateAssetMenu(fileName = "Dune Vector Runtime Settings", menuName = "Dune Vector/Runtime Settings", order = 0)]
     public sealed class DuneVectorRuntimeSettings : ScriptableObject
     {
@@ -8780,6 +8874,9 @@ namespace DuneVector
 
         [Tooltip("FMOD background music, July mixer bus routing, and pause-menu volume defaults.")]
         public AudioTuning Audio = new AudioTuning();
+
+        [Tooltip("Startup title screen background video, menu copy, highlight box, and FMOD title theme.")]
+        public TitleScreenTuning TitleScreen = new TitleScreenTuning();
 
         [Tooltip("FFT-driven pressure fronts, melodic currents, percussive filaments, and global bloom response.")]
         public MusicReactiveSkyTuning MusicReactiveSky = new MusicReactiveSkyTuning();
@@ -9037,6 +9134,8 @@ namespace DuneVector
             GroundHeatField ??= new GroundHeatFieldTuning();
             Audio ??= new AudioTuning();
             Audio.EnsureInitialized();
+            TitleScreen ??= new TitleScreenTuning();
+            TitleScreen.EnsureInitialized();
             MusicReactiveSky ??= new MusicReactiveSkyTuning();
             Deliveries ??= new DeliveryTuning();
             Deliveries.EnsureInitialized();
