@@ -1580,6 +1580,7 @@ namespace DuneVector
         private string _titleFooterHint = "ESC  /  BACK TO TITLE";
         private float _titlePanelWidth;
         private float _titlePanelHeight;
+        private float _titleVideoPanelHeight;
         private float _titlePanelVerticalOffset;
 
         private DronePlayer _player;
@@ -1696,11 +1697,13 @@ namespace DuneVector
             string footerHint,
             float panelWidth,
             float panelHeight,
+            float videoPanelHeight,
             float panelVerticalOffset)
         {
             TitleMode = true;
             _titlePanelWidth = panelWidth;
             _titlePanelHeight = panelHeight;
+            _titleVideoPanelHeight = videoPanelHeight;
             _titlePanelVerticalOffset = panelVerticalOffset;
             _audio = audio;
             _playerTuning = playerTuning;
@@ -3341,8 +3344,11 @@ namespace DuneVector
             float authoredWidth = TitleMode && _titlePanelWidth > 0f ? _titlePanelWidth : _visuals.PanelWidth;
             float titlePanelHeight = _titlePanelHeight > 0f ? _titlePanelHeight : _visuals.PanelHeight;
             bool expandTitlePanelDownward = TitleMode && _showVideoSettings;
+            float titleVideoPanelHeight = _titleVideoPanelHeight > 0f
+                ? _titleVideoPanelHeight
+                : titlePanelHeight;
             float authoredHeight = TitleMode
-                ? (expandTitlePanelDownward ? Mathf.Max(titlePanelHeight, _visuals.PanelHeight) : titlePanelHeight)
+                ? (expandTitlePanelDownward ? Mathf.Max(titlePanelHeight, titleVideoPanelHeight) : titlePanelHeight)
                 : _visuals.PanelHeight;
             float panelWidth = Mathf.Min(authoredWidth * scale, Screen.width - (screenMargin * 2f));
             float panelHeight = Mathf.Min(authoredHeight * scale, Screen.height - (screenMargin * 2f));
@@ -3360,9 +3366,14 @@ namespace DuneVector
                 // height must be restored as downward offset.
                 drop += (authoredHeight - titlePanelHeight) * scale * 0.5f;
             }
+            float panelY = ((Screen.height - panelHeight) * 0.5f) + drop - rise;
+            if (expandTitlePanelDownward)
+            {
+                panelY = Mathf.Min(panelY, Screen.height - screenMargin - panelHeight);
+            }
             return new Rect(
                 Mathf.Round((Screen.width - panelWidth) * 0.5f),
-                Mathf.Round(((Screen.height - panelHeight) * 0.5f) + drop - rise),
+                Mathf.Round(panelY),
                 panelWidth,
                 panelHeight);
         }

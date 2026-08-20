@@ -8800,6 +8800,8 @@ namespace DuneVector
         [Min(0f)] public float OptionsPanelWidth = 540f;
         [Tooltip("Height of the options panel. It is shorter than the pause menu because the run entries are gone. Zero falls back to the pause menu's own height.")]
         [Min(0f)] public float OptionsPanelHeight = 676f;
+        [Tooltip("Height used when Video Settings is open from the title screen. Zero falls back to the regular options panel height.")]
+        [Min(0f)] public float OptionsVideoPanelHeight = 750f;
         [Tooltip("Pushes the options panel down the screen from centred, so growing its height extends the bottom instead of raising the top.")]
         public float OptionsPanelVerticalOffset = 61f;
 
