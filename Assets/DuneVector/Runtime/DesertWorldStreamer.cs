@@ -3566,7 +3566,7 @@ namespace DuneVector
             if (landmarks != null && landmarks.OverlapsLandmarkFootprint(
                     logicalX,
                     logicalZ,
-                    reservedRadius))
+                    exclusionRadius))
             {
                 return;
             }
