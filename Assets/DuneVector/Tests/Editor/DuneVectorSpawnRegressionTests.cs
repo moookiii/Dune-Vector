@@ -458,6 +458,20 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void RailShooter_EnemyBulletsUseABriefArmingWindow()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            RailShooterTuning settings = runtimeSettings != null ? runtimeSettings.RailShooter : null;
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(
+                settings.BulletArmDuration,
+                Is.EqualTo(0.16f).Within(0.001f),
+                "Gameplay rail bullets must become dangerous after their brief spawn flash, before crossing the drone.");
+        }
+
+        [Test]
         public void GraphicsSettings_RuntimeShadersSurviveTheBuild()
         {
             SerializedObject graphicsSettings = new SerializedObject(
