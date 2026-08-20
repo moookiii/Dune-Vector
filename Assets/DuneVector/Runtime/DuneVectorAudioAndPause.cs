@@ -3339,7 +3339,11 @@ namespace DuneVector
             // Title mode drops five button rows, so it carries its own shorter panel size
             // instead of leaving the pause menu's height half empty.
             float authoredWidth = TitleMode && _titlePanelWidth > 0f ? _titlePanelWidth : _visuals.PanelWidth;
-            float authoredHeight = TitleMode && _titlePanelHeight > 0f ? _titlePanelHeight : _visuals.PanelHeight;
+            float titlePanelHeight = _titlePanelHeight > 0f ? _titlePanelHeight : _visuals.PanelHeight;
+            bool expandTitlePanelDownward = TitleMode && _showVideoSettings;
+            float authoredHeight = TitleMode
+                ? (expandTitlePanelDownward ? Mathf.Max(titlePanelHeight, _visuals.PanelHeight) : titlePanelHeight)
+                : _visuals.PanelHeight;
             float panelWidth = Mathf.Min(authoredWidth * scale, Screen.width - (screenMargin * 2f));
             float panelHeight = Mathf.Min(authoredHeight * scale, Screen.height - (screenMargin * 2f));
 
@@ -3349,6 +3353,13 @@ namespace DuneVector
             // Title mode nudges the panel down from centre so that its taller body hangs below
             // the headline rather than climbing up into it.
             float drop = TitleMode ? _titlePanelVerticalOffset * scale : 0f;
+            if (expandTitlePanelDownward)
+            {
+                // Keep the compact options panel's top edge anchored while the taller video
+                // screen opens. CalculatePanelRect centres by default, so half of the added
+                // height must be restored as downward offset.
+                drop += (authoredHeight - titlePanelHeight) * scale * 0.5f;
+            }
             return new Rect(
                 Mathf.Round((Screen.width - panelWidth) * 0.5f),
                 Mathf.Round(((Screen.height - panelHeight) * 0.5f) + drop - rise),
