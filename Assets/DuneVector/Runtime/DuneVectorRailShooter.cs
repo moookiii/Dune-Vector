@@ -229,6 +229,7 @@ namespace DuneVector
             public Transform Root;
             public Vector2 PlaneOffset;
             public TraversalRingType RingType;
+            public bool HasRing;
             public bool BlackRingBoostCollected;
             public bool HealthRingCollected;
             public readonly List<Transform> Rotators = new List<Transform>();
@@ -917,10 +918,12 @@ namespace DuneVector
             {
                 RailShooterTrick.BarrelRollLeft => Quaternion.Euler(0f, 0f, turn),
                 RailShooterTrick.BarrelRollRight => Quaternion.Euler(0f, 0f, -turn),
+                // Whole turns only: a fractional count ends the trick on a rolled hull, which
+                // reads as the drone being left tilted once the trick clears.
                 RailShooterTrick.Corkscrew => Quaternion.Euler(
                     Mathf.Sin(normalized * Mathf.PI * 2f) * _settings.MaximumPitch,
                     0f,
-                    turn * 1.5f),
+                    turn * Mathf.Max(1f, Mathf.Round(_settings.CorkscrewRollTurns))),
                 RailShooterTrick.Loop => Quaternion.Euler(-turn, 0f, 0f),
                 _ => Quaternion.identity,
             };
@@ -2760,14 +2763,20 @@ namespace DuneVector
                 _state.LateralVelocity.x,
                 _state.LateralVelocity.y,
                 _state.ForwardSpeed) * Mathf.Max(0f, deltaTime);
+            // Match the pickup test to the radius the portal is actually drawn at. The
+            // authored gate radius is scaled and clamped before the ring geometry is
+            // built, so testing against it collects rings from far outside the portal.
+            float gatePickupRadius = DuneVectorVisuals.CalculatePortalVisualRadius(
+                _settings.GateRadius,
+                _ringSettings) * _settings.GatePickupRadiusFraction;
             for (int i = 0; i < _segments.Count; i++)
             {
                 RiftSegment segment = _segments[i];
-                if (HasPassedRailNavigationRing(
+                if (segment.HasRing && HasPassedRailNavigationRing(
                         previousPlayerPosition,
                         playerPosition,
                         segment.Root.position,
-                        _settings.GateRadius))
+                        gatePickupRadius))
                 {
                     if (segment.RingType == TraversalRingType.Health)
                     {
@@ -3285,19 +3294,42 @@ namespace DuneVector
 
         private void BuildEnvironmentPool()
         {
+            int healthRingTotal = Mathf.RoundToInt(
+                _settings.EnvironmentSegmentCount *
+                Mathf.Clamp01(_settings.NavigationHealthRingFraction));
+            int healthRingIndex = 0;
             for (int i = 0; i < _settings.EnvironmentSegmentCount; i++)
             {
                 RiftSegment segment = new RiftSegment
                 {
                     Root = NewRoot($"Rift Segment {i + 1:00}", _environmentRoot),
                 };
-                TraversalRingType ringType = ShouldUseRailHealthRing(
+                bool health = ShouldUseRailHealthRing(
                     i,
                     _settings.EnvironmentSegmentCount,
-                    _settings.NavigationHealthRingFraction)
+                    _settings.NavigationHealthRingFraction);
+                if (health)
+                {
+                    // Only an even spread of the selected health slots keeps its ring; the
+                    // rest leave the segment empty so the corridor is not wall-to-wall pickups.
+                    bool keep = ShouldUseRailHealthRing(
+                        healthRingIndex,
+                        healthRingTotal,
+                        _settings.HealthRingKeptFraction);
+                    healthRingIndex++;
+                    if (!keep)
+                    {
+                        segment.RingType = TraversalRingType.Health;
+                        segment.HasRing = false;
+                        _segments.Add(segment);
+                        continue;
+                    }
+                }
+                TraversalRingType ringType = health
                     ? TraversalRingType.Health
                     : TraversalRingType.Flight;
                 segment.RingType = ringType;
+                segment.HasRing = true;
                 Transform gate = DuneVectorVisuals.CreateRingVisual(
                     segment.Root,
                     ringType,
@@ -4011,6 +4043,7 @@ namespace DuneVector
                 _player.Motor.enabled = false;
             }
             _player.transform.SetPositionAndRotation(_arenaOrigin, Quaternion.identity);
+            _player.SetVisualAttitudeSuspended(true);
             if (_player.DroneVisualRoot != null)
             {
                 _player.DroneVisualRoot.localScale = _authoredVisualScale;
@@ -4054,7 +4087,14 @@ namespace DuneVector
             float fieldHalfExtent = Mathf.Max(
                 Mathf.Max(0f, _settings.SatellitePlaneHalfExtent),
                 Mathf.Max(0f, _settings.FlightRebaseDistance));
-            satellite.PlaneOffset = EvenPlaneOffset(sequence, fieldHalfExtent, 0);
+            // The authored field is far wider than the screen-space area the rings are
+            // clamped into, which leaves the middle of the corridor empty. Pull the spread
+            // back toward the ring boundary so the pool also populates the center.
+            Vector2 fieldExtent = Vector2.Min(
+                Vector2.one * fieldHalfExtent,
+                GetRailRingBoundaryHalfExtents() *
+                    Mathf.Max(0.1f, _settings.SatelliteFieldPlayAreaMultiplier));
+            satellite.PlaneOffset = EvenPlaneOffset(sequence, fieldExtent, 0);
             Vector2 center = CurrentFlightPlaneCenter();
             satellite.Transform.position = new Vector3(
                 center.x + satellite.PlaneOffset.x,
@@ -4112,7 +4152,9 @@ namespace DuneVector
                 $"+{Mathf.RoundToInt(_settings.HealthPickupAmount)} HULL",
                 _settings.HudReticleColor);
             PlayCue(_settings.PickupEvent, segment.Root.position);
-            SpawnImpact(segment.Root.position, _settings.GateRadius);
+            SpawnImpact(
+                segment.Root.position,
+                DuneVectorVisuals.CalculatePortalVisualRadius(_settings.GateRadius, _ringSettings));
         }
 
         private void ActivateBlackRingBoost(RiftSegment segment)
@@ -4244,6 +4286,7 @@ namespace DuneVector
 
         private void RestoreWorldState()
         {
+            _player.SetVisualAttitudeSuspended(false);
             if (_player.DroneVisualRoot != null)
             {
                 _player.DroneVisualRoot.localScale = _savedVisualScale;

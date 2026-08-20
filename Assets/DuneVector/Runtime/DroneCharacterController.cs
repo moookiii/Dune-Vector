@@ -232,6 +232,7 @@ namespace DuneVector
         private Vector3 _visualBaseLocalPosition;
         private Vector3 _lastVisualForward;
         private float _currentVisualBank;
+        private bool _visualAttitudeSuspended;
         private float _currentVisualPitch;
         private float _flightLandingVisualBlendStartClearance;
         private float _flightLandingVisualBlendCompleteClearance;
@@ -1394,6 +1395,13 @@ namespace DuneVector
 
             float deltaTime = Mathf.Max(Time.deltaTime, 0.0001f);
             UpdateTrailVisibility();
+            if (_visualAttitudeSuspended)
+            {
+                // A subgame is driving the hull rotation itself. The desert bank solver would
+                // otherwise keep steering the visual root from a stale flight direction and
+                // leave the drone permanently tilted once the subgame rotates the hull.
+                return;
+            }
             Vector3 currentForward = Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized;
             Vector3 previousForward = Vector3.ProjectOnPlane(_lastVisualForward, Vector3.up).normalized;
             float yawRate = 0f;
@@ -1490,6 +1498,18 @@ namespace DuneVector
                 _flightLandingVisualActive = false;
                 _flightLandingSurfaceValid = false;
                 _flightLandingSurfaceUpdatedFrame = -1;
+            }
+        }
+
+        public void SetVisualAttitudeSuspended(bool suspended)
+        {
+            _visualAttitudeSuspended = suspended;
+            _currentVisualBank = 0f;
+            _currentVisualPitch = 0f;
+            _flightLandingVisualActive = false;
+            if (DroneVisualRoot != null)
+            {
+                DroneVisualRoot.localRotation = Quaternion.identity;
             }
         }
 
