@@ -164,6 +164,49 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void RailShooter_SoftBoundaryDoesNotMoveAStationaryDrone()
+        {
+            Vector2 velocity = Vector2.zero;
+            Vector2 position = new Vector2(9.5f, -4.5f);
+
+            Vector2 bounded = DuneVectorRailShooterController.CalculateSoftBoundedFlightOffset(
+                position,
+                ref velocity,
+                1f / 60f,
+                new Vector2(10f, 5f),
+                2f);
+
+            Assert.That(bounded, Is.EqualTo(position));
+            Assert.That(velocity, Is.EqualTo(Vector2.zero));
+        }
+
+        [Test]
+        public void RailShooter_SoftBoundarySlowsOnlyOutwardMotion()
+        {
+            Vector2 outwardVelocity = new Vector2(12f, 0f);
+            Vector2 inwardVelocity = new Vector2(-12f, 0f);
+            Vector2 position = new Vector2(9f, 0f);
+
+            Vector2 outward = DuneVectorRailShooterController.CalculateSoftBoundedFlightOffset(
+                position,
+                ref outwardVelocity,
+                1f / 60f,
+                new Vector2(10f, 5f),
+                2f);
+            Vector2 inward = DuneVectorRailShooterController.CalculateSoftBoundedFlightOffset(
+                position,
+                ref inwardVelocity,
+                1f / 60f,
+                new Vector2(10f, 5f),
+                2f);
+
+            Assert.That(outward.x - position.x, Is.LessThan(12f / 60f));
+            Assert.That(inward.x - position.x, Is.EqualTo(-12f / 60f).Within(0.0001f));
+            Assert.That(outwardVelocity.x, Is.LessThan(12f));
+            Assert.That(inwardVelocity.x, Is.EqualTo(-12f).Within(0.0001f));
+        }
+
+        [Test]
         public void RailShooter_SigilDrawingGuideIsThickAndWhite()
         {
             DuneVectorRuntimeSettings runtimeSettings =

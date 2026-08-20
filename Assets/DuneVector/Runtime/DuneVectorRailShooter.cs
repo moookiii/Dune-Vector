@@ -728,10 +728,12 @@ namespace DuneVector
                 _state.LateralVelocity,
                 targetVelocity,
                 DuneVectorMath.Sharpness(_settings.MovementSmoothing, deltaTime));
-            _state.FlightOffset += _state.LateralVelocity * deltaTime;
             Vector2 viewportHalfExtents = CalculateScreenSpaceFlightHalfExtents(
                 Mathf.Abs(_settings.CameraLocalOffset.z),
-                _camera.fieldOfView,
+                // Boost FOV is presentation only. Feeding the animated FOV back into these
+                // bounds makes the play space expand and contract during a dash, which moves
+                // both the hull and its camera anchor even when lateral input is unchanged.
+                _settings.CameraFieldOfView,
                 _camera.aspect,
                 1f);
             Vector2 screenSpaceBounds = viewportHalfExtents *
@@ -742,9 +744,12 @@ namespace DuneVector
             // The camera rectangle moves inside the authored screen-sized boundary. Releasing
             // input only removes velocity; it never teleports the hull back to the centre, so the
             // attitude and aim can drift back independently.
-            _state.FlightOffset = new Vector2(
-                SoftClamp(_state.FlightOffset.x, screenSpaceBounds.x, _settings.BoundarySoftness),
-                SoftClamp(_state.FlightOffset.y, screenSpaceBounds.y, _settings.BoundarySoftness));
+            _state.FlightOffset = CalculateSoftBoundedFlightOffset(
+                _state.FlightOffset,
+                ref _state.LateralVelocity,
+                deltaTime,
+                screenSpaceBounds,
+                _settings.BoundarySoftness);
             _playAreaHalfExtents = screenSpaceBounds;
             RebaseFlightSpaceIfNeeded();
             float attitudeSharpness = steering
@@ -4575,22 +4580,62 @@ namespace DuneVector
                 : minimum;
         }
 
-        private static float SoftClamp(float value, float limit, float softness)
+        public static Vector2 CalculateSoftBoundedFlightOffset(
+            Vector2 position,
+            ref Vector2 velocity,
+            float deltaTime,
+            Vector2 halfExtents,
+            float softness)
         {
-            float clamped = Mathf.Clamp(value, -limit, limit);
-            if (softness <= 0f)
+            float velocityX = velocity.x;
+            float velocityY = velocity.y;
+            Vector2 result = new Vector2(
+                CalculateSoftBoundedAxis(
+                    position.x,
+                    ref velocityX,
+                    deltaTime,
+                    halfExtents.x,
+                    softness),
+                CalculateSoftBoundedAxis(
+                    position.y,
+                    ref velocityY,
+                    deltaTime,
+                    halfExtents.y,
+                    softness));
+            velocity = new Vector2(velocityX, velocityY);
+            return result;
+        }
+
+        private static float CalculateSoftBoundedAxis(
+            float position,
+            ref float velocity,
+            float deltaTime,
+            float halfExtent,
+            float softness)
+        {
+            float limit = Mathf.Max(0f, Mathf.Abs(halfExtent));
+            position = Mathf.Clamp(position, -limit, limit);
+            float safeDeltaTime = Mathf.Max(0f, deltaTime);
+            if (safeDeltaTime <= 0f || Mathf.Approximately(velocity, 0f))
             {
-                return clamped;
+                return position;
             }
-            float edgeStart = Mathf.Max(0f, limit - softness);
-            float absolute = Mathf.Abs(clamped);
-            if (absolute <= edgeStart)
+
+            float edgeSoftness = Mathf.Clamp(softness, 0f, limit);
+            bool movingOutward = position * velocity > 0f;
+            if (movingOutward && edgeSoftness > 0f)
             {
-                return clamped;
+                float edgeStart = limit - edgeSoftness;
+                float edge = Mathf.InverseLerp(edgeStart, limit, Mathf.Abs(position));
+                velocity *= 1f - Mathf.SmoothStep(0f, 1f, edge);
             }
-            float edge = Mathf.InverseLerp(edgeStart, limit, absolute);
-            float eased = Mathf.Lerp(edgeStart, limit, Mathf.SmoothStep(0f, 1f, edge));
-            return Mathf.Sign(clamped) * eased;
+
+            float next = Mathf.Clamp(position + (velocity * safeDeltaTime), -limit, limit);
+            if (Mathf.Abs(next) >= limit && next * velocity > 0f)
+            {
+                velocity = 0f;
+            }
+            return next;
         }
 
         public static bool CanShowBlackRouteGate(int riskRouteCount)
