@@ -8479,7 +8479,7 @@ namespace DuneVector
         [Min(0f)] public float GoldPerScore = 0.035f;
         [Range(0f, 1f)] public float FailureRewardFraction = 0.3f;
         [Tooltip("Distance traveled is divided by this value and rounded down to calculate the end-of-run distance gold bonus.")]
-        [Min(0.01f)] public float DistanceGoldDivisor = 6f;
+        [Min(0.01f)] public float DistanceGoldDivisor = 8f;
         [Min(0)] public int GradeSScore = 15000;
         [Min(0)] public int GradeAScore = 10500;
         [Min(0)] public int GradeBScore = 6500;

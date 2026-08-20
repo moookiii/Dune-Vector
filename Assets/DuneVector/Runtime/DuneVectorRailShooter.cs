@@ -3290,16 +3290,20 @@ namespace DuneVector
             AwardedGold = scoreGold;
             int bossGold = success ? _settings.BossGoldReward : 0;
             AwardedGold += bossGold;
+            int depthGold = Mathf.Max(
+                0,
+                Mathf.FloorToInt(_state.Distance / Mathf.Max(0.01f, _settings.DistanceGoldDivisor)));
+            AwardedGold += depthGold;
 
-            // Combat payout is based only on combat score and the boss reward. Distance remains
-            // a run statistic, but does not contribute gold.
             Debug.Log(
                 $"[Rail Shooter] Combat payout {AwardedGold}g — " +
                 $"score {_state.Score} (run {runScore} + sigil {sigilBonus} + no-damage {noDamageBonus} + " +
                 $"charge kills {chargeKillBonus} + formations {formationBonus}) " +
                 $"x {_settings.GoldPerScore} gold per score x {rewardFraction} " +
                 $"{(success ? "success" : "failure")} fraction = {scoreGold}g, " +
-                $"boss reward {bossGold}g. Grade {ResultGrade}.",
+                $"boss reward {bossGold}g, " +
+                $"rift depth {_state.Distance:0} / {_settings.DistanceGoldDivisor:0.##} = {depthGold}g. " +
+                $"Grade {ResultGrade}.",
                 this);
         }
 
