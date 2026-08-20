@@ -217,28 +217,38 @@ namespace DuneVector
 
         private void PlayButtonSound()
         {
-            if (string.IsNullOrWhiteSpace(_settings.ButtonEventPath))
+            PlayOneShot(_settings.ButtonEventPath, Mathf.Clamp01(_settings.ButtonVolume));
+        }
+
+        private void PlaySwapSound()
+        {
+            PlayOneShot(_settings.SwapEventPath, Mathf.Clamp01(_settings.SwapVolume));
+        }
+
+        private void PlayOneShot(string eventPath, float volume)
+        {
+            if (string.IsNullOrWhiteSpace(eventPath))
             {
                 return;
             }
 
             try
             {
-                EventInstance instance = RuntimeManager.CreateInstance(_settings.ButtonEventPath);
-                instance.setVolume(Mathf.Clamp01(_settings.ButtonVolume));
+                EventInstance instance = RuntimeManager.CreateInstance(eventPath);
+                instance.setVolume(volume);
                 instance.start();
                 instance.release();
             }
             catch (EventNotFoundException exception)
             {
                 Debug.LogWarning(
-                    $"Title button event '{_settings.ButtonEventPath}' was not found. {exception.Message}",
+                    $"Title screen event '{eventPath}' was not found. {exception.Message}",
                     this);
             }
         }
 
         /// <summary>
-        /// Moves the highlight, sounding the button event only when the entry actually changes so
+        /// Moves the highlight, sounding the swap event only when the entry actually changes so
         /// held keys and idle mouse movement stay silent.
         /// </summary>
         private void SetSelectedEntry(DuneVectorTitleMenuEntry entry)
@@ -249,7 +259,7 @@ namespace DuneVector
             }
 
             _selectedEntry = entry;
-            PlayButtonSound();
+            PlaySwapSound();
         }
 
         private void Update()
