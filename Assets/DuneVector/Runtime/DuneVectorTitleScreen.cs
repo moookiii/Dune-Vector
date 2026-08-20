@@ -551,7 +551,9 @@ namespace DuneVector
                     RuntimeSettings.RetroCrtScanlines,
                     _settings.OptionsHeading,
                     _settings.OptionsSubheading,
-                    _settings.OptionsFooterHint);
+                    _settings.OptionsFooterHint,
+                    _settings.OptionsPanelWidth,
+                    _settings.OptionsPanelHeight);
                 _optionsMenu.TitleOptionsClosed += HandleOptionsClosed;
             }
 

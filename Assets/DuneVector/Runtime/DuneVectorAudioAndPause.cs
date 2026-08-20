@@ -1578,6 +1578,8 @@ namespace DuneVector
         private string _titleHeading = "OPTIONS";
         private string _titleSubheading = "DUNE VECTOR  /  SYSTEMS SETTINGS";
         private string _titleFooterHint = "ESC  /  BACK TO TITLE";
+        private float _titlePanelWidth;
+        private float _titlePanelHeight;
 
         private DronePlayer _player;
         private DroneHealth _health;
@@ -1690,9 +1692,13 @@ namespace DuneVector
             RetroCrtScanlineTuning retroCrtScanlines,
             string heading,
             string subheading,
-            string footerHint)
+            string footerHint,
+            float panelWidth,
+            float panelHeight)
         {
             TitleMode = true;
+            _titlePanelWidth = panelWidth;
+            _titlePanelHeight = panelHeight;
             _audio = audio;
             _playerTuning = playerTuning;
             _visuals = visuals;
@@ -3332,8 +3338,12 @@ namespace DuneVector
         private Rect CalculatePanelRect(float scale)
         {
             float screenMargin = _visuals.ScreenMargin * scale;
-            float panelWidth = Mathf.Min(_visuals.PanelWidth * scale, Screen.width - (screenMargin * 2f));
-            float panelHeight = Mathf.Min(_visuals.PanelHeight * scale, Screen.height - (screenMargin * 2f));
+            // Title mode drops five button rows, so it carries its own shorter panel size
+            // instead of leaving the pause menu's height half empty.
+            float authoredWidth = TitleMode && _titlePanelWidth > 0f ? _titlePanelWidth : _visuals.PanelWidth;
+            float authoredHeight = TitleMode && _titlePanelHeight > 0f ? _titlePanelHeight : _visuals.PanelHeight;
+            float panelWidth = Mathf.Min(authoredWidth * scale, Screen.width - (screenMargin * 2f));
+            float panelHeight = Mathf.Min(authoredHeight * scale, Screen.height - (screenMargin * 2f));
 
             // The panel settles downward as it fades in, so the open reads as a
             // deliberate motion instead of a hard cut.

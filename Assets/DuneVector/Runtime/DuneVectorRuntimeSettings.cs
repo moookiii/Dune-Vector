@@ -8748,6 +8748,10 @@ namespace DuneVector
         public string OptionsSubheading = "DUNE VECTOR  /  SYSTEMS SETTINGS";
         [Tooltip("Hint drawn along the bottom of the options panel.")]
         public string OptionsFooterHint = "ESC  /  BACK TO TITLE";
+        [Tooltip("Width of the options panel. Zero falls back to the pause menu's own width.")]
+        [Min(0f)] public float OptionsPanelWidth = 540f;
+        [Tooltip("Height of the options panel. It is shorter than the pause menu because the run entries are gone. Zero falls back to the pause menu's own height.")]
+        [Min(0f)] public float OptionsPanelHeight = 554f;
 
         [Header("Background Video")]
         [Tooltip("Fullscreen looping video played behind the menu. Imported without transcoding so it stays uncompressed by Unity.")]
