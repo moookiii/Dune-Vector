@@ -233,9 +233,6 @@ namespace DuneVector
             public bool HasRing;
             public bool BlackRingBoostCollected;
             public bool HealthRingCollected;
-            public bool HoverArmed;
-            public bool Hovering;
-            public float HoverElapsed;
             public readonly List<Transform> Rotators = new List<Transform>();
         }
 
@@ -2778,7 +2775,6 @@ namespace DuneVector
             for (int i = 0; i < _segments.Count; i++)
             {
                 RiftSegment segment = _segments[i];
-                TickRailRingHover(segment, playerPosition, deltaTime);
                 if (segment.HasRing && HasPassedRailNavigationRing(
                         previousPlayerPosition,
                         playerPosition,
@@ -3961,45 +3957,6 @@ namespace DuneVector
             }
         }
 
-        // Approaching traversal rings latch on a fixed distance ahead of the drone and
-        // ride along with it for a moment, then release and go back to being fixed in
-        // the world so the drone closes on them normally.
-        private void TickRailRingHover(RiftSegment segment, Vector3 playerPosition, float deltaTime)
-        {
-            float hoverDuration = Mathf.Max(0f, _settings.RingHoverDuration);
-            float triggerDistance = Mathf.Max(0f, _settings.RingHoverTriggerDistance);
-            if (hoverDuration <= 0f || triggerDistance <= 0f || !segment.HasRing)
-            {
-                return;
-            }
-
-            if (segment.Hovering)
-            {
-                segment.HoverElapsed += deltaTime;
-                if (segment.HoverElapsed >= hoverDuration)
-                {
-                    segment.Hovering = false;
-                    return;
-                }
-
-                segment.Root.position += Vector3.forward * _state.ForwardSpeed * deltaTime;
-                return;
-            }
-
-            if (!segment.HoverArmed)
-            {
-                return;
-            }
-
-            float gap = segment.Root.position.z - playerPosition.z;
-            if (gap > 0f && gap <= triggerDistance)
-            {
-                segment.HoverArmed = false;
-                segment.Hovering = true;
-                segment.HoverElapsed = 0f;
-            }
-        }
-
         private void ResetSegment(RiftSegment segment, float z, int identity)
         {
             segment.BlackRingBoostCollected = false;
@@ -4008,9 +3965,6 @@ namespace DuneVector
             {
                 segment.Ring.gameObject.SetActive(true);
             }
-            segment.HoverArmed = true;
-            segment.Hovering = false;
-            segment.HoverElapsed = 0f;
             Vector2 ringBoundary = GetRailRingBoundaryHalfExtents();
             Vector2 authoredExtent = Vector2.one * Mathf.Max(1f, _settings.ProceduralPlaneHalfExtent);
             Vector2 extent = Vector2.Min(authoredExtent, ringBoundary);
