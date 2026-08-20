@@ -5310,7 +5310,7 @@ namespace DuneVector
         [Tooltip("Viewport-space offset from the drone visual center used as the center-out flare origin.")]
         public Vector2 CenterOutAnchorViewportOffset;
         [Tooltip("World-space offset added to the drone visual center before it becomes the center-out flare origin. Y raises the streak convergence point off the drone body.")]
-        public Vector3 CenterOutAnchorWorldOffset = new Vector3(0f, 0.3f, 0f);
+        public Vector3 CenterOutAnchorWorldOffset = new Vector3(0f, 0.4f, 0f);
         [Range(1, 256)] public int CenterOutParticlePoolCapacity;
         public bool CenterOutUseColorWheelPalette;
         [Min(0f)] public float CenterOutBurstCountMultiplier;
