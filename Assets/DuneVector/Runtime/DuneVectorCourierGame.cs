@@ -560,6 +560,9 @@ namespace DuneVector
         private DuneVectorDeliveryMessagePresenter _messagePresenter;
         private DuneVectorTrailUnlockShowcase _trailUnlockShowcase;
         private DuneVectorSandAmbusherSystem _sandAmbusherSystem;
+        private bool _warpGateSuspendedSandAmbushers;
+        private int _warpGateResumeRisk;
+        private int _warpGateResumeSeed;
 
         private Transform _hubRoot;
         private Transform _terminal;
@@ -959,6 +962,41 @@ namespace DuneVector
             PrepareFreeRoamDeployment();
             BeginTeleport(toHub: false);
             return true;
+        }
+
+        public bool TryEnterRailFromWarpGate(DuneVectorWarpGate gate)
+        {
+            if (gate == null || gate.IsConsumed || State != CourierRunState.FreeRoam || _railShooter == null)
+            {
+                return false;
+            }
+
+            _warpGateSuspendedSandAmbushers = _sandAmbusherSystem != null && _sandAmbusherSystem.enabled;
+            _warpGateResumeRisk = Mathf.Max(1, DuneVectorContractRisk.CurrentRisk);
+            _warpGateResumeSeed = unchecked(_world.WorldSeed ^ (_warpGateResumeRisk * 7919));
+            SetCombatSystemsActive(false);
+            if (_warpGateSuspendedSandAmbushers)
+            {
+                _sandAmbusherSystem.EndContract();
+            }
+
+            int difficulty = Mathf.Max(1, _freeRoamRisk > 0
+                ? ClampFreeRoamRisk(_freeRoamRisk)
+                : _warpGateResumeRisk);
+            int seed = NextRailSeed();
+            if (_railShooter.Begin(seed, difficulty, HandleWarpGateRailShooterCompleted))
+            {
+                State = CourierRunState.RailShooter;
+                return true;
+            }
+
+            SetCombatSystemsActive(true);
+            if (_warpGateSuspendedSandAmbushers)
+            {
+                _sandAmbusherSystem.BeginContract(_warpGateResumeRisk, _warpGateResumeSeed);
+            }
+            _warpGateSuspendedSandAmbushers = false;
+            return false;
         }
 
         public void BindProceduralBuildings(DuneVectorProceduralBuildingDirector buildings)
@@ -3122,6 +3160,28 @@ namespace DuneVector
                     : $"RIFT EXTRACTION {grade}  +{gold} GOLD",
                 _settings.CompletionReturnDelay);
             BeginReturnToBaseAfterMessage();
+        }
+
+        private void HandleWarpGateRailShooterCompleted(bool success, int gold, string grade)
+        {
+            if (State != CourierRunState.RailShooter)
+            {
+                return;
+            }
+
+            State = CourierRunState.FreeRoam;
+            SetCombatSystemsActive(true);
+            _health.SetDamageImmune(false);
+            if (_warpGateSuspendedSandAmbushers)
+            {
+                _sandAmbusherSystem.BeginContract(_warpGateResumeRisk, _warpGateResumeSeed);
+            }
+            _warpGateSuspendedSandAmbushers = false;
+            ShowStatus(
+                success
+                    ? $"WARP GATE RIFT {grade}  +{gold} GOLD"
+                    : $"WARP GATE EXTRACTION {grade}  +{gold} GOLD",
+                3f);
         }
 
         private void BeginReturnToBaseAfterMessage()

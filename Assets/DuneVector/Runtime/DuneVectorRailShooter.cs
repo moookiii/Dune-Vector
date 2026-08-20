@@ -207,6 +207,7 @@ namespace DuneVector
             public float ContactRadius;
             public float HitFlashElapsed;
             public Vector3 BaseScale;
+            public Vector3 VisualBaseScale;
             public float Age;
             public float NextFireAt;
             public float NextSpecialAt;
@@ -227,6 +228,7 @@ namespace DuneVector
         {
             public Transform Root;
             public Vector2 PlaneOffset;
+            public bool BlackRingBoostCollected;
             public readonly List<Transform> Rotators = new List<Transform>();
         }
 
@@ -265,6 +267,10 @@ namespace DuneVector
         private readonly List<RiftSegment> _segments = new List<RiftSegment>();
         private readonly List<Transform> _speedStreaks = new List<Transform>();
         private readonly List<Transform> _railRings = new List<Transform>();
+        private readonly Dictionary<Material, Material> _navigationRailRingMaterials =
+            new Dictionary<Material, Material>();
+        private readonly Dictionary<Material, Material> _whiteRailRingMaterials =
+            new Dictionary<Material, Material>();
         private readonly List<RailSatellite> _satellites = new List<RailSatellite>();
         private readonly List<ScorePopup> _popups = new List<ScorePopup>();
         private readonly List<RailEnemy> _chargeLocks = new List<RailEnemy>();
@@ -281,6 +287,7 @@ namespace DuneVector
         private DroneCharacterController _player;
         private DroneHealth _health;
         private Camera _camera;
+        private DroneFlightSwooshRenderer _flightSwooshes;
         private DroneCameraController _cameraController;
         private DesertWorldStreamer _world;
         private DuneVectorMaterials _materials;
@@ -355,6 +362,7 @@ namespace DuneVector
         private float _nextGrazePopupAt;
         private float _cameraShake;
         private float _fovImpulse;
+        private float _blackRingBoostTimeRemaining;
         private int _difficulty = 1;
         private Vector3 _cameraBasePosition;
         private Vector2 _aimViewport = new Vector2(0.5f, 0.5f);
@@ -399,6 +407,7 @@ namespace DuneVector
         private bool _savedInputEnabled;
         private bool _savedWorldEnabled;
         private bool _savedCameraControllerEnabled;
+        private bool _savedFlightSwooshesEnabled;
         private Vector3 _savedCameraPosition;
         private Quaternion _savedCameraRotation;
         private CameraClearFlags _savedClearFlags;
@@ -520,6 +529,7 @@ namespace DuneVector
             _resultSuccess = false;
             _cameraShake = 0f;
             _fovImpulse = 0f;
+            _blackRingBoostTimeRemaining = 0f;
             _aimViewport = new Vector2(0.5f, 0.5f);
             _hitMarkerElapsed = float.PositiveInfinity;
             _killMarkerElapsed = float.PositiveInfinity;
@@ -665,18 +675,30 @@ namespace DuneVector
             bool maneuverAvailable = _state.ManeuverEnergy > 0f;
             bool boosting = command.BoostHeld && !command.BrakeHeld && maneuverAvailable;
             bool braking = command.BrakeHeld && !command.BoostHeld && maneuverAvailable;
+            bool blackRingBoosting = _blackRingBoostTimeRemaining > 0f;
+            _blackRingBoostTimeRemaining = Mathf.MoveTowards(
+                _blackRingBoostTimeRemaining,
+                0f,
+                Mathf.Max(0f, deltaTime));
             float targetSpeed = _settings.ForwardSpeed;
-            if (boosting)
-            {
-                targetSpeed *= _settings.BoostSpeedMultiplier;
-                _state.ManeuverEnergy -= _settings.BoostEnergyPerSecond * deltaTime;
-            }
-            else if (braking)
+            if (braking)
             {
                 targetSpeed *= _settings.BrakeSpeedMultiplier;
                 _state.ManeuverEnergy -= _settings.BrakeEnergyPerSecond * deltaTime;
             }
-            else if (_state.Trick == RailShooterTrick.None)
+            else
+            {
+                float speedMultiplier = blackRingBoosting
+                    ? Mathf.Max(1f, _settings.BlackRingBoostSpeedMultiplier)
+                    : 1f;
+                if (boosting)
+                {
+                    speedMultiplier = Mathf.Max(speedMultiplier, _settings.BoostSpeedMultiplier);
+                    _state.ManeuverEnergy -= _settings.BoostEnergyPerSecond * deltaTime;
+                }
+                targetSpeed *= speedMultiplier;
+            }
+            if (!boosting && !braking && _state.Trick == RailShooterTrick.None)
             {
                 _state.ManeuverEnergy += _settings.ManeuverEnergyRegeneration * deltaTime;
             }
@@ -694,8 +716,24 @@ namespace DuneVector
             _state.LateralVelocity = Vector2.Lerp(
                 _state.LateralVelocity,
                 targetVelocity,
-                DuneVectorMath.Sharpness(_settings.LateralAccelerationSharpness, deltaTime));
+                DuneVectorMath.Sharpness(_settings.MovementSmoothing, deltaTime));
             _state.FlightOffset += _state.LateralVelocity * deltaTime;
+            Vector2 viewportHalfExtents = CalculateScreenSpaceFlightHalfExtents(
+                Mathf.Abs(_settings.CameraLocalOffset.z),
+                _camera.fieldOfView,
+                _camera.aspect,
+                1f);
+            Vector2 screenSpaceBounds = viewportHalfExtents *
+                Mathf.Max(1f, _settings.ScreenSpacePlayAreaMultiplier);
+            Vector2 cameraTravelBounds = new Vector2(
+                Mathf.Max(0f, screenSpaceBounds.x - viewportHalfExtents.x),
+                Mathf.Max(0f, screenSpaceBounds.y - viewportHalfExtents.y));
+            // The camera rectangle moves inside the authored screen-sized boundary. Releasing
+            // input only removes velocity; it never teleports the hull back to the centre, so the
+            // attitude and aim can drift back independently.
+            _state.FlightOffset = new Vector2(
+                SoftClamp(_state.FlightOffset.x, screenSpaceBounds.x, _settings.BoundarySoftness),
+                SoftClamp(_state.FlightOffset.y, screenSpaceBounds.y, _settings.BoundarySoftness));
             RebaseFlightSpaceIfNeeded();
             float attitudeSharpness = steering
                 ? _settings.AttitudeInputSharpness
@@ -717,9 +755,13 @@ namespace DuneVector
                 _state.FlightOffset.y,
                 _state.Distance);
             float cameraFollow = Mathf.Clamp01(_settings.CameraLateralFollowFraction);
+            Vector2 cameraOffset = CalculateScreenSpaceCameraOffset(
+                _state.FlightOffset,
+                cameraTravelBounds,
+                cameraFollow);
             Vector3 cameraAnchor = new Vector3(
-                Mathf.Lerp(_arenaOrigin.x, playerPosition.x, cameraFollow),
-                Mathf.Lerp(_arenaOrigin.y, playerPosition.y, cameraFollow),
+                _arenaOrigin.x + cameraOffset.x,
+                _arenaOrigin.y + cameraOffset.y,
                 _arenaOrigin.z + _state.Distance);
             Vector3 desiredCameraPosition = cameraAnchor + _settings.CameraLocalOffset;
             _cameraBasePosition = Vector3.Lerp(
@@ -730,18 +772,36 @@ namespace DuneVector
                 (UnityEngine.Random.insideUnitSphere * _cameraShake);
             _camera.transform.rotation = Quaternion.identity;
 
+            // The normal lock is the exact centre of the screen even when the drone has settled
+            // somewhere else in the play space. Steering temporarily swings that lock; releasing
+            // input lets AttitudeReturnSharpness bring it back without moving the drone.
             Vector2 restingViewport = CalculateRestingAimViewport(
-                _state.FlightOffset * (1f - cameraFollow),
+                Vector2.zero,
                 _settings.FlightBounds,
                 _settings.RestingAimRegionFraction);
             _aimViewport = restingViewport + Vector2.Scale(
                 _state.Attitude,
                 _settings.SteeringAimViewportSwing);
-            Ray aimRay = _camera.ViewportPointToRay(new Vector3(_aimViewport.x, _aimViewport.y, 0f));
-            Quaternion aimRotation = Quaternion.LookRotation(aimRay.direction, Vector3.up);
-            // Weapons and reticles follow the aim ray exactly. The cosmetic bank, pitch, and
-            // trick spin stay on the hull so shots never leave the crosshair.
-            _state.AimDirection = aimRotation * Vector3.forward;
+            float aimDistance = Mathf.Max(
+                _settings.NearReticleDistance,
+                _settings.FarReticleDistance);
+            float aimTargetDepth = Mathf.Max(
+                1f,
+                (playerPosition.z - _camera.transform.position.z) + aimDistance);
+            Vector3 aimTarget = _camera.ViewportToWorldPoint(new Vector3(
+                _aimViewport.x,
+                _aimViewport.y,
+                aimTargetDepth));
+            Vector3 aimVector = aimTarget - playerPosition;
+            Quaternion aimRotation = aimVector.sqrMagnitude > 0.0001f
+                ? Quaternion.LookRotation(aimVector.normalized, Vector3.up)
+                : _camera.transform.rotation;
+            // Weapons and reticles follow the screen-space point from the drone's actual position.
+            // The cosmetic bank, pitch, and trick spin stay on the hull so shots never leave the
+            // crosshair while the hull itself remains at its current screen position.
+            _state.AimDirection = aimVector.sqrMagnitude > 0.0001f
+                ? aimVector.normalized
+                : _camera.transform.forward;
             Quaternion trickRotation = GetTrickRotation();
             Quaternion shipRotation = aimRotation * trickRotation * Quaternion.Euler(
                 -_state.Attitude.y * _settings.MaximumPitch,
@@ -750,7 +810,7 @@ namespace DuneVector
             _player.transform.SetPositionAndRotation(playerPosition, shipRotation);
 
             float targetFov = _settings.CameraFieldOfView +
-                (boosting ? _settings.BoostFieldOfView : 0f) +
+                ((boosting || blackRingBoosting) ? _settings.BoostFieldOfView : 0f) +
                 _fovImpulse;
             _camera.fieldOfView = Mathf.Lerp(
                 _camera.fieldOfView,
@@ -1175,7 +1235,7 @@ namespace DuneVector
             if (_boss.Visual != null)
             {
                 float pulse = 1f + ((1f - health01) * 0.18f * Mathf.Sin(_boss.Age * 8f));
-                _boss.Visual.localScale = Vector3.one * pulse;
+                _boss.Visual.localScale = CalculateBossVisualScale(_boss.VisualBaseScale, pulse);
                 _boss.Visual.Rotate(0f, _settings.WreckageRotationSpeed * phase * deltaTime, 0f, Space.Self);
             }
             if (_boss.Age >= _boss.NextFireAt)
@@ -2469,16 +2529,34 @@ namespace DuneVector
                 _state.Distance + _settings.PickupSpawnAheadDistance >= targetDistance)
             {
                 float gateZ = _startZ + targetDistance;
+                Vector2 gateCenter = ClampRailRingPosition(
+                    new Vector2(_player.transform.position.x, _player.transform.position.y));
+                float gateOffset = Mathf.Min(
+                    Mathf.Abs(_settings.BranchGateHorizontalOffset),
+                    GetRailRingBoundaryHalfExtents().x);
+                Vector2 safeGatePosition = ClampRailRingPosition(
+                    gateCenter + (Vector2.left * gateOffset));
                 _safeGate.position = new Vector3(
-                    _player.transform.position.x - _settings.BranchGateHorizontalOffset,
-                    _player.transform.position.y,
-                    gateZ);
-                _riskGate.position = new Vector3(
-                    _player.transform.position.x + _settings.BranchGateHorizontalOffset,
-                    _player.transform.position.y,
+                    safeGatePosition.x,
+                    safeGatePosition.y,
                     gateZ);
                 _safeGate.gameObject.SetActive(true);
-                _riskGate.gameObject.SetActive(true);
+                if (CanShowBlackRouteGate(_riskRouteCount))
+                {
+                    Vector2 riskGatePosition = ClampRailRingPosition(
+                        gateCenter + (Vector2.right * gateOffset));
+                    _riskGate.position = new Vector3(
+                        riskGatePosition.x,
+                        riskGatePosition.y,
+                        gateZ);
+                    _riskGate.gameObject.SetActive(true);
+                }
+                else
+                {
+                    // The black route is a one-time risk choice. Once taken, later branches only
+                    // offer the signal route so the run cannot keep stacking black gates visually.
+                    _riskGate.gameObject.SetActive(false);
+                }
                 _routeGateActive = true;
             }
             if (!_routeGateActive || _player.transform.position.z < _safeGate.position.z)
@@ -2491,7 +2569,8 @@ namespace DuneVector
             float riskDistance = Vector2.Distance(
                 new Vector2(_player.transform.position.x, _player.transform.position.y),
                 new Vector2(_riskGate.position.x, _riskGate.position.y));
-            if (riskDistance <= _settings.BranchGateRadius)
+            if (CanShowBlackRouteGate(_riskRouteCount) &&
+                riskDistance <= _settings.BranchGateRadius)
             {
                 _state.Route = RailShooterRoute.Black;
                 _riskRouteCount++;
@@ -2531,10 +2610,16 @@ namespace DuneVector
                 return;
             }
             float side = (_pickupSequence & 1) == 0 ? -1f : 1f;
-            pickup.Transform.position = worldPosition ?? (_player.transform.position + new Vector3(
+            Vector3 requestedPosition = worldPosition ?? (_player.transform.position + new Vector3(
                 side * _settings.FlightBounds.x * _settings.PickupRiskLineFraction,
                 Mathf.Sin(_pickupSequence * 1.7f) * _settings.FlightBounds.y * 0.65f,
                 _settings.PickupSpawnAheadDistance));
+            Vector2 boundedPosition = ClampRailRingPosition(
+                new Vector2(requestedPosition.x, requestedPosition.y));
+            pickup.Transform.position = new Vector3(
+                boundedPosition.x,
+                boundedPosition.y,
+                requestedPosition.z);
             pickup.Active = true;
             pickup.Root.SetActive(true);
         }
@@ -2668,10 +2753,24 @@ namespace DuneVector
 
         private void TickEnvironment(float deltaTime)
         {
+            Vector3 playerPosition = _player.transform.position;
+            Vector3 previousPlayerPosition = playerPosition - new Vector3(
+                _state.LateralVelocity.x,
+                _state.LateralVelocity.y,
+                _state.ForwardSpeed) * Mathf.Max(0f, deltaTime);
             for (int i = 0; i < _segments.Count; i++)
             {
                 RiftSegment segment = _segments[i];
-                if (segment.Root.position.z < _player.transform.position.z - _settings.EnvironmentRecycleBehindDistance)
+                if (!segment.BlackRingBoostCollected &&
+                    HasPassedRailNavigationRing(
+                        previousPlayerPosition,
+                        playerPosition,
+                        segment.Root.position,
+                        _settings.GateRadius))
+                {
+                    ActivateBlackRingBoost(segment);
+                }
+                if (segment.Root.position.z < playerPosition.z - _settings.EnvironmentRecycleBehindDistance)
                 {
                     _furthestSegmentZ += _settings.EnvironmentSegmentSpacing;
                     ResetSegment(segment, _furthestSegmentZ, i + Mathf.RoundToInt(_state.Distance));
@@ -3192,6 +3291,7 @@ namespace DuneVector
                     _ringSettings,
                     faceForward: true);
                 gate.name = "Procedural Rift Navigation Ring";
+                ApplyRailNavigationRingColor(gate);
                 RegisterRailRing(gate);
                 _segments.Add(segment);
             }
@@ -3320,6 +3420,7 @@ namespace DuneVector
                     : HitRadiusForKind(kind) * _settings.ContactRadiusFraction,
                 HitFlashElapsed = float.PositiveInfinity,
                 BaseScale = Vector3.one,
+                VisualBaseScale = visual != null ? visual.localScale : Vector3.one,
             };
             root.gameObject.SetActive(false);
             return enemy;
@@ -3499,6 +3600,10 @@ namespace DuneVector
                     _settings.PickupRadius,
                     _ringSettings,
                     faceForward: true);
+                if (ringType == TraversalRingType.UpperFlight)
+                {
+                    ApplyRailWhiteRingColor(pickupRing);
+                }
                 if (kind == PickupKind.Health)
                 {
                     Transform heart = pickupRing.Find("Collectible Icon");
@@ -3603,10 +3708,67 @@ namespace DuneVector
                 _settings.BranchGateRadius,
                 _ringSettings,
                 faceForward: true);
+            ApplyRailNavigationRingColor(safeRing);
+            ApplyRailWhiteRingColor(riskRing);
             RegisterRailRing(safeRing);
             RegisterRailRing(riskRing);
             _safeGate.gameObject.SetActive(false);
             _riskGate.gameObject.SetActive(false);
+        }
+
+        private void ApplyRailNavigationRingColor(Transform ring)
+        {
+            ApplyRailRingColor(
+                ring,
+                _settings.NavigationRingColor,
+                "Rail Navigation Ring",
+                _navigationRailRingMaterials);
+        }
+
+        private void ApplyRailWhiteRingColor(Transform ring)
+        {
+            ApplyRailRingColor(
+                ring,
+                Color.white,
+                "Rail White Ring",
+                _whiteRailRingMaterials);
+        }
+
+        private void ApplyRailRingColor(
+            Transform ring,
+            Color color,
+            string materialLabel,
+            Dictionary<Material, Material> materialCache)
+        {
+            if (ring == null)
+            {
+                return;
+            }
+
+            Renderer[] renderers = ring.GetComponentsInChildren<Renderer>(true);
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                Material source = renderers[i].sharedMaterial;
+                if (source == null)
+                {
+                    continue;
+                }
+
+                if (!materialCache.TryGetValue(source, out Material railMaterial)
+                    || railMaterial == null)
+                {
+                    railMaterial = new Material(source)
+                    {
+                        name = $"{source.name} - {materialLabel}",
+                        enableInstancing = true,
+                    };
+                    railMaterial.SetColor("_PortalColor", color);
+                    railMaterial.SetInt("_PortalBlendOp", (int)BlendOp.Add);
+                    railMaterial.SetFloat("_EmissionEnabled", 1f);
+                    materialCache[source] = railMaterial;
+                }
+                renderers[i].sharedMaterial = railMaterial;
+            }
         }
 
         private void RegisterRailRing(Transform ring)
@@ -3712,13 +3874,15 @@ namespace DuneVector
 
         private void ResetSegment(RiftSegment segment, float z, int identity)
         {
-            float extent = Mathf.Max(1f, _settings.ProceduralPlaneHalfExtent);
+            segment.BlackRingBoostCollected = false;
+            Vector2 ringBoundary = GetRailRingBoundaryHalfExtents();
+            Vector2 authoredExtent = Vector2.one * Mathf.Max(1f, _settings.ProceduralPlaneHalfExtent);
+            Vector2 extent = Vector2.Min(authoredExtent, ringBoundary);
             float depthJitter = Mathf.Max(0f, _settings.ProceduralRingDepthJitter);
             segment.PlaneOffset = EvenPlaneOffset(identity, extent, 0);
-            Vector2 planeCenter = CurrentFlightPlaneCenter();
             segment.Root.position = new Vector3(
-                planeCenter.x + segment.PlaneOffset.x,
-                planeCenter.y + segment.PlaneOffset.y,
+                _arenaOrigin.x + segment.PlaneOffset.x,
+                _arenaOrigin.y + segment.PlaneOffset.y,
                 z + NextFloat(-depthJitter, depthJitter));
             segment.Root.rotation = Quaternion.identity;
         }
@@ -3728,6 +3892,23 @@ namespace DuneVector
             return new Vector2(
                 _arenaOrigin.x + _state.FlightOffset.x,
                 _arenaOrigin.y + _state.FlightOffset.y);
+        }
+
+        private Vector2 GetRailRingBoundaryHalfExtents()
+        {
+            return CalculateScreenSpaceFlightHalfExtents(
+                Mathf.Abs(_settings.CameraLocalOffset.z),
+                _camera != null ? _camera.fieldOfView : _settings.CameraFieldOfView,
+                _camera != null ? _camera.aspect : (16f / 9f),
+                _settings.ScreenSpacePlayAreaMultiplier);
+        }
+
+        private Vector2 ClampRailRingPosition(Vector2 position)
+        {
+            Vector2 halfExtents = GetRailRingBoundaryHalfExtents();
+            return new Vector2(
+                Mathf.Clamp(position.x, _arenaOrigin.x - halfExtents.x, _arenaOrigin.x + halfExtents.x),
+                Mathf.Clamp(position.y, _arenaOrigin.y - halfExtents.y, _arenaOrigin.y + halfExtents.y));
         }
 
         private void ResetSpeedStreak(Transform streak, int identity)
@@ -3769,6 +3950,10 @@ namespace DuneVector
             _savedInputEnabled = _input != null && _input.InputEnabled;
             _savedWorldEnabled = _world != null && _world.enabled;
             _savedCameraControllerEnabled = _cameraController != null && _cameraController.enabled;
+            _flightSwooshes = _camera != null
+                ? _camera.GetComponent<DroneFlightSwooshRenderer>()
+                : null;
+            _savedFlightSwooshesEnabled = _flightSwooshes != null && _flightSwooshes.enabled;
             _savedCameraPosition = _camera.transform.position;
             _savedCameraRotation = _camera.transform.rotation;
             _savedClearFlags = _camera.clearFlags;
@@ -3797,6 +3982,10 @@ namespace DuneVector
             }
             if (_world != null) _world.enabled = false;
             if (_cameraController != null) _cameraController.enabled = false;
+            // The desert flight streaks are camera-owned, so disabling the world alone does not
+            // stop them. The rail presentation has its own pooled speed streaks and must suspend
+            // the Player-tab swooshes for the entire subgame.
+            if (_flightSwooshes != null) _flightSwooshes.enabled = false;
             _camera.clearFlags = _settings.RailSkybox != null
                 ? CameraClearFlags.Skybox
                 : CameraClearFlags.SolidColor;
@@ -3824,26 +4013,13 @@ namespace DuneVector
 
         private void ResetSatellite(RailSatellite satellite, float z, int sequence)
         {
-            int pathInterval = Mathf.Max(1, _settings.SatellitePathSpawnInterval);
-            bool obstructFlightPath = Mathf.Abs(sequence) % pathInterval == 0;
-            if (obstructFlightPath)
-            {
-                // Deliberate obstruction. It is spread across the whole box the drone can actually
-                // reach rather than a small patch on the centre line: an obstacle parked near the
-                // axis contests nothing once the player flies out to the edge of FlightBounds.
-                satellite.PlaneOffset = EvenPlaneOffset(
-                    sequence,
-                    _settings.FlightBounds * Mathf.Clamp01(_settings.SatellitePathBoundsFraction),
-                    5);
-            }
-            else
-            {
-                // Surrounding scenery, outside the reachable box.
-                satellite.PlaneOffset = EvenPlaneOffset(
-                    sequence,
-                    Mathf.Max(0f, _settings.SatellitePlaneHalfExtent),
-                    17);
-            }
+            // Keep the complete satellite field in the same floating-origin square as the space
+            // the player can occupy before a lateral rebase. Using one sequence for every satellite
+            // avoids splitting the pool into a narrow obstruction row and a separate scenery band.
+            float fieldHalfExtent = Mathf.Max(
+                Mathf.Max(0f, _settings.SatellitePlaneHalfExtent),
+                Mathf.Max(0f, _settings.FlightRebaseDistance));
+            satellite.PlaneOffset = EvenPlaneOffset(sequence, fieldHalfExtent, 0);
             Vector2 center = CurrentFlightPlaneCenter();
             satellite.Transform.position = new Vector3(
                 center.x + satellite.PlaneOffset.x,
@@ -3870,8 +4046,8 @@ namespace DuneVector
         }
 
         // The Halton points keep the field evenly spread, but on their own they depend only on the
-        // spawn index, so every run laid the corridor and the satellites out in exactly the same
-        // places. The per-run rotation shifts the whole sequence without clumping it.
+        // spawn index, so every run lays the corridor and the satellites out in the same broad square.
+        // The per-run rotation shifts the whole sequence without clumping it.
         private Vector2 EvenPlaneOffset(int identity, float halfExtent, int sequenceSalt)
         {
             return EvenPlaneOffset(identity, new Vector2(halfExtent, halfExtent), sequenceSalt);
@@ -3883,6 +4059,38 @@ namespace DuneVector
             float x = Mathf.Repeat(RadicalInverse(sequence, 2) + _planeRotation.x, 1f);
             float y = Mathf.Repeat(RadicalInverse(sequence, 3) + _planeRotation.y, 1f);
             return new Vector2(((x * 2f) - 1f) * halfExtent.x, ((y * 2f) - 1f) * halfExtent.y);
+        }
+
+        private void ActivateBlackRingBoost(RiftSegment segment)
+        {
+            if (segment == null || segment.BlackRingBoostCollected)
+            {
+                return;
+            }
+
+            segment.BlackRingBoostCollected = true;
+            _blackRingBoostTimeRemaining = Mathf.Max(
+                _blackRingBoostTimeRemaining,
+                _settings.BlackRingBoostDuration);
+            DuneVectorAudioManager.Instance?.PlayFlightRingSwoosh(segment.Root.position);
+            SpawnScorePopup(
+                segment.Root.position,
+                "BLACK RING BOOST",
+                _settings.RiftDangerColor);
+        }
+
+        public static bool HasPassedRailNavigationRing(
+            Vector3 previousPosition,
+            Vector3 currentPosition,
+            Vector3 ringPosition,
+            float ringRadius)
+        {
+            return SegmentIntersectsSphere(
+                previousPosition,
+                currentPosition,
+                ringPosition,
+                Mathf.Max(0f, ringRadius),
+                out _);
         }
 
         private static float RadicalInverse(int value, int radix)
@@ -3984,6 +4192,10 @@ namespace DuneVector
             {
                 _cameraController.enabled = _savedCameraControllerEnabled;
                 _cameraController.SnapToTarget(_savedPlayerRotation * Vector3.forward);
+            }
+            if (_flightSwooshes != null)
+            {
+                _flightSwooshes.enabled = _savedFlightSwooshesEnabled;
             }
             RenderSettings.fog = _savedFogEnabled;
             RenderSettings.fogMode = _savedFogMode;
@@ -4169,6 +4381,16 @@ namespace DuneVector
             return Mathf.Sign(clamped) * eased;
         }
 
+        public static bool CanShowBlackRouteGate(int riskRouteCount)
+        {
+            return riskRouteCount <= 0;
+        }
+
+        public static Vector3 CalculateBossVisualScale(Vector3 authoredScale, float pulse)
+        {
+            return authoredScale * Mathf.Max(0f, pulse);
+        }
+
         public static Vector2 CalculateRestingAimViewport(
             Vector2 flightOffset,
             Vector2 flightBounds,
@@ -4182,6 +4404,49 @@ namespace DuneVector
                 Mathf.Clamp(flightOffset.y / safeBounds.y, -1f, 1f));
             return Vector2.one * 0.5f +
                 (normalizedPosition * (Mathf.Clamp01(regionFraction) * 0.5f));
+        }
+
+        public static Vector2 CalculateScreenSpaceFlightHalfExtents(
+            float cameraToDroneDepth,
+            float fieldOfView,
+            float aspect,
+            float screenSpaceMultiplier)
+        {
+            float depth = Mathf.Max(0.001f, cameraToDroneDepth);
+            float verticalHalfExtent = depth * Mathf.Tan(
+                Mathf.Clamp(fieldOfView, 1f, 179f) * Mathf.Deg2Rad * 0.5f);
+            float multiplier = Mathf.Max(1f, screenSpaceMultiplier);
+            verticalHalfExtent *= multiplier;
+            return new Vector2(
+                verticalHalfExtent * Mathf.Max(0.001f, aspect),
+                verticalHalfExtent);
+        }
+
+        public static Vector2 CalculateScreenSpaceRingPlacementHalfExtents(
+            float cameraToDroneDepth,
+            float fieldOfView,
+            float aspect,
+            float screenSpaceMultiplier)
+        {
+            return CalculateScreenSpaceFlightHalfExtents(
+                cameraToDroneDepth,
+                fieldOfView,
+                aspect,
+                screenSpaceMultiplier);
+        }
+
+        public static Vector2 CalculateScreenSpaceCameraOffset(
+            Vector2 flightOffset,
+            Vector2 cameraTravelBounds,
+            float followFraction)
+        {
+            float follow = Mathf.Clamp01(followFraction);
+            Vector2 travel = new Vector2(
+                Mathf.Abs(cameraTravelBounds.x),
+                Mathf.Abs(cameraTravelBounds.y));
+            return new Vector2(
+                Mathf.Clamp(flightOffset.x * follow, -travel.x, travel.x),
+                Mathf.Clamp(flightOffset.y * follow, -travel.y, travel.y));
         }
 
         private static bool SegmentIntersectsSphere(
@@ -6766,6 +7031,22 @@ namespace DuneVector
                 RestoreWorldState();
             }
             DuneVectorAudioManager.Instance?.ExitRailSubgameMusic();
+            foreach (Material material in _navigationRailRingMaterials.Values)
+            {
+                if (material != null)
+                {
+                    Destroy(material);
+                }
+            }
+            _navigationRailRingMaterials.Clear();
+            foreach (Material material in _whiteRailRingMaterials.Values)
+            {
+                if (material != null)
+                {
+                    Destroy(material);
+                }
+            }
+            _whiteRailRingMaterials.Clear();
             IsAnyRailShooterActive = false;
         }
     }

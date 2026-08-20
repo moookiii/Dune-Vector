@@ -673,7 +673,7 @@ namespace DuneVector
             _tierZeroValues[DroneUpgradeId.MaximumStamina] = settings.PlayerTuning.StaminaBoost.MaxStamina;
             _tierZeroValues[DroneUpgradeId.BoostMaximumSpeed] = settings.PlayerTuning.StaminaBoost.BoostMaximumSpeed;
             _tierZeroValues[DroneUpgradeId.GroundMaximumSpeed] = settings.PlayerTuning.MaxGroundSpeed;
-            _tierZeroValues[DroneUpgradeId.GroundAcceleration] = settings.PlayerTuning.GroundMovementSharpness;
+            _tierZeroValues[DroneUpgradeId.GroundAcceleration] = settings.PlayerTuning.MovementSmoothing;
             _tierZeroValues[DroneUpgradeId.GroundHandling] = settings.PlayerTuning.GroundSteeringSharpness;
             _tierZeroValues[DroneUpgradeId.FlightMaximumSpeed] = settings.PlayerTuning.MaximumFlightSpeed;
             _tierZeroValues[DroneUpgradeId.FlightAcceleration] = settings.PlayerTuning.FlightAcceleration;

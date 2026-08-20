@@ -59,6 +59,7 @@ namespace DuneVector
         public GroundExploderTuning GroundExploders => RuntimeSettings.GroundExploders;
         public EnemySpawnSafetyTuning EnemySpawnSafety => RuntimeSettings.EnemySpawnSafety;
         public RingTuning Rings => RuntimeSettings.Rings;
+        public WarpGateTuning WarpGates => RuntimeSettings.WarpGates;
         public PufferTrainingTuning PufferTraining => RuntimeSettings.PufferTraining;
         public DuneFieldSettings DuneGeneration
         {
@@ -460,6 +461,7 @@ namespace DuneVector
             worldObject.transform.SetParent(transform, false);
             World = worldObject.AddComponent<DesertWorldStreamer>();
             World.Rings = Rings;
+            World.WarpGates = WarpGates;
             World.WorldSeed = DuneGeneration.WorldSeed;
             World.Dunes = DuneGeneration;
             World.Clouds = Clouds;

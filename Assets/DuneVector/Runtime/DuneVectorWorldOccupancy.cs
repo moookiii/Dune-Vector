@@ -11,6 +11,7 @@ namespace DuneVector
         GroundPortalSpacing = 3,
         FlightPortalSpacing = 4,
         PlayerDeployment = 5,
+        WarpGateSpacing = 6,
     }
 
     /// <summary>
@@ -23,7 +24,7 @@ namespace DuneVector
     public static class DuneVectorWorldOccupancy
     {
         private const double CellSize = 64d;
-        private const int KindCount = 6;
+        private const int KindCount = 7;
 
         private sealed class Entry
         {

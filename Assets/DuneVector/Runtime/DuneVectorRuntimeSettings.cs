@@ -6741,7 +6741,9 @@ namespace DuneVector
         [Tooltip("Vertical distance between the grounded character root and the drone visual.")]
         [Min(0f)] public float GroundVisualHeight = 0.45f;
         [Min(0f)] public float MaxGroundSpeed = 18f;
-        [Min(0f)] public float GroundMovementSharpness = 8.5f;
+        [Tooltip("How quickly the grounded drone follows movement input in both the desert and the hub. Lower values produce smoother movement; higher values respond more quickly.")]
+        [FormerlySerializedAs("GroundMovementSharpness")]
+        [Min(0f)] public float MovementSmoothing = 8.5f;
         [Min(0f)] public float GroundBrakingSharpness = 5.5f;
         [Min(0f)] public float GroundSteeringSharpness = 11f;
         [Min(0f)] public float TrailMinimumSpeed = 0.35f;
@@ -6866,7 +6868,7 @@ namespace DuneVector
         public void ApplyTo(DroneCharacterController drone)
         {
             drone.MaxGroundSpeed = MaxGroundSpeed;
-            drone.GroundMovementSharpness = GroundMovementSharpness;
+            drone.GroundMovementSharpness = MovementSmoothing;
             drone.GroundBrakingSharpness = GroundBrakingSharpness;
             drone.RotationSharpness = GroundSteeringSharpness;
             drone.TrailMinimumSpeed = TrailMinimumSpeed;
@@ -7257,6 +7259,64 @@ namespace DuneVector
         [ColorUsage(false, true)]
         [Tooltip("Streak counter and completion-effect color while this tier is active.")]
         public Color Color = new Color(0.35f, 0.86f, 1f, 1f);
+    }
+
+    [System.Serializable]
+    public sealed class WarpGateTuning
+    {
+        [Tooltip("Rare flat gates that launch free-roam runs into the rail subgame.")]
+        public bool Enabled = true;
+
+        [Tooltip("Resources path of the flat gate visual prefab.")]
+        public string PrefabResourcePath = "WarpGatePrefab";
+
+        [Tooltip("Chance for a gate to be authored in each streamed chunk. Lower values keep gates rare.")]
+        [Range(0f, 1f)] public float SpawnChancePerChunk = 0.02f;
+
+        [Tooltip("Minimum logical-world distance from the hub before a gate may appear.")]
+        [Min(0f)] public float MinimumDistanceFromHub = 260f;
+
+        [Tooltip("Minimum clearance used when reserving a gate's world footprint.")]
+        [Min(0f)] public float MinimumGateSeparation = 240f;
+
+        [Tooltip("Radius of the opening used for bottom-to-top entry detection, in meters.")]
+        [Min(1f)] public float GateRadius = 10f;
+
+        [Tooltip("Height of the horizontal gate plane above the sampled dune surface, in meters. This is authored inside the second-flight-ring altitude band so the gate is found in the upper sky.")]
+        [Min(0f)] public float GateHeightAboveTerrain = 112.5f;
+
+        [Tooltip("Forces the authored gate height back inside the second-flight-ring altitude band. Turn this off to place gates at any altitude, including low enough to be spotted from the dunes.")]
+        public bool ClampHeightToUpperFlightRingBand = true;
+
+        [Tooltip("Renders gates while a delivery contract is running. Entering a gate stays free-roam only, so this just lets contract runs spot where the gates are.")]
+        public bool VisibleDuringContracts = true;
+
+        [Tooltip("Extra world-space clearance around the gate visual and opening.")]
+        [Min(0f)] public float GateClearancePadding = 4f;
+
+        [Tooltip("Minimum upward speed required to enter through the gate from below.")]
+        [Min(0f)] public float MinimumEntryUpwardSpeed = 1f;
+
+        [Tooltip("Scale multiplier applied to the authored WarpGatePrefab root.")]
+        [Min(0.01f)] public float PrefabScaleMultiplier = 1f;
+
+        [Tooltip("Deterministic salt used by rare per-chunk gate placement.")]
+        public int SeedOffset = 47011;
+
+        public void EnsureInitialized()
+        {
+            PrefabResourcePath = string.IsNullOrWhiteSpace(PrefabResourcePath)
+                ? "WarpGatePrefab"
+                : PrefabResourcePath.Trim();
+            SpawnChancePerChunk = Mathf.Clamp01(SpawnChancePerChunk);
+            MinimumDistanceFromHub = Mathf.Max(0f, MinimumDistanceFromHub);
+            MinimumGateSeparation = Mathf.Max(0f, MinimumGateSeparation);
+            GateRadius = Mathf.Max(1f, GateRadius);
+            GateHeightAboveTerrain = Mathf.Max(0f, GateHeightAboveTerrain);
+            GateClearancePadding = Mathf.Max(0f, GateClearancePadding);
+            MinimumEntryUpwardSpeed = Mathf.Max(0f, MinimumEntryUpwardSpeed);
+            PrefabScaleMultiplier = Mathf.Max(0.01f, PrefabScaleMultiplier);
+        }
     }
 
     [System.Serializable]
@@ -7820,11 +7880,11 @@ namespace DuneVector
         public Vector2 DrawingGuideViewportCenter = new Vector2(0.5f, 0.48f);
         [Range(0.1f, 0.9f)] public float DrawingGuideScreenFraction = 0.42f;
         [Range(0f, 0.45f)] public float DrawingGuidePaddingFraction = 0.12f;
-        [Min(1f)] public float DrawingGuideThickness = 4f;
+        [Min(1f)] public float DrawingGuideThickness = 8f;
         [Min(1f)] public float DrawingGuideStartSize = 12f;
         [Min(1f)] public float DrawingPaintThickness = 8f;
         public Color DrawingPaintColor = Color.white;
-        public Color DrawingGuideColor = new Color(0.34f, 0.78f, 0.9f, 0.38f);
+        public Color DrawingGuideColor = Color.white;
         [Range(0f, 1f)] public float DrawingCountdownViewportY = 0.83f;
         [Range(0f, 1f)] public float DrawingHintViewportY = 0.87f;
         [Range(0f, 1f)] public float DrawingVerdictViewportY = 0.18f;
@@ -7991,17 +8051,25 @@ namespace DuneVector
         [Header("Rail Flight")]
         [Min(1f)] public float ForwardSpeed = 74f;
         [Min(1f)] public float BoostSpeedMultiplier = 1.55f;
+        [Tooltip("Forward-speed multiplier granted by passing a non-repair black navigation ring.")]
+        [Min(1f)] public float BlackRingBoostSpeedMultiplier = 1.35f;
+        [Tooltip("Seconds the automatic speed boost lasts after passing a black navigation ring.")]
+        [Min(0f)] public float BlackRingBoostDuration = 2.5f;
         [Range(0.05f, 1f)] public float BrakeSpeedMultiplier = 0.52f;
         [Min(0f)] public float ForwardSpeedSharpness = 5f;
         public Vector2 FlightBounds = new Vector2(28f, 15f);
         [Min(0f)] public float LateralSpeed = 30f;
-        [Min(0f)] public float LateralAccelerationSharpness = 7.5f;
+        [Tooltip("How quickly the rail drone's lateral movement follows input. Lower values produce smoother movement; higher values respond more quickly.")]
+        [FormerlySerializedAs("LateralAccelerationSharpness")]
+        [Min(0f)] public float MovementSmoothing = 7.5f;
         [Min(0f)] public float BoundarySoftness = 2.5f;
         [Min(0f)] public float AttitudeInputSharpness = 10f;
         [Min(0f)] public float AttitudeReturnSharpness = 3.8f;
         [Range(0f, 0.5f)] public float RecenterInputDeadzone = 0.08f;
         [Tooltip("Horizontal or vertical distance from the rail start that triggers a floating-origin rebase. The drone returns to its start while all pooled rail-space objects shift with it.")]
         [Min(1f)] public float FlightRebaseDistance = 100f;
+        [Tooltip("Full lateral rail boundary size measured in camera screens at the drone depth. 1 keeps the camera rectangle exactly inside one screen; larger values add room around it.")]
+        [Range(1f, 3f)] public float ScreenSpacePlayAreaMultiplier = 1f;
         [Range(0f, 60f)] public float MaximumYaw = 24f;
         [Range(0f, 60f)] public float MaximumPitch = 20f;
         [Range(0f, 90f)] public float MaximumBank = 42f;
@@ -8011,7 +8079,7 @@ namespace DuneVector
         [Header("Rail Camera")]
         public Vector3 CameraLocalOffset = new Vector3(0f, 4.6f, -13.5f);
         [Min(0f)] public float CameraPositionSharpness = 16f;
-        [Tooltip("How strongly the rail camera follows the drone across the unlocked procedural X/Y plane.")]
+        [Tooltip("How strongly the rail camera follows the drone laterally. Use one to pan with the drone and keep the rail view centred on it.")]
         [Range(0f, 1f)] public float CameraLateralFollowFraction = 1f;
         [Range(30f, 100f)] public float CameraFieldOfView = 68f;
         [Tooltip("Temporarily overrides every Massive Clouds layer on the gameplay camera while the rail subgame is active.")]
@@ -8344,7 +8412,9 @@ namespace DuneVector
         [Min(0f)] public float CorridorHalfHeight = 25f;
         [Min(0f)] public float WreckageRotationSpeed = 13f;
         [Min(0f)] public float GateRadius = 13f;
-        [Tooltip("Half-size of the procedural X/Y plane used to scatter pooled course rings around the floating origin.")]
+        [Tooltip("Color used by recurring and repair flight rings in the rail subgame. Upper-flight rail rings are presented as white.")]
+        [ColorUsage(false, true)] public Color NavigationRingColor = new Color(4.8f, 0.08f, 8f, 1f);
+        [Tooltip("Maximum half-size of the procedural X/Y plane used to scatter pooled course rings. Runtime placement still clamps every ring center inside the drone's screen-space play boundary.")]
         [Min(1f)] public float ProceduralPlaneHalfExtent = 100f;
         [Tooltip("Random forward-depth variation added when a procedural ring segment is recycled.")]
         [Min(0f)] public float ProceduralRingDepthJitter = 24f;
@@ -8354,11 +8424,11 @@ namespace DuneVector
         [Min(1)] public int SatellitePoolSize = 36;
         [Min(1f)] public float SatelliteSpacing = 36f;
         [Min(0f)] public float SatelliteSpawnAheadDistance = 110f;
-        [Tooltip("Half-extent of the surrounding scenery satellites, in world units. These sit outside the reachable box and read as depth rather than as obstacles.")]
-        [Min(0f)] public float SatellitePlaneHalfExtent = 90f;
-        [Tooltip("Every Nth satellite is placed inside the reachable flight box as an obstruction; the satellites between it become surrounding scenery.")]
+        [Tooltip("Half-extent of the satellite field in world units. The runtime widens this to FlightRebaseDistance when needed so the field covers the complete pre-rebase XY square.")]
+        [Min(0f)] public float SatellitePlaneHalfExtent = 100f;
+        [Tooltip("Legacy encounter cadence retained for authored rail settings; every satellite now uses the full field extent.")]
         [Min(1)] public int SatellitePathSpawnInterval = 2;
-        [Tooltip("Fraction of FlightBounds the obstructing satellites are spread across. 1 covers the whole box the drone can actually reach, so no corner of the lane is left empty; lower values pull the obstacles toward the centre line.")]
+        [Tooltip("Legacy obstruction spread control retained for authored rail settings; every satellite now uses the full field extent.")]
         [Range(0f, 1f)] public float SatellitePathBoundsFraction = 1f;
         [Min(0.01f)] public float SatelliteVisualScale = 12f;
         [Min(0.01f)] public float SatelliteHitRadius = 5f;
@@ -8599,6 +8669,7 @@ namespace DuneVector
         {
             FlightBounds.x = Mathf.Max(1f, FlightBounds.x);
             FlightBounds.y = Mathf.Max(1f, FlightBounds.y);
+            ScreenSpacePlayAreaMultiplier = Mathf.Clamp(ScreenSpacePlayAreaMultiplier, 1f, 3f);
             FormationMaximumSize = Mathf.Max(FormationMinimumSize, FormationMaximumSize);
             MaximumBombs = Mathf.Max(1, MaximumBombs);
             StartingBombs = Mathf.Clamp(StartingBombs, 0, MaximumBombs);
@@ -8688,6 +8759,9 @@ namespace DuneVector
 
         [Tooltip("Repeating free-roam pickup and drop-off cycle, landmark hexagon zones, streak multiplier, and payouts.")]
         public FreeRoamDeliveryTuning FreeRoamDeliveries = new FreeRoamDeliveryTuning();
+
+        [Tooltip("Rare free-roam WarpGatePrefab placement and one-way rail-subgame entry behavior.")]
+        public WarpGateTuning WarpGates = new WarpGateTuning();
 
         [Tooltip("Authored post-delivery narrative sequence, typewriter timing, and FMOD typing loop.")]
         public DeliveryMessageTuning DeliveryMessages = new DeliveryMessageTuning();
@@ -8934,6 +9008,8 @@ namespace DuneVector
             Deliveries ??= new DeliveryTuning();
             Deliveries.EnsureInitialized();
             Contracts ??= new CourierContractTuning();
+            WarpGates ??= new WarpGateTuning();
+            WarpGates.EnsureInitialized();
             DeliveryMessages ??= new DeliveryMessageTuning();
             DeliveryMessages.EnsureInitialized();
             RailShooter ??= new RailShooterTuning();

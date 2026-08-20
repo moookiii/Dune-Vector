@@ -60,6 +60,286 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void Audio_RailPlaylistIncludesSky2kWithRequestedMusicPlayerLabel()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            AudioTuning settings = runtimeSettings != null ? runtimeSettings.Audio : null;
+
+            Assert.That(settings, Is.Not.Null);
+            MusicPlaylistTrack sky2k = null;
+            MusicPlaylistTrack[] tracks = settings.RailSubgameMusicPlaylist;
+            for (int i = 0; tracks != null && i < tracks.Length; i++)
+            {
+                MusicPlaylistTrack track = tracks[i];
+                if (track != null && string.Equals(track.FmodEventPath, "event:/sky2k", StringComparison.Ordinal))
+                {
+                    sky2k = track;
+                    break;
+                }
+            }
+
+            Assert.That(sky2k, Is.Not.Null);
+            Assert.That(sky2k.DisplayName, Is.EqualTo("dreamloader - sky2k"));
+        }
+
+        [Test]
+        public void RailShooter_BossPulseRetainsAuthoredVisualScale()
+        {
+            Vector3 authoredScale = Vector3.one * 5.5f;
+
+            Assert.That(
+                DuneVectorRailShooterController.CalculateBossVisualScale(authoredScale, 1f),
+                Is.EqualTo(authoredScale));
+            Vector3 pulsedScale =
+                DuneVectorRailShooterController.CalculateBossVisualScale(authoredScale, 1.2f);
+            Assert.That(pulsedScale.x, Is.EqualTo(6.6f).Within(0.0001f));
+            Assert.That(pulsedScale.y, Is.EqualTo(6.6f).Within(0.0001f));
+            Assert.That(pulsedScale.z, Is.EqualTo(6.6f).Within(0.0001f));
+        }
+
+        [Test]
+        public void RailShooter_ScreenSpacePlayAreaUsesOneViewport()
+        {
+            Vector2 halfExtents =
+                DuneVectorRailShooterController.CalculateScreenSpaceFlightHalfExtents(
+                    13.5f,
+                    68f,
+                    4f / 3f,
+                    1f);
+            float expectedVerticalHalfExtent =
+                13.5f * Mathf.Tan(68f * Mathf.Deg2Rad * 0.5f);
+
+            Assert.That(halfExtents.y, Is.EqualTo(expectedVerticalHalfExtent).Within(0.001f));
+            Assert.That(halfExtents.x, Is.EqualTo(expectedVerticalHalfExtent * (4f / 3f)).Within(0.001f));
+        }
+
+        [Test]
+        public void RailShooter_RingPlacementUsesTheDronePlayBoundary()
+        {
+            Vector2 oneScreen =
+                DuneVectorRailShooterController.CalculateScreenSpaceFlightHalfExtents(
+                    13.5f,
+                    68f,
+                    4f / 3f,
+                    1f);
+            Vector2 ringBoundary =
+                DuneVectorRailShooterController.CalculateScreenSpaceRingPlacementHalfExtents(
+                    13.5f,
+                    68f,
+                    4f / 3f,
+                    3f);
+
+            Assert.That(ringBoundary.x, Is.EqualTo(oneScreen.x * 3f).Within(0.001f));
+            Assert.That(ringBoundary.y, Is.EqualTo(oneScreen.y * 3f).Within(0.001f));
+        }
+
+        [Test]
+        public void RailShooter_CameraPanStopsWhenTheViewportReachesThePlayAreaEdge()
+        {
+            Vector2 cameraOffset =
+                DuneVectorRailShooterController.CalculateScreenSpaceCameraOffset(
+                    new Vector2(20f, -20f),
+                    new Vector2(5f, 3f),
+                    1f);
+
+            Assert.That(cameraOffset, Is.EqualTo(new Vector2(5f, -3f)));
+            Assert.That(
+                DuneVectorRailShooterController.CalculateScreenSpaceCameraOffset(
+                    new Vector2(20f, -20f),
+                    new Vector2(5f, 3f),
+                    0f),
+                Is.EqualTo(Vector2.zero));
+        }
+
+        [Test]
+        public void RailShooter_MovementSmoothingIsAuthored()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            RailShooterTuning settings = runtimeSettings != null ? runtimeSettings.RailShooter : null;
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(settings.MovementSmoothing, Is.GreaterThan(0f));
+        }
+
+        [Test]
+        public void RailShooter_SigilDrawingGuideIsThickAndWhite()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            RailSigilTuning settings = runtimeSettings != null ? runtimeSettings.RailShooter.Sigils : null;
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(settings.DrawingGuideThickness, Is.EqualTo(8f).Within(0.001f));
+            Assert.That(settings.DrawingGuideColor.r, Is.EqualTo(1f).Within(0.001f));
+            Assert.That(settings.DrawingGuideColor.g, Is.EqualTo(1f).Within(0.001f));
+            Assert.That(settings.DrawingGuideColor.b, Is.EqualTo(1f).Within(0.001f));
+            Assert.That(settings.DrawingGuideColor.a, Is.EqualTo(1f).Within(0.001f));
+        }
+
+        [Test]
+        public void RailShooter_BlackNavigationRingsGrantATimedBoost()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            RailShooterTuning settings = runtimeSettings != null ? runtimeSettings.RailShooter : null;
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(settings.BlackRingBoostSpeedMultiplier, Is.GreaterThan(1f));
+            Assert.That(settings.BlackRingBoostDuration, Is.GreaterThan(0f));
+        }
+
+        [Test]
+        public void RailShooter_FlightAndUpperFlightRingColorsAreSwapped()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            RailShooterTuning railSettings = runtimeSettings != null ? runtimeSettings.RailShooter : null;
+            RingTuning ringSettings = runtimeSettings != null ? runtimeSettings.Rings : null;
+
+            Assert.That(railSettings, Is.Not.Null);
+            Assert.That(ringSettings, Is.Not.Null);
+            Assert.That(
+                railSettings.NavigationRingColor.r,
+                Is.EqualTo(ringSettings.UpperFlightRingEmissionColor.r).Within(0.001f));
+            Assert.That(
+                railSettings.NavigationRingColor.g,
+                Is.EqualTo(ringSettings.UpperFlightRingEmissionColor.g).Within(0.001f));
+            Assert.That(
+                railSettings.NavigationRingColor.b,
+                Is.EqualTo(ringSettings.UpperFlightRingEmissionColor.b).Within(0.001f));
+            Assert.That(railSettings.NavigationRingColor.a, Is.EqualTo(1f).Within(0.001f));
+        }
+
+        [Test]
+        public void RailShooter_BlackNavigationRingPassUsesTheRingOpening()
+        {
+            Assert.That(
+                DuneVectorRailShooterController.HasPassedRailNavigationRing(
+                    new Vector3(0f, 0f, -10f),
+                    new Vector3(0f, 0f, 10f),
+                    Vector3.zero,
+                    2f),
+                Is.True);
+            Assert.That(
+                DuneVectorRailShooterController.HasPassedRailNavigationRing(
+                    new Vector3(4f, 0f, -10f),
+                    new Vector3(4f, 0f, 10f),
+                    Vector3.zero,
+                    2f),
+                Is.False);
+        }
+
+        [Test]
+        public void PlayerTuning_MovementSmoothingIsAuthoredForDesertAndHub()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            DroneTuning settings = runtimeSettings != null ? runtimeSettings.PlayerTuning : null;
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(settings.MovementSmoothing, Is.GreaterThan(0f));
+            Assert.That(
+                settings.MovementSmoothing,
+                Is.EqualTo(8.5f).Within(0.001f),
+                "The shared grounded drone response must remain authored for desert and hub traversal.");
+        }
+
+        [Test]
+        public void FreeRoam_WarpGatesAreAuthoredAsRareBottomEntryDiscoveries()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            WarpGateTuning settings = runtimeSettings != null ? runtimeSettings.WarpGates : null;
+            RingTuning ringSettings = runtimeSettings != null ? runtimeSettings.Rings : null;
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(ringSettings, Is.Not.Null);
+            Assert.That(settings.Enabled, Is.True);
+            Assert.That(settings.PrefabResourcePath, Is.EqualTo("WarpGatePrefab"));
+            Assert.That(settings.SpawnChancePerChunk, Is.GreaterThan(0f));
+            Assert.That(
+                !settings.ClampHeightToUpperFlightRingBand ||
+                (settings.GateHeightAboveTerrain >= ringSettings.UpperFlightRingMinimumHeight &&
+                 settings.GateHeightAboveTerrain <= ringSettings.UpperFlightRingMaximumHeight),
+                Is.True,
+                "A clamped gate height must already sit inside the second-flight-ring altitude band.");
+            Assert.That(
+                settings.GateHeightAboveTerrain,
+                Is.EqualTo(112.5f).Within(0.001f),
+                "Warp gates should sit midway through the second-flight-ring altitude band.");
+        }
+
+        [Test]
+        public void FreeRoam_WarpGateOnlyAcceptsAnUpwardBottomCrossing()
+        {
+            Assert.That(
+                DuneVectorWarpGate.HasBottomEntryCrossing(
+                    new Vector3(0f, -5f, 0f),
+                    new Vector3(0f, 5f, 0f),
+                    Vector3.zero,
+                    Vector3.up,
+                    2f),
+                Is.True);
+            Assert.That(
+                DuneVectorWarpGate.HasBottomEntryCrossing(
+                    new Vector3(0f, 5f, 0f),
+                    new Vector3(0f, -5f, 0f),
+                    Vector3.zero,
+                    Vector3.up,
+                    2f),
+                Is.False);
+            Assert.That(
+                DuneVectorWarpGate.HasBottomEntryCrossing(
+                    new Vector3(3f, -5f, 0f),
+                    new Vector3(3f, 5f, 0f),
+                    Vector3.zero,
+                    Vector3.up,
+                    2f),
+                Is.False);
+        }
+
+        [Test]
+        public void RailShooter_BlackRouteGateIsOnlyAvailableOnce()
+        {
+            Assert.That(
+                DuneVectorRailShooterController.CanShowBlackRouteGate(0),
+                Is.True);
+            Assert.That(
+                DuneVectorRailShooterController.CanShowBlackRouteGate(1),
+                Is.False);
+            Assert.That(
+                DuneVectorRailShooterController.CanShowBlackRouteGate(2),
+                Is.False);
+        }
+
+        [Test]
+        public void RailShooter_SatelliteFieldCoversThePreRebaseSquare()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            RailShooterTuning settings = runtimeSettings != null ? runtimeSettings.RailShooter : null;
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(
+                settings.FlightRebaseDistance,
+                Is.EqualTo(100f).Within(0.001f),
+                "The rail floating origin should rebase at the requested 100-unit lateral extent.");
+            Assert.That(
+                settings.SatellitePlaneHalfExtent,
+                Is.GreaterThanOrEqualTo(settings.FlightRebaseDistance),
+                "The satellite field must cover the complete XY area available before a lateral rebase.");
+            Assert.That(
+                settings.ScreenSpacePlayAreaMultiplier,
+                Is.EqualTo(3f).Within(0.001f));
+            Assert.That(
+                settings.CameraLateralFollowFraction,
+                Is.EqualTo(1f).Within(0.001f),
+                "The rail camera must pan laterally with the drone during the subgame.");
+        }
+
+        [Test]
         public void RailShooter_TemporaryHullDepletionDoesNotKillPersistentPlayer()
         {
             GameObject player = new GameObject("Rail Shooter Health Test");
@@ -633,6 +913,7 @@ namespace DuneVector.Tests
             world.DarkPyramids = settings.DarkPyramids;
             world.Pyramid2 = settings.Pyramid2;
             world.Geoglyphs = settings.Geoglyphs;
+            world.WarpGates = new WarpGateTuning { Enabled = false };
             // These tests exercise terrain and portal placement only.
             world.GroundExploders = JsonUtility.FromJson<GroundExploderTuning>(
                 JsonUtility.ToJson(settings.GroundExploders));

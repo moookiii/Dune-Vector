@@ -88,6 +88,9 @@ namespace DuneVector
         [Header("Ring Sizes")]
         public RingTuning Rings = new RingTuning();
 
+        [Header("Free-Roam Warp Gates")]
+        public WarpGateTuning WarpGates = new WarpGateTuning();
+
         [Header("Ground Explosive Enemies")]
         public GroundExploderTuning GroundExploders = new GroundExploderTuning();
 
@@ -253,6 +256,19 @@ namespace DuneVector
             _playerDeploymentOccupancyHandle = DuneVectorWorldOccupancy.InvalidHandle;
         }
 
+        public bool IsWarpGateConsumed(string identity)
+        {
+            return !string.IsNullOrEmpty(identity) && _consumedWarpGateIdentities.Contains(identity);
+        }
+
+        public void MarkWarpGateConsumed(string identity)
+        {
+            if (!string.IsNullOrEmpty(identity))
+            {
+                _consumedWarpGateIdentities.Add(identity);
+            }
+        }
+
         /// <summary>
         /// Finds the nearest cactus within <paramref name="clearance"/> of a logical point by
         /// replaying the deterministic cactus placement for every chunk the disc touches.
@@ -342,6 +358,7 @@ namespace DuneVector
         private readonly Dictionary<Vector2Int, Vector2> _chunkHeightRangeCache =
             new Dictionary<Vector2Int, Vector2>();
         private readonly HashSet<string> _activatedFlightRingIdentities = new HashSet<string>();
+        private readonly HashSet<string> _consumedWarpGateIdentities = new HashSet<string>();
         private readonly List<ContractGroundExploderSpawn> _contractGroundExploders = new List<ContractGroundExploderSpawn>();
         private Vector2Int _candidateSortCenter;
         private Vector2 _frustumSortCenter;
@@ -396,6 +413,9 @@ namespace DuneVector
             _coinRingSeed = Guid.NewGuid().GetHashCode();
             EnemySpawnSeed = Guid.NewGuid().GetHashCode();
             Rings ??= new RingTuning();
+            WarpGates ??= new WarpGateTuning();
+            WarpGates.EnsureInitialized();
+            _consumedWarpGateIdentities.Clear();
             _flightRingProgressSavePath = Path.Combine(
                 Application.persistentDataPath,
                 FlightRingProgressSaveFileName);
@@ -1616,6 +1636,7 @@ namespace DuneVector
                     Shrubs,
                     Landmarks,
                     Geoglyphs,
+                    WarpGates,
                     HandleTraversalRingActivated);
                 if (IsUpperFlightRingUnlocked)
                 {
@@ -2075,6 +2096,7 @@ namespace DuneVector
             DesertShrubTuning shrubTuning,
             LandmarkSystemTuning landmarkTuning,
             GeoglyphSystemTuning geoglyphTuning,
+            WarpGateTuning warpGateTuning,
             Action<TraversalRing> ringActivated)
         {
             if (IsContentReady)
@@ -2114,6 +2136,7 @@ namespace DuneVector
                     shrubTuning,
                     landmarkTuning,
                     geoglyphTuning,
+                    warpGateTuning,
                     ringActivated);
             }
         }
@@ -2830,6 +2853,7 @@ namespace DuneVector
             DesertShrubTuning shrubTuning,
             LandmarkSystemTuning landmarkTuning,
             GeoglyphSystemTuning geoglyphTuning,
+            WarpGateTuning warpGateTuning,
             Action<TraversalRing> ringActivated)
         {
             List<Vector2> ringExclusions = new List<Vector2>();
@@ -3397,6 +3421,16 @@ namespace DuneVector
                 sceneryExclusions,
                 groundExploderTuning);
 
+            SpawnWarpGate(
+                coordinate,
+                chunkSize,
+                heightField,
+                worldSeed,
+                warpGateTuning,
+                ringTuning,
+                ringExclusions,
+                sceneryExclusions);
+
             _shrubs = new DesertShrubField(
                 coordinate,
                 Root,
@@ -3407,6 +3441,185 @@ namespace DuneVector
                 landmarkTuning,
                 ringExclusions,
                 sceneryExclusions);
+        }
+
+        public static float ResolveWarpGateHeightAboveTerrain(
+            float authoredHeight,
+            RingTuning ringTuning,
+            bool clampToUpperFlightRingBand)
+        {
+            float requestedHeight = Mathf.Max(0f, authoredHeight);
+            if (ringTuning == null || !clampToUpperFlightRingBand)
+            {
+                return requestedHeight;
+            }
+
+            float minimumHeight = Mathf.Max(0f, ringTuning.UpperFlightRingMinimumHeight);
+            float maximumHeight = Mathf.Max(minimumHeight, ringTuning.UpperFlightRingMaximumHeight);
+            return Mathf.Clamp(requestedHeight, minimumHeight, maximumHeight);
+        }
+
+        private void SpawnWarpGate(
+            Vector2Int coordinate,
+            float chunkSize,
+            DuneHeightField heightField,
+            int worldSeed,
+            WarpGateTuning tuning,
+            RingTuning ringTuning,
+            List<Vector2> ringExclusions,
+            List<Vector2> sceneryExclusions)
+        {
+            if (tuning == null || !tuning.Enabled || coordinate == Vector2Int.zero ||
+                tuning.SpawnChancePerChunk <= 0f || heightField == null)
+            {
+                return;
+            }
+
+            if (DuneVectorMath.Hash01(
+                    coordinate.x,
+                    coordinate.y,
+                    worldSeed,
+                    tuning.SeedOffset) >= tuning.SpawnChancePerChunk)
+            {
+                return;
+            }
+
+            DesertWorldStreamer world = Root.GetComponentInParent<DesertWorldStreamer>();
+            string identity = $"{coordinate.x}:{coordinate.y}:warp-gate";
+            if (world != null && world.IsWarpGateConsumed(identity))
+            {
+                return;
+            }
+
+            double originX = coordinate.x * (double)chunkSize;
+            double originZ = coordinate.y * (double)chunkSize;
+            double hubDeltaX = originX - DesertWorldStreamer.StartingLogicalPosition.x;
+            double hubDeltaZ = originZ - DesertWorldStreamer.StartingLogicalPosition.y;
+            if ((hubDeltaX * hubDeltaX) + (hubDeltaZ * hubDeltaZ) <
+                tuning.MinimumDistanceFromHub * tuning.MinimumDistanceFromHub)
+            {
+                return;
+            }
+
+            float gateRadius = Mathf.Max(1f, tuning.GateRadius);
+            float localMargin = Mathf.Min(chunkSize * 0.45f, gateRadius + 6f);
+            if (localMargin <= 0f || localMargin >= chunkSize * 0.5f)
+            {
+                return;
+            }
+
+            Vector2 local = new Vector2(
+                DuneVectorMath.HashRange(
+                    coordinate.x,
+                    coordinate.y,
+                    worldSeed,
+                    tuning.SeedOffset + 1,
+                    localMargin,
+                    chunkSize - localMargin),
+                DuneVectorMath.HashRange(
+                    coordinate.x,
+                    coordinate.y,
+                    worldSeed,
+                    tuning.SeedOffset + 7,
+                    localMargin,
+                    chunkSize - localMargin));
+            float exclusionRadius = gateRadius + tuning.GateClearancePadding;
+            if (IsNearAny(local, ringExclusions, exclusionRadius) ||
+                IsNearAny(local, sceneryExclusions, exclusionRadius))
+            {
+                return;
+            }
+
+            double logicalX = originX + local.x;
+            double logicalZ = originZ + local.y;
+
+            // Solid scenery only has to stay clear of the gate's own footprint. Gate-to-gate
+            // rarity is a separate, much larger spacing sphere, so reserving that whole sphere
+            // against structures and portals would reject nearly every candidate point.
+            if (DuneVectorWorldOccupancy.Overlaps(
+                    logicalX,
+                    logicalZ,
+                    exclusionRadius,
+                    WorldOccupancyKind.Structure) ||
+                DuneVectorWorldOccupancy.Overlaps(
+                    logicalX,
+                    logicalZ,
+                    exclusionRadius,
+                    WorldOccupancyKind.Portal))
+            {
+                return;
+            }
+
+            float gateSpacingRadius = Mathf.Max(0f, tuning.MinimumGateSeparation * 0.5f);
+            if (gateSpacingRadius > 0f && DuneVectorWorldOccupancy.Overlaps(
+                    logicalX,
+                    logicalZ,
+                    gateSpacingRadius,
+                    WorldOccupancyKind.WarpGateSpacing))
+            {
+                return;
+            }
+
+            DuneVectorLandmarkDirector landmarks = DuneVectorBootstrap.Instance != null
+                ? DuneVectorBootstrap.Instance.LandmarkDirector
+                : null;
+            if (landmarks != null && landmarks.OverlapsLandmarkFootprint(
+                    logicalX,
+                    logicalZ,
+                    reservedRadius))
+            {
+                return;
+            }
+
+            GameObject prefab = Resources.Load<GameObject>(tuning.PrefabResourcePath);
+            if (prefab == null)
+            {
+                return;
+            }
+
+            float terrainHeight = (float)heightField.SampleHeight(logicalX, logicalZ);
+            float gateHeight = ResolveWarpGateHeightAboveTerrain(
+                tuning.GateHeightAboveTerrain,
+                ringTuning,
+                tuning.ClampHeightToUpperFlightRingBand);
+            GameObject gateObject = UnityEngine.Object.Instantiate(prefab, Root, false);
+            gateObject.name = $"Warp Gate [{identity}]";
+            gateObject.transform.localPosition = new Vector3(
+                local.x,
+                terrainHeight + gateHeight,
+                local.y);
+            gateObject.transform.localRotation = Quaternion.identity;
+            gateObject.transform.localScale *= tuning.PrefabScaleMultiplier;
+
+            DuneVectorWarpGate gate = gateObject.GetComponent<DuneVectorWarpGate>();
+            if (gate == null)
+            {
+                gate = gateObject.AddComponent<DuneVectorWarpGate>();
+            }
+            int occupancyHandle = DuneVectorWorldOccupancy.Register(
+                logicalX,
+                logicalZ,
+                exclusionRadius,
+                WorldOccupancyKind.Structure);
+            _occupancyHandles.Add(occupancyHandle);
+            int spacingHandle = DuneVectorWorldOccupancy.InvalidHandle;
+            if (gateSpacingRadius > 0f)
+            {
+                spacingHandle = DuneVectorWorldOccupancy.Register(
+                    logicalX,
+                    logicalZ,
+                    gateSpacingRadius,
+                    WorldOccupancyKind.WarpGateSpacing);
+                _occupancyHandles.Add(spacingHandle);
+            }
+            gate.Initialize(
+                identity,
+                gateRadius,
+                tuning.MinimumEntryUpwardSpeed,
+                tuning.VisibleDuringContracts);
+            gate.SetOccupancyHandles(occupancyHandle, spacingHandle);
+            ringExclusions.Add(local);
+            sceneryExclusions.Add(local);
         }
 
         private static float SampleLowestPyramidFootprintHeight(
