@@ -5574,16 +5574,16 @@ namespace DuneVector
                     accent);
             }
 
-            float guideSize = Mathf.Min(Screen.width, Screen.height) *
-                sigils.DrawingGuideScreenFraction;
-            Vector2 guideCenter = new Vector2(
-                Screen.width * sigils.DrawingGuideViewportCenter.x,
-                Screen.height * sigils.DrawingGuideViewportCenter.y);
+            float guideSize = Mathf.Min(
+                Scaled(sigils.DrawingIndicatorSize),
+                Mathf.Min(Screen.width, Screen.height));
+            float indicatorMargin = Scaled(sigils.DrawingIndicatorMargin);
             Rect guideBox = new Rect(
-                guideCenter.x - (guideSize * 0.5f),
-                guideCenter.y - (guideSize * 0.5f),
+                indicatorMargin,
+                Screen.height - indicatorMargin - guideSize,
                 guideSize,
                 guideSize);
+            DrawSigilIndicatorPanel(guideBox, accent);
             BuildSigilGlyphPoints(
                 definition,
                 new Rect(
@@ -5648,6 +5648,51 @@ namespace DuneVector
                 _sigilDrawing ? sigils.ReleaseHintLabel : sigils.HintLabel,
                 _centeredSmallStyle,
                 _settings.HudSecondaryColor);
+        }
+
+        private void DrawSigilIndicatorPanel(Rect rect, Color accent)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            DrawRect(rect, sigils.DrawingIndicatorBackgroundColor);
+            DrawRectOutline(rect, BorderThickness(), WithAlpha(accent, 0.7f));
+
+            float duration = Mathf.Max(0f, sigils.DrawingIndicatorFlareDuration);
+            if (duration <= 0f || _sigilElapsed >= duration)
+            {
+                return;
+            }
+
+            float life = Mathf.Clamp01(_sigilElapsed / Mathf.Max(0.01f, duration));
+            float easedExpansion = 1f - ((1f - life) * (1f - life));
+            int ringCount = Mathf.Max(1, sigils.DrawingIndicatorFlareRingCount);
+            float maximumDistance = Scaled(sigils.DrawingIndicatorFlareDistance);
+            float thickness = Mathf.Max(1f, Scaled(sigils.DrawingIndicatorFlareThickness));
+            for (int i = 0; i < ringCount; i++)
+            {
+                float stagger = i / (float)ringCount;
+                float wave = Mathf.Repeat(easedExpansion + stagger, 1f);
+                float expansion = maximumDistance * wave;
+                float alpha = (1f - life) * (1f - wave);
+                Color flare = Color.Lerp(
+                    sigils.DrawingIndicatorFlareInnerColor,
+                    sigils.DrawingIndicatorFlareOuterColor,
+                    wave);
+                Rect flareRect = new Rect(
+                    rect.x - expansion,
+                    rect.y - expansion,
+                    rect.width + (expansion * 2f),
+                    rect.height + (expansion * 2f));
+                DrawRectOutline(flareRect, thickness, WithAlpha(flare, alpha));
+            }
+        }
+
+        private void DrawRectOutline(Rect rect, float thickness, Color color)
+        {
+            thickness = Mathf.Max(1f, thickness);
+            DrawRect(new Rect(rect.x, rect.y, rect.width, thickness), color);
+            DrawRect(new Rect(rect.x, rect.yMax - thickness, rect.width, thickness), color);
+            DrawRect(new Rect(rect.x, rect.y, thickness, rect.height), color);
+            DrawRect(new Rect(rect.xMax - thickness, rect.y, thickness, rect.height), color);
         }
 
         // One pip per glyph in a chain demand, so the player can see how much of the choir is left.

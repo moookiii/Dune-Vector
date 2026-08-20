@@ -7939,8 +7939,9 @@ namespace DuneVector
 
         [Header("Full-Screen Drawing HUD")]
         [Range(0f, 1f)] public float DrawingPromptViewportY = 0.06f;
-        [Tooltip("Target glyph center in top-left-origin viewport coordinates.")]
+        [Tooltip("Legacy target glyph center retained for existing serialized settings. The bottom-left indicator layout now owns the glyph position.")]
         public Vector2 DrawingGuideViewportCenter = new Vector2(0.5f, 0.48f);
+        [Tooltip("Legacy full-screen glyph size retained for existing serialized settings. DrawingIndicatorSize now controls the bottom-left indicator.")]
         [Range(0.1f, 0.9f)] public float DrawingGuideScreenFraction = 0.42f;
         [Range(0f, 0.45f)] public float DrawingGuidePaddingFraction = 0.12f;
         [Min(1f)] public float DrawingGuideThickness = 8f;
@@ -7969,6 +7970,23 @@ namespace DuneVector
         [Min(0f)] public float PromptPanelPadding = 10f;
         [Min(0f)] public float PromptChainPipSize = 9f;
         [Min(0f)] public float PromptChainPipGap = 6f;
+        [Header("Bottom-Left Symbol Indicator")]
+        [Tooltip("Square size of the sigil symbol reference in the bottom-left corner.")]
+        [Min(32f)] public float DrawingIndicatorSize = 220f;
+        [Tooltip("Distance between the symbol indicator and the left/bottom screen edges.")]
+        [Min(0f)] public float DrawingIndicatorMargin = 32f;
+        [Tooltip("Transparent black backing behind the symbol reference.")]
+        public Color DrawingIndicatorBackgroundColor = new Color(0f, 0f, 0f, 0.62f);
+        [Tooltip("Seconds the red-orange attention flare expands from the indicator border after a sigil activates.")]
+        [Min(0f)] public float DrawingIndicatorFlareDuration = 0.85f;
+        [Tooltip("Maximum screen-space distance reached by the attention flare outside the indicator border.")]
+        [Min(0f)] public float DrawingIndicatorFlareDistance = 72f;
+        [Tooltip("Thickness of each expanding attention-flare border.")]
+        [Min(0f)] public float DrawingIndicatorFlareThickness = 5f;
+        [Tooltip("Number of staggered rectangular flare waves emitted from the indicator border.")]
+        [Range(1, 8)] public int DrawingIndicatorFlareRingCount = 3;
+        public Color DrawingIndicatorFlareInnerColor = new Color(1f, 0.14f, 0.02f, 1f);
+        public Color DrawingIndicatorFlareOuterColor = new Color(1f, 0.56f, 0.04f, 1f);
         [Min(0f)] public float NameLabelWidth = 260f;
         [Min(0f)] public float NameLabelHeight = 22f;
         [Tooltip("Gap between the seeker bracket and the glyph name floating above it.")]
