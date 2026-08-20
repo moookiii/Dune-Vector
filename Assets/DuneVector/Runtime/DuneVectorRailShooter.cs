@@ -350,7 +350,6 @@ namespace DuneVector
         private int _pickupSequence;
         private int _riskRouteCount;
         private int _killsSinceDrop;
-        private int _distanceGoldBonus;
         private bool _resultSuccess;
         private bool _rewardCommitted;
         private readonly List<RailShooterBulletPattern> _patternCandidates =
@@ -552,7 +551,6 @@ namespace DuneVector
             _satelliteChargeLocks.Clear();
             _chargeLock = null;
             _satelliteChargeLock = null;
-            _distanceGoldBonus = 0;
             AwardedGold = 0;
             ResultGrade = "C";
             _scoreDisplay = 0f;
@@ -3222,24 +3220,18 @@ namespace DuneVector
             float rewardFraction = success ? 1f : _settings.FailureRewardFraction;
             int scoreGold = Mathf.Max(0, Mathf.RoundToInt(_state.Score * _settings.GoldPerScore * rewardFraction));
             AwardedGold = scoreGold;
-            _distanceGoldBonus = Mathf.Max(
-                0,
-                Mathf.FloorToInt(_state.Distance / Mathf.Max(0.01f, _settings.DistanceGoldDivisor)));
-            AwardedGold += _distanceGoldBonus;
             int bossGold = success ? _settings.BossGoldReward : 0;
             AwardedGold += bossGold;
 
-            // The results panel shows one payout number, which hides whether a short run paid out
-            // on score, on distance, or on the boss kill. The breakdown is logged so the tuning
-            // values behind it can be checked against a real run.
+            // Combat payout is based only on combat score and the boss reward. Distance remains
+            // a run statistic, but does not contribute gold.
             Debug.Log(
                 $"[Rail Shooter] Combat payout {AwardedGold}g — " +
                 $"score {_state.Score} (run {runScore} + sigil {sigilBonus} + no-damage {noDamageBonus} + " +
                 $"charge kills {chargeKillBonus} + formations {formationBonus}) " +
                 $"x {_settings.GoldPerScore} gold per score x {rewardFraction} " +
                 $"{(success ? "success" : "failure")} fraction = {scoreGold}g, " +
-                $"distance {Mathf.RoundToInt(_state.Distance)}m / {_settings.DistanceGoldDivisor} = " +
-                $"{_distanceGoldBonus}g, boss reward {bossGold}g. Grade {ResultGrade}.",
+                $"boss reward {bossGold}g. Grade {ResultGrade}.",
                 this);
         }
 
@@ -7034,8 +7026,6 @@ namespace DuneVector
                 (_settings.ResultsDepthLabel,
                     string.Format(_settings.DepthValueFormat, Mathf.RoundToInt(_state.Distance)),
                     _settings.HudSecondaryColor),
-                (_settings.ResultsDistanceBonusLabel,
-                    string.Format(_settings.ResultsGoldFormat, _distanceGoldBonus), _settings.RiftGoldColor),
                 (_settings.ResultsPayoutLabel,
                     string.Format(_settings.ResultsGoldFormat, AwardedGold), _settings.RiftGoldColor),
             };
