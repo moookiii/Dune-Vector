@@ -1576,7 +1576,7 @@ namespace DuneVector
         public event Action TitleOptionsClosed;
 
         private string _titleHeading = "OPTIONS";
-        private string _titleSubheading = "DUNE VECTOR  /  SYSTEMS SETTINGS";
+        private string _titleSubheading = "DUNE VECTOR  /  SYSTEM SETTINGS";
         private string _titleFooterHint = "ESC  /  BACK TO TITLE";
         private float _titlePanelWidth;
         private float _titlePanelHeight;
@@ -2290,7 +2290,7 @@ namespace DuneVector
                 y += sliderRowHeight;
             }
 
-            y += _visuals.DialogueButtonGap * scale;
+            y += (_visuals.DialogueButtonGap + _visuals.SliderStackBottomGap) * scale;
 
             float buttonHeight = _visuals.ButtonHeight * scale;
             if (!TitleMode)
@@ -2302,20 +2302,7 @@ namespace DuneVector
                 y += buttonHeight + gap;
             }
 
-            if (TitleMode)
-            {
-                // The title has no run behind it, so the archive, shop and run controls are all
-                // absent; QUIT is the only run-adjacent entry left and it takes the full width.
-                if (DrawMenuButton(
-                        new Rect(content.x, y, content.width, buttonHeight),
-                        "QUIT",
-                        PauseButtonKind.Danger))
-                {
-                    QuitGame();
-                }
-                y += buttonHeight + gap;
-            }
-            else
+            if (!TitleMode)
             {
                 string galleryButtonLabel = _photography != null && _photography.Tuning != null
                     ? _photography.Tuning.PauseMenuButtonLabel
@@ -2411,6 +2398,22 @@ namespace DuneVector
                     true))
             {
                 _showVideoSettings = true;
+            }
+            y += buttonHeight + gap;
+
+            if (TitleMode)
+            {
+                // The title has no run behind it, so the archive, shop and run controls are all
+                // absent; QUIT is the only run-adjacent entry left and it sits below the
+                // settings screens at the very bottom of the stack.
+                y += gap * 1.5f;
+                if (DrawMenuButton(
+                        new Rect(content.x, y, content.width, buttonHeight),
+                        "QUIT",
+                        PauseButtonKind.Danger))
+                {
+                    QuitGame();
+                }
             }
 
             DrawFooterHint(content, TitleMode ? _titleFooterHint : "ESC  /  RETURN TO THE DESERT", scale);
@@ -3486,7 +3489,7 @@ namespace DuneVector
                 _subtitleStyle,
                 _visuals.SubtitleTracking * scale,
                 _visuals.SecondaryTextColor);
-            y += subtitleHeight + gap;
+            y += subtitleHeight + gap + (_visuals.SubheadingBottomGap * scale);
 
             DrawFadedDivider(new Rect(content.x, y, content.width, Mathf.Max(1f, scale)));
             return y + (gap * 1.5f);

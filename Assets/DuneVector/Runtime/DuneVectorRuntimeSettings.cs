@@ -6194,6 +6194,10 @@ namespace DuneVector
         [Min(4f)] public float SliderThumbWidth = 12f;
         [Min(8f)] public float SliderThumbHeight = 22f;
         [Min(0f)] public float DialogueButtonGap = 24f;
+        [Tooltip("Extra breathing room drawn under the panel subheading, above the divider.")]
+        [Min(0f)] public float SubheadingBottomGap = 16f;
+        [Tooltip("Extra breathing room drawn under the last slider row, above the button stack.")]
+        [Min(0f)] public float SliderStackBottomGap = 28f;
         [Min(24f)] public float ButtonHeight = 44f;
         [Min(0f)] public float ButtonGap = 10f;
 
@@ -8765,7 +8769,7 @@ namespace DuneVector
         [Tooltip("Heading drawn across the top of the title options panel.")]
         public string OptionsHeading = "OPTIONS";
         [Tooltip("Smaller line under the options heading.")]
-        public string OptionsSubheading = "DUNE VECTOR  /  SYSTEMS SETTINGS";
+        public string OptionsSubheading = "DUNE VECTOR  /  SYSTEM SETTINGS";
         [Tooltip("Hint drawn along the bottom of the options panel.")]
         public string OptionsFooterHint = "ESC  /  BACK TO TITLE";
         [Tooltip("Width of the options panel. Zero falls back to the pause menu's own width.")]
