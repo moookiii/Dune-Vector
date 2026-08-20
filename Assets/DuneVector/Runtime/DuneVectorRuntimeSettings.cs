@@ -8757,7 +8757,7 @@ namespace DuneVector
 
         [Header("Music")]
         [Tooltip("FMOD event started with the title screen and released when the gameplay scene loads.")]
-        public string MusicEventPath = "event:/titletheme";
+        public string MusicEventPath = "event:/Titletheme";
         [Range(0f, 1f)] public float MusicVolume = 1f;
         [Tooltip("Seconds the title theme fades out over before the gameplay scene loads.")]
         [Min(0f)] public float MusicFadeOutSeconds = 0.35f;
