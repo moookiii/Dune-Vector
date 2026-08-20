@@ -2273,14 +2273,6 @@ namespace DuneVector
                 scale);
             y += sliderRowHeight;
 
-            DrawVolumeRow(
-                new Rect(content.x, y, content.width, sliderRowHeight),
-                "DIALOGUE",
-                _audio != null ? _audio.DialogueVolume : 0f,
-                value => _audio?.SetDialogueVolume(value),
-                scale);
-            y += sliderRowHeight;
-
             if (_playerTuning != null)
             {
                 float minimumSensitivity = MinimumLookSensitivity;
