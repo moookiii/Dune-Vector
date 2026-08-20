@@ -3189,21 +3189,30 @@ namespace DuneVector
                 _sigilDrawingCursor.gameObject.SetActive(false);
             }
             ApplyRailCursorState();
+            int runScore = _state.Score;
+            int sigilBonus = 0;
+            int noDamageBonus = 0;
+            int chargeKillBonus = 0;
+            int formationBonus = 0;
             if (_state.SigilsBroken >= _settings.Sigils.SigilChallengeCount)
             {
-                AddScore(_settings.Sigils.SigilChallengeBonus);
+                sigilBonus = _settings.Sigils.SigilChallengeBonus;
+                AddScore(sigilBonus);
             }
             if (!_state.TookDamage)
             {
-                AddScore(_settings.NoDamageChallengeBonus);
+                noDamageBonus = _settings.NoDamageChallengeBonus;
+                AddScore(noDamageBonus);
             }
             if (_state.ChargeKills >= _settings.ChargeKillChallengeCount)
             {
-                AddScore(_settings.ChargeKillChallengeBonus);
+                chargeKillBonus = _settings.ChargeKillChallengeBonus;
+                AddScore(chargeKillBonus);
             }
             if (_state.FormationClears >= _settings.FormationChallengeCount)
             {
-                AddScore(_settings.FormationChallengeBonus);
+                formationBonus = _settings.FormationChallengeBonus;
+                AddScore(formationBonus);
             }
             ResultGrade = _state.Score >= _settings.GradeSScore
                 ? "S"
@@ -3211,15 +3220,27 @@ namespace DuneVector
                     ? "A"
                     : _state.Score >= _settings.GradeBScore ? "B" : "C";
             float rewardFraction = success ? 1f : _settings.FailureRewardFraction;
-            AwardedGold = Mathf.Max(0, Mathf.RoundToInt(_state.Score * _settings.GoldPerScore * rewardFraction));
+            int scoreGold = Mathf.Max(0, Mathf.RoundToInt(_state.Score * _settings.GoldPerScore * rewardFraction));
+            AwardedGold = scoreGold;
             _distanceGoldBonus = Mathf.Max(
                 0,
                 Mathf.FloorToInt(_state.Distance / Mathf.Max(0.01f, _settings.DistanceGoldDivisor)));
             AwardedGold += _distanceGoldBonus;
-            if (success)
-            {
-                AwardedGold += _settings.BossGoldReward;
-            }
+            int bossGold = success ? _settings.BossGoldReward : 0;
+            AwardedGold += bossGold;
+
+            // The results panel shows one payout number, which hides whether a short run paid out
+            // on score, on distance, or on the boss kill. The breakdown is logged so the tuning
+            // values behind it can be checked against a real run.
+            Debug.Log(
+                $"[Rail Shooter] Combat payout {AwardedGold}g — " +
+                $"score {_state.Score} (run {runScore} + sigil {sigilBonus} + no-damage {noDamageBonus} + " +
+                $"charge kills {chargeKillBonus} + formations {formationBonus}) " +
+                $"x {_settings.GoldPerScore} gold per score x {rewardFraction} " +
+                $"{(success ? "success" : "failure")} fraction = {scoreGold}g, " +
+                $"distance {Mathf.RoundToInt(_state.Distance)}m / {_settings.DistanceGoldDivisor} = " +
+                $"{_distanceGoldBonus}g, boss reward {bossGold}g. Grade {ResultGrade}.",
+                this);
         }
 
         private void TickResults(in RailShooterCommand command)
