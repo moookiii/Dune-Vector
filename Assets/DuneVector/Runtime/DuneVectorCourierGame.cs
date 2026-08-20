@@ -3958,7 +3958,7 @@ namespace DuneVector
 
         private static GUIStyle LabelStyle(int size, FontStyle fontStyle, TextAnchor anchor, Color color)
         {
-            return new GUIStyle(GUI.skin.label)
+            GUIStyle style = new GUIStyle(GUI.skin.label)
             {
                 fontSize = size,
                 fontStyle = fontStyle,
@@ -3966,6 +3966,17 @@ namespace DuneVector
                 wordWrap = true,
                 normal = { textColor = GuiTextColor(color) },
             };
+            style.hover.background = null;
+            style.hover.textColor = style.normal.textColor;
+            style.active.background = null;
+            style.active.textColor = style.normal.textColor;
+            style.onNormal.background = null;
+            style.onNormal.textColor = style.normal.textColor;
+            style.onHover.background = null;
+            style.onHover.textColor = style.normal.textColor;
+            style.onActive.background = null;
+            style.onActive.textColor = style.normal.textColor;
+            return style;
         }
 
         private static Color GuiTextColor(Color color)
@@ -4293,7 +4304,6 @@ namespace DuneVector
             if (riskCount > 0)
             {
                 int columns = Mathf.Clamp(_hubSettings.FreeRoamRiskColumns, 2, 10);
-                columns = Mathf.Min(columns, riskCount);
                 int rowCount = Mathf.CeilToInt(riskCount / (float)columns);
                 float tileGap = _hubSettings.FreeRoamRiskTileGap;
                 float tileHeight = _hubSettings.FreeRoamRiskTileHeight;
