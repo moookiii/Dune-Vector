@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEditor.IMGUI.Controls;
@@ -145,6 +145,7 @@ namespace DuneVector.Editor
         private SerializedProperty _musicReactiveSky;
         private SerializedProperty _groundHeatField;
         private SerializedProperty _deliveries;
+        private SerializedProperty _titleScreen;
         private SerializedProperty _contracts;
         private SerializedProperty _freeRoamDeliveries;
         private SerializedProperty _deliveryMessages;
@@ -230,6 +231,7 @@ namespace DuneVector.Editor
             _musicReactiveSky = serializedObject.FindProperty("MusicReactiveSky");
             _groundHeatField = serializedObject.FindProperty("GroundHeatField");
             _deliveries = serializedObject.FindProperty("Deliveries");
+            _titleScreen = serializedObject.FindProperty("TitleScreen");
             _contracts = serializedObject.FindProperty("Contracts");
             _freeRoamDeliveries = serializedObject.FindProperty("FreeRoamDeliveries");
             _deliveryMessages = serializedObject.FindProperty("DeliveryMessages");
@@ -522,6 +524,10 @@ namespace DuneVector.Editor
 
         private void DrawGameplayTab()
         {
+            DuneVectorSettingsInspector.DrawSection(
+                "Title Screen",
+                "Startup menu copy, background video, headline typography, highlight box, and the FMOD title theme.",
+                _titleScreen);
             DuneVectorSettingsInspector.DrawSection(
                 "Pickup & Delivery",
                 "Objective placement, travel ranges, package size, and job rings.",
