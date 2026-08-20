@@ -506,32 +506,52 @@ namespace DuneVector
                         continue;
                     }
                 }
+                float centerOutWidth = _settings.ForegroundStreakSize * (fineLine
+                        ? _settings.CenterOutFineLineWidthMultiplier
+                        : _settings.CenterOutBroadRayWidthMultiplier)
+                    * Mathf.Max(
+                        soloLineThroughDrone
+                            ? Mathf.Max(1f, _settings.CenterOutSoloFineLineWidthMultiplier)
+                            : 1f,
+                        Mathf.Max(
+                            1f,
+                            _settings.CenterOutThroughDroneFineLineWidthMultiplier))
+                    * (i >= movingLineCount && command.ScreenFlareHeldWidthScale > 0f
+                        ? command.ScreenFlareHeldWidthScale
+                        : (command.ScreenFlareWidthScale > 0f
+                            ? command.ScreenFlareWidthScale
+                            : 1f));
+                if (centerOut)
+                {
+                    centerOutWidth = ClampSpikeStreakWidth(centerOutWidth, velocity);
+                }
                 ParticleSystem.EmitParams emit = new ParticleSystem.EmitParams
                 {
                     position = new Vector3(x, y, _settings.ForegroundStreakForwardOffset),
                     velocity = velocity,
                     startColor = color,
                     startLifetime = lifetime,
-                    startSize = centerOut
-                        ? _settings.ForegroundStreakSize * (fineLine
-                            ? _settings.CenterOutFineLineWidthMultiplier
-                            : _settings.CenterOutBroadRayWidthMultiplier)
-                            * Mathf.Max(
-                                soloLineThroughDrone
-                                    ? Mathf.Max(1f, _settings.CenterOutSoloFineLineWidthMultiplier)
-                                    : 1f,
-                                Mathf.Max(
-                                    1f,
-                                    _settings.CenterOutThroughDroneFineLineWidthMultiplier))
-                            * (i >= movingLineCount && command.ScreenFlareHeldWidthScale > 0f
-                                ? command.ScreenFlareHeldWidthScale
-                                : (command.ScreenFlareWidthScale > 0f
-                                    ? command.ScreenFlareWidthScale
-                                    : 1f))
-                        : _settings.ForegroundStreakSize,
+                    startSize = centerOut ? centerOutWidth : _settings.ForegroundStreakSize,
                 };
                 targetStreaks.Emit(emit, 1);
             }
+        }
+
+        private float ClampSpikeStreakWidth(float width, Vector3 velocity)
+        {
+            if (_settings.ForegroundStreakDroneSpikeMaximumWidth > 0f)
+            {
+                width = Mathf.Min(width, _settings.ForegroundStreakDroneSpikeMaximumWidth);
+            }
+            if (_settings.ForegroundStreakDroneSpikeMaximumWidthPerLength > 0f)
+            {
+                float stretchedLength = velocity.magnitude * _settings.ForegroundStreakVelocityScale
+                    + width * _settings.ForegroundStreakLengthScale;
+                width = Mathf.Min(
+                    width,
+                    stretchedLength * _settings.ForegroundStreakDroneSpikeMaximumWidthPerLength);
+            }
+            return Mathf.Max(0.001f, width);
         }
 
         private void UpdateCenterOutAnchor()

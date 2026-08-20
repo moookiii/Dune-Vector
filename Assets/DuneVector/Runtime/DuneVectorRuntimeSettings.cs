@@ -5292,6 +5292,12 @@ namespace DuneVector
         [Range(0f, 1f)] public float ForegroundStreakDroneSpikeTipWidth = 0.03f;
         [Tooltip("How quickly a drone-anchored streak narrows from base to tip. Higher stays thick longer before spiking.")]
         [Range(0.25f, 6f)] public float ForegroundStreakDroneSpikeTaper = 1.6f;
+        [Tooltip("Hard cap on the emitted width of a drone-anchored streak, so the widest lines stop growing instead of scaling without limit.")]
+        [Min(0.01f)] public float ForegroundStreakDroneSpikeMaximumWidth = 0.6f;
+        [Tooltip("Hard cap on the emitted width of a drone-anchored streak, so the widest lines stop growing instead of scaling without limit.")]
+        [Min(0f)] public float ForegroundStreakDroneSpikeMaximumWidth = 0.55f;
+        [Tooltip("Cap on a drone-anchored streak's width as a fraction of its stretched length, so short streaks stay slim spikes instead of fat blobs. 0 disables.")]
+        [Range(0f, 1f)] public float ForegroundStreakDroneSpikeMaximumWidthPerLength = 0.16f;
         [Tooltip("Flip which end of the stretched particle is the thick base, if the spike points the wrong way.")]
         public bool ForegroundStreakDroneSpikeFlip = false;
         [ColorUsage(false, true)] public Color ForegroundStreakColor = new Color(1.2f, 0.25f, 2.8f, 0.8f);
