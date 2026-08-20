@@ -11,6 +11,11 @@ Shader "DuneVector/URP Music Reactive Additive"
         [HideInInspector] _StreakCoreBrightness("Streak Core Brightness", Float) = 1.8
         [HideInInspector] _StreakHaloBrightness("Streak Halo Brightness", Float) = 0.42
         [HideInInspector] _StreakEndFade("Streak End Fade", Float) = 0.08
+        [HideInInspector] _StreakSpikeProfile("Streak Spike Profile", Float) = 0
+        [HideInInspector] _StreakSpikeBaseWidth("Streak Spike Base Width", Float) = 1
+        [HideInInspector] _StreakSpikeTipWidth("Streak Spike Tip Width", Float) = 0.08
+        [HideInInspector] _StreakSpikeTaper("Streak Spike Taper", Float) = 1.6
+        [HideInInspector] _StreakSpikeFlip("Streak Spike Flip", Float) = 0
     }
 
     SubShader
@@ -47,6 +52,11 @@ Shader "DuneVector/URP Music Reactive Additive"
                 half _StreakCoreBrightness;
                 half _StreakHaloBrightness;
                 half _StreakEndFade;
+                half _StreakSpikeProfile;
+                half _StreakSpikeBaseWidth;
+                half _StreakSpikeTipWidth;
+                half _StreakSpikeTaper;
+                half _StreakSpikeFlip;
             CBUFFER_END
 
             struct Attributes
@@ -82,20 +92,28 @@ Shader "DuneVector/URP Music Reactive Additive"
                 {
                     half longitudinal = saturate(input.uv.x);
                     half triangularProfile = 1.0h - abs(longitudinal * 2.0h - 1.0h);
+                    half taperedProfile = lerp(
+                        0.35h,
+                        1.0h,
+                        pow(saturate(triangularProfile), _StreakTipSharpness));
+                    half spikeAxis = _StreakSpikeFlip > 0.5h
+                        ? 1.0h - longitudinal
+                        : longitudinal;
+                    half spikeProfile = lerp(
+                        _StreakSpikeBaseWidth,
+                        _StreakSpikeTipWidth,
+                        pow(saturate(spikeAxis), max(_StreakSpikeTaper, 0.01h)));
                     half silhouetteWidth = _StreakMinimumWidth
-                        * lerp(
-                            0.35h,
-                            1.0h,
-                            pow(saturate(triangularProfile), _StreakTipSharpness));
+                        * (_StreakSpikeProfile > 0.5h ? spikeProfile : taperedProfile);
                     half transverse = abs(input.uv.y * 2.0h - 1.0h);
                     half antialias = max(fwidth(transverse), 0.001h);
                     half body = 1.0h - smoothstep(
                         silhouetteWidth - antialias,
                         silhouetteWidth + antialias,
                         transverse);
-                    half coreWidth = max(
-                        _StreakMinimumWidth,
-                        silhouetteWidth * _StreakCoreWidth);
+                    half coreWidth = min(
+                        silhouetteWidth,
+                        max(_StreakMinimumWidth, silhouetteWidth * _StreakCoreWidth));
                     half core = 1.0h - smoothstep(
                         coreWidth - antialias,
                         coreWidth + antialias,

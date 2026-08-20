@@ -38,6 +38,7 @@ namespace DuneVector
         private ParticleSystem _centerOutStreaks;
         private ParticleSystem.Particle[] _centerOutParticleBuffer;
         private Material _streakMaterial;
+        private Material _centerOutStreakMaterial;
         private Color[] _streakPalette;
         private Renderer[] _droneVisualRenderers;
         private Transform _centerOutAnchorTransform;
@@ -158,8 +159,33 @@ namespace DuneVector
             _streakMaterial.SetFloat("_StreakCoreBrightness", _settings.ForegroundStreakCoreBrightness);
             _streakMaterial.SetFloat("_StreakHaloBrightness", _settings.ForegroundStreakHaloBrightness);
             _streakMaterial.SetFloat("_StreakEndFade", _settings.ForegroundStreakEndFade);
-            _streaks = BuildStreakParticleSystem("Music Screen-Space Flare Lines");
-            _centerOutStreaks = BuildStreakParticleSystem("Music Drone-Anchored Flare Lines");
+            _streakMaterial.SetFloat("_StreakSpikeProfile", 0f);
+            _centerOutStreakMaterial = new Material(_streakMaterial)
+            {
+                name = "Music Visualizer - Drone-Anchored Flare Lines",
+                enableInstancing = true,
+            };
+            _centerOutStreakMaterial.SetFloat(
+                "_StreakSpikeProfile",
+                _settings.ForegroundStreakDroneSpikeEnabled ? 1f : 0f);
+            _centerOutStreakMaterial.SetFloat(
+                "_StreakSpikeBaseWidth",
+                _settings.ForegroundStreakDroneSpikeBaseWidth);
+            _centerOutStreakMaterial.SetFloat(
+                "_StreakSpikeTipWidth",
+                _settings.ForegroundStreakDroneSpikeTipWidth);
+            _centerOutStreakMaterial.SetFloat(
+                "_StreakSpikeTaper",
+                _settings.ForegroundStreakDroneSpikeTaper);
+            _centerOutStreakMaterial.SetFloat(
+                "_StreakSpikeFlip",
+                _settings.ForegroundStreakDroneSpikeFlip ? 1f : 0f);
+            _streaks = BuildStreakParticleSystem(
+                "Music Screen-Space Flare Lines",
+                _streakMaterial);
+            _centerOutStreaks = BuildStreakParticleSystem(
+                "Music Drone-Anchored Flare Lines",
+                _centerOutStreakMaterial);
             if (_settings.CenterOutCompensateAnchorMotion
                 || _settings.CenterOutMaximumTravelToScreenEdgeFraction > 0f)
             {
@@ -184,7 +210,9 @@ namespace DuneVector
             UpdateCenterOutAnchor();
         }
 
-        private ParticleSystem BuildStreakParticleSystem(string objectName)
+        private ParticleSystem BuildStreakParticleSystem(
+            string objectName,
+            Material streakMaterial)
         {
             GameObject streakObject = new GameObject(objectName);
             streakObject.transform.SetParent(_camera.transform, false);
@@ -212,7 +240,7 @@ namespace DuneVector
             renderer.renderMode = ParticleSystemRenderMode.Stretch;
             renderer.velocityScale = _settings.ForegroundStreakVelocityScale;
             renderer.lengthScale = _settings.ForegroundStreakLengthScale;
-            renderer.sharedMaterial = _streakMaterial;
+            renderer.sharedMaterial = streakMaterial;
             renderer.shadowCastingMode = ShadowCastingMode.Off;
             renderer.receiveShadows = false;
             return streaks;
@@ -889,6 +917,11 @@ namespace DuneVector
         private void OnDestroy()
         {
             Camera.onPreCull -= HandleCameraPreCull;
+            if (_centerOutStreakMaterial != null)
+            {
+                Destroy(_centerOutStreakMaterial);
+                _centerOutStreakMaterial = null;
+            }
             if (_streakMaterial != null)
             {
                 Destroy(_streakMaterial);

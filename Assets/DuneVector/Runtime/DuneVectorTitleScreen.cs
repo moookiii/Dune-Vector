@@ -41,6 +41,7 @@ namespace DuneVector
         private bool _musicStarted;
         private bool _confirmed;
         private DuneVectorPauseMenu _optionsMenu;
+        private DuneVectorAudioManager _audioManager;
         private bool OptionsOpen => _optionsMenu != null && _optionsMenu.IsPaused;
 
         private static readonly DuneVectorTitleMenuEntry[] MenuOrder =
@@ -76,6 +77,10 @@ namespace DuneVector
 
         private void Start()
         {
+            // The mixer has to be up before the theme starts, or the stored music and effects
+            // volumes only reach the buses when the options panel is first opened and everything
+            // plays at full volume until then.
+            EnsureAudioManager();
             StartTitleMusic();
         }
 
@@ -583,6 +588,11 @@ namespace DuneVector
         /// </summary>
         private DuneVectorAudioManager EnsureAudioManager()
         {
+            if (_audioManager != null)
+            {
+                return _audioManager;
+            }
+
             DuneVectorAudioManager audio = DuneVectorAudioManager.Instance;
             if (audio == null)
             {
@@ -594,6 +604,7 @@ namespace DuneVector
                 RuntimeSettings.Audio,
                 RuntimeSettings.Performance,
                 RuntimeSettings.PlayerTuning.CameraAntiAliasingMode);
+            _audioManager = audio;
             return audio;
         }
 
