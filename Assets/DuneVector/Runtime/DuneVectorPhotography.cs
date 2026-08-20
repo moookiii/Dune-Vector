@@ -2526,7 +2526,10 @@ namespace DuneVector
                 identity.y + gap,
                 thumbnailSize,
                 thumbnailSize);
-            if (_pendingSubject.Artwork?.Mask != null)
+            Texture2D thumbnailTexture = _pendingSubject.Artwork?.DiscoveryThumbnail != null
+                ? _pendingSubject.Artwork.DiscoveryThumbnail
+                : _pendingSubject.Artwork?.Mask;
+            if (thumbnailTexture != null)
             {
                 Color previousColor = GUI.color;
                 GUI.color = WithAlpha(
@@ -2534,7 +2537,7 @@ namespace DuneVector
                     _settings.GlyphDiscoveryAccentColor.a * progress);
                 GUI.DrawTexture(
                     thumbnail,
-                    _pendingSubject.Artwork.Mask,
+                    thumbnailTexture,
                     ScaleMode.ScaleToFit,
                     true);
                 GUI.color = previousColor;

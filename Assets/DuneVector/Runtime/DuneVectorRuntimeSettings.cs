@@ -38,6 +38,9 @@ namespace DuneVector
         [Tooltip("Unique black-and-white artwork mask. White pixels become linework; black pixels remain transparent.")]
         public Texture2D Mask;
 
+        [Tooltip("Optional presentation-only thumbnail used by the glyph discovery card. When unset, the authoritative world mask is shown.")]
+        public Texture2D DiscoveryThumbnail;
+
         [Tooltip("Authoritative center in the desert's persistent logical X/Z world coordinates.")]
         public Vector2 WorldCenter;
 
