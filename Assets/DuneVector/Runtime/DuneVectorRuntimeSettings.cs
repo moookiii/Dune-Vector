@@ -7971,6 +7971,13 @@ namespace DuneVector
         [Min(0f)] public float PromptChainPipSize = 9f;
         [Min(0f)] public float PromptChainPipGap = 6f;
         [Header("Bottom-Left Symbol Indicator")]
+        [Tooltip("ImageGen-authored 4x4 atlas whose cells follow the Glyph Library order.")]
+        public Texture2D DrawingGlyphAtlas;
+        [Min(1)] public int DrawingGlyphAtlasColumns = 4;
+        [Min(1)] public int DrawingGlyphAtlasRows = 4;
+        [Tooltip("Corrected standalone sprite used for the final choir glyph so only its starting point is marked green.")]
+        public Texture2D DrawingFinalGlyphTexture;
+        [Min(0)] public int DrawingFinalGlyphIndex = 13;
         [Tooltip("Square size of the sigil symbol reference in the bottom-left corner.")]
         [Min(32f)] public float DrawingIndicatorSize = 220f;
         [Tooltip("Distance between the symbol indicator and the left/bottom screen edges.")]

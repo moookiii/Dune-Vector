@@ -5640,25 +5640,28 @@ namespace DuneVector
             Color guideColor = faulted
                 ? WithAlpha(sigils.FaultColor, sigils.DrawingGuideColor.a)
                 : sigils.DrawingGuideColor;
-            for (int i = 1; i < _sigilGlyphPoints.Count; i++)
+            if (!DrawGeneratedSigilGlyph(definition, guideBox, guideColor))
             {
-                DrawSigilLine(
-                    _sigilGlyphPoints[i - 1],
-                    _sigilGlyphPoints[i],
-                    Scaled(sigils.DrawingGuideThickness),
-                    guideColor);
-            }
-            if (_sigilGlyphPoints.Count > 0)
-            {
-                float startSize = Scaled(sigils.DrawingGuideStartSize);
-                Vector2 start = _sigilGlyphPoints[0];
-                DrawRect(
-                    new Rect(
-                        start.x - (startSize * 0.5f),
-                        start.y - (startSize * 0.5f),
-                        startSize,
-                        startSize),
-                    sigils.CompletedStrokeColor);
+                for (int i = 1; i < _sigilGlyphPoints.Count; i++)
+                {
+                    DrawSigilLine(
+                        _sigilGlyphPoints[i - 1],
+                        _sigilGlyphPoints[i],
+                        Scaled(sigils.DrawingGuideThickness),
+                        guideColor);
+                }
+                if (_sigilGlyphPoints.Count > 0)
+                {
+                    float startSize = Scaled(sigils.DrawingGuideStartSize);
+                    Vector2 start = _sigilGlyphPoints[0];
+                    DrawRect(
+                        new Rect(
+                            start.x - (startSize * 0.5f),
+                            start.y - (startSize * 0.5f),
+                            startSize,
+                            startSize),
+                        sigils.CompletedStrokeColor);
+                }
             }
 
             for (int i = 1; i < _sigilAttemptPoints.Count; i++)
@@ -5693,6 +5696,53 @@ namespace DuneVector
                 _sigilDrawing ? sigils.ReleaseHintLabel : sigils.HintLabel,
                 _centeredSmallStyle,
                 _settings.HudSecondaryColor);
+        }
+
+        private bool DrawGeneratedSigilGlyph(
+            RailSigilDefinition definition,
+            Rect destination,
+            Color tint)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            int glyphIndex = sigils.Symbols != null ? sigils.Symbols.IndexOf(definition) : -1;
+            if (glyphIndex < 0)
+            {
+                return false;
+            }
+
+            Texture2D texture;
+            Rect textureCoordinates;
+            if (glyphIndex == sigils.DrawingFinalGlyphIndex &&
+                sigils.DrawingFinalGlyphTexture != null)
+            {
+                texture = sigils.DrawingFinalGlyphTexture;
+                textureCoordinates = new Rect(0f, 0f, 1f, 1f);
+            }
+            else
+            {
+                texture = sigils.DrawingGlyphAtlas;
+                int columns = Mathf.Max(1, sigils.DrawingGlyphAtlasColumns);
+                int rows = Mathf.Max(1, sigils.DrawingGlyphAtlasRows);
+                if (texture == null || glyphIndex >= columns * rows)
+                {
+                    return false;
+                }
+                int column = glyphIndex % columns;
+                int rowFromTop = glyphIndex / columns;
+                float cellWidth = 1f / columns;
+                float cellHeight = 1f / rows;
+                textureCoordinates = new Rect(
+                    column * cellWidth,
+                    1f - ((rowFromTop + 1) * cellHeight),
+                    cellWidth,
+                    cellHeight);
+            }
+
+            Color previous = GUI.color;
+            GUI.color = tint;
+            GUI.DrawTextureWithTexCoords(destination, texture, textureCoordinates, true);
+            GUI.color = previous;
+            return true;
         }
 
         private void DrawSigilIndicatorPanel(Rect rect, Color accent)
