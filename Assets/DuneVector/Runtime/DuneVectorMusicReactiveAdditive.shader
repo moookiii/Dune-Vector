@@ -103,8 +103,9 @@ Shader "DuneVector/URP Music Reactive Additive"
                         _StreakSpikeBaseWidth,
                         _StreakSpikeTipWidth,
                         pow(saturate(spikeAxis), max(_StreakSpikeTaper, 0.01h)));
-                    half silhouetteWidth = _StreakMinimumWidth
-                        * (_StreakSpikeProfile > 0.5h ? spikeProfile : taperedProfile);
+                    half silhouetteWidth = _StreakSpikeProfile > 0.5h
+                        ? spikeProfile
+                        : _StreakMinimumWidth * taperedProfile;
                     half transverse = abs(input.uv.y * 2.0h - 1.0h);
                     half antialias = max(fwidth(transverse), 0.001h);
                     half body = 1.0h - smoothstep(

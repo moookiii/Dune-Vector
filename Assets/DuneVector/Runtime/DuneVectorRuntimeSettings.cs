@@ -5286,10 +5286,10 @@ namespace DuneVector
         [Range(0.001f, 0.25f)] public float ForegroundStreakEndFade = 0.08f;
         [Tooltip("Give the drone-anchored streaks a spike silhouette: thick where they leave the drone, tapering to a point outward.")]
         public bool ForegroundStreakDroneSpikeEnabled = true;
-        [Tooltip("Width multiplier at the drone end of a drone-anchored streak.")]
-        [Range(0.1f, 6f)] public float ForegroundStreakDroneSpikeBaseWidth = 2.4f;
-        [Tooltip("Width multiplier at the outer tip of a drone-anchored streak.")]
-        [Range(0f, 1f)] public float ForegroundStreakDroneSpikeTipWidth = 0.06f;
+        [Tooltip("Half-width at the drone end of a drone-anchored streak, as a fraction of the streak quad (1 fills it).")]
+        [Range(0.02f, 1f)] public float ForegroundStreakDroneSpikeBaseWidth = 0.85f;
+        [Tooltip("Half-width at the outer tip of a drone-anchored streak, as a fraction of the streak quad.")]
+        [Range(0f, 1f)] public float ForegroundStreakDroneSpikeTipWidth = 0.03f;
         [Tooltip("How quickly a drone-anchored streak narrows from base to tip. Higher stays thick longer before spiking.")]
         [Range(0.25f, 6f)] public float ForegroundStreakDroneSpikeTaper = 1.6f;
         [Tooltip("Flip which end of the stretched particle is the thick base, if the spike points the wrong way.")]
