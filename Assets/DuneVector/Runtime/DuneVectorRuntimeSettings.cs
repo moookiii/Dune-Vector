@@ -1476,6 +1476,12 @@ namespace DuneVector
         [Tooltip("Hub-local position of the drone upgrade pad.")]
         public Vector3 UpgradeAreaLocalPosition = new Vector3(0f, 0f, -7.5f);
         [Min(0f)] public float PlayerSpawnHeight = 2.2f;
+        [Tooltip("Settles the drone onto the hub surface under its spawn point instead of letting it drop from PlayerSpawnHeight. Keeps the drone standing on the hub the moment the game starts.")]
+        public bool SpawnGroundSnapEnabled = true;
+        [Tooltip("How far above and below the hub spawn point the settle probe searches for the hub's own floor collider.")]
+        [Min(0.1f)] public float SpawnGroundSnapProbeDistance = 8f;
+        [Tooltip("Gap left between the hub floor and the drone's feet after the spawn settle probe.")]
+        [Min(0f)] public float SpawnGroundSnapClearance = 0.02f;
         public bool RestoreHealthOnReturn = true;
         public bool RestoreStaminaOnReturn = true;
         [Tooltip("How long the follow camera stays pinned to the drone after it is teleported. Covers the frames where the world rebases its floating origin behind a long-distance jump, so the camera never sweeps in from where the drone came from (most visible when respawning at the hub after dying far out in free roam).")]
@@ -5278,6 +5284,16 @@ namespace DuneVector
         [Min(0f)] public float ForegroundStreakCoreBrightness = 1.8f;
         [Min(0f)] public float ForegroundStreakHaloBrightness = 0.42f;
         [Range(0.001f, 0.25f)] public float ForegroundStreakEndFade = 0.08f;
+        [Tooltip("Give the drone-anchored streaks a spike silhouette: thick where they leave the drone, tapering to a point outward.")]
+        public bool ForegroundStreakDroneSpikeEnabled = true;
+        [Tooltip("Width multiplier at the drone end of a drone-anchored streak.")]
+        [Range(0.1f, 6f)] public float ForegroundStreakDroneSpikeBaseWidth = 2.4f;
+        [Tooltip("Width multiplier at the outer tip of a drone-anchored streak.")]
+        [Range(0f, 1f)] public float ForegroundStreakDroneSpikeTipWidth = 0.06f;
+        [Tooltip("How quickly a drone-anchored streak narrows from base to tip. Higher stays thick longer before spiking.")]
+        [Range(0.25f, 6f)] public float ForegroundStreakDroneSpikeTaper = 1.6f;
+        [Tooltip("Flip which end of the stretched particle is the thick base, if the spike points the wrong way.")]
+        public bool ForegroundStreakDroneSpikeFlip = false;
         [ColorUsage(false, true)] public Color ForegroundStreakColor = new Color(1.2f, 0.25f, 2.8f, 0.8f);
 
         [Header("Authored Center-Out Screen Flare Lines")]

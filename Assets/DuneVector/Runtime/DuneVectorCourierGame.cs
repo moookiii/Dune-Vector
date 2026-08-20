@@ -1540,6 +1540,62 @@ namespace DuneVector
         }
 
         /// <summary>
+        /// Resolves the spawn point the drone stands on. The authored spawn sits
+        /// <see cref="WorldHubTuning.PlayerSpawnHeight"/> above the floor, so entering the hub
+        /// would start the drone in mid-air and drop it. Probing the hub's own collision and
+        /// settling onto it puts the drone on the hub the instant the game starts.
+        /// </summary>
+        private Vector3 ResolveHubSpawnStandingPosition()
+        {
+            if (!_hubSettings.SpawnGroundSnapEnabled || _hubRoot == null)
+            {
+                return _hubSpawn;
+            }
+
+            float probe = Mathf.Max(0.1f, _hubSettings.SpawnGroundSnapProbeDistance);
+            Vector3 origin = _hubSpawn + (Vector3.up * probe);
+            float distance = probe + _hubSettings.PlayerSpawnHeight + probe;
+            RaycastHit[] hits = Physics.RaycastAll(
+                origin,
+                Vector3.down,
+                distance,
+                ~0,
+                QueryTriggerInteraction.Ignore);
+            bool found = false;
+            float bestHeight = 0f;
+            for (int hitIndex = 0; hitIndex < hits.Length; hitIndex++)
+            {
+                RaycastHit hit = hits[hitIndex];
+                if (hit.collider == null || !hit.collider.transform.IsChildOf(_hubRoot))
+                {
+                    continue;
+                }
+
+                // Only upward-facing surfaces are floors; rails and walls are not standable.
+                if (hit.normal.y < 0.5f)
+                {
+                    continue;
+                }
+
+                if (!found || hit.point.y > bestHeight)
+                {
+                    found = true;
+                    bestHeight = hit.point.y;
+                }
+            }
+
+            if (!found)
+            {
+                return _hubSpawn;
+            }
+
+            return new Vector3(
+                _hubSpawn.x,
+                bestHeight + _hubSettings.SpawnGroundSnapClearance,
+                _hubSpawn.z);
+        }
+
+        /// <summary>
         /// Drops a probe onto the authored hub from above the plaza floor and
         /// reports whether any of the hub's own colliders caught it.
         /// </summary>
@@ -2047,7 +2103,8 @@ namespace DuneVector
             }
             if (placePlayerAtSpawn)
             {
-                _player.Motor.SetPositionAndRotation(_hubSpawn, NextHubSpawnRotation(), true);
+                _player.Motor.SetPositionAndRotation(
+                    ResolveHubSpawnStandingPosition(), NextHubSpawnRotation(), true);
                 // An immediate hub restore must complete its floating-origin shift before the
                 // camera is snapped. Deferring this rebase to the streamer's LateUpdate leaves
                 // the follow camera in the old desert frame for a visible cross-world sweep.
