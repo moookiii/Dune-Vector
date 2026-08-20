@@ -2253,21 +2253,17 @@ namespace DuneVector
                 {
                     continue;
                 }
+                Vector3 previousPosition = projectile.Transform.position;
                 projectile.Age += deltaTime;
                 projectile.Remaining -= deltaTime;
                 AdvanceBullet(projectile, deltaTime);
                 UpdateBulletVisual(projectile, deltaTime);
-                if (projectile.Remaining <= 0f ||
-                    projectile.Transform.position.z < playerPosition.z - _settings.EnemyDespawnBehindDistance)
-                {
-                    DeactivateProjectile(projectile);
-                    continue;
-                }
-                float playerDistance = Vector3.Distance(
-                    projectile.Transform.position,
-                    playerPosition);
                 if (_state.Trick != RailShooterTrick.None &&
-                    playerDistance <= _settings.RollProjectileDeflectRadius)
+                    DoesRailProjectileHitDrone(
+                        previousPosition,
+                        projectile.Transform.position,
+                        playerPosition,
+                        _settings.RollProjectileDeflectRadius))
                 {
                     DeactivateProjectile(projectile);
                     _state.ProjectileDeflections++;
@@ -2281,16 +2277,29 @@ namespace DuneVector
                 {
                     continue;
                 }
-                if (playerDistance <= projectile.Radius + _settings.BulletPlayerHitRadius)
+                if (DoesRailProjectileHitDrone(
+                        previousPosition,
+                        projectile.Transform.position,
+                        playerPosition,
+                        projectile.Radius + _settings.BulletPlayerHitRadius))
                 {
                     DamagePlayer(_settings.EnemyProjectileDamage, "Rift bullet pattern");
                     DeactivateProjectile(projectile);
                     continue;
                 }
                 if (_settings.GrazeEnabled && !projectile.Grazed &&
-                    playerDistance <= projectile.Radius + _settings.BulletGrazeRadius)
+                    DoesRailProjectileHitDrone(
+                        previousPosition,
+                        projectile.Transform.position,
+                        playerPosition,
+                        projectile.Radius + _settings.BulletGrazeRadius))
                 {
                     RegisterGraze(projectile);
+                }
+                if (projectile.Remaining <= 0f ||
+                    projectile.Transform.position.z < playerPosition.z - _settings.EnemyDespawnBehindDistance)
+                {
+                    DeactivateProjectile(projectile);
                 }
             }
         }
@@ -4650,6 +4659,20 @@ namespace DuneVector
             return new Vector2(
                 Mathf.Clamp(flightOffset.x * follow, -travel.x, travel.x),
                 Mathf.Clamp(flightOffset.y * follow, -travel.y, travel.y));
+        }
+
+        public static bool DoesRailProjectileHitDrone(
+            Vector3 projectileStart,
+            Vector3 projectileEnd,
+            Vector3 dronePosition,
+            float combinedHitRadius)
+        {
+            return SegmentIntersectsSphere(
+                projectileStart,
+                projectileEnd,
+                dronePosition,
+                Mathf.Max(0f, combinedHitRadius),
+                out _);
         }
 
         private static bool SegmentIntersectsSphere(

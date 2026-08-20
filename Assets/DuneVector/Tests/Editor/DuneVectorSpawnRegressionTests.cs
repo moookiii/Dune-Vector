@@ -395,6 +395,26 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void RailShooter_EnemyProjectileCannotTunnelThroughDroneBetweenFrames()
+        {
+            Assert.That(
+                DuneVectorRailShooterController.DoesRailProjectileHitDrone(
+                    new Vector3(0f, 0f, 5f),
+                    new Vector3(0f, 0f, -5f),
+                    Vector3.zero,
+                    1f),
+                Is.True,
+                "Enemy bullets must test their complete frame-to-frame path, not only their final position.");
+            Assert.That(
+                DuneVectorRailShooterController.DoesRailProjectileHitDrone(
+                    new Vector3(2f, 0f, 5f),
+                    new Vector3(2f, 0f, -5f),
+                    Vector3.zero,
+                    1f),
+                Is.False);
+        }
+
+        [Test]
         public void GraphicsSettings_RuntimeShadersSurviveTheBuild()
         {
             SerializedObject graphicsSettings = new SerializedObject(
