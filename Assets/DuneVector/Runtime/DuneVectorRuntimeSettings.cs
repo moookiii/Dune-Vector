@@ -7288,8 +7288,11 @@ namespace DuneVector
         [Tooltip("Forces the authored gate height back inside the second-flight-ring altitude band. Turn this off to place gates at any altitude, including low enough to be spotted from the dunes.")]
         public bool ClampHeightToUpperFlightRingBand = true;
 
-        [Tooltip("Renders gates while a delivery contract is running. Entering a gate stays free-roam only, so this just lets contract runs spot where the gates are.")]
+        [Tooltip("Renders gates while a delivery contract is running. Entering a gate stays free-roam only, so this just lets contract runs spot where the gates are. Only used when HideOutsideFreeRoam is on.")]
         public bool VisibleDuringContracts = true;
+
+        [Tooltip("Hides the gate visual whenever the drone is not in a state that can use the gate. Off means the authored prefab simply plays, which is the reliable option because its particle systems pause while their renderers are disabled.")]
+        public bool HideOutsideFreeRoam = false;
 
         [Tooltip("Extra world-space clearance around the gate visual and opening.")]
         [Min(0f)] public float GateClearancePadding = 4f;

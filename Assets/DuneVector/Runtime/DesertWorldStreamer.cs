@@ -3638,7 +3638,8 @@ namespace DuneVector
                 identity,
                 gateRadius,
                 tuning.MinimumEntryUpwardSpeed,
-                tuning.VisibleDuringContracts);
+                tuning.VisibleDuringContracts,
+                tuning.HideOutsideFreeRoam);
             gate.SetOccupancyHandles(occupancyHandle, spacingHandle);
             ringExclusions.Add(local);
             sceneryExclusions.Add(local);

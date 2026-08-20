@@ -62,6 +62,8 @@ namespace DuneVector
         private float _openingRadius;
         private float _minimumEntryUpwardSpeed;
         private bool _visibleDuringContracts;
+        private bool _hideOutsideFreeRoam;
+        private ParticleSystem[] _particleSystems;
         private int _occupancyHandle = DuneVectorWorldOccupancy.InvalidHandle;
         private int _spacingHandle = DuneVectorWorldOccupancy.InvalidHandle;
         private Renderer[] _renderers;
@@ -74,21 +76,27 @@ namespace DuneVector
             string identity,
             float openingRadius,
             float minimumEntryUpwardSpeed,
-            bool visibleDuringContracts)
+            bool visibleDuringContracts,
+            bool hideOutsideFreeRoam)
         {
             Identity = identity;
             _openingRadius = Mathf.Max(0.1f, openingRadius);
             _minimumEntryUpwardSpeed = Mathf.Max(0f, minimumEntryUpwardSpeed);
             _visibleDuringContracts = visibleDuringContracts;
+            _hideOutsideFreeRoam = hideOutsideFreeRoam;
             _world = GetComponentInParent<DesertWorldStreamer>();
             _renderers = GetComponentsInChildren<Renderer>(true);
+            _particleSystems = GetComponentsInChildren<ParticleSystem>(true);
             _rendererInitialEnabled = new bool[_renderers.Length];
             for (int i = 0; i < _renderers.Length; i++)
             {
                 _rendererInitialEnabled[i] = _renderers[i] != null && _renderers[i].enabled;
             }
             _visualVisible = true;
-            SetVisualVisible(false);
+            if (_hideOutsideFreeRoam)
+            {
+                SetVisualVisible(false);
+            }
             _player = ResolvePlayer();
             if (_player != null)
             {
@@ -114,7 +122,10 @@ namespace DuneVector
             DuneVectorCourierGame courier = bootstrap != null ? bootstrap.CourierGame : null;
             bool isFreeRoam = courier != null && courier.State == CourierRunState.FreeRoam;
             bool isContract = courier != null && courier.IsContractActive;
-            SetVisualVisible(isFreeRoam || (isContract && _visibleDuringContracts));
+            if (_hideOutsideFreeRoam)
+            {
+                SetVisualVisible(isFreeRoam || (isContract && _visibleDuringContracts));
+            }
             bool canEnter = isFreeRoam;
             if (_player == null)
             {
@@ -227,6 +238,23 @@ namespace DuneVector
                 if (_renderers[i] != null)
                 {
                     _renderers[i].enabled = visible && _rendererInitialEnabled[i];
+                }
+            }
+
+            if (!visible || _particleSystems == null)
+            {
+                return;
+            }
+
+            // A hidden gate's systems sit under their authored culling mode, which pauses
+            // them while nothing renders. Restarting on the way back keeps a revealed gate
+            // from appearing as an empty transform.
+            for (int i = 0; i < _particleSystems.Length; i++)
+            {
+                ParticleSystem system = _particleSystems[i];
+                if (system != null && !system.isPlaying)
+                {
+                    system.Play(false);
                 }
             }
         }
