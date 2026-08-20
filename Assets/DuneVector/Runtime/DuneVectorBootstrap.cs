@@ -1185,6 +1185,7 @@ namespace DuneVector
                     WorldHubSettings,
                     DesertAtlasSettings,
                     RuntimeSettings.CompassHud,
+                    RuntimeSettings.ToolUnlockCeremonies,
                     RuntimeSettings.FreeRoamDeliveries,
                     RuntimeSettings.Rings,
                     RuntimeSettings.Geoglyphs,

@@ -110,7 +110,7 @@ namespace DuneVector
         [Serializable]
         private sealed class SaveData
         {
-            public int Version = 9;
+            public int Version = 10;
             public int CompletedDeliveries;
             public int FailedDeliveries;
             public int TotalContractGold;
@@ -125,6 +125,8 @@ namespace DuneVector
             public bool StrikeOrbDeathNoteAcknowledged;
             public bool VesperPilgrimDeathNoteAcknowledged;
             public bool WarpGateAnnouncementSeen;
+            public bool CompassUnlockSeen;
+            public bool AtlasFinderUnlockSeen;
             public List<string> AcceptedContractIds = new List<string>();
         }
 
@@ -150,6 +152,12 @@ namespace DuneVector
 
         /// <summary>True once the hub banner announcing the scattered warp gates has played.</summary>
         public bool WarpGateAnnouncementSeen { get; private set; }
+
+        /// <summary>True once the courier has held the compass award card through.</summary>
+        public bool CompassUnlockSeen { get; private set; }
+
+        /// <summary>True once the courier has held the Atlas Finder award card through.</summary>
+        public bool AtlasFinderUnlockSeen { get; private set; }
         public IReadOnlyList<string> AcceptedContractIds => _acceptedContractIds;
         public event Action Changed;
 
@@ -241,6 +249,30 @@ namespace DuneVector
             Changed?.Invoke();
         }
 
+        /// <summary>Records that a field-tool award card was authorized, granting the tool for good.</summary>
+        public void AcknowledgeToolUnlock(DuneVectorToolUnlockId tool)
+        {
+            if (tool == DuneVectorToolUnlockId.Compass)
+            {
+                if (CompassUnlockSeen)
+                {
+                    return;
+                }
+                CompassUnlockSeen = true;
+            }
+            else
+            {
+                if (AtlasFinderUnlockSeen)
+                {
+                    return;
+                }
+                AtlasFinderUnlockSeen = true;
+            }
+
+            Save();
+            Changed?.Invoke();
+        }
+
         public void AcknowledgeStrikeOrbDeathNote()
         {
             if (StrikeOrbDeathNoteAcknowledged)
@@ -311,6 +343,8 @@ namespace DuneVector
             StrikeOrbDeathNoteAcknowledged = false;
             VesperPilgrimDeathNoteAcknowledged = false;
             WarpGateAnnouncementSeen = false;
+            CompassUnlockSeen = false;
+            AtlasFinderUnlockSeen = false;
             _acceptedContractIds.Clear();
             Changed?.Invoke();
         }
@@ -356,6 +390,8 @@ namespace DuneVector
                 VesperPilgrimDeathNoteAcknowledged =
                     data.Version >= 6 && data.VesperPilgrimDeathNoteAcknowledged;
                 WarpGateAnnouncementSeen = data.Version >= 9 && data.WarpGateAnnouncementSeen;
+                CompassUnlockSeen = data.Version >= 10 && data.CompassUnlockSeen;
+                AtlasFinderUnlockSeen = data.Version >= 10 && data.AtlasFinderUnlockSeen;
                 if (data.Version >= 7)
                 {
                     FreeRoamDeliveries = Mathf.Max(0, data.FreeRoamDeliveries);
@@ -405,6 +441,8 @@ namespace DuneVector
                     StrikeOrbDeathNoteAcknowledged = StrikeOrbDeathNoteAcknowledged,
                     VesperPilgrimDeathNoteAcknowledged = VesperPilgrimDeathNoteAcknowledged,
                     WarpGateAnnouncementSeen = WarpGateAnnouncementSeen,
+                    CompassUnlockSeen = CompassUnlockSeen,
+                    AtlasFinderUnlockSeen = AtlasFinderUnlockSeen,
                     AcceptedContractIds = new List<string>(_acceptedContractIds),
                 };
                 File.WriteAllText(_savePath, JsonUtility.ToJson(data));
@@ -445,6 +483,8 @@ namespace DuneVector
         public bool IsDeliveryMessageOpen => _messagePresenter != null && _messagePresenter.IsOpen;
         public bool IsTrailUnlockShowcaseOpen =>
             _trailUnlockShowcase != null && _trailUnlockShowcase.IsOpen;
+        public bool IsToolUnlockCeremonyOpen =>
+            _toolUnlockCeremony != null && _toolUnlockCeremony.IsOpen;
         public Vector3 HubSpawnPosition => _hubSpawn;
 
         /// <summary>
@@ -528,6 +568,7 @@ namespace DuneVector
                     (DuneVectorPhotographySystem.IsCameraModeActive ||
                      bootstrap.CourierGame.IsTerminalOpen ||
                      bootstrap.CourierGame.IsTrailUnlockShowcaseOpen ||
+                     bootstrap.CourierGame.IsToolUnlockCeremonyOpen ||
                      bootstrap.CourierGame.State == CourierRunState.DeliveryMessage ||
                      bootstrap.CourierGame.State == CourierRunState.RailShooter);
             }
@@ -578,6 +619,10 @@ namespace DuneVector
         private DuneVectorRouteEncounterDirector _routeEncounterDirector;
         private DuneVectorDeliveryMessagePresenter _messagePresenter;
         private DuneVectorTrailUnlockShowcase _trailUnlockShowcase;
+        private DuneVectorToolUnlockCeremony _toolUnlockCeremony;
+        private ToolUnlockCeremonyTuning _toolUnlockSettings;
+        private readonly List<DuneVectorToolUnlockId> _pendingToolUnlocks =
+            new List<DuneVectorToolUnlockId>();
         private DuneVectorSandAmbusherSystem _sandAmbusherSystem;
         private bool _warpGateSuspendedSandAmbushers;
         private int _warpGateResumeRisk;
@@ -629,6 +674,8 @@ namespace DuneVector
         private float _warpGateAnnouncementUntil;
         private float _warpGateAnnouncementDuration;
         private GUIStyle _warpGateAnnouncementStyle;
+        private GUIStyle _warpGateAnnouncementKickerStyle;
+        private float _warpGateAnnouncementStyleScale;
         private Vector3 _droneVisualOriginalScale;
         private Material _hubMetalMaterial;
         private Material _hubEnergyMaterial;
@@ -738,6 +785,7 @@ namespace DuneVector
             WorldHubTuning hubSettings,
             DesertAtlasTuning desertAtlasSettings,
             CompassHudTuning compassHudSettings,
+            ToolUnlockCeremonyTuning toolUnlockSettings,
             FreeRoamDeliveryTuning freeRoamDeliverySettings,
             RingTuning ringSettings,
             GeoglyphSystemTuning geoglyphs,
@@ -783,6 +831,11 @@ namespace DuneVector
             Progress = gameObject.AddComponent<DuneVectorCourierProgress>();
             Progress.Initialize();
             _world.SetWarpGateUnlockProgress(Progress.CompletedDeliveries);
+            _toolUnlockSettings = toolUnlockSettings ?? new ToolUnlockCeremonyTuning();
+            _toolUnlockSettings.EnsureInitialized();
+            // The gates have to be configured before the Atlas is built, because the Atlas
+            // reads its own unlock straight off them the moment it initializes.
+            ConfigureToolUnlockGates();
             if (Progress.PendingDeliveryMessageIndex < 0)
             {
                 _permanentUpgrades?.DroneTrails?.SynchronizeContractUnlocks(Progress.CompletedDeliveries);
@@ -797,6 +850,8 @@ namespace DuneVector
                 audio,
                 Progress.DeliveryMessageInputHintAcknowledged,
                 Progress.AcknowledgeDeliveryMessageInputHint);
+            _toolUnlockCeremony = gameObject.AddComponent<DuneVectorToolUnlockCeremony>();
+            _toolUnlockCeremony.Initialize(_toolUnlockSettings, _playerInput);
             _trailUnlockShowcase = gameObject.AddComponent<DuneVectorTrailUnlockShowcase>();
             _trailUnlockShowcase.Initialize(
                 _permanentUpgrades?.DroneTrails?.UnlockShowcaseTuning,
@@ -3605,6 +3660,68 @@ namespace DuneVector
             EnterHubImmediate(openTerminal: false, placePlayerAtSpawn: false);
             EndDeliveryMessageSafety();
             _player.PlayHubReturnEffect(HubFloorPosition);
+            BeginPostReturnPresentation();
+        }
+
+        /// <summary>
+        /// Queues the hub announcements the courier just earned. The field-tool award cards come
+        /// first and run one at a time, because each has to be held through before its tool
+        /// exists; the warp gate banner and the trail showcase wait behind them so the hub never
+        /// stacks two announcements on top of each other.
+        /// </summary>
+        private void BeginPostReturnPresentation()
+        {
+            _pendingToolUnlocks.Clear();
+            if (_toolUnlockCeremony != null && _toolUnlockSettings != null &&
+                _toolUnlockSettings.Enabled && Progress != null && !DuneTrainingRuntime.Enabled)
+            {
+                QueueToolUnlockIfEarned(DuneVectorToolUnlockId.Compass, Progress.CompassUnlockSeen);
+                QueueToolUnlockIfEarned(DuneVectorToolUnlockId.AtlasFinder, Progress.AtlasFinderUnlockSeen);
+            }
+            AdvancePostReturnPresentation();
+        }
+
+        private void QueueToolUnlockIfEarned(DuneVectorToolUnlockId tool, bool alreadySeen)
+        {
+            if (alreadySeen)
+            {
+                return;
+            }
+
+            int required = Mathf.Max(1, _toolUnlockSettings.Resolve(tool).RequiredCompletedContracts);
+            if (Progress.CompletedDeliveries >= required)
+            {
+                _pendingToolUnlocks.Add(tool);
+            }
+        }
+
+        private void AdvancePostReturnPresentation()
+        {
+            while (_pendingToolUnlocks.Count > 0)
+            {
+                DuneVectorToolUnlockId tool = _pendingToolUnlocks[0];
+                _pendingToolUnlocks.RemoveAt(0);
+                if (_toolUnlockCeremony.Open(tool, HandleToolUnlockAuthorized, AdvancePostReturnPresentation))
+                {
+                    return;
+                }
+            }
+
+            FinishPostReturnPresentation();
+        }
+
+        /// <summary>
+        /// Fires the moment the hold meter fills, so the tool's HUD is already live behind the
+        /// card while it fades out.
+        /// </summary>
+        private void HandleToolUnlockAuthorized(DuneVectorToolUnlockId tool)
+        {
+            DuneVectorToolUnlocks.Grant(tool);
+            Progress?.AcknowledgeToolUnlock(tool);
+        }
+
+        private void FinishPostReturnPresentation()
+        {
             TryPlayWarpGateAnnouncement();
             DroneTrailOption unlockedTrail = _permanentUpgrades?.DroneTrails?.SynchronizeContractUnlocks(
                 Progress != null ? Progress.CompletedDeliveries : 0);
@@ -3616,6 +3733,23 @@ namespace DuneVector
             // The showcase carries the unlock messaging on its own, so no status line is raised
             // for trail unlocks in either the showcase or fallback path.
             _trailUnlockShowcase?.Open(unlockedTrail, null);
+        }
+
+        /// <summary>
+        /// Points <see cref="DuneVectorToolUnlocks"/> at saved progress. Training runs never load
+        /// a save and never play the award cards, so they keep every tool.
+        /// </summary>
+        private void ConfigureToolUnlockGates()
+        {
+            bool ceremoniesRun = _toolUnlockSettings.Enabled && !DuneTrainingRuntime.Enabled;
+            DuneVectorToolUnlocks.Configure(
+                DuneVectorToolUnlockId.Compass,
+                _toolUnlockSettings.Compass.RequiredCompletedContracts,
+                !ceremoniesRun || Progress.CompassUnlockSeen);
+            DuneVectorToolUnlocks.Configure(
+                DuneVectorToolUnlockId.AtlasFinder,
+                _toolUnlockSettings.AtlasFinder.RequiredCompletedContracts,
+                !ceremoniesRun || Progress.AtlasFinderUnlockSeen);
         }
 
         private void BeginDeliveryMessageSafety()
@@ -3861,58 +3995,284 @@ namespace DuneVector
             _warpGateAnnouncementDuration = Mathf.Max(0.5f, tuning.UnlockAnnouncementDuration);
             _warpGateAnnouncementUntil = Time.unscaledTime + _warpGateAnnouncementDuration;
             _warpGateAnnouncementStyle = null;
+            _warpGateAnnouncementKickerStyle = null;
             Progress.AcknowledgeWarpGateAnnouncement();
         }
 
+        /// <summary>
+        /// Rebuilds the banner text styles. They are cached against the reference scale so a
+        /// resolution change mid-announcement re-authors the font sizes instead of stretching the
+        /// first frame's. Both styles stay white because the chrome tints text through GUI.color.
+        /// </summary>
+        private void EnsureWarpGateAnnouncementStyles(WarpGateTuning tuning, float scale)
+        {
+            if (_warpGateAnnouncementStyle != null &&
+                _warpGateAnnouncementKickerStyle != null &&
+                Mathf.Approximately(_warpGateAnnouncementStyleScale, scale))
+            {
+                return;
+            }
+            _warpGateAnnouncementStyleScale = scale;
+            _warpGateAnnouncementStyle = LabelStyle(
+                Mathf.RoundToInt(tuning.UnlockAnnouncementFontSize * scale),
+                FontStyle.Bold,
+                TextAnchor.MiddleLeft,
+                Color.white);
+            _warpGateAnnouncementKickerStyle = LabelStyle(
+                Mathf.RoundToInt(tuning.UnlockAnnouncementKickerFontSize * scale),
+                FontStyle.Bold,
+                TextAnchor.MiddleLeft,
+                Color.white);
+        }
+
+        /// <summary>
+        /// Draws the warp gate unlock banner as a glass console card: a bloomed drop shadow, the
+        /// shared HUD glass body and accent rail, corner brackets, a spinning gate sigil, a kicker
+        /// over a gradient divider, the authored message under an accent halo, a scan line that
+        /// sweeps the card, and a countdown bar that drains across the banner's lifetime.
+        /// </summary>
         private void DrawWarpGateAnnouncement()
         {
             WarpGateTuning tuning = _world != null ? _world.WarpGates : null;
-            if (tuning == null || string.IsNullOrEmpty(_warpGateAnnouncement) ||
-                Time.unscaledTime >= _warpGateAnnouncementUntil)
+            if (tuning == null || string.IsNullOrEmpty(_warpGateAnnouncement))
+            {
+                return;
+            }
+            float remaining = _warpGateAnnouncementUntil - Time.unscaledTime;
+            if (remaining <= 0f)
             {
                 return;
             }
 
             float scale = Mathf.Max(0.5f, Screen.height / 1080f);
-            if (_warpGateAnnouncementStyle == null)
-            {
-                _warpGateAnnouncementStyle = LabelStyle(
-                    Mathf.RoundToInt(tuning.UnlockAnnouncementFontSize * scale),
-                    FontStyle.Bold,
-                    TextAnchor.MiddleCenter,
-                    tuning.UnlockAnnouncementTextColor);
-            }
+            EnsureWarpGateAnnouncementStyles(tuning, scale);
 
-            float life01 = 1f - Mathf.Clamp01(
-                (_warpGateAnnouncementUntil - Time.unscaledTime) / Mathf.Max(0.0001f, _warpGateAnnouncementDuration));
-            float width = Mathf.Min(Screen.width * 0.72f, 980f * scale);
-            float height = Mathf.Max(
-                96f * scale,
-                _warpGateAnnouncementStyle.CalcHeight(new GUIContent(_warpGateAnnouncement), width - (48f * scale)) +
-                    (48f * scale));
+            float elapsed = Mathf.Max(0f, _warpGateAnnouncementDuration - remaining);
+            float enter = tuning.UnlockAnnouncementEnterDuration > 0f
+                ? Mathf.Clamp01(elapsed / tuning.UnlockAnnouncementEnterDuration)
+                : 1f;
+            enter = 1f - ((1f - enter) * (1f - enter) * (1f - enter));
+            float exitDuration = Mathf.Min(tuning.UnlockAnnouncementExitDuration, _warpGateAnnouncementDuration);
+            float exit = exitDuration > 0f
+                ? Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(remaining / exitDuration))
+                : 1f;
+            float fade = Mathf.Min(enter, exit);
+            if (fade <= 0.002f)
+            {
+                return;
+            }
+            // The accent set breathes so the card reads as live hardware instead of a static label.
+            float pulse = tuning.UnlockAnnouncementPulsePeriod > 0f
+                ? 1f - (tuning.UnlockAnnouncementPulseStrength *
+                    (0.5f - (0.5f * Mathf.Cos(elapsed * 2f * Mathf.PI / tuning.UnlockAnnouncementPulsePeriod))))
+                : 1f;
+
+            float pad = tuning.UnlockAnnouncementPanelPadding * scale;
+            float gap = tuning.UnlockAnnouncementElementGap * scale;
+            float rail = tuning.UnlockAnnouncementAccentBarWidth * scale;
+            float glyphSize = tuning.UnlockAnnouncementGlyphSize * scale;
+            float width = Mathf.Min(
+                Screen.width * tuning.UnlockAnnouncementMaxScreenWidthFraction,
+                tuning.UnlockAnnouncementPanelWidth * scale);
+            float contentInset = rail + pad + (glyphSize > 0f ? glyphSize + gap : 0f);
+            float textWidth = Mathf.Max(1f, width - contentInset - pad);
+            string kicker = tuning.UnlockAnnouncementKicker;
+            bool hasKicker = !string.IsNullOrEmpty(kicker);
+            float kickerHeight = hasKicker
+                ? _warpGateAnnouncementKickerStyle.CalcHeight(new GUIContent(kicker), textWidth)
+                : 0f;
+            float dividerHeight = hasKicker
+                ? Mathf.Max(1f, tuning.UnlockAnnouncementBorderThickness * scale)
+                : 0f;
+            float messageHeight = _warpGateAnnouncementStyle.CalcHeight(
+                new GUIContent(_warpGateAnnouncement),
+                textWidth);
+            float contentHeight = messageHeight +
+                (hasKicker ? kickerHeight + (gap * 0.5f) + dividerHeight + gap : 0f);
+            float height = Mathf.Max(glyphSize, contentHeight) + (pad * 2f);
+
             Rect panel = new Rect(
-                (Screen.width - width) * 0.5f,
-                Screen.height * 0.3f,
-                width,
-                height);
+                Mathf.Round((Screen.width - width) * 0.5f),
+                Mathf.Round((Screen.height * tuning.UnlockAnnouncementScreenHeightFraction) +
+                    ((1f - enter) * tuning.UnlockAnnouncementSlideDistance * scale)),
+                Mathf.Round(width),
+                Mathf.Round(height));
 
             GUI.depth = -1200;
             Color previousColor = GUI.color;
+            GUI.color = Color.white;
+
+            Color accent = tuning.UnlockAnnouncementAccentColor;
+            Color liveAccent = WithAlpha(accent, accent.a * fade * pulse);
+            Color dimAccent = WithAlpha(accent, accent.a * tuning.UnlockAnnouncementBorderOpacity * fade);
+            Color shadow = tuning.UnlockAnnouncementShadowColor;
+            Vector2 shadowOffset = new Vector2(
+                tuning.UnlockAnnouncementShadowOffset * scale,
+                tuning.UnlockAnnouncementShadowOffset * scale);
+
+            Color vignette = tuning.UnlockAnnouncementVignetteColor;
+            DuneVectorHudChrome.DrawSoftShadow(
+                panel,
+                WithAlpha(vignette, vignette.a * fade),
+                shadowOffset,
+                tuning.UnlockAnnouncementVignettePadding * scale);
+            Color glow = tuning.UnlockAnnouncementGlowColor;
+            DuneVectorHudChrome.DrawSoftShadow(
+                panel,
+                WithAlpha(glow, glow.a * fade * pulse),
+                Vector2.zero,
+                tuning.UnlockAnnouncementGlowSpread * scale);
+
             Color backdrop = tuning.UnlockAnnouncementBackdropColor;
-            float fade = life01 <= 0.85f
-                ? 1f
-                : 1f - Mathf.SmoothStep(0f, 1f, (life01 - 0.85f) / 0.15f);
-            GUI.color = new Color(1f, 1f, 1f, fade);
-            DrawSolidRect(panel, backdrop);
-            GUI.Label(
-                new Rect(
-                    panel.x + (24f * scale),
-                    panel.y,
-                    panel.width - (48f * scale),
-                    panel.height),
+            DuneVectorHudChrome.DrawGlassPanel(
+                panel,
+                WithAlpha(backdrop, backdrop.a * fade),
+                WithAlpha(accent, accent.a * tuning.UnlockAnnouncementBorderOpacity * fade * pulse),
+                Mathf.Max(1f, tuning.UnlockAnnouncementBorderThickness * scale),
+                scale);
+
+            if (tuning.UnlockAnnouncementScanDuration > 0f && tuning.UnlockAnnouncementScanLineHeight > 0f)
+            {
+                float scan = Mathf.Repeat(elapsed / tuning.UnlockAnnouncementScanDuration, 1f);
+                float scanHeight = tuning.UnlockAnnouncementScanLineHeight * scale;
+                float scanY = Mathf.Lerp(panel.y, panel.yMax - scanHeight, scan);
+                // Fades in and out at the ends of the sweep so the line never pops at the edges.
+                Color scanColor = WithAlpha(
+                    accent,
+                    accent.a * tuning.UnlockAnnouncementScanOpacity * Mathf.Sin(scan * Mathf.PI) * fade);
+                float trail = Mathf.Min(tuning.UnlockAnnouncementScanTrailHeight * scale, scanY - panel.y);
+                if (trail > 0f)
+                {
+                    DuneVectorHudChrome.DrawVerticalFade(
+                        new Rect(panel.x + rail, scanY - trail, panel.width - rail, trail),
+                        scanColor,
+                        false);
+                }
+                DuneVectorHudChrome.DrawRect(
+                    new Rect(panel.x + rail, scanY, panel.width - rail, scanHeight),
+                    scanColor);
+            }
+
+            if (rail > 0f)
+            {
+                DuneVectorHudChrome.DrawAccentRail(
+                    panel,
+                    liveAccent,
+                    rail,
+                    tuning.UnlockAnnouncementAccentRailGlowWidth * scale);
+            }
+            DuneVectorHudChrome.DrawCornerBrackets(
+                panel,
+                liveAccent,
+                tuning.UnlockAnnouncementCornerLength * scale,
+                tuning.UnlockAnnouncementCornerThickness * scale);
+
+            if (glyphSize > 0f)
+            {
+                DrawWarpGateGlyph(
+                    new Rect(
+                        panel.x + rail + pad,
+                        panel.y + ((panel.height - glyphSize) * 0.5f),
+                        glyphSize,
+                        glyphSize),
+                    liveAccent,
+                    Mathf.Max(1f, tuning.UnlockAnnouncementGlyphThickness * scale),
+                    elapsed * tuning.UnlockAnnouncementGlyphSpinSpeed,
+                    tuning.UnlockAnnouncementGlyphInnerScale,
+                    tuning.UnlockAnnouncementGlyphCoreScale);
+            }
+
+            float contentX = panel.x + contentInset;
+            float contentY = panel.y + ((panel.height - contentHeight) * 0.5f);
+            Color textShadow = WithAlpha(shadow, shadow.a * fade);
+            if (hasKicker)
+            {
+                Color kickerColor = tuning.UnlockAnnouncementKickerColor;
+                DuneVectorHudChrome.DrawLabel(
+                    new Rect(contentX, contentY, textWidth, kickerHeight),
+                    kicker,
+                    _warpGateAnnouncementKickerStyle,
+                    WithAlpha(kickerColor, kickerColor.a * fade * pulse),
+                    textShadow,
+                    shadowOffset);
+                contentY += kickerHeight + (gap * 0.5f);
+                DuneVectorHudChrome.DrawHorizontalFade(
+                    new Rect(contentX, contentY, textWidth, dividerHeight),
+                    liveAccent,
+                    true);
+                contentY += dividerHeight + gap;
+            }
+            Color textColor = tuning.UnlockAnnouncementTextColor;
+            DuneVectorHudChrome.DrawGlowLabel(
+                new Rect(contentX, contentY, textWidth, messageHeight),
                 _warpGateAnnouncement,
-                _warpGateAnnouncementStyle);
+                _warpGateAnnouncementStyle,
+                WithAlpha(textColor, textColor.a * fade),
+                WithAlpha(accent, accent.a * tuning.UnlockAnnouncementMessageGlowOpacity * fade * pulse),
+                tuning.UnlockAnnouncementMessageGlowRadius * scale,
+                textShadow,
+                shadowOffset);
+
+            if (tuning.UnlockAnnouncementTimerBarHeight > 0f)
+            {
+                float barHeight = tuning.UnlockAnnouncementTimerBarHeight * scale;
+                Rect track = new Rect(panel.x + rail, panel.yMax - barHeight, panel.width - rail, barHeight);
+                DuneVectorHudChrome.DrawRect(track, dimAccent);
+                float remaining01 = Mathf.Clamp01(remaining / Mathf.Max(0.0001f, _warpGateAnnouncementDuration));
+                Rect fill = new Rect(track.x, track.y, track.width * remaining01, track.height);
+                DuneVectorHudChrome.DrawRect(fill, liveAccent);
+                DuneVectorHudChrome.DrawHorizontalFade(
+                    new Rect(
+                        fill.xMax,
+                        track.y,
+                        Mathf.Min(
+                            Mathf.Max(0f, track.xMax - fill.xMax),
+                            tuning.UnlockAnnouncementAccentRailGlowWidth * scale),
+                        track.height),
+                    dimAccent,
+                    true);
+            }
+
             GUI.color = previousColor;
+        }
+
+        /// <summary>
+        /// Draws the gate sigil: two counter-rotating diamond rings around a spinning core. Each
+        /// ring is a square outline rotated about the glyph center, so the outer ring is sized by
+        /// the diagonal of its bounds to keep the rotated corners inside <paramref name="rect"/>.
+        /// </summary>
+        private static void DrawWarpGateGlyph(
+            Rect rect,
+            Color color,
+            float thickness,
+            float spinDegrees,
+            float innerScale,
+            float coreScale)
+        {
+            float outer = Mathf.Min(rect.width, rect.height) / Mathf.Sqrt(2f);
+            if (outer <= 0f)
+            {
+                return;
+            }
+            Vector2 pivot = rect.center;
+            Matrix4x4 previousMatrix = GUI.matrix;
+            GUIUtility.RotateAroundPivot(45f + spinDegrees, pivot);
+            DuneVectorHudChrome.DrawBorder(CenteredSquare(pivot, outer), color, thickness);
+            GUI.matrix = previousMatrix;
+            GUIUtility.RotateAroundPivot(45f - spinDegrees, pivot);
+            DuneVectorHudChrome.DrawBorder(CenteredSquare(pivot, outer * innerScale), color, thickness);
+            GUI.matrix = previousMatrix;
+            if (coreScale > 0f)
+            {
+                GUIUtility.RotateAroundPivot(45f + (spinDegrees * 2f), pivot);
+                DuneVectorHudChrome.DrawRect(CenteredSquare(pivot, outer * coreScale), color);
+                GUI.matrix = previousMatrix;
+            }
+        }
+
+        private static Rect CenteredSquare(Vector2 center, float size)
+        {
+            return new Rect(center.x - (size * 0.5f), center.y - (size * 0.5f), size, size);
         }
 
         private void ShowStatus(string message, float duration)

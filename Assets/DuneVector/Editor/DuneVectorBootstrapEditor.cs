@@ -133,6 +133,7 @@ namespace DuneVector.Editor
         private SerializedProperty _player;
         private SerializedProperty _retroCrtScanlines;
         private SerializedProperty _runtimeBlendModeCube;
+        private SerializedProperty _toolUnlockCeremonies;
         private SerializedProperty _bottomHud;
         private SerializedProperty _mapHud;
         private SerializedProperty _droneVisuals;
@@ -219,6 +220,7 @@ namespace DuneVector.Editor
             _player = serializedObject.FindProperty("PlayerTuning");
             _retroCrtScanlines = serializedObject.FindProperty("RetroCrtScanlines");
             _runtimeBlendModeCube = serializedObject.FindProperty("RuntimeBlendModeCube");
+            _toolUnlockCeremonies = serializedObject.FindProperty("ToolUnlockCeremonies");
             _bottomHud = serializedObject.FindProperty("BottomHud");
             _mapHud = serializedObject.FindProperty("MapHud");
             _droneVisuals = serializedObject.FindProperty("DroneVisuals");
@@ -564,6 +566,10 @@ namespace DuneVector.Editor
                 "Traversal Rings",
                 "Sizes, height bands, and active enlargement for both ring types.",
                 _rings);
+            DuneVectorSettingsInspector.DrawSection(
+                "Field Tool Unlock Cards",
+                "Hub award cards that grant the compass ribbon and the Atlas Finder: contract milestones, artwork, copy, hold-to-confirm timing, and presentation.",
+                _toolUnlockCeremonies);
             DuneVectorSettingsInspector.DrawSection(
                 "Permanent Upgrade Shop",
                 "Upgrade Tier progression curves, gold costs, and pause-shop presentation.",

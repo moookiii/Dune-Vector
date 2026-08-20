@@ -3999,8 +3999,9 @@ namespace DuneVector
     {
         public bool Enabled = true;
 
+        // The contract milestone that unlocks the Atlas Finder lives on the award card that
+        // grants it: DuneVectorRuntimeSettings > ToolUnlockCeremonies > Atlas Finder.
         [Header("Unlock and Discovery")]
-        [Min(0)] public int UnlockCompletedDeliveries;
         [Min(1f)] public float ScanRadius = 24f;
         [Min(0f)] public float ScanProgressDecayPerSecond = 0.7f;
         [Min(1f)] public float SiteVisualSpawnDistance = 950f;
@@ -6998,6 +6999,191 @@ namespace DuneVector
         [ColorUsage(false)] public Color ShadowColor = new Color(0f, 0f, 0f, 0.7f);
     }
 
+    /// <summary>
+    /// One field-tool award card: the contract milestone that grants the tool, the artwork
+    /// printed on the card, and the copy set around it.
+    /// </summary>
+    [System.Serializable]
+    public sealed class ToolUnlockCeremonyEntryTuning
+    {
+        [Tooltip("Completed contracts this tool costs. The card plays on the next return to the hub.")]
+        [Min(1)] public int RequiredCompletedContracts = 1;
+
+        [Tooltip("Artwork printed on the card. It is letterboxed inside the plate, so any aspect ratio is safe.")]
+        public Texture2D Image;
+
+        [Tooltip("Small tracked-out kicker across the card header.")]
+        public string Kicker = "FIELD TOOL ACQUIRED";
+
+        [Tooltip("Tool name set under the artwork.")]
+        public string Title = "TOOL";
+
+        [Tooltip("Two or three lines of flavour explaining what the tool does.")]
+        [TextArea] public string Body = "A new instrument has been fitted to the drone.";
+
+        [Tooltip("Single accented line naming where the tool now appears on the HUD.")]
+        public string Footnote = "NOW ACTIVE ON THE HUD";
+
+        [Tooltip("Card accent. It drives the header bar, the reticle, the hold meter, and the confirm flash.")]
+        [ColorUsage(false)] public Color AccentColor = new Color(0.38f, 0.95f, 0.84f, 1f);
+    }
+
+    /// <summary>
+    /// Hub award cards that grant the compass and the Atlas Finder. Each card must be held
+    /// through an authorization meter, so the tool is never handed over by an accidental click.
+    /// </summary>
+    [System.Serializable]
+    public sealed class ToolUnlockCeremonyTuning
+    {
+        [Tooltip("Turn this off to hand the courier every field tool from the first contract.")]
+        public bool Enabled = true;
+
+        [Header("Award Cards")]
+        public ToolUnlockCeremonyEntryTuning Compass = new ToolUnlockCeremonyEntryTuning
+        {
+            RequiredCompletedContracts = 1,
+            Title = "SURVEY COMPASS",
+            AccentColor = new Color(0.36f, 0.96f, 0.78f, 1f),
+        };
+
+        public ToolUnlockCeremonyEntryTuning AtlasFinder = new ToolUnlockCeremonyEntryTuning
+        {
+            RequiredCompletedContracts = 2,
+            Title = "ATLAS FINDER",
+            AccentColor = new Color(0.42f, 0.92f, 0.95f, 1f),
+        };
+
+        [Header("Hold To Confirm")]
+        [Tooltip("Seconds the courier holds click, space or enter before the tool is granted.")]
+        [Min(0.05f)] public float HoldSeconds = 1.15f;
+
+        [Tooltip("Fraction of the meter lost per second once the hold is released.")]
+        [Min(0f)] public float HoldReleaseDecayPerSecond = 1.8f;
+
+        [Tooltip("Seconds the card ignores input after opening so the press that closed the previous screen cannot start the hold.")]
+        [Min(0f)] public float OpenInputDelay = 0.3f;
+        [Min(0.01f)] public float OpenFadeDuration = 0.45f;
+        [Min(0.01f)] public float CloseFadeDuration = 0.32f;
+        [Min(0f)] public float ConfirmFlashDuration = 0.26f;
+        [Range(0f, 1f)] public float ConfirmFlashStrength = 0.42f;
+        public string HoldPrompt = "HOLD CLICK / SPACE / ENTER";
+        public string HoldActivePrompt = "AUTHORIZING";
+        [Min(1)] public int HoldSegmentCount = 28;
+
+        [Header("Responsive Page Layout")]
+        [Min(320f)] public float ReferenceWidth = 1920f;
+        [Min(240f)] public float ReferenceHeight = 1080f;
+        [Range(0.5f, 2f)] public float MinimumScale = 0.62f;
+        [Range(0.5f, 2f)] public float MaximumScale = 1.15f;
+        [Min(360f)] public float PanelWidth = 880f;
+        [Min(280f)] public float PanelHeight = 782f;
+        [Min(8f)] public float PanelPadding = 30f;
+        [Range(0.5f, 1f)] public float EntranceScale = 0.965f;
+        [Min(40f)] public float HeaderHeight = 66f;
+        [Min(1f)] public float AccentBarHeight = 5f;
+        [Min(0f)] public float AccentGlowHeight = 26f;
+        [Range(0f, 1f)] public float AccentGlowOpacity = 0.3f;
+        [Min(1f)] public float BorderThickness = 1f;
+        [Min(0f)] public float ShadowOffset = 12f;
+        [Min(0f)] public float ShadowSpread = 16f;
+        [Tooltip("IMGUI draw order. Lower values draw in front, so this must stay under every other overlay.")]
+        public int GuiDepth = -1300;
+
+        [Header("Artwork Plate And Reticle")]
+        [Tooltip("Edge length of the square artwork plate at reference resolution.")]
+        [Min(64f)] public float ImagePlateSize = 262f;
+        [Min(0f)] public float CornerBracketLength = 26f;
+        [Min(1f)] public float CornerBracketThickness = 2f;
+        [Tooltip("Seconds the survey sweep takes to cross the artwork.")]
+        [Min(0.05f)] public float ImageSweepSeconds = 3.4f;
+        [Min(1f)] public float ImageSweepHeight = 66f;
+        [Range(0f, 1f)] public float ImageSweepOpacity = 0.16f;
+        [Range(0f, 1f)] public float ImageSweepLineOpacity = 0.55f;
+        [Tooltip("Radius of the outer reticle ring. Keep it clear of the plate's corners.")]
+        [Min(24f)] public float ReticleRadius = 190f;
+        [Min(1)] public int ReticleOuterTickCount = 60;
+        [Min(1f)] public float ReticleOuterTickLength = 11f;
+        [Tooltip("Length multiplier applied to outer ticks the hold has already lit.")]
+        [Min(1f)] public float ReticleFilledTickLengthMultiplier = 1.7f;
+        [Min(1f)] public float ReticleTickThickness = 2f;
+        [Min(0f)] public float ReticleRingGap = 22f;
+        [Min(1)] public int ReticleInnerTickCount = 120;
+        [Min(1f)] public float ReticleInnerTickLength = 4f;
+        [Tooltip("Inner ring speed as a fraction of the outer ring's, spun the other way.")]
+        [Min(0f)] public float ReticleInnerSpeedRatio = 0.45f;
+        [Min(0f)] public float ReticleSpurGap = 9f;
+        [Min(0f)] public float ReticleSpurLength = 22f;
+        public float ReticleDegreesPerSecond = 7f;
+        [Tooltip("Ring speed multiplier reached at a full hold.")]
+        [Min(1f)] public float ReticleHoldSpeedMultiplier = 5f;
+
+        [Header("Typography")]
+        [Min(10)] public int KickerFontSize = 16;
+        [Min(0)] public int KickerLetterSpacing = 2;
+        [Min(10)] public int TitleFontSize = 34;
+        [Min(0f)] public float TitleTopGap = 22f;
+        [Range(0f, 1f)] public float TitleGlowOpacity = 0.35f;
+        [Min(0f)] public float TitleGlowRadius = 2f;
+        [Min(0f)] public float TitleShadowOffset = 2f;
+        [Min(0f)] public float TitleRuleTopGap = 12f;
+        [Min(0f)] public float TitleRuleWidth = 260f;
+        [Min(1f)] public float TitleRuleHeight = 2f;
+        [Min(9)] public int BodyFontSize = 16;
+        [Min(0f)] public float BodyTopGap = 18f;
+        [Min(0f)] public float BodySideInset = 54f;
+        [Min(9)] public int FootnoteFontSize = 13;
+        [Min(0f)] public float FootnoteBottomGap = 12f;
+        [Range(0f, 1f)] public float FootnoteOpacity = 0.85f;
+        [Min(9)] public int PromptFontSize = 14;
+        [Min(0)] public int PromptLetterSpacing = 1;
+        [Min(0f)] public float PromptBottomGap = 12f;
+        [Range(0f, 1f)] public float PromptMinimumAlpha = 0.4f;
+        [Min(0f)] public float PromptPulseSpeed = 3f;
+
+        [Header("Hold Meter")]
+        [Min(4f)] public float HoldMeterHeight = 12f;
+        [Min(0f)] public float HoldMeterSideInset = 48f;
+        [Min(0f)] public float HoldMeterBottomGap = 30f;
+        [Min(0f)] public float HoldMeterInset = 2f;
+        [Min(0f)] public float HoldMeterCapWidth = 3f;
+        [Range(0f, 1f)] public float HoldCapWhiteness = 0.65f;
+        [Range(0f, 1f)] public float HoldFillBaseOpacity = 0.45f;
+        [Min(0f)] public float HoldBloomWidth = 16f;
+        [Range(0f, 1f)] public float HoldBloomOpacity = 0.35f;
+        [Range(0f, 1f)] public float HoldTrackBorderOpacity = 0.35f;
+
+        [Header("Palette")]
+        [ColorUsage(false)] public Color BackdropColor = new Color(0.004f, 0.012f, 0.02f, 0.86f);
+        [ColorUsage(false)] public Color VignetteColor = new Color(0f, 0f, 0f, 0.55f);
+        [Min(0f)] public float VignetteBandSize = 260f;
+        [ColorUsage(false)] public Color ShadowColor = new Color(0f, 0f, 0f, 0.55f);
+        [ColorUsage(false)] public Color PanelColor = new Color(0.021f, 0.042f, 0.062f, 0.985f);
+        [ColorUsage(false)] public Color PanelSheenColor = new Color(0.5f, 0.85f, 1f, 0.07f);
+        [ColorUsage(false)] public Color PanelDepthColor = new Color(0f, 0.016f, 0.032f, 0.45f);
+        [ColorUsage(false)] public Color PanelBorderColor = new Color(0.28f, 0.46f, 0.55f, 0.8f);
+        [ColorUsage(false)] public Color HeaderColor = new Color(0.03f, 0.068f, 0.094f, 0.98f);
+        [ColorUsage(false)] public Color ImagePlateColor = new Color(0.008f, 0.02f, 0.03f, 1f);
+        [ColorUsage(false)] public Color ImagePlateBorderColor = new Color(0.3f, 0.52f, 0.6f, 0.75f);
+        [ColorUsage(false)] public Color ReticleColor = new Color(0.44f, 0.66f, 0.75f, 0.42f);
+        [ColorUsage(false)] public Color HoldTrackColor = new Color(0.02f, 0.05f, 0.07f, 0.9f);
+        [ColorUsage(false)] public Color HoldSegmentColor = new Color(0.01f, 0.03f, 0.045f, 0.85f);
+        [ColorUsage(false)] public Color PrimaryTextColor = new Color(0.92f, 0.98f, 1f, 1f);
+        [ColorUsage(false)] public Color SecondaryTextColor = new Color(0.55f, 0.71f, 0.78f, 1f);
+        [ColorUsage(false)] public Color PromptColor = new Color(0.82f, 0.92f, 1f, 1f);
+
+        public void EnsureInitialized()
+        {
+            Compass ??= new ToolUnlockCeremonyEntryTuning();
+            AtlasFinder ??= new ToolUnlockCeremonyEntryTuning();
+        }
+
+        public ToolUnlockCeremonyEntryTuning Resolve(DuneVectorToolUnlockId tool)
+        {
+            EnsureInitialized();
+            return tool == DuneVectorToolUnlockId.Compass ? Compass : AtlasFinder;
+        }
+    }
+
     [System.Serializable]
     public sealed class LaunchHudTuning
     {
@@ -7348,17 +7534,131 @@ namespace DuneVector
         [Tooltip("Banner shown in the hub the first time the courier returns after the gates unlock.")]
         [TextArea] public string UnlockAnnouncement = "Blue Warp Gates have been scattered in the desert.";
 
+        [Tooltip("Small kicker line drawn above the unlock banner message. Leave it empty to hide the kicker row and its divider.")]
+        public string UnlockAnnouncementKicker = "W A R P   G A T E   N E T W O R K   O N L I N E";
+
         [Tooltip("Seconds the unlock banner stays on screen.")]
-        [Min(0.5f)] public float UnlockAnnouncementDuration = 6f;
+        [Min(0.5f)] public float UnlockAnnouncementDuration = 24f;
 
-        [Tooltip("Font size of the unlock banner text at a 1080p reference height.")]
-        [Min(8)] public int UnlockAnnouncementFontSize = 34;
+        [Tooltip("Font size of the unlock banner message at a 1080p reference height.")]
+        [Min(8)] public int UnlockAnnouncementFontSize = 38;
 
-        [Tooltip("Text color of the unlock banner.")]
-        public Color UnlockAnnouncementTextColor = new Color(0.78f, 0.92f, 1f, 1f);
+        [Tooltip("Font size of the kicker line at a 1080p reference height.")]
+        [Min(6)] public int UnlockAnnouncementKickerFontSize = 19;
+
+        [Tooltip("Opacity of the accent halo drawn around the banner message.")]
+        [Range(0f, 1f)] public float UnlockAnnouncementMessageGlowOpacity = 0.3f;
+
+        [Tooltip("Radius of the accent halo drawn around the banner message, in reference pixels.")]
+        [Min(0f)] public float UnlockAnnouncementMessageGlowRadius = 2f;
+
+        [Tooltip("Text color of the unlock banner message.")]
+        public Color UnlockAnnouncementTextColor = new Color(0.9f, 0.97f, 1f, 1f);
+
+        [Tooltip("Text color of the kicker line above the message.")]
+        public Color UnlockAnnouncementKickerColor = new Color(0.42f, 0.85f, 1f, 1f);
 
         [Tooltip("Backdrop color drawn behind the unlock banner.")]
         public Color UnlockAnnouncementBackdropColor = new Color(0.02f, 0.03f, 0.07f, 0.78f);
+
+        [Tooltip("Accent color shared by the banner outline, edge bar, corner brackets, gate glyph, scan sweep, and countdown bar.")]
+        public Color UnlockAnnouncementAccentColor = new Color(0.36f, 0.82f, 1f, 1f);
+
+        [Tooltip("Drop-shadow color drawn under the banner text.")]
+        public Color UnlockAnnouncementShadowColor = new Color(0f, 0.02f, 0.05f, 0.85f);
+
+        [Tooltip("Drop-shadow offset under the banner text, in 1080p reference pixels.")]
+        [Min(0f)] public float UnlockAnnouncementShadowOffset = 2f;
+
+        [Tooltip("Color of the soft bloom stacked outside the banner. Keep the alpha low because it is layered several times.")]
+        public Color UnlockAnnouncementGlowColor = new Color(0.24f, 0.7f, 1f, 0.075f);
+
+        [Tooltip("How far the bloom bleeds past the banner edge, in reference pixels. 0 disables the bloom.")]
+        [Min(0f)] public float UnlockAnnouncementGlowSpread = 22f;
+
+        [Tooltip("Dark vignette drawn behind the banner so the message still reads over bright sky.")]
+        public Color UnlockAnnouncementVignetteColor = new Color(0.01f, 0.02f, 0.05f, 0.32f);
+
+        [Tooltip("Reference pixels the vignette extends past the banner on every side.")]
+        [Min(0f)] public float UnlockAnnouncementVignettePadding = 28f;
+
+        [Tooltip("Banner width at a 1080p reference height, before the screen-width clamp below is applied.")]
+        [Min(120f)] public float UnlockAnnouncementPanelWidth = 1180f;
+
+        [Tooltip("Hard clamp on banner width as a fraction of screen width.")]
+        [Range(0.2f, 1f)] public float UnlockAnnouncementMaxScreenWidthFraction = 0.86f;
+
+        [Tooltip("Inner padding between the banner edge and its content, in reference pixels.")]
+        [Min(0f)] public float UnlockAnnouncementPanelPadding = 30f;
+
+        [Tooltip("Spacing between the banner rows, in reference pixels.")]
+        [Min(0f)] public float UnlockAnnouncementElementGap = 14f;
+
+        [Tooltip("Thickness of the banner outline and the kicker divider, in reference pixels.")]
+        [Min(0f)] public float UnlockAnnouncementBorderThickness = 1.5f;
+
+        [Tooltip("Width of the solid accent bar down the left edge of the banner, in reference pixels.")]
+        [Min(0f)] public float UnlockAnnouncementAccentBarWidth = 6f;
+
+        [Tooltip("Opacity of the accent used for the banner outline, kicker divider, and countdown track.")]
+        [Range(0f, 1f)] public float UnlockAnnouncementBorderOpacity = 0.55f;
+
+        [Tooltip("How far the accent rail's glow bleeds into the banner, in reference pixels.")]
+        [Min(0f)] public float UnlockAnnouncementAccentRailGlowWidth = 26f;
+
+        [Tooltip("Length of the bright corner brackets, in reference pixels. 0 hides them.")]
+        [Min(0f)] public float UnlockAnnouncementCornerLength = 34f;
+
+        [Tooltip("Thickness of the bright corner brackets, in reference pixels.")]
+        [Min(0f)] public float UnlockAnnouncementCornerThickness = 3f;
+
+        [Tooltip("Banner top edge as a fraction of screen height.")]
+        [Range(0f, 0.9f)] public float UnlockAnnouncementScreenHeightFraction = 0.27f;
+
+        [Tooltip("Seconds the banner takes to slide up and fade in.")]
+        [Min(0f)] public float UnlockAnnouncementEnterDuration = 0.6f;
+
+        [Tooltip("Seconds the banner takes to fade back out before it expires.")]
+        [Min(0f)] public float UnlockAnnouncementExitDuration = 1.2f;
+
+        [Tooltip("Distance the banner slides up while it fades in, in reference pixels.")]
+        [Min(0f)] public float UnlockAnnouncementSlideDistance = 48f;
+
+        [Tooltip("Seconds for one pass of the scan line sweeping down the banner. 0 disables the sweep.")]
+        [Min(0f)] public float UnlockAnnouncementScanDuration = 3.4f;
+
+        [Tooltip("Thickness of the sweeping scan line, in reference pixels.")]
+        [Min(0f)] public float UnlockAnnouncementScanLineHeight = 2f;
+
+        [Tooltip("Peak opacity of the sweeping scan line.")]
+        [Range(0f, 1f)] public float UnlockAnnouncementScanOpacity = 0.3f;
+
+        [Tooltip("Height of the fading trail dragged behind the scan line, in reference pixels. 0 draws a bare line.")]
+        [Min(0f)] public float UnlockAnnouncementScanTrailHeight = 26f;
+
+        [Tooltip("Seconds for one accent brightness pulse. 0 holds the accent steady.")]
+        [Min(0f)] public float UnlockAnnouncementPulsePeriod = 2.4f;
+
+        [Tooltip("How far the accent brightness dips at the bottom of each pulse.")]
+        [Range(0f, 1f)] public float UnlockAnnouncementPulseStrength = 0.32f;
+
+        [Tooltip("Height of the countdown bar drawn along the bottom edge, in reference pixels. 0 hides it.")]
+        [Min(0f)] public float UnlockAnnouncementTimerBarHeight = 3f;
+
+        [Tooltip("Size of the spinning gate glyph drawn at the left of the banner, in reference pixels. 0 hides it.")]
+        [Min(0f)] public float UnlockAnnouncementGlyphSize = 74f;
+
+        [Tooltip("Line thickness of the gate glyph rings, in reference pixels.")]
+        [Min(0.5f)] public float UnlockAnnouncementGlyphThickness = 2.5f;
+
+        [Tooltip("Degrees per second the gate glyph rings counter-rotate.")]
+        public float UnlockAnnouncementGlyphSpinSpeed = 16f;
+
+        [Tooltip("Inner glyph ring size as a fraction of the outer ring.")]
+        [Range(0.1f, 0.95f)] public float UnlockAnnouncementGlyphInnerScale = 0.56f;
+
+        [Tooltip("Glyph core size as a fraction of the outer ring. 0 hides the core.")]
+        [Range(0f, 0.8f)] public float UnlockAnnouncementGlyphCoreScale = 0.24f;
 
         public void EnsureInitialized()
         {
@@ -7377,8 +7677,42 @@ namespace DuneVector
             UnlockAnnouncement = string.IsNullOrWhiteSpace(UnlockAnnouncement)
                 ? "Blue Warp Gates have been scattered in the desert."
                 : UnlockAnnouncement.Trim();
+            UnlockAnnouncementKicker = UnlockAnnouncementKicker == null
+                ? string.Empty
+                : UnlockAnnouncementKicker.Trim();
             UnlockAnnouncementDuration = Mathf.Max(0.5f, UnlockAnnouncementDuration);
             UnlockAnnouncementFontSize = Mathf.Max(8, UnlockAnnouncementFontSize);
+            UnlockAnnouncementKickerFontSize = Mathf.Max(6, UnlockAnnouncementKickerFontSize);
+            UnlockAnnouncementShadowOffset = Mathf.Max(0f, UnlockAnnouncementShadowOffset);
+            UnlockAnnouncementGlowSpread = Mathf.Max(0f, UnlockAnnouncementGlowSpread);
+            UnlockAnnouncementVignettePadding = Mathf.Max(0f, UnlockAnnouncementVignettePadding);
+            UnlockAnnouncementPanelWidth = Mathf.Max(120f, UnlockAnnouncementPanelWidth);
+            UnlockAnnouncementMaxScreenWidthFraction = Mathf.Clamp(UnlockAnnouncementMaxScreenWidthFraction, 0.2f, 1f);
+            UnlockAnnouncementPanelPadding = Mathf.Max(0f, UnlockAnnouncementPanelPadding);
+            UnlockAnnouncementElementGap = Mathf.Max(0f, UnlockAnnouncementElementGap);
+            UnlockAnnouncementBorderThickness = Mathf.Max(0f, UnlockAnnouncementBorderThickness);
+            UnlockAnnouncementAccentBarWidth = Mathf.Max(0f, UnlockAnnouncementAccentBarWidth);
+            UnlockAnnouncementBorderOpacity = Mathf.Clamp01(UnlockAnnouncementBorderOpacity);
+            UnlockAnnouncementAccentRailGlowWidth = Mathf.Max(0f, UnlockAnnouncementAccentRailGlowWidth);
+            UnlockAnnouncementMessageGlowOpacity = Mathf.Clamp01(UnlockAnnouncementMessageGlowOpacity);
+            UnlockAnnouncementMessageGlowRadius = Mathf.Max(0f, UnlockAnnouncementMessageGlowRadius);
+            UnlockAnnouncementScanTrailHeight = Mathf.Max(0f, UnlockAnnouncementScanTrailHeight);
+            UnlockAnnouncementCornerLength = Mathf.Max(0f, UnlockAnnouncementCornerLength);
+            UnlockAnnouncementCornerThickness = Mathf.Max(0f, UnlockAnnouncementCornerThickness);
+            UnlockAnnouncementScreenHeightFraction = Mathf.Clamp(UnlockAnnouncementScreenHeightFraction, 0f, 0.9f);
+            UnlockAnnouncementEnterDuration = Mathf.Max(0f, UnlockAnnouncementEnterDuration);
+            UnlockAnnouncementExitDuration = Mathf.Max(0f, UnlockAnnouncementExitDuration);
+            UnlockAnnouncementSlideDistance = Mathf.Max(0f, UnlockAnnouncementSlideDistance);
+            UnlockAnnouncementScanDuration = Mathf.Max(0f, UnlockAnnouncementScanDuration);
+            UnlockAnnouncementScanLineHeight = Mathf.Max(0f, UnlockAnnouncementScanLineHeight);
+            UnlockAnnouncementScanOpacity = Mathf.Clamp01(UnlockAnnouncementScanOpacity);
+            UnlockAnnouncementPulsePeriod = Mathf.Max(0f, UnlockAnnouncementPulsePeriod);
+            UnlockAnnouncementPulseStrength = Mathf.Clamp01(UnlockAnnouncementPulseStrength);
+            UnlockAnnouncementTimerBarHeight = Mathf.Max(0f, UnlockAnnouncementTimerBarHeight);
+            UnlockAnnouncementGlyphSize = Mathf.Max(0f, UnlockAnnouncementGlyphSize);
+            UnlockAnnouncementGlyphThickness = Mathf.Max(0.5f, UnlockAnnouncementGlyphThickness);
+            UnlockAnnouncementGlyphInnerScale = Mathf.Clamp(UnlockAnnouncementGlyphInnerScale, 0.1f, 0.95f);
+            UnlockAnnouncementGlyphCoreScale = Mathf.Clamp(UnlockAnnouncementGlyphCoreScale, 0f, 0.8f);
         }
     }
 
@@ -8971,6 +9305,9 @@ namespace DuneVector
         [Tooltip("Top-center heading ribbon driven by the gameplay camera's yaw.")]
         public CompassHudTuning CompassHud = new CompassHudTuning();
 
+        [Tooltip("Hub award cards that grant the compass ribbon and the Atlas Finder after their contract milestones.")]
+        public ToolUnlockCeremonyTuning ToolUnlockCeremonies = new ToolUnlockCeremonyTuning();
+
         [Tooltip("Opening control reminder panel displayed beneath the compass.")]
         public LaunchHudTuning LaunchHud = new LaunchHudTuning();
 
@@ -9250,6 +9587,8 @@ namespace DuneVector
             PlayerTuning ??= new DroneTuning();
             PlayerTuning.EnsureInitialized();
             CompassHud ??= new CompassHudTuning();
+            ToolUnlockCeremonies ??= new ToolUnlockCeremonyTuning();
+            ToolUnlockCeremonies.EnsureInitialized();
             LaunchHud ??= new LaunchHudTuning();
             BottomHud ??= new BottomHudTuning();
             MapHud ??= new MapHudTuning();

@@ -24,9 +24,12 @@ namespace DuneVector
                 return;
             }
 
+            // The ribbon is a field tool the courier is awarded, not standard equipment, so it
+            // stays off the screen entirely until its hub award card has been held through.
             if (_camera == null
                 || _settings == null
                 || !_settings.Enabled
+                || !DuneVectorToolUnlocks.IsUnlocked(DuneVectorToolUnlockId.Compass)
                 || DuneVectorCourierGame.IsGameplayHudSuppressed)
             {
                 return;

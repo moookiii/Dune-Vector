@@ -42,8 +42,24 @@ namespace DuneVector
             public Vector3 DiscoveredMarkerBaseScale;
         }
 
-        public bool IsUnlocked => _settings != null && _settings.Enabled && _progress != null &&
-            _progress.CompletedDeliveries >= Mathf.Max(0, _settings.UnlockCompletedDeliveries);
+        /// <summary>
+        /// The Atlas Finder is handed over by its hub award card, so the whole survey layer -
+        /// signals, scanner, HUD and terminal - stays dark until the courier has held that card
+        /// through. <see cref="DuneVectorToolUnlocks"/> is the authority; it is configured from
+        /// saved progress before this component is built.
+        /// </summary>
+        public bool IsUnlocked => _settings != null && _settings.Enabled &&
+            DuneVectorToolUnlocks.IsUnlocked(DuneVectorToolUnlockId.AtlasFinder);
+        /// <summary>
+        /// Contracts still owed before the Atlas Finder card plays. The card only plays on a
+        /// return to the hub, so a save that already cleared the milestone reports one more
+        /// contract rather than a meaningless zero.
+        /// </summary>
+        private int RemainingUnlockContracts => Mathf.Max(
+            1,
+            DuneVectorToolUnlocks.GetRequiredContracts(DuneVectorToolUnlockId.AtlasFinder) -
+                (_progress != null ? _progress.CompletedDeliveries : 0));
+
         public int DiscoveredCount
         {
             get
@@ -180,8 +196,7 @@ namespace DuneVector
             {
                 return _settings.TerminalNearbyPrompt;
             }
-            int remaining = Mathf.Max(0, _settings.UnlockCompletedDeliveries - (_progress?.CompletedDeliveries ?? 0));
-            return FormatDesignerText(_settings.LockedNearbyPromptFormat, remaining);
+            return FormatDesignerText(_settings.LockedNearbyPromptFormat, RemainingUnlockContracts);
         }
 
         private void Update()
@@ -1556,7 +1571,7 @@ namespace DuneVector
 
             if (!IsUnlocked)
             {
-                int remaining = Mathf.Max(0, _settings.UnlockCompletedDeliveries - (_progress?.CompletedDeliveries ?? 0));
+                int remaining = RemainingUnlockContracts;
                 GUI.Label(new Rect(panel.x + padding, panel.y + _settings.TerminalHeaderHeight,
                     panel.width - (padding * 2f), panel.height - _settings.TerminalHeaderHeight),
                     $"{_settings.TerminalLockedTitle}\n\n{FormatDesignerText(_settings.TerminalLockedBodyFormat, remaining, remaining == 1 ? string.Empty : "s")}",
