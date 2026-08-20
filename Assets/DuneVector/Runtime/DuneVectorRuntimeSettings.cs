@@ -8484,6 +8484,10 @@ namespace DuneVector
         [Min(1f)] public float ProceduralPlaneHalfExtent = 100f;
         [Tooltip("Random forward-depth variation added when a procedural ring segment is recycled.")]
         [Min(0f)] public float ProceduralRingDepthJitter = 24f;
+        [Tooltip("Forward distance ahead of the drone at which an approaching traversal ring latches on and hovers, holding that gap. Zero disables the hover.")]
+        [Min(0f)] public float RingHoverTriggerDistance = 260f;
+        [Tooltip("How long a traversal ring hovers with the drone before releasing and staying fixed in the world again.")]
+        [Min(0f)] public float RingHoverDuration = 3f;
         [Header("Environment Obstacles")]
         public GameObject SatellitePrefab;
         public GameObject SatelliteExplosionPrefab;
