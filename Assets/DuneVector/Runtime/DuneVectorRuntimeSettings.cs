@@ -6340,7 +6340,7 @@ namespace DuneVector
         public string VideoVisualizerFovLabel = "VISUALIZER FOV";
         public string VideoEffectEnabledLabel = "ON";
         public string VideoEffectDisabledLabel = "OFF";
-        [Tooltip("Additional vertical space below the capped-FPS toggle and the bottom navigation buttons.")]
+        [Tooltip("Additional screen-pixel space below the capped-FPS toggle and the bottom navigation buttons.")]
         [Min(0f)] public float VideoSettingsExtraGap = 3f;
         public bool DefaultChromaticAberrationEnabled;
         public bool DefaultLensDistortionEnabled;

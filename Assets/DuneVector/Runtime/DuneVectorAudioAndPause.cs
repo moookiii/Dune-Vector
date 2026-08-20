@@ -2482,7 +2482,7 @@ namespace DuneVector
                 _audio.SetFrameRateCapped(!frameRateCapped);
             }
             GUI.enabled = previousEnabled;
-            y += buttonHeight + gap + (_visuals.VideoSettingsExtraGap * scale);
+            y += buttonHeight + gap + _visuals.VideoSettingsExtraGap;
 
             int minimumFrameRate = Mathf.Max(1, _visuals.MinimumFrameRateLimit);
             int maximumFrameRate = Mathf.Max(minimumFrameRate, _visuals.MaximumFrameRateLimit);
@@ -2592,12 +2592,12 @@ namespace DuneVector
                 _showVideoSettings = false;
             }
 
-            float navigationBottom = y + buttonHeight + (_visuals.VideoSettingsExtraGap * scale);
-            DrawFooterHint(
+            float footerY = y + buttonHeight + _visuals.VideoSettingsExtraGap;
+            DrawFooterHintAtY(
                 content,
                 TitleMode ? _titleVideoFooterHint : _visuals.VideoSettingsHintLabel,
                 scale,
-                navigationBottom);
+                footerY);
         }
 
         private void DrawMusicVisualizerSettingsScreen(float scale)
@@ -3561,11 +3561,17 @@ namespace DuneVector
             return y + height + (_visuals.ButtonGap * scale);
         }
 
-        private void DrawFooterHint(Rect content, string text, float scale, float minimumY = float.NegativeInfinity)
+        private void DrawFooterHint(Rect content, string text, float scale)
         {
             float hintHeight = _hintStyle.lineHeight;
-            float hintY = Mathf.Max(content.yMax - hintHeight, minimumY);
-            Rect hintRect = new Rect(content.x, hintY, content.width, hintHeight);
+            Rect hintRect = new Rect(content.x, content.yMax - hintHeight, content.width, hintHeight);
+            DrawTrackedLabel(hintRect, text, _hintStyle, _visuals.HintTracking * scale, _visuals.SecondaryTextColor);
+        }
+
+        private void DrawFooterHintAtY(Rect content, string text, float scale, float y)
+        {
+            float hintHeight = _hintStyle.lineHeight;
+            Rect hintRect = new Rect(content.x, y, content.width, hintHeight);
             DrawTrackedLabel(hintRect, text, _hintStyle, _visuals.HintTracking * scale, _visuals.SecondaryTextColor);
         }
 
