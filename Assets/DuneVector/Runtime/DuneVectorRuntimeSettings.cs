@@ -7314,7 +7314,7 @@ namespace DuneVector
         [Min(0)] public int RequiredCompletedContracts = 1;
 
         [Tooltip("Banner shown in the hub the first time the courier returns after the gates unlock.")]
-        [TextArea] public string UnlockAnnouncement = "Warp Gates to space have been scattered in the desert.";
+        [TextArea] public string UnlockAnnouncement = "Blue Warp Gates have been scattered in the desert.";
 
         [Tooltip("Seconds the unlock banner stays on screen.")]
         [Min(0.5f)] public float UnlockAnnouncementDuration = 6f;
@@ -7343,7 +7343,7 @@ namespace DuneVector
             PrefabScaleMultiplier = Mathf.Max(0.01f, PrefabScaleMultiplier);
             RequiredCompletedContracts = Mathf.Max(0, RequiredCompletedContracts);
             UnlockAnnouncement = string.IsNullOrWhiteSpace(UnlockAnnouncement)
-                ? "Warp Gates to space have been scattered in the desert."
+                ? "Blue Warp Gates have been scattered in the desert."
                 : UnlockAnnouncement.Trim();
             UnlockAnnouncementDuration = Mathf.Max(0.5f, UnlockAnnouncementDuration);
             UnlockAnnouncementFontSize = Mathf.Max(8, UnlockAnnouncementFontSize);
@@ -8443,6 +8443,8 @@ namespace DuneVector
         [Min(0f)] public float CorridorHalfHeight = 25f;
         [Min(0f)] public float WreckageRotationSpeed = 13f;
         [Min(0f)] public float GateRadius = 13f;
+        [Tooltip("Fraction of recurring purple navigation rings converted into health rings. The remaining rings retain their black-ring speed boost.")]
+        [Range(0f, 1f)] public float NavigationHealthRingFraction = 0.5f;
         [Tooltip("Color used by recurring and repair flight rings in the rail subgame. Upper-flight rail rings are presented as white.")]
         [ColorUsage(false, true)] public Color NavigationRingColor = new Color(4.8f, 0.08f, 8f, 1f);
         [Tooltip("Maximum half-size of the procedural X/Y plane used to scatter pooled course rings. Runtime placement still clamps every ring center inside the drone's screen-space play boundary.")]

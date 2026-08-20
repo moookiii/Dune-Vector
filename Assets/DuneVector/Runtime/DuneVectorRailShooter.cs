@@ -228,7 +228,9 @@ namespace DuneVector
         {
             public Transform Root;
             public Vector2 PlaneOffset;
+            public TraversalRingType RingType;
             public bool BlackRingBoostCollected;
+            public bool HealthRingCollected;
             public readonly List<Transform> Rotators = new List<Transform>();
         }
 
@@ -2761,14 +2763,20 @@ namespace DuneVector
             for (int i = 0; i < _segments.Count; i++)
             {
                 RiftSegment segment = _segments[i];
-                if (!segment.BlackRingBoostCollected &&
-                    HasPassedRailNavigationRing(
+                if (HasPassedRailNavigationRing(
                         previousPlayerPosition,
                         playerPosition,
                         segment.Root.position,
                         _settings.GateRadius))
                 {
-                    ActivateBlackRingBoost(segment);
+                    if (segment.RingType == TraversalRingType.Health)
+                    {
+                        CollectRailHealthRing(segment);
+                    }
+                    else if (!segment.BlackRingBoostCollected)
+                    {
+                        ActivateBlackRingBoost(segment);
+                    }
                 }
                 if (segment.Root.position.z < playerPosition.z - _settings.EnvironmentRecycleBehindDistance)
                 {
@@ -3283,15 +3291,31 @@ namespace DuneVector
                 {
                     Root = NewRoot($"Rift Segment {i + 1:00}", _environmentRoot),
                 };
+                TraversalRingType ringType = ShouldUseRailHealthRing(
+                    i,
+                    _settings.EnvironmentSegmentCount,
+                    _settings.NavigationHealthRingFraction)
+                    ? TraversalRingType.Health
+                    : TraversalRingType.Flight;
+                segment.RingType = ringType;
                 Transform gate = DuneVectorVisuals.CreateRingVisual(
                     segment.Root,
-                    TraversalRingType.Flight,
+                    ringType,
                     _materials,
                     _settings.GateRadius,
                     _ringSettings,
                     faceForward: true);
-                gate.name = "Procedural Rift Navigation Ring";
-                ApplyRailNavigationRingColor(gate);
+                gate.name = ringType == TraversalRingType.Health
+                    ? "Procedural Rift Health Ring"
+                    : "Procedural Rift Navigation Ring";
+                if (ringType == TraversalRingType.Health)
+                {
+                    ConfigureRailHealthRing(gate);
+                }
+                else
+                {
+                    ApplyRailNavigationRingColor(gate);
+                }
                 RegisterRailRing(gate);
                 _segments.Add(segment);
             }
@@ -3606,17 +3630,7 @@ namespace DuneVector
                 }
                 if (kind == PickupKind.Health)
                 {
-                    Transform heart = pickupRing.Find("Collectible Icon");
-                    if (heart != null)
-                    {
-                        heart.localScale = Vector3.one * _settings.PickupHealthHeartScaleMultiplier;
-                        // Apply the final roll in the screen-facing ring's plane after the imported
-                        // GLB orientation. This makes the visual flip deterministic regardless of
-                        // which local axis the source mesh used as its authored up direction.
-                        heart.localRotation = Quaternion.AngleAxis(
-                            _settings.PickupHealthHeartScreenRotationDegrees,
-                            Vector3.forward) * Quaternion.Euler(_settings.PickupHealthHeartEulerAngles);
-                    }
+                    ConfigureRailHealthRing(pickupRing);
                 }
                 RegisterRailRing(pickupRing);
                 if (kind == PickupKind.Bomb)
@@ -3714,6 +3728,26 @@ namespace DuneVector
             RegisterRailRing(riskRing);
             _safeGate.gameObject.SetActive(false);
             _riskGate.gameObject.SetActive(false);
+        }
+
+        private void ConfigureRailHealthRing(Transform ring)
+        {
+            if (ring == null)
+            {
+                return;
+            }
+
+            Transform heart = ring.Find("Collectible Icon");
+            if (heart != null)
+            {
+                heart.localScale = Vector3.one * _settings.PickupHealthHeartScaleMultiplier;
+                // Apply the final roll in the screen-facing ring's plane after the imported
+                // GLB orientation. This makes the visual flip deterministic regardless of
+                // which local axis the source mesh used as its authored up direction.
+                heart.localRotation = Quaternion.AngleAxis(
+                    _settings.PickupHealthHeartScreenRotationDegrees,
+                    Vector3.forward) * Quaternion.Euler(_settings.PickupHealthHeartEulerAngles);
+            }
         }
 
         private void ApplyRailNavigationRingColor(Transform ring)
@@ -3875,6 +3909,7 @@ namespace DuneVector
         private void ResetSegment(RiftSegment segment, float z, int identity)
         {
             segment.BlackRingBoostCollected = false;
+            segment.HealthRingCollected = false;
             Vector2 ringBoundary = GetRailRingBoundaryHalfExtents();
             Vector2 authoredExtent = Vector2.one * Mathf.Max(1f, _settings.ProceduralPlaneHalfExtent);
             Vector2 extent = Vector2.Min(authoredExtent, ringBoundary);
@@ -4061,6 +4096,25 @@ namespace DuneVector
             return new Vector2(((x * 2f) - 1f) * halfExtent.x, ((y * 2f) - 1f) * halfExtent.y);
         }
 
+        private void CollectRailHealthRing(RiftSegment segment)
+        {
+            if (segment == null || segment.HealthRingCollected)
+            {
+                return;
+            }
+
+            segment.HealthRingCollected = true;
+            _health.RestoreHealth(_settings.HealthPickupAmount);
+            _state.Pickups++;
+            AddScore(_settings.PickupScore);
+            SpawnScorePopup(
+                segment.Root.position,
+                $"+{Mathf.RoundToInt(_settings.HealthPickupAmount)} HULL",
+                _settings.HudReticleColor);
+            PlayCue(_settings.PickupEvent, segment.Root.position);
+            SpawnImpact(segment.Root.position, _settings.GateRadius);
+        }
+
         private void ActivateBlackRingBoost(RiftSegment segment)
         {
             if (segment == null || segment.BlackRingBoostCollected)
@@ -4077,6 +4131,25 @@ namespace DuneVector
                 segment.Root.position,
                 "BLACK RING BOOST",
                 _settings.RiftDangerColor);
+        }
+
+        public static bool ShouldUseRailHealthRing(int identity, int ringCount, float fraction)
+        {
+            int total = Mathf.Max(1, ringCount);
+            int index = Mathf.Max(0, identity);
+            int healthCount = Mathf.RoundToInt(total * Mathf.Clamp01(fraction));
+            if (healthCount <= 0)
+            {
+                return false;
+            }
+            if (healthCount >= total)
+            {
+                return true;
+            }
+
+            int previousHealthCount = Mathf.FloorToInt((index * healthCount) / (float)total);
+            int nextHealthCount = Mathf.FloorToInt(((index + 1) * healthCount) / (float)total);
+            return nextHealthCount > previousHealthCount;
         }
 
         public static bool HasPassedRailNavigationRing(

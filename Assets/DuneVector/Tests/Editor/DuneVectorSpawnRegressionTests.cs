@@ -213,6 +213,32 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void RailShooter_HalfPurpleNavigationRingsBecomeEvenlyDistributedHealthRings()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            RailShooterTuning settings = runtimeSettings != null ? runtimeSettings.RailShooter : null;
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(settings.NavigationHealthRingFraction, Is.EqualTo(0.5f).Within(0.001f));
+
+            int ringCount = Mathf.Max(1, settings.EnvironmentSegmentCount);
+            int healthRingCount = 0;
+            for (int i = 0; i < ringCount; i++)
+            {
+                if (DuneVectorRailShooterController.ShouldUseRailHealthRing(
+                        i,
+                        ringCount,
+                        settings.NavigationHealthRingFraction))
+                {
+                    healthRingCount++;
+                }
+            }
+
+            Assert.That(healthRingCount, Is.EqualTo(Mathf.RoundToInt(ringCount * 0.5f)));
+        }
+
+        [Test]
         public void RailShooter_BlackNavigationRingPassUsesTheRingOpening()
         {
             Assert.That(
