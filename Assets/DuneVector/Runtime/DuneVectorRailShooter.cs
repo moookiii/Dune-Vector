@@ -791,6 +791,17 @@ namespace DuneVector
                 (UnityEngine.Random.insideUnitSphere * _cameraShake);
             _camera.transform.rotation = Quaternion.identity;
 
+            // Apply the presentation lens before constructing the aim ray. During a boosted
+            // hard turn the FOV changes quickly; aiming through the previous frame's lens and
+            // rendering through the new one makes world-projected reticles visibly oscillate.
+            float targetFov = _settings.CameraFieldOfView +
+                ((boosting || blackRingBoosting) ? _settings.BoostFieldOfView : 0f) +
+                _fovImpulse;
+            _camera.fieldOfView = Mathf.Lerp(
+                _camera.fieldOfView,
+                targetFov,
+                DuneVectorMath.Sharpness(_settings.FieldOfViewSharpness, deltaTime));
+
             // The normal lock is the exact centre of the screen even when the drone has settled
             // somewhere else in the play space. Steering temporarily swings that lock; releasing
             // input lets AttitudeReturnSharpness bring it back without moving the drone.
@@ -827,14 +838,6 @@ namespace DuneVector
                 _state.Attitude.x * _settings.MaximumYaw,
                 -_state.Attitude.x * _settings.MaximumBank);
             _player.transform.SetPositionAndRotation(playerPosition, shipRotation);
-
-            float targetFov = _settings.CameraFieldOfView +
-                ((boosting || blackRingBoosting) ? _settings.BoostFieldOfView : 0f) +
-                _fovImpulse;
-            _camera.fieldOfView = Mathf.Lerp(
-                _camera.fieldOfView,
-                targetFov,
-                DuneVectorMath.Sharpness(_settings.FieldOfViewSharpness, deltaTime));
             _cameraShake = Mathf.MoveTowards(_cameraShake, 0f, _settings.CameraShakeDecay * deltaTime);
             _fovImpulse = Mathf.MoveTowards(_fovImpulse, 0f, _settings.FieldOfViewSharpness * deltaTime);
         }
@@ -6444,12 +6447,14 @@ namespace DuneVector
 
         private void DrawReticles()
         {
-            DrawWorldReticle(
-                _player.transform.position + (_state.AimDirection * _settings.NearReticleDistance),
-                Scaled(_settings.ReticleNearSize));
-            Vector3 farAim = _player.transform.position +
-                (_state.AimDirection * _settings.FarReticleDistance);
-            DrawWorldReticle(farAim, Scaled(_settings.ReticleFarSize));
+            // These are nested screen-space sights, not world markers. Keeping both on the aim
+            // viewport prevents camera follow, boost FOV, and hull parallax from pulling the two
+            // brackets apart during hard horizontal or vertical movement.
+            Vector2 aimScreen = CalculateAimGuiPosition(
+                _aimViewport,
+                new Vector2(Screen.width, Screen.height));
+            DrawBracket(aimScreen, Scaled(_settings.ReticleNearSize), _settings.HudReticleColor);
+            DrawBracket(aimScreen, Scaled(_settings.ReticleFarSize), _settings.HudReticleColor);
 
             RailEnemy assist = FindViewportTarget(
                 _settings.AimAssistViewportRadius,
@@ -6478,10 +6483,7 @@ namespace DuneVector
                 }
             }
             DrawSatelliteLocks(lockPulse);
-            if (TryProject(farAim, out Vector2 markerAnchor))
-            {
-                DrawHitMarkers(markerAnchor);
-            }
+            DrawHitMarkers(aimScreen);
         }
 
         // Screen-edge chevrons for hostiles that are alive but out of frame, so an off-screen
@@ -7049,14 +7051,11 @@ namespace DuneVector
             }
         }
 
-        private void DrawWorldReticle(Vector3 worldPosition, float size)
+        public static Vector2 CalculateAimGuiPosition(Vector2 viewport, Vector2 screenSize)
         {
-            Vector3 screen = _camera.WorldToScreenPoint(worldPosition);
-            if (screen.z <= 0f)
-            {
-                return;
-            }
-            DrawBracket(new Vector2(screen.x, Screen.height - screen.y), size, _settings.HudReticleColor);
+            return new Vector2(
+                viewport.x * Mathf.Max(0f, screenSize.x),
+                (1f - viewport.y) * Mathf.Max(0f, screenSize.y));
         }
 
         private void DrawBracket(Vector2 center, float size, Color color)

@@ -207,6 +207,19 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void RailShooter_AimReticlesStayOnTheAuthoredViewportPoint()
+        {
+            Vector2 viewport = new Vector2(0.2f, 0.75f);
+
+            Vector2 guiPosition = DuneVectorRailShooterController.CalculateAimGuiPosition(
+                viewport,
+                new Vector2(1600f, 900f));
+
+            Assert.That(guiPosition.x, Is.EqualTo(320f).Within(0.001f));
+            Assert.That(guiPosition.y, Is.EqualTo(225f).Within(0.001f));
+        }
+
+        [Test]
         public void RailShooter_SigilDrawingGuideIsThickAndWhite()
         {
             DuneVectorRuntimeSettings runtimeSettings =
