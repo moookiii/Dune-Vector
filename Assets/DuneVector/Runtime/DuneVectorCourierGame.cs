@@ -3613,14 +3613,9 @@ namespace DuneVector
                 return;
             }
 
-            // The showcase films the unlocked effect in world space, so the status line only
-            // stands in for it when the render view could not be built.
-            string unlockedName = (unlockedTrail.DisplayName ?? string.Empty).ToUpperInvariant();
-            if (_trailUnlockShowcase == null ||
-                !_trailUnlockShowcase.Open(unlockedTrail, () => ShowStatus($"TRAIL UNLOCKED — {unlockedName}", 2.5f)))
-            {
-                ShowStatus($"TRAIL UNLOCKED — {unlockedName}", 2.5f);
-            }
+            // The showcase carries the unlock messaging on its own, so no status line is raised
+            // for trail unlocks in either the showcase or fallback path.
+            _trailUnlockShowcase?.Open(unlockedTrail, null);
         }
 
         private void BeginDeliveryMessageSafety()
