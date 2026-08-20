@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using FMOD.Studio;
 using FMODUnity;
 using UnityEngine;
@@ -42,6 +43,9 @@ namespace DuneVector
         private bool _confirmed;
         private DuneVectorPauseMenu _optionsMenu;
         private DuneVectorAudioManager _audioManager;
+        private GUIStyle _loadingStyle;
+        private bool _loading;
+        private float _loadingStartedAt;
         private bool OptionsOpen => _optionsMenu != null && _optionsMenu.IsPaused;
 
         private static readonly DuneVectorTitleMenuEntry[] MenuOrder =
@@ -371,8 +375,45 @@ namespace DuneVector
             }
 
             _confirmed = true;
+            StartCoroutine(LoadGameplayRoutine());
+        }
+
+        /// <summary>
+        /// Streams the gameplay scene in behind the loading screen. Activation is held back until
+        /// the scene is ready and the minimum display time has passed, so the title never cuts to
+        /// a single flashed frame of loader on a warm load.
+        /// </summary>
+        private IEnumerator LoadGameplayRoutine()
+        {
+            _loading = true;
+            _loadingStartedAt = Time.unscaledTime;
+
+            AsyncOperation operation = SceneManager.LoadSceneAsync(_settings.GameplaySceneName);
+            if (operation == null)
+            {
+                Debug.LogError(
+                    $"Scene '{_settings.GameplaySceneName}' could not be loaded. Add it to Build Settings.",
+                    this);
+                _loading = false;
+                _confirmed = false;
+                yield break;
+            }
+
+            // Unity parks a ready scene at 0.9 and will not go further until it is activated.
+            operation.allowSceneActivation = false;
+            while (operation.progress < 0.9f)
+            {
+                yield return null;
+            }
+
+            float minimumSeconds = Mathf.Max(0f, _settings.LoadingMinimumSeconds);
+            while (Time.unscaledTime - _loadingStartedAt < minimumSeconds)
+            {
+                yield return null;
+            }
+
             ReleaseMusic();
-            SceneManager.LoadScene(_settings.GameplaySceneName);
+            operation.allowSceneActivation = true;
         }
 
         private float GetScale()
@@ -449,6 +490,17 @@ namespace DuneVector
             _menuStyle.font = font;
             _menuStyle.fontSize = Mathf.Max(9, Mathf.RoundToInt(_settings.MenuFontSize * scale));
             _menuStyle.normal.textColor = Color.white;
+
+            _loadingStyle ??= new GUIStyle
+            {
+                alignment = TextAnchor.MiddleCenter,
+                fontStyle = FontStyle.Normal,
+                wordWrap = false,
+                richText = false,
+            };
+            _loadingStyle.font = font;
+            _loadingStyle.fontSize = Mathf.Max(9, Mathf.RoundToInt(_settings.LoadingFontSize * scale));
+            _loadingStyle.normal.textColor = Color.white;
         }
 
         private void OnGUI()
@@ -460,8 +512,19 @@ namespace DuneVector
 
             EnsureStyles();
             DrawBackground();
+            if (_loading)
+            {
+                DrawLoadingDim();
+            }
             DrawTitle();
-            DrawMenu();
+            if (_loading)
+            {
+                DrawLoading();
+            }
+            else
+            {
+                DrawMenu();
+            }
         }
 
         private void DrawBackground()
@@ -522,6 +585,78 @@ namespace DuneVector
                     _settings.TextShadowColor,
                     shadowOffset);
             }
+        }
+
+        private void DrawLoadingDim()
+        {
+            if (_settings.LoadingDimOpacity <= 0f)
+            {
+                return;
+            }
+
+            DuneVectorHudChrome.DrawRect(
+                new Rect(0f, 0f, Screen.width, Screen.height),
+                new Color(0f, 0f, 0f, Mathf.Clamp01(_settings.LoadingDimOpacity)));
+        }
+
+        private void DrawLoading()
+        {
+            float scale = GetScale();
+            float elapsed = Time.unscaledTime - _loadingStartedAt;
+            Rect textRect = GetMenuItemRect(DuneVectorTitleMenuEntry.Start);
+            Vector2 shadowOffset = new Vector2(
+                _settings.TextShadowOffset * scale * 0.5f,
+                _settings.TextShadowOffset * scale * 0.5f);
+
+            DuneVectorHudChrome.DrawLabel(
+                textRect,
+                GetLoadingText(elapsed),
+                _loadingStyle,
+                _settings.LoadingColor,
+                _settings.TextShadowColor,
+                shadowOffset);
+
+            DrawLoadingBar(textRect, elapsed, scale);
+        }
+
+        /// <summary>
+        /// Cycles the trailing dots. The word itself is drawn from a fixed-width rect so the text
+        /// does not jitter sideways as dots come and go.
+        /// </summary>
+        private string GetLoadingText(float elapsed)
+        {
+            if (_settings.LoadingDotCount <= 0)
+            {
+                return _settings.LoadingText;
+            }
+
+            int steps = _settings.LoadingDotCount + 1;
+            int dots = Mathf.FloorToInt(elapsed / Mathf.Max(0.02f, _settings.LoadingDotIntervalSeconds)) % steps;
+            return _settings.LoadingText + new string('.', dots);
+        }
+
+        /// <summary>
+        /// An indeterminate sweep. Unity's load progress jumps to 0.9 and parks there, so showing
+        /// it as a filling bar would misrepresent what the load is actually doing.
+        /// </summary>
+        private void DrawLoadingBar(Rect textRect, float elapsed, float scale)
+        {
+            float width = _settings.LoadingBarWidth * scale;
+            float height = Mathf.Max(1f, _settings.LoadingBarHeight * scale);
+            Rect track = new Rect(
+                (Screen.width - width) * 0.5f,
+                textRect.yMax + (_settings.LoadingBarGap * scale),
+                width,
+                height);
+            DuneVectorHudChrome.DrawRect(track, _settings.LoadingBarTrackColor);
+
+            float sweepWidth = Mathf.Max(1f, width * Mathf.Clamp01(_settings.LoadingBarSweepFraction));
+            float period = Mathf.Max(0.1f, _settings.LoadingBarSweepSeconds);
+            // Ping-pong so the sweep runs back and forth instead of snapping to the left edge.
+            float travel = Mathf.PingPong(elapsed / period, 1f);
+            DuneVectorHudChrome.DrawRect(
+                new Rect(track.x + (travel * (width - sweepWidth)), track.y, sweepWidth, height),
+                _settings.LoadingBarSweepColor);
         }
 
         private void DrawSelectionBox(Rect box, float scale)

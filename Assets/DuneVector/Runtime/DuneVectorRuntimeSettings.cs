@@ -8808,6 +8808,30 @@ namespace DuneVector
         public string SwapEventPath = "event:/titlebuttonswap";
         [Range(0f, 1f)] public float SwapVolume = 1f;
 
+        [Header("Loading")]
+        [Tooltip("Word drawn while the gameplay scene streams in. Animated dots are appended to it.")]
+        public string LoadingText = "LOADING";
+        [Tooltip("Dots cycled after the loading word. Zero holds a static word.")]
+        [Min(0)] public int LoadingDotCount = 3;
+        [Tooltip("Seconds each dot is held before the next appears.")]
+        [Min(0.02f)] public float LoadingDotIntervalSeconds = 0.32f;
+        [Tooltip("Darkens the video behind the loading screen so the readout carries.")]
+        [Range(0f, 1f)] public float LoadingDimOpacity = 0.55f;
+        [Tooltip("Shortest time the loading screen is held, so a fast load reads as deliberate instead of a flicker.")]
+        [Min(0f)] public float LoadingMinimumSeconds = 1.2f;
+        [Min(9)] public int LoadingFontSize = 34;
+        public Color LoadingColor = new Color(1f, 1f, 1f, 1f);
+        [Tooltip("Gap between the loading word and the sweep bar.")]
+        [Min(0f)] public float LoadingBarGap = 26f;
+        [Min(40f)] public float LoadingBarWidth = 460f;
+        [Min(1f)] public float LoadingBarHeight = 4f;
+        public Color LoadingBarTrackColor = new Color(1f, 1f, 1f, 0.16f);
+        public Color LoadingBarSweepColor = new Color(1f, 0.65f, 0.18f, 1f);
+        [Tooltip("Seconds for the sweep to cross the bar once. Unity's load progress is too coarse to show honestly, so the bar is indeterminate.")]
+        [Min(0.1f)] public float LoadingBarSweepSeconds = 1.1f;
+        [Tooltip("Share of the bar the sweep occupies.")]
+        [Range(0.05f, 1f)] public float LoadingBarSweepFraction = 0.28f;
+
         [Header("Responsive Layout")]
         [Min(320f)] public float ReferenceWidth = 1920f;
         [Min(240f)] public float ReferenceHeight = 1080f;
