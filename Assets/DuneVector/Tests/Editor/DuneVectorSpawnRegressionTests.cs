@@ -622,6 +622,50 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void ImmediatePlayerCollisionReactivatesAStagedChunkRoot()
+        {
+            DuneVectorRuntimeSettings settings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            Assert.That(settings, Is.Not.Null);
+
+            GameObject worldObject = new GameObject("Staged Player Collision Regression World");
+            DuneVectorMaterials materials = null;
+            try
+            {
+                DesertWorldStreamer world = worldObject.AddComponent<DesertWorldStreamer>();
+                ConfigureWorld(world, settings);
+                materials = new DuneVectorMaterials(settings);
+                world.Initialize(materials);
+
+                LogicalPosition destination = ResolveStage2RouteOrigin(settings.Contracts);
+                StageDestinationChunkInactive(world, destination);
+                Assert.That(
+                    world.IsVisualTerrainReady(destination),
+                    Is.False,
+                    "The regression setup must begin with an inactive staged chunk root.");
+
+                GenerateImmediatePlayerCollision(world, destination);
+
+                Assert.That(
+                    world.IsVisualTerrainReady(destination),
+                    Is.True,
+                    "Immediate player collision must reactivate the staged root so its collider enters physics.");
+                Vector3 surfacePosition = world.LogicalToLocal(
+                    destination.X,
+                    world.HeightField.SampleHeight(destination.X, destination.Z) + 0.1d,
+                    destination.Z);
+                Assert.That(
+                    world.HasPreparedTerrainSupport(surfacePosition, 1f, 89f),
+                    Is.True,
+                    "The reactivated staged chunk must provide solid terrain support.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(worldObject);
+            }
+        }
+
+        [Test]
         public void PlayerRelativeEnemyRingsStayOutsideTheirOwnAttackRange()
         {
             DuneVectorRuntimeSettings settings =
@@ -983,6 +1027,20 @@ namespace DuneVector.Tests
                 BindingFlags.Instance | BindingFlags.NonPublic);
             Assert.That(generateChunk, Is.Not.Null);
             generateChunk.Invoke(world, new object[] { coordinate, true, true });
+        }
+
+        private static void GenerateImmediatePlayerCollision(
+            DesertWorldStreamer world,
+            LogicalPosition destination)
+        {
+            var coordinate = new Vector2Int(
+                Mathf.FloorToInt((float)(destination.X / world.ChunkSize)),
+                Mathf.FloorToInt((float)(destination.Z / world.ChunkSize)));
+            MethodInfo generateChunk = typeof(DesertWorldStreamer).GetMethod(
+                "GenerateChunkImmediate",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.That(generateChunk, Is.Not.Null);
+            generateChunk.Invoke(world, new object[] { coordinate, false, true });
         }
 
         private static bool InvokeSubjectSelectionReplacement(

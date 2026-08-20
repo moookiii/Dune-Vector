@@ -520,7 +520,7 @@ namespace DuneVector
                     {
                         // A preloaded chunk can still be staged with its root inactive. Enabling
                         // only its MeshCollider does not put that collider into the physics scene.
-                        chunk.SetTeleportCollisionActive();
+                        chunk.SetImmediateCollisionActive();
                     }
                 }
             }
@@ -1553,6 +1553,11 @@ namespace DuneVector
                 if (requireCollision)
                 {
                     existing.EnsureCollisionReady();
+                    // A camera/content preload can leave this chunk staged with its root
+                    // inactive. Enabling its MeshCollider alone does not put that collider
+                    // into the physics scene, so crossing into the chunk can drop the player
+                    // through the dune while the remaining content is still queued.
+                    existing.SetImmediateCollisionActive();
                 }
                 if (completeContent && !existing.IsContentReady)
                 {
@@ -2455,7 +2460,7 @@ namespace DuneVector
             }
         }
 
-        public void SetTeleportCollisionActive()
+        public void SetImmediateCollisionActive()
         {
             SetPresentationActive(true);
             SetCollisionActive(true);
