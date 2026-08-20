@@ -721,8 +721,10 @@ namespace DuneVector
 
             bool steering = command.Move.sqrMagnitude >
                 _settings.RecenterInputDeadzone * _settings.RecenterInputDeadzone;
+            float lateralSpeed = _settings.LateralSpeed *
+                (boosting ? Mathf.Max(1f, _settings.BoostLateralSpeedMultiplier) : 1f);
             Vector2 targetVelocity = steering
-                ? command.Move * _settings.LateralSpeed
+                ? command.Move * lateralSpeed
                 : Vector2.zero;
             _state.LateralVelocity = Vector2.Lerp(
                 _state.LateralVelocity,

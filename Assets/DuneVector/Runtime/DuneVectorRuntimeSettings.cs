@@ -8147,6 +8147,8 @@ namespace DuneVector
         [Min(0f)] public float ForwardSpeedSharpness = 5f;
         public Vector2 FlightBounds = new Vector2(28f, 15f);
         [Min(0f)] public float LateralSpeed = 30f;
+        [Tooltip("Multiplier applied to WASD movement speed while the player holds boost in the rail subgame.")]
+        [Min(1f)] public float BoostLateralSpeedMultiplier = 1.55f;
         [Tooltip("How quickly the rail drone's lateral movement follows input. Lower values produce smoother movement; higher values respond more quickly.")]
         [FormerlySerializedAs("LateralAccelerationSharpness")]
         [Min(0f)] public float MovementSmoothing = 7.5f;
