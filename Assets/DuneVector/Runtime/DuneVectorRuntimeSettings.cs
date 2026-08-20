@@ -8119,8 +8119,10 @@ namespace DuneVector
         [FormerlySerializedAs("LateralAccelerationSharpness")]
         [Min(0f)] public float MovementSmoothing = 7.5f;
         [Min(0f)] public float BoundarySoftness = 2.5f;
-        [Min(0f)] public float AttitudeInputSharpness = 10f;
-        [Min(0f)] public float AttitudeReturnSharpness = 3.8f;
+        [Tooltip("How quickly the rail drone swings its nose toward the steered direction. Lower values turn the front more slowly without changing how fast the drone slides side to side.")]
+        [Min(0f)] public float AttitudeInputSharpness = 4f;
+        [Tooltip("How quickly the rail drone's nose settles back to centre once steering input is released.")]
+        [Min(0f)] public float AttitudeReturnSharpness = 1.9f;
         [Range(0f, 0.5f)] public float RecenterInputDeadzone = 0.08f;
         [Tooltip("Horizontal or vertical distance from the rail start that triggers a floating-origin rebase. The drone returns to its start while all pooled rail-space objects shift with it.")]
         [Min(1f)] public float FlightRebaseDistance = 100f;
@@ -8233,6 +8235,8 @@ namespace DuneVector
         [Min(0f)] public float BarrelRollEnergy = 24f;
         [Min(0f)] public float LoopEnergy = 40f;
         [Min(0.01f)] public float BarrelRollDuration = 0.58f;
+        [Tooltip("Whole rolls the corkscrew trick completes. Fractional values are rounded so the trick always ends with the hull level.")]
+        [Min(1f)] public float CorkscrewRollTurns = 2f;
         [Min(0.01f)] public float CorkscrewDuration = 0.82f;
         [Min(0.01f)] public float LoopDuration = 1.15f;
         [Tooltip("Seconds used to smoothly return the ship from its final maneuver rotation to its resting attitude.")]
@@ -8468,6 +8472,10 @@ namespace DuneVector
         [Min(0f)] public float CorridorHalfHeight = 25f;
         [Min(0f)] public float WreckageRotationSpeed = 13f;
         [Min(0f)] public float GateRadius = 13f;
+        [Tooltip("Fraction of the drawn portal radius that counts as the traversal ring pickup volume. 1 collects anywhere inside the visible portal; lower values require a tighter pass through the opening.")]
+        [Range(0.1f, 1f)] public float GatePickupRadiusFraction = 1f;
+        [Tooltip("Fraction of the selected rail health-ring slots that actually spawn a ring. The remainder leave the segment empty.")]
+        [Range(0f, 1f)] public float HealthRingKeptFraction = 0.2f;
         [Tooltip("Fraction of recurring purple navigation rings converted into health rings. The remaining rings retain their black-ring speed boost.")]
         [Range(0f, 1f)] public float NavigationHealthRingFraction = 0.5f;
         [Tooltip("Color used by recurring and repair flight rings in the rail subgame. Upper-flight rail rings are presented as white.")]
@@ -8484,6 +8492,8 @@ namespace DuneVector
         [Min(0f)] public float SatelliteSpawnAheadDistance = 110f;
         [Tooltip("Half-extent of the satellite field in world units. The runtime widens this to FlightRebaseDistance when needed so the field covers the complete pre-rebase XY square.")]
         [Min(0f)] public float SatellitePlaneHalfExtent = 100f;
+        [Tooltip("Satellite field half-extent as a multiple of the rail play-area boundary the rings are clamped into. Lower values pack more satellites into the center of the corridor; the authored plane half extent still caps the spread.")]
+        [Min(0.1f)] public float SatelliteFieldPlayAreaMultiplier = 2f;
         [Tooltip("Legacy encounter cadence retained for authored rail settings; every satellite now uses the full field extent.")]
         [Min(1)] public int SatellitePathSpawnInterval = 2;
         [Tooltip("Legacy obstruction spread control retained for authored rail settings; every satellite now uses the full field extent.")]
@@ -8711,7 +8721,7 @@ namespace DuneVector
         public string EnemyHitEvent = "event:/Okay";
         public string EnemyKillEvent = "event:/Explosion_Ground_Exploder";
         public string PlayerDamageEvent = "event:/Drone_Damage";
-        public string PickupEvent = "event:/Delivery";
+        public string PickupEvent = "event:/Lock_On";
         public string BombEvent = "event:/Explosion_Strike_Orb";
         public string ChargeReadyEvent = "event:/Lock_On_Full";
         public string TargetLockEvent = "event:/Lock_On";
