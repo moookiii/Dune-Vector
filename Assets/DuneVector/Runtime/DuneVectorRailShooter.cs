@@ -229,6 +229,7 @@ namespace DuneVector
             public Transform Root;
             public Vector2 PlaneOffset;
             public TraversalRingType RingType;
+            public Transform Ring;
             public bool HasRing;
             public bool BlackRingBoostCollected;
             public bool HealthRingCollected;
@@ -3356,6 +3357,7 @@ namespace DuneVector
                 {
                     ApplyRailNavigationRingColor(gate);
                 }
+                segment.Ring = gate;
                 RegisterRailRing(gate);
                 _segments.Add(segment);
             }
@@ -3989,6 +3991,10 @@ namespace DuneVector
         {
             segment.BlackRingBoostCollected = false;
             segment.HealthRingCollected = false;
+            if (segment.Ring != null && segment.HasRing)
+            {
+                segment.Ring.gameObject.SetActive(true);
+            }
             segment.HoverArmed = true;
             segment.Hovering = false;
             segment.HoverElapsed = 0f;
@@ -4194,6 +4200,12 @@ namespace DuneVector
             }
 
             segment.HealthRingCollected = true;
+            // The ring is the pickup, so it leaves with the hull it gave. Recycling the segment
+            // brings it back for the next pass through the pool.
+            if (segment.Ring != null)
+            {
+                segment.Ring.gameObject.SetActive(false);
+            }
             _health.RestoreHealth(_settings.HealthPickupAmount);
             _state.Pickups++;
             AddScore(_settings.PickupScore);
