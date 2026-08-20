@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using KinematicCharacterController;
@@ -256,6 +256,20 @@ namespace DuneVector
             _playerDeploymentOccupancyHandle = DuneVectorWorldOccupancy.InvalidHandle;
         }
 
+        /// <summary>
+        /// True once the courier has completed enough contracts for gates to stream in. Set from
+        /// saved progress at boot and again whenever a contract completes.
+        /// </summary>
+        public bool WarpGatesUnlocked =>
+            WarpGates == null ||
+            _completedContractsForWarpGates >= Mathf.Max(0, WarpGates.RequiredCompletedContracts);
+
+        /// <summary>Feeds saved contract progress in so the unlock test can be evaluated per chunk.</summary>
+        public void SetWarpGateUnlockProgress(int completedContracts)
+        {
+            _completedContractsForWarpGates = Mathf.Max(0, completedContracts);
+        }
+
         public bool IsWarpGateConsumed(string identity)
         {
             return !string.IsNullOrEmpty(identity) && _consumedWarpGateIdentities.Contains(identity);
@@ -358,6 +372,7 @@ namespace DuneVector
         private readonly Dictionary<Vector2Int, Vector2> _chunkHeightRangeCache =
             new Dictionary<Vector2Int, Vector2>();
         private readonly HashSet<string> _activatedFlightRingIdentities = new HashSet<string>();
+        private int _completedContractsForWarpGates;
         private readonly HashSet<string> _consumedWarpGateIdentities = new HashSet<string>();
         private readonly List<ContractGroundExploderSpawn> _contractGroundExploders = new List<ContractGroundExploderSpawn>();
         private Vector2Int _candidateSortCenter;
@@ -3496,6 +3511,15 @@ namespace DuneVector
             }
 
             DesertWorldStreamer world = Root.GetComponentInParent<DesertWorldStreamer>();
+            if (world != null && !world.WarpGatesUnlocked)
+            {
+                LogWarpGatePlacement(
+                    tuning,
+                    coordinate,
+                    $"locked until {tuning.RequiredCompletedContracts} contract(s) are complete");
+                return;
+            }
+
             string identity = $"{coordinate.x}:{coordinate.y}:warp-gate";
             if (world != null && world.IsWarpGateConsumed(identity))
             {

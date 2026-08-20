@@ -7309,6 +7309,25 @@ namespace DuneVector
         [Tooltip("Logs every gate placement and the reason each candidate chunk was rejected. Diagnostic only - leave this off for normal play.")]
         public bool LogPlacement = false;
 
+        [Header("Unlock")]
+        [Tooltip("Completed contracts required before gates are allowed to stream into the desert. 1 keeps them hidden until the first contract is finished.")]
+        [Min(0)] public int RequiredCompletedContracts = 1;
+
+        [Tooltip("Banner shown in the hub the first time the courier returns after the gates unlock.")]
+        [TextArea] public string UnlockAnnouncement = "Warp Gates to space have been scattered in the desert.";
+
+        [Tooltip("Seconds the unlock banner stays on screen.")]
+        [Min(0.5f)] public float UnlockAnnouncementDuration = 6f;
+
+        [Tooltip("Font size of the unlock banner text at a 1080p reference height.")]
+        [Min(8)] public int UnlockAnnouncementFontSize = 34;
+
+        [Tooltip("Text color of the unlock banner.")]
+        public Color UnlockAnnouncementTextColor = new Color(0.78f, 0.92f, 1f, 1f);
+
+        [Tooltip("Backdrop color drawn behind the unlock banner.")]
+        public Color UnlockAnnouncementBackdropColor = new Color(0.02f, 0.03f, 0.07f, 0.78f);
+
         public void EnsureInitialized()
         {
             PrefabResourcePath = string.IsNullOrWhiteSpace(PrefabResourcePath)
@@ -7322,6 +7341,12 @@ namespace DuneVector
             GateClearancePadding = Mathf.Max(0f, GateClearancePadding);
             MinimumEntryUpwardSpeed = Mathf.Max(0f, MinimumEntryUpwardSpeed);
             PrefabScaleMultiplier = Mathf.Max(0.01f, PrefabScaleMultiplier);
+            RequiredCompletedContracts = Mathf.Max(0, RequiredCompletedContracts);
+            UnlockAnnouncement = string.IsNullOrWhiteSpace(UnlockAnnouncement)
+                ? "Warp Gates to space have been scattered in the desert."
+                : UnlockAnnouncement.Trim();
+            UnlockAnnouncementDuration = Mathf.Max(0.5f, UnlockAnnouncementDuration);
+            UnlockAnnouncementFontSize = Mathf.Max(8, UnlockAnnouncementFontSize);
         }
     }
 

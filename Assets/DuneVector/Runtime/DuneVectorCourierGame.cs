@@ -110,7 +110,7 @@ namespace DuneVector
         [Serializable]
         private sealed class SaveData
         {
-            public int Version = 8;
+            public int Version = 9;
             public int CompletedDeliveries;
             public int FailedDeliveries;
             public int TotalContractGold;
@@ -124,6 +124,7 @@ namespace DuneVector
             public bool DeliveryMessageInputHintAcknowledged;
             public bool StrikeOrbDeathNoteAcknowledged;
             public bool VesperPilgrimDeathNoteAcknowledged;
+            public bool WarpGateAnnouncementSeen;
             public List<string> AcceptedContractIds = new List<string>();
         }
 
@@ -146,6 +147,9 @@ namespace DuneVector
         public bool DeliveryMessageInputHintAcknowledged { get; private set; }
         public bool StrikeOrbDeathNoteAcknowledged { get; private set; }
         public bool VesperPilgrimDeathNoteAcknowledged { get; private set; }
+
+        /// <summary>True once the hub banner announcing the scattered warp gates has played.</summary>
+        public bool WarpGateAnnouncementSeen { get; private set; }
         public IReadOnlyList<string> AcceptedContractIds => _acceptedContractIds;
         public event Action Changed;
 
@@ -225,6 +229,18 @@ namespace DuneVector
             Changed?.Invoke();
         }
 
+        public void AcknowledgeWarpGateAnnouncement()
+        {
+            if (WarpGateAnnouncementSeen)
+            {
+                return;
+            }
+
+            WarpGateAnnouncementSeen = true;
+            Save();
+            Changed?.Invoke();
+        }
+
         public void AcknowledgeStrikeOrbDeathNote()
         {
             if (StrikeOrbDeathNoteAcknowledged)
@@ -294,6 +310,7 @@ namespace DuneVector
             DeliveryMessageInputHintAcknowledged = false;
             StrikeOrbDeathNoteAcknowledged = false;
             VesperPilgrimDeathNoteAcknowledged = false;
+            WarpGateAnnouncementSeen = false;
             _acceptedContractIds.Clear();
             Changed?.Invoke();
         }
@@ -338,6 +355,7 @@ namespace DuneVector
                     data.Version >= 5 && data.StrikeOrbDeathNoteAcknowledged;
                 VesperPilgrimDeathNoteAcknowledged =
                     data.Version >= 6 && data.VesperPilgrimDeathNoteAcknowledged;
+                WarpGateAnnouncementSeen = data.Version >= 9 && data.WarpGateAnnouncementSeen;
                 if (data.Version >= 7)
                 {
                     FreeRoamDeliveries = Mathf.Max(0, data.FreeRoamDeliveries);
@@ -386,6 +404,7 @@ namespace DuneVector
                     DeliveryMessageInputHintAcknowledged = DeliveryMessageInputHintAcknowledged,
                     StrikeOrbDeathNoteAcknowledged = StrikeOrbDeathNoteAcknowledged,
                     VesperPilgrimDeathNoteAcknowledged = VesperPilgrimDeathNoteAcknowledged,
+                    WarpGateAnnouncementSeen = WarpGateAnnouncementSeen,
                     AcceptedContractIds = new List<string>(_acceptedContractIds),
                 };
                 File.WriteAllText(_savePath, JsonUtility.ToJson(data));
@@ -606,6 +625,10 @@ namespace DuneVector
         private float _minimumAirVerticalSpeed;
         private string _statusMessage;
         private float _statusMessageUntil;
+        private string _warpGateAnnouncement;
+        private float _warpGateAnnouncementUntil;
+        private float _warpGateAnnouncementDuration;
+        private GUIStyle _warpGateAnnouncementStyle;
         private Vector3 _droneVisualOriginalScale;
         private Material _hubMetalMaterial;
         private Material _hubEnergyMaterial;
@@ -759,6 +782,7 @@ namespace DuneVector
             _vesperKiteDirector = vesperKiteDirector;
             Progress = gameObject.AddComponent<DuneVectorCourierProgress>();
             Progress.Initialize();
+            _world.SetWarpGateUnlockProgress(Progress.CompletedDeliveries);
             if (Progress.PendingDeliveryMessageIndex < 0)
             {
                 _permanentUpgrades?.DroneTrails?.SynchronizeContractUnlocks(Progress.CompletedDeliveries);
@@ -2780,6 +2804,7 @@ namespace DuneVector
                 Progress.NextDeliveryMessageIndex,
                 out _);
             Progress.RecordCompletion(reward, completed.Difficulty, hasAssignedMessage);
+            _world.SetWarpGateUnlockProgress(Progress.CompletedDeliveries);
             _routeEncounterDirector?.EndContract();
             _sandAmbusherSystem?.EndContract();
             DuneVectorContractRisk.Reset();
@@ -3523,6 +3548,7 @@ namespace DuneVector
             EnterHubImmediate(openTerminal: false, placePlayerAtSpawn: false);
             EndDeliveryMessageSafety();
             _player.PlayHubReturnEffect(HubFloorPosition);
+            TryPlayWarpGateAnnouncement();
             DroneTrailOption unlockedTrail = _permanentUpgrades?.DroneTrails?.SynchronizeContractUnlocks(
                 Progress != null ? Progress.CompletedDeliveries : 0);
             if (unlockedTrail == null)
@@ -3766,6 +3792,77 @@ namespace DuneVector
             ShowStatus(message, duration);
         }
 
+        /// <summary>
+        /// Plays the one-off hub banner that tells the courier the warp gates are now out in the
+        /// desert. It fires the first time the drone lands back in the hub after the gates unlock.
+        /// </summary>
+        private void TryPlayWarpGateAnnouncement()
+        {
+            WarpGateTuning tuning = _world != null ? _world.WarpGates : null;
+            if (tuning == null || !tuning.Enabled || Progress == null ||
+                Progress.WarpGateAnnouncementSeen || !_world.WarpGatesUnlocked)
+            {
+                return;
+            }
+
+            _warpGateAnnouncement = tuning.UnlockAnnouncement;
+            _warpGateAnnouncementDuration = Mathf.Max(0.5f, tuning.UnlockAnnouncementDuration);
+            _warpGateAnnouncementUntil = Time.unscaledTime + _warpGateAnnouncementDuration;
+            _warpGateAnnouncementStyle = null;
+            Progress.AcknowledgeWarpGateAnnouncement();
+        }
+
+        private void DrawWarpGateAnnouncement()
+        {
+            WarpGateTuning tuning = _world != null ? _world.WarpGates : null;
+            if (tuning == null || string.IsNullOrEmpty(_warpGateAnnouncement) ||
+                Time.unscaledTime >= _warpGateAnnouncementUntil)
+            {
+                return;
+            }
+
+            float scale = Mathf.Max(0.5f, Screen.height / 1080f);
+            if (_warpGateAnnouncementStyle == null)
+            {
+                _warpGateAnnouncementStyle = LabelStyle(
+                    Mathf.RoundToInt(tuning.UnlockAnnouncementFontSize * scale),
+                    FontStyle.Bold,
+                    TextAnchor.MiddleCenter,
+                    tuning.UnlockAnnouncementTextColor);
+            }
+
+            float life01 = 1f - Mathf.Clamp01(
+                (_warpGateAnnouncementUntil - Time.unscaledTime) / Mathf.Max(0.0001f, _warpGateAnnouncementDuration));
+            float width = Mathf.Min(Screen.width * 0.72f, 980f * scale);
+            float height = Mathf.Max(
+                96f * scale,
+                _warpGateAnnouncementStyle.CalcHeight(new GUIContent(_warpGateAnnouncement), width - (48f * scale)) +
+                    (48f * scale));
+            Rect panel = new Rect(
+                (Screen.width - width) * 0.5f,
+                Screen.height * 0.3f,
+                width,
+                height);
+
+            GUI.depth = -1200;
+            Color previousColor = GUI.color;
+            Color backdrop = tuning.UnlockAnnouncementBackdropColor;
+            float fade = life01 <= 0.85f
+                ? 1f
+                : 1f - Mathf.SmoothStep(0f, 1f, (life01 - 0.85f) / 0.15f);
+            GUI.color = new Color(1f, 1f, 1f, fade);
+            DrawSolidRect(panel, backdrop);
+            GUI.Label(
+                new Rect(
+                    panel.x + (24f * scale),
+                    panel.y,
+                    panel.width - (48f * scale),
+                    panel.height),
+                _warpGateAnnouncement,
+                _warpGateAnnouncementStyle);
+            GUI.color = previousColor;
+        }
+
         private void ShowStatus(string message, float duration)
         {
             _statusMessage = message;
@@ -3949,6 +4046,10 @@ namespace DuneVector
             if (!IsTerminalOpen && !IsGameplayHudSuppressed && Time.unscaledTime < _statusMessageUntil)
             {
                 GUI.Label(new Rect(0f, Screen.height * 0.18f, Screen.width, 42f), _statusMessage, _statusStyle);
+            }
+            if (State == CourierRunState.Hub && !IsTerminalOpen && !IsGameplayHudSuppressed)
+            {
+                DrawWarpGateAnnouncement();
             }
         }
 
