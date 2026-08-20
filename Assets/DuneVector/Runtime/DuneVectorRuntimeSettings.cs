@@ -7303,6 +7303,9 @@ namespace DuneVector
         [Tooltip("Deterministic salt used by rare per-chunk gate placement.")]
         public int SeedOffset = 47011;
 
+        [Tooltip("Logs every gate placement and the reason each candidate chunk was rejected. Diagnostic only - leave this off for normal play.")]
+        public bool LogPlacement = false;
+
         public void EnsureInitialized()
         {
             PrefabResourcePath = string.IsNullOrWhiteSpace(PrefabResourcePath)

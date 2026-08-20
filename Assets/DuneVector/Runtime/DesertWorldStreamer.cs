@@ -3472,6 +3472,16 @@ namespace DuneVector
             if (tuning == null || !tuning.Enabled || coordinate == Vector2Int.zero ||
                 tuning.SpawnChancePerChunk <= 0f || heightField == null)
             {
+                LogWarpGatePlacement(
+                    tuning,
+                    coordinate,
+                    !tuning.Enabled
+                        ? "WarpGates.Enabled is off"
+                        : coordinate == Vector2Int.zero
+                            ? "the origin chunk never hosts a gate"
+                            : tuning.SpawnChancePerChunk <= 0f
+                                ? "SpawnChancePerChunk is 0"
+                                : "the chunk has no height field yet");
                 return;
             }
 
@@ -3481,6 +3491,7 @@ namespace DuneVector
                     worldSeed,
                     tuning.SeedOffset) >= tuning.SpawnChancePerChunk)
             {
+                LogWarpGatePlacement(tuning, coordinate, "lost the per-chunk spawn roll");
                 return;
             }
 
@@ -3488,6 +3499,7 @@ namespace DuneVector
             string identity = $"{coordinate.x}:{coordinate.y}:warp-gate";
             if (world != null && world.IsWarpGateConsumed(identity))
             {
+                LogWarpGatePlacement(tuning, coordinate, "already consumed this run");
                 return;
             }
 
@@ -3498,6 +3510,7 @@ namespace DuneVector
             if ((hubDeltaX * hubDeltaX) + (hubDeltaZ * hubDeltaZ) <
                 tuning.MinimumDistanceFromHub * tuning.MinimumDistanceFromHub)
             {
+                LogWarpGatePlacement(tuning, coordinate, "inside MinimumDistanceFromHub");
                 return;
             }
 
@@ -3505,6 +3518,7 @@ namespace DuneVector
             float localMargin = Mathf.Min(chunkSize * 0.45f, gateRadius + 6f);
             if (localMargin <= 0f || localMargin >= chunkSize * 0.5f)
             {
+                LogWarpGatePlacement(tuning, coordinate, "GateRadius leaves no room inside the chunk");
                 return;
             }
 
@@ -3527,6 +3541,7 @@ namespace DuneVector
             if (IsNearAny(local, ringExclusions, exclusionRadius) ||
                 IsNearAny(local, sceneryExclusions, exclusionRadius))
             {
+                LogWarpGatePlacement(tuning, coordinate, "candidate point is on top of a ring or scenery");
                 return;
             }
 
@@ -3547,6 +3562,7 @@ namespace DuneVector
                     exclusionRadius,
                     WorldOccupancyKind.Portal))
             {
+                LogWarpGatePlacement(tuning, coordinate, "candidate point overlaps a structure or portal footprint");
                 return;
             }
 
@@ -3557,6 +3573,7 @@ namespace DuneVector
                     gateSpacingRadius,
                     WorldOccupancyKind.WarpGateSpacing))
             {
+                LogWarpGatePlacement(tuning, coordinate, "inside MinimumGateSeparation of another gate");
                 return;
             }
 
@@ -3568,12 +3585,17 @@ namespace DuneVector
                     logicalZ,
                     exclusionRadius))
             {
+                LogWarpGatePlacement(tuning, coordinate, "candidate point overlaps a landmark footprint");
                 return;
             }
 
             GameObject prefab = Resources.Load<GameObject>(tuning.PrefabResourcePath);
             if (prefab == null)
             {
+                LogWarpGatePlacement(
+                    tuning,
+                    coordinate,
+                    $"Resources.Load found no prefab at '{tuning.PrefabResourcePath}'");
                 return;
             }
 
@@ -3583,7 +3605,7 @@ namespace DuneVector
                 ringTuning,
                 tuning.ClampHeightToUpperFlightRingBand);
             GameObject gateObject = UnityEngine.Object.Instantiate(prefab, Root, false);
-            gateObject.name = $"Warp Gate [{identity}]";
+            gateObject.name = $"WarpGatePrefab Warp Gate [{identity}]";
             gateObject.transform.localPosition = new Vector3(
                 local.x,
                 terrainHeight + gateHeight,
@@ -3620,6 +3642,23 @@ namespace DuneVector
             gate.SetOccupancyHandles(occupancyHandle, spacingHandle);
             ringExclusions.Add(local);
             sceneryExclusions.Add(local);
+            LogWarpGatePlacement(
+                tuning,
+                coordinate,
+                $"spawned at logical ({logicalX:F0}, {logicalZ:F0}) {gateHeight:F0}m above terrain");
+        }
+
+        private static void LogWarpGatePlacement(
+            WarpGateTuning tuning,
+            Vector2Int coordinate,
+            string reason)
+        {
+            if (tuning == null || !tuning.LogPlacement)
+            {
+                return;
+            }
+
+            Debug.Log($"[WarpGate] chunk {coordinate.x},{coordinate.y}: {reason}");
         }
 
         private static float SampleLowestPyramidFootprintHeight(
