@@ -731,6 +731,11 @@ namespace DuneVector
 
         private Vector3 GetDroneVisualCenter()
         {
+            return GetDroneVisualCenterUnoffset() + _settings.CenterOutAnchorWorldOffset;
+        }
+
+        private Vector3 GetDroneVisualCenterUnoffset()
+        {
             if (_centerOutAnchorRenderer != null && _centerOutAnchorRenderer.enabled)
             {
                 return _centerOutAnchorRenderer.bounds.center;
