@@ -6839,7 +6839,7 @@ namespace DuneVector
         [Tooltip("Seconds taken to blend from normal gravity to exhausted-flight gravity after the flight meter empties.")]
         [Min(0f)] public float ExhaustedFlightGravityBlendDuration = 2f;
         [Tooltip("Gravity multiplier reached after the flight meter has been empty for the full blend duration. Resets on ground contact.")]
-        [Min(1f)] public float ExhaustedFlightGravityMultiplier = 2f;
+        [Min(1f)] public float ExhaustedFlightGravityMultiplier = 1.7f;
         [Min(0f)] public float FlightEntryLiftDuration = 0.75f;
         [Min(0f)] public float FlightEntryLiftSpeed = 16f;
 
