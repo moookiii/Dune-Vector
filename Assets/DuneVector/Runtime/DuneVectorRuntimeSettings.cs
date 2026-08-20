@@ -6340,6 +6340,8 @@ namespace DuneVector
         public string VideoVisualizerFovLabel = "VISUALIZER FOV";
         public string VideoEffectEnabledLabel = "ON";
         public string VideoEffectDisabledLabel = "OFF";
+        [Tooltip("Additional vertical space below the capped-FPS toggle and the bottom navigation buttons.")]
+        [Min(0f)] public float VideoSettingsExtraGap = 3f;
         public bool DefaultChromaticAberrationEnabled;
         public bool DefaultLensDistortionEnabled;
         public bool DefaultCrtLinesEnabled;
@@ -8801,7 +8803,11 @@ namespace DuneVector
         [Tooltip("Height of the options panel. It is shorter than the pause menu because the run entries are gone. Zero falls back to the pause menu's own height.")]
         [Min(0f)] public float OptionsPanelHeight = 676f;
         [Tooltip("Height used when Video Settings is open from the title screen. Zero falls back to the regular options panel height.")]
-        [Min(0f)] public float OptionsVideoPanelHeight = 750f;
+        [Min(0f)] public float OptionsVideoPanelHeight = 756f;
+        [Tooltip("Back-button label used by Video Settings when opened from the title options menu.")]
+        public string OptionsVideoBackButtonLabel = "BACK TO OPTIONS";
+        [Tooltip("Footer hint used by Video Settings when opened from the title options menu.")]
+        public string OptionsVideoFooterHint = "ESC  /  BACK TO OPTIONS";
         [Tooltip("Pushes the options panel down the screen from centred, so growing its height extends the bottom instead of raising the top.")]
         public float OptionsPanelVerticalOffset = 61f;
 

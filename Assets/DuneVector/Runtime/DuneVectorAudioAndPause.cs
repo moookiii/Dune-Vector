@@ -1581,6 +1581,8 @@ namespace DuneVector
         private float _titlePanelWidth;
         private float _titlePanelHeight;
         private float _titleVideoPanelHeight;
+        private string _titleVideoBackButtonLabel = "BACK TO OPTIONS";
+        private string _titleVideoFooterHint = "ESC  /  BACK TO OPTIONS";
         private float _titlePanelVerticalOffset;
 
         private DronePlayer _player;
@@ -1698,12 +1700,22 @@ namespace DuneVector
             float panelWidth,
             float panelHeight,
             float videoPanelHeight,
+            string videoBackButtonLabel,
+            string videoFooterHint,
             float panelVerticalOffset)
         {
             TitleMode = true;
             _titlePanelWidth = panelWidth;
             _titlePanelHeight = panelHeight;
             _titleVideoPanelHeight = videoPanelHeight;
+            if (!string.IsNullOrWhiteSpace(videoBackButtonLabel))
+            {
+                _titleVideoBackButtonLabel = videoBackButtonLabel;
+            }
+            if (!string.IsNullOrWhiteSpace(videoFooterHint))
+            {
+                _titleVideoFooterHint = videoFooterHint;
+            }
             _titlePanelVerticalOffset = panelVerticalOffset;
             _audio = audio;
             _playerTuning = playerTuning;
@@ -2470,7 +2482,7 @@ namespace DuneVector
                 _audio.SetFrameRateCapped(!frameRateCapped);
             }
             GUI.enabled = previousEnabled;
-            y += buttonHeight + gap;
+            y += buttonHeight + gap + (_visuals.VideoSettingsExtraGap * scale);
 
             int minimumFrameRate = Mathf.Max(1, _visuals.MinimumFrameRateLimit);
             int maximumFrameRate = Mathf.Max(minimumFrameRate, _visuals.MaximumFrameRateLimit);
@@ -2574,13 +2586,18 @@ namespace DuneVector
             }
             if (DrawMenuButton(
                     new Rect(content.x + navigationWidth + gap, y, navigationWidth, buttonHeight),
-                    _visuals.VideoSettingsBackButtonLabel,
+                    TitleMode ? _titleVideoBackButtonLabel : _visuals.VideoSettingsBackButtonLabel,
                     PauseButtonKind.Primary))
             {
                 _showVideoSettings = false;
             }
 
-            DrawFooterHint(content, _visuals.VideoSettingsHintLabel, scale);
+            float navigationBottom = y + buttonHeight + (_visuals.VideoSettingsExtraGap * scale);
+            DrawFooterHint(
+                content,
+                TitleMode ? _titleVideoFooterHint : _visuals.VideoSettingsHintLabel,
+                scale,
+                navigationBottom);
         }
 
         private void DrawMusicVisualizerSettingsScreen(float scale)
@@ -3544,10 +3561,11 @@ namespace DuneVector
             return y + height + (_visuals.ButtonGap * scale);
         }
 
-        private void DrawFooterHint(Rect content, string text, float scale)
+        private void DrawFooterHint(Rect content, string text, float scale, float minimumY = float.NegativeInfinity)
         {
             float hintHeight = _hintStyle.lineHeight;
-            Rect hintRect = new Rect(content.x, content.yMax - hintHeight, content.width, hintHeight);
+            float hintY = Mathf.Max(content.yMax - hintHeight, minimumY);
+            Rect hintRect = new Rect(content.x, hintY, content.width, hintHeight);
             DrawTrackedLabel(hintRect, text, _hintStyle, _visuals.HintTracking * scale, _visuals.SecondaryTextColor);
         }
 

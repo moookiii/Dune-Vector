@@ -705,6 +705,8 @@ namespace DuneVector
                     _settings.OptionsPanelWidth,
                     _settings.OptionsPanelHeight,
                     _settings.OptionsVideoPanelHeight,
+                    _settings.OptionsVideoBackButtonLabel,
+                    _settings.OptionsVideoFooterHint,
                     _settings.OptionsPanelVerticalOffset);
                 _optionsMenu.TitleOptionsClosed += HandleOptionsClosed;
             }
