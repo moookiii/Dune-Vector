@@ -40,6 +40,8 @@ namespace DuneVector
         private EventInstance _musicInstance;
         private bool _musicStarted;
         private bool _confirmed;
+        private DuneVectorPauseMenu _optionsMenu;
+        private bool OptionsOpen => _optionsMenu != null && _optionsMenu.IsPaused;
 
         private static readonly DuneVectorTitleMenuEntry[] MenuOrder =
         {
@@ -252,7 +254,7 @@ namespace DuneVector
 
         private void Update()
         {
-            if (_confirmed)
+            if (_confirmed || OptionsOpen)
             {
                 return;
             }
@@ -335,7 +337,10 @@ namespace DuneVector
                     if (!_settings.OptionsEnabled)
                     {
                         Debug.Log("The Dune Vector options screen is not built yet.", this);
+                        break;
                     }
+
+                    OpenOptions();
                     break;
             }
         }
@@ -526,6 +531,57 @@ namespace DuneVector
                 box,
                 border,
                 Mathf.Max(1f, _settings.SelectionBoxThickness * scale));
+        }
+
+        /// <summary>
+        /// Builds the options panel on first use. It is the pause menu in title mode, so the
+        /// mixer, sensitivity, controls, visualizer and video screens all come from one place
+        /// rather than a second copy that would drift from the in-game one.
+        /// </summary>
+        private void OpenOptions()
+        {
+            if (_optionsMenu == null)
+            {
+                DuneVectorAudioManager audio = EnsureAudioManager();
+                _optionsMenu = gameObject.AddComponent<DuneVectorPauseMenu>();
+                _optionsMenu.InitializeForTitleScreen(
+                    audio,
+                    RuntimeSettings.PlayerTuning,
+                    RuntimeSettings.Audio.PauseMenu,
+                    RuntimeSettings.RetroCrtScanlines,
+                    _settings.OptionsHeading,
+                    _settings.OptionsSubheading,
+                    _settings.OptionsFooterHint);
+                _optionsMenu.TitleOptionsClosed += HandleOptionsClosed;
+            }
+
+            _optionsMenu.OpenTitleOptions();
+        }
+
+        private void HandleOptionsClosed()
+        {
+            PlayButtonSound();
+        }
+
+        /// <summary>
+        /// The audio manager is a persistent singleton, so the title only has to stand one up if
+        /// nothing has yet. It is brought up preferences-only: the gameplay playlist must not
+        /// start over the title theme, and the gameplay scene still runs the full Initialize.
+        /// </summary>
+        private DuneVectorAudioManager EnsureAudioManager()
+        {
+            DuneVectorAudioManager audio = DuneVectorAudioManager.Instance;
+            if (audio == null)
+            {
+                GameObject audioObject = new GameObject("FMOD Audio and Background Music");
+                audio = audioObject.AddComponent<DuneVectorAudioManager>();
+            }
+
+            audio.InitializePreferencesOnly(
+                RuntimeSettings.Audio,
+                RuntimeSettings.Performance,
+                RuntimeSettings.PlayerTuning.CameraAntiAliasingMode);
+            return audio;
         }
 
         private string GetLabel(DuneVectorTitleMenuEntry entry)

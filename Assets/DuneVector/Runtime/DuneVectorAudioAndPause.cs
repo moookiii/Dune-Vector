@@ -207,6 +207,45 @@ namespace DuneVector
             StartBackgroundMusic();
         }
 
+        /// <summary>
+        /// Brings the stored preferences and the FMOD buses up without touching the gameplay
+        /// playlist, so the title screen can host the options panel while its own theme plays.
+        /// This deliberately leaves _initialized false: the full Initialize still has to run
+        /// once the gameplay scene loads, and that is what starts the background music.
+        /// </summary>
+        public void InitializePreferencesOnly(
+            AudioTuning settings,
+            RuntimePerformanceTuning performanceSettings,
+            DuneVectorCameraAntiAliasingMode defaultAntiAliasingMode)
+        {
+            if (settings == null)
+            {
+                Debug.LogError("Dune Vector audio requires Audio Tuning in the Runtime Settings asset.", this);
+                return;
+            }
+
+            _settings = settings;
+            _performanceSettings = performanceSettings;
+            _defaultAntiAliasingMode = defaultAntiAliasingMode;
+            if (string.IsNullOrEmpty(_preferencesPath))
+            {
+                _preferencesPath = Path.Combine(Application.persistentDataPath, AudioPreferencesFileName);
+            }
+
+            LoadStoredVolumes();
+            ApplyFrameRatePreference();
+            _hasMasterBus = TryGetBus(_settings.MasterBusPath, out _masterBus);
+            if (_hasMasterBus && _masterBus.getVolume(out _masterFullVolume) == FMOD.RESULT.OK)
+            {
+                _masterCurrentVolume = _masterFullVolume;
+                _masterTargetVolume = _masterFullVolume;
+            }
+            _hasMusicBus = TryGetBus(_settings.MusicBusPath, out _musicBus);
+            _hasSoundEffectsBus = TryGetBus(_settings.SoundEffectsBusPath, out _soundEffectsBus);
+            _hasDialogueBus = TryGetBus(_settings.DialogueBusPath, out _dialogueBus);
+            ApplyMixerVolumes();
+        }
+
         private void BindHealth(DroneHealth health)
         {
             if (_health != null)
@@ -1526,6 +1565,20 @@ namespace DuneVector
         public bool IsPaused { get; private set; }
         public bool IsCompendiumOpen => IsPaused && _showCompendium;
 
+        /// <summary>
+        /// True when this panel is hosted by the title screen instead of a run. Title mode drops
+        /// every entry that acts on a run, and leaves the time scale and cursor alone because
+        /// there is no gameplay to suspend.
+        /// </summary>
+        public bool TitleMode { get; private set; }
+
+        /// <summary>Raised when the title-mode panel closes, so the title menu can take input back.</summary>
+        public event Action TitleOptionsClosed;
+
+        private string _titleHeading = "OPTIONS";
+        private string _titleSubheading = "DUNE VECTOR  /  SYSTEMS SETTINGS";
+        private string _titleFooterHint = "ESC  /  BACK TO TITLE";
+
         private DronePlayer _player;
         private DroneHealth _health;
         private DuneVectorAudioManager _audio;
@@ -1626,6 +1679,48 @@ namespace DuneVector
             ApplyVideoPreferences();
         }
 
+        /// <summary>
+        /// Stands the panel up for the title screen. There is no player, run, or photo archive
+        /// here, so only the mixer, the sensitivity slider, and the settings screens are drawn.
+        /// </summary>
+        public void InitializeForTitleScreen(
+            DuneVectorAudioManager audio,
+            DroneTuning playerTuning,
+            PauseMenuVisualTuning visuals,
+            RetroCrtScanlineTuning retroCrtScanlines,
+            string heading,
+            string subheading,
+            string footerHint)
+        {
+            TitleMode = true;
+            _audio = audio;
+            _playerTuning = playerTuning;
+            _visuals = visuals;
+            _retroCrtScanlines = retroCrtScanlines;
+            if (!string.IsNullOrWhiteSpace(heading))
+            {
+                _titleHeading = heading;
+            }
+            if (!string.IsNullOrWhiteSpace(subheading))
+            {
+                _titleSubheading = subheading;
+            }
+            if (!string.IsNullOrWhiteSpace(footerHint))
+            {
+                _titleFooterHint = footerHint;
+            }
+        }
+
+        public void OpenTitleOptions()
+        {
+            if (!TitleMode)
+            {
+                return;
+            }
+
+            SetPaused(true);
+        }
+
         private DroneCameraController LookCamera => _player != null ? _player.CharacterCamera : null;
 
         private float MinimumLookSensitivity => Mathf.Max(0.001f, _playerTuning.MinimumCameraLookSensitivity);
@@ -1635,7 +1730,10 @@ namespace DuneVector
 
         private float CurrentLookSensitivity => LookCamera != null
             ? LookCamera.LookSensitivity
-            : _playerTuning.CameraLookSensitivity;
+            // No camera exists at the title, so the stored preference stands in for it.
+            : _audio != null && _audio.HasStoredLookSensitivity
+                ? _audio.LookSensitivity
+                : _playerTuning.CameraLookSensitivity;
 
         // The camera is configured from DroneTuning during bootstrap, so a stored
         // player override has to be reapplied once the pause menu binds to it.
@@ -1671,9 +1769,22 @@ namespace DuneVector
 
         private void Update()
         {
-            BindTextInputKeyboard();
             UpdateControlsFade();
             UpdateOpenFade();
+            if (TitleMode)
+            {
+                // Escape backs out of a settings screen, then closes the panel. It must not
+                // reopen it, so the title menu keeps ownership of Escape while it is closed.
+                if (IsPaused &&
+                    Keyboard.current != null &&
+                    Keyboard.current.escapeKey.wasPressedThisFrame)
+                {
+                    HandlePauseBack();
+                }
+                return;
+            }
+
+            BindTextInputKeyboard();
             if (!IsPaused || !_showCompendium)
             {
                 _photography?.HideCompendium();
@@ -1928,6 +2039,12 @@ namespace DuneVector
                 return;
             }
 
+            if (TitleMode)
+            {
+                SetTitleOptionsOpen(paused);
+                return;
+            }
+
             bool wasPaused = IsPaused;
             if (paused && !wasPaused)
             {
@@ -1968,6 +2085,31 @@ namespace DuneVector
                 _showMusicVisualizerSettings = false;
                 _controlsFade = 0f;
                 _audio?.FlushPreferences();
+            }
+        }
+
+        /// <summary>
+        /// The title-screen counterpart of SetPaused. Nothing here suspends gameplay, because the
+        /// title scene has none; it only raises and lowers the panel and flushes preferences.
+        /// </summary>
+        private void SetTitleOptionsOpen(bool open)
+        {
+            bool wasOpen = IsPaused;
+            IsPaused = open;
+            if (open)
+            {
+                _openFade = 0f;
+                return;
+            }
+
+            _showControls = false;
+            _showVideoSettings = false;
+            _showMusicVisualizerSettings = false;
+            _controlsFade = 0f;
+            _audio?.FlushPreferences();
+            if (wasOpen)
+            {
+                TitleOptionsClosed?.Invoke();
             }
         }
 
@@ -2082,19 +2224,26 @@ namespace DuneVector
                 return;
             }
 
-            DrawSongControls(scale);
+            if (!TitleMode)
+            {
+                DrawSongControls(scale);
+            }
             DrawMainPauseScreen(scale);
         }
 
         private void DrawMainPauseScreen(float scale)
         {
-            _drawControllerIndex = 0;
+            // Controller navigation is wired to the run-time entry list, so title mode opts out
+            // rather than mis-mapping it. -1 also stops QUIT from drawing permanently hovered.
+            _drawControllerIndex = TitleMode ? -1 : 0;
             Rect panel = CalculatePanelRect(scale);
             DrawPanelChrome(panel, scale);
 
             Rect content = CalculateContentRect(panel, scale);
             float gap = _visuals.ButtonGap * scale;
-            float y = DrawPanelHeader(content, content.y, "PAUSED", "DUNE VECTOR  /  SYSTEMS ON HOLD", scale, gap);
+            float y = TitleMode
+                ? DrawPanelHeader(content, content.y, _titleHeading, _titleSubheading, scale, gap)
+                : DrawPanelHeader(content, content.y, "PAUSED", "DUNE VECTOR  /  SYSTEMS ON HOLD", scale, gap);
 
             y = DrawSectionHeader(content, y, "AUDIO MIXER", scale);
 
@@ -2143,73 +2292,92 @@ namespace DuneVector
             y += _visuals.DialogueButtonGap * scale;
 
             float buttonHeight = _visuals.ButtonHeight * scale;
-            if (DrawMenuButton(new Rect(content.x, y, content.width, buttonHeight), "RESUME FLIGHT", PauseButtonKind.Primary))
+            if (!TitleMode)
             {
-                SetPaused(false);
+                if (DrawMenuButton(new Rect(content.x, y, content.width, buttonHeight), "RESUME FLIGHT", PauseButtonKind.Primary))
+                {
+                    SetPaused(false);
+                }
+                y += buttonHeight + gap;
             }
-            y += buttonHeight + gap;
 
-            string galleryButtonLabel = _photography != null && _photography.Tuning != null
-                ? _photography.Tuning.PauseMenuButtonLabel
-                : string.Empty;
-            if (DrawMenuButton(
-                    new Rect(content.x, y, content.width, buttonHeight),
-                    galleryButtonLabel,
-                    PauseButtonKind.Secondary,
-                    true))
+            if (TitleMode)
             {
-                _showGallery = true;
+                // The title has no run behind it, so the archive, shop and run controls are all
+                // absent; QUIT is the only run-adjacent entry left and it takes the full width.
+                if (DrawMenuButton(
+                        new Rect(content.x, y, content.width, buttonHeight),
+                        "QUIT",
+                        PauseButtonKind.Danger))
+                {
+                    QuitGame();
+                }
+                y += buttonHeight + gap;
             }
-            y += buttonHeight + gap;
+            else
+            {
+                string galleryButtonLabel = _photography != null && _photography.Tuning != null
+                    ? _photography.Tuning.PauseMenuButtonLabel
+                    : string.Empty;
+                if (DrawMenuButton(
+                        new Rect(content.x, y, content.width, buttonHeight),
+                        galleryButtonLabel,
+                        PauseButtonKind.Secondary,
+                        true))
+                {
+                    _showGallery = true;
+                }
+                y += buttonHeight + gap;
 
-            string compendiumButtonLabel = _photography != null && _photography.Tuning != null
-                ? _photography.Tuning.CompendiumPauseMenuButtonLabel
-                : string.Empty;
-            if (DrawMenuButton(
-                    new Rect(content.x, y, content.width, buttonHeight),
-                    compendiumButtonLabel,
-                    PauseButtonKind.Secondary,
-                    true))
-            {
-                _showCompendium = true;
-                _photography?.ShowCompendium();
-            }
-            y += buttonHeight + gap;
+                string compendiumButtonLabel = _photography != null && _photography.Tuning != null
+                    ? _photography.Tuning.CompendiumPauseMenuButtonLabel
+                    : string.Empty;
+                if (DrawMenuButton(
+                        new Rect(content.x, y, content.width, buttonHeight),
+                        compendiumButtonLabel,
+                        PauseButtonKind.Secondary,
+                        true))
+                {
+                    _showCompendium = true;
+                    _photography?.ShowCompendium();
+                }
+                y += buttonHeight + gap;
 
-            if (DrawMenuButton(
-                    new Rect(content.x, y, content.width, buttonHeight),
-                    "UPGRADE SHOP",
-                    PauseButtonKind.Secondary,
-                    true))
-            {
-                _showShop = true;
-                _shopView?.Open();
-            }
-            y += buttonHeight + gap;
+                if (DrawMenuButton(
+                        new Rect(content.x, y, content.width, buttonHeight),
+                        "UPGRADE SHOP",
+                        PauseButtonKind.Secondary,
+                        true))
+                {
+                    _showShop = true;
+                    _shopView?.Open();
+                }
+                y += buttonHeight + gap;
 
-            bool previousEnabled = GUI.enabled;
-            GUI.enabled = previousEnabled && _courierGame != null && _courierGame.State != CourierRunState.Hub;
-            if (DrawMenuButton(new Rect(content.x, y, content.width, buttonHeight), "RETURN TO HUB", PauseButtonKind.Secondary))
-            {
-                SetPaused(false);
-                _courierGame?.RequestReturnToHub();
-            }
-            GUI.enabled = previousEnabled;
-            y += buttonHeight + gap;
+                bool previousEnabled = GUI.enabled;
+                GUI.enabled = previousEnabled && _courierGame != null && _courierGame.State != CourierRunState.Hub;
+                if (DrawMenuButton(new Rect(content.x, y, content.width, buttonHeight), "RETURN TO HUB", PauseButtonKind.Secondary))
+                {
+                    SetPaused(false);
+                    _courierGame?.RequestReturnToHub();
+                }
+                GUI.enabled = previousEnabled;
+                y += buttonHeight + gap;
 
-            float splitButtonWidth = (content.width - gap) * 0.5f;
-            if (DrawMenuButton(new Rect(content.x, y, splitButtonWidth, buttonHeight), "RESTART RUN", PauseButtonKind.Secondary))
-            {
-                RestartRun();
+                float splitButtonWidth = (content.width - gap) * 0.5f;
+                if (DrawMenuButton(new Rect(content.x, y, splitButtonWidth, buttonHeight), "RESTART RUN", PauseButtonKind.Secondary))
+                {
+                    RestartRun();
+                }
+                if (DrawMenuButton(
+                        new Rect(content.x + splitButtonWidth + gap, y, splitButtonWidth, buttonHeight),
+                        "QUIT",
+                        PauseButtonKind.Danger))
+                {
+                    QuitGame();
+                }
+                y += buttonHeight + gap;
             }
-            if (DrawMenuButton(
-                    new Rect(content.x + splitButtonWidth + gap, y, splitButtonWidth, buttonHeight),
-                    "QUIT",
-                    PauseButtonKind.Danger))
-            {
-                QuitGame();
-            }
-            y += buttonHeight + gap;
 
             // The trailing entries open settings screens rather than acting on the run,
             // so extra breathing room keeps them separate from the run controls above.
@@ -2244,7 +2412,7 @@ namespace DuneVector
                 _showVideoSettings = true;
             }
 
-            DrawFooterHint(content, "ESC  /  RETURN TO THE DESERT", scale);
+            DrawFooterHint(content, TitleMode ? _titleFooterHint : "ESC  /  RETURN TO THE DESERT", scale);
             _drawControllerIndex = -1;
         }
 

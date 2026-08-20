@@ -8739,7 +8739,15 @@ namespace DuneVector
         [Tooltip("Scene loaded when START is confirmed. It must be listed in Build Settings.")]
         public string GameplaySceneName = "DuneVector";
         [Tooltip("Enable once the options screen exists. While disabled, confirming OPTIONS does nothing.")]
-        public bool OptionsEnabled;
+        public bool OptionsEnabled = true;
+
+        [Header("Options Panel")]
+        [Tooltip("Heading drawn across the top of the title options panel.")]
+        public string OptionsHeading = "OPTIONS";
+        [Tooltip("Smaller line under the options heading.")]
+        public string OptionsSubheading = "DUNE VECTOR  /  SYSTEMS SETTINGS";
+        [Tooltip("Hint drawn along the bottom of the options panel.")]
+        public string OptionsFooterHint = "ESC  /  BACK TO TITLE";
 
         [Header("Background Video")]
         [Tooltip("Fullscreen looping video played behind the menu. Imported without transcoding so it stays uncompressed by Unity.")]
