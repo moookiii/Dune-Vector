@@ -9,6 +9,47 @@ namespace DuneVector.Tests
 {
     public sealed class DuneVectorSpawnRegressionTests
     {
+        [Test]
+        public void CourierProgress_CompletingDeliveryMessageKeepsPostContractPresentationPending()
+        {
+            string saveDirectory = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                $"DuneVectorPostContractTest-{Guid.NewGuid():N}");
+            string savePath = System.IO.Path.Combine(saveDirectory, "CourierProgress.dat");
+            System.IO.Directory.CreateDirectory(saveDirectory);
+            GameObject progressObject = new GameObject("Courier Progress Regression Test");
+
+            try
+            {
+                DuneVectorCourierProgress progress =
+                    progressObject.AddComponent<DuneVectorCourierProgress>();
+                typeof(DuneVectorCourierProgress)
+                    .GetField("_savePath", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.SetValue(progress, savePath);
+
+                progress.RecordCompletion(100, 1, assignDeliveryMessage: true);
+                Assert.That(progress.PostContractPresentationPending, Is.True);
+                Assert.That(progress.PendingDeliveryMessageIndex, Is.Zero);
+
+                Assert.That(progress.CompletePendingDeliveryMessage(0), Is.True);
+                Assert.That(
+                    progress.PostContractPresentationPending,
+                    Is.True,
+                    "Finishing the pre-rail message must not consume the post-rail hub notices.");
+
+                progress.CompletePostContractPresentation();
+                Assert.That(progress.PostContractPresentationPending, Is.False);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(progressObject);
+                if (System.IO.Directory.Exists(saveDirectory))
+                {
+                    System.IO.Directory.Delete(saveDirectory, recursive: true);
+                }
+            }
+        }
+
         [TestCase(0, 100f)]
         [TestCase(10, 150f)]
         [TestCase(20, 200f)]

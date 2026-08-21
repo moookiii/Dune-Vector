@@ -110,7 +110,7 @@ namespace DuneVector
         [Serializable]
         private sealed class SaveData
         {
-            public int Version = 11;
+            public int Version = 12;
             public int CompletedDeliveries;
             public int FailedDeliveries;
             public int TotalContractGold;
@@ -121,6 +121,7 @@ namespace DuneVector
             public int HighestFreeRoamStreak;
             public int NextDeliveryMessageIndex;
             public int PendingDeliveryMessageIndex = -1;
+            public bool PostContractPresentationPending;
             public bool DeliveryMessageInputHintAcknowledged;
             public bool StrikeOrbDeathNoteAcknowledged;
             public bool VesperPilgrimDeathNoteAcknowledged;
@@ -147,6 +148,7 @@ namespace DuneVector
         public int HighestFreeRoamStreak { get; private set; }
         public int NextDeliveryMessageIndex { get; private set; }
         public int PendingDeliveryMessageIndex { get; private set; } = -1;
+        public bool PostContractPresentationPending { get; private set; }
         public bool DeliveryMessageInputHintAcknowledged { get; private set; }
         public bool StrikeOrbDeathNoteAcknowledged { get; private set; }
         public bool VesperPilgrimDeathNoteAcknowledged { get; private set; }
@@ -188,6 +190,22 @@ namespace DuneVector
             {
                 PendingDeliveryMessageIndex = NextDeliveryMessageIndex;
             }
+            // The delivery message is completed before the rail subgame begins, but the hub
+            // unlock cards, notices, and trail showcase run after it. Keep that second half of
+            // the completion flow durable so quitting during the rail subgame cannot consume it.
+            PostContractPresentationPending = true;
+            Save();
+            Changed?.Invoke();
+        }
+
+        public void CompletePostContractPresentation()
+        {
+            if (!PostContractPresentationPending)
+            {
+                return;
+            }
+
+            PostContractPresentationPending = false;
             Save();
             Changed?.Invoke();
         }
@@ -356,6 +374,7 @@ namespace DuneVector
             HighestFreeRoamStreak = 0;
             NextDeliveryMessageIndex = 0;
             PendingDeliveryMessageIndex = -1;
+            PostContractPresentationPending = false;
             DeliveryMessageInputHintAcknowledged = false;
             StrikeOrbDeathNoteAcknowledged = false;
             VesperPilgrimDeathNoteAcknowledged = false;
@@ -401,6 +420,13 @@ namespace DuneVector
                     NextDeliveryMessageIndex = CompletedDeliveries;
                     PendingDeliveryMessageIndex = -1;
                 }
+                // Version 11 could save after the delivery message but before the post-rail hub
+                // presentation, with no way to distinguish that state from a fully returned run.
+                // Give existing completed saves one harmless presentation audit: already-seen
+                // notices stay suppressed, while anything the old quit path skipped is restored.
+                PostContractPresentationPending = data.Version >= 12
+                    ? data.PostContractPresentationPending
+                    : CompletedDeliveries > 0;
                 DeliveryMessageInputHintAcknowledged =
                     data.Version >= 3 && data.DeliveryMessageInputHintAcknowledged;
                 StrikeOrbDeathNoteAcknowledged =
@@ -456,6 +482,7 @@ namespace DuneVector
                     HighestFreeRoamStreak = HighestFreeRoamStreak,
                     NextDeliveryMessageIndex = NextDeliveryMessageIndex,
                     PendingDeliveryMessageIndex = PendingDeliveryMessageIndex,
+                    PostContractPresentationPending = PostContractPresentationPending,
                     DeliveryMessageInputHintAcknowledged = DeliveryMessageInputHintAcknowledged,
                     StrikeOrbDeathNoteAcknowledged = StrikeOrbDeathNoteAcknowledged,
                     VesperPilgrimDeathNoteAcknowledged = VesperPilgrimDeathNoteAcknowledged,
@@ -902,7 +929,8 @@ namespace DuneVector
             // The gates have to be configured before the Atlas is built, because the Atlas
             // reads its own unlock straight off them the moment it initializes.
             ConfigureToolUnlockGates();
-            if (Progress.PendingDeliveryMessageIndex < 0)
+            if (Progress.PendingDeliveryMessageIndex < 0 &&
+                !Progress.PostContractPresentationPending)
             {
                 _permanentUpgrades?.DroneTrails?.SynchronizeContractUnlocks(Progress.CompletedDeliveries);
             }
@@ -963,6 +991,13 @@ namespace DuneVector
                 State = CourierRunState.DeliveryMessage;
                 _playerInput.SetInputEnabled(false);
                 _messagePresenter.Open(pendingMessage, HandleDeliveryMessageCompleted);
+            }
+            else if (Progress.PostContractPresentationPending)
+            {
+                // A previous session may have ended inside the post-contract rail subgame. The
+                // narrative message has already advanced by then, but the return-to-hub notices
+                // have not, so resume that presentation directly from the hub.
+                BeginPostReturnPresentation();
             }
         }
 
@@ -3796,6 +3831,10 @@ namespace DuneVector
             TryPlaySandAmbusherNotice();
             DroneTrailOption unlockedTrail = _permanentUpgrades?.DroneTrails?.SynchronizeContractUnlocks(
                 Progress != null ? Progress.CompletedDeliveries : 0);
+            // Everything owed by this contract is now either already acknowledged, queued as a
+            // hub notice, or open as the trail showcase. A later launch can rely on each feature's
+            // own persisted acknowledgement rather than replaying the whole return sequence.
+            Progress?.CompletePostContractPresentation();
             if (unlockedTrail == null)
             {
                 return;
