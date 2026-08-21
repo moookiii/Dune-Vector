@@ -9194,8 +9194,6 @@ namespace DuneVector
         public string KillsValueFormat = "{0:000}";
         public string ComboLabel = "COMBO";
         public string ComboValueFormat = "x{0:0.0}";
-        public string FormationsLabel = "FORMATIONS";
-        public string FormationsValueFormat = "{0:00}";
         public string HullLabel = "RIFT HULL";
         public string HullValueFormat = "{0:000}%";
         public string BombsLabel = "BOMBS";
@@ -9282,7 +9280,6 @@ namespace DuneVector
         public string ResultsRunSectionLabel = "RUN LOG";
         public string ResultsScoreLabel = "SCORE";
         public string ResultsKillsLabel = "HOSTILES DOWNED";
-        public string ResultsFormationsLabel = "FORMATION CLEARS";
         public string ResultsChargeKillsLabel = "CHARGED KILLS";
         public string ResultsDeflectionsLabel = "PROJECTILES DEFLECTED";
         public string ResultsGrazesLabel = "BULLETS GRAZED";

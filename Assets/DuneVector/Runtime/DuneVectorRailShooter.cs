@@ -7102,8 +7102,8 @@ namespace DuneVector
 
             // The panel is sized from exactly the increments the cursor walks below, so no row can
             // ever spill past the frame at any HUD scale.
-            float height = (pad * 2f) + titleHeight + line + divider + (rowGap * 6f) +
-                (line * 5f) + (progress * 2f) + sectionGap + chip;
+            float height = (pad * 2f) + titleHeight + line + divider + (rowGap * 5f) +
+                (line * 4f) + (progress * 2f) + sectionGap + chip;
             Rect panel = new Rect(margin, margin, width, height);
             DrawPanel(panel, _settings.HudBorderColor);
             DrawPanelHeader(panel, pad + titleHeight + line);
@@ -7155,14 +7155,6 @@ namespace DuneVector
                 comboFill,
                 _settings.HudComboColor);
             cursor += progress + sectionGap;
-
-            DrawStatRow(
-                new Rect(panel.x + pad, cursor, inner, line),
-                _settings.FormationsLabel,
-                string.Format(_settings.FormationsValueFormat, _state.FormationClears),
-                _settings.HudSecondaryColor,
-                _settings.HudSecondaryColor);
-            cursor += line + rowGap;
 
             DrawStatRow(
                 new Rect(panel.x + pad, cursor, inner, line),
@@ -8282,7 +8274,6 @@ namespace DuneVector
             {
                 (_settings.ResultsScoreLabel, _state.Score.ToString("0000000"), _settings.HudPrimaryColor),
                 (_settings.ResultsKillsLabel, _state.Kills.ToString("000"), _settings.HudPrimaryColor),
-                (_settings.ResultsFormationsLabel, _state.FormationClears.ToString("00"), _settings.HudPrimaryColor),
                 (_settings.ResultsChargeKillsLabel, _state.ChargeKills.ToString("00"), _settings.HudChargeColor),
                 (_settings.ResultsDeflectionsLabel, _state.ProjectileDeflections.ToString("00"), _settings.HudPrimaryColor),
                 (_settings.ResultsGrazesLabel, _state.Grazes.ToString("000"), _settings.HudReticleColor),
