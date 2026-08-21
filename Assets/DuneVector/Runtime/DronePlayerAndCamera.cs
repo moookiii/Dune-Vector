@@ -7,8 +7,8 @@ namespace DuneVector
     public struct DroneRawInputFrame
     {
         public Vector2 Move;
-        public bool MoveLeftPressed;
-        public bool MoveRightPressed;
+        public int MoveLeftPressCount;
+        public int MoveRightPressCount;
         public Vector2 LookDelta;
         public Vector2 LookRate;
         public float Scroll;
@@ -35,6 +35,38 @@ namespace DuneVector
         public DroneRawInputFrame Current { get; private set; }
         private DroneTuning _tuning;
         private bool _menuAxisEngaged;
+        private InputAction _moveLeftTapAction;
+        private InputAction _moveRightTapAction;
+        private int _pendingLeftPressCount;
+        private int _pendingRightPressCount;
+
+        private void Awake()
+        {
+            _moveLeftTapAction = new InputAction("Rail Move Left Tap", InputActionType.Button, "<Keyboard>/a");
+            _moveRightTapAction = new InputAction("Rail Move Right Tap", InputActionType.Button, "<Keyboard>/d");
+            _moveLeftTapAction.performed += _ => _pendingLeftPressCount++;
+            _moveRightTapAction.performed += _ => _pendingRightPressCount++;
+        }
+
+        private void OnEnable()
+        {
+            _moveLeftTapAction?.Enable();
+            _moveRightTapAction?.Enable();
+        }
+
+        private void OnDisable()
+        {
+            _moveLeftTapAction?.Disable();
+            _moveRightTapAction?.Disable();
+            _pendingLeftPressCount = 0;
+            _pendingRightPressCount = 0;
+        }
+
+        private void OnDestroy()
+        {
+            _moveLeftTapAction?.Dispose();
+            _moveRightTapAction?.Dispose();
+        }
 
         public void Initialize(DroneTuning tuning) => _tuning = tuning;
 
@@ -82,12 +114,16 @@ namespace DuneVector
             bool gamepadFireHeld = gamepad != null && gamepad.buttonWest.isPressed;
             bool gamepadFireReleased = gamepad != null && gamepad.buttonWest.wasReleasedThisFrame;
             float gamepadMenuNavigate = ReadGamepadMenuNavigate(gamepad);
+            int leftPressCount = _pendingLeftPressCount;
+            int rightPressCount = _pendingRightPressCount;
+            _pendingLeftPressCount = 0;
+            _pendingRightPressCount = 0;
 
             Current = new DroneRawInputFrame
             {
                 Move = Vector2.ClampMagnitude(move, 1f),
-                MoveLeftPressed = keyboard != null && keyboard.aKey.wasPressedThisFrame,
-                MoveRightPressed = keyboard != null && keyboard.dKey.wasPressedThisFrame,
+                MoveLeftPressCount = leftPressCount,
+                MoveRightPressCount = rightPressCount,
                 LookDelta = mouse != null ? mouse.delta.ReadValue() : Vector2.zero,
                 LookRate = gamepad != null ? gamepad.rightStick.ReadValue() : Vector2.zero,
                 Scroll = mouse != null ? mouse.scroll.ReadValue().y / 120f : 0f,
@@ -125,6 +161,8 @@ namespace DuneVector
         {
             Current = default;
             _menuAxisEngaged = false;
+            _pendingLeftPressCount = 0;
+            _pendingRightPressCount = 0;
         }
 
         private float ControllerTriggerThreshold => _tuning != null ? _tuning.ControllerTriggerThreshold : 1f;

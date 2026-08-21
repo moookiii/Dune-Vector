@@ -65,8 +65,8 @@ namespace DuneVector
     public readonly struct RailShooterCommand
     {
         public readonly Vector2 Move;
-        public readonly bool MoveLeftPressed;
-        public readonly bool MoveRightPressed;
+        public readonly int MoveLeftPressCount;
+        public readonly int MoveRightPressCount;
         public readonly bool BoostHeld;
         public readonly bool BrakeHeld;
         public readonly bool FirePressed;
@@ -84,8 +84,8 @@ namespace DuneVector
         public RailShooterCommand(in DroneRawInputFrame input)
         {
             Move = Vector2.ClampMagnitude(input.Move, 1f);
-            MoveLeftPressed = input.MoveLeftPressed;
-            MoveRightPressed = input.MoveRightPressed;
+            MoveLeftPressCount = Mathf.Max(0, input.MoveLeftPressCount);
+            MoveRightPressCount = Mathf.Max(0, input.MoveRightPressCount);
             BoostHeld = input.BoostHeld;
             BrakeHeld = input.BrakeHeld;
             FirePressed = input.FirePressed;
@@ -971,7 +971,7 @@ namespace DuneVector
 
         private void TryBeginDoubleTapRoll(in RailShooterCommand command)
         {
-            if (command.MoveLeftPressed)
+            for (int i = 0; i < command.MoveLeftPressCount; i++)
             {
                 if (IsRailDoubleTap(_lastLeftTapAt, _state.Elapsed, _settings.BarrelRollDoubleTapWindow) &&
                     TryBeginTrick(Vector2.left))
@@ -980,7 +980,7 @@ namespace DuneVector
                 }
                 _lastLeftTapAt = _state.Elapsed;
             }
-            if (command.MoveRightPressed)
+            for (int i = 0; i < command.MoveRightPressCount; i++)
             {
                 if (IsRailDoubleTap(_lastRightTapAt, _state.Elapsed, _settings.BarrelRollDoubleTapWindow) &&
                     TryBeginTrick(Vector2.right))

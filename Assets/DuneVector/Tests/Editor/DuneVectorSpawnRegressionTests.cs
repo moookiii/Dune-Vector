@@ -361,7 +361,12 @@ namespace DuneVector.Tests
                     2.001f + settings.BarrelRollDoubleTapWindow,
                     settings.BarrelRollDoubleTapWindow),
                 Is.False);
-            Assert.That(settings.BarrelRollDashDistance, Is.GreaterThan(10f));
+            Assert.That(settings.BarrelRollDuration, Is.EqualTo(0.58f).Within(0.001f));
+            Assert.That(settings.BarrelRollDashDistance, Is.EqualTo(36f).Within(0.001f));
+            Assert.That(
+                DuneVectorRailShooterController.IsRailDoubleTap(5f, 5f, 0.28f),
+                Is.True,
+                "Two buffered presses captured in the same simulation frame must still roll.");
         }
 
         [Test]
