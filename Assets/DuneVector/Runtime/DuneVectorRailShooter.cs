@@ -65,6 +65,8 @@ namespace DuneVector
     public readonly struct RailShooterCommand
     {
         public readonly Vector2 Move;
+        public readonly bool MoveLeftPressed;
+        public readonly bool MoveRightPressed;
         public readonly bool BoostHeld;
         public readonly bool BrakeHeld;
         public readonly bool FirePressed;
@@ -82,6 +84,8 @@ namespace DuneVector
         public RailShooterCommand(in DroneRawInputFrame input)
         {
             Move = Vector2.ClampMagnitude(input.Move, 1f);
+            MoveLeftPressed = input.MoveLeftPressed;
+            MoveRightPressed = input.MoveRightPressed;
             BoostHeld = input.BoostHeld;
             BrakeHeld = input.BrakeHeld;
             FirePressed = input.FirePressed;
@@ -394,6 +398,10 @@ namespace DuneVector
         private float _cameraShake;
         private float _fovImpulse;
         private float _blackRingBoostTimeRemaining;
+        private float _lastLeftTapAt = float.NegativeInfinity;
+        private float _lastRightTapAt = float.NegativeInfinity;
+        private float _rollDashRemaining;
+        private float _rollDashDirection;
         private int _difficulty = 1;
         private Vector3 _cameraBasePosition;
         // Half extents of the full play area the drone flies inside, which is the screen rectangle
@@ -588,6 +596,10 @@ namespace DuneVector
             _cameraShake = 0f;
             _fovImpulse = 0f;
             _blackRingBoostTimeRemaining = 0f;
+            _lastLeftTapAt = float.NegativeInfinity;
+            _lastRightTapAt = float.NegativeInfinity;
+            _rollDashRemaining = 0f;
+            _rollDashDirection = 0f;
             _aimViewport = new Vector2(0.5f, 0.5f);
             _hitMarkerElapsed = float.PositiveInfinity;
             _killMarkerElapsed = float.PositiveInfinity;
@@ -744,6 +756,7 @@ namespace DuneVector
 
         private void TickFlight(in RailShooterCommand command, float deltaTime)
         {
+            TryBeginDoubleTapRoll(command);
             bool maneuverAvailable = _state.ManeuverEnergy > 0f;
             bool boosting = command.BoostHeld && !command.BrakeHeld && maneuverAvailable;
             bool braking = command.BrakeHeld && !command.BoostHeld && maneuverAvailable;
@@ -813,6 +826,17 @@ namespace DuneVector
                 deltaTime,
                 screenSpaceBounds,
                 _settings.BoundarySoftness);
+            if (_rollDashRemaining > 0f)
+            {
+                float dashSpeed = Mathf.Max(0f, _settings.BarrelRollDashDistance) /
+                    Mathf.Max(0.01f, _settings.BarrelRollDashDuration);
+                float dashStep = Mathf.Min(_rollDashRemaining, dashSpeed * deltaTime);
+                _state.FlightOffset.x = Mathf.Clamp(
+                    _state.FlightOffset.x + (_rollDashDirection * dashStep),
+                    -screenSpaceBounds.x,
+                    screenSpaceBounds.x);
+                _rollDashRemaining -= dashStep;
+            }
             _playAreaHalfExtents = screenSpaceBounds;
             RebaseFlightSpaceIfNeeded();
             float attitudeSharpness = steering
@@ -945,8 +969,46 @@ namespace DuneVector
             _state.FlightOffset = Vector2.zero;
         }
 
-        private void TryBeginTrick(Vector2 move)
+        private void TryBeginDoubleTapRoll(in RailShooterCommand command)
         {
+            if (command.MoveLeftPressed)
+            {
+                if (IsRailDoubleTap(_lastLeftTapAt, _state.Elapsed, _settings.BarrelRollDoubleTapWindow) &&
+                    TryBeginTrick(Vector2.left))
+                {
+                    BeginBarrelRollDash(-1f);
+                }
+                _lastLeftTapAt = _state.Elapsed;
+            }
+            if (command.MoveRightPressed)
+            {
+                if (IsRailDoubleTap(_lastRightTapAt, _state.Elapsed, _settings.BarrelRollDoubleTapWindow) &&
+                    TryBeginTrick(Vector2.right))
+                {
+                    BeginBarrelRollDash(1f);
+                }
+                _lastRightTapAt = _state.Elapsed;
+            }
+        }
+
+        private void BeginBarrelRollDash(float direction)
+        {
+            _rollDashDirection = Mathf.Sign(direction);
+            _rollDashRemaining = Mathf.Max(0f, _settings.BarrelRollDashDistance);
+        }
+
+        public static bool IsRailDoubleTap(float previousTapAt, float currentTime, float window)
+        {
+            float elapsed = currentTime - previousTapAt;
+            return elapsed >= 0f && elapsed <= Mathf.Max(0f, window);
+        }
+
+        private bool TryBeginTrick(Vector2 move)
+        {
+            if (_state.Trick != RailShooterTrick.None)
+            {
+                return false;
+            }
             RailShooterTrick trick = ResolveTrickForMove(move);
             float cost;
             if (trick == RailShooterTrick.Loop)
@@ -960,11 +1022,12 @@ namespace DuneVector
 
             if (_state.ManeuverEnergy < cost)
             {
-                return;
+                return false;
             }
             _state.ManeuverEnergy -= cost;
             _state.Trick = trick;
             _state.TrickElapsed = 0f;
+            return true;
         }
 
         public static RailShooterTrick ResolveTrickForMove(Vector2 move)

@@ -342,6 +342,29 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void RailShooter_ADoubleTapUsesAuthoredWindowAndDashDistance()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            RailShooterTuning settings = runtimeSettings != null ? runtimeSettings.RailShooter : null;
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(
+                DuneVectorRailShooterController.IsRailDoubleTap(
+                    2f,
+                    2f + settings.BarrelRollDoubleTapWindow,
+                    settings.BarrelRollDoubleTapWindow),
+                Is.True);
+            Assert.That(
+                DuneVectorRailShooterController.IsRailDoubleTap(
+                    2f,
+                    2.001f + settings.BarrelRollDoubleTapWindow,
+                    settings.BarrelRollDoubleTapWindow),
+                Is.False);
+            Assert.That(settings.BarrelRollDashDistance, Is.GreaterThan(10f));
+        }
+
+        [Test]
         public void RailShooter_MassiveCloudHeightsRestoreAfterSubgameOverride()
         {
             var layer = new FakeMassiveCloudParameter

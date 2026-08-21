@@ -7,6 +7,8 @@ namespace DuneVector
     public struct DroneRawInputFrame
     {
         public Vector2 Move;
+        public bool MoveLeftPressed;
+        public bool MoveRightPressed;
         public Vector2 LookDelta;
         public Vector2 LookRate;
         public float Scroll;
@@ -84,6 +86,8 @@ namespace DuneVector
             Current = new DroneRawInputFrame
             {
                 Move = Vector2.ClampMagnitude(move, 1f),
+                MoveLeftPressed = keyboard != null && keyboard.aKey.wasPressedThisFrame,
+                MoveRightPressed = keyboard != null && keyboard.dKey.wasPressedThisFrame,
                 LookDelta = mouse != null ? mouse.delta.ReadValue() : Vector2.zero,
                 LookRate = gamepad != null ? gamepad.rightStick.ReadValue() : Vector2.zero,
                 Scroll = mouse != null ? mouse.scroll.ReadValue().y / 120f : 0f,

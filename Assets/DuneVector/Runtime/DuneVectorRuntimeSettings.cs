@@ -8792,6 +8792,12 @@ namespace DuneVector
         [Min(0f)] public float BarrelRollEnergy = 24f;
         [Min(0f)] public float LoopEnergy = 40f;
         [Min(0.01f)] public float BarrelRollDuration = 0.29f;
+        [Tooltip("Maximum seconds allowed between two A or D presses to trigger a rail barrel-roll dash.")]
+        [Min(0f)] public float BarrelRollDoubleTapWindow = 0.28f;
+        [Tooltip("Lateral world-space distance covered by a rail double-tap barrel-roll dash.")]
+        [Min(0f)] public float BarrelRollDashDistance = 18f;
+        [Tooltip("Seconds over which the rail double-tap barrel-roll dash covers its distance.")]
+        [Min(0.01f)] public float BarrelRollDashDuration = 0.18f;
         [Tooltip("Whole rolls the corkscrew trick completes. Fractional values are rounded so the trick always ends with the hull level.")]
         [Min(1f)] public float CorkscrewRollTurns = 2f;
         [Min(0.01f)] public float CorkscrewDuration = 0.82f;
@@ -9152,7 +9158,7 @@ namespace DuneVector
         public string BossTitle = "VESPER SOVEREIGN // NULL CHOIR";
         public string SafeRouteLabel = "SIGNAL ROUTE";
         public string RiskRouteLabel = "BLACK ROUTE";
-        public string ControlsLabel = "WASD MOVE   SHIFT BOOST   CTRL BRAKE   E BARREL ROLL   LMB FIRE/CHARGE   RMB DRAW SIGILS   MMB/Q BOMB";
+        public string ControlsLabel = "WASD MOVE   A/D DOUBLE-TAP ROLL   SHIFT BOOST   CTRL BRAKE   E BARREL ROLL   LMB FIRE/CHARGE   RMB DRAW SIGILS   MMB/Q BOMB";
 
         [Header("Rail HUD Layout")]
         [Tooltip("Screen height the rail HUD chrome was authored against. Panels, fonts, and meters scale from this so the readout keeps its proportion on any display.")]
