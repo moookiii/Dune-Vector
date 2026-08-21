@@ -947,23 +947,14 @@ namespace DuneVector
 
         private void TryBeginTrick(Vector2 move)
         {
-            RailShooterTrick trick;
+            RailShooterTrick trick = ResolveTrickForMove(move);
             float cost;
-            if (move.y > 0.45f)
+            if (trick == RailShooterTrick.Loop)
             {
-                trick = RailShooterTrick.Loop;
                 cost = _settings.LoopEnergy;
-            }
-            else if (Mathf.Abs(move.x) > 0.35f)
-            {
-                trick = move.x < 0f
-                    ? RailShooterTrick.BarrelRollLeft
-                    : RailShooterTrick.BarrelRollRight;
-                cost = _settings.BarrelRollEnergy;
             }
             else
             {
-                trick = RailShooterTrick.Corkscrew;
                 cost = _settings.BarrelRollEnergy;
             }
 
@@ -974,6 +965,17 @@ namespace DuneVector
             _state.ManeuverEnergy -= cost;
             _state.Trick = trick;
             _state.TrickElapsed = 0f;
+        }
+
+        public static RailShooterTrick ResolveTrickForMove(Vector2 move)
+        {
+            if (move.y > 0.45f)
+            {
+                return RailShooterTrick.Loop;
+            }
+            return move.x < -0.35f
+                ? RailShooterTrick.BarrelRollLeft
+                : RailShooterTrick.BarrelRollRight;
         }
 
         private void TickTrick(float deltaTime)

@@ -334,6 +334,14 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void RailShooter_NeutralManeuverInputStartsABarrelRoll()
+        {
+            Assert.That(
+                DuneVectorRailShooterController.ResolveTrickForMove(Vector2.zero),
+                Is.EqualTo(RailShooterTrick.BarrelRollRight));
+        }
+
+        [Test]
         public void RailShooter_MassiveCloudHeightsRestoreAfterSubgameOverride()
         {
             var layer = new FakeMassiveCloudParameter

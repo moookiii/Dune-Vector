@@ -8791,7 +8791,7 @@ namespace DuneVector
         [Min(0f)] public float BrakeEnergyPerSecond = 18f;
         [Min(0f)] public float BarrelRollEnergy = 24f;
         [Min(0f)] public float LoopEnergy = 40f;
-        [Min(0.01f)] public float BarrelRollDuration = 0.58f;
+        [Min(0.01f)] public float BarrelRollDuration = 0.29f;
         [Tooltip("Whole rolls the corkscrew trick completes. Fractional values are rounded so the trick always ends with the hull level.")]
         [Min(1f)] public float CorkscrewRollTurns = 2f;
         [Min(0.01f)] public float CorkscrewDuration = 0.82f;
@@ -9152,7 +9152,7 @@ namespace DuneVector
         public string BossTitle = "VESPER SOVEREIGN // NULL CHOIR";
         public string SafeRouteLabel = "SIGNAL ROUTE";
         public string RiskRouteLabel = "BLACK ROUTE";
-        public string ControlsLabel = "WASD MOVE   SHIFT BOOST   CTRL BRAKE   SPACE MANEUVER   LMB FIRE/CHARGE   RMB DRAW SIGILS   MMB/Q BOMB";
+        public string ControlsLabel = "WASD MOVE   SHIFT BOOST   CTRL BRAKE   E BARREL ROLL   LMB FIRE/CHARGE   RMB DRAW SIGILS   MMB/Q BOMB";
 
         [Header("Rail HUD Layout")]
         [Tooltip("Screen height the rail HUD chrome was authored against. Panels, fonts, and meters scale from this so the readout keeps its proportion on any display.")]

@@ -49,11 +49,16 @@ namespace DuneVector
             bool brakeHeld = false;
             if (keyboard != null)
             {
+                bool railShooterActive = DuneVectorRailShooterController.IsAnyRailShooterActive;
                 bool controlHeld = keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed;
                 move.x = (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f);
                 move.y = (keyboard.wKey.isPressed ? 1f : 0f) - (keyboard.sKey.isPressed ? 1f : 0f);
-                jumpPressed = keyboard.spaceKey.wasPressedThisFrame;
-                jumpHeld = keyboard.spaceKey.isPressed;
+                jumpPressed = railShooterActive
+                    ? keyboard.eKey.wasPressedThisFrame
+                    : keyboard.spaceKey.wasPressedThisFrame;
+                jumpHeld = railShooterActive
+                    ? keyboard.eKey.isPressed
+                    : keyboard.spaceKey.isPressed;
                 boostHeld = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
                 brakeHeld = controlHeld;
             }
