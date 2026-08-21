@@ -95,7 +95,6 @@ namespace DuneVector
         private float _styledScale = -1f;
         private GUIStyle _kickerStyle;
         private GUIStyle _titleStyle;
-        private GUIStyle _bodyStyle;
         private GUIStyle _footnoteStyle;
         private GUIStyle _promptStyle;
 
@@ -297,7 +296,7 @@ namespace DuneVector
             DrawBackdropVignette(screen, scale, alpha);
 
             float panelWidth = Mathf.Min(_tuning.PanelWidth * scale, Screen.width - (24f * scale));
-            float panelHeight = Mathf.Min(_tuning.PanelHeight * scale, Screen.height - (24f * scale));
+            float panelHeight = Mathf.Min(MeasurePanelHeight(scale), Screen.height - (24f * scale));
             Rect panel = new Rect(
                 Mathf.Round((Screen.width - panelWidth) * 0.5f),
                 Mathf.Round((Screen.height - panelHeight) * 0.5f),
@@ -402,7 +401,7 @@ namespace DuneVector
                 content.x,
                 reticleCenter.y + reticleRadius + (_tuning.TitleTopGap * scale),
                 content.width,
-                _tuning.TitleFontSize * 1.5f * scale);
+                TitleHeight(scale));
             DuneVectorHudChrome.DrawGlowLabel(
                 titleRect,
                 _entry.Title,
@@ -426,36 +425,27 @@ namespace DuneVector
             DuneVectorHudChrome.DrawHorizontalFade(
                 new Rect(rule.center.x, rule.y, rule.width * 0.5f, rule.height), Fade(accent, alpha), true);
 
-            float meterHeight = Mathf.Max(4f, _tuning.HoldMeterHeight * scale);
+            // Everything below the rule flows straight on down. The panel was measured from
+            // this same stack, so the card closes on the meter with no dead space under it.
+            Rect footnoteRect = new Rect(
+                content.x,
+                rule.yMax + (_tuning.FootnoteTopGap * scale),
+                content.width,
+                FootnoteHeight(scale));
+            DrawLabel(footnoteRect, _entry.Footnote, _footnoteStyle, accent, alpha * _tuning.FootnoteOpacity);
+
+            Rect promptRect = new Rect(
+                content.x,
+                footnoteRect.yMax + (_tuning.PromptTopGap * scale),
+                content.width,
+                PromptHeight(scale));
+
             float meterInsetX = _tuning.HoldMeterSideInset * scale;
             Rect meter = new Rect(
                 content.x + meterInsetX,
-                panel.yMax - (_tuning.HoldMeterBottomGap * scale) - meterHeight,
+                promptRect.yMax + (_tuning.HoldMeterTopGap * scale),
                 Mathf.Max(0f, content.width - (meterInsetX * 2f)),
-                meterHeight);
-
-            float promptHeight = _tuning.PromptFontSize * 1.8f * scale;
-            Rect promptRect = new Rect(
-                content.x,
-                meter.y - (_tuning.PromptBottomGap * scale) - promptHeight,
-                content.width,
-                promptHeight);
-
-            float footnoteHeight = _tuning.FootnoteFontSize * 1.8f * scale;
-            Rect footnoteRect = new Rect(
-                content.x,
-                promptRect.y - (_tuning.FootnoteBottomGap * scale) - footnoteHeight,
-                content.width,
-                footnoteHeight);
-
-            float bodyInsetX = _tuning.BodySideInset * scale;
-            Rect bodyRect = new Rect(
-                content.x + bodyInsetX,
-                rule.yMax + (_tuning.BodyTopGap * scale),
-                Mathf.Max(0f, content.width - (bodyInsetX * 2f)),
-                Mathf.Max(0f, footnoteRect.y - rule.yMax - (_tuning.BodyTopGap * scale)));
-            DrawLabel(bodyRect, _entry.Body, _bodyStyle, _tuning.SecondaryTextColor, alpha);
-            DrawLabel(footnoteRect, _entry.Footnote, _footnoteStyle, accent, alpha * _tuning.FootnoteOpacity);
+                MeterHeight(scale));
 
             bool holding = _hold01 > 0.015f;
             float pulse = holding
@@ -656,6 +646,30 @@ namespace DuneVector
                 Mathf.Max(1f, scale));
         }
 
+        /// <summary>
+        /// Height of the stacked card: header, artwork reticle, title, rule, footnote, prompt
+        /// and hold meter, wrapped in the panel padding. Measuring it rather than authoring it
+        /// keeps the composition closed however the gaps and type sizes are retuned.
+        /// </summary>
+        private float MeasurePanelHeight(float scale)
+        {
+            float content = (_tuning.ReticleRadius * 2f * scale) +
+                (_tuning.TitleTopGap * scale) + TitleHeight(scale) +
+                (_tuning.TitleRuleTopGap * scale) + Mathf.Max(1f, _tuning.TitleRuleHeight * scale) +
+                (_tuning.FootnoteTopGap * scale) + FootnoteHeight(scale) +
+                (_tuning.PromptTopGap * scale) + PromptHeight(scale) +
+                (_tuning.HoldMeterTopGap * scale) + MeterHeight(scale);
+            return (_tuning.HeaderHeight * scale) + (_tuning.PanelPadding * scale * 2f) + content;
+        }
+
+        private float TitleHeight(float scale) => _tuning.TitleFontSize * 1.5f * scale;
+
+        private float FootnoteHeight(float scale) => _tuning.FootnoteFontSize * 1.8f * scale;
+
+        private float PromptHeight(float scale) => _tuning.PromptFontSize * 1.8f * scale;
+
+        private float MeterHeight(float scale) => Mathf.Max(4f, _tuning.HoldMeterHeight * scale);
+
         private float CalculateScale()
         {
             float minimumScale = Mathf.Min(_tuning.MinimumScale, _tuning.MaximumScale);
@@ -680,8 +694,6 @@ namespace DuneVector
                 _tuning.KickerFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, false, scale);
             _titleStyle = CreateLabelStyle(
                 _tuning.TitleFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, false, scale);
-            _bodyStyle = CreateLabelStyle(
-                _tuning.BodyFontSize, FontStyle.Normal, TextAnchor.UpperCenter, true, scale);
             _footnoteStyle = CreateLabelStyle(
                 _tuning.FootnoteFontSize, FontStyle.Bold, TextAnchor.MiddleCenter, false, scale);
             _promptStyle = CreateLabelStyle(

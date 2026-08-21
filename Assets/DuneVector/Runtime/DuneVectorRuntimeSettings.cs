@@ -7018,9 +7018,6 @@ namespace DuneVector
         [Tooltip("Tool name set under the artwork.")]
         public string Title = "TOOL";
 
-        [Tooltip("Two or three lines of flavour explaining what the tool does.")]
-        [TextArea] public string Body = "A new instrument has been fitted to the drone.";
-
         [Tooltip("Single accented line naming where the tool now appears on the HUD.")]
         public string Footnote = "NOW ACTIVE ON THE HUD";
 
@@ -7076,7 +7073,9 @@ namespace DuneVector
         [Range(0.5f, 2f)] public float MinimumScale = 0.62f;
         [Range(0.5f, 2f)] public float MaximumScale = 1.15f;
         [Min(360f)] public float PanelWidth = 880f;
-        [Min(280f)] public float PanelHeight = 782f;
+        // The card has no variable-length copy left, so its height is measured from the
+        // stacked sections rather than authored. That keeps the composition closed no matter
+        // how the gaps and type sizes below are retuned.
         [Min(8f)] public float PanelPadding = 30f;
         [Range(0.5f, 1f)] public float EntranceScale = 0.965f;
         [Min(40f)] public float HeaderHeight = 66f;
@@ -7128,22 +7127,19 @@ namespace DuneVector
         [Min(0f)] public float TitleRuleTopGap = 12f;
         [Min(0f)] public float TitleRuleWidth = 260f;
         [Min(1f)] public float TitleRuleHeight = 2f;
-        [Min(9)] public int BodyFontSize = 16;
-        [Min(0f)] public float BodyTopGap = 18f;
-        [Min(0f)] public float BodySideInset = 54f;
         [Min(9)] public int FootnoteFontSize = 13;
-        [Min(0f)] public float FootnoteBottomGap = 12f;
+        [Min(0f)] public float FootnoteTopGap = 22f;
         [Range(0f, 1f)] public float FootnoteOpacity = 0.85f;
         [Min(9)] public int PromptFontSize = 14;
         [Min(0)] public int PromptLetterSpacing = 1;
-        [Min(0f)] public float PromptBottomGap = 12f;
+        [Min(0f)] public float PromptTopGap = 26f;
         [Range(0f, 1f)] public float PromptMinimumAlpha = 0.4f;
         [Min(0f)] public float PromptPulseSpeed = 3f;
 
         [Header("Hold Meter")]
         [Min(4f)] public float HoldMeterHeight = 12f;
         [Min(0f)] public float HoldMeterSideInset = 48f;
-        [Min(0f)] public float HoldMeterBottomGap = 30f;
+        [Min(0f)] public float HoldMeterTopGap = 14f;
         [Min(0f)] public float HoldMeterInset = 2f;
         [Min(0f)] public float HoldMeterCapWidth = 3f;
         [Range(0f, 1f)] public float HoldCapWhiteness = 0.65f;
@@ -7168,7 +7164,6 @@ namespace DuneVector
         [ColorUsage(false)] public Color HoldTrackColor = new Color(0.02f, 0.05f, 0.07f, 0.9f);
         [ColorUsage(false)] public Color HoldSegmentColor = new Color(0.01f, 0.03f, 0.045f, 0.85f);
         [ColorUsage(false)] public Color PrimaryTextColor = new Color(0.92f, 0.98f, 1f, 1f);
-        [ColorUsage(false)] public Color SecondaryTextColor = new Color(0.55f, 0.71f, 0.78f, 1f);
         [ColorUsage(false)] public Color PromptColor = new Color(0.82f, 0.92f, 1f, 1f);
 
         public void EnsureInitialized()
@@ -7537,14 +7532,20 @@ namespace DuneVector
         [Tooltip("Small kicker line drawn above the unlock banner message. Leave it empty to hide the kicker row and its divider.")]
         public string UnlockAnnouncementKicker = "W A R P   G A T E   N E T W O R K   O N L I N E";
 
-        [Tooltip("Seconds the unlock banner stays on screen.")]
-        [Min(0.5f)] public float UnlockAnnouncementDuration = 24f;
+        [Tooltip("Continue prompt drawn under the message. The banner waits on a click, Enter, or Space, so this should say so. Leave it empty to hide the prompt row.")]
+        public string UnlockAnnouncementPrompt = "CLICK, ENTER, OR SPACE TO CONTINUE";
+
+        [Tooltip("Seconds after the banner appears before a press dismisses it. Keeps the press that closed the previous card from closing this one too.")]
+        [Min(0f)] public float UnlockAnnouncementInputDelay = 0.45f;
 
         [Tooltip("Font size of the unlock banner message at a 1080p reference height.")]
         [Min(8)] public int UnlockAnnouncementFontSize = 38;
 
         [Tooltip("Font size of the kicker line at a 1080p reference height.")]
         [Min(6)] public int UnlockAnnouncementKickerFontSize = 19;
+
+        [Tooltip("Font size of the continue prompt at a 1080p reference height.")]
+        [Min(6)] public int UnlockAnnouncementPromptFontSize = 17;
 
         [Tooltip("Opacity of the accent halo drawn around the banner message.")]
         [Range(0f, 1f)] public float UnlockAnnouncementMessageGlowOpacity = 0.3f;
@@ -7557,6 +7558,9 @@ namespace DuneVector
 
         [Tooltip("Text color of the kicker line above the message.")]
         public Color UnlockAnnouncementKickerColor = new Color(0.42f, 0.85f, 1f, 1f);
+
+        [Tooltip("Text color of the continue prompt under the message.")]
+        public Color UnlockAnnouncementPromptColor = new Color(0.56f, 0.78f, 0.92f, 1f);
 
         [Tooltip("Backdrop color drawn behind the unlock banner.")]
         public Color UnlockAnnouncementBackdropColor = new Color(0.02f, 0.03f, 0.07f, 0.78f);
@@ -7642,8 +7646,8 @@ namespace DuneVector
         [Tooltip("How far the accent brightness dips at the bottom of each pulse.")]
         [Range(0f, 1f)] public float UnlockAnnouncementPulseStrength = 0.32f;
 
-        [Tooltip("Height of the countdown bar drawn along the bottom edge, in reference pixels. 0 hides it.")]
-        [Min(0f)] public float UnlockAnnouncementTimerBarHeight = 3f;
+        [Tooltip("How far the continue prompt fades at the bottom of each pulse. It breathes harder than the chrome so the eye lands on it.")]
+        [Range(0f, 1f)] public float UnlockAnnouncementPromptPulseStrength = 0.55f;
 
         [Tooltip("Size of the spinning gate glyph drawn at the left of the banner, in reference pixels. 0 hides it.")]
         [Min(0f)] public float UnlockAnnouncementGlyphSize = 74f;
@@ -7680,9 +7684,13 @@ namespace DuneVector
             UnlockAnnouncementKicker = UnlockAnnouncementKicker == null
                 ? string.Empty
                 : UnlockAnnouncementKicker.Trim();
-            UnlockAnnouncementDuration = Mathf.Max(0.5f, UnlockAnnouncementDuration);
             UnlockAnnouncementFontSize = Mathf.Max(8, UnlockAnnouncementFontSize);
             UnlockAnnouncementKickerFontSize = Mathf.Max(6, UnlockAnnouncementKickerFontSize);
+            UnlockAnnouncementPromptFontSize = Mathf.Max(6, UnlockAnnouncementPromptFontSize);
+            UnlockAnnouncementPrompt = UnlockAnnouncementPrompt == null
+                ? string.Empty
+                : UnlockAnnouncementPrompt.Trim();
+            UnlockAnnouncementInputDelay = Mathf.Max(0f, UnlockAnnouncementInputDelay);
             UnlockAnnouncementShadowOffset = Mathf.Max(0f, UnlockAnnouncementShadowOffset);
             UnlockAnnouncementGlowSpread = Mathf.Max(0f, UnlockAnnouncementGlowSpread);
             UnlockAnnouncementVignettePadding = Mathf.Max(0f, UnlockAnnouncementVignettePadding);
@@ -7708,7 +7716,7 @@ namespace DuneVector
             UnlockAnnouncementScanOpacity = Mathf.Clamp01(UnlockAnnouncementScanOpacity);
             UnlockAnnouncementPulsePeriod = Mathf.Max(0f, UnlockAnnouncementPulsePeriod);
             UnlockAnnouncementPulseStrength = Mathf.Clamp01(UnlockAnnouncementPulseStrength);
-            UnlockAnnouncementTimerBarHeight = Mathf.Max(0f, UnlockAnnouncementTimerBarHeight);
+            UnlockAnnouncementPromptPulseStrength = Mathf.Clamp01(UnlockAnnouncementPromptPulseStrength);
             UnlockAnnouncementGlyphSize = Mathf.Max(0f, UnlockAnnouncementGlyphSize);
             UnlockAnnouncementGlyphThickness = Mathf.Max(0.5f, UnlockAnnouncementGlyphThickness);
             UnlockAnnouncementGlyphInnerScale = Mathf.Clamp(UnlockAnnouncementGlyphInnerScale, 0.1f, 0.95f);

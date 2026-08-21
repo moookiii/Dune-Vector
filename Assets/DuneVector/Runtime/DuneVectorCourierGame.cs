@@ -485,6 +485,7 @@ namespace DuneVector
             _trailUnlockShowcase != null && _trailUnlockShowcase.IsOpen;
         public bool IsToolUnlockCeremonyOpen =>
             _toolUnlockCeremony != null && _toolUnlockCeremony.IsOpen;
+        public bool IsWarpGateAnnouncementOpen => _warpGateAnnouncementOpen;
         public Vector3 HubSpawnPosition => _hubSpawn;
 
         /// <summary>
@@ -671,10 +672,15 @@ namespace DuneVector
         private string _statusMessage;
         private float _statusMessageUntil;
         private string _warpGateAnnouncement;
-        private float _warpGateAnnouncementUntil;
-        private float _warpGateAnnouncementDuration;
+        private bool _warpGateAnnouncementPending;
+        private bool _warpGateAnnouncementOpen;
+        private int _warpGateAnnouncementOpenedFrame;
+        private float _warpGateAnnouncementOpenedAt;
+        private bool _warpGateAnnouncementAwaitingRelease;
+        private float _warpGateAnnouncementDismissedAt = -1f;
         private GUIStyle _warpGateAnnouncementStyle;
         private GUIStyle _warpGateAnnouncementKickerStyle;
+        private GUIStyle _warpGateAnnouncementPromptStyle;
         private float _warpGateAnnouncementStyleScale;
         private Vector3 _droneVisualOriginalScale;
         private Material _hubMetalMaterial;
@@ -1182,6 +1188,8 @@ namespace DuneVector
             {
                 return;
             }
+
+            UpdateWarpGateAnnouncement();
 
             if (State == CourierRunState.TeleportingToDesert || State == CourierRunState.ReturnToBase)
             {
@@ -3979,8 +3987,10 @@ namespace DuneVector
         }
 
         /// <summary>
-        /// Plays the one-off hub banner that tells the courier the warp gates are now out in the
+        /// Queues the one-off hub banner that tells the courier the warp gates are now out in the
         /// desert. It fires the first time the drone lands back in the hub after the gates unlock.
+        /// The card is only queued here because a trail showcase or an award card can be opening on
+        /// the same return; <see cref="UpdateWarpGateAnnouncement"/> raises it once they are done.
         /// </summary>
         private void TryPlayWarpGateAnnouncement()
         {
@@ -3991,23 +4001,135 @@ namespace DuneVector
                 return;
             }
 
+            _warpGateAnnouncementPending = true;
+        }
+
+        /// <summary>
+        /// Runs the banner as a modal card: it raises itself when nothing else is presenting, holds
+        /// on screen until the courier clicks or presses Enter or Space, then fades out. Player
+        /// input is parked while it is up so the dismissing press cannot also fly the drone.
+        /// </summary>
+        private void UpdateWarpGateAnnouncement()
+        {
+            WarpGateTuning tuning = _world != null ? _world.WarpGates : null;
+            if (tuning == null)
+            {
+                return;
+            }
+
+            if (_warpGateAnnouncementPending && !_warpGateAnnouncementOpen && CanOpenWarpGateAnnouncement())
+            {
+                OpenWarpGateAnnouncement(tuning);
+            }
+            if (!_warpGateAnnouncementOpen)
+            {
+                return;
+            }
+
+            // Leaving the hub closes the card, so parked input can never outlive it.
+            if (State != CourierRunState.Hub)
+            {
+                CloseWarpGateAnnouncement();
+                return;
+            }
+
+            if (_warpGateAnnouncementDismissedAt < 0f)
+            {
+                bool pressed = IsWarpGateAnnouncementContinuePressed();
+                bool inputAllowed = Time.frameCount != _warpGateAnnouncementOpenedFrame &&
+                    Time.unscaledTime >= _warpGateAnnouncementOpenedAt + tuning.UnlockAnnouncementInputDelay;
+
+                // The press that dismissed whatever ran before this card must not carry into it.
+                if (_warpGateAnnouncementAwaitingRelease)
+                {
+                    if (inputAllowed && !pressed)
+                    {
+                        _warpGateAnnouncementAwaitingRelease = false;
+                    }
+                }
+                else if (inputAllowed && pressed)
+                {
+                    _warpGateAnnouncementDismissedAt = Time.unscaledTime;
+                }
+                return;
+            }
+
+            if (Time.unscaledTime >= _warpGateAnnouncementDismissedAt + tuning.UnlockAnnouncementExitDuration)
+            {
+                CloseWarpGateAnnouncement();
+            }
+        }
+
+        private bool CanOpenWarpGateAnnouncement()
+        {
+            return State == CourierRunState.Hub &&
+                !IsTerminalOpen &&
+                !IsDeliveryMessageOpen &&
+                !IsTrailUnlockShowcaseOpen &&
+                !IsToolUnlockCeremonyOpen &&
+                !IsGameplayHudSuppressed;
+        }
+
+        private void OpenWarpGateAnnouncement(WarpGateTuning tuning)
+        {
+            _warpGateAnnouncementPending = false;
             _warpGateAnnouncement = tuning.UnlockAnnouncement;
-            _warpGateAnnouncementDuration = Mathf.Max(0.5f, tuning.UnlockAnnouncementDuration);
-            _warpGateAnnouncementUntil = Time.unscaledTime + _warpGateAnnouncementDuration;
+            if (string.IsNullOrEmpty(_warpGateAnnouncement))
+            {
+                Progress?.AcknowledgeWarpGateAnnouncement();
+                return;
+            }
+
+            _warpGateAnnouncementOpen = true;
+            _warpGateAnnouncementOpenedFrame = Time.frameCount;
+            _warpGateAnnouncementOpenedAt = Time.unscaledTime;
+            _warpGateAnnouncementAwaitingRelease = true;
+            _warpGateAnnouncementDismissedAt = -1f;
             _warpGateAnnouncementStyle = null;
             _warpGateAnnouncementKickerStyle = null;
-            Progress.AcknowledgeWarpGateAnnouncement();
+            _warpGateAnnouncementPromptStyle = null;
+            _playerInput?.SetInputEnabled(false);
+            Progress?.AcknowledgeWarpGateAnnouncement();
+        }
+
+        private void CloseWarpGateAnnouncement()
+        {
+            if (!_warpGateAnnouncementOpen)
+            {
+                return;
+            }
+
+            _warpGateAnnouncementOpen = false;
+            _warpGateAnnouncement = null;
+            _warpGateAnnouncementDismissedAt = -1f;
+            _playerInput?.SetInputEnabled(true);
+        }
+
+        private static bool IsWarpGateAnnouncementContinuePressed()
+        {
+            Keyboard keyboard = Keyboard.current;
+            if (keyboard != null &&
+                (keyboard.spaceKey.isPressed ||
+                 keyboard.enterKey.isPressed ||
+                 keyboard.numpadEnterKey.isPressed))
+            {
+                return true;
+            }
+
+            Mouse mouse = Mouse.current;
+            return mouse != null && mouse.leftButton.isPressed;
         }
 
         /// <summary>
         /// Rebuilds the banner text styles. They are cached against the reference scale so a
         /// resolution change mid-announcement re-authors the font sizes instead of stretching the
-        /// first frame's. Both styles stay white because the chrome tints text through GUI.color.
+        /// first frame's. Every style stays white because the chrome tints text through GUI.color.
         /// </summary>
         private void EnsureWarpGateAnnouncementStyles(WarpGateTuning tuning, float scale)
         {
             if (_warpGateAnnouncementStyle != null &&
                 _warpGateAnnouncementKickerStyle != null &&
+                _warpGateAnnouncementPromptStyle != null &&
                 Mathf.Approximately(_warpGateAnnouncementStyleScale, scale))
             {
                 return;
@@ -4023,23 +4145,24 @@ namespace DuneVector
                 FontStyle.Bold,
                 TextAnchor.MiddleLeft,
                 Color.white);
+            _warpGateAnnouncementPromptStyle = LabelStyle(
+                Mathf.RoundToInt(tuning.UnlockAnnouncementPromptFontSize * scale),
+                FontStyle.Bold,
+                TextAnchor.MiddleRight,
+                Color.white);
+            _warpGateAnnouncementPromptStyle.wordWrap = false;
         }
 
         /// <summary>
         /// Draws the warp gate unlock banner as a glass console card: a bloomed drop shadow, the
         /// shared HUD glass body and accent rail, corner brackets, a spinning gate sigil, a kicker
         /// over a gradient divider, the authored message under an accent halo, a scan line that
-        /// sweeps the card, and a countdown bar that drains across the banner's lifetime.
+        /// sweeps the card, and the breathing continue prompt it waits on.
         /// </summary>
         private void DrawWarpGateAnnouncement()
         {
             WarpGateTuning tuning = _world != null ? _world.WarpGates : null;
-            if (tuning == null || string.IsNullOrEmpty(_warpGateAnnouncement))
-            {
-                return;
-            }
-            float remaining = _warpGateAnnouncementUntil - Time.unscaledTime;
-            if (remaining <= 0f)
+            if (tuning == null || !_warpGateAnnouncementOpen || string.IsNullOrEmpty(_warpGateAnnouncement))
             {
                 return;
             }
@@ -4047,15 +4170,22 @@ namespace DuneVector
             float scale = Mathf.Max(0.5f, Screen.height / 1080f);
             EnsureWarpGateAnnouncementStyles(tuning, scale);
 
-            float elapsed = Mathf.Max(0f, _warpGateAnnouncementDuration - remaining);
+            float elapsed = Mathf.Max(0f, Time.unscaledTime - _warpGateAnnouncementOpenedAt);
             float enter = tuning.UnlockAnnouncementEnterDuration > 0f
                 ? Mathf.Clamp01(elapsed / tuning.UnlockAnnouncementEnterDuration)
                 : 1f;
             enter = 1f - ((1f - enter) * (1f - enter) * (1f - enter));
-            float exitDuration = Mathf.Min(tuning.UnlockAnnouncementExitDuration, _warpGateAnnouncementDuration);
-            float exit = exitDuration > 0f
-                ? Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(remaining / exitDuration))
-                : 1f;
+            float exit = 1f;
+            if (_warpGateAnnouncementDismissedAt >= 0f)
+            {
+                exit = tuning.UnlockAnnouncementExitDuration > 0f
+                    ? Mathf.SmoothStep(
+                        0f,
+                        1f,
+                        Mathf.Clamp01(1f - ((Time.unscaledTime - _warpGateAnnouncementDismissedAt) /
+                            tuning.UnlockAnnouncementExitDuration)))
+                    : 0f;
+            }
             float fade = Mathf.Min(enter, exit);
             if (fade <= 0.002f)
             {
@@ -4064,6 +4194,10 @@ namespace DuneVector
             // The accent set breathes so the card reads as live hardware instead of a static label.
             float pulse = tuning.UnlockAnnouncementPulsePeriod > 0f
                 ? 1f - (tuning.UnlockAnnouncementPulseStrength *
+                    (0.5f - (0.5f * Mathf.Cos(elapsed * 2f * Mathf.PI / tuning.UnlockAnnouncementPulsePeriod))))
+                : 1f;
+            float promptPulse = tuning.UnlockAnnouncementPulsePeriod > 0f
+                ? 1f - (tuning.UnlockAnnouncementPromptPulseStrength *
                     (0.5f - (0.5f * Mathf.Cos(elapsed * 2f * Mathf.PI / tuning.UnlockAnnouncementPulsePeriod))))
                 : 1f;
 
@@ -4087,14 +4221,21 @@ namespace DuneVector
             float messageHeight = _warpGateAnnouncementStyle.CalcHeight(
                 new GUIContent(_warpGateAnnouncement),
                 textWidth);
+            string prompt = tuning.UnlockAnnouncementPrompt;
+            bool hasPrompt = !string.IsNullOrEmpty(prompt);
+            float promptHeight = hasPrompt
+                ? _warpGateAnnouncementPromptStyle.CalcHeight(new GUIContent(prompt), textWidth)
+                : 0f;
             float contentHeight = messageHeight +
-                (hasKicker ? kickerHeight + (gap * 0.5f) + dividerHeight + gap : 0f);
+                (hasKicker ? kickerHeight + (gap * 0.5f) + dividerHeight + gap : 0f) +
+                (hasPrompt ? gap + promptHeight : 0f);
             float height = Mathf.Max(glyphSize, contentHeight) + (pad * 2f);
 
+            // The card slides up as it arrives and drops back the same way as it leaves.
+            float slide = ((1f - enter) + (1f - exit)) * tuning.UnlockAnnouncementSlideDistance * scale;
             Rect panel = new Rect(
                 Mathf.Round((Screen.width - width) * 0.5f),
-                Mathf.Round((Screen.height * tuning.UnlockAnnouncementScreenHeightFraction) +
-                    ((1f - enter) * tuning.UnlockAnnouncementSlideDistance * scale)),
+                Mathf.Round((Screen.height * tuning.UnlockAnnouncementScreenHeightFraction) + slide),
                 Mathf.Round(width),
                 Mathf.Round(height));
 
@@ -4104,7 +4245,6 @@ namespace DuneVector
 
             Color accent = tuning.UnlockAnnouncementAccentColor;
             Color liveAccent = WithAlpha(accent, accent.a * fade * pulse);
-            Color dimAccent = WithAlpha(accent, accent.a * tuning.UnlockAnnouncementBorderOpacity * fade);
             Color shadow = tuning.UnlockAnnouncementShadowColor;
             Vector2 shadowOffset = new Vector2(
                 tuning.UnlockAnnouncementShadowOffset * scale,
@@ -4212,25 +4352,17 @@ namespace DuneVector
                 tuning.UnlockAnnouncementMessageGlowRadius * scale,
                 textShadow,
                 shadowOffset);
-
-            if (tuning.UnlockAnnouncementTimerBarHeight > 0f)
+            if (hasPrompt)
             {
-                float barHeight = tuning.UnlockAnnouncementTimerBarHeight * scale;
-                Rect track = new Rect(panel.x + rail, panel.yMax - barHeight, panel.width - rail, barHeight);
-                DuneVectorHudChrome.DrawRect(track, dimAccent);
-                float remaining01 = Mathf.Clamp01(remaining / Mathf.Max(0.0001f, _warpGateAnnouncementDuration));
-                Rect fill = new Rect(track.x, track.y, track.width * remaining01, track.height);
-                DuneVectorHudChrome.DrawRect(fill, liveAccent);
-                DuneVectorHudChrome.DrawHorizontalFade(
-                    new Rect(
-                        fill.xMax,
-                        track.y,
-                        Mathf.Min(
-                            Mathf.Max(0f, track.xMax - fill.xMax),
-                            tuning.UnlockAnnouncementAccentRailGlowWidth * scale),
-                        track.height),
-                    dimAccent,
-                    true);
+                contentY += messageHeight + gap;
+                Color promptColor = tuning.UnlockAnnouncementPromptColor;
+                DuneVectorHudChrome.DrawLabel(
+                    new Rect(contentX, contentY, textWidth, promptHeight),
+                    prompt,
+                    _warpGateAnnouncementPromptStyle,
+                    WithAlpha(promptColor, promptColor.a * fade * promptPulse),
+                    textShadow,
+                    shadowOffset);
             }
 
             GUI.color = previousColor;

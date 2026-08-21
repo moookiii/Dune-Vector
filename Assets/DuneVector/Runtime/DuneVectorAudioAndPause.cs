@@ -1821,7 +1821,8 @@ namespace DuneVector
             if (_courierGame != null &&
                 (_courierGame.IsTerminalOpen ||
                  _courierGame.IsDeliveryMessageOpen ||
-                 _courierGame.IsTrailUnlockShowcaseOpen))
+                 _courierGame.IsTrailUnlockShowcaseOpen ||
+                 _courierGame.IsWarpGateAnnouncementOpen))
             {
                 return;
             }
