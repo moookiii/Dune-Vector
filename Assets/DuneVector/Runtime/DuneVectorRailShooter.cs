@@ -1245,6 +1245,7 @@ namespace DuneVector
             ResetBossBulletPatterns();
             _sigilNextBossAttackAt = _state.Elapsed + _settings.Sigils.BossAttackInterval;
             _boss.Root.SetActive(true);
+            PrepareBossVisual(_boss);
         }
 
         private void TickBoss(float deltaTime)
@@ -3547,11 +3548,47 @@ namespace DuneVector
 
         private void BuildEnemyPool()
         {
+            // The wave director calls SpawnFormation every WaveSpacing, so the pool it draws from
+            // has to exist or the rift stays empty until the sovereign arrives.
+            for (int i = 0; i < _settings.EnemyPoolSize; i++)
+            {
+                RailShooterEnemyKind kind = (RailShooterEnemyKind)(i % 5);
+                _enemies.Add(CreateRailEnemy(kind, i, false));
+            }
             _boss = CreateRailEnemy(RailShooterEnemyKind.VesperKite, _settings.EnemyPoolSize, true);
             _boss.Root.name = "Vesper Sovereign Boss - Pooled";
+            PrepareBossVisual(_boss);
             for (int i = 0; i < _settings.ScorePopupPoolSize; i++)
             {
                 _popups.Add(new ScorePopup());
+            }
+        }
+
+        // The sovereign wears the imported Vesper Kite model, whose skinned renderers cull against
+        // authored bounds and can be left disabled by the prefab. Without this the boss ticks,
+        // fires, and takes damage while nothing is drawn for the player to shoot at.
+        private static void PrepareBossVisual(RailEnemy boss)
+        {
+            if (boss == null || boss.Root == null)
+            {
+                return;
+            }
+            Renderer[] renderers = boss.Root.GetComponentsInChildren<Renderer>(true);
+            if (renderers.Length == 0)
+            {
+                Debug.LogWarning(
+                    "Vesper Sovereign boss visual has no renderers. The rift climax will be " +
+                    "invisible until its Vesper Kite prefab or procedural fallback is restored.");
+                return;
+            }
+            for (int i = 0; i < renderers.Length; i++)
+            {
+                renderers[i].enabled = true;
+                renderers[i].forceRenderingOff = false;
+                if (renderers[i] is SkinnedMeshRenderer skinned)
+                {
+                    skinned.updateWhenOffscreen = true;
+                }
             }
         }
 
