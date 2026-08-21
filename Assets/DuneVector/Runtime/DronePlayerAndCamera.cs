@@ -95,7 +95,7 @@ namespace DuneVector
                 SecondaryReleased = (mouse != null && mouse.rightButton.wasReleasedThisFrame) ||
                                     (gamepad != null && gamepad.rightShoulder.wasReleasedThisFrame),
                 BrakeHeld = brakeHeld,
-                BombPressed = (mouse != null && mouse.rightButton.wasPressedThisFrame) ||
+                BombPressed = (mouse != null && mouse.middleButton.wasPressedThisFrame) ||
                               (keyboard != null && keyboard.qKey.wasPressedThisFrame) ||
                               (gamepad != null && gamepad.rightShoulder.wasPressedThisFrame),
                 InteractPressed = (keyboard != null && keyboard.eKey.wasPressedThisFrame) ||
