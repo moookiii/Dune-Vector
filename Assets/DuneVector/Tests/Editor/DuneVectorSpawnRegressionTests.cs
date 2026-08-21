@@ -319,6 +319,30 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void RailShooter_NormalBulletsFollowAimWithoutLockSteering()
+        {
+            Vector3 aimDirection = new Vector3(2f, -1f, 7f);
+
+            Vector3 shotDirection =
+                DuneVectorRailShooterController.ResolveRegularShotDirection(aimDirection);
+
+            Assert.That(Vector3.Angle(shotDirection, aimDirection), Is.LessThan(0.001f));
+        }
+
+        [Test]
+        public void RailShooter_LockAcquisitionWaitsForChargedShotThreshold()
+        {
+            const float minimumChargeDuration = 0.7f;
+
+            Assert.That(
+                DuneVectorRailShooterController.CanAcquireChargeLock(0.699f, minimumChargeDuration),
+                Is.False);
+            Assert.That(
+                DuneVectorRailShooterController.CanAcquireChargeLock(0.7f, minimumChargeDuration),
+                Is.True);
+        }
+
+        [Test]
         public void RailShooter_SigilDrawingGuideIsThickAndWhite()
         {
             DuneVectorRuntimeSettings runtimeSettings =

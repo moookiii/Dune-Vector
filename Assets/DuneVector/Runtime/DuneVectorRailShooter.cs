@@ -1370,7 +1370,9 @@ namespace DuneVector
                         : _settings.RegularShotInterval;
                     _nextRegularShotAt = _state.Elapsed + interval;
                 }
-                if (_state.ChargeElapsed >= _settings.ChargeMinimumDuration)
+                if (CanAcquireChargeLock(
+                        _state.ChargeElapsed,
+                        _settings.ChargeMinimumDuration))
                 {
                     UpdateChargeLock(deltaTime);
                     _cameraShake = Mathf.Max(
@@ -1421,7 +1423,7 @@ namespace DuneVector
             {
                 return;
             }
-            Vector3 aimDirection = ResolveShotDirection();
+            Vector3 aimDirection = ResolveRegularShotDirection(_state.AimDirection);
             Vector3 muzzle = ResolveMuzzlePosition(aimDirection, _fireFromRightMuzzle);
             _fireFromRightMuzzle = !_fireFromRightMuzzle;
             // Both muzzles cross at the convergence point so the pair reads as one beam
@@ -1478,29 +1480,16 @@ namespace DuneVector
                 (rightSide ? lateral : -lateral);
         }
 
-        private Vector3 ResolveShotDirection()
+        public static Vector3 ResolveRegularShotDirection(Vector3 aimDirection)
         {
-            Vector3 direction = _state.AimDirection.normalized;
-            if (_settings.AimAssistStrength <= 0f)
-            {
-                return direction;
-            }
-            RailEnemy target = FindViewportTarget(
-                _settings.AimAssistViewportRadius,
-                _settings.AimAssistRange);
-            if (target == null)
-            {
-                return direction;
-            }
-            Vector3 toTarget = target.Transform.position - _player.transform.position;
-            if (toTarget.sqrMagnitude <= 0.001f)
-            {
-                return direction;
-            }
-            return Vector3.Slerp(
-                direction,
-                toTarget.normalized,
-                Mathf.Clamp01(_settings.AimAssistStrength)).normalized;
+            return aimDirection.sqrMagnitude > 0.0001f
+                ? aimDirection.normalized
+                : Vector3.forward;
+        }
+
+        public static bool CanAcquireChargeLock(float chargeElapsed, float minimumChargeDuration)
+        {
+            return chargeElapsed >= Mathf.Max(0f, minimumChargeDuration);
         }
 
         private float HitRadiusForKind(RailShooterEnemyKind kind)
