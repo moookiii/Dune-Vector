@@ -125,6 +125,17 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void RailShooter_EnemyHitUsesDroneDamageEvent()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            RailShooterTuning settings = runtimeSettings != null ? runtimeSettings.RailShooter : null;
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(settings.EnemyHitEvent, Is.EqualTo("event:/Drone_Damage"));
+        }
+
+        [Test]
         public void RailShooter_BossPulseRetainsAuthoredVisualScale()
         {
             Vector3 authoredScale = Vector3.one * 5.5f;

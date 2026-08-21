@@ -9144,7 +9144,7 @@ namespace DuneVector
         [Tooltip("FMOD events played by the rift intercept. Leave any entry blank to silence that cue.")]
         public string FireEvent = "event:/Drone_Fire";
         public string ChargedFireEvent = "event:/Explosion_Strike_Orb";
-        public string EnemyHitEvent = "event:/Okay";
+        public string EnemyHitEvent = "event:/Drone_Damage";
         public string EnemyKillEvent = "event:/Explosion_Ground_Exploder";
         public string PlayerDamageEvent = "event:/Drone_Damage";
         public string PickupEvent = "event:/Lock_On";
