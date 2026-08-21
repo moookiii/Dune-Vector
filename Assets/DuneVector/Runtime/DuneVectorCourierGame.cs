@@ -110,7 +110,7 @@ namespace DuneVector
         [Serializable]
         private sealed class SaveData
         {
-            public int Version = 12;
+            public int Version = 13;
             public int CompletedDeliveries;
             public int FailedDeliveries;
             public int TotalContractGold;
@@ -129,6 +129,7 @@ namespace DuneVector
             public bool SandAmbusherNoticeSeen;
             public bool CompassUnlockSeen;
             public bool AtlasFinderUnlockSeen;
+            public bool RailSigilTutorialSeen;
             public List<string> AcceptedContractIds = new List<string>();
         }
 
@@ -164,6 +165,9 @@ namespace DuneVector
 
         /// <summary>True once the courier has held the Atlas Finder award card through.</summary>
         public bool AtlasFinderUnlockSeen { get; private set; }
+
+        /// <summary>True once the rail subgame has frozen for the first sigil and taught the trace.</summary>
+        public bool RailSigilTutorialSeen { get; private set; }
         public IReadOnlyList<string> AcceptedContractIds => _acceptedContractIds;
         public event Action Changed;
 
@@ -255,6 +259,19 @@ namespace DuneVector
             }
 
             DeliveryMessageInputHintAcknowledged = true;
+            Save();
+            Changed?.Invoke();
+        }
+
+        /// <summary>Records that the frozen first-sigil trace demonstration has been completed.</summary>
+        public void AcknowledgeRailSigilTutorial()
+        {
+            if (RailSigilTutorialSeen)
+            {
+                return;
+            }
+
+            RailSigilTutorialSeen = true;
             Save();
             Changed?.Invoke();
         }
@@ -382,6 +399,7 @@ namespace DuneVector
             SandAmbusherNoticeSeen = false;
             CompassUnlockSeen = false;
             AtlasFinderUnlockSeen = false;
+            RailSigilTutorialSeen = false;
             _acceptedContractIds.Clear();
             Changed?.Invoke();
         }
@@ -437,6 +455,7 @@ namespace DuneVector
                 SandAmbusherNoticeSeen = data.Version >= 11 && data.SandAmbusherNoticeSeen;
                 CompassUnlockSeen = data.Version >= 10 && data.CompassUnlockSeen;
                 AtlasFinderUnlockSeen = data.Version >= 10 && data.AtlasFinderUnlockSeen;
+                RailSigilTutorialSeen = data.Version >= 13 && data.RailSigilTutorialSeen;
                 if (data.Version >= 7)
                 {
                     FreeRoamDeliveries = Mathf.Max(0, data.FreeRoamDeliveries);
@@ -490,6 +509,7 @@ namespace DuneVector
                     SandAmbusherNoticeSeen = SandAmbusherNoticeSeen,
                     CompassUnlockSeen = CompassUnlockSeen,
                     AtlasFinderUnlockSeen = AtlasFinderUnlockSeen,
+                    RailSigilTutorialSeen = RailSigilTutorialSeen,
                     AcceptedContractIds = new List<string>(_acceptedContractIds),
                 };
                 File.WriteAllText(_savePath, JsonUtility.ToJson(data));
@@ -1042,7 +1062,8 @@ namespace DuneVector
                 vesperKites,
                 groundExploders,
                 rings,
-                _droneVisualOriginalScale);
+                _droneVisualOriginalScale,
+                Progress);
 
             if (settings.DebugStartOnLaunch &&
                 State == CourierRunState.Hub &&

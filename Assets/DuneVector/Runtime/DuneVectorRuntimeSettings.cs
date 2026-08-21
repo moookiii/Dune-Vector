@@ -8432,6 +8432,32 @@ namespace DuneVector
         [Min(0f)] public float VerdictLabelHeight = 32f;
         [Min(0f)] public float VerdictRuleWidth = 180f;
 
+        [Header("First Sigil Tutorial")]
+        [Tooltip("Freezes the flight, bullets, and the sigil countdown the very first time a sigil missile locks on, so the courier can trace one glyph unhurried. Runs once per save.")]
+        public bool TutorialFreezeEnabled = true;
+        [Tooltip("Instruction banner shown across the top while the first sigil is frozen for the demonstration.")]
+        public string TutorialLabel =
+            "Trace the signal in the bottom-left corner to disarm incoming missiles.";
+        [Tooltip("Screen height fraction the tutorial banner is centered on. The trace plate owns the very top of the frame, so this sits under it.")]
+        [Range(0f, 1f)] public float TutorialViewportY = 0.19f;
+        [Tooltip("Width of the tutorial banner plate before it is clamped to the screen.")]
+        [Min(0f)] public float TutorialPanelWidth = 900f;
+        [Tooltip("Padding inside the tutorial banner plate.")]
+        [Min(0f)] public float TutorialPanelPadding = 14f;
+        [Tooltip("Height of the tutorial banner text block.")]
+        [Min(0f)] public float TutorialLabelHeight = 44f;
+        [Min(8)] public int TutorialFontSize = 24;
+        [Tooltip("Seconds the tutorial banner takes to fade in once the first sigil freezes.")]
+        [Min(0f)] public float TutorialFadeInDuration = 0.35f;
+        [Tooltip("Accent color of the tutorial banner plate and its rules.")]
+        public Color TutorialAccentColor = new Color(0.45f, 0.86f, 1f, 1f);
+        [Tooltip("Text color of the tutorial banner.")]
+        public Color TutorialTextColor = Color.white;
+        [Tooltip("Pulses per second of the soft breathing applied to the tutorial banner so it reads as live.")]
+        [Min(0f)] public float TutorialPulseSpeed = 1.6f;
+        [Tooltip("Depth of the tutorial banner's breathing pulse.")]
+        [Range(0f, 0.6f)] public float TutorialPulseAmount = 0.16f;
+
         [Header("Sigil Audio")]
         public string SpawnEvent = "event:/Alert";
         public string GlyphClearedEvent = "event:/Lock_On_Full";
@@ -8741,6 +8767,22 @@ namespace DuneVector
         [Min(0.01f)] public float BombExpansionDuration = 0.7f;
         [Min(0.01f)] public float BombPresentationDuration = 1.2f;
         [Min(0f)] public float BombScoreMultiplier = 0.72f;
+        [Tooltip("Speed the bomb leaves the drone at, measured relative to the drone so it always pulls ahead.")]
+        [Min(1f)] public float BombLaunchSpeed = 150f;
+        [Tooltip("How far ahead of the drone the launched bomb travels before it detonates.")]
+        [Min(1f)] public float BombDetonationDistance = 90f;
+        [Tooltip("Radius of the bomb casing while it is in flight.")]
+        [Min(0.01f)] public float BombCasingRadius = 1.9f;
+        [Tooltip("Spin applied to the bomb casing while it flies, in degrees per second.")]
+        [Min(0f)] public float BombCasingSpinSpeed = 520f;
+        [Tooltip("Seconds of trail left behind the bomb while it flies. Zero removes the trail.")]
+        [Min(0f)] public float BombTrailDuration = 0.28f;
+        [Tooltip("Size of each detonation flash burst, as a fraction of the blast range.")]
+        [Range(0.01f, 1f)] public float BombExplosionFlashScale = 0.3f;
+        [Tooltip("Flash bursts scattered through the blast when the bomb detonates.")]
+        [Range(1, 24)] public int BombExplosionFlashCount = 7;
+        [Tooltip("How far the scattered detonation flashes spread from the blast centre, as a fraction of the blast range.")]
+        [Range(0f, 1f)] public float BombExplosionFlashSpread = 0.4f;
 
         [Header("Maneuver Energy and Tricks")]
         [Min(1f)] public float ManeuverEnergyCapacity = 100f;
@@ -9265,6 +9307,7 @@ namespace DuneVector
         public string PlayerDamageEvent = "event:/Drone_Damage";
         public string PickupEvent = "event:/Lock_On";
         public string BombEvent = "event:/Explosion_Strike_Orb";
+        public string BombLaunchEvent = "event:/Drone_Fire";
         public string ChargeReadyEvent = "event:/Lock_On_Full";
         public string TargetLockEvent = "event:/Lock_On";
         public string RouteGateEvent = "event:/Flight_Ring_Swoosh";

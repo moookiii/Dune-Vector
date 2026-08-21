@@ -308,7 +308,11 @@ namespace DuneVector
         private DesertWorldStreamer _world;
         private DuneVectorMaterials _materials;
         private DroneGoldWallet _wallet;
+        private DuneVectorCourierProgress _progress;
         private RailShooterTuning _settings;
+        // Presentation clock that keeps running while the tutorial freeze holds the simulation,
+        // so idle spins and fades do not stall mid-motion.
+        private float _hudTime;
         private FlyingEnemyTuning _skyPiercerSettings;
         private StormPyramidTuning _stormSettings;
         private PlayerStrikeOrbTuning _strikeOrbSettings;
@@ -408,6 +412,10 @@ namespace DuneVector
         private bool _sigilChain;
         private bool _sigilDrawing;
         private bool _sigilVerdictBroken;
+        // The very first sigil of a save freezes the run so the trace can be taught unhurried.
+        private bool _sigilTutorialPending;
+        private bool _sigilTutorialFreeze;
+        private float _sigilTutorialElapsed;
         private float _sigilElapsed;
         private float _sigilDuration;
         private Vector2 _sigilPlaneOffset;
@@ -454,6 +462,7 @@ namespace DuneVector
         private GUIStyle _statLabelStyle;
         private GUIStyle _statValueStyle;
         private GUIStyle _sigilCountdownStyle;
+        private GUIStyle _sigilTutorialStyle;
         private GUIStyle _valueStyle;
         private GUIStyle _sectionStyle;
         private GUIStyle _gradeStyle;
@@ -481,7 +490,8 @@ namespace DuneVector
             VesperKiteTuning vesperSettings,
             GroundExploderTuning groundExploderSettings,
             RingTuning ringSettings,
-            Vector3 authoredVisualScale)
+            Vector3 authoredVisualScale,
+            DuneVectorCourierProgress progress)
         {
             _input = input;
             _player = player;
@@ -500,6 +510,7 @@ namespace DuneVector
             _groundExploderSettings = groundExploderSettings ?? new GroundExploderTuning();
             _ringSettings = ringSettings ?? new RingTuning();
             _authoredVisualScale = authoredVisualScale;
+            _progress = progress;
             BuildPooledMode();
         }
 
@@ -574,6 +585,7 @@ namespace DuneVector
             AwardedGold = 0;
             ResultGrade = "C";
             _scoreDisplay = 0f;
+            _hudTime = 0f;
             _hullGhost = 1f;
             _hullGhostHold = 0f;
             _bossGhost = 1f;
@@ -581,6 +593,9 @@ namespace DuneVector
             ResetPools();
             ResetCourse();
             ResetSigilDuel();
+            _sigilTutorialPending = _settings.Sigils.Enabled &&
+                _settings.Sigils.TutorialFreezeEnabled &&
+                (_progress == null || !_progress.RailSigilTutorialSeen);
             EnterRailPresentation();
             _modeRoot.gameObject.SetActive(true);
             DuneVectorAudioManager.Instance?.EnterRailSubgameMusic();
@@ -620,6 +635,17 @@ namespace DuneVector
             }
 
             RailShooterCommand command = new RailShooterCommand(_input != null ? _input.CurrentCommand : default);
+            _hudTime += deltaTime;
+            if (_sigilTutorialFreeze)
+            {
+                // The first sigil of a save holds the run still: the drone, its bullets, and the
+                // countdown all stop while the starfield keeps streaming past, so the trace is
+                // demonstrated without the run running away underneath it.
+                _sigilTutorialElapsed += deltaTime;
+                TickTutorialFreezeDrift(deltaTime);
+                TickSigilDuel(command, deltaTime);
+                return;
+            }
             _phaseElapsed += deltaTime;
             _state.Elapsed += deltaTime;
             TickHudPresentation(deltaTime);
@@ -3068,6 +3094,37 @@ namespace DuneVector
                 (_state.LateralVelocity.x * _settings.LightningLanePredictiveLeadSeconds);
         }
 
+        // Only the motion that sells forward flight, so the frozen tutorial frame still reads as a
+        // drone hanging in a moving rift rather than a stalled screenshot. Nothing here can collect
+        // a ring, recycle a segment, or touch the drone.
+        private void TickTutorialFreezeDrift(float deltaTime)
+        {
+            for (int i = 0; i < _speedStreaks.Count; i++)
+            {
+                Transform streak = _speedStreaks[i];
+                streak.position -= Vector3.forward * _settings.SpeedStreakDriftSpeed * deltaTime;
+                if (streak.position.z < _camera.transform.position.z)
+                {
+                    ResetSpeedStreak(streak, i);
+                }
+            }
+
+            for (int i = 0; i < _segments.Count; i++)
+            {
+                RiftSegment segment = _segments[i];
+                for (int rotorIndex = 0; rotorIndex < segment.Rotators.Count; rotorIndex++)
+                {
+                    segment.Rotators[rotorIndex].Rotate(
+                        0f,
+                        _settings.WreckageRotationSpeed * (rotorIndex % 2 == 0 ? 1f : -0.7f) * deltaTime,
+                        _settings.WreckageRotationSpeed * 0.22f * deltaTime,
+                        Space.Self);
+                }
+            }
+
+            FaceRailRingsToCamera();
+        }
+
         private void TickEnvironment(float deltaTime)
         {
             Vector3 playerPosition = _player.transform.position;
@@ -5219,6 +5276,8 @@ namespace DuneVector
         {
             _sigilActive = false;
             _sigilChain = false;
+            _sigilTutorialFreeze = false;
+            _sigilTutorialElapsed = 0f;
             _sigilElapsed = 0f;
             _sigilDuration = 0f;
             _sigilDemand.Clear();
@@ -5332,6 +5391,12 @@ namespace DuneVector
                 _sigilDrawingCursor.gameObject.SetActive(true);
                 UpdateSigilDrawingCursorWorld();
             }
+            if (_sigilTutorialPending)
+            {
+                _sigilTutorialPending = false;
+                _sigilTutorialFreeze = true;
+                _sigilTutorialElapsed = 0f;
+            }
             PlayCue(sigils.SpawnEvent, _sigilRoot.position);
         }
 
@@ -5382,6 +5447,13 @@ namespace DuneVector
             AdvanceTimer(ref _sigilFaultElapsed, deltaTime, _settings.Sigils.FaultFlashDuration);
             if (!_sigilActive)
             {
+                return;
+            }
+            if (_sigilTutorialFreeze)
+            {
+                // The seeker hangs where it locked on and its countdown is suspended; only the
+                // painting responds until the glyph is traced.
+                TickSigilDrawing(command, deltaTime);
                 return;
             }
             _sigilElapsed += deltaTime;
@@ -5502,7 +5574,7 @@ namespace DuneVector
                 Mathf.Max(_camera.nearClipPlane + 0.1f, _settings.Sigils.DrawingCursorWorldDistance));
             Quaternion spin = Quaternion.Euler(
                 0f,
-                _state.Elapsed * _settings.Sigils.DrawingCursorSpinSpeed,
+                _hudTime * _settings.Sigils.DrawingCursorSpinSpeed,
                 0f);
             _sigilDrawingCursor.rotation = _camera.transform.rotation *
                 Quaternion.Euler(_settings.Sigils.DrawingCursorLocalEulerAngles) * spin;
@@ -5663,7 +5735,10 @@ namespace DuneVector
         {
             RailSigilTuning sigils = _settings.Sigils;
             _sigilFaultElapsed = 0f;
-            _sigilElapsed += sigils.FaultTimePenalty;
+            if (!_sigilTutorialFreeze)
+            {
+                _sigilElapsed += sigils.FaultTimePenalty;
+            }
             _cameraShake = Mathf.Max(_cameraShake, sigils.FaultCameraShake);
             if (_state.Elapsed - _lastSigilFaultCueAt >= sigils.FaultEventCooldown)
             {
@@ -5724,6 +5799,13 @@ namespace DuneVector
         private void EndSigilAttack(bool broken)
         {
             RailSigilTuning sigils = _settings.Sigils;
+            if (_sigilTutorialFreeze)
+            {
+                // The glyph is drawn, so the run resumes and this save never freezes again.
+                _sigilTutorialFreeze = false;
+                _sigilTutorialElapsed = 0f;
+                _progress?.AcknowledgeRailSigilTutorial();
+            }
             _sigilActive = false;
             _sigilVerdictBroken = broken;
             _sigilVerdictElapsed = 0f;
@@ -5816,6 +5898,7 @@ namespace DuneVector
             {
                 DrawSigilWorldMarker();
                 DrawSigilTablet();
+                DrawSigilTutorialBanner();
             }
             DrawSigilVerdict();
         }
@@ -6490,6 +6573,46 @@ namespace DuneVector
             GUI.matrix = previousMatrix;
         }
 
+        // The one-time teaching banner. It only exists while the first sigil of a save holds the
+        // run still, so it never competes with the countdown during real play.
+        private void DrawSigilTutorialBanner()
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            if (!_sigilTutorialFreeze || string.IsNullOrEmpty(sigils.TutorialLabel))
+            {
+                return;
+            }
+            float fade = sigils.TutorialFadeInDuration > 0f
+                ? Mathf.Clamp01(_sigilTutorialElapsed / sigils.TutorialFadeInDuration)
+                : 1f;
+            float pulse = 1f - (sigils.TutorialPulseAmount *
+                (0.5f - (0.5f * Mathf.Cos(_sigilTutorialElapsed * sigils.TutorialPulseSpeed * Mathf.PI * 2f))));
+            float alpha = fade * pulse;
+            float pad = Scaled(sigils.TutorialPanelPadding);
+            float width = Mathf.Min(
+                Scaled(sigils.TutorialPanelWidth),
+                Screen.width - (Scaled(_settings.HudMargin) * 2f));
+            float textHeight = Scaled(sigils.TutorialLabelHeight);
+            float height = textHeight + (pad * 2f);
+            // The banner slides down into place as it fades in so it reads as an interruption
+            // rather than a label that was always there.
+            Rect plate = new Rect(
+                (Screen.width - width) * 0.5f,
+                (Screen.height * sigils.TutorialViewportY) - (height * 0.5f) - ((1f - fade) * height * 0.5f),
+                width,
+                height);
+            Color accent = sigils.TutorialAccentColor;
+            DrawRect(plate, WithAlpha(_settings.HudPanelColor, alpha));
+            float rule = Mathf.Max(1f, Scaled(_settings.BannerRuleHeight));
+            DrawRect(new Rect(plate.x, plate.y, plate.width, rule), WithAlpha(accent, alpha));
+            DrawRect(new Rect(plate.x, plate.yMax - rule, plate.width, rule), WithAlpha(accent, alpha));
+            DrawShadowedLabel(
+                new Rect(plate.x + pad, plate.y + pad, plate.width - (pad * 2f), textHeight),
+                sigils.TutorialLabel,
+                _sigilTutorialStyle,
+                WithAlpha(sigils.TutorialTextColor, alpha));
+        }
+
         private void DrawSigilVerdict()
         {
             if (!float.IsFinite(_sigilVerdictElapsed))
@@ -6680,6 +6803,12 @@ namespace DuneVector
                 fontSize = ScaledFontSize(_settings.Sigils.CountdownFontSize),
                 alignment = TextAnchor.MiddleCenter,
             };
+            _sigilTutorialStyle = new GUIStyle(_bodyStyle)
+            {
+                fontSize = ScaledFontSize(_settings.Sigils.TutorialFontSize),
+                alignment = TextAnchor.MiddleCenter,
+                wordWrap = true,
+            };
             _gradeStyle = new GUIStyle(_resultStyle)
             {
                 fontSize = ScaledFontSize(Mathf.RoundToInt(_settings.HudResultFontSize * 1.25f)),
@@ -6695,6 +6824,7 @@ namespace DuneVector
             StripHoverStates(_valueStyle);
             StripHoverStates(_sectionStyle);
             StripHoverStates(_sigilCountdownStyle);
+            StripHoverStates(_sigilTutorialStyle);
             StripHoverStates(_gradeStyle);
         }
 
