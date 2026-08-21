@@ -6743,7 +6743,13 @@ namespace DuneVector
             float width = Mathf.Min(
                 Scaled(sigils.TutorialPanelWidth),
                 Screen.width - (Scaled(_settings.HudMargin) * 2f));
-            float textHeight = Scaled(sigils.TutorialLabelHeight);
+            // The style wraps, so the plate is measured against the text rather than assumed to be
+            // one line: a narrow screen wraps the instruction and the plate grows to hold it with
+            // the same padding above and below.
+            float textWidth = Mathf.Max(1f, width - (pad * 2f));
+            float textHeight = Mathf.Max(
+                Scaled(sigils.TutorialLabelHeight),
+                _sigilTutorialStyle.CalcHeight(new GUIContent(sigils.TutorialLabel), textWidth));
             float height = textHeight + (pad * 2f);
             // The banner slides down into place as it fades in so it reads as an interruption
             // rather than a label that was always there.
@@ -6758,7 +6764,7 @@ namespace DuneVector
             DrawRect(new Rect(plate.x, plate.y, plate.width, rule), WithAlpha(accent, alpha));
             DrawRect(new Rect(plate.x, plate.yMax - rule, plate.width, rule), WithAlpha(accent, alpha));
             DrawShadowedLabel(
-                new Rect(plate.x + pad, plate.y + pad, plate.width - (pad * 2f), textHeight),
+                new Rect(plate.x + pad, plate.y + pad, textWidth, textHeight),
                 sigils.TutorialLabel,
                 _sigilTutorialStyle,
                 WithAlpha(sigils.TutorialTextColor, alpha));

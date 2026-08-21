@@ -8437,14 +8437,14 @@ namespace DuneVector
         public bool TutorialFreezeEnabled = true;
         [Tooltip("Instruction banner shown across the top while the first sigil is frozen for the demonstration.")]
         public string TutorialLabel =
-            "Trace the signal in the bottom-left corner to disarm incoming missiles.";
+            "Trace the sigil in the bottom-left corner with right click to disarm incoming missiles.";
         [Tooltip("Screen height fraction the tutorial banner is centered on. The trace plate owns the very top of the frame, so this sits under it.")]
         [Range(0f, 1f)] public float TutorialViewportY = 0.19f;
         [Tooltip("Width of the tutorial banner plate before it is clamped to the screen.")]
         [Min(0f)] public float TutorialPanelWidth = 900f;
         [Tooltip("Padding inside the tutorial banner plate.")]
         [Min(0f)] public float TutorialPanelPadding = 14f;
-        [Tooltip("Height of the tutorial banner text block.")]
+        [Tooltip("Minimum height of the tutorial banner text block. The plate grows to fit extra wrapped lines, keeping the same padding.")]
         [Min(0f)] public float TutorialLabelHeight = 44f;
         [Min(8)] public int TutorialFontSize = 24;
         [Tooltip("Seconds the tutorial banner takes to fade in once the first sigil freezes.")]
