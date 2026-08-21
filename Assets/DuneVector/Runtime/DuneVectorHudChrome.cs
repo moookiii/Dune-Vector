@@ -10,6 +10,8 @@ namespace DuneVector
     {
         private const int FadeResolution = 64;
 
+        private static readonly GUIContent _glyphContent = new GUIContent();
+
         private static Texture2D _verticalFade;
         private static Texture2D _horizontalFade;
 
@@ -305,6 +307,113 @@ namespace DuneVector
             GUI.color = textColor;
             GUI.Label(rect, text, style);
             GUI.color = previous;
+        }
+
+        /// <summary>
+        /// Headline text with letter spacing, an optional halo and a drop shadow. IMGUI has no
+        /// tracking, so the string is laid out one glyph at a time; keep it to short headings.
+        /// </summary>
+        public static void DrawTrackedLabel(
+            Rect rect,
+            string text,
+            GUIStyle style,
+            float tracking,
+            Color textColor,
+            Color glowColor,
+            float glowRadius,
+            Color shadowColor,
+            Vector2 shadowOffset)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return;
+            }
+            if (tracking <= 0.01f || text.Length < 2)
+            {
+                DrawGlowLabel(rect, text, style, textColor, glowColor, glowRadius, shadowColor, shadowOffset);
+                return;
+            }
+
+            float[] widths = new float[text.Length];
+            float totalWidth = tracking * (text.Length - 1);
+            for (int index = 0; index < text.Length; index++)
+            {
+                _glyphContent.text = text[index].ToString();
+                widths[index] = style.CalcSize(_glyphContent).x;
+                totalWidth += widths[index];
+            }
+
+            TextAnchor previousAlignment = style.alignment;
+            TextClipping previousClipping = style.clipping;
+            Color previousColor = GUI.color;
+
+            float startX = rect.x;
+            if (previousAlignment == TextAnchor.MiddleCenter
+                || previousAlignment == TextAnchor.UpperCenter
+                || previousAlignment == TextAnchor.LowerCenter)
+            {
+                startX = rect.x + ((rect.width - totalWidth) * 0.5f);
+            }
+            else if (previousAlignment == TextAnchor.MiddleRight
+                || previousAlignment == TextAnchor.UpperRight
+                || previousAlignment == TextAnchor.LowerRight)
+            {
+                startX = rect.xMax - totalWidth;
+            }
+
+            // Left alignment is what keeps each glyph pinned to the advance we measured for it;
+            // any centring here would re-centre every glyph inside its own one-character rect.
+            style.alignment = previousAlignment == TextAnchor.UpperCenter
+                || previousAlignment == TextAnchor.UpperLeft
+                || previousAlignment == TextAnchor.UpperRight
+                ? TextAnchor.UpperLeft
+                : previousAlignment == TextAnchor.LowerCenter
+                    || previousAlignment == TextAnchor.LowerLeft
+                    || previousAlignment == TextAnchor.LowerRight
+                    ? TextAnchor.LowerLeft
+                    : TextAnchor.MiddleLeft;
+            style.clipping = TextClipping.Overflow;
+
+            if (shadowColor.a > 0f)
+            {
+                GUI.color = shadowColor;
+                DrawGlyphRun(text, widths, style, tracking, startX + shadowOffset.x, rect.y + shadowOffset.y, rect.height);
+            }
+
+            if (glowColor.a > 0f && glowRadius > 0f)
+            {
+                GUI.color = glowColor;
+                DrawGlyphRun(text, widths, style, tracking, startX - glowRadius, rect.y, rect.height);
+                DrawGlyphRun(text, widths, style, tracking, startX + glowRadius, rect.y, rect.height);
+                DrawGlyphRun(text, widths, style, tracking, startX, rect.y - glowRadius, rect.height);
+                DrawGlyphRun(text, widths, style, tracking, startX, rect.y + glowRadius, rect.height);
+            }
+
+            GUI.color = textColor;
+            DrawGlyphRun(text, widths, style, tracking, startX, rect.y, rect.height);
+
+            GUI.color = previousColor;
+            style.alignment = previousAlignment;
+            style.clipping = previousClipping;
+        }
+
+        private static void DrawGlyphRun(
+            string text,
+            float[] widths,
+            GUIStyle style,
+            float tracking,
+            float x,
+            float y,
+            float height)
+        {
+            for (int index = 0; index < text.Length; index++)
+            {
+                _glyphContent.text = text[index].ToString();
+                // The extra pixel absorbs the rounding CalcSize does, so wide glyphs are not
+                // clipped by their own rect.
+                GUI.Label(new Rect(x, y, widths[index] + 1f, height), _glyphContent, style);
+                x += widths[index] + tracking;
+            }
         }
 
         private static Texture2D CreateFade(int width, int height)

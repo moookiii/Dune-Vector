@@ -9218,6 +9218,8 @@ namespace DuneVector
         public string StartLabel = "START";
         [Tooltip("Label of the second menu entry. Its screen is not built yet.")]
         public string OptionsLabel = "OPTIONS";
+        [Tooltip("Label of the third menu entry, which closes the game.")]
+        public string QuitLabel = "QUIT";
 
         [Header("Navigation")]
         [Tooltip("Scene loaded when START is confirmed. It must be listed in Build Settings.")]
@@ -9258,6 +9260,14 @@ namespace DuneVector
         public Color BackgroundColor = new Color(0f, 0f, 0f, 1f);
         [Tooltip("Tint multiplied into the video so the menu text stays readable.")]
         public Color VideoTint = new Color(1f, 1f, 1f, 1f);
+
+        [Header("Menu Scrim")]
+        [Tooltip("Darkening laid over the video behind the headline and menu so the text carries on every frame of the loop. Alpha zero disables the scrim.")]
+        public Color ScrimColor = new Color(0f, 0f, 0f, 0.62f);
+        [Tooltip("Share of the screen height held at full scrim strength, measured down from the top.")]
+        [Range(0f, 1f)] public float ScrimSolidFraction = 0.5f;
+        [Tooltip("Share of the screen height the scrim fades away over, starting where the solid band ends. Keeps the bright lower video untouched.")]
+        [Range(0f, 1f)] public float ScrimFadeFraction = 0.22f;
 
         [Header("Music")]
         [Tooltip("FMOD event started with the title screen and released when the gameplay scene loads.")]
@@ -9317,12 +9327,24 @@ namespace DuneVector
         public Font InterfaceFont;
         public string FallbackOsFontName = "Arial";
         [Min(16)] public int TitleFontSize = 108;
+        [Tooltip("Weight the headline is drawn at. Leave on Normal when the interface font already carries the wanted weight, or Unity synthesises a smeared faux bold on top of it.")]
+        public FontStyle TitleFontStyle = FontStyle.Normal;
+        [Tooltip("Letter spacing added between headline glyphs, in reference pixels. IMGUI has no tracking, so the headline is laid out one glyph at a time when this is above zero.")]
+        [Min(0f)] public float TitleTracking = 18f;
         [Min(9)] public int MenuFontSize = 34;
+        [Tooltip("Weight the menu entries are drawn at.")]
+        public FontStyle MenuFontStyle = FontStyle.Normal;
+        [Tooltip("Letter spacing added between menu entry glyphs, in reference pixels.")]
+        [Min(0f)] public float MenuTracking = 6f;
         [Tooltip("Drop-shadow offset in reference pixels, keeping text legible over bright video frames.")]
         [Min(0f)] public float TextShadowOffset = 4f;
 
         [Header("Colors")]
         public Color TitleColor = new Color(1f, 1f, 1f, 1f);
+        [Tooltip("Halo drawn behind the headline so it reads as part of the lit background instead of text pasted over it. Alpha zero disables the halo.")]
+        public Color TitleGlowColor = new Color(1f, 0.5f, 0.12f, 0.5f);
+        [Tooltip("Halo offset in reference pixels.")]
+        [Min(0f)] public float TitleGlowRadius = 5f;
         public Color TextShadowColor = new Color(0f, 0f, 0f, 0.9f);
         public Color MenuItemColor = new Color(1f, 1f, 1f, 1f);
         public Color SelectedMenuItemColor = new Color(0.32f, 0.95f, 0.45f, 1f);
@@ -9335,10 +9357,26 @@ namespace DuneVector
         [Min(1f)] public float SelectionBoxThickness = 2f;
         public Color SelectionBoxColor = new Color(1f, 0.65f, 0.18f, 1f);
         public Color SelectionBoxFillColor = new Color(1f, 0.45f, 0.08f, 0.14f);
+        [Tooltip("Draw a dimmed frame around the entries that are not selected, so the menu reads as one list instead of a single boxed button beside loose words.")]
+        public bool FrameUnselectedEntries = true;
+        [Tooltip("Border of the unselected entry frames. It never pulses.")]
+        public Color UnselectedBoxColor = new Color(1f, 0.65f, 0.18f, 0.22f);
+        [Tooltip("Fill of the unselected entry frames.")]
+        public Color UnselectedBoxFillColor = new Color(1f, 0.45f, 0.08f, 0.05f);
         [Tooltip("Highlight pulses per second. Zero holds a steady box.")]
         [Min(0f)] public float SelectionBoxPulseSpeed = 2.2f;
         [Range(0f, 1f)] public float SelectionBoxPulseMinimumAlpha = 0.55f;
         [Range(0f, 1f)] public float SelectionBoxPulseMaximumAlpha = 1f;
+
+        [Header("Version Stamp")]
+        [Tooltip("Show the build version in the corner of the title screen. Empty copy hides it regardless.")]
+        public bool ShowVersionStamp = true;
+        [Tooltip("Text drawn before the version number. The number itself comes from Player Settings, so it is never authored twice.")]
+        public string VersionPrefix = "BUILD ";
+        [Min(8)] public int VersionFontSize = 15;
+        public Color VersionColor = new Color(1f, 1f, 1f, 0.34f);
+        [Tooltip("Inset from the bottom-right corner of the safe area, in reference pixels.")]
+        [Min(0f)] public float VersionMargin = 28f;
 
         public void EnsureInitialized()
         {

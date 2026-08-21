@@ -2417,20 +2417,8 @@ namespace DuneVector
             }
             y += buttonHeight + gap;
 
-            if (TitleMode)
-            {
-                // The title has no run behind it, so the archive, shop and run controls are all
-                // absent; QUIT is the only run-adjacent entry left and it sits below the
-                // settings screens at the very bottom of the stack.
-                y += gap * 1.5f;
-                if (DrawMenuButton(
-                        new Rect(content.x, y, content.width, buttonHeight),
-                        "QUIT",
-                        PauseButtonKind.Danger))
-                {
-                    QuitGame();
-                }
-            }
+            // In title mode QUIT is not here: it is an entry on the title menu itself, so the
+            // panel stays purely settings and closing the game never needs a detour through it.
 
             DrawFooterHint(content, TitleMode ? _titleFooterHint : "ESC  /  RETURN TO THE DESERT", scale);
             _drawControllerIndex = -1;

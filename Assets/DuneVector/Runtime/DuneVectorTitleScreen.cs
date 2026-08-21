@@ -13,6 +13,7 @@ namespace DuneVector
     {
         Start,
         Options,
+        Quit,
     }
 
     /// <summary>
@@ -44,6 +45,7 @@ namespace DuneVector
         private DuneVectorPauseMenu _optionsMenu;
         private DuneVectorAudioManager _audioManager;
         private GUIStyle _loadingStyle;
+        private GUIStyle _versionStyle;
         private bool _loading;
         private float _loadingStartedAt;
         private bool OptionsOpen => _optionsMenu != null && _optionsMenu.IsPaused;
@@ -52,6 +54,7 @@ namespace DuneVector
         {
             DuneVectorTitleMenuEntry.Start,
             DuneVectorTitleMenuEntry.Options,
+            DuneVectorTitleMenuEntry.Quit,
         };
 
         public DuneVectorTitleMenuEntry SelectedEntry => _selectedEntry;
@@ -273,6 +276,8 @@ namespace DuneVector
 
         private void Update()
         {
+            KeepTitleMusicLooping();
+
             if (_confirmed || OptionsOpen)
             {
                 return;
@@ -280,6 +285,25 @@ namespace DuneVector
 
             UpdateMouseSelection();
             UpdateKeyboardSelection();
+        }
+
+        /// <summary>
+        /// Restarts the authored title event when it reaches its natural end. Keeping this at the
+        /// screen level makes the title loop even when the FMOD event itself is authored as a
+        /// one-shot, without spawning overlapping instances or changing menu sound effects.
+        /// </summary>
+        private void KeepTitleMusicLooping()
+        {
+            if (!_musicStarted || !_musicInstance.isValid())
+            {
+                return;
+            }
+
+            if (_musicInstance.getPlaybackState(out PLAYBACK_STATE playbackState) == FMOD.RESULT.OK
+                && playbackState == PLAYBACK_STATE.STOPPED)
+            {
+                _musicInstance.start();
+            }
         }
 
         private void UpdateMouseSelection()
@@ -361,7 +385,27 @@ namespace DuneVector
 
                     OpenOptions();
                     break;
+
+                case DuneVectorTitleMenuEntry.Quit:
+                    QuitGame();
+                    break;
             }
+        }
+
+        /// <summary>
+        /// Closes the game from the title. Audio preferences are flushed first because the title
+        /// options panel only holds them in memory until something asks for the write.
+        /// </summary>
+        private void QuitGame()
+        {
+            _audioManager?.FlushPreferences();
+            ReleaseMusic();
+            Time.timeScale = 1f;
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
 
         private void LoadGameplayScene()
@@ -470,11 +514,11 @@ namespace DuneVector
             _titleStyle ??= new GUIStyle
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontStyle = FontStyle.Bold,
                 wordWrap = false,
                 richText = false,
             };
             _titleStyle.font = font;
+            _titleStyle.fontStyle = _settings.TitleFontStyle;
             _titleStyle.fontSize = Mathf.Max(16, Mathf.RoundToInt(_settings.TitleFontSize * scale));
             // DrawLabel tints with GUI.color, which multiplies this. Leave it white or the
             // authored colors come out black.
@@ -483,11 +527,11 @@ namespace DuneVector
             _menuStyle ??= new GUIStyle
             {
                 alignment = TextAnchor.MiddleCenter,
-                fontStyle = FontStyle.Normal,
                 wordWrap = false,
                 richText = false,
             };
             _menuStyle.font = font;
+            _menuStyle.fontStyle = _settings.MenuFontStyle;
             _menuStyle.fontSize = Mathf.Max(9, Mathf.RoundToInt(_settings.MenuFontSize * scale));
             _menuStyle.normal.textColor = Color.white;
 
@@ -501,6 +545,17 @@ namespace DuneVector
             _loadingStyle.font = font;
             _loadingStyle.fontSize = Mathf.Max(9, Mathf.RoundToInt(_settings.LoadingFontSize * scale));
             _loadingStyle.normal.textColor = Color.white;
+
+            _versionStyle ??= new GUIStyle
+            {
+                alignment = TextAnchor.MiddleRight,
+                fontStyle = FontStyle.Normal,
+                wordWrap = false,
+                richText = false,
+            };
+            _versionStyle.font = font;
+            _versionStyle.fontSize = Mathf.Max(8, Mathf.RoundToInt(_settings.VersionFontSize * scale));
+            _versionStyle.normal.textColor = Color.white;
         }
 
         private void OnGUI()
@@ -512,6 +567,7 @@ namespace DuneVector
 
             EnsureStyles();
             DrawBackground();
+            DrawScrim();
             if (_loading)
             {
                 DrawLoadingDim();
@@ -524,7 +580,71 @@ namespace DuneVector
             else
             {
                 DrawMenu();
+                DrawVersionStamp();
             }
+        }
+
+        /// <summary>
+        /// Darkens the top of the video behind the headline and menu. A flat tint over the whole
+        /// frame would protect the text just as well but would also drain the tunnel the clip is
+        /// there to show, so the scrim holds full strength across the text and then fades out
+        /// before it reaches the bright lower half.
+        /// </summary>
+        private void DrawScrim()
+        {
+            Color scrim = _settings.ScrimColor;
+            if (scrim.a <= 0f)
+            {
+                return;
+            }
+
+            float solidHeight = Screen.height * Mathf.Clamp01(_settings.ScrimSolidFraction);
+            float fadeHeight = Screen.height * Mathf.Clamp01(_settings.ScrimFadeFraction);
+            if (solidHeight > 0f)
+            {
+                DuneVectorHudChrome.DrawRect(new Rect(0f, 0f, Screen.width, solidHeight), scrim);
+            }
+            if (fadeHeight > 0f)
+            {
+                DuneVectorHudChrome.DrawVerticalFade(
+                    new Rect(0f, solidHeight, Screen.width, fadeHeight),
+                    scrim,
+                    true);
+            }
+        }
+
+        /// <summary>
+        /// Build number in the bottom corner. It reads from Player Settings rather than a second
+        /// copy on the settings asset, so a shipped build cannot disagree with the version it
+        /// reports.
+        /// </summary>
+        private void DrawVersionStamp()
+        {
+            if (!_settings.ShowVersionStamp || string.IsNullOrWhiteSpace(Application.version))
+            {
+                return;
+            }
+
+            float scale = GetScale();
+            float margin = _settings.VersionMargin * scale;
+            Rect safeArea = Screen.safeArea;
+            float height = _versionStyle.fontSize * 2f;
+            // safeArea is in screen space with y up, so the GUI-space bottom inset is the gap
+            // between the safe area floor and the screen floor.
+            float bottomInset = safeArea.yMin;
+            float rightInset = Screen.width - safeArea.xMax;
+            Rect rect = new Rect(
+                0f,
+                Screen.height - bottomInset - margin - height,
+                Screen.width - rightInset - margin,
+                height);
+            DuneVectorHudChrome.DrawLabel(
+                rect,
+                _settings.VersionPrefix + Application.version,
+                _versionStyle,
+                _settings.VersionColor,
+                _settings.TextShadowColor,
+                new Vector2(scale, scale));
         }
 
         private void DrawBackground()
@@ -552,11 +672,14 @@ namespace DuneVector
             Vector2 shadowOffset = new Vector2(
                 _settings.TextShadowOffset * scale,
                 _settings.TextShadowOffset * scale);
-            DuneVectorHudChrome.DrawLabel(
+            DuneVectorHudChrome.DrawTrackedLabel(
                 GetTitleRect(),
                 _settings.TitleText,
                 _titleStyle,
+                _settings.TitleTracking * scale,
                 _settings.TitleColor,
+                _settings.TitleGlowColor,
+                _settings.TitleGlowRadius * scale,
                 _settings.TextShadowColor,
                 shadowOffset);
         }
@@ -576,12 +699,19 @@ namespace DuneVector
                 {
                     DrawSelectionBox(GetSelectionBoxRect(entry), scale);
                 }
+                else if (_settings.FrameUnselectedEntries)
+                {
+                    DrawUnselectedBox(GetSelectionBoxRect(entry), scale);
+                }
 
-                DuneVectorHudChrome.DrawLabel(
+                DuneVectorHudChrome.DrawTrackedLabel(
                     GetMenuItemRect(entry),
                     GetLabel(entry),
                     _menuStyle,
+                    _settings.MenuTracking * scale,
                     selected ? _settings.SelectedMenuItemColor : _settings.MenuItemColor,
+                    Color.clear,
+                    0f,
                     _settings.TextShadowColor,
                     shadowOffset);
             }
@@ -657,6 +787,19 @@ namespace DuneVector
             DuneVectorHudChrome.DrawRect(
                 new Rect(track.x + (travel * (width - sweepWidth)), track.y, sweepWidth, height),
                 _settings.LoadingBarSweepColor);
+        }
+
+        /// <summary>
+        /// The resting frame every unselected entry wears. It never pulses, so the moving
+        /// highlight stays the only thing the eye tracks.
+        /// </summary>
+        private void DrawUnselectedBox(Rect box, float scale)
+        {
+            DuneVectorHudChrome.DrawRect(box, _settings.UnselectedBoxFillColor);
+            DuneVectorHudChrome.DrawBorder(
+                box,
+                _settings.UnselectedBoxColor,
+                Mathf.Max(1f, _settings.SelectionBoxThickness * scale));
         }
 
         private void DrawSelectionBox(Rect box, float scale)
@@ -748,9 +891,15 @@ namespace DuneVector
 
         private string GetLabel(DuneVectorTitleMenuEntry entry)
         {
-            return entry == DuneVectorTitleMenuEntry.Start
-                ? _settings.StartLabel
-                : _settings.OptionsLabel;
+            switch (entry)
+            {
+                case DuneVectorTitleMenuEntry.Start:
+                    return _settings.StartLabel;
+                case DuneVectorTitleMenuEntry.Options:
+                    return _settings.OptionsLabel;
+                default:
+                    return _settings.QuitLabel;
+            }
         }
     }
 }
