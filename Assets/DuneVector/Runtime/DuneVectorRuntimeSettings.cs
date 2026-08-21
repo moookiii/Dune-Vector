@@ -9047,9 +9047,9 @@ namespace DuneVector
         [Tooltip("Fraction of the drawn portal radius that counts as the traversal ring pickup volume. 1 collects anywhere inside the visible portal; lower values require a tighter pass through the opening.")]
         [Range(0.1f, 1f)] public float GatePickupRadiusFraction = 1f;
         [Tooltip("Fraction of the selected rail health-ring slots that actually spawn a ring. The remainder leave the segment empty.")]
-        [Range(0f, 1f)] public float HealthRingKeptFraction = 0.2f;
+        [Range(0f, 1f)] public float HealthRingKeptFraction = 1f;
         [Tooltip("Fraction of recurring purple navigation rings converted into health rings. The remaining rings retain their black-ring speed boost.")]
-        [Range(0f, 1f)] public float NavigationHealthRingFraction = 0.5f;
+        [Range(0f, 1f)] public float NavigationHealthRingFraction = 1f;
         [Tooltip("Color used by recurring and repair flight rings in the rail subgame. Upper-flight rail rings are presented as white.")]
         [ColorUsage(false, true)] public Color NavigationRingColor = new Color(4.8f, 0.08f, 8f, 1f);
         [Tooltip("Maximum half-size of the procedural X/Y plane used to scatter pooled course rings. Runtime placement still clamps every ring center inside the drone's screen-space play boundary.")]

@@ -368,14 +368,15 @@ namespace DuneVector.Tests
         }
 
         [Test]
-        public void RailShooter_HalfPurpleNavigationRingsBecomeEvenlyDistributedHealthRings()
+        public void RailShooter_AllPurpleNavigationRingsBecomeHealthRings()
         {
             DuneVectorRuntimeSettings runtimeSettings =
                 AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
             RailShooterTuning settings = runtimeSettings != null ? runtimeSettings.RailShooter : null;
 
             Assert.That(settings, Is.Not.Null);
-            Assert.That(settings.NavigationHealthRingFraction, Is.EqualTo(0.5f).Within(0.001f));
+            Assert.That(settings.NavigationHealthRingFraction, Is.EqualTo(1f).Within(0.001f));
+            Assert.That(settings.HealthRingKeptFraction, Is.EqualTo(1f).Within(0.001f));
 
             int ringCount = Mathf.Max(1, settings.EnvironmentSegmentCount);
             int healthRingCount = 0;
@@ -390,7 +391,7 @@ namespace DuneVector.Tests
                 }
             }
 
-            Assert.That(healthRingCount, Is.EqualTo(Mathf.RoundToInt(ringCount * 0.5f)));
+            Assert.That(healthRingCount, Is.EqualTo(ringCount));
         }
 
         [Test]
