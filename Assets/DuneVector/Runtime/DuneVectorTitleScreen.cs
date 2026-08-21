@@ -173,6 +173,7 @@ namespace DuneVector
             {
                 _videoPlayer.SetDirectAudioVolume(0, _settings.BackgroundVideoAudioVolume);
             }
+            _videoPlayer.playbackSpeed = Mathf.Max(0.01f, _settings.VideoPlaybackSpeed);
             _videoPlayer.Play();
         }
 

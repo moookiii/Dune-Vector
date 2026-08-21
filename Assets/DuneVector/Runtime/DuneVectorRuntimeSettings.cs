@@ -9256,6 +9256,8 @@ namespace DuneVector
         [Range(0f, 1f)] public float BackgroundVideoAudioVolume;
         [Tooltip("Crop the video so it covers the whole screen instead of letterboxing it.")]
         public bool FillScreenWithVideo = true;
+        [Tooltip("Multiplier on the clip's own playback rate. Below one the tunnel drifts rather than charges, so the loop reads as a backdrop instead of a cutscene the menu is interrupting.")]
+        [Range(0.1f, 2f)] public float VideoPlaybackSpeed = 0.6f;
         [Tooltip("Drawn behind the video while the first frame is still preparing.")]
         public Color BackgroundColor = new Color(0f, 0f, 0f, 1f);
         [Tooltip("Tint multiplied into the video so the menu text stays readable.")]
