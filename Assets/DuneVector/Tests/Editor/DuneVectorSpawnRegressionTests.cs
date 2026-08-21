@@ -292,6 +292,33 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void RailShooter_AimProjectionIgnoresPresentationCameraShake()
+        {
+            Vector3 cameraBasePosition = new Vector3(10f, 5f, -20f);
+            Vector2 viewport = new Vector2(0.68f, 0.37f);
+            Vector3 worldPoint = DuneVectorRailShooterController.CalculateViewportWorldPoint(
+                cameraBasePosition,
+                Quaternion.identity,
+                viewport,
+                80f,
+                60f,
+                16f / 9f);
+
+            bool visible = DuneVectorRailShooterController.TryCalculateWorldGuiPosition(
+                worldPoint,
+                cameraBasePosition,
+                Quaternion.identity,
+                60f,
+                16f / 9f,
+                new Vector2(1920f, 1080f),
+                out Vector2 guiPosition);
+
+            Assert.That(visible, Is.True);
+            Assert.That(guiPosition.x, Is.EqualTo(viewport.x * 1920f).Within(0.001f));
+            Assert.That(guiPosition.y, Is.EqualTo((1f - viewport.y) * 1080f).Within(0.001f));
+        }
+
+        [Test]
         public void RailShooter_SigilDrawingGuideIsThickAndWhite()
         {
             DuneVectorRuntimeSettings runtimeSettings =

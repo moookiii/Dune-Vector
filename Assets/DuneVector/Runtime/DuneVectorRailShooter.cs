@@ -867,11 +867,14 @@ namespace DuneVector
                 _settings.FarReticleDistance);
             float aimTargetDepth = Mathf.Max(
                 1f,
-                (playerPosition.z - _camera.transform.position.z) + aimDistance);
-            Vector3 aimTarget = _camera.ViewportToWorldPoint(new Vector3(
-                _aimViewport.x,
-                _aimViewport.y,
-                aimTargetDepth));
+                (playerPosition.z - _cameraBasePosition.z) + aimDistance);
+            Vector3 aimTarget = CalculateViewportWorldPoint(
+                _cameraBasePosition,
+                _camera.transform.rotation,
+                _aimViewport,
+                aimTargetDepth,
+                _camera.fieldOfView,
+                _camera.aspect);
             Vector3 aimVector = aimTarget - playerPosition;
             Quaternion aimRotation = aimVector.sqrMagnitude > 0.0001f
                 ? Quaternion.LookRotation(aimVector.normalized, Vector3.up)
@@ -8051,10 +8054,67 @@ namespace DuneVector
 
         private void DrawWorldReticle(Vector3 worldPosition, float size)
         {
-            if (TryProject(worldPosition, out Vector2 screenPosition))
+            if (TryProjectStableHudPoint(worldPosition, out Vector2 screenPosition))
             {
                 DrawBracket(screenPosition, size, _settings.HudReticleColor);
             }
+        }
+
+        private bool TryProjectStableHudPoint(Vector3 worldPosition, out Vector2 screenPosition)
+        {
+            return TryCalculateWorldGuiPosition(
+                worldPosition,
+                _cameraBasePosition,
+                _camera.transform.rotation,
+                _camera.fieldOfView,
+                _camera.aspect,
+                new Vector2(Screen.width, Screen.height),
+                out screenPosition);
+        }
+
+        public static Vector3 CalculateViewportWorldPoint(
+            Vector3 cameraPosition,
+            Quaternion cameraRotation,
+            Vector2 viewport,
+            float depth,
+            float verticalFieldOfView,
+            float aspect)
+        {
+            float safeDepth = Mathf.Max(0f, depth);
+            float halfHeight = safeDepth * Mathf.Tan(Mathf.Clamp(verticalFieldOfView, 1f, 179f) *
+                Mathf.Deg2Rad * 0.5f);
+            Vector3 localPoint = new Vector3(
+                (viewport.x - 0.5f) * 2f * halfHeight * Mathf.Max(0.0001f, aspect),
+                (viewport.y - 0.5f) * 2f * halfHeight,
+                safeDepth);
+            return cameraPosition + (cameraRotation * localPoint);
+        }
+
+        public static bool TryCalculateWorldGuiPosition(
+            Vector3 worldPosition,
+            Vector3 cameraPosition,
+            Quaternion cameraRotation,
+            float verticalFieldOfView,
+            float aspect,
+            Vector2 screenSize,
+            out Vector2 guiPosition)
+        {
+            Vector3 localPoint = Quaternion.Inverse(cameraRotation) * (worldPosition - cameraPosition);
+            if (localPoint.z <= 0f)
+            {
+                guiPosition = Vector2.zero;
+                return false;
+            }
+
+            float halfHeight = localPoint.z * Mathf.Tan(
+                Mathf.Clamp(verticalFieldOfView, 1f, 179f) * Mathf.Deg2Rad * 0.5f);
+            float halfWidth = halfHeight * Mathf.Max(0.0001f, aspect);
+            float viewportX = 0.5f + (localPoint.x / (2f * halfWidth));
+            float viewportY = 0.5f + (localPoint.y / (2f * halfHeight));
+            guiPosition = new Vector2(
+                viewportX * Mathf.Max(0f, screenSize.x),
+                (1f - viewportY) * Mathf.Max(0f, screenSize.y));
+            return true;
         }
 
         private void DrawBracket(Vector2 center, float size, Color color)
