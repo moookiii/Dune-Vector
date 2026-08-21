@@ -396,6 +396,19 @@ namespace DuneVector.Tests
                 Is.False);
         }
 
+
+        [Test]
+        public void RailShooter_CombatStartsAtFiftyMetersWithoutRouteGates()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            RailShooterTuning settings = runtimeSettings != null ? runtimeSettings.RailShooter : null;
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(settings.FirstWaveDistance, Is.EqualTo(50f).Within(0.001f));
+            Assert.That(settings.BranchGateCount, Is.Zero);
+        }
+
         [Test]
         public void RailShooter_SatelliteFieldCoversThePreRebaseSquare()
         {

@@ -977,6 +977,13 @@ namespace DuneVector
 
         private void TickEncounterDirector()
         {
+            while (_state.Distance >= _nextWaveDistance &&
+                   _nextWaveDistance < _settings.BossSpawnDistance)
+            {
+                SpawnFormation();
+                _nextWaveDistance += Mathf.Max(1f, _settings.WaveSpacing);
+            }
+
             if (!_bossAnnounced &&
                 _state.Distance >= _settings.BossSpawnDistance - _settings.BossApproachLeadDistance)
             {

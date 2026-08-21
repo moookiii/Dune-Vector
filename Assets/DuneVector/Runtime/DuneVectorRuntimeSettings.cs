@@ -8639,7 +8639,7 @@ namespace DuneVector
         [Min(1)] public int EliteEveryWaves = 4;
         [Min(1f)] public float EliteHealthMultiplier = 2.2f;
         [Min(1f)] public float EliteScoreMultiplier = 1.8f;
-        [Min(1)] public int BranchGateCount = 2;
+        [Min(0)] public int BranchGateCount = 0;
         [Min(1f)] public float BranchGateFirstDistance = 780f;
         [Min(1f)] public float BranchGateSpacing = 980f;
         [Min(0f)] public float BranchGateHorizontalOffset = 14f;
