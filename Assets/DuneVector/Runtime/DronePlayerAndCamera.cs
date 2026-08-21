@@ -16,6 +16,9 @@ namespace DuneVector
         public bool FirePressed;
         public bool FireHeld;
         public bool FireReleased;
+        public bool SecondaryPressed;
+        public bool SecondaryHeld;
+        public bool SecondaryReleased;
         public bool BrakeHeld;
         public bool BombPressed;
         public bool InteractPressed;
@@ -92,6 +95,12 @@ namespace DuneVector
                 FirePressed = (mouse != null && mouse.leftButton.wasPressedThisFrame) || gamepadFirePressed,
                 FireHeld = (mouse != null && mouse.leftButton.isPressed) || gamepadFireHeld,
                 FireReleased = (mouse != null && mouse.leftButton.wasReleasedThisFrame) || gamepadFireReleased,
+                SecondaryPressed = (mouse != null && mouse.rightButton.wasPressedThisFrame) ||
+                                   (gamepad != null && gamepad.rightShoulder.wasPressedThisFrame),
+                SecondaryHeld = (mouse != null && mouse.rightButton.isPressed) ||
+                                (gamepad != null && gamepad.rightShoulder.isPressed),
+                SecondaryReleased = (mouse != null && mouse.rightButton.wasReleasedThisFrame) ||
+                                    (gamepad != null && gamepad.rightShoulder.wasReleasedThisFrame),
                 BrakeHeld = brakeHeld,
                 BombPressed = (mouse != null && mouse.rightButton.wasPressedThisFrame) ||
                               (keyboard != null && keyboard.qKey.wasPressedThisFrame) ||

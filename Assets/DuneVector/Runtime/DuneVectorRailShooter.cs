@@ -70,6 +70,9 @@ namespace DuneVector
         public readonly bool FirePressed;
         public readonly bool FireHeld;
         public readonly bool FireReleased;
+        public readonly bool DrawPressed;
+        public readonly bool DrawHeld;
+        public readonly bool DrawReleased;
         public readonly bool BombPressed;
         public readonly bool TrickPressed;
         public readonly bool ConfirmPressed;
@@ -84,6 +87,9 @@ namespace DuneVector
             FirePressed = input.FirePressed;
             FireHeld = input.FireHeld;
             FireReleased = input.FireReleased;
+            DrawPressed = input.SecondaryPressed;
+            DrawHeld = input.SecondaryHeld;
+            DrawReleased = input.SecondaryReleased;
             BombPressed = input.BombPressed;
             TrickPressed = input.JumpPressed;
             ConfirmPressed = input.ConfirmPressed;
@@ -1306,22 +1312,6 @@ namespace DuneVector
 
         private void TickWeapons(in RailShooterCommand command, float deltaTime)
         {
-            if (_sigilActive)
-            {
-                _state.ChargeElapsed = 0f;
-                _chargeLock = null;
-                _satelliteChargeLock = null;
-                _chargeReadyCued = false;
-                _chargeLocks.Clear();
-                ClearEnemyLocks();
-                ClearSatelliteLocks();
-                _fireWasHeld = false;
-                if (command.BombPressed && _state.Bombs > 0 && !float.IsFinite(_bombElapsed))
-                {
-                    DetonateBomb();
-                }
-                return;
-            }
             if (command.FireHeld)
             {
                 _state.ChargeElapsed += deltaTime;
@@ -1367,7 +1357,7 @@ namespace DuneVector
             }
             _fireWasHeld = command.FireHeld;
 
-            if (command.BombPressed && _state.Bombs > 0 && !float.IsFinite(_bombElapsed))
+            if (!_sigilActive && command.BombPressed && _state.Bombs > 0 && !float.IsFinite(_bombElapsed))
             {
                 DetonateBomb();
             }
@@ -5283,13 +5273,13 @@ namespace DuneVector
             }
             UpdateSigilDrawingCursorWorld();
 
-            if (!_sigilDrawing && (command.FirePressed || command.FireHeld))
+            if (!_sigilDrawing && (command.DrawPressed || command.DrawHeld))
             {
                 _sigilDrawing = true;
                 _sigilAttemptPoints.Clear();
                 _sigilAttemptPoints.Add(_sigilCursorScreen);
             }
-            if (_sigilDrawing && command.FireHeld)
+            if (_sigilDrawing && command.DrawHeld)
             {
                 float pointSpacing = Mathf.Max(0.5f, sigils.DrawingPointSpacing);
                 if (_sigilAttemptPoints.Count == 0 ||
@@ -5298,7 +5288,7 @@ namespace DuneVector
                     _sigilAttemptPoints.Add(_sigilCursorScreen);
                 }
             }
-            if (!_sigilDrawing || (!command.FireReleased && command.FireHeld))
+            if (!_sigilDrawing || (!command.DrawReleased && command.DrawHeld))
             {
                 return;
             }

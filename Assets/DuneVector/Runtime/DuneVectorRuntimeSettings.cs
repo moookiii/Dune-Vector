@@ -8329,8 +8329,8 @@ namespace DuneVector
         public string ChainPromptLabel = "NULL CHOIR // TRACE THE CHAIN";
         public string BanishLabel = "SIGIL BROKEN";
         public string StrikeLabel = "SIGIL STRUCK";
-        public string HintLabel = "HOLD LMB TO PAINT // DRAW THE WHOLE GLYPH";
-        public string ReleaseHintLabel = "RELEASE LMB TO SUBMIT";
+        public string HintLabel = "HOLD RMB TO PAINT // DRAW THE WHOLE GLYPH";
+        public string ReleaseHintLabel = "RELEASE RMB TO SUBMIT";
         [Tooltip("Backing plate drawn behind the trace prompt and countdown so they stay readable against the starfield.")]
         [Min(0f)] public float PromptPanelWidth = 560f;
         [Min(0f)] public float PromptPanelPadding = 10f;
@@ -9010,7 +9010,7 @@ namespace DuneVector
         public string BossTitle = "VESPER SOVEREIGN // NULL CHOIR";
         public string SafeRouteLabel = "SIGNAL ROUTE";
         public string RiskRouteLabel = "BLACK ROUTE";
-        public string ControlsLabel = "WASD MOVE   SHIFT BOOST   SPACE BRAKE   CTRL MANEUVER   LMB FIRE/CHARGE   RMB/Q BOMB   MOUSE DRAWS SIGILS";
+        public string ControlsLabel = "WASD MOVE   SHIFT BOOST   SPACE BRAKE   CTRL MANEUVER   LMB FIRE/CHARGE   RMB DRAW SIGILS   Q BOMB";
 
         [Header("Rail HUD Layout")]
         [Tooltip("Screen height the rail HUD chrome was authored against. Panels, fonts, and meters scale from this so the readout keeps its proportion on any display.")]
