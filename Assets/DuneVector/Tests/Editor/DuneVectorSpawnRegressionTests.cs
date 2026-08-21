@@ -627,6 +627,39 @@ namespace DuneVector.Tests
         private const string RuntimeSettingsPath =
             "Assets/DuneVector/ScriptableObjects/Dune Vector Runtime Settings.asset";
 
+        [TestCase(100d, 100d, 125d, 100d, 50f, false)]
+        [TestCase(100d, 100d, 150d, 100d, 50f, true)]
+        [TestCase(100d, 100d, 160d, 100d, 50f, true)]
+        public void DustDevilSpawn_RequiresAuthoredClearanceFromDrone(
+            double tornadoX,
+            double tornadoZ,
+            double playerX,
+            double playerZ,
+            float clearance,
+            bool expectedClear)
+        {
+            Assert.That(
+                DuneVectorDustDevilSystem.HasPlayerSpawnClearance(
+                    new LogicalPosition(tornadoX, tornadoZ),
+                    new LogicalPosition(playerX, playerZ),
+                    clearance),
+                Is.EqualTo(expectedClear));
+        }
+
+        [Test]
+        public void RuntimeSettings_DustDevilSpawnClearanceExceedsInteractionRadius()
+        {
+            DuneVectorRuntimeSettings settings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(settings.DustDevils, Is.Not.Null);
+            Assert.That(
+                settings.DustDevils.PlayerDeploymentClearance,
+                Is.GreaterThan(settings.DustDevils.InteractionRadius),
+                "WORLD tornado streaming must keep a newly spawned funnel outside its drone interaction radius.");
+        }
+
         [Test]
         public void ShieldConsumesOneOtherwiseValidHitWithoutLosingHealth()
         {

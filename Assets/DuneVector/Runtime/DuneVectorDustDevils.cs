@@ -20,7 +20,7 @@ namespace DuneVector
         public int RandomSeedOffset = 8849;
 
         [Header("Player Deployment")]
-        [Tooltip("Minimum horizontal distance, in meters, kept between contract or free roam deployment points and a tornado center.")]
+        [Tooltip("Minimum horizontal distance, in meters, kept between the drone and a tornado center during deployment and tornado streaming.")]
         [Min(0f)] public float PlayerDeploymentClearance = 50f;
 
         [Header("Funnel Dimensions")]
@@ -313,20 +313,42 @@ namespace DuneVector
             out Vector2 tornadoPosition)
         {
             tornadoPosition = Vector2.zero;
+            float closestSquared = clearance * clearance;
+            bool found = false;
+
+            // A streamed tornado may have travelled well away from its deterministic cell
+            // position. Deployment must respect its current position rather than assuming the
+            // funnel is still where that cell originally created it.
+            foreach (RuntimeDustDevil devil in _instances.Values)
+            {
+                Vector2 position = new Vector2(
+                    (float)devil.LogicalPosition.X,
+                    (float)devil.LogicalPosition.Z);
+                float distanceSquared = (logicalPoint - position).sqrMagnitude;
+                if (distanceSquared >= closestSquared)
+                {
+                    continue;
+                }
+
+                closestSquared = distanceSquared;
+                tornadoPosition = position;
+                found = true;
+            }
+
             float cellSize = Mathf.Max(1f, _settings.SpawnCellSize);
             int cellReach = Mathf.CeilToInt(clearance / cellSize) + 1;
             Vector2Int centerCell = new Vector2Int(
                 Mathf.FloorToInt(logicalPoint.x / cellSize),
                 Mathf.FloorToInt(logicalPoint.y / cellSize));
-            float closestSquared = clearance * clearance;
-            bool found = false;
 
             for (int z = -cellReach; z <= cellReach; z++)
             {
                 for (int x = -cellReach; x <= cellReach; x++)
                 {
                     Vector2Int cell = centerCell + new Vector2Int(x, z);
-                    if (!ShouldSpawn(cell))
+                    // Active cells were checked at their live positions above. Checking their
+                    // original positions as well would reserve empty ground behind a moving funnel.
+                    if (_instances.ContainsKey(cell) || !ShouldSpawn(cell))
                     {
                         continue;
                     }
@@ -551,7 +573,9 @@ namespace DuneVector
                 for (int x = -radius; x <= radius; x++)
                 {
                     Vector2Int cell = playerCell + new Vector2Int(x, z);
-                    if (!_instances.ContainsKey(cell) && ShouldSpawn(cell))
+                    if (!_instances.ContainsKey(cell)
+                        && ShouldSpawn(cell)
+                        && IsSpawnClearOfPlayer(cell))
                     {
                         CreateDustDevil(cell);
                     }
@@ -572,6 +596,28 @@ namespace DuneVector
             {
                 RemoveDustDevil(_removalBuffer[i]);
             }
+        }
+
+        private bool IsSpawnClearOfPlayer(Vector2Int cell)
+        {
+            float clearance = Mathf.Max(0f, _settings.PlayerDeploymentClearance);
+            return clearance <= 0f || HasPlayerSpawnClearance(
+                GetLogicalPosition(cell),
+                _world.LogicalPlayerPosition,
+                clearance);
+        }
+
+        /// <summary>Returns whether a tornado may spawn without entering the drone's reserved radius.</summary>
+        public static bool HasPlayerSpawnClearance(
+            LogicalPosition tornadoPosition,
+            LogicalPosition playerPosition,
+            float clearance)
+        {
+            double requiredDistance = Math.Max(0.0, clearance);
+            double deltaX = tornadoPosition.X - playerPosition.X;
+            double deltaZ = tornadoPosition.Z - playerPosition.Z;
+            return (deltaX * deltaX) + (deltaZ * deltaZ)
+                >= requiredDistance * requiredDistance;
         }
 
         private bool ShouldSpawn(Vector2Int cell)
