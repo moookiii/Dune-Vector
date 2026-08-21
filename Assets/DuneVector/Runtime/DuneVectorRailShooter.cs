@@ -3774,6 +3774,13 @@ namespace DuneVector
                     i,
                     _settings.EnvironmentSegmentCount,
                     _settings.NavigationHealthRingFraction);
+                if (!health && !_settings.SpawnNonHealthNavigationRings)
+                {
+                    segment.RingType = TraversalRingType.Flight;
+                    segment.HasRing = false;
+                    _segments.Add(segment);
+                    continue;
+                }
                 if (health)
                 {
                     // Only an even spread of the selected health slots keeps its ring; the

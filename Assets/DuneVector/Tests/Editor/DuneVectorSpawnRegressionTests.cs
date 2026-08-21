@@ -436,6 +436,7 @@ namespace DuneVector.Tests
             Assert.That(settings, Is.Not.Null);
             Assert.That(settings.NavigationHealthRingFraction, Is.EqualTo(0.5f).Within(0.001f));
             Assert.That(settings.HealthRingKeptFraction, Is.EqualTo(1f).Within(0.001f));
+            Assert.That(settings.SpawnNonHealthNavigationRings, Is.False);
 
             int ringCount = Mathf.Max(1, settings.EnvironmentSegmentCount);
             int healthRingCount = 0;

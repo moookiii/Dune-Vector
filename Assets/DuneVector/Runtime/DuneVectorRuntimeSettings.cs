@@ -9050,6 +9050,8 @@ namespace DuneVector
         [Range(0f, 1f)] public float HealthRingKeptFraction = 1f;
         [Tooltip("Fraction of recurring purple navigation rings converted into health rings. The remaining rings retain their black-ring speed boost.")]
         [Range(0f, 1f)] public float NavigationHealthRingFraction = 0.5f;
+        [Tooltip("Whether recurring rail slots not selected as health rings spawn navigation rings. Disable to leave those slots empty.")]
+        public bool SpawnNonHealthNavigationRings;
         [Tooltip("Color used by recurring and repair flight rings in the rail subgame. Upper-flight rail rings are presented as white.")]
         [ColorUsage(false, true)] public Color NavigationRingColor = new Color(4.8f, 0.08f, 8f, 1f);
         [Tooltip("Maximum half-size of the procedural X/Y plane used to scatter pooled course rings. Runtime placement still clamps every ring center inside the drone's screen-space play boundary.")]
