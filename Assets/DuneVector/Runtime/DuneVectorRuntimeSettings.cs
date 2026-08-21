@@ -7642,8 +7642,8 @@ namespace DuneVector
         [Tooltip("Seconds the banner takes to slide up and fade in.")]
         [Min(0f)] public float UnlockAnnouncementEnterDuration = 0.6f;
 
-        [Tooltip("Seconds the banner takes to fade back out before it expires.")]
-        [Min(0f)] public float UnlockAnnouncementExitDuration = 1.2f;
+        [Tooltip("Seconds the banner takes to fade back out before it expires. Shared by every hub announcement card, so this is how long the courier waits after dismissing one.")]
+        [Min(0f)] public float UnlockAnnouncementExitDuration = 0.4f;
 
         [Tooltip("Distance the banner slides up while it fades in, in reference pixels.")]
         [Min(0f)] public float UnlockAnnouncementSlideDistance = 48f;
