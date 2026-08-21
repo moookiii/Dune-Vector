@@ -1019,7 +1019,12 @@ namespace DuneVector
             baseCount = Mathf.Max(_settings.FormationMinimumSize, baseCount);
             int riskExtra = Mathf.CeilToInt(baseCount *
                 (Mathf.Pow(_settings.RiskRouteEnemyMultiplier, _riskRouteCount) - 1f));
-            int requestedCount = baseCount + riskExtra;
+            // Difficulty and risk multipliers may not push a formation past its authored ceiling,
+            // so a maximum of one keeps waves to a single hostile.
+            int requestedCount = Mathf.Clamp(
+                baseCount + riskExtra,
+                _settings.FormationMinimumSize,
+                Mathf.Max(_settings.FormationMinimumSize, _settings.FormationMaximumSize));
             FormationRecord formation = new FormationRecord { Id = ++_formationSequence };
             _formations.Add(formation);
             int pattern = _waveIndex % 4;
