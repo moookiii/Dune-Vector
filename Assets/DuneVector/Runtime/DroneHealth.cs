@@ -286,7 +286,11 @@ namespace DuneVector
                 : transform.position;
             _shieldEffect = Instantiate(prefab, effectParent, false);
             _shieldEffect.name = "BlueSparkleShield";
-            _shieldEffect.transform.position = effectWorldCenter;
+            Vector3 localOffset = _settings != null
+                ? _settings.ShieldEffectOffset
+                : Vector3.zero;
+            _shieldEffect.transform.localPosition =
+                effectParent.InverseTransformPoint(effectWorldCenter) + localOffset;
         }
 
         private void RemoveShield()

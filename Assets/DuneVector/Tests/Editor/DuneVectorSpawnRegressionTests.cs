@@ -609,6 +609,34 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void ShieldPickupEffectUsesAuthoredLocalOffset()
+        {
+            GameObject droneObject = new GameObject("Shield Offset Test Drone");
+            try
+            {
+                Vector3 expectedOffset = new Vector3(0.35f, -0.4f, 0.2f);
+                PlayerHealthTuning settings = new PlayerHealthTuning
+                {
+                    ShieldEffectOffset = expectedOffset,
+                };
+                DroneHealth health = droneObject.AddComponent<DroneHealth>();
+                health.Initialize(100f, 0f);
+                health.ConfigureOutOfCombatRepair(settings);
+
+                Assert.That(health.GrantShield(), Is.True);
+                Transform shield = droneObject.transform.Find("BlueSparkleShield");
+                Assert.That(shield, Is.Not.Null);
+                Assert.That(shield.localPosition.x, Is.EqualTo(expectedOffset.x).Within(0.0001f));
+                Assert.That(shield.localPosition.y, Is.EqualTo(expectedOffset.y).Within(0.0001f));
+                Assert.That(shield.localPosition.z, Is.EqualTo(expectedOffset.z).Within(0.0001f));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(droneObject);
+            }
+        }
+
+        [Test]
         public void GeoglyphImageCoordinatesConvertToUnityUvCoordinates()
         {
             Vector2 converted = GeoglyphArtworkPlacement.ImageUvToUnityUv(

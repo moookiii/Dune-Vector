@@ -2560,6 +2560,10 @@ namespace DuneVector
         [Tooltip("Grace period after any hit during which the drone cannot be damaged again. This is what stops a dense encounter from chaining several hits into one unrecoverable burst.")]
         [Min(0f)] public float DamageInvulnerability = 0.9f;
 
+        [Header("Shield Pickup Effect")]
+        [Tooltip("Local-space position offset from the drone's calculated visual center for the shield effect granted by a shield pickup.")]
+        public Vector3 ShieldEffectOffset;
+
         [Header("Invulnerability Blink")]
         [Tooltip("Pulses the drone hull toward a tint while the post-hit grace period runs, so a hit that does no damage reads as invulnerability rather than as a miss. The hull never goes invisible.")]
         public bool InvulnerabilityBlinkEnabled = true;
