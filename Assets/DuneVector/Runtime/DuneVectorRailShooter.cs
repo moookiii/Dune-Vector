@@ -5752,6 +5752,7 @@ namespace DuneVector
                     accent);
             }
 
+            float countdown = Mathf.Clamp01(remaining / Mathf.Max(0.01f, _sigilDuration));
             float guideSize = Mathf.Min(
                 Scaled(sigils.DrawingIndicatorSize),
                 Mathf.Min(Screen.width, Screen.height));
@@ -5761,19 +5762,23 @@ namespace DuneVector
                 Screen.height - indicatorMargin - guideSize,
                 guideSize,
                 guideSize);
-            DrawSigilIndicatorPanel(guideBox, accent);
+            // A rejected trace kicks the whole plate sideways, so a fault is felt in the corner the
+            // player is already staring at rather than only in the countdown.
+            float faultFlash = SigilFaultFlash();
+            float urgency = SigilIndicatorUrgency(countdown);
+            guideBox = OffsetRect(guideBox, SigilIndicatorKick(faultFlash));
+            DrawSigilIndicatorPanel(guideBox, accent, countdown, urgency, faultFlash, definition.Name);
+            Rect glyphBox = SigilIndicatorGlyphBox(guideBox);
+            float guidePadding = Mathf.Min(glyphBox.width, glyphBox.height) *
+                sigils.DrawingGuidePaddingFraction;
             BuildSigilGlyphPoints(
                 definition,
-                new Rect(
-                    guideBox.x + (guideSize * sigils.DrawingGuidePaddingFraction),
-                    guideBox.y + (guideSize * sigils.DrawingGuidePaddingFraction),
-                    guideSize * (1f - (sigils.DrawingGuidePaddingFraction * 2f)),
-                    guideSize * (1f - (sigils.DrawingGuidePaddingFraction * 2f))),
+                ExpandRect(glyphBox, -guidePadding),
                 _sigilGlyphPoints);
             Color guideColor = faulted
                 ? WithAlpha(sigils.FaultColor, sigils.DrawingGuideColor.a)
                 : sigils.DrawingGuideColor;
-            if (!DrawGeneratedSigilGlyph(definition, guideBox, guideColor))
+            if (!DrawSigilGlyphArt(definition, glyphBox, guideColor, accent))
             {
                 for (int i = 1; i < _sigilGlyphPoints.Count; i++)
                 {
@@ -5796,6 +5801,7 @@ namespace DuneVector
                         sigils.CompletedStrokeColor);
                 }
             }
+            DrawSigilIndicatorFaultWash(guideBox, faultFlash);
 
             for (int i = 1; i < _sigilAttemptPoints.Count; i++)
             {
@@ -5806,7 +5812,6 @@ namespace DuneVector
                     sigils.DrawingPaintColor);
             }
 
-            float countdown = Mathf.Clamp01(remaining / Mathf.Max(0.01f, _sigilDuration));
             float barWidth = Mathf.Min(
                 Scaled(sigils.CountdownBarWidth),
                 Screen.width - (Scaled(_settings.HudMargin) * 2f));
@@ -5878,40 +5883,368 @@ namespace DuneVector
             return true;
         }
 
-        private void DrawSigilIndicatorPanel(Rect rect, Color accent)
+        // The bottom-left reference plate. It is layered like the rest of the HUD - shadow, tinted
+        // glass, scanlines, halo, frame, corner brackets - so the reference symbol reads as an
+        // instrument the drone carries rather than a hole punched in the screen.
+        private void DrawSigilIndicatorPanel(
+            Rect rect,
+            Color accent,
+            float countdown,
+            float urgency,
+            float faultFlash,
+            string caption)
         {
             RailSigilTuning sigils = _settings.Sigils;
-            DrawRect(rect, sigils.DrawingIndicatorBackgroundColor);
-            DrawRectOutline(rect, BorderThickness(), WithAlpha(accent, 0.7f));
+            Color alarm = Color.Lerp(accent, sigils.FaultColor, Mathf.Max(urgency, faultFlash));
+            // Under the urgency threshold the frame breathes red, and the throb deepens as the
+            // countdown drains, so the corner escalates on its own.
+            float pulse = urgency <= 0f
+                ? 0f
+                : urgency * (0.5f + (0.5f * Mathf.Sin(
+                    _sigilElapsed * sigils.DrawingIndicatorUrgencyPulseSpeed * Mathf.PI * 2f)));
+            pulse = Mathf.Max(pulse, faultFlash);
 
-            float duration = Mathf.Max(0f, sigils.DrawingIndicatorFlareDuration);
+            Vector2 shadow = _settings.HudPanelShadowOffset * _hudScale;
+            DrawRect(OffsetRect(rect, shadow), _settings.HudPanelShadowColor);
+            DrawRect(rect, sigils.DrawingIndicatorBackgroundColor);
+            DrawSigilIndicatorGlass(rect);
+            DrawPanelScanlines(rect);
+            DrawSigilIndicatorHalo(rect, alarm, pulse);
+            DrawSigilIndicatorFrame(rect, accent, alarm, pulse);
+            DrawSigilIndicatorCountdownTrace(rect, countdown);
+            DrawSigilIndicatorCaption(rect, caption, accent);
+            DrawSigilIndicatorFlare(rect);
+        }
+
+        // Banded tint standing in for a gradient: brightest along the top lip so the plate catches
+        // light and the white line art has something to sit against.
+        private void DrawSigilIndicatorGlass(Rect rect)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            int bands = sigils.DrawingIndicatorGradientBands;
+            Color tint = sigils.DrawingIndicatorGradientColor;
+            if (bands <= 0 || tint.a <= 0.001f)
+            {
+                return;
+            }
+            float height = rect.height / bands;
+            for (int i = 0; i < bands; i++)
+            {
+                float fade = 1f - (i / (float)Mathf.Max(1, bands - 1));
+                DrawRect(
+                    new Rect(rect.x, rect.y + (i * height), rect.width, height + 1f),
+                    WithAlpha(tint, fade * fade));
+            }
+        }
+
+        // Stacked outlines fading outward stand in for a glow, and the urgency throb pushes them
+        // further out so the whole corner swells red as time runs out.
+        private void DrawSigilIndicatorHalo(Rect rect, Color alarm, float pulse)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            int layers = sigils.DrawingIndicatorGlowLayers;
+            if (layers <= 0)
+            {
+                return;
+            }
+            float spacing = Scaled(sigils.DrawingIndicatorGlowSpacing) +
+                (Scaled(sigils.DrawingIndicatorUrgencyGlowDistance) * pulse / layers);
+            float thickness = Mathf.Max(1f, Scaled(sigils.DrawingIndicatorBorderThickness) * 0.6f);
+            float opacity = sigils.DrawingIndicatorGlowOpacity +
+                (sigils.DrawingIndicatorUrgencyOpacity * pulse);
+            for (int i = 0; i < layers; i++)
+            {
+                float falloff = 1f - (i / (float)layers);
+                DrawRectOutline(
+                    ExpandRect(rect, spacing * (i + 1)),
+                    thickness,
+                    WithAlpha(alarm, opacity * falloff * falloff));
+            }
+        }
+
+        private void DrawSigilIndicatorFrame(Rect rect, Color accent, Color alarm, float pulse)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            float thickness = Mathf.Max(1f, Scaled(sigils.DrawingIndicatorBorderThickness));
+            Color border = Color.Lerp(
+                WithAlpha(accent, sigils.DrawingIndicatorFrameOpacity),
+                alarm,
+                pulse);
+            DrawRectOutline(rect, thickness, border);
+            float inset = Scaled(sigils.DrawingIndicatorInnerInset);
+            if (inset > thickness && sigils.DrawingIndicatorInnerFrameOpacity > 0.001f)
+            {
+                DrawRectOutline(
+                    ExpandRect(rect, -inset),
+                    Mathf.Max(1f, thickness * 0.5f),
+                    WithAlpha(accent, sigils.DrawingIndicatorInnerFrameOpacity));
+            }
+            DrawCornerBrackets(
+                rect,
+                thickness * 2f,
+                Scaled(sigils.DrawingIndicatorCornerLength),
+                border);
+        }
+
+        // The countdown runs the frame itself: the trace retreats clockwise from the top-left and
+        // sours from green to red, so time left is legible without leaving the symbol.
+        private void DrawSigilIndicatorCountdownTrace(Rect rect, float countdown)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            float thickness = Scaled(sigils.DrawingIndicatorProgressThickness);
+            if (thickness < 1f)
+            {
+                return;
+            }
+            Rect trace = ExpandRect(rect, -Mathf.Max(1f, Scaled(sigils.DrawingIndicatorBorderThickness)));
+            DrawRectOutline(trace, thickness, sigils.DrawingIndicatorProgressTrackColor);
+            DrawPerimeterProgress(
+                trace,
+                thickness,
+                countdown,
+                Color.Lerp(sigils.FaultColor, sigils.CompletedStrokeColor, countdown));
+        }
+
+        // Name plate along the bottom lip, so the demanded glyph is captioned right under the
+        // artwork instead of only in the prompt at the top of the screen.
+        private void DrawSigilIndicatorCaption(Rect rect, string caption, Color accent)
+        {
+            Rect band = SigilIndicatorCaptionBand(rect);
+            if (band.height <= 1f || string.IsNullOrEmpty(caption))
+            {
+                return;
+            }
+            DrawRect(band, _settings.Sigils.DrawingIndicatorLabelBackgroundColor);
+            DrawRect(
+                new Rect(band.x, band.y, band.width, BorderThickness()),
+                WithAlpha(accent, 0.45f));
+            DrawLabel(band, caption, _centeredSmallStyle, accent);
+        }
+
+        private Rect SigilIndicatorCaptionBand(Rect rect)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            float height = Scaled(sigils.DrawingIndicatorLabelHeight);
+            if (height <= 1f)
+            {
+                return new Rect(rect.x, rect.yMax, rect.width, 0f);
+            }
+            float inset = SigilIndicatorContentInset();
+            return new Rect(
+                rect.x + inset,
+                rect.yMax - inset - height,
+                Mathf.Max(0f, rect.width - (inset * 2f)),
+                height);
+        }
+
+        // Artwork is kept clear of the frame, the countdown trace and the name plate.
+        private Rect SigilIndicatorGlyphBox(Rect rect)
+        {
+            Rect inner = ExpandRect(rect, -SigilIndicatorContentInset());
+            float caption = SigilIndicatorCaptionBand(rect).height;
+            return new Rect(
+                inner.x,
+                inner.y,
+                Mathf.Max(1f, inner.width),
+                Mathf.Max(1f, inner.height - caption));
+        }
+
+        private float SigilIndicatorContentInset()
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            return Mathf.Max(1f, Scaled(sigils.DrawingIndicatorBorderThickness)) +
+                Mathf.Max(0f, Scaled(sigils.DrawingIndicatorProgressThickness));
+        }
+
+        // Accent bloom smeared behind the line art so white strokes separate from a bright cloud
+        // bank the same way the rest of the HUD text does.
+        private bool DrawSigilGlyphArt(
+            RailSigilDefinition definition,
+            Rect box,
+            Color tint,
+            Color accent)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            float offset = Scaled(sigils.DrawingIndicatorGlyphGlowOffset);
+            if (offset >= 0.5f && sigils.DrawingIndicatorGlyphGlowOpacity > 0.001f)
+            {
+                Color glow = WithAlpha(accent, sigils.DrawingIndicatorGlyphGlowOpacity);
+                DrawGeneratedSigilGlyph(definition, OffsetRect(box, new Vector2(offset, 0f)), glow);
+                DrawGeneratedSigilGlyph(definition, OffsetRect(box, new Vector2(-offset, 0f)), glow);
+                DrawGeneratedSigilGlyph(definition, OffsetRect(box, new Vector2(0f, offset)), glow);
+                DrawGeneratedSigilGlyph(definition, OffsetRect(box, new Vector2(0f, -offset)), glow);
+            }
+            return DrawGeneratedSigilGlyph(definition, box, tint);
+        }
+
+        // The attention flare: staggered shockwaves of corner brackets over a faint full rectangle,
+        // each fading as it travels, so a fresh sigil pops the corner without stamping hard boxes.
+        private void DrawSigilIndicatorFlare(Rect rect)
+        {
+            RailSigilTuning sigils = _settings.Sigils;
+            float duration = sigils.DrawingIndicatorFlareDuration;
             if (duration <= 0f || _sigilElapsed >= duration)
             {
                 return;
             }
-
             float life = Mathf.Clamp01(_sigilElapsed / Mathf.Max(0.01f, duration));
-            float easedExpansion = 1f - ((1f - life) * (1f - life));
             int ringCount = Mathf.Max(1, sigils.DrawingIndicatorFlareRingCount);
+            float stagger = Mathf.Clamp01(sigils.DrawingIndicatorFlareStagger);
+            float span = Mathf.Max(0.05f, 1f - stagger);
             float maximumDistance = Scaled(sigils.DrawingIndicatorFlareDistance);
             float thickness = Mathf.Max(1f, Scaled(sigils.DrawingIndicatorFlareThickness));
+            float corner = Scaled(sigils.DrawingIndicatorCornerLength) *
+                sigils.DrawingIndicatorFlareCornerMultiplier;
             for (int i = 0; i < ringCount; i++)
             {
-                float stagger = i / (float)ringCount;
-                float wave = Mathf.Repeat(easedExpansion + stagger, 1f);
-                float expansion = maximumDistance * wave;
-                float alpha = (1f - life) * (1f - wave);
+                float ringLife = (life - (stagger * (i / (float)ringCount))) / span;
+                if (ringLife <= 0f || ringLife >= 1f)
+                {
+                    continue;
+                }
+                // Fast out, slow settle, with a squared fade so the tail disappears cleanly instead
+                // of snapping off.
+                float eased = 1f - Mathf.Pow(1f - ringLife, 3f);
+                float fade = (1f - ringLife) * (1f - ringLife) * sigils.DrawingIndicatorFlareOpacity;
                 Color flare = Color.Lerp(
                     sigils.DrawingIndicatorFlareInnerColor,
                     sigils.DrawingIndicatorFlareOuterColor,
-                    wave);
-                Rect flareRect = new Rect(
-                    rect.x - expansion,
-                    rect.y - expansion,
-                    rect.width + (expansion * 2f),
-                    rect.height + (expansion * 2f));
-                DrawRectOutline(flareRect, thickness, WithAlpha(flare, alpha));
+                    eased);
+                Rect ring = ExpandRect(rect, maximumDistance * eased);
+                float ringThickness = Mathf.Max(1f, thickness * (1f - (ringLife * 0.55f)));
+                DrawRectOutline(
+                    ring,
+                    ringThickness,
+                    WithAlpha(flare, fade * sigils.DrawingIndicatorFlareTrackOpacity));
+                DrawCornerBrackets(
+                    ring,
+                    ringThickness,
+                    corner * (1f + (eased * 0.45f)),
+                    WithAlpha(flare, fade));
             }
+        }
+
+        // Rejected trace: the plate is washed red and a ring snaps back in onto the frame.
+        private void DrawSigilIndicatorFaultWash(Rect rect, float faultFlash)
+        {
+            if (faultFlash <= 0.001f)
+            {
+                return;
+            }
+            RailSigilTuning sigils = _settings.Sigils;
+            DrawRect(rect, WithAlpha(sigils.DrawingIndicatorFaultWashColor, faultFlash));
+            float thickness = Mathf.Max(1f, Scaled(sigils.DrawingIndicatorBorderThickness) * 1.5f);
+            Rect ring = ExpandRect(
+                rect,
+                Scaled(sigils.DrawingIndicatorFaultRingDistance) * (1f - faultFlash));
+            DrawRectOutline(ring, thickness, WithAlpha(sigils.FaultColor, faultFlash));
+            DrawCornerBrackets(
+                ring,
+                thickness,
+                Scaled(sigils.DrawingIndicatorCornerLength),
+                WithAlpha(sigils.FaultColor, faultFlash));
+        }
+
+        private float SigilFaultFlash()
+        {
+            if (!float.IsFinite(_sigilFaultElapsed))
+            {
+                return 0f;
+            }
+            float duration = Mathf.Max(0.01f, _settings.Sigils.FaultFlashDuration);
+            return 1f - Mathf.Clamp01(_sigilFaultElapsed / duration);
+        }
+
+        private float SigilIndicatorUrgency(float countdown)
+        {
+            float window = Mathf.Clamp01(_settings.Sigils.DrawingIndicatorUrgencyFraction);
+            if (window <= 0f || countdown >= window)
+            {
+                return 0f;
+            }
+            return 1f - (countdown / window);
+        }
+
+        private Vector2 SigilIndicatorKick(float faultFlash)
+        {
+            if (faultFlash <= 0.001f || !float.IsFinite(_sigilFaultElapsed))
+            {
+                return Vector2.zero;
+            }
+            RailSigilTuning sigils = _settings.Sigils;
+            float amplitude = Scaled(sigils.DrawingIndicatorFaultShakeAmplitude) * faultFlash;
+            return new Vector2(
+                Mathf.Sin(_sigilFaultElapsed * sigils.DrawingIndicatorFaultShakeSpeed) * amplitude,
+                0f);
+        }
+
+        private void DrawCornerBrackets(Rect rect, float thickness, float length, Color color)
+        {
+            thickness = Mathf.Max(1f, thickness);
+            length = Mathf.Min(length, Mathf.Min(rect.width, rect.height) * 0.45f);
+            if (length <= thickness)
+            {
+                return;
+            }
+            DrawRect(new Rect(rect.x, rect.y, length, thickness), color);
+            DrawRect(new Rect(rect.x, rect.y, thickness, length), color);
+            DrawRect(new Rect(rect.xMax - length, rect.y, length, thickness), color);
+            DrawRect(new Rect(rect.xMax - thickness, rect.y, thickness, length), color);
+            DrawRect(new Rect(rect.x, rect.yMax - thickness, length, thickness), color);
+            DrawRect(new Rect(rect.x, rect.yMax - length, thickness, length), color);
+            DrawRect(new Rect(rect.xMax - length, rect.yMax - thickness, length, thickness), color);
+            DrawRect(new Rect(rect.xMax - thickness, rect.yMax - length, thickness, length), color);
+        }
+
+        // Clockwise from the top-left corner, so the trace drains the way the eye reads the plate.
+        private static void DrawPerimeterProgress(
+            Rect rect,
+            float thickness,
+            float normalized,
+            Color color)
+        {
+            float remaining = Mathf.Clamp01(normalized) * ((rect.width + rect.height) * 2f);
+            if (remaining <= 0f)
+            {
+                return;
+            }
+            float run = Mathf.Min(remaining, rect.width);
+            DrawRect(new Rect(rect.x, rect.y, run, thickness), color);
+            remaining -= rect.width;
+            if (remaining <= 0f)
+            {
+                return;
+            }
+            run = Mathf.Min(remaining, rect.height);
+            DrawRect(new Rect(rect.xMax - thickness, rect.y, thickness, run), color);
+            remaining -= rect.height;
+            if (remaining <= 0f)
+            {
+                return;
+            }
+            run = Mathf.Min(remaining, rect.width);
+            DrawRect(new Rect(rect.xMax - run, rect.yMax - thickness, run, thickness), color);
+            remaining -= rect.width;
+            if (remaining <= 0f)
+            {
+                return;
+            }
+            run = Mathf.Min(remaining, rect.height);
+            DrawRect(new Rect(rect.x, rect.yMax - run, thickness, run), color);
+        }
+
+        private static Rect ExpandRect(Rect rect, float amount)
+        {
+            return new Rect(
+                rect.x - amount,
+                rect.y - amount,
+                Mathf.Max(0f, rect.width + (amount * 2f)),
+                Mathf.Max(0f, rect.height + (amount * 2f)));
+        }
+
+        private static Rect OffsetRect(Rect rect, Vector2 offset)
+        {
+            return new Rect(rect.x + offset.x, rect.y + offset.y, rect.width, rect.height);
         }
 
         private void DrawRectOutline(Rect rect, float thickness, Color color)

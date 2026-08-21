@@ -8360,6 +8360,70 @@ namespace DuneVector
         [Range(1, 8)] public int DrawingIndicatorFlareRingCount = 3;
         public Color DrawingIndicatorFlareInnerColor = new Color(1f, 0.14f, 0.02f, 1f);
         public Color DrawingIndicatorFlareOuterColor = new Color(1f, 0.56f, 0.04f, 1f);
+
+        [Header("Symbol Indicator Frame")]
+        [Tooltip("Thickness of the symbol indicator's outer frame.")]
+        [Min(1f)] public float DrawingIndicatorBorderThickness = 3f;
+        [Tooltip("Length of the targeting brackets drawn at each corner of the symbol indicator.")]
+        [Min(0f)] public float DrawingIndicatorCornerLength = 72f;
+        [Tooltip("Inset of the faint hairline drawn inside the symbol indicator frame. Zero removes it.")]
+        [Min(0f)] public float DrawingIndicatorInnerInset = 9f;
+        [Tooltip("Opacity of the symbol indicator frame in its calm state.")]
+        [Range(0f, 1f)] public float DrawingIndicatorFrameOpacity = 0.85f;
+        [Tooltip("Opacity of the hairline drawn inside the symbol indicator frame.")]
+        [Range(0f, 1f)] public float DrawingIndicatorInnerFrameOpacity = 0.22f;
+        [Tooltip("Tint layered over the indicator backing, strongest at the top edge, so the plate reads as glass instead of a flat hole.")]
+        public Color DrawingIndicatorGradientColor = new Color(0.35f, 0.62f, 0.86f, 0.16f);
+        [Tooltip("Number of bands used to fake the indicator backing gradient. Zero disables it.")]
+        [Range(0, 32)] public int DrawingIndicatorGradientBands = 14;
+        [Tooltip("Soft halo layers drawn outside the indicator frame in the accent color.")]
+        [Range(0, 12)] public int DrawingIndicatorGlowLayers = 5;
+        [Tooltip("Screen-space gap between each halo layer outside the indicator frame.")]
+        [Min(0f)] public float DrawingIndicatorGlowSpacing = 3.5f;
+        [Tooltip("Opacity of the innermost halo layer outside the indicator frame.")]
+        [Range(0f, 1f)] public float DrawingIndicatorGlowOpacity = 0.18f;
+
+        [Header("Symbol Indicator Caption And Timer")]
+        [Tooltip("Height of the name plate drawn along the bottom of the symbol indicator. Zero removes the caption.")]
+        [Min(0f)] public float DrawingIndicatorLabelHeight = 30f;
+        [Tooltip("Backing color of the symbol indicator name plate.")]
+        public Color DrawingIndicatorLabelBackgroundColor = new Color(0.04f, 0.07f, 0.11f, 0.85f);
+        [Tooltip("Thickness of the countdown trace that runs around the symbol indicator frame.")]
+        [Min(0f)] public float DrawingIndicatorProgressThickness = 4f;
+        [Tooltip("Unfilled countdown trace around the symbol indicator frame.")]
+        public Color DrawingIndicatorProgressTrackColor = new Color(1f, 1f, 1f, 0.12f);
+
+        [Header("Symbol Indicator Urgency And Fault")]
+        [Tooltip("Countdown fraction below which the indicator frame starts pulsing red.")]
+        [Range(0f, 1f)] public float DrawingIndicatorUrgencyFraction = 0.34f;
+        [Tooltip("Pulses per second of the red urgency throb on the indicator frame.")]
+        [Min(0f)] public float DrawingIndicatorUrgencyPulseSpeed = 3.2f;
+        [Tooltip("Extra halo reach at the peak of the red urgency throb.")]
+        [Min(0f)] public float DrawingIndicatorUrgencyGlowDistance = 30f;
+        [Tooltip("Extra halo opacity at the peak of the red urgency throb.")]
+        [Range(0f, 1f)] public float DrawingIndicatorUrgencyOpacity = 0.45f;
+        [Tooltip("Red wash painted over the whole indicator when a submitted trace is rejected.")]
+        public Color DrawingIndicatorFaultWashColor = new Color(1f, 0.12f, 0.18f, 0.3f);
+        [Tooltip("Distance the rejection ring snaps back toward the indicator frame.")]
+        [Min(0f)] public float DrawingIndicatorFaultRingDistance = 26f;
+        [Tooltip("Screen-space kick applied to the indicator when a trace is rejected.")]
+        [Min(0f)] public float DrawingIndicatorFaultShakeAmplitude = 7f;
+        [Tooltip("Speed of the rejection kick applied to the indicator.")]
+        [Min(0f)] public float DrawingIndicatorFaultShakeSpeed = 62f;
+
+        [Header("Symbol Indicator Flare And Glyph Glow")]
+        [Tooltip("Master opacity of the expanding attention flare.")]
+        [Range(0f, 1f)] public float DrawingIndicatorFlareOpacity = 0.9f;
+        [Tooltip("Fraction of the flare's life used to stagger its waves apart.")]
+        [Range(0f, 0.9f)] public float DrawingIndicatorFlareStagger = 0.42f;
+        [Tooltip("Corner bracket length of a flare wave, as a multiple of the indicator's own corner brackets.")]
+        [Min(0f)] public float DrawingIndicatorFlareCornerMultiplier = 1.15f;
+        [Tooltip("Opacity of the faint full rectangle behind each flare wave's corner brackets.")]
+        [Range(0f, 1f)] public float DrawingIndicatorFlareTrackOpacity = 0.35f;
+        [Tooltip("Accent-colored bloom offset behind the symbol artwork. Zero removes the bloom.")]
+        [Min(0f)] public float DrawingIndicatorGlyphGlowOffset = 3f;
+        [Tooltip("Opacity of the accent-colored bloom behind the symbol artwork.")]
+        [Range(0f, 1f)] public float DrawingIndicatorGlyphGlowOpacity = 0.3f;
         [Min(0f)] public float NameLabelWidth = 260f;
         [Min(0f)] public float NameLabelHeight = 22f;
         [Tooltip("Gap between the seeker bracket and the glyph name floating above it.")]
