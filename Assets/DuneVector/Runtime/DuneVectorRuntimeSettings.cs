@@ -9010,7 +9010,7 @@ namespace DuneVector
         public string BossTitle = "VESPER SOVEREIGN // NULL CHOIR";
         public string SafeRouteLabel = "SIGNAL ROUTE";
         public string RiskRouteLabel = "BLACK ROUTE";
-        public string ControlsLabel = "WASD MOVE   SHIFT BOOST   CTRL BRAKE   SPACE MANEUVER   LMB FIRE/CHARGE   RMB/Q BOMB   MOUSE DRAWS SIGILS";
+        public string ControlsLabel = "WASD MOVE   SHIFT BOOST   SPACE BRAKE   CTRL MANEUVER   LMB FIRE/CHARGE   RMB/Q BOMB   MOUSE DRAWS SIGILS";
 
         [Header("Rail HUD Layout")]
         [Tooltip("Screen height the rail HUD chrome was authored against. Panels, fonts, and meters scale from this so the readout keeps its proportion on any display.")]
