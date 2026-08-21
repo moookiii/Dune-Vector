@@ -7377,14 +7377,15 @@ namespace DuneVector
 
         private void DrawReticles()
         {
-            // These are nested screen-space sights, not world markers. Keeping both on the aim
-            // viewport prevents camera follow, boost FOV, and hull parallax from pulling the two
-            // brackets apart during hard horizontal or vertical movement.
-            Vector2 aimScreen = CalculateAimGuiPosition(
-                _aimViewport,
-                new Vector2(Screen.width, Screen.height));
-            DrawBracket(aimScreen, Scaled(_settings.ReticleNearSize), _settings.HudReticleColor);
-            DrawBracket(aimScreen, Scaled(_settings.ReticleFarSize), _settings.HudReticleColor);
+            CalculateAimReticleWorldPositions(
+                _player.transform.position,
+                _state.AimDirection,
+                _settings.NearReticleDistance,
+                _settings.FarReticleDistance,
+                out Vector3 nearAim,
+                out Vector3 farAim);
+            DrawWorldReticle(nearAim, Scaled(_settings.ReticleNearSize));
+            DrawWorldReticle(farAim, Scaled(_settings.ReticleFarSize));
 
             RailEnemy assist = FindViewportTarget(
                 _settings.AimAssistViewportRadius,
@@ -7400,7 +7401,10 @@ namespace DuneVector
             }
             float lockPulse = 0.72f + (0.28f * Mathf.Abs(Mathf.Sin(_state.Elapsed * _settings.HudReadyPulseSpeed)));
             DrawEnemyChargeLocks(lockPulse);
-            DrawHitMarkers(aimScreen);
+            if (TryProject(farAim, out Vector2 markerAnchor))
+            {
+                DrawHitMarkers(markerAnchor);
+            }
         }
 
         private void DrawEnemyChargeLocks(float lockPulse)
@@ -8030,11 +8034,27 @@ namespace DuneVector
             }
         }
 
-        public static Vector2 CalculateAimGuiPosition(Vector2 viewport, Vector2 screenSize)
+        public static void CalculateAimReticleWorldPositions(
+            Vector3 origin,
+            Vector3 aimDirection,
+            float nearDistance,
+            float farDistance,
+            out Vector3 nearPosition,
+            out Vector3 farPosition)
         {
-            return new Vector2(
-                viewport.x * Mathf.Max(0f, screenSize.x),
-                (1f - viewport.y) * Mathf.Max(0f, screenSize.y));
+            Vector3 direction = aimDirection.sqrMagnitude > 0.0001f
+                ? aimDirection.normalized
+                : Vector3.forward;
+            nearPosition = origin + (direction * Mathf.Max(0f, nearDistance));
+            farPosition = origin + (direction * Mathf.Max(nearDistance, farDistance));
+        }
+
+        private void DrawWorldReticle(Vector3 worldPosition, float size)
+        {
+            if (TryProject(worldPosition, out Vector2 screenPosition))
+            {
+                DrawBracket(screenPosition, size, _settings.HudReticleColor);
+            }
         }
 
         private void DrawBracket(Vector2 center, float size, Color color)

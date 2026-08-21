@@ -270,16 +270,25 @@ namespace DuneVector.Tests
         }
 
         [Test]
-        public void RailShooter_AimReticlesStayOnTheAuthoredViewportPoint()
+        public void RailShooter_AimReticlesUseSeparateAuthoredDistancesAlongAimRay()
         {
-            Vector2 viewport = new Vector2(0.2f, 0.75f);
+            Vector3 origin = new Vector3(4f, -2f, 8f);
+            Vector3 aimDirection = new Vector3(1f, 0.5f, 3f).normalized;
 
-            Vector2 guiPosition = DuneVectorRailShooterController.CalculateAimGuiPosition(
-                viewport,
-                new Vector2(1600f, 900f));
+            DuneVectorRailShooterController.CalculateAimReticleWorldPositions(
+                origin,
+                aimDirection,
+                35f,
+                105f,
+                out Vector3 nearPosition,
+                out Vector3 farPosition);
 
-            Assert.That(guiPosition.x, Is.EqualTo(320f).Within(0.001f));
-            Assert.That(guiPosition.y, Is.EqualTo(225f).Within(0.001f));
+            Assert.That(Vector3.Distance(origin, nearPosition), Is.EqualTo(35f).Within(0.001f));
+            Assert.That(Vector3.Distance(origin, farPosition), Is.EqualTo(105f).Within(0.001f));
+            Assert.That(Vector3.Cross(nearPosition - origin, aimDirection).sqrMagnitude,
+                Is.LessThan(0.0001f));
+            Assert.That(Vector3.Cross(farPosition - origin, aimDirection).sqrMagnitude,
+                Is.LessThan(0.0001f));
         }
 
         [Test]
