@@ -205,6 +205,17 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void RailShooter_CoinPickupFacesTheScreenFacingPortal()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            RailShooterTuning settings = runtimeSettings != null ? runtimeSettings.RailShooter : null;
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(settings.PickupCoinEulerAngles, Is.EqualTo(new Vector3(90f, 0f, 0f)));
+        }
+
+        [Test]
         public void RailShooter_SoftBoundaryDoesNotMoveAStationaryDrone()
         {
             Vector2 velocity = Vector2.zero;

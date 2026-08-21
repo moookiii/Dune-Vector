@@ -3779,6 +3779,10 @@ namespace DuneVector
                 {
                     ApplyRailWhiteRingColor(pickupRing);
                 }
+                if (kind == PickupKind.Gold)
+                {
+                    ConfigureRailCoin(pickupRing);
+                }
                 if (kind == PickupKind.Health)
                 {
                     ConfigureRailHealthRing(pickupRing);
@@ -3879,6 +3883,20 @@ namespace DuneVector
             RegisterRailRing(riskRing);
             _safeGate.gameObject.SetActive(false);
             _riskGate.gameObject.SetActive(false);
+        }
+
+        private void ConfigureRailCoin(Transform ring)
+        {
+            if (ring == null)
+            {
+                return;
+            }
+
+            Transform coin = ring.Find("Collectible Icon");
+            if (coin != null)
+            {
+                coin.localRotation = Quaternion.Euler(_settings.PickupCoinEulerAngles);
+            }
         }
 
         private void ConfigureRailHealthRing(Transform ring)
