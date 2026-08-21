@@ -9256,24 +9256,10 @@ namespace DuneVector
         [Range(0f, 1f)] public float BackgroundVideoAudioVolume;
         [Tooltip("Crop the video so it covers the whole screen instead of letterboxing it.")]
         public bool FillScreenWithVideo = true;
-        [Tooltip("Multiplier on the clip's own playback rate. Below one the tunnel drifts rather than charges, so the loop reads as a backdrop instead of a cutscene the menu is interrupting.")]
-        [Range(0.1f, 2f)] public float VideoPlaybackSpeed = 0.6f;
         [Tooltip("Drawn behind the video while the first frame is still preparing.")]
         public Color BackgroundColor = new Color(0f, 0f, 0f, 1f);
         [Tooltip("Tint multiplied into the video so the menu text stays readable.")]
         public Color VideoTint = new Color(1f, 1f, 1f, 1f);
-
-        [Header("Video Grade")]
-        [Tooltip("Shader that mutes the lower part of the video. Leave empty to draw the clip ungraded.")]
-        public Shader VideoGradeShader;
-        [Tooltip("Colour left in the video where the grade is at full strength. One is the untouched clip, zero is greyscale.")]
-        [Range(0f, 1f)] public float VideoGradeSaturation = 0.45f;
-        [Tooltip("Brightness left in the video where the grade is at full strength.")]
-        [Range(0f, 1f)] public float VideoGradeBrightness = 0.72f;
-        [Tooltip("Share of the screen height, measured down from the top, where the grade starts. Above this line the clip is untouched.")]
-        [Range(0f, 1f)] public float VideoGradeStartFraction = 0.55f;
-        [Tooltip("Share of the screen height where the grade reaches full strength. Must sit below the start fraction.")]
-        [Range(0f, 1f)] public float VideoGradeFullFraction = 1f;
 
         [Header("Menu Scrim")]
         [Tooltip("Darkening laid over the video behind the headline and menu so the text carries on every frame of the loop. Alpha zero disables the scrim.")]
