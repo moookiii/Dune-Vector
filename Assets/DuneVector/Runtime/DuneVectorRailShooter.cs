@@ -332,6 +332,9 @@ namespace DuneVector
         private Transform _chargeVisual;
         private Transform _chargedBeamVisual;
         private Transform _bombVisual;
+        private Transform _bombCasingRoot;
+        private Transform _bombCasingCage;
+        private TrailRenderer _bombCasingTrail;
         private Transform _safeGate;
         private Transform _riskGate;
         private LineRenderer _laneWarning;
@@ -351,6 +354,9 @@ namespace DuneVector
         private float _comboExpiresAt;
         private float _nextDamageAt;
         private float _bombElapsed = float.PositiveInfinity;
+        private bool _bombInFlight;
+        private Vector3 _bombHeading = Vector3.forward;
+        private Vector3 _bombBlastCenter;
         private float _chargedBeamElapsed = float.PositiveInfinity;
         private float _laneElapsed = float.PositiveInfinity;
         private float _laneCenterX;
@@ -549,6 +555,7 @@ namespace DuneVector
             _comboExpiresAt = float.NegativeInfinity;
             _nextDamageAt = float.NegativeInfinity;
             _bombElapsed = float.PositiveInfinity;
+            _bombInFlight = false;
             _chargedBeamElapsed = float.PositiveInfinity;
             _laneElapsed = float.PositiveInfinity;
             _nextGrazePopupAt = float.NegativeInfinity;
@@ -1397,9 +1404,10 @@ namespace DuneVector
             }
             _fireWasHeld = command.FireHeld;
 
-            if (!_sigilActive && command.BombPressed && _state.Bombs > 0 && !float.IsFinite(_bombElapsed))
+            if (!_sigilActive && command.BombPressed && _state.Bombs > 0 && !_bombInFlight &&
+                !float.IsFinite(_bombElapsed))
             {
-                DetonateBomb();
+                LaunchBomb();
             }
         }
 
@@ -2069,18 +2077,76 @@ namespace DuneVector
             return true;
         }
 
-        private void DetonateBomb()
+        private void LaunchBomb()
         {
             _state.Bombs--;
+            Vector3 heading = _state.AimDirection.normalized;
+            if (heading.sqrMagnitude <= 0.0001f)
+            {
+                heading = Vector3.forward;
+            }
+            _bombHeading = heading;
+            _bombInFlight = true;
+            float diameter = _settings.BombCasingRadius * 2f;
+            _bombCasingRoot.position = _player.transform.position +
+                (heading * _settings.PrimaryMuzzleForwardOffset);
+            _bombCasingRoot.rotation = Quaternion.LookRotation(heading, Vector3.up);
+            _bombCasingCage.localRotation = Quaternion.identity;
+            _bombCasingRoot.gameObject.SetActive(true);
+            if (_bombCasingTrail != null)
+            {
+                _bombCasingTrail.Clear();
+                _bombCasingTrail.time = _settings.BombTrailDuration;
+                _bombCasingTrail.widthMultiplier = diameter;
+                _bombCasingTrail.emitting = _settings.BombTrailDuration > 0f;
+            }
+            PlayCue(_settings.BombLaunchEvent, _player.transform.position);
+        }
+
+        private void TickBombFlight(float deltaTime)
+        {
+            if (!_bombInFlight)
+            {
+                return;
+            }
+            // The bomb inherits the rail's forward speed so its authored launch speed reads as
+            // speed relative to the drone, which keeps it pulling ahead no matter how fast the
+            // course is scrolling underneath it.
+            Vector3 velocity = (_bombHeading * _settings.BombLaunchSpeed) +
+                (Vector3.forward * _state.ForwardSpeed);
+            _bombCasingRoot.position += velocity * deltaTime;
+            _bombCasingCage.Rotate(
+                new Vector3(1f, 0.7f, 0.35f) * (_settings.BombCasingSpinSpeed * deltaTime),
+                Space.Self);
+            float lead = Vector3.Dot(
+                _bombCasingRoot.position - _player.transform.position,
+                _bombHeading);
+            if (lead >= _settings.BombDetonationDistance)
+            {
+                DetonateBomb(_bombCasingRoot.position);
+            }
+        }
+
+        private void DetonateBomb(Vector3 center)
+        {
+            _bombInFlight = false;
+            if (_bombCasingTrail != null)
+            {
+                _bombCasingTrail.emitting = false;
+                _bombCasingTrail.Clear();
+            }
+            _bombCasingRoot.gameObject.SetActive(false);
             _bombElapsed = 0f;
-            _bombVisual.position = _player.transform.position;
+            _bombBlastCenter = center;
+            _bombVisual.position = center;
             _bombVisual.localScale = Vector3.zero;
             _bombVisual.gameObject.SetActive(true);
+            SpawnBombExplosionFlashes(center);
             for (int i = 0; i < _enemies.Count; i++)
             {
                 RailEnemy enemy = _enemies[i];
                 if (enemy.Active &&
-                    Vector3.Distance(enemy.Transform.position, _player.transform.position) <=
+                    Vector3.Distance(enemy.Transform.position, center) <=
                     _settings.BombRange + enemy.HitRadius)
                 {
                     ApplyDamage(enemy, _settings.BombDamage, charged: false, bomb: true);
@@ -2096,7 +2162,22 @@ namespace DuneVector
             }
             _cameraShake = Mathf.Max(_cameraShake, _settings.BombCameraShake);
             _fovImpulse = Mathf.Max(_fovImpulse, _settings.BombFieldOfViewImpulse);
-            PlayCue(_settings.BombEvent, _player.transform.position);
+            PlayCue(_settings.BombEvent, center);
+        }
+
+        private void SpawnBombExplosionFlashes(Vector3 center)
+        {
+            float flashScale = _settings.BombRange * _settings.BombExplosionFlashScale;
+            float spread = _settings.BombRange * _settings.BombExplosionFlashSpread;
+            SpawnImpact(center, flashScale);
+            for (int i = 1; i < _settings.BombExplosionFlashCount; i++)
+            {
+                // Scatter the extra bursts around the core flash so the blast reads as a
+                // billowing fireball instead of one lonely sphere.
+                Vector3 offset = UnityEngine.Random.onUnitSphere *
+                    (spread * UnityEngine.Random.Range(0.35f, 1f));
+                SpawnImpact(center + offset, flashScale * UnityEngine.Random.Range(0.45f, 0.85f));
+            }
         }
 
         private Vector3 PredictedPlayerPosition()
@@ -2513,6 +2594,7 @@ namespace DuneVector
         {
             TickPlayerProjectiles(deltaTime);
             TickChargedProjectiles(deltaTime);
+            TickBombFlight(deltaTime);
             Vector3 playerPosition = _player.transform.position;
             for (int i = 0; i < _enemyProjectiles.Count; i++)
             {
@@ -3332,7 +3414,7 @@ namespace DuneVector
             {
                 _bombElapsed += deltaTime;
                 float expansion = Mathf.Clamp01(_bombElapsed / _settings.BombExpansionDuration);
-                _bombVisual.position = _player.transform.position;
+                _bombVisual.position = _bombBlastCenter;
                 _bombVisual.localScale = Vector3.one * (_settings.BombRange * expansion * 2f);
                 if (_bombElapsed >= _settings.BombPresentationDuration)
                 {
@@ -4165,6 +4247,7 @@ namespace DuneVector
                 Vector3.zero,
                 Quaternion.identity,
                 _materials.LightningWarning);
+            BuildBombCasing();
             _chargeVisual.gameObject.SetActive(false);
             _chargedBeamVisual.gameObject.SetActive(false);
             _bombVisual.gameObject.SetActive(false);
@@ -4375,6 +4458,16 @@ namespace DuneVector
             _chargeVisual.gameObject.SetActive(false);
             _chargedBeamVisual.gameObject.SetActive(false);
             _bombVisual.gameObject.SetActive(false);
+            _bombInFlight = false;
+            if (_bombCasingTrail != null)
+            {
+                _bombCasingTrail.emitting = false;
+                _bombCasingTrail.Clear();
+            }
+            if (_bombCasingRoot != null)
+            {
+                _bombCasingRoot.gameObject.SetActive(false);
+            }
             _safeGate.gameObject.SetActive(false);
             _riskGate.gameObject.SetActive(false);
             _laneWarning.gameObject.SetActive(false);
@@ -5111,6 +5204,40 @@ namespace DuneVector
             Vector3 closest = start + (segment * t);
             distance = Vector3.Distance(start, closest);
             return (closest - center).sqrMagnitude <= radius * radius;
+        }
+
+        private void BuildBombCasing()
+        {
+            _bombCasingRoot = NewRoot("Bomb Casing", _effectsRoot);
+            CreatePart(
+                PrimitiveType.Sphere,
+                "Bomb Core",
+                _bombCasingRoot,
+                Vector3.zero,
+                Vector3.one * (_settings.BombCasingRadius * 2f),
+                Quaternion.identity,
+                _materials.DroneAccent);
+            _bombCasingCage = CreatePart(
+                PrimitiveType.Cube,
+                "Bomb Warning Cage",
+                _bombCasingRoot,
+                Vector3.zero,
+                Vector3.one * (_settings.BombCasingRadius * 1.64f),
+                Quaternion.identity,
+                _materials.LightningWarning);
+            _bombCasingTrail = _bombCasingRoot.gameObject.AddComponent<TrailRenderer>();
+            _bombCasingTrail.time = _settings.BombTrailDuration;
+            _bombCasingTrail.minVertexDistance = 0.35f;
+            _bombCasingTrail.autodestruct = false;
+            _bombCasingTrail.emitting = false;
+            _bombCasingTrail.alignment = LineAlignment.View;
+            _bombCasingTrail.textureMode = LineTextureMode.Stretch;
+            _bombCasingTrail.numCapVertices = 2;
+            _bombCasingTrail.shadowCastingMode = ShadowCastingMode.Off;
+            _bombCasingTrail.receiveShadows = false;
+            _bombCasingTrail.widthCurve = AnimationCurve.Linear(0f, 1f, 1f, 0f);
+            _bombCasingTrail.sharedMaterial = _materials.LightningWarning;
+            _bombCasingRoot.gameObject.SetActive(false);
         }
 
         private static Transform NewRoot(string name, Transform parent)
