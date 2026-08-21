@@ -3072,6 +3072,15 @@ namespace DuneVector
             GameObject enemyObject = new GameObject(objectName);
             enemyObject.transform.SetParent(transform, true);
             enemyObject.transform.position = spawnPosition;
+            Vector3 initialFacingDirection = Vector3.ProjectOnPlane(
+                playerPosition - spawnPosition,
+                Vector3.up);
+            if (initialFacingDirection.sqrMagnitude >= 0.001f)
+            {
+                enemyObject.transform.rotation = Quaternion.LookRotation(
+                    initialFacingDirection.normalized,
+                    Vector3.up);
+            }
             PlayerStrikeOrbEnemy enemy = enemyObject.AddComponent<PlayerStrikeOrbEnemy>();
             enemy.Initialize(_player, _playerHealth, _world, _materials, _orbSettings, identity);
             _orbEnemies.Add(enemy);
