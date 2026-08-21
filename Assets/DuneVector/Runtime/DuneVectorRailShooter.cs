@@ -1233,7 +1233,10 @@ namespace DuneVector
             _boss.HitRadius = _settings.BossHitRadius;
             _boss.ContactRadius = _settings.BossCollisionRadius;
             _boss.HitFlashElapsed = float.PositiveInfinity;
-            _boss.BaseScale = Vector3.one;
+            // The sovereign shares the pooled Vesper Kite visual, so without this it arrives at
+            // rank-and-file size and reads as just another kite rather than the climax.
+            _boss.BaseScale = Vector3.one * _settings.BossVisualScaleMultiplier;
+            _boss.Transform.localScale = _boss.BaseScale;
             _boss.Age = 0f;
             _bossBannerElapsed = 0f;
             PlayCue(_settings.BossSpawnEvent, _player.transform.position);

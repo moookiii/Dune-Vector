@@ -8781,6 +8781,8 @@ namespace DuneVector
         [Min(1f)] public float BossHealth = 2400f;
         [Min(0f)] public float BossCollisionRadius = 10f;
         [Min(0.1f)] public float BossHitRadius = 17f;
+        [Tooltip("Scale applied to the sovereign's pooled Vesper Kite visual so it reads as a boss instead of another kite. 1.9 matches its hit radius against the regular kite radius.")]
+        [Min(0.1f)] public float BossVisualScaleMultiplier = 1.9f;
         [Tooltip("Distance ahead of the player the sovereign holds while it orbits. Keep it inside regular shot reach (RegularShotSpeed minus the boosted forward speed, times RegularShotLifetime) or bolts expire before they arrive.")]
         [Min(1f)] public float BossEngagementDistance = 96f;
         [Tooltip("Rift distance at which the boss banner and approach cue fire.")]
