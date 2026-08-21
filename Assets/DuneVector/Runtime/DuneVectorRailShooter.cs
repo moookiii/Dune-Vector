@@ -1477,9 +1477,7 @@ namespace DuneVector
             Vector3 direction = _state.AimDirection.normalized;
             Vector3 lockPosition = _chargeLock != null && _chargeLock.Active
                 ? _chargeLock.Transform.position
-                : IsSatelliteLocked(_satelliteChargeLock)
-                    ? SatelliteTargetPosition(_satelliteChargeLock)
-                    : origin + (direction * _settings.ChargedBeamRange);
+                : origin + (direction * _settings.ChargedBeamRange);
             for (int i = 0; i < _enemies.Count; i++)
             {
                 RailEnemy enemy = _enemies[i];
@@ -1553,27 +1551,9 @@ namespace DuneVector
             float radius = Mathf.Max(
                 _settings.ChargeLockViewportRadius,
                 _settings.ChargeLockViewportRadius * ChargeNormalized() * 2f);
-            float satelliteRadius = Mathf.Max(radius, _settings.SatelliteLockViewportRadius);
-            TickSatelliteLockAcquisition(satelliteRadius, deltaTime);
+            ClearSatelliteLocks();
             _chargeLock = FindViewportTarget(radius, _settings.ChargedBeamRange);
-            _satelliteChargeLock = FindViewportSatelliteTarget(
-                satelliteRadius,
-                _settings.ChargedBeamRange,
-                out float satelliteScore);
-            // A satellite only takes the primary slot from an enemy once its staged lock has
-            // actually completed, so a half-acquired satellite cannot blank the enemy lock.
-            if (_chargeLock != null &&
-                TryScoreViewportTarget(_chargeLock, radius, _settings.ChargedBeamRange, out float enemyScore) &&
-                (!IsSatelliteLocked(_satelliteChargeLock) || enemyScore <= satelliteScore))
-            {
-                // The enemy keeps the primary slot. The satellite stays tracked for the HUD and
-                // still joins the multi-lock list once it finishes acquiring.
-            }
-            else if (IsSatelliteLocked(_satelliteChargeLock))
-            {
-                _chargeLock = null;
-            }
-            CollectChargeLocks(radius, satelliteRadius);
+            CollectChargeLocks(radius);
             if (_chargeLock != null && _chargeLock != previous)
             {
                 PlayCue(_settings.TargetLockEvent, _chargeLock.Transform.position);
@@ -1677,7 +1657,7 @@ namespace DuneVector
             }
         }
 
-        private void CollectChargeLocks(float viewportRadius, float satelliteViewportRadius)
+        private void CollectChargeLocks(float viewportRadius)
         {
             _chargeLocks.Clear();
             _satelliteChargeLocks.Clear();
@@ -1686,12 +1666,8 @@ namespace DuneVector
             {
                 _chargeLocks.Add(_chargeLock);
             }
-            if (IsSatelliteLocked(_satelliteChargeLock) && _chargeLocks.Count < capacity)
-            {
-                _satelliteChargeLocks.Add(_satelliteChargeLock);
-            }
             for (int i = 0;
-                 i < _enemies.Count && _chargeLocks.Count + _satelliteChargeLocks.Count < capacity;
+                 i < _enemies.Count && _chargeLocks.Count < capacity;
                  i++)
             {
                 RailEnemy enemy = _enemies[i];
@@ -1702,25 +1678,10 @@ namespace DuneVector
                 }
             }
             if (_boss != null && _boss.Active && _boss != _chargeLock &&
-                _chargeLocks.Count + _satelliteChargeLocks.Count < capacity &&
+                _chargeLocks.Count < capacity &&
                 TryScoreViewportTarget(_boss, viewportRadius, _settings.ChargedBeamRange, out _))
             {
                 _chargeLocks.Add(_boss);
-            }
-            for (int i = 0;
-                 i < _satellites.Count && _chargeLocks.Count + _satelliteChargeLocks.Count < capacity;
-                 i++)
-            {
-                RailSatellite satellite = _satellites[i];
-                if (IsSatelliteLocked(satellite) && satellite != _satelliteChargeLock &&
-                    TryScoreViewportTarget(
-                        SatelliteTargetPosition(satellite),
-                        satelliteViewportRadius,
-                        _settings.ChargedBeamRange,
-                        out _))
-                {
-                    _satelliteChargeLocks.Add(satellite);
-                }
             }
         }
 
@@ -6462,8 +6423,8 @@ namespace DuneVector
 
             float charge = ChargeNormalized();
             bool ready = charge >= 0.999f;
-            int locks = _chargeLocks.Count + _satelliteChargeLocks.Count;
-            bool locked = _chargeLock != null || _satelliteChargeLock != null;
+            int locks = _chargeLocks.Count;
+            bool locked = _chargeLock != null;
             float readyPulse = 0.6f + (0.4f * Mathf.Abs(Mathf.Sin(_state.Elapsed * _settings.HudReadyPulseSpeed)));
             Color accent = ready
                 ? Color.Lerp(_settings.HudBorderColor, _settings.HudChargeColor, readyPulse)
@@ -6565,7 +6526,6 @@ namespace DuneVector
                     DrawTargetHealth(locked, lockScreen, Scaled(_settings.LockBracketSize));
                 }
             }
-            DrawSatelliteLocks(lockPulse);
             DrawHitMarkers(aimScreen);
         }
 
