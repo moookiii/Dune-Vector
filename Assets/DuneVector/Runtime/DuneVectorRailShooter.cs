@@ -435,7 +435,18 @@ namespace DuneVector
         private float _lastSigilFaultCueAt = float.NegativeInfinity;
         private float _sigilVerdictElapsed = float.PositiveInfinity;
         private Component _massiveClouds;
-        private readonly List<object> _savedMassiveCloudParameters = new List<object>();
+        public sealed class MassiveCloudParameterSnapshot
+        {
+            public bool HasRelativeHeight;
+            public object RelativeHeight;
+            public bool HasFromHeight;
+            public object FromHeight;
+            public bool HasToHeight;
+            public object ToHeight;
+        }
+
+        private readonly List<MassiveCloudParameterSnapshot> _savedMassiveCloudParameters =
+            new List<MassiveCloudParameterSnapshot>();
 
         private Vector3 _savedPlayerPosition;
         private Quaternion _savedPlayerRotation;
@@ -4926,31 +4937,19 @@ namespace DuneVector
                 return;
             }
 
-            for (int i = 0; i < parameters.Count; i++)
-            {
-                object parameter = parameters[i];
-                _savedMassiveCloudParameters.Add(parameter);
-                Type parameterType = parameter.GetType();
-                parameterType.GetField("RelativeHeight")?.SetValue(parameter, true);
-                parameterType.GetField("FromHeight")?.SetValue(
-                    parameter,
-                    _settings.MassiveCloudsRelativeFromHeight);
-                parameterType.GetField("ToHeight")?.SetValue(
-                    parameter,
-                    _settings.MassiveCloudsRelativeToHeight);
-                parameters[i] = parameter;
-            }
+            CaptureAndOverrideMassiveCloudParameters(
+                parameters,
+                _savedMassiveCloudParameters,
+                _settings.MassiveCloudsRelativeFromHeight,
+                _settings.MassiveCloudsRelativeToHeight);
         }
 
         private void RestoreMassiveCloudParameters()
         {
             IList parameters = GetMassiveCloudParameters();
-            if (parameters != null && parameters.Count == _savedMassiveCloudParameters.Count)
+            if (parameters != null)
             {
-                for (int i = 0; i < parameters.Count; i++)
-                {
-                    parameters[i] = _savedMassiveCloudParameters[i];
-                }
+                RestoreMassiveCloudParameterValues(parameters, _savedMassiveCloudParameters);
             }
             _savedMassiveCloudParameters.Clear();
             _massiveClouds = null;
@@ -4959,6 +4958,72 @@ namespace DuneVector
         private IList GetMassiveCloudParameters()
         {
             return _massiveClouds?.GetType().GetProperty("Parameters")?.GetValue(_massiveClouds) as IList;
+        }
+
+        public static void CaptureAndOverrideMassiveCloudParameters(
+            IList parameters,
+            List<MassiveCloudParameterSnapshot> snapshots,
+            float fromHeight,
+            float toHeight)
+        {
+            if (parameters == null || snapshots == null)
+            {
+                return;
+            }
+
+            snapshots.Clear();
+            for (int i = 0; i < parameters.Count; i++)
+            {
+                object parameter = parameters[i];
+                Type parameterType = parameter.GetType();
+                System.Reflection.FieldInfo relativeField = parameterType.GetField("RelativeHeight");
+                System.Reflection.FieldInfo fromField = parameterType.GetField("FromHeight");
+                System.Reflection.FieldInfo toField = parameterType.GetField("ToHeight");
+                snapshots.Add(new MassiveCloudParameterSnapshot
+                {
+                    HasRelativeHeight = relativeField != null,
+                    RelativeHeight = relativeField?.GetValue(parameter),
+                    HasFromHeight = fromField != null,
+                    FromHeight = fromField?.GetValue(parameter),
+                    HasToHeight = toField != null,
+                    ToHeight = toField?.GetValue(parameter),
+                });
+                relativeField?.SetValue(parameter, true);
+                fromField?.SetValue(parameter, fromHeight);
+                toField?.SetValue(parameter, toHeight);
+                parameters[i] = parameter;
+            }
+        }
+
+        public static void RestoreMassiveCloudParameterValues(
+            IList parameters,
+            List<MassiveCloudParameterSnapshot> snapshots)
+        {
+            if (parameters == null || snapshots == null)
+            {
+                return;
+            }
+
+            int count = Mathf.Min(parameters.Count, snapshots.Count);
+            for (int i = 0; i < count; i++)
+            {
+                object parameter = parameters[i];
+                Type parameterType = parameter.GetType();
+                MassiveCloudParameterSnapshot snapshot = snapshots[i];
+                if (snapshot.HasRelativeHeight)
+                {
+                    parameterType.GetField("RelativeHeight")?.SetValue(parameter, snapshot.RelativeHeight);
+                }
+                if (snapshot.HasFromHeight)
+                {
+                    parameterType.GetField("FromHeight")?.SetValue(parameter, snapshot.FromHeight);
+                }
+                if (snapshot.HasToHeight)
+                {
+                    parameterType.GetField("ToHeight")?.SetValue(parameter, snapshot.ToHeight);
+                }
+                parameters[i] = parameter;
+            }
         }
 
         private RailEnemy AcquireEnemy(RailShooterEnemyKind kind)

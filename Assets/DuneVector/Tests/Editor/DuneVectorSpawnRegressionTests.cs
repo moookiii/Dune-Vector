@@ -9,6 +9,13 @@ namespace DuneVector.Tests
 {
     public sealed class DuneVectorSpawnRegressionTests
     {
+        private sealed class FakeMassiveCloudParameter
+        {
+            public bool RelativeHeight;
+            public float FromHeight;
+            public float ToHeight;
+        }
+
         [Test]
         public void CourierProgress_CompletingDeliveryMessageKeepsPostContractPresentationPending()
         {
@@ -324,6 +331,31 @@ namespace DuneVector.Tests
                 Is.LessThan(0.0001f));
             Assert.That(Vector3.Cross(farPosition - origin, aimDirection).sqrMagnitude,
                 Is.LessThan(0.0001f));
+        }
+
+        [Test]
+        public void RailShooter_MassiveCloudHeightsRestoreAfterSubgameOverride()
+        {
+            var layer = new FakeMassiveCloudParameter
+            {
+                RelativeHeight = false,
+                FromHeight = 920f,
+                ToHeight = 1695f,
+            };
+            System.Collections.IList parameters = new System.Collections.ArrayList { layer };
+            var snapshots = new System.Collections.Generic.List<
+                DuneVectorRailShooterController.MassiveCloudParameterSnapshot>();
+
+            DuneVectorRailShooterController.CaptureAndOverrideMassiveCloudParameters(
+                parameters,
+                snapshots,
+                -2188.507f,
+                -891.1193f);
+            DuneVectorRailShooterController.RestoreMassiveCloudParameterValues(parameters, snapshots);
+
+            Assert.That(layer.RelativeHeight, Is.False);
+            Assert.That(layer.FromHeight, Is.EqualTo(920f).Within(0.001f));
+            Assert.That(layer.ToHeight, Is.EqualTo(1695f).Within(0.001f));
         }
 
         [Test]
