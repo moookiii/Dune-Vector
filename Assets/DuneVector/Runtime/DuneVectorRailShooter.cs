@@ -3563,7 +3563,12 @@ namespace DuneVector
             Transform root = NewRoot(
                 boss ? "Boss Pool" : $"{kind} Rail Adaptation {identity + 1:00}",
                 _enemyRoot);
-            Transform visual = kind switch
+            // Behaviour stays keyed to the enemy's own kind; only the silhouette is swapped, so a
+            // rift full of storm pyramids still moves and fires like the roster it replaces.
+            RailShooterEnemyKind visualKind = boss || !_settings.OverrideEnemyVisualKind
+                ? kind
+                : _settings.EnemyVisualKind;
+            Transform visual = visualKind switch
             {
                 RailShooterEnemyKind.SkyPiercer => DuneVectorVisuals.CreateFlyingEnemyVisual(
                     root, _materials, _skyPiercerSettings.VisualScale),

@@ -8648,6 +8648,10 @@ namespace DuneVector
 
         [Header("Encounter Course")]
         [Min(1)] public int EnemyPoolSize = 42;
+        [Tooltip("Draws every non-boss rail hostile with one shared silhouette. Movement, fire patterns, and hit radii still come from each enemy's own kind.")]
+        public bool OverrideEnemyVisualKind = true;
+        [Tooltip("Silhouette used for every non-boss rail hostile while the visual override is on.")]
+        public RailShooterEnemyKind EnemyVisualKind = RailShooterEnemyKind.StormPyramid;
         [Min(1)] public int EnemyProjectilePoolSize = 220;
         [Min(0f)] public float FirstWaveDistance = 260f;
         [Min(1f)] public float WaveSpacing = 315f;
