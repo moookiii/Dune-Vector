@@ -8781,6 +8781,8 @@ namespace DuneVector
         [Min(1f)] public float BossHealth = 2400f;
         [Min(0f)] public float BossCollisionRadius = 10f;
         [Min(0.1f)] public float BossHitRadius = 17f;
+        [Tooltip("Distance ahead of the player the sovereign holds while it orbits. Keep it inside regular shot reach (RegularShotSpeed minus the boosted forward speed, times RegularShotLifetime) or bolts expire before they arrive.")]
+        [Min(1f)] public float BossEngagementDistance = 96f;
         [Tooltip("Rift distance at which the boss banner and approach cue fire.")]
         [Min(0f)] public float BossApproachLeadDistance = 420f;
         [Min(0f)] public float BossPhaseTwoHealthFraction = 0.66f;
@@ -9056,6 +9058,10 @@ namespace DuneVector
         [Min(0f)] public float BossMeterHeight = 68f;
         [Range(1, 12)] public int BossMeterPhaseCount = 4;
         public string BossHealthFormat = "{0:000}%";
+        [Tooltip("Fraction of the boss meter's inner width the title may use before it shrinks to fit. The remainder holds the health readout.")]
+        [Range(0.2f, 1f)] public float BossTitleWidthFraction = 0.76f;
+        [Tooltip("Smallest fraction of the authored title font size the boss title may shrink to when it does not fit on one line.")]
+        [Range(0.3f, 1f)] public float BossTitleMinimumFontScale = 0.62f;
 
         [Header("Rail HUD Threat Indicators")]
         [Tooltip("Screen-edge chevrons pointing at hostiles that are alive but outside the view.")]

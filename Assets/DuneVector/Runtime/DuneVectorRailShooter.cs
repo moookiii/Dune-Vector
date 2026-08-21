@@ -432,6 +432,7 @@ namespace DuneVector
         private GUIStyle _smallStyle;
         private GUIStyle _bodyStyle;
         private GUIStyle _titleStyle;
+        private GUIStyle _fittedStyle;
         private GUIStyle _resultStyle;
         private GUIStyle _popupStyle;
         private GUIStyle _centeredSmallStyle;
@@ -1258,7 +1259,7 @@ namespace DuneVector
             Vector3 bossPosition = _player.transform.position + new Vector3(
                 Mathf.Sin(orbit) * _settings.FormationWidth * 0.45f,
                 Mathf.Cos(orbit * 0.7f) * _settings.FormationHeight * 0.4f,
-                _settings.EnemySpawnAheadDistance * 0.72f);
+                _settings.BossEngagementDistance);
             _boss.Transform.position = bossPosition;
             _boss.Transform.rotation = Quaternion.LookRotation(
                 (_player.transform.position - bossPosition).normalized,
@@ -6103,6 +6104,36 @@ namespace DuneVector
         }
 
         // Drop shadow behind the glyphs so cyan text still separates from a bright cloud bank.
+        // Returns a single-line variant of the style whose font size fits the text into the width,
+        // never dropping below the authored minimum scale.
+        private GUIStyle FitStyleToWidth(GUIStyle style, string text, float width, float minimumScale)
+        {
+            if (_fittedStyle == null)
+            {
+                _fittedStyle = new GUIStyle(style);
+                StripHoverStates(_fittedStyle);
+            }
+            _fittedStyle.font = style.font;
+            _fittedStyle.fontStyle = style.fontStyle;
+            _fittedStyle.alignment = style.alignment;
+            _fittedStyle.wordWrap = false;
+            _fittedStyle.clipping = TextClipping.Clip;
+            _fittedStyle.fontSize = style.fontSize;
+            if (string.IsNullOrEmpty(text) || width <= 1f)
+            {
+                return _fittedStyle;
+            }
+            float needed = _fittedStyle.CalcSize(new GUIContent(text)).x;
+            if (needed > width)
+            {
+                int minimum = Mathf.Max(1, Mathf.RoundToInt(style.fontSize * Mathf.Clamp01(minimumScale)));
+                _fittedStyle.fontSize = Mathf.Max(
+                    minimum,
+                    Mathf.FloorToInt(style.fontSize * (width / needed)));
+            }
+            return _fittedStyle;
+        }
+
         private void DrawShadowedLabel(Rect rect, string text, GUIStyle style, Color color)
         {
             Vector2 offset = _settings.HudPanelShadowOffset * (_hudScale * 0.35f);
@@ -7139,7 +7170,18 @@ namespace DuneVector
             DrawPanel(panel, _settings.RiftDangerColor);
             float inner = panel.width - (pad * 2f);
             Rect titleRow = new Rect(panel.x + pad, panel.y + (pad * 0.4f), inner, titleHeight);
-            DrawShadowedLabel(titleRow, _settings.BossTitle, _titleStyle, _settings.HudPrimaryColor);
+            // The sovereign's name is long enough to wrap out of the panel and over the bar, so it
+            // is kept on one line and shrunk into the width left over by the health readout.
+            Rect titleText = new Rect(
+                titleRow.x,
+                titleRow.y,
+                titleRow.width * Mathf.Clamp01(_settings.BossTitleWidthFraction),
+                titleRow.height);
+            DrawShadowedLabel(
+                titleText,
+                _settings.BossTitle,
+                FitStyleToWidth(_titleStyle, _settings.BossTitle, titleText.width, _settings.BossTitleMinimumFontScale),
+                _settings.HudPrimaryColor);
             DrawLabel(
                 titleRow,
                 string.Format(_settings.BossHealthFormat, Mathf.CeilToInt(health * 100f)),
