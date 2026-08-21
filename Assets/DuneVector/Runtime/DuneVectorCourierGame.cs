@@ -562,7 +562,7 @@ namespace DuneVector
             _hubTerminalMode == HubTerminalMode.Contracts
                 ? _offers.Count
                 : _hubTerminalMode == HubTerminalMode.FreeRoam
-                    ? UnlockedFreeRoamRiskCount
+                    ? FreeRoamRiskChoiceCount
                     : 0;
 
         /// <summary>
@@ -572,6 +572,19 @@ namespace DuneVector
         private const int DefaultFreeRoamRisk = 1;
 
         /// <summary>
+        /// Lowest risk the free roam terminal offers. Risk zero is the quiet desert at the base
+        /// delivery payout, so a courier can fly a route without the escalation the contract
+        /// board applies from risk one upward.
+        /// </summary>
+        private const int LowestSelectableFreeRoamRisk = 0;
+
+        /// <summary>
+        /// Sentinel for "no risk chosen", kept off the selectable range so risk zero can be an
+        /// explicit choice rather than the absence of one.
+        /// </summary>
+        private const int UnselectedFreeRoamRisk = -1;
+
+        /// <summary>
         /// Every risk the courier has already flown, lowest first. The selector exists once this
         /// is non-empty; before then the free roam terminal deploys on contact as it always did.
         /// </summary>
@@ -579,6 +592,12 @@ namespace DuneVector
             ? Mathf.Clamp(Progress.HighestRiskPlayed, 0, Mathf.Max(1, _settings.MaximumRisk))
             : 0;
         public bool IsFreeRoamRiskSelectionUnlocked => UnlockedFreeRoamRiskCount > 0;
+
+        /// <summary>
+        /// Tiles the selector draws: every unlocked risk plus the always-available risk zero.
+        /// </summary>
+        public int FreeRoamRiskChoiceCount =>
+            (UnlockedFreeRoamRiskCount - LowestSelectableFreeRoamRisk) + 1;
 
         /// <summary>Risk chosen for the last free roam deployment, or zero when none was chosen.</summary>
         public int SelectedFreeRoamRisk => _freeRoamRisk;
@@ -705,7 +724,7 @@ namespace DuneVector
         private bool _infiniteHealthBeforeDeliveryMessage;
         private HubTerminalMode _hubTerminalMode;
         private int _hubTerminalSelectedIndex;
-        private int _freeRoamRisk;
+        private int _freeRoamRisk = UnselectedFreeRoamRisk;
         private Vector2 _freeRoamRiskScrollPosition;
         private bool _unknownRevealed;
         private bool _wasGrounded;
@@ -1065,7 +1084,7 @@ namespace DuneVector
         /// </summary>
         public bool StartFreeRoam()
         {
-            return StartFreeRoam(0);
+            return StartFreeRoam(UnselectedFreeRoamRisk);
         }
 
         /// <summary>
@@ -1080,7 +1099,9 @@ namespace DuneVector
                 return false;
             }
 
-            _freeRoamRisk = risk > 0 ? ClampFreeRoamRisk(risk) : 0;
+            _freeRoamRisk = risk >= LowestSelectableFreeRoamRisk
+                ? ClampFreeRoamRisk(risk)
+                : UnselectedFreeRoamRisk;
             ActiveContract = null;
             CleanupContractObjects();
             _freeRoamDeliveries?.EndDeployment();
@@ -1106,7 +1127,7 @@ namespace DuneVector
                 _sandAmbusherSystem.EndContract();
             }
 
-            int difficulty = Mathf.Max(1, _freeRoamRisk > 0
+            int difficulty = Mathf.Max(1, _freeRoamRisk >= LowestSelectableFreeRoamRisk
                 ? ClampFreeRoamRisk(_freeRoamRisk)
                 : _warpGateResumeRisk);
             int seed = NextRailSeed();
@@ -1329,7 +1350,7 @@ namespace DuneVector
 
             if (_hubTerminalMode == HubTerminalMode.FreeRoam)
             {
-                int riskCount = UnlockedFreeRoamRiskCount;
+                int riskCount = FreeRoamRiskChoiceCount;
                 if (riskCount > 0 && Mathf.Abs(command.MenuNavigate) > 0.5f)
                 {
                     int direction = command.MenuNavigate > 0f ? 1 : -1;
@@ -1338,7 +1359,7 @@ namespace DuneVector
                 }
                 if (command.ConfirmPressed && riskCount > 0)
                 {
-                    StartFreeRoam(_hubTerminalSelectedIndex + 1);
+                    StartFreeRoam(_hubTerminalSelectedIndex + LowestSelectableFreeRoamRisk);
                 }
                 _playerInput?.ConsumeContextualActions();
                 return;
@@ -3488,7 +3509,7 @@ namespace DuneVector
                 State = isFreeRoam ? CourierRunState.FreeRoam : CourierRunState.FindPackage;
                 int risk = ActiveContract != null
                     ? ActiveContract.Difficulty
-                    : _freeRoamRisk > 0
+                    : _freeRoamRisk >= LowestSelectableFreeRoamRisk
                         ? ClampFreeRoamRisk(_freeRoamRisk)
                         : DefaultFreeRoamRisk;
                 DuneVectorContractRisk.Configure(_settings, risk);
@@ -3509,7 +3530,7 @@ namespace DuneVector
                 if (isFreeRoam)
                 {
                     // Runs after the deployment banner so the first pickup callout replaces it.
-                    _freeRoamDeliveries?.BeginDeployment(_freeRoamRisk);
+                    _freeRoamDeliveries?.BeginDeployment(risk);
                 }
             }
         }
@@ -3841,7 +3862,7 @@ namespace DuneVector
         private int ClampFreeRoamRisk(int risk)
         {
             int highestSelectable = Mathf.Max(DefaultFreeRoamRisk, UnlockedFreeRoamRiskCount);
-            return Mathf.Clamp(risk, DefaultFreeRoamRisk, highestSelectable);
+            return Mathf.Clamp(risk, LowestSelectableFreeRoamRisk, highestSelectable);
         }
 
         private void SetHubTerminalMode(HubTerminalMode mode)
@@ -3856,9 +3877,9 @@ namespace DuneVector
                 // Opening the selector lands on the risk the courier deployed at last, so
                 // redeploying into the same desert is a confirm rather than a re-navigation.
                 _hubTerminalSelectedIndex = Mathf.Clamp(
-                    ClampFreeRoamRisk(_freeRoamRisk) - 1,
+                    ClampFreeRoamRisk(_freeRoamRisk) - LowestSelectableFreeRoamRisk,
                     0,
-                    Mathf.Max(0, UnlockedFreeRoamRiskCount - 1));
+                    Mathf.Max(0, FreeRoamRiskChoiceCount - 1));
             }
             if (mode != HubTerminalMode.MessageArchive)
             {
@@ -4977,7 +4998,7 @@ namespace DuneVector
                 "ESC  CLOSE",
                 _terminalActionStyle);
 
-            int riskCount = UnlockedFreeRoamRiskCount;
+            int riskCount = FreeRoamRiskChoiceCount;
             GUI.Label(
                 new Rect(panel.x + padding, panel.y + 78f, contentWidth, 26f),
                 FormatDesignerText(
@@ -4996,7 +5017,7 @@ namespace DuneVector
                 gridTop,
                 contentWidth,
                 Mathf.Max(1f, gridBottom - gridTop));
-            int selectedRisk = 0;
+            int selectedRisk = UnselectedFreeRoamRisk;
             if (riskCount > 0)
             {
                 int columns = Mathf.Clamp(_hubSettings.FreeRoamRiskColumns, 2, 10);
@@ -5022,9 +5043,10 @@ namespace DuneVector
                         (index / columns) * (tileHeight + tileGap),
                         tileWidth,
                         tileHeight);
-                    if (DrawFreeRoamRiskTile(tile, index + 1, index == _hubTerminalSelectedIndex))
+                    int tileRisk = index + LowestSelectableFreeRoamRisk;
+                    if (DrawFreeRoamRiskTile(tile, tileRisk, index == _hubTerminalSelectedIndex))
                     {
-                        selectedRisk = index + 1;
+                        selectedRisk = tileRisk;
                     }
                 }
                 GUI.EndScrollView();
@@ -5044,9 +5066,9 @@ namespace DuneVector
 
             GUI.matrix = previousMatrix;
             GUI.backgroundColor = previousBackground;
-            if (selectedRisk > 0)
+            if (selectedRisk >= LowestSelectableFreeRoamRisk)
             {
-                _hubTerminalSelectedIndex = selectedRisk - 1;
+                _hubTerminalSelectedIndex = selectedRisk - LowestSelectableFreeRoamRisk;
                 StartFreeRoam(selectedRisk);
             }
         }
