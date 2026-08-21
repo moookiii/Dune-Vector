@@ -205,6 +205,25 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void RailShooter_BoostSuppressesCameraShakeDuringBoundaryPan()
+        {
+            Vector3 shakeSample = new Vector3(0.8f, -0.6f, 0.25f);
+
+            Assert.That(
+                DuneVectorRailShooterController.CalculateRailCameraShakeOffset(
+                    true,
+                    shakeSample,
+                    2f),
+                Is.EqualTo(Vector3.zero));
+            Assert.That(
+                DuneVectorRailShooterController.CalculateRailCameraShakeOffset(
+                    false,
+                    shakeSample,
+                    2f),
+                Is.EqualTo(shakeSample * 2f));
+        }
+
+        [Test]
         public void RailShooter_MovementSmoothingIsAuthored()
         {
             DuneVectorRuntimeSettings runtimeSettings =
@@ -224,6 +243,22 @@ namespace DuneVector.Tests
 
             Assert.That(settings, Is.Not.Null);
             Assert.That(settings.PickupCoinEulerAngles, Is.EqualTo(new Vector3(90f, 0f, 0f)));
+        }
+
+        [Test]
+        public void RailShooter_CoinRingsMatchRecurringHealthRingSize()
+        {
+            DuneVectorRuntimeSettings runtimeSettings =
+                AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
+            RailShooterTuning settings = runtimeSettings != null ? runtimeSettings.RailShooter : null;
+
+            Assert.That(settings, Is.Not.Null);
+            Assert.That(
+                DuneVectorRailShooterController.CalculateRailPickupRingRadius(
+                    true,
+                    settings.PickupRadius,
+                    settings.GateRadius),
+                Is.EqualTo(settings.GateRadius).Within(0.001f));
         }
 
         [Test]
@@ -392,14 +427,14 @@ namespace DuneVector.Tests
         }
 
         [Test]
-        public void RailShooter_AllPurpleNavigationRingsBecomeHealthRings()
+        public void RailShooter_HalfOfNavigationRingSlotsBecomeHealthRings()
         {
             DuneVectorRuntimeSettings runtimeSettings =
                 AssetDatabase.LoadAssetAtPath<DuneVectorRuntimeSettings>(RuntimeSettingsPath);
             RailShooterTuning settings = runtimeSettings != null ? runtimeSettings.RailShooter : null;
 
             Assert.That(settings, Is.Not.Null);
-            Assert.That(settings.NavigationHealthRingFraction, Is.EqualTo(1f).Within(0.001f));
+            Assert.That(settings.NavigationHealthRingFraction, Is.EqualTo(0.5f).Within(0.001f));
             Assert.That(settings.HealthRingKeptFraction, Is.EqualTo(1f).Within(0.001f));
 
             int ringCount = Mathf.Max(1, settings.EnvironmentSegmentCount);
@@ -415,7 +450,7 @@ namespace DuneVector.Tests
                 }
             }
 
-            Assert.That(healthRingCount, Is.EqualTo(ringCount));
+            Assert.That(healthRingCount, Is.EqualTo(Mathf.RoundToInt(ringCount * 0.5f)));
         }
 
         [Test]

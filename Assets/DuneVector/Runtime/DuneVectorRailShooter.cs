@@ -837,8 +837,11 @@ namespace DuneVector
                 _cameraBasePosition,
                 desiredCameraPosition,
                 DuneVectorMath.Sharpness(_settings.CameraPositionSharpness, deltaTime));
-            _camera.transform.position = _cameraBasePosition +
-                (UnityEngine.Random.insideUnitSphere * _cameraShake);
+            Vector3 cameraShakeOffset = CalculateRailCameraShakeOffset(
+                boosting || blackRingBoosting,
+                UnityEngine.Random.insideUnitSphere,
+                _cameraShake);
+            _camera.transform.position = _cameraBasePosition + cameraShakeOffset;
             _camera.transform.rotation = Quaternion.identity;
 
             // Apply the presentation lens before constructing the aim ray. During a boosted
@@ -4171,11 +4174,15 @@ namespace DuneVector
                     PickupKind.Health => TraversalRingType.Health,
                     _ => TraversalRingType.UpperFlight,
                 };
+                float pickupRingRadius = CalculateRailPickupRingRadius(
+                    kind == PickupKind.Gold,
+                    _settings.PickupRadius,
+                    _settings.GateRadius);
                 Transform pickupRing = DuneVectorVisuals.CreateRingVisual(
                     root,
                     ringType,
                     _materials,
-                    _settings.PickupRadius,
+                    pickupRingRadius,
                     _ringSettings,
                     faceForward: true);
                 if (ringType == TraversalRingType.UpperFlight)
@@ -5165,6 +5172,24 @@ namespace DuneVector
             return new Vector2(
                 Mathf.Clamp(flightOffset.x * follow, -travel.x, travel.x),
                 Mathf.Clamp(flightOffset.y * follow, -travel.y, travel.y));
+        }
+
+        public static Vector3 CalculateRailCameraShakeOffset(
+            bool boosting,
+            Vector3 randomOffset,
+            float shakeAmount)
+        {
+            return boosting
+                ? Vector3.zero
+                : randomOffset * Mathf.Max(0f, shakeAmount);
+        }
+
+        public static float CalculateRailPickupRingRadius(
+            bool coinRing,
+            float pickupRadius,
+            float healthRingRadius)
+        {
+            return Mathf.Max(0f, coinRing ? healthRingRadius : pickupRadius);
         }
 
         public static bool DoesRailProjectileHitDrone(
