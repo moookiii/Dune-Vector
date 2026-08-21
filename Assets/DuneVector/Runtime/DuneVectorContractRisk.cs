@@ -128,7 +128,7 @@ namespace DuneVector
         public void BeginContract(int risk, int seed)
         {
             EndContract();
-            _risk = Mathf.Max(1, risk);
+            _risk = Mathf.Max(0, risk);
             if (_risk < Mathf.Max(1, _settings.SandAmbusherMinimumRisk))
             {
                 return;
