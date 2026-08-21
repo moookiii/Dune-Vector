@@ -169,6 +169,8 @@ namespace DuneVector
             public float PulsePhase;
             public float CoreStretch;
             public bool Grazed;
+            public RailEnemy HomingEnemy;
+            public RailSatellite HomingSatellite;
         }
 
         private sealed class PooledImpact
@@ -272,6 +274,7 @@ namespace DuneVector
         public string ResultGrade { get; private set; } = "C";
 
         private readonly List<PooledProjectile> _playerProjectiles = new List<PooledProjectile>();
+        private readonly List<PooledProjectile> _chargedProjectiles = new List<PooledProjectile>();
         private readonly List<PooledProjectile> _enemyProjectiles = new List<PooledProjectile>();
         private readonly List<PooledImpact> _impacts = new List<PooledImpact>();
         private readonly List<PooledPickup> _pickups = new List<PooledPickup>();
@@ -349,6 +352,7 @@ namespace DuneVector
         private float _laneCenterX;
         private bool _laneDamageApplied;
         private bool _fireWasHeld;
+        private bool _fireFromRightMuzzle;
         private bool _routeGateActive;
         private bool _routeGateHoverArmed;
         private bool _routeGateHovering;
@@ -367,6 +371,8 @@ namespace DuneVector
         private Material[] _bulletGlowMaterials;
         private Material _playerBoltCoreMaterial;
         private Material _playerBoltGlowMaterial;
+        private Material _chargedBoltCoreMaterial;
+        private Material _chargedBoltGlowMaterial;
         private float _bossNextRingAt;
         private float _bossNextSpiralAt;
         private float _bossNextWallAt;
@@ -537,6 +543,7 @@ namespace DuneVector
             _nextGrazePopupAt = float.NegativeInfinity;
             ResetBossBulletPatterns();
             _fireWasHeld = false;
+            _fireFromRightMuzzle = false;
             _routeGateActive = false;
             _routeGateHoverArmed = false;
             _routeGateHovering = false;
@@ -1315,11 +1322,17 @@ namespace DuneVector
             if (command.FireHeld)
             {
                 _state.ChargeElapsed += deltaTime;
-                if (_state.ChargeElapsed <= _settings.RegularFireBeforeChargeDuration &&
-                    _state.Elapsed >= _nextRegularShotAt)
+                bool charging = _state.ChargeElapsed > _settings.RegularFireBeforeChargeDuration;
+                // Holding the trigger streams bolts for the whole hold, so the beam reads as a
+                // continuous weapon while the charge quietly builds underneath it.
+                bool streaming = _settings.ContinuousPrimaryFireWhileHeld || !charging;
+                if (streaming && _state.Elapsed >= _nextRegularShotAt)
                 {
                     FireRegularShot();
-                    _nextRegularShotAt = _state.Elapsed + _settings.RegularShotInterval;
+                    float interval = charging
+                        ? _settings.RegularShotInterval * _settings.ChargingFireIntervalMultiplier
+                        : _settings.RegularShotInterval;
+                    _nextRegularShotAt = _state.Elapsed + interval;
                 }
                 if (_state.ChargeElapsed >= _settings.ChargeMinimumDuration)
                 {
@@ -1337,9 +1350,10 @@ namespace DuneVector
             bool released = command.FireReleased || (_fireWasHeld && !command.FireHeld);
             if (released && _state.ChargeElapsed >= _settings.ChargeMinimumDuration)
             {
-                FireChargedBeam();
+                FireChargedShot();
             }
-            else if (released && _state.ChargeElapsed > _settings.RegularFireBeforeChargeDuration)
+            else if (released && !_settings.ContinuousPrimaryFireWhileHeld &&
+                _state.ChargeElapsed > _settings.RegularFireBeforeChargeDuration)
             {
                 // A press let go before the charge threshold still spends as a normal bolt
                 // instead of silently discarding the shot.
@@ -1370,12 +1384,21 @@ namespace DuneVector
             {
                 return;
             }
-            Vector3 direction = ResolveShotDirection();
+            Vector3 aimDirection = ResolveShotDirection();
+            Vector3 muzzle = ResolveMuzzlePosition(aimDirection, _fireFromRightMuzzle);
+            _fireFromRightMuzzle = !_fireFromRightMuzzle;
+            // Both muzzles cross at the convergence point so the pair reads as one beam
+            // converging on whatever the reticle is over rather than two parallel streams.
+            Vector3 convergence = _player.transform.position +
+                (aimDirection * _settings.PrimaryMuzzleConvergenceDistance);
+            Vector3 direction = (convergence - muzzle).normalized;
             projectile.Active = true;
+            projectile.HomingEnemy = null;
+            projectile.HomingSatellite = null;
             projectile.EnemyOwned = false;
             projectile.Heading = direction;
             projectile.Speed = _settings.RegularShotSpeed;
-            projectile.Transform.position = _player.transform.position + (direction * 2.2f);
+            projectile.Transform.position = muzzle;
             projectile.Velocity = direction * _settings.RegularShotSpeed;
             projectile.Remaining = _settings.RegularShotLifetime;
             projectile.Radius = _settings.RegularShotRadius;
@@ -1406,6 +1429,16 @@ namespace DuneVector
                 projectile.Trail.emitting = _settings.BulletTrailDuration > 0f;
             }
             PlayCue(_settings.FireEvent, _player.transform.position);
+        }
+
+        private Vector3 ResolveMuzzlePosition(Vector3 aimDirection, bool rightSide)
+        {
+            Transform drone = _player.transform;
+            Vector3 lateral = drone.right * _settings.PrimaryMuzzleLateralOffset;
+            return drone.position +
+                (aimDirection * _settings.PrimaryMuzzleForwardOffset) +
+                (drone.up * _settings.PrimaryMuzzleVerticalOffset) +
+                (rightSide ? lateral : -lateral);
         }
 
         private Vector3 ResolveShotDirection()
@@ -1466,65 +1499,67 @@ namespace DuneVector
             return Mathf.Max(0.05f, _settings.EnemyFireInterval * Mathf.Max(0.25f, scale));
         }
 
-        private void FireChargedBeam()
+        private void FireChargedShot()
         {
-            Vector3 origin = _player.transform.position;
-            Vector3 direction = _state.AimDirection.normalized;
-            Vector3 lockPosition = _chargeLock != null && _chargeLock.Active
-                ? _chargeLock.Transform.position
-                : origin + (direction * _settings.ChargedBeamRange);
-            for (int i = 0; i < _enemies.Count; i++)
+            PooledProjectile orb = AcquireProjectile(_chargedProjectiles);
+            if (orb == null)
             {
-                RailEnemy enemy = _enemies[i];
-                if (!enemy.Active)
-                {
-                    continue;
-                }
-                float along = Vector3.Dot(enemy.Transform.position - origin, direction);
-                if (along < 0f || along > _settings.ChargedBeamRange)
-                {
-                    continue;
-                }
-                Vector3 nearest = origin + (direction * along);
-                bool inBeam = Vector3.Distance(nearest, enemy.Transform.position) <=
-                    _settings.ChargedBeamRadius + enemy.HitRadius;
-                bool inBlast = Vector3.Distance(lockPosition, enemy.Transform.position) <=
-                    _settings.ChargedBlastRadius + enemy.HitRadius;
-                if (inBeam || inBlast)
-                {
-                    ApplyDamage(enemy, _settings.ChargedShotDamage, charged: true, bomb: false);
-                }
+                return;
             }
-            if (_boss != null && _boss.Active)
+            Vector3 aimDirection = _state.AimDirection.normalized;
+            Vector3 muzzle = _player.transform.position +
+                (aimDirection * _settings.PrimaryMuzzleForwardOffset);
+            RailEnemy homingEnemy = _chargeLock != null && _chargeLock.Active ? _chargeLock : null;
+            RailSatellite homingSatellite = homingEnemy == null &&
+                _satelliteChargeLock != null && _satelliteChargeLock.Active
+                ? _satelliteChargeLock
+                : null;
+            Vector3 direction = aimDirection;
+            if (homingEnemy != null)
             {
-                float along = Vector3.Dot(_boss.Transform.position - origin, direction);
-                Vector3 nearest = origin + (direction * Mathf.Clamp(along, 0f, _settings.ChargedBeamRange));
-                if (along >= 0f && along <= _settings.ChargedBeamRange &&
-                    Vector3.Distance(nearest, _boss.Transform.position) <=
-                    _settings.ChargedBeamRadius + _boss.HitRadius)
-                {
-                    ApplyDamage(_boss, _settings.ChargedShotDamage, charged: true, bomb: false);
-                }
+                direction = SafeDirection(homingEnemy.Transform.position - muzzle, aimDirection);
             }
-            for (int i = 0; i < _satellites.Count; i++)
+            else if (homingSatellite != null)
             {
-                RailSatellite satellite = _satellites[i];
-                if (!satellite.Active)
-                {
-                    continue;
-                }
-                Vector3 targetPosition = SatelliteTargetPosition(satellite);
-                float along = Vector3.Dot(targetPosition - origin, direction);
-                Vector3 nearest = origin + (direction * Mathf.Clamp(along, 0f, _settings.ChargedBeamRange));
-                bool inBeam = along >= 0f && along <= _settings.ChargedBeamRange &&
-                    Vector3.Distance(nearest, targetPosition) <=
-                    _settings.ChargedBeamRadius + _settings.SatelliteHitRadius;
-                bool inBlast = Vector3.Distance(lockPosition, targetPosition) <=
-                    _settings.ChargedBlastRadius + _settings.SatelliteHitRadius;
-                if (inBeam || inBlast)
-                {
-                    DamageSatellite(satellite, _settings.ChargedShotDamage);
-                }
+                direction = SafeDirection(SatelliteTargetPosition(homingSatellite) - muzzle, aimDirection);
+            }
+            orb.Active = true;
+            orb.EnemyOwned = false;
+            orb.HomingEnemy = homingEnemy;
+            orb.HomingSatellite = homingSatellite;
+            orb.Heading = direction;
+            orb.Speed = _settings.ChargedShotSpeed;
+            orb.Velocity = direction * _settings.ChargedShotSpeed;
+            orb.Transform.position = muzzle;
+            orb.Transform.rotation = Quaternion.LookRotation(direction, Vector3.up);
+            orb.Radius = _settings.ChargedBeamRadius;
+            orb.Age = 0f;
+            orb.Grazed = false;
+            // The orb expires by range as well as lifetime, so a miss cannot keep chasing
+            // the rail long after the lock window closed.
+            orb.Remaining = Mathf.Min(
+                _settings.ChargedShotLifetime,
+                _settings.ChargedBeamRange / Mathf.Max(1f, _settings.ChargedShotSpeed));
+            float diameter = _settings.ChargedShotVisualRadius * 2f;
+            if (orb.Core != null)
+            {
+                orb.Core.localScale = Vector3.one * diameter;
+            }
+            if (orb.Cage != null)
+            {
+                orb.Cage.localScale = Vector3.one * (diameter * 1.25f);
+            }
+            if (orb.Halo != null)
+            {
+                orb.Halo.localScale = Vector3.one * (diameter * _settings.ChargedShotHaloScale);
+            }
+            orb.Root.SetActive(true);
+            if (orb.Trail != null)
+            {
+                orb.Trail.Clear();
+                orb.Trail.time = _settings.ChargedShotTrailDuration;
+                orb.Trail.widthMultiplier = diameter;
+                orb.Trail.emitting = _settings.ChargedShotTrailDuration > 0f;
             }
             _chargedBeamElapsed = 0f;
             _chargedBeamVisual.gameObject.SetActive(true);
@@ -1537,6 +1572,137 @@ namespace DuneVector
             ClearEnemyLocks();
             ClearSatelliteLocks();
             PlayCue(_settings.ChargedFireEvent, _player.transform.position);
+        }
+
+        private static Vector3 SafeDirection(Vector3 delta, Vector3 fallback)
+        {
+            return delta.sqrMagnitude <= 0.0001f ? fallback : delta.normalized;
+        }
+
+        private void TickChargedProjectiles(float deltaTime)
+        {
+            float playerZ = _player.transform.position.z;
+            for (int i = 0; i < _chargedProjectiles.Count; i++)
+            {
+                PooledProjectile orb = _chargedProjectiles[i];
+                if (!orb.Active)
+                {
+                    continue;
+                }
+                Vector3 previous = orb.Transform.position;
+                orb.Age += deltaTime;
+                orb.Remaining -= deltaTime;
+                SteerChargedShot(orb, deltaTime);
+                orb.Velocity = orb.Heading * orb.Speed;
+                orb.Transform.position += orb.Velocity * deltaTime;
+                UpdateChargedShotVisual(orb, deltaTime);
+                RailSatellite satelliteHit = FindSatelliteHit(
+                    previous,
+                    orb.Transform.position,
+                    orb.Radius);
+                if (satelliteHit != null)
+                {
+                    DetonateChargedShot(orb, SatelliteTargetPosition(satelliteHit));
+                    continue;
+                }
+                RailEnemy hit = FindProjectileHit(previous, orb.Transform.position, orb.Radius);
+                if (hit != null)
+                {
+                    DetonateChargedShot(orb, hit.Transform.position);
+                    continue;
+                }
+                if (orb.Remaining <= 0f ||
+                    orb.Transform.position.z < playerZ - _settings.EnemyDespawnBehindDistance)
+                {
+                    DetonateChargedShot(orb, orb.Transform.position);
+                }
+            }
+        }
+
+        private void SteerChargedShot(PooledProjectile orb, float deltaTime)
+        {
+            Vector3 target;
+            if (orb.HomingEnemy != null && orb.HomingEnemy.Active)
+            {
+                target = orb.HomingEnemy.Transform.position;
+            }
+            else if (orb.HomingSatellite != null && orb.HomingSatellite.Active)
+            {
+                target = SatelliteTargetPosition(orb.HomingSatellite);
+            }
+            else
+            {
+                orb.HomingEnemy = null;
+                orb.HomingSatellite = null;
+                return;
+            }
+            Vector3 desired = SafeDirection(target - orb.Transform.position, orb.Heading);
+            float maxRadians = _settings.ChargedShotHomingDegreesPerSecond * Mathf.Deg2Rad * deltaTime;
+            orb.Heading = Vector3.RotateTowards(orb.Heading, desired, maxRadians, 0f).normalized;
+        }
+
+        private void UpdateChargedShotVisual(PooledProjectile orb, float deltaTime)
+        {
+            if (orb.Cage != null)
+            {
+                orb.Cage.Rotate(
+                    _settings.ChargedShotSpinDegreesPerSecond * deltaTime * 0.6f,
+                    _settings.ChargedShotSpinDegreesPerSecond * deltaTime,
+                    0f,
+                    Space.Self);
+            }
+            if (orb.Halo != null)
+            {
+                float pulse = 1f + (Mathf.Sin(orb.Age * _settings.BulletHaloPulseSpeed) *
+                    _settings.BulletHaloPulseAmplitude);
+                orb.Halo.localScale = Vector3.one *
+                    (_settings.ChargedShotVisualRadius * 2f * _settings.ChargedShotHaloScale * pulse);
+            }
+            if (orb.Velocity.sqrMagnitude > 0.0001f)
+            {
+                orb.Transform.rotation = Quaternion.LookRotation(orb.Velocity.normalized, Vector3.up);
+            }
+        }
+
+        private void DetonateChargedShot(PooledProjectile orb, Vector3 blastCenter)
+        {
+            DeactivateProjectile(orb);
+            orb.HomingEnemy = null;
+            orb.HomingSatellite = null;
+            for (int i = 0; i < _enemies.Count; i++)
+            {
+                RailEnemy enemy = _enemies[i];
+                if (!enemy.Active)
+                {
+                    continue;
+                }
+                if (Vector3.Distance(blastCenter, enemy.Transform.position) <=
+                    _settings.ChargedBlastRadius + enemy.HitRadius)
+                {
+                    ApplyDamage(enemy, _settings.ChargedShotDamage, charged: true, bomb: false);
+                }
+            }
+            if (_boss != null && _boss.Active &&
+                Vector3.Distance(blastCenter, _boss.Transform.position) <=
+                _settings.ChargedBlastRadius + _boss.HitRadius)
+            {
+                ApplyDamage(_boss, _settings.ChargedShotDamage, charged: true, bomb: false);
+            }
+            for (int i = 0; i < _satellites.Count; i++)
+            {
+                RailSatellite satellite = _satellites[i];
+                if (!satellite.Active)
+                {
+                    continue;
+                }
+                if (Vector3.Distance(blastCenter, SatelliteTargetPosition(satellite)) <=
+                    _settings.ChargedBlastRadius + _settings.SatelliteHitRadius)
+                {
+                    DamageSatellite(satellite, _settings.ChargedShotDamage);
+                }
+            }
+            SpawnImpact(blastCenter, _settings.ChargedBlastRadius);
+            _cameraShake = Mathf.Max(_cameraShake, _settings.ImpactCameraShake * 1.2f);
         }
 
         private void UpdateChargeLock(float deltaTime)
@@ -2320,6 +2486,7 @@ namespace DuneVector
         private void TickProjectiles(float deltaTime)
         {
             TickPlayerProjectiles(deltaTime);
+            TickChargedProjectiles(deltaTime);
             Vector3 playerPosition = _player.transform.position;
             for (int i = 0; i < _enemyProjectiles.Count; i++)
             {
@@ -3090,13 +3257,14 @@ namespace DuneVector
                 _chargedBeamElapsed += deltaTime;
                 float normalized = 1f - Mathf.Clamp01(
                     _chargedBeamElapsed / _settings.ChargedBeamPresentationDuration);
+                // The charged shot now flies as an orb, so this is only the muzzle burst the
+                // launch leaves behind at the nose.
                 _chargedBeamVisual.position = _player.transform.position +
-                    (_state.AimDirection * _settings.ChargedBeamRange * 0.5f);
+                    (_state.AimDirection * _settings.PrimaryMuzzleForwardOffset);
                 _chargedBeamVisual.rotation = Quaternion.LookRotation(_state.AimDirection, Vector3.up);
-                _chargedBeamVisual.localScale = new Vector3(
-                    _settings.ChargedBeamRadius * normalized,
-                    _settings.ChargedBeamRadius * normalized,
-                    _settings.ChargedBeamRange * 0.5f);
+                float flash = _settings.ChargedShotVisualRadius * _settings.ChargedMuzzleFlashScale *
+                    normalized;
+                _chargedBeamVisual.localScale = new Vector3(flash, flash, flash * 1.6f);
                 if (_chargedBeamElapsed >= _settings.ChargedBeamPresentationDuration)
                 {
                     _chargedBeamElapsed = float.PositiveInfinity;
@@ -3723,6 +3891,14 @@ namespace DuneVector
                 "Rift Player Bolt Glow",
                 BulletGlowColor(_settings.PlayerBoltColor),
                 additive: true);
+            _chargedBoltCoreMaterial = _materials.CreateRailBulletMaterial(
+                "Rift Charged Orb Core",
+                BulletCoreColor(_settings.ChargedBoltColor),
+                additive: false);
+            _chargedBoltGlowMaterial = _materials.CreateRailBulletMaterial(
+                "Rift Charged Orb Glow",
+                BulletGlowColor(_settings.ChargedBoltColor),
+                additive: true);
         }
 
         // The core reads as the white-hot centre of a bullet, so it keeps the hue of its
@@ -3752,6 +3928,15 @@ namespace DuneVector
                     includeCage: false);
                 ApplyBulletStyle(bolt, _playerBoltCoreMaterial, _playerBoltGlowMaterial);
                 _playerProjectiles.Add(bolt);
+            }
+            for (int i = 0; i < _settings.ChargedProjectilePoolSize; i++)
+            {
+                PooledProjectile orb = CreateBullet(
+                    $"Player Charged Orb {i + 1:00}",
+                    PrimitiveType.Sphere,
+                    includeCage: true);
+                ApplyBulletStyle(orb, _chargedBoltCoreMaterial, _chargedBoltGlowMaterial);
+                _chargedProjectiles.Add(orb);
             }
             for (int i = 0; i < _settings.EnemyProjectilePoolSize; i++)
             {
@@ -3908,8 +4093,8 @@ namespace DuneVector
                 Quaternion.identity,
                 _materials.DroneAccent);
             _chargedBeamVisual = CreatePart(
-                PrimitiveType.Cube,
-                "Charged Penetration Beam",
+                PrimitiveType.Sphere,
+                "Charged Launch Flash",
                 _effectsRoot,
                 Vector3.zero,
                 Vector3.one,
@@ -4109,6 +4294,7 @@ namespace DuneVector
                 _boss.Root.SetActive(false);
             }
             for (int i = 0; i < _playerProjectiles.Count; i++) DeactivateProjectile(_playerProjectiles[i]);
+            for (int i = 0; i < _chargedProjectiles.Count; i++) DeactivateProjectile(_chargedProjectiles[i]);
             for (int i = 0; i < _enemyProjectiles.Count; i++) DeactivateProjectile(_enemyProjectiles[i]);
             for (int i = 0; i < _pickups.Count; i++) DeactivatePickup(_pickups[i]);
             for (int i = 0; i < _impacts.Count; i++)

@@ -8628,14 +8628,47 @@ namespace DuneVector
         [Min(0.01f)] public float RegularShotRadius = 0.52f;
         [Min(0.01f)] public float RegularShotVisualLength = 3.2f;
         [Min(0f)] public float RegularFireBeforeChargeDuration = 0.26f;
+        [Tooltip("Holding fire keeps streaming bolts for as long as the button is down instead of stopping once the charge starts building.")]
+        public bool ContinuousPrimaryFireWhileHeld = true;
+        [Tooltip("Bolt interval multiplier once the hold has crossed into charging, so the stream can thin out while the charge builds.")]
+        [Min(0.1f)] public float ChargingFireIntervalMultiplier = 1.35f;
+        [Tooltip("Bolts leave the wing muzzles this far ahead of the drone origin.")]
+        [Min(0f)] public float PrimaryMuzzleForwardOffset = 2.2f;
+        [Tooltip("Half the spacing between the left and right wing muzzles. Zero fires everything from the nose.")]
+        [Min(0f)] public float PrimaryMuzzleLateralOffset = 1.75f;
+        [Tooltip("Vertical muzzle offset from the drone origin. Negative sits the muzzles under the hull.")]
+        public float PrimaryMuzzleVerticalOffset = -0.15f;
+        [Tooltip("Bolts fired from both muzzles converge on the aim point this far ahead, giving the paired-beam look.")]
+        [Min(1f)] public float PrimaryMuzzleConvergenceDistance = 110f;
         [Min(0f)] public float ChargeMinimumDuration = 0.7f;
         [Min(0.01f)] public float ChargeFullDuration = 2f;
         [Min(0f)] public float ChargedShotDamage = 180f;
+        [Tooltip("Collision radius of the charged orb in flight.")]
         [Min(0.01f)] public float ChargedBeamRadius = 3.5f;
+        [Tooltip("Lock-on reach and the distance a charged orb can travel before it burns out.")]
         [Min(1f)] public float ChargedBeamRange = 260f;
+        [Tooltip("Seconds the launch flash lingers at the muzzle after a charged orb leaves.")]
         [Min(0.01f)] public float ChargedBeamPresentationDuration = 0.24f;
         [Min(0f)] public float ChargedBlastRadius = 7f;
         [Min(0f)] public float ChargedShotScoreMultiplier = 1.5f;
+        [Tooltip("Charged orbs live in their own pool so a volley of them can never starve the regular bolt pool.")]
+        [Min(1)] public int ChargedProjectilePoolSize = 6;
+        [Tooltip("Travel speed of the charged orb the drone launches on release.")]
+        [Min(1f)] public float ChargedShotSpeed = 130f;
+        [Tooltip("Seconds a charged orb flies before it fizzles out without a hit.")]
+        [Min(0.05f)] public float ChargedShotLifetime = 2.6f;
+        [Tooltip("How hard a charged orb can bend toward its locked target while it flies.")]
+        [Min(0f)] public float ChargedShotHomingDegreesPerSecond = 190f;
+        [Tooltip("Radius of the drawn charged orb core. The damage radius stays ChargedBeamRadius.")]
+        [Min(0.01f)] public float ChargedShotVisualRadius = 1.6f;
+        [Tooltip("Charged orb halo size as a multiple of the core radius.")]
+        [Min(1f)] public float ChargedShotHaloScale = 2.6f;
+        [Tooltip("Spin rate of the charged orb cage, which reads as the crackling ring around the core.")]
+        [Min(0f)] public float ChargedShotSpinDegreesPerSecond = 420f;
+        [Tooltip("Trail length behind a charged orb.")]
+        [Min(0f)] public float ChargedShotTrailDuration = 0.4f;
+        [Tooltip("Muzzle flash size when the charged orb launches, as a multiple of the orb core radius.")]
+        [Min(0f)] public float ChargedMuzzleFlashScale = 3.4f;
         [Min(0f)] public float ChargeVisualMinimumScale = 0.35f;
         [Min(0f)] public float ChargeVisualMaximumScale = 2.4f;
         [Min(0f)] public float ChargeVisualPulseSpeed = 12f;
@@ -8861,6 +8894,7 @@ namespace DuneVector
         [ColorUsage(true, true)] public Color WallBulletColor = new Color(5.8f, 2.3f, 0.16f);
         [ColorUsage(true, true)] public Color WeaveBulletColor = new Color(2.5f, 0.5f, 6.2f);
         [ColorUsage(true, true)] public Color PlayerBoltColor = new Color(0.3f, 4.4f, 5.4f);
+        [ColorUsage(true, true)] public Color ChargedBoltColor = new Color(1.6f, 4.8f, 5.8f);
 
         [Header("Boss Climax")]
         [Min(1f)] public float BossSpawnDistance = 3150f;
