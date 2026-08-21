@@ -1054,7 +1054,7 @@ namespace DuneVector
         }
 
         [Header("Risk Sand Ambusher")]
-        [Min(1)] public int SandAmbusherMinimumRisk = 2;
+        [Min(1)] public int SandAmbusherMinimumRisk = 1;
         [Min(0f)] public float SandAmbusherInitialDelay = 2f;
         [Min(0.1f)] public float SandAmbusherBaseInterval = 2.4f;
         [Min(0f)] public float SandAmbusherIntervalReductionPerRisk = 0.55f;
@@ -1323,6 +1323,26 @@ namespace DuneVector
         [Min(0f)] public float SandAmbusherTrickleGravity = 1f;
         [Min(0f)] public float SandAmbusherTrickleStretch = 1.4f;
         [Min(0f)] public float SandAmbusherTrickleVelocityScale = 0.08f;
+
+        [Header("Risk Sand Ambusher Notice")]
+        [Tooltip("Plays a one-off hub notice the first time the courier teleports home with enough completed contracts, warning that Sand Ambushers now surface on risky routes. It uses the same card chrome as the warp gate banner and waits on a click, Enter, or Space.")]
+        public bool SandAmbusherNoticeEnabled = true;
+
+        [Tooltip("Completed contracts required before the Sand Ambusher notice plays. 1 raises it on the return from the first contract.")]
+        [Min(1)] public int SandAmbusherNoticeRequiredCompletedContracts = 1;
+
+        [Tooltip("Message shown on the Sand Ambusher notice card.")]
+        [TextArea] public string SandAmbusherNoticeMessage =
+            "Sand Ambushers has surfaced. Risk 1 and above now contain hostile ambushes.";
+
+        [Tooltip("Small kicker line drawn above the Sand Ambusher notice message. Leave it empty to hide the kicker row and its divider.")]
+        public string SandAmbusherNoticeKicker = "S A N D   A M B U S H E R S   D E T E C T E D";
+
+        [Tooltip("Accent color of the Sand Ambusher notice card: rail, brackets, glow, and glyph. Warp gate blue reads as friendly hardware, so the hostile notice is authored warmer.")]
+        public Color SandAmbusherNoticeAccentColor = new Color(1f, 0.62f, 0.22f, 1f);
+
+        [Tooltip("Text color of the Sand Ambusher notice kicker line.")]
+        public Color SandAmbusherNoticeKickerColor = new Color(1f, 0.72f, 0.36f, 1f);
 
         [Header("Cargo Modifiers")]
         [Range(0f, 100f)] public float FragileFailureIntegrity = 18f;

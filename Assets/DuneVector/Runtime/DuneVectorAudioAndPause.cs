@@ -1822,7 +1822,7 @@ namespace DuneVector
                 (_courierGame.IsTerminalOpen ||
                  _courierGame.IsDeliveryMessageOpen ||
                  _courierGame.IsTrailUnlockShowcaseOpen ||
-                 _courierGame.IsWarpGateAnnouncementOpen))
+                 _courierGame.IsHubAnnouncementOpen))
             {
                 return;
             }

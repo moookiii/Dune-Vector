@@ -110,7 +110,7 @@ namespace DuneVector
         [Serializable]
         private sealed class SaveData
         {
-            public int Version = 10;
+            public int Version = 11;
             public int CompletedDeliveries;
             public int FailedDeliveries;
             public int TotalContractGold;
@@ -125,6 +125,7 @@ namespace DuneVector
             public bool StrikeOrbDeathNoteAcknowledged;
             public bool VesperPilgrimDeathNoteAcknowledged;
             public bool WarpGateAnnouncementSeen;
+            public bool SandAmbusherNoticeSeen;
             public bool CompassUnlockSeen;
             public bool AtlasFinderUnlockSeen;
             public List<string> AcceptedContractIds = new List<string>();
@@ -152,6 +153,9 @@ namespace DuneVector
 
         /// <summary>True once the hub banner announcing the scattered warp gates has played.</summary>
         public bool WarpGateAnnouncementSeen { get; private set; }
+
+        /// <summary>True once the hub notice warning about Sand Ambushers has played.</summary>
+        public bool SandAmbusherNoticeSeen { get; private set; }
 
         /// <summary>True once the courier has held the compass award card through.</summary>
         public bool CompassUnlockSeen { get; private set; }
@@ -245,6 +249,19 @@ namespace DuneVector
             }
 
             WarpGateAnnouncementSeen = true;
+            Save();
+            Changed?.Invoke();
+        }
+
+        /// <summary>Records that the Sand Ambusher hub notice has been dismissed.</summary>
+        public void AcknowledgeSandAmbusherNotice()
+        {
+            if (SandAmbusherNoticeSeen)
+            {
+                return;
+            }
+
+            SandAmbusherNoticeSeen = true;
             Save();
             Changed?.Invoke();
         }
@@ -343,6 +360,7 @@ namespace DuneVector
             StrikeOrbDeathNoteAcknowledged = false;
             VesperPilgrimDeathNoteAcknowledged = false;
             WarpGateAnnouncementSeen = false;
+            SandAmbusherNoticeSeen = false;
             CompassUnlockSeen = false;
             AtlasFinderUnlockSeen = false;
             _acceptedContractIds.Clear();
@@ -390,6 +408,7 @@ namespace DuneVector
                 VesperPilgrimDeathNoteAcknowledged =
                     data.Version >= 6 && data.VesperPilgrimDeathNoteAcknowledged;
                 WarpGateAnnouncementSeen = data.Version >= 9 && data.WarpGateAnnouncementSeen;
+                SandAmbusherNoticeSeen = data.Version >= 11 && data.SandAmbusherNoticeSeen;
                 CompassUnlockSeen = data.Version >= 10 && data.CompassUnlockSeen;
                 AtlasFinderUnlockSeen = data.Version >= 10 && data.AtlasFinderUnlockSeen;
                 if (data.Version >= 7)
@@ -441,6 +460,7 @@ namespace DuneVector
                     StrikeOrbDeathNoteAcknowledged = StrikeOrbDeathNoteAcknowledged,
                     VesperPilgrimDeathNoteAcknowledged = VesperPilgrimDeathNoteAcknowledged,
                     WarpGateAnnouncementSeen = WarpGateAnnouncementSeen,
+                    SandAmbusherNoticeSeen = SandAmbusherNoticeSeen,
                     CompassUnlockSeen = CompassUnlockSeen,
                     AtlasFinderUnlockSeen = AtlasFinderUnlockSeen,
                     AcceptedContractIds = new List<string>(_acceptedContractIds),
@@ -466,6 +486,27 @@ namespace DuneVector
             FreeRoam,
         }
 
+        /// <summary>Sigil drawn on the left of a hub announcement card.</summary>
+        private enum HubAnnouncementGlyph
+        {
+            WarpGate,
+            SandAmbusher,
+        }
+
+        /// <summary>
+        /// One modal hub banner. The card chrome, timing, and continue prompt are shared - only
+        /// the copy, accent set, sigil, and the progress flag it clears differ per announcement.
+        /// </summary>
+        private sealed class HubAnnouncement
+        {
+            public string Message;
+            public string Kicker;
+            public Color Accent;
+            public Color KickerColor;
+            public HubAnnouncementGlyph Glyph;
+            public Action Acknowledge;
+        }
+
         public CourierRunState State { get; private set; }
         public bool AllowsPlayerCombatTargeting =>
             State == CourierRunState.FreeRoam ||
@@ -485,7 +526,7 @@ namespace DuneVector
             _trailUnlockShowcase != null && _trailUnlockShowcase.IsOpen;
         public bool IsToolUnlockCeremonyOpen =>
             _toolUnlockCeremony != null && _toolUnlockCeremony.IsOpen;
-        public bool IsWarpGateAnnouncementOpen => _warpGateAnnouncementOpen;
+        public bool IsHubAnnouncementOpen => _hubAnnouncementOpen;
         public Vector3 HubSpawnPosition => _hubSpawn;
 
         /// <summary>
@@ -671,17 +712,17 @@ namespace DuneVector
         private float _minimumAirVerticalSpeed;
         private string _statusMessage;
         private float _statusMessageUntil;
-        private string _warpGateAnnouncement;
-        private bool _warpGateAnnouncementPending;
-        private bool _warpGateAnnouncementOpen;
-        private int _warpGateAnnouncementOpenedFrame;
-        private float _warpGateAnnouncementOpenedAt;
-        private bool _warpGateAnnouncementAwaitingRelease;
-        private float _warpGateAnnouncementDismissedAt = -1f;
-        private GUIStyle _warpGateAnnouncementStyle;
-        private GUIStyle _warpGateAnnouncementKickerStyle;
-        private GUIStyle _warpGateAnnouncementPromptStyle;
-        private float _warpGateAnnouncementStyleScale;
+        private readonly List<HubAnnouncement> _pendingHubAnnouncements = new List<HubAnnouncement>();
+        private HubAnnouncement _hubAnnouncement;
+        private bool _hubAnnouncementOpen;
+        private int _hubAnnouncementOpenedFrame;
+        private float _hubAnnouncementOpenedAt;
+        private bool _hubAnnouncementAwaitingRelease;
+        private float _hubAnnouncementDismissedAt = -1f;
+        private GUIStyle _hubAnnouncementStyle;
+        private GUIStyle _hubAnnouncementKickerStyle;
+        private GUIStyle _hubAnnouncementPromptStyle;
+        private float _hubAnnouncementStyleScale;
         private Vector3 _droneVisualOriginalScale;
         private Material _hubMetalMaterial;
         private Material _hubEnergyMaterial;
@@ -1189,7 +1230,7 @@ namespace DuneVector
                 return;
             }
 
-            UpdateWarpGateAnnouncement();
+            UpdateHubAnnouncement();
 
             if (State == CourierRunState.TeleportingToDesert || State == CourierRunState.ReturnToBase)
             {
@@ -3731,6 +3772,7 @@ namespace DuneVector
         private void FinishPostReturnPresentation()
         {
             TryPlayWarpGateAnnouncement();
+            TryPlaySandAmbusherNotice();
             DroneTrailOption unlockedTrail = _permanentUpgrades?.DroneTrails?.SynchronizeContractUnlocks(
                 Progress != null ? Progress.CompletedDeliveries : 0);
             if (unlockedTrail == null)
@@ -3990,7 +4032,7 @@ namespace DuneVector
         /// Queues the one-off hub banner that tells the courier the warp gates are now out in the
         /// desert. It fires the first time the drone lands back in the hub after the gates unlock.
         /// The card is only queued here because a trail showcase or an award card can be opening on
-        /// the same return; <see cref="UpdateWarpGateAnnouncement"/> raises it once they are done.
+        /// the same return; <see cref="UpdateHubAnnouncement"/> raises it once they are done.
         /// </summary>
         private void TryPlayWarpGateAnnouncement()
         {
@@ -4001,7 +4043,45 @@ namespace DuneVector
                 return;
             }
 
-            _warpGateAnnouncementPending = true;
+            _pendingHubAnnouncements.Add(new HubAnnouncement
+            {
+                Message = tuning.UnlockAnnouncement,
+                Kicker = tuning.UnlockAnnouncementKicker,
+                Accent = tuning.UnlockAnnouncementAccentColor,
+                KickerColor = tuning.UnlockAnnouncementKickerColor,
+                Glyph = HubAnnouncementGlyph.WarpGate,
+                Acknowledge = () => Progress?.AcknowledgeWarpGateAnnouncement(),
+            });
+        }
+
+        /// <summary>
+        /// Queues the one-off hub notice warning that Sand Ambushers now surface on risky routes.
+        /// It is raised on the return from the contract that meets the authored milestone, which is
+        /// the return before the courier can first accept a contract at the ambusher risk floor.
+        /// </summary>
+        private void TryPlaySandAmbusherNotice()
+        {
+            if (_settings == null || !_settings.SandAmbusherNoticeEnabled || Progress == null ||
+                Progress.SandAmbusherNoticeSeen || DuneTrainingRuntime.Enabled)
+            {
+                return;
+            }
+
+            int required = Mathf.Max(1, _settings.SandAmbusherNoticeRequiredCompletedContracts);
+            if (Progress.CompletedDeliveries < required)
+            {
+                return;
+            }
+
+            _pendingHubAnnouncements.Add(new HubAnnouncement
+            {
+                Message = _settings.SandAmbusherNoticeMessage,
+                Kicker = _settings.SandAmbusherNoticeKicker,
+                Accent = _settings.SandAmbusherNoticeAccentColor,
+                KickerColor = _settings.SandAmbusherNoticeKickerColor,
+                Glyph = HubAnnouncementGlyph.SandAmbusher,
+                Acknowledge = () => Progress?.AcknowledgeSandAmbusherNotice(),
+            });
         }
 
         /// <summary>
@@ -4009,7 +4089,7 @@ namespace DuneVector
         /// on screen until the courier clicks or presses Enter or Space, then fades out. Player
         /// input is parked while it is up so the dismissing press cannot also fly the drone.
         /// </summary>
-        private void UpdateWarpGateAnnouncement()
+        private void UpdateHubAnnouncement()
         {
             WarpGateTuning tuning = _world != null ? _world.WarpGates : null;
             if (tuning == null)
@@ -4017,11 +4097,14 @@ namespace DuneVector
                 return;
             }
 
-            if (_warpGateAnnouncementPending && !_warpGateAnnouncementOpen && CanOpenWarpGateAnnouncement())
+            while (_pendingHubAnnouncements.Count > 0 && !_hubAnnouncementOpen &&
+                CanOpenHubAnnouncement())
             {
-                OpenWarpGateAnnouncement(tuning);
+                HubAnnouncement announcement = _pendingHubAnnouncements[0];
+                _pendingHubAnnouncements.RemoveAt(0);
+                OpenHubAnnouncement(tuning, announcement);
             }
-            if (!_warpGateAnnouncementOpen)
+            if (!_hubAnnouncementOpen)
             {
                 return;
             }
@@ -4029,38 +4112,38 @@ namespace DuneVector
             // Leaving the hub closes the card, so parked input can never outlive it.
             if (State != CourierRunState.Hub)
             {
-                CloseWarpGateAnnouncement();
+                CloseHubAnnouncement();
                 return;
             }
 
-            if (_warpGateAnnouncementDismissedAt < 0f)
+            if (_hubAnnouncementDismissedAt < 0f)
             {
-                bool pressed = IsWarpGateAnnouncementContinuePressed();
-                bool inputAllowed = Time.frameCount != _warpGateAnnouncementOpenedFrame &&
-                    Time.unscaledTime >= _warpGateAnnouncementOpenedAt + tuning.UnlockAnnouncementInputDelay;
+                bool pressed = IsHubAnnouncementContinuePressed();
+                bool inputAllowed = Time.frameCount != _hubAnnouncementOpenedFrame &&
+                    Time.unscaledTime >= _hubAnnouncementOpenedAt + tuning.UnlockAnnouncementInputDelay;
 
                 // The press that dismissed whatever ran before this card must not carry into it.
-                if (_warpGateAnnouncementAwaitingRelease)
+                if (_hubAnnouncementAwaitingRelease)
                 {
                     if (inputAllowed && !pressed)
                     {
-                        _warpGateAnnouncementAwaitingRelease = false;
+                        _hubAnnouncementAwaitingRelease = false;
                     }
                 }
                 else if (inputAllowed && pressed)
                 {
-                    _warpGateAnnouncementDismissedAt = Time.unscaledTime;
+                    _hubAnnouncementDismissedAt = Time.unscaledTime;
                 }
                 return;
             }
 
-            if (Time.unscaledTime >= _warpGateAnnouncementDismissedAt + tuning.UnlockAnnouncementExitDuration)
+            if (Time.unscaledTime >= _hubAnnouncementDismissedAt + tuning.UnlockAnnouncementExitDuration)
             {
-                CloseWarpGateAnnouncement();
+                CloseHubAnnouncement();
             }
         }
 
-        private bool CanOpenWarpGateAnnouncement()
+        private bool CanOpenHubAnnouncement()
         {
             return State == CourierRunState.Hub &&
                 !IsTerminalOpen &&
@@ -4070,42 +4153,43 @@ namespace DuneVector
                 !IsGameplayHudSuppressed;
         }
 
-        private void OpenWarpGateAnnouncement(WarpGateTuning tuning)
+        private void OpenHubAnnouncement(WarpGateTuning tuning, HubAnnouncement announcement)
         {
-            _warpGateAnnouncementPending = false;
-            _warpGateAnnouncement = tuning.UnlockAnnouncement;
-            if (string.IsNullOrEmpty(_warpGateAnnouncement))
+            // An announcement whose copy was authored empty still counts as delivered, so it is
+            // acknowledged and skipped rather than left to raise itself on every later return.
+            if (announcement == null || string.IsNullOrEmpty(announcement.Message))
             {
-                Progress?.AcknowledgeWarpGateAnnouncement();
+                announcement?.Acknowledge?.Invoke();
                 return;
             }
 
-            _warpGateAnnouncementOpen = true;
-            _warpGateAnnouncementOpenedFrame = Time.frameCount;
-            _warpGateAnnouncementOpenedAt = Time.unscaledTime;
-            _warpGateAnnouncementAwaitingRelease = true;
-            _warpGateAnnouncementDismissedAt = -1f;
-            _warpGateAnnouncementStyle = null;
-            _warpGateAnnouncementKickerStyle = null;
-            _warpGateAnnouncementPromptStyle = null;
+            _hubAnnouncement = announcement;
+            _hubAnnouncementOpen = true;
+            _hubAnnouncementOpenedFrame = Time.frameCount;
+            _hubAnnouncementOpenedAt = Time.unscaledTime;
+            _hubAnnouncementAwaitingRelease = true;
+            _hubAnnouncementDismissedAt = -1f;
+            _hubAnnouncementStyle = null;
+            _hubAnnouncementKickerStyle = null;
+            _hubAnnouncementPromptStyle = null;
             _playerInput?.SetInputEnabled(false);
-            Progress?.AcknowledgeWarpGateAnnouncement();
+            announcement.Acknowledge?.Invoke();
         }
 
-        private void CloseWarpGateAnnouncement()
+        private void CloseHubAnnouncement()
         {
-            if (!_warpGateAnnouncementOpen)
+            if (!_hubAnnouncementOpen)
             {
                 return;
             }
 
-            _warpGateAnnouncementOpen = false;
-            _warpGateAnnouncement = null;
-            _warpGateAnnouncementDismissedAt = -1f;
+            _hubAnnouncementOpen = false;
+            _hubAnnouncement = null;
+            _hubAnnouncementDismissedAt = -1f;
             _playerInput?.SetInputEnabled(true);
         }
 
-        private static bool IsWarpGateAnnouncementContinuePressed()
+        private static bool IsHubAnnouncementContinuePressed()
         {
             Keyboard keyboard = Keyboard.current;
             if (keyboard != null &&
@@ -4125,32 +4209,32 @@ namespace DuneVector
         /// resolution change mid-announcement re-authors the font sizes instead of stretching the
         /// first frame's. Every style stays white because the chrome tints text through GUI.color.
         /// </summary>
-        private void EnsureWarpGateAnnouncementStyles(WarpGateTuning tuning, float scale)
+        private void EnsureHubAnnouncementStyles(WarpGateTuning tuning, float scale)
         {
-            if (_warpGateAnnouncementStyle != null &&
-                _warpGateAnnouncementKickerStyle != null &&
-                _warpGateAnnouncementPromptStyle != null &&
-                Mathf.Approximately(_warpGateAnnouncementStyleScale, scale))
+            if (_hubAnnouncementStyle != null &&
+                _hubAnnouncementKickerStyle != null &&
+                _hubAnnouncementPromptStyle != null &&
+                Mathf.Approximately(_hubAnnouncementStyleScale, scale))
             {
                 return;
             }
-            _warpGateAnnouncementStyleScale = scale;
-            _warpGateAnnouncementStyle = LabelStyle(
+            _hubAnnouncementStyleScale = scale;
+            _hubAnnouncementStyle = LabelStyle(
                 Mathf.RoundToInt(tuning.UnlockAnnouncementFontSize * scale),
                 FontStyle.Bold,
                 TextAnchor.MiddleLeft,
                 Color.white);
-            _warpGateAnnouncementKickerStyle = LabelStyle(
+            _hubAnnouncementKickerStyle = LabelStyle(
                 Mathf.RoundToInt(tuning.UnlockAnnouncementKickerFontSize * scale),
                 FontStyle.Bold,
                 TextAnchor.MiddleLeft,
                 Color.white);
-            _warpGateAnnouncementPromptStyle = LabelStyle(
+            _hubAnnouncementPromptStyle = LabelStyle(
                 Mathf.RoundToInt(tuning.UnlockAnnouncementPromptFontSize * scale),
                 FontStyle.Bold,
                 TextAnchor.MiddleRight,
                 Color.white);
-            _warpGateAnnouncementPromptStyle.wordWrap = false;
+            _hubAnnouncementPromptStyle.wordWrap = false;
         }
 
         /// <summary>
@@ -4159,30 +4243,31 @@ namespace DuneVector
         /// over a gradient divider, the authored message under an accent halo, a scan line that
         /// sweeps the card, and the breathing continue prompt it waits on.
         /// </summary>
-        private void DrawWarpGateAnnouncement()
+        private void DrawHubAnnouncement()
         {
             WarpGateTuning tuning = _world != null ? _world.WarpGates : null;
-            if (tuning == null || !_warpGateAnnouncementOpen || string.IsNullOrEmpty(_warpGateAnnouncement))
+            if (tuning == null || !_hubAnnouncementOpen || _hubAnnouncement == null ||
+                string.IsNullOrEmpty(_hubAnnouncement.Message))
             {
                 return;
             }
 
             float scale = Mathf.Max(0.5f, Screen.height / 1080f);
-            EnsureWarpGateAnnouncementStyles(tuning, scale);
+            EnsureHubAnnouncementStyles(tuning, scale);
 
-            float elapsed = Mathf.Max(0f, Time.unscaledTime - _warpGateAnnouncementOpenedAt);
+            float elapsed = Mathf.Max(0f, Time.unscaledTime - _hubAnnouncementOpenedAt);
             float enter = tuning.UnlockAnnouncementEnterDuration > 0f
                 ? Mathf.Clamp01(elapsed / tuning.UnlockAnnouncementEnterDuration)
                 : 1f;
             enter = 1f - ((1f - enter) * (1f - enter) * (1f - enter));
             float exit = 1f;
-            if (_warpGateAnnouncementDismissedAt >= 0f)
+            if (_hubAnnouncementDismissedAt >= 0f)
             {
                 exit = tuning.UnlockAnnouncementExitDuration > 0f
                     ? Mathf.SmoothStep(
                         0f,
                         1f,
-                        Mathf.Clamp01(1f - ((Time.unscaledTime - _warpGateAnnouncementDismissedAt) /
+                        Mathf.Clamp01(1f - ((Time.unscaledTime - _hubAnnouncementDismissedAt) /
                             tuning.UnlockAnnouncementExitDuration)))
                     : 0f;
             }
@@ -4210,21 +4295,21 @@ namespace DuneVector
                 tuning.UnlockAnnouncementPanelWidth * scale);
             float contentInset = rail + pad + (glyphSize > 0f ? glyphSize + gap : 0f);
             float textWidth = Mathf.Max(1f, width - contentInset - pad);
-            string kicker = tuning.UnlockAnnouncementKicker;
+            string kicker = _hubAnnouncement.Kicker;
             bool hasKicker = !string.IsNullOrEmpty(kicker);
             float kickerHeight = hasKicker
-                ? _warpGateAnnouncementKickerStyle.CalcHeight(new GUIContent(kicker), textWidth)
+                ? _hubAnnouncementKickerStyle.CalcHeight(new GUIContent(kicker), textWidth)
                 : 0f;
             float dividerHeight = hasKicker
                 ? Mathf.Max(1f, tuning.UnlockAnnouncementBorderThickness * scale)
                 : 0f;
-            float messageHeight = _warpGateAnnouncementStyle.CalcHeight(
-                new GUIContent(_warpGateAnnouncement),
+            float messageHeight = _hubAnnouncementStyle.CalcHeight(
+                new GUIContent(_hubAnnouncement.Message),
                 textWidth);
             string prompt = tuning.UnlockAnnouncementPrompt;
             bool hasPrompt = !string.IsNullOrEmpty(prompt);
             float promptHeight = hasPrompt
-                ? _warpGateAnnouncementPromptStyle.CalcHeight(new GUIContent(prompt), textWidth)
+                ? _hubAnnouncementPromptStyle.CalcHeight(new GUIContent(prompt), textWidth)
                 : 0f;
             float contentHeight = messageHeight +
                 (hasKicker ? kickerHeight + (gap * 0.5f) + dividerHeight + gap : 0f) +
@@ -4243,7 +4328,7 @@ namespace DuneVector
             Color previousColor = GUI.color;
             GUI.color = Color.white;
 
-            Color accent = tuning.UnlockAnnouncementAccentColor;
+            Color accent = _hubAnnouncement.Accent;
             Color liveAccent = WithAlpha(accent, accent.a * fade * pulse);
             Color shadow = tuning.UnlockAnnouncementShadowColor;
             Vector2 shadowOffset = new Vector2(
@@ -4309,17 +4394,32 @@ namespace DuneVector
 
             if (glyphSize > 0f)
             {
-                DrawWarpGateGlyph(
-                    new Rect(
-                        panel.x + rail + pad,
-                        panel.y + ((panel.height - glyphSize) * 0.5f),
-                        glyphSize,
-                        glyphSize),
-                    liveAccent,
-                    Mathf.Max(1f, tuning.UnlockAnnouncementGlyphThickness * scale),
-                    elapsed * tuning.UnlockAnnouncementGlyphSpinSpeed,
-                    tuning.UnlockAnnouncementGlyphInnerScale,
-                    tuning.UnlockAnnouncementGlyphCoreScale);
+                Rect glyphRect = new Rect(
+                    panel.x + rail + pad,
+                    panel.y + ((panel.height - glyphSize) * 0.5f),
+                    glyphSize,
+                    glyphSize);
+                float glyphThickness = Mathf.Max(1f, tuning.UnlockAnnouncementGlyphThickness * scale);
+                if (_hubAnnouncement.Glyph == HubAnnouncementGlyph.SandAmbusher)
+                {
+                    DrawSandAmbusherGlyph(
+                        glyphRect,
+                        liveAccent,
+                        glyphThickness,
+                        elapsed * tuning.UnlockAnnouncementGlyphSpinSpeed,
+                        tuning.UnlockAnnouncementGlyphInnerScale,
+                        tuning.UnlockAnnouncementGlyphCoreScale);
+                }
+                else
+                {
+                    DrawWarpGateGlyph(
+                        glyphRect,
+                        liveAccent,
+                        glyphThickness,
+                        elapsed * tuning.UnlockAnnouncementGlyphSpinSpeed,
+                        tuning.UnlockAnnouncementGlyphInnerScale,
+                        tuning.UnlockAnnouncementGlyphCoreScale);
+                }
             }
 
             float contentX = panel.x + contentInset;
@@ -4327,11 +4427,11 @@ namespace DuneVector
             Color textShadow = WithAlpha(shadow, shadow.a * fade);
             if (hasKicker)
             {
-                Color kickerColor = tuning.UnlockAnnouncementKickerColor;
+                Color kickerColor = _hubAnnouncement.KickerColor;
                 DuneVectorHudChrome.DrawLabel(
                     new Rect(contentX, contentY, textWidth, kickerHeight),
                     kicker,
-                    _warpGateAnnouncementKickerStyle,
+                    _hubAnnouncementKickerStyle,
                     WithAlpha(kickerColor, kickerColor.a * fade * pulse),
                     textShadow,
                     shadowOffset);
@@ -4345,8 +4445,8 @@ namespace DuneVector
             Color textColor = tuning.UnlockAnnouncementTextColor;
             DuneVectorHudChrome.DrawGlowLabel(
                 new Rect(contentX, contentY, textWidth, messageHeight),
-                _warpGateAnnouncement,
-                _warpGateAnnouncementStyle,
+                _hubAnnouncement.Message,
+                _hubAnnouncementStyle,
                 WithAlpha(textColor, textColor.a * fade),
                 WithAlpha(accent, accent.a * tuning.UnlockAnnouncementMessageGlowOpacity * fade * pulse),
                 tuning.UnlockAnnouncementMessageGlowRadius * scale,
@@ -4359,7 +4459,7 @@ namespace DuneVector
                 DuneVectorHudChrome.DrawLabel(
                     new Rect(contentX, contentY, textWidth, promptHeight),
                     prompt,
-                    _warpGateAnnouncementPromptStyle,
+                    _hubAnnouncementPromptStyle,
                     WithAlpha(promptColor, promptColor.a * fade * promptPulse),
                     textShadow,
                     shadowOffset);
@@ -4399,6 +4499,58 @@ namespace DuneVector
                 GUIUtility.RotateAroundPivot(45f + (spinDegrees * 2f), pivot);
                 DuneVectorHudChrome.DrawRect(CenteredSquare(pivot, outer * coreScale), color);
                 GUI.matrix = previousMatrix;
+            }
+        }
+
+        /// <summary>
+        /// Draws the ambush sigil: jaws breaking up through a sand line inside a slowly turning
+        /// alert diamond. Each jaw is a bar rotated about the point where it meets the sand, so the
+        /// pair opens and closes as the sigil turns without needing any mesh.
+        /// </summary>
+        private static void DrawSandAmbusherGlyph(
+            Rect rect,
+            Color color,
+            float thickness,
+            float spinDegrees,
+            float innerScale,
+            float coreScale)
+        {
+            float size = Mathf.Min(rect.width, rect.height);
+            if (size <= 0f)
+            {
+                return;
+            }
+
+            Vector2 pivot = rect.center;
+            Matrix4x4 previousMatrix = GUI.matrix;
+            GUIUtility.RotateAroundPivot(45f - spinDegrees, pivot);
+            DuneVectorHudChrome.DrawBorder(
+                CenteredSquare(pivot, (size / Mathf.Sqrt(2f)) * innerScale),
+                color,
+                thickness);
+            GUI.matrix = previousMatrix;
+
+            // The sand line the jaws erupt through.
+            float sandY = rect.y + (size * 0.7f);
+            DuneVectorHudChrome.DrawRect(new Rect(rect.x, sandY, rect.width, thickness), color);
+
+            float jawLength = size * 0.46f;
+            float jawSpread = 15f + (7f * Mathf.Sin(spinDegrees * Mathf.Deg2Rad));
+            Vector2 mouth = new Vector2(pivot.x, sandY);
+            for (int side = 0; side < 2; side++)
+            {
+                GUIUtility.RotateAroundPivot(side == 0 ? -jawSpread : jawSpread, mouth);
+                DuneVectorHudChrome.DrawRect(
+                    new Rect(mouth.x - (thickness * 0.5f), mouth.y - jawLength, thickness, jawLength),
+                    color);
+                GUI.matrix = previousMatrix;
+            }
+
+            if (coreScale > 0f)
+            {
+                DuneVectorHudChrome.DrawRect(
+                    CenteredSquare(new Vector2(mouth.x, sandY - (jawLength * 0.5f)), size * coreScale),
+                    color);
             }
         }
 
@@ -4604,7 +4756,7 @@ namespace DuneVector
             }
             if (State == CourierRunState.Hub && !IsTerminalOpen && !IsGameplayHudSuppressed)
             {
-                DrawWarpGateAnnouncement();
+                DrawHubAnnouncement();
             }
         }
 
