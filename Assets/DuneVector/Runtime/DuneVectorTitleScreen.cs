@@ -35,6 +35,12 @@ namespace DuneVector
         private TitleScreenTuning _settings;
         private VideoPlayer _videoPlayer;
         private RenderTexture _videoTarget;
+        private RenderTexture _gradedTarget;
+        private Material _gradeMaterial;
+        private static readonly int SaturationId = Shader.PropertyToID("_Saturation");
+        private static readonly int BrightnessId = Shader.PropertyToID("_Brightness");
+        private static readonly int GradeStartId = Shader.PropertyToID("_GradeStartV");
+        private static readonly int GradeFullId = Shader.PropertyToID("_GradeFullV");
         private Font _runtimeFont;
         private GUIStyle _titleStyle;
         private GUIStyle _menuStyle;
@@ -173,7 +179,88 @@ namespace DuneVector
             {
                 _videoPlayer.SetDirectAudioVolume(0, _settings.BackgroundVideoAudioVolume);
             }
+            _videoPlayer.playbackSpeed = Mathf.Max(0.01f, _settings.VideoPlaybackSpeed);
             _videoPlayer.Play();
+
+            CreateGradeMaterial(width, height);
+        }
+
+        /// <summary>
+        /// Builds the second target the graded frame lands in. The grade cannot be folded into the
+        /// draw call because the menu draws the clip through GUI.DrawTexture for its crop, so the
+        /// frame is graded on the way out of the video target instead and the crop path is left
+        /// exactly as it was.
+        /// </summary>
+        private void CreateGradeMaterial(int width, int height)
+        {
+            if (_settings.VideoGradeShader == null || !GradingWanted)
+            {
+                return;
+            }
+            if (!_settings.VideoGradeShader.isSupported)
+            {
+                Debug.LogWarning(
+                    "The title background grade shader is not supported on this device. The clip is drawn ungraded.",
+                    this);
+                return;
+            }
+
+            _gradeMaterial = new Material(_settings.VideoGradeShader)
+            {
+                name = "Dune Vector Title Background Grade",
+                hideFlags = HideFlags.HideAndDontSave,
+            };
+            _gradedTarget = new RenderTexture(width, height, 0, RenderTextureFormat.ARGB32)
+            {
+                name = "Dune Vector Title Background Graded",
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear,
+            };
+            _gradedTarget.Create();
+        }
+
+        /// <summary>Nothing to grade when both knobs are already at their neutral values.</summary>
+        private bool GradingWanted =>
+            _settings.VideoGradeSaturation < 0.999f || _settings.VideoGradeBrightness < 0.999f;
+
+        /// <summary>
+        /// Regrades the newest frame. The band is authored as a share of the screen but sampled in
+        /// texture space, so the crop the draw applies has to be undone here or the band would
+        /// slide up the frame on any aspect ratio wider than the clip.
+        /// </summary>
+        private void UpdateGradedFrame()
+        {
+            if (_gradeMaterial == null || _gradedTarget == null || _videoTarget == null)
+            {
+                return;
+            }
+            if (_videoPlayer == null || !_videoPlayer.isPrepared)
+            {
+                return;
+            }
+
+            float visibleHeight = 1f;
+            if (_settings.FillScreenWithVideo && _videoTarget.height > 0 && Screen.height > 0)
+            {
+                float screenAspect = Screen.width / (float)Screen.height;
+                float videoAspect = _videoTarget.width / (float)_videoTarget.height;
+                if (screenAspect > videoAspect)
+                {
+                    // The clip is scaled to the screen width, so the crop takes the top and bottom.
+                    visibleHeight = Mathf.Clamp01(videoAspect / screenAspect);
+                }
+            }
+
+            float visibleBottom = (1f - visibleHeight) * 0.5f;
+            float visibleTop = visibleBottom + visibleHeight;
+            float startV = visibleTop - (Mathf.Clamp01(_settings.VideoGradeStartFraction) * visibleHeight);
+            float fullV = visibleTop - (Mathf.Clamp01(_settings.VideoGradeFullFraction) * visibleHeight);
+
+            _gradeMaterial.SetFloat(SaturationId, Mathf.Clamp01(_settings.VideoGradeSaturation));
+            _gradeMaterial.SetFloat(BrightnessId, Mathf.Clamp01(_settings.VideoGradeBrightness));
+            _gradeMaterial.SetFloat(GradeStartId, startV);
+            _gradeMaterial.SetFloat(GradeFullId, Mathf.Min(fullV, startV));
+            Graphics.Blit(_videoTarget, _gradedTarget, _gradeMaterial);
         }
 
         private void ReleaseVideo()
@@ -187,6 +274,17 @@ namespace DuneVector
                 _videoTarget.Release();
                 Destroy(_videoTarget);
                 _videoTarget = null;
+            }
+            if (_gradedTarget != null)
+            {
+                _gradedTarget.Release();
+                Destroy(_gradedTarget);
+                _gradedTarget = null;
+            }
+            if (_gradeMaterial != null)
+            {
+                Destroy(_gradeMaterial);
+                _gradeMaterial = null;
             }
         }
 
@@ -285,6 +383,11 @@ namespace DuneVector
 
             UpdateMouseSelection();
             UpdateKeyboardSelection();
+        }
+
+        private void LateUpdate()
+        {
+            UpdateGradedFrame();
         }
 
         /// <summary>
@@ -660,7 +763,7 @@ namespace DuneVector
             GUI.color = _settings.VideoTint;
             GUI.DrawTexture(
                 screen,
-                _videoTarget,
+                _gradedTarget != null ? _gradedTarget : _videoTarget,
                 _settings.FillScreenWithVideo ? ScaleMode.ScaleAndCrop : ScaleMode.ScaleToFit,
                 false);
             GUI.color = previous;
