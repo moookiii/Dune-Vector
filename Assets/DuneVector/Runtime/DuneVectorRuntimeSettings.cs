@@ -8577,6 +8577,24 @@ namespace DuneVector
         [Min(0f)] public float ChargeVisualPulseSpeed = 12f;
         [Min(0f)] public float ChargeCameraShake = 0.35f;
         [Min(0f)] public float ChargeLockViewportRadius = 0.09f;
+        [Tooltip("Seconds an enemy reads as DETECTED before lock acquisition begins.")]
+        [Min(0f)] public float EnemyLockDetectedDuration = 0.12f;
+        [Tooltip("Seconds of held aim after detection before an enemy is fully locked.")]
+        [Min(0f)] public float EnemyLockAcquisitionTime = 0.45f;
+        [Tooltip("Grace time a partially acquired enemy keeps its progress after leaving the lock radius.")]
+        [Min(0f)] public float EnemyLockLossTolerance = 0.3f;
+        [Tooltip("Bracket size for an enemy that has just been detected. Grows toward LockBracketSize as lock completes.")]
+        [Min(0f)] public float EnemyDetectedBracketSize = 26f;
+        [Tooltip("Extra bracket size added by the pulse once an enemy is locked.")]
+        [Min(0f)] public float EnemyLockedPulseAmount = 5f;
+        [Tooltip("Gap between the enemy bracket and its lock status label.")]
+        [Min(0f)] public float EnemyLockStatusOffset = 10f;
+        [ColorUsage(false)] public Color EnemyDetectedColor = new Color(1f, 0.83f, 0.32f, 0.85f);
+        [ColorUsage(false)] public Color EnemyLockingColor = new Color(1f, 0.62f, 0.2f, 0.95f);
+        [ColorUsage(false)] public Color EnemyLockedColor = new Color(0.4f, 1f, 0.86f, 1f);
+        public string EnemyDetectedLabel = "ENEMY DETECTED";
+        public string EnemyLockingFormat = "LOCKING {0:00}%";
+        public string EnemyLockedLabel = "ENEMY LOCKED";
         [Tooltip("Minimum viewport radius used when acquiring destructible satellites with the rail charge lock.")]
         [Min(0f)] public float SatelliteLockViewportRadius = 0.18f;
         [Tooltip("Seconds a satellite reads as DETECTED before acquisition starts counting.")]
@@ -9171,6 +9189,12 @@ namespace DuneVector
             GradeBScore = Mathf.Min(GradeBScore, GradeAScore);
             DifficultyCeiling = Mathf.Max(1, DifficultyCeiling);
             ChargedLockCapacity = Mathf.Max(1, ChargedLockCapacity);
+            EnemyLockDetectedDuration = Mathf.Max(0f, EnemyLockDetectedDuration);
+            EnemyLockAcquisitionTime = Mathf.Max(0f, EnemyLockAcquisitionTime);
+            EnemyLockLossTolerance = Mathf.Max(0f, EnemyLockLossTolerance);
+            EnemyDetectedBracketSize = Mathf.Max(0f, EnemyDetectedBracketSize);
+            EnemyLockedPulseAmount = Mathf.Max(0f, EnemyLockedPulseAmount);
+            EnemyLockStatusOffset = Mathf.Max(0f, EnemyLockStatusOffset);
             ScorePopupPoolSize = Mathf.Max(1, ScorePopupPoolSize);
             SpeedStreakConeOuterRadius = Mathf.Max(
                 SpeedStreakConeInnerRadius + 1f,

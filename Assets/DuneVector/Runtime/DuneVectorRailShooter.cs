@@ -214,6 +214,9 @@ namespace DuneVector
             public Vector2 BaseOffset;
             public float SpawnZ;
             public int Identity;
+            public RailSatelliteLockState LockState;
+            public float LockElapsed;
+            public float LockGrace;
         }
 
         private sealed class FormationRecord
@@ -1310,6 +1313,7 @@ namespace DuneVector
                 _satelliteChargeLock = null;
                 _chargeReadyCued = false;
                 _chargeLocks.Clear();
+                ClearEnemyLocks();
                 ClearSatelliteLocks();
                 _fireWasHeld = false;
                 if (command.BombPressed && _state.Bombs > 0 && !float.IsFinite(_bombElapsed))
@@ -1358,6 +1362,7 @@ namespace DuneVector
                 _satelliteChargeLock = null;
                 _chargeReadyCued = false;
                 _chargeLocks.Clear();
+                ClearEnemyLocks();
                 ClearSatelliteLocks();
             }
             _fireWasHeld = command.FireHeld;
@@ -1539,25 +1544,106 @@ namespace DuneVector
             _satelliteChargeLock = null;
             _chargeReadyCued = false;
             _chargeLocks.Clear();
+            ClearEnemyLocks();
             ClearSatelliteLocks();
             PlayCue(_settings.ChargedFireEvent, _player.transform.position);
         }
 
         private void UpdateChargeLock(float deltaTime)
         {
-            RailEnemy previous = _chargeLock;
             // The reticle rides the aim viewport, so lock-on has to search around the
             // crosshair rather than the middle of the screen.
             float radius = Mathf.Max(
                 _settings.ChargeLockViewportRadius,
                 _settings.ChargeLockViewportRadius * ChargeNormalized() * 2f);
             ClearSatelliteLocks();
-            _chargeLock = FindViewportTarget(radius, _settings.ChargedBeamRange);
+            TickEnemyLockAcquisition(radius, deltaTime);
+            _chargeLock = FindViewportLockedTarget(radius, _settings.ChargedBeamRange);
             CollectChargeLocks(radius);
-            if (_chargeLock != null && _chargeLock != previous)
+        }
+
+        private void TickEnemyLockAcquisition(float viewportRadius, float deltaTime)
+        {
+            for (int i = 0; i < _enemies.Count; i++)
             {
-                PlayCue(_settings.TargetLockEvent, _chargeLock.Transform.position);
+                TickEnemyLock(_enemies[i], viewportRadius, deltaTime);
             }
+            TickEnemyLock(_boss, viewportRadius, deltaTime);
+        }
+
+        private void TickEnemyLock(RailEnemy enemy, float viewportRadius, float deltaTime)
+        {
+            if (enemy == null)
+            {
+                return;
+            }
+            if (!enemy.Active ||
+                !TryScoreViewportTarget(enemy, viewportRadius, _settings.ChargedBeamRange, out _))
+            {
+                if (enemy.LockState == RailSatelliteLockState.None)
+                {
+                    return;
+                }
+                enemy.LockGrace += deltaTime;
+                if (!enemy.Active || enemy.LockGrace >= _settings.EnemyLockLossTolerance)
+                {
+                    ResetEnemyLock(enemy);
+                }
+                return;
+            }
+
+            enemy.LockGrace = 0f;
+            enemy.LockElapsed += deltaTime;
+            RailSatelliteLockState state =
+                enemy.LockElapsed >= _settings.EnemyLockDetectedDuration + _settings.EnemyLockAcquisitionTime
+                    ? RailSatelliteLockState.Locked
+                    : enemy.LockElapsed >= _settings.EnemyLockDetectedDuration
+                        ? RailSatelliteLockState.Locking
+                        : RailSatelliteLockState.Detected;
+            if (state == enemy.LockState)
+            {
+                return;
+            }
+            enemy.LockState = state;
+            if (state == RailSatelliteLockState.Locked)
+            {
+                PlayCue(_settings.TargetLockEvent, enemy.Transform.position);
+            }
+        }
+
+        private static void ResetEnemyLock(RailEnemy enemy)
+        {
+            if (enemy == null)
+            {
+                return;
+            }
+            enemy.LockState = RailSatelliteLockState.None;
+            enemy.LockElapsed = 0f;
+            enemy.LockGrace = 0f;
+        }
+
+        private RailEnemy FindViewportLockedTarget(float viewportRadius, float maximumRange)
+        {
+            RailEnemy best = null;
+            float bestScore = float.PositiveInfinity;
+            for (int i = 0; i < _enemies.Count; i++)
+            {
+                RailEnemy enemy = _enemies[i];
+                if (enemy.LockState == RailSatelliteLockState.Locked &&
+                    TryScoreViewportTarget(enemy, viewportRadius, maximumRange, out float score) &&
+                    score < bestScore)
+                {
+                    best = enemy;
+                    bestScore = score;
+                }
+            }
+            if (_boss != null && _boss.LockState == RailSatelliteLockState.Locked &&
+                TryScoreViewportTarget(_boss, viewportRadius, maximumRange, out float bossScore) &&
+                bossScore < bestScore)
+            {
+                best = _boss;
+            }
+            return best;
         }
 
         /// <summary>
@@ -1657,6 +1743,15 @@ namespace DuneVector
             }
         }
 
+        private void ClearEnemyLocks()
+        {
+            for (int i = 0; i < _enemies.Count; i++)
+            {
+                ResetEnemyLock(_enemies[i]);
+            }
+            ResetEnemyLock(_boss);
+        }
+
         private void CollectChargeLocks(float viewportRadius)
         {
             _chargeLocks.Clear();
@@ -1671,13 +1766,15 @@ namespace DuneVector
                  i++)
             {
                 RailEnemy enemy = _enemies[i];
-                if (enemy.Active && enemy != _chargeLock &&
+                if (enemy.Active && enemy.LockState == RailSatelliteLockState.Locked &&
+                    enemy != _chargeLock &&
                     TryScoreViewportTarget(enemy, viewportRadius, _settings.ChargedBeamRange, out _))
                 {
                     _chargeLocks.Add(enemy);
                 }
             }
-            if (_boss != null && _boss.Active && _boss != _chargeLock &&
+            if (_boss != null && _boss.Active &&
+                _boss.LockState == RailSatelliteLockState.Locked && _boss != _chargeLock &&
                 _chargeLocks.Count < capacity &&
                 TryScoreViewportTarget(_boss, viewportRadius, _settings.ChargedBeamRange, out _))
             {
@@ -6536,20 +6633,70 @@ namespace DuneVector
                 DrawTargetHealth(assist, assistScreen, Scaled(_settings.TargetBracketSize));
             }
             float lockPulse = 0.72f + (0.28f * Mathf.Abs(Mathf.Sin(_state.Elapsed * _settings.HudReadyPulseSpeed)));
-            for (int i = 0; i < _chargeLocks.Count; i++)
-            {
-                RailEnemy locked = _chargeLocks[i];
-                if (locked != null && locked.Active &&
-                    TryProject(locked.Transform.position, out Vector2 lockScreen))
-                {
-                    DrawBracket(
-                        lockScreen,
-                        Scaled(_settings.LockBracketSize),
-                        WithAlpha(_settings.HudChargeColor, lockPulse));
-                    DrawTargetHealth(locked, lockScreen, Scaled(_settings.LockBracketSize));
-                }
-            }
+            DrawEnemyChargeLocks(lockPulse);
             DrawHitMarkers(aimScreen);
+        }
+
+        private void DrawEnemyChargeLocks(float lockPulse)
+        {
+            for (int i = 0; i < _enemies.Count; i++)
+            {
+                DrawEnemyChargeLock(_enemies[i], lockPulse);
+            }
+            DrawEnemyChargeLock(_boss, lockPulse);
+        }
+
+        private void DrawEnemyChargeLock(RailEnemy enemy, float lockPulse)
+        {
+            if (enemy == null || !enemy.Active || enemy.LockState == RailSatelliteLockState.None ||
+                !TryProject(enemy.Transform.position, out Vector2 screen))
+            {
+                return;
+            }
+            float acquisitionTime = Mathf.Max(Mathf.Epsilon, _settings.EnemyLockAcquisitionTime);
+            float progress = enemy.LockState == RailSatelliteLockState.Locked
+                ? 1f
+                : Mathf.Clamp01(
+                    (enemy.LockElapsed - _settings.EnemyLockDetectedDuration) / acquisitionTime);
+            float size = Scaled(Mathf.Lerp(
+                _settings.EnemyDetectedBracketSize,
+                _settings.LockBracketSize,
+                progress));
+            Color color = enemy.LockState switch
+            {
+                RailSatelliteLockState.Detected => _settings.EnemyDetectedColor,
+                RailSatelliteLockState.Locking => _settings.EnemyLockingColor,
+                RailSatelliteLockState.Locked => _settings.EnemyLockedColor,
+                _ => Color.clear,
+            };
+            if (enemy.LockState == RailSatelliteLockState.Locked)
+            {
+                size += Scaled(_settings.EnemyLockedPulseAmount) * lockPulse;
+                color = WithAlpha(color, lockPulse);
+            }
+            DrawBracket(screen, size, color);
+            DrawTargetHealth(enemy, screen, size);
+
+            string status = enemy.LockState switch
+            {
+                RailSatelliteLockState.Detected => _settings.EnemyDetectedLabel,
+                RailSatelliteLockState.Locking => string.Format(
+                    _settings.EnemyLockingFormat,
+                    Mathf.RoundToInt(progress * 100f)),
+                RailSatelliteLockState.Locked => _settings.EnemyLockedLabel,
+                _ => string.Empty,
+            };
+            float line = Scaled(_settings.HudLineHeight);
+            float width = Scaled(_settings.HudPanelWidth) * 0.5f;
+            DrawLabel(
+                new Rect(
+                    screen.x - (width * 0.5f),
+                    screen.y - (size * 0.5f) - Scaled(_settings.EnemyLockStatusOffset) - line,
+                    width,
+                    line),
+                status,
+                _centeredSmallStyle,
+                color);
         }
 
         // Screen-edge chevrons for hostiles that are alive but out of frame, so an off-screen
