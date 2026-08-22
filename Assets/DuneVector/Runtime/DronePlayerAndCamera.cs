@@ -81,9 +81,12 @@ namespace DuneVector
             bool jumpHeld = false;
             bool boostHeld = false;
             bool brakeHeld = false;
+            bool railShooterActive = DuneVectorRailShooterController.IsAnyRailShooterActive;
+            bool keyboardFirePressed = false;
+            bool keyboardFireHeld = false;
+            bool keyboardFireReleased = false;
             if (keyboard != null)
             {
-                bool railShooterActive = DuneVectorRailShooterController.IsAnyRailShooterActive;
                 bool controlHeld = keyboard.leftCtrlKey.isPressed || keyboard.rightCtrlKey.isPressed;
                 move.x = (keyboard.dKey.isPressed ? 1f : 0f) - (keyboard.aKey.isPressed ? 1f : 0f);
                 move.y = (keyboard.wKey.isPressed ? 1f : 0f) - (keyboard.sKey.isPressed ? 1f : 0f);
@@ -95,6 +98,9 @@ namespace DuneVector
                     : keyboard.spaceKey.isPressed;
                 boostHeld = keyboard.leftShiftKey.isPressed || keyboard.rightShiftKey.isPressed;
                 brakeHeld = controlHeld;
+                keyboardFirePressed = railShooterActive && keyboard.spaceKey.wasPressedThisFrame;
+                keyboardFireHeld = railShooterActive && keyboard.spaceKey.isPressed;
+                keyboardFireReleased = railShooterActive && keyboard.spaceKey.wasReleasedThisFrame;
             }
 
             if (gamepad != null)
@@ -130,9 +136,12 @@ namespace DuneVector
                 JumpPressed = jumpPressed,
                 JumpHeld = jumpHeld,
                 BoostHeld = boostHeld,
-                FirePressed = (mouse != null && mouse.leftButton.wasPressedThisFrame) || gamepadFirePressed,
-                FireHeld = (mouse != null && mouse.leftButton.isPressed) || gamepadFireHeld,
-                FireReleased = (mouse != null && mouse.leftButton.wasReleasedThisFrame) || gamepadFireReleased,
+                FirePressed = (mouse != null && mouse.leftButton.wasPressedThisFrame) ||
+                              gamepadFirePressed || keyboardFirePressed,
+                FireHeld = (mouse != null && mouse.leftButton.isPressed) ||
+                           gamepadFireHeld || keyboardFireHeld,
+                FireReleased = (mouse != null && mouse.leftButton.wasReleasedThisFrame) ||
+                               gamepadFireReleased || keyboardFireReleased,
                 SecondaryPressed = (mouse != null && mouse.rightButton.wasPressedThisFrame) ||
                                    (gamepad != null && gamepad.rightShoulder.wasPressedThisFrame),
                 SecondaryHeld = (mouse != null && mouse.rightButton.isPressed) ||
