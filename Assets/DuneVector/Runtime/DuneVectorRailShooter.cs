@@ -459,6 +459,9 @@ namespace DuneVector
         private Vector3 _savedPlayerPosition;
         private Quaternion _savedPlayerRotation;
         private Vector3 _savedVisualScale;
+        private Vector3 _savedVisualLocalPosition;
+        private Quaternion _savedVisualLocalRotation;
+        private Vector3 _railVisualBaseLocalPosition;
         private Vector3 _authoredVisualScale = Vector3.one;
         private bool _savedMotorEnabled;
         private bool _savedInputEnabled;
@@ -924,11 +927,15 @@ namespace DuneVector
                 ? aimVector.normalized
                 : _camera.transform.forward;
             Quaternion trickRotation = GetTrickRotation();
-            Quaternion shipRotation = aimRotation * trickRotation * Quaternion.Euler(
+            bool barrelRolling = _state.Trick == RailShooterTrick.BarrelRollLeft ||
+                _state.Trick == RailShooterTrick.BarrelRollRight;
+            Quaternion rootTrickRotation = barrelRolling ? Quaternion.identity : trickRotation;
+            Quaternion shipRotation = aimRotation * rootTrickRotation * Quaternion.Euler(
                 -_state.Attitude.y * _settings.MaximumPitch,
                 _state.Attitude.x * _settings.MaximumYaw,
                 -_state.Attitude.x * _settings.MaximumBank);
             _player.transform.SetPositionAndRotation(playerPosition, shipRotation);
+            ApplyBarrelRollVisual(barrelRolling ? trickRotation : Quaternion.identity);
             _cameraShake = Mathf.MoveTowards(_cameraShake, 0f, _settings.CameraShakeDecay * deltaTime);
             _fovImpulse = Mathf.MoveTowards(_fovImpulse, 0f, _settings.FieldOfViewSharpness * deltaTime);
         }
@@ -989,6 +996,21 @@ namespace DuneVector
                 }
                 _lastRightTapAt = _state.Elapsed;
             }
+        }
+
+        private void ApplyBarrelRollVisual(Quaternion rollRotation)
+        {
+            Transform visual = _player.DroneVisualRoot;
+            if (visual == null)
+            {
+                return;
+            }
+
+            visual.localPosition = _railVisualBaseLocalPosition;
+            visual.localRotation = Quaternion.identity;
+            Vector3 fixedCenter = _player.VisualWorldCenter;
+            visual.localRotation = rollRotation;
+            visual.position += fixedCenter - _player.VisualWorldCenter;
         }
 
         private void BeginBarrelRollDash(float direction)
@@ -4706,6 +4728,12 @@ namespace DuneVector
             _savedVisualScale = _player.DroneVisualRoot != null
                 ? _player.DroneVisualRoot.localScale
                 : Vector3.one;
+            _savedVisualLocalPosition = _player.DroneVisualRoot != null
+                ? _player.DroneVisualRoot.localPosition
+                : Vector3.zero;
+            _savedVisualLocalRotation = _player.DroneVisualRoot != null
+                ? _player.DroneVisualRoot.localRotation
+                : Quaternion.identity;
             _savedMotorEnabled = _player.Motor != null && _player.Motor.enabled;
             _savedInputEnabled = _input != null && _input.InputEnabled;
             _savedWorldEnabled = _world != null && _world.enabled;
@@ -4739,6 +4767,7 @@ namespace DuneVector
             _player.SetVisualAttitudeSuspended(true);
             if (_player.DroneVisualRoot != null)
             {
+                _railVisualBaseLocalPosition = _player.DroneVisualRoot.localPosition;
                 _player.DroneVisualRoot.localScale = _authoredVisualScale;
             }
             if (_world != null) _world.enabled = false;
@@ -5028,6 +5057,8 @@ namespace DuneVector
             _player.SetVisualAttitudeSuspended(false);
             if (_player.DroneVisualRoot != null)
             {
+                _player.DroneVisualRoot.localPosition = _savedVisualLocalPosition;
+                _player.DroneVisualRoot.localRotation = _savedVisualLocalRotation;
                 _player.DroneVisualRoot.localScale = _savedVisualScale;
             }
             if (_player.Motor != null)
