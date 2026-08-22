@@ -3182,8 +3182,44 @@ namespace DuneVector
                     _ => _settings.HudBombColor,
                 });
             PlayCue(_settings.PickupEvent, pickup.Transform.position);
-            SpawnImpact(pickup.Transform.position, _settings.PickupRadius);
+            Transform collectedVisual = FindPickupCollectionVisual(pickup);
+            if (collectedVisual != null)
+            {
+                StartCoroutine(AnimateCollectedPickupVisual(collectedVisual, collectedVisual.parent));
+            }
             DeactivatePickup(pickup);
+        }
+
+        private static Transform FindPickupCollectionVisual(PooledPickup pickup)
+        {
+            if (pickup?.Transform == null)
+            {
+                return null;
+            }
+
+            string visualName = pickup.Kind == PickupKind.Bomb
+                ? "Bomb Charge Model"
+                : "Collectible Icon";
+            Transform[] descendants = pickup.Transform.GetComponentsInChildren<Transform>(true);
+            for (int i = 0; i < descendants.Length; i++)
+            {
+                if (descendants[i].name == visualName)
+                {
+                    return descendants[i];
+                }
+            }
+
+            if (pickup.Kind == PickupKind.Bomb)
+            {
+                for (int i = 0; i < descendants.Length; i++)
+                {
+                    if (descendants[i].name == "Bomb Charge Core")
+                    {
+                        return descendants[i];
+                    }
+                }
+            }
+            return null;
         }
 
         private void BeginLaneAttack(float worldX)
@@ -4820,45 +4856,44 @@ namespace DuneVector
             PlayCue(_settings.PickupEvent, segment.Root.position);
             if (collectedHeart != null)
             {
-                StartCoroutine(AnimateCollectedHealthHeart(collectedHeart, segment.Ring));
+                StartCoroutine(AnimateCollectedPickupVisual(collectedHeart, segment.Ring));
             }
         }
 
-        private IEnumerator AnimateCollectedHealthHeart(Transform heart, Transform ring)
+        private IEnumerator AnimateCollectedPickupVisual(Transform visual, Transform originalParent)
         {
-            Transform originalParent = heart.parent;
-            Vector3 originalLocalPosition = heart.localPosition;
-            Quaternion originalLocalRotation = heart.localRotation;
-            Vector3 originalLocalScale = heart.localScale;
-            Vector3 startPosition = heart.position;
-            Quaternion startRotation = heart.rotation;
+            Vector3 originalLocalPosition = visual.localPosition;
+            Quaternion originalLocalRotation = visual.localRotation;
+            Vector3 originalLocalScale = visual.localScale;
+            Vector3 startPosition = visual.position;
+            Quaternion startRotation = visual.rotation;
 
-            heart.SetParent(_effectsRoot, true);
-            heart.gameObject.SetActive(true);
+            visual.SetParent(_effectsRoot, true);
+            visual.gameObject.SetActive(true);
 
             float duration = Mathf.Max(0.01f, _settings.ImpactFlashDuration);
             float elapsed = 0f;
-            while (elapsed < duration && heart != null && _player != null)
+            while (elapsed < duration && visual != null && _player != null)
             {
                 elapsed += Time.deltaTime;
                 float normalized = Mathf.Clamp01(elapsed / duration);
                 float eased = 1f - Mathf.Pow(1f - normalized, 3f);
-                heart.position = Vector3.Lerp(startPosition, _player.transform.position, eased);
-                heart.rotation = Quaternion.Slerp(startRotation, _camera.transform.rotation, eased);
-                heart.localScale = originalLocalScale * (1f - eased);
+                visual.position = Vector3.Lerp(startPosition, _player.transform.position, eased);
+                visual.rotation = Quaternion.Slerp(startRotation, _camera.transform.rotation, eased);
+                visual.localScale = originalLocalScale * (1f - eased);
                 yield return null;
             }
 
-            if (heart == null)
+            if (visual == null)
             {
                 yield break;
             }
 
-            heart.SetParent(originalParent != null ? originalParent : ring, false);
-            heart.localPosition = originalLocalPosition;
-            heart.localRotation = originalLocalRotation;
-            heart.localScale = originalLocalScale;
-            heart.gameObject.SetActive(true);
+            visual.SetParent(originalParent, false);
+            visual.localPosition = originalLocalPosition;
+            visual.localRotation = originalLocalRotation;
+            visual.localScale = originalLocalScale;
+            visual.gameObject.SetActive(true);
         }
 
         private void ActivateBlackRingBoost(RiftSegment segment)
