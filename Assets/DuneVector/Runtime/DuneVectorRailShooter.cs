@@ -3858,6 +3858,26 @@ namespace DuneVector
             callback?.Invoke(success, gold, grade);
         }
 
+        public void CancelAndRestore()
+        {
+            if (!IsActive)
+            {
+                return;
+            }
+
+            // Leaving through the pause menu abandons the intercept: restore everything the
+            // isolated mode owns, but do not pay out or run its normal completion callback.
+            _completed = null;
+            _health.TemporaryHealthPoolDepleted -= HandleTemporaryHullDepleted;
+            _health.Damaged -= HandlePlayerDamaged;
+            _health.EndTemporaryHealthPool();
+            RestoreWorldState();
+            DuneVectorAudioManager.Instance?.ExitRailSubgameMusic();
+            _modeRoot.gameObject.SetActive(false);
+            Phase = RailShooterPhase.Inactive;
+            IsAnyRailShooterActive = false;
+        }
+
         private void AddScore(int amount)
         {
             if (amount <= 0)

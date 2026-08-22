@@ -1089,11 +1089,16 @@ namespace DuneVector
 
         public void RequestReturnToHub(bool recordAbandonment = true)
         {
+            if (State == CourierRunState.RailShooter)
+            {
+                RestartAtHub();
+                return;
+            }
+
             if (State == CourierRunState.Hub ||
                 State == CourierRunState.DeliveryComplete ||
                 State == CourierRunState.TeleportOut ||
                 State == CourierRunState.DeliveryMessage ||
-                State == CourierRunState.RailShooter ||
                 State == CourierRunState.ReturnToBase)
             {
                 return;
@@ -1108,6 +1113,7 @@ namespace DuneVector
 
         public void RestartAtHub(bool playReturnEffect = true)
         {
+            _railShooter?.CancelAndRestore();
             DestroyTeleportParticles();
             _routeEncounterDirector?.EndContract();
             if (_player.DroneVisualRoot != null)
