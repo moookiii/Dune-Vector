@@ -2273,7 +2273,10 @@ namespace DuneVector
                 }
             }
 
-            DuneVectorSpatialInstancing.Capture(root, false, lodTuning);
+            // Keep the imported obelisk renderer active for the same reason as the
+            // pyramid renderers above. The spatial LOD path selects batches from the
+            // gameplay camera and can otherwise leave every small obelisk invisible.
+            DuneVectorInstancedVisualGroup.ShowHighestDetailLodOnly(root);
             return root.transform;
         }
 
