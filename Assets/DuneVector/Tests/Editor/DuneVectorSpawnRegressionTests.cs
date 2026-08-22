@@ -17,6 +17,49 @@ namespace DuneVector.Tests
         }
 
         [Test]
+        public void DroneTrailGate_ClearanceKeepsAttachedBurstEffectsVisible()
+        {
+            GameObject root = new GameObject("Drone Trail Gate Regression Test");
+            try
+            {
+                ParticleSystem attachedEffect = root.AddComponent<ParticleSystem>();
+                ParticleSystem.EmissionModule attachedEmission = attachedEffect.emission;
+                attachedEmission.rateOverTime = 1f;
+                attachedEmission.rateOverDistance = 0f;
+
+                GameObject distanceObject = new GameObject("Distance Trail");
+                distanceObject.transform.SetParent(root.transform, false);
+                ParticleSystem distanceTrail = distanceObject.AddComponent<ParticleSystem>();
+                ParticleSystem.EmissionModule distanceEmission = distanceTrail.emission;
+                distanceEmission.rateOverTime = 0f;
+                distanceEmission.rateOverDistance = 1f;
+
+                DroneTrailHorizontalEmissionGate gate =
+                    root.AddComponent<DroneTrailHorizontalEmissionGate>();
+                gate.Initialize(0f, 2f, 0f, 0.01f, root.transform);
+
+                attachedEffect.Emit(1);
+                distanceTrail.Emit(1);
+                typeof(DroneTrailHorizontalEmissionGate)
+                    .GetMethod("ApplyParticleVisibility", BindingFlags.Instance | BindingFlags.NonPublic)
+                    ?.Invoke(gate, null);
+
+                ParticleSystem.Particle[] attachedParticles = new ParticleSystem.Particle[1];
+                ParticleSystem.Particle[] distanceParticles = new ParticleSystem.Particle[1];
+                Assert.That(attachedEffect.GetParticles(attachedParticles), Is.EqualTo(1));
+                Assert.That(distanceTrail.GetParticles(distanceParticles), Is.EqualTo(1));
+                Assert.That(attachedParticles[0].startColor.a, Is.GreaterThan(0),
+                    "Time/burst lightning and glow near the drone must remain visible.");
+                Assert.That(distanceParticles[0].startColor.a, Is.Zero,
+                    "Distance-emitted trail particles inside the hull clearance must stay hidden.");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(root);
+            }
+        }
+
+        [Test]
         public void CourierProgress_CompletingDeliveryMessageKeepsPostContractPresentationPending()
         {
             string saveDirectory = System.IO.Path.Combine(

@@ -157,7 +157,12 @@ namespace DuneVector
 
                     Vector3 worldPosition = GetParticleWorldPosition(particleSystem, main, particle.position);
                     Color32 displayColor = originalColor;
-                    if ((worldPosition - origin).sqrMagnitude < clearanceSqr)
+                    // The clearance exists to keep distance-emitted trail particles from
+                    // spawning through the drone hull. Time/burst emitters authored as part
+                    // of a cosmetic (lightning, sparks, glow, and so on) intentionally live
+                    // near the drone and must remain visible there.
+                    if (state.UsesDistanceEmission &&
+                        (worldPosition - origin).sqrMagnitude < clearanceSqr)
                     {
                         displayColor.a = 0;
                     }
