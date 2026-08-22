@@ -178,6 +178,38 @@ namespace DuneVector
         }
 
         /// <summary>
+        /// Permanently unlocks every discovered trail without changing the equipped trail.
+        /// </summary>
+        public bool TryUnlockAllTrails()
+        {
+            var newlyUnlocked = new List<string>();
+            int previousContractUnlocksGranted = _contractUnlocksGranted;
+            for (int i = 0; i < _options.Count; i++)
+            {
+                string objectName = _options[i].ObjectName;
+                if (_unlocked.Add(objectName))
+                {
+                    newlyUnlocked.Add(objectName);
+                }
+            }
+            _contractUnlocksGranted = Mathf.Max(
+                _contractUnlocksGranted,
+                _contractTrailUnlockOrder.Count);
+
+            if (Save())
+            {
+                return true;
+            }
+
+            for (int i = 0; i < newlyUnlocked.Count; i++)
+            {
+                _unlocked.Remove(newlyUnlocked[i]);
+            }
+            _contractUnlocksGranted = previousContractUnlocksGranted;
+            return false;
+        }
+
+        /// <summary>
         /// Grants every contract trail the completed-contract count has earned and returns the
         /// newest one, or null when nothing was unlocked. The option itself is returned so the
         /// unlock showcase can clone the authored effect for its render view.

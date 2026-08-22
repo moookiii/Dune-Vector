@@ -663,7 +663,7 @@ namespace DuneVector
             {
                 AtlasGlyphBrushedMetalEnabledChanged?.Invoke(true);
             }
-            return true;
+            return DroneTrails == null || DroneTrails.TryUnlockAllTrails();
         }
 
         private void CaptureTierZeroValues(DuneVectorRuntimeSettings settings)

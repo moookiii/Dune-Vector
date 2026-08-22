@@ -6392,7 +6392,7 @@ namespace DuneVector
         [Range(0f, 1f)] public float VideoFilmGrainResponse = 0.8f;
 
         [Header("Cheat Codes")]
-        [Tooltip("Typing this phrase while the pause screen is open permanently unlocks every upgrade.")]
+        [Tooltip("Typing this phrase while the pause screen is open permanently unlocks every upgrade and drone trail.")]
         public string UpgradeUnlockCheatCode = "giveallupgradespls";
         [Tooltip("Typing this prefix followed by a three-digit authored glyph number while paused teleports the player to that glyph.")]
         public string GlyphTeleportCheatPrefix = "gotoglyph";
