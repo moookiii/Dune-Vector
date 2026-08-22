@@ -8777,6 +8777,10 @@ namespace DuneVector
         [Min(0f)] public float BombCasingSpinSpeed = 520f;
         [Tooltip("Seconds of trail left behind the bomb while it flies. Zero removes the trail.")]
         [Min(0f)] public float BombTrailDuration = 0.28f;
+        [Tooltip("Resources path of the bomb casing model. Empty falls back to the primitive core and cage.")]
+        public string BombModelResourcePath = "RailBomb";
+        [Tooltip("Extra scale applied to the bomb casing model on top of the casing diameter.")]
+        [Min(0.01f)] public float BombModelScale = 1f;
         [Tooltip("Size of each detonation flash burst, as a fraction of the blast range.")]
         [Range(0.01f, 1f)] public float BombExplosionFlashScale = 0.3f;
         [Tooltip("Flash bursts scattered through the blast when the bomb detonates.")]

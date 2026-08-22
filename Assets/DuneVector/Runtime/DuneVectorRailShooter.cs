@@ -2187,7 +2187,7 @@ namespace DuneVector
                 (Vector3.forward * _state.ForwardSpeed);
             _bombCasingRoot.position += velocity * deltaTime;
             _bombCasingCage.Rotate(
-                new Vector3(1f, 0.7f, 0.35f) * (_settings.BombCasingSpinSpeed * deltaTime),
+                Vector3.forward * (_settings.BombCasingSpinSpeed * deltaTime),
                 Space.Self);
             float lead = Vector3.Dot(
                 _bombCasingRoot.position - _player.transform.position,
@@ -5404,22 +5404,26 @@ namespace DuneVector
         private void BuildBombCasing()
         {
             _bombCasingRoot = NewRoot("Bomb Casing", _effectsRoot);
-            CreatePart(
-                PrimitiveType.Sphere,
-                "Bomb Core",
-                _bombCasingRoot,
-                Vector3.zero,
-                Vector3.one * (_settings.BombCasingRadius * 2f),
-                Quaternion.identity,
-                _materials.DroneAccent);
-            _bombCasingCage = CreatePart(
-                PrimitiveType.Cube,
-                "Bomb Warning Cage",
-                _bombCasingRoot,
-                Vector3.zero,
-                Vector3.one * (_settings.BombCasingRadius * 1.64f),
-                Quaternion.identity,
-                _materials.LightningWarning);
+            _bombCasingCage = BuildBombCasingModel();
+            if (_bombCasingCage == null)
+            {
+                CreatePart(
+                    PrimitiveType.Sphere,
+                    "Bomb Core",
+                    _bombCasingRoot,
+                    Vector3.zero,
+                    Vector3.one * (_settings.BombCasingRadius * 2f),
+                    Quaternion.identity,
+                    _materials.DroneAccent);
+                _bombCasingCage = CreatePart(
+                    PrimitiveType.Cube,
+                    "Bomb Warning Cage",
+                    _bombCasingRoot,
+                    Vector3.zero,
+                    Vector3.one * (_settings.BombCasingRadius * 1.64f),
+                    Quaternion.identity,
+                    _materials.LightningWarning);
+            }
             _bombCasingTrail = _bombCasingRoot.gameObject.AddComponent<TrailRenderer>();
             _bombCasingTrail.time = _settings.BombTrailDuration;
             _bombCasingTrail.minVertexDistance = 0.35f;
@@ -5433,6 +5437,34 @@ namespace DuneVector
             _bombCasingTrail.widthCurve = AnimationCurve.Linear(0f, 1f, 1f, 0f);
             _bombCasingTrail.sharedMaterial = _materials.LightningWarning;
             _bombCasingRoot.gameObject.SetActive(false);
+        }
+
+        // The authored casing ships as a glTF model whose body is one unit across and whose nose
+        // points down +Z, so scaling by the casing diameter lands it at the authored radius and
+        // the launch LookRotation already aims it along the heading.
+        private Transform BuildBombCasingModel()
+        {
+            string resourcePath = _settings.BombModelResourcePath;
+            if (string.IsNullOrWhiteSpace(resourcePath))
+            {
+                return null;
+            }
+            GameObject prefab = Resources.Load<GameObject>(resourcePath);
+            if (prefab == null)
+            {
+                Debug.LogWarning(
+                    $"Resources.Load found no bomb casing model at '{resourcePath}'; " +
+                    "falling back to the primitive casing.");
+                return null;
+            }
+            GameObject instance = Instantiate(prefab, _bombCasingRoot);
+            instance.name = "Bomb Casing Model";
+            instance.transform.localPosition = Vector3.zero;
+            instance.transform.localRotation = Quaternion.identity;
+            instance.transform.localScale =
+                Vector3.one * (_settings.BombCasingRadius * 2f * _settings.BombModelScale);
+            DisableVisualPhysics(instance.transform);
+            return instance.transform;
         }
 
         private static Transform NewRoot(string name, Transform parent)
