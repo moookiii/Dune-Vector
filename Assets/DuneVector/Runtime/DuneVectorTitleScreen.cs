@@ -48,6 +48,8 @@ namespace DuneVector
         private GUIStyle _versionStyle;
         private bool _loading;
         private float _loadingStartedAt;
+        private DuneVectorFirstRunSetup _firstRun;
+        private bool FirstRunActive => _firstRun != null && !_firstRun.IsComplete;
         private bool OptionsOpen => _optionsMenu != null && _optionsMenu.IsPaused;
 
         private static readonly DuneVectorTitleMenuEntry[] MenuOrder =
@@ -80,6 +82,7 @@ namespace DuneVector
             EnsureCamera();
             CreateRuntimeFont();
             CreateVideoPlayer();
+            CreateFirstRunSetup();
         }
 
         private void Start()
@@ -88,13 +91,39 @@ namespace DuneVector
             // volumes only reach the buses when the options panel is first opened and everything
             // plays at full volume until then.
             EnsureAudioManager();
-            StartTitleMusic();
+            if (!FirstRunActive)
+            {
+                StartTitleMusic();
+            }
+        }
+
+        /// <summary>
+        /// Stands the one-time setup questionnaire up when this save has never answered it.
+        /// It runs over the title screen, so the theme, menu and version stamp all stay held
+        /// back until both answers are in.
+        /// </summary>
+        private void CreateFirstRunSetup()
+        {
+            FirstRunSetupTuning firstRunSettings = RuntimeSettings.FirstRunSetup;
+            if (firstRunSettings == null
+                || !firstRunSettings.Enabled
+                || DuneVectorFirstRunSetup.HasCompleted(firstRunSettings))
+            {
+                return;
+            }
+
+            _firstRun = new DuneVectorFirstRunSetup(
+                firstRunSettings,
+                _settings,
+                this,
+                EnsureAudioManager);
         }
 
         private void OnDestroy()
         {
             ReleaseMusic();
             ReleaseVideo();
+            _firstRun?.ReleaseVideo();
         }
 
         private void EnsureCamera()
@@ -277,6 +306,18 @@ namespace DuneVector
 
         private void Update()
         {
+            if (FirstRunActive)
+            {
+                _firstRun.Update();
+                if (!FirstRunActive)
+                {
+                    // The theme was held back so the questionnaire could use the menu sounds
+                    // without the title track underneath it. It starts now the setup is done.
+                    StartTitleMusic();
+                }
+                return;
+            }
+
             KeepTitleMusicLooping();
 
             if (_confirmed || OptionsOpen)
@@ -568,6 +609,14 @@ namespace DuneVector
 
             EnsureStyles();
             DrawBackground();
+            if (FirstRunActive)
+            {
+                _firstRun.Draw(
+                    GetScale(),
+                    _settings.InterfaceFont != null ? _settings.InterfaceFont : _runtimeFont);
+                return;
+            }
+
             DrawScrim();
             if (_loading)
             {

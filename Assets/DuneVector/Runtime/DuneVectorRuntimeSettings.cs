@@ -9362,6 +9362,176 @@ namespace DuneVector
         }
     }
 
+    /// <summary>
+    /// One-time launch questionnaire shown over the title screen the first time a save runs.
+    /// Both answers are written to a .dat marker file, and the screens never appear again for
+    /// that save.
+    /// </summary>
+    [System.Serializable]
+    public sealed class FirstRunSetupTuning
+    {
+        [Header("Flow")]
+        [Tooltip("Show the first-run questionnaire over the title screen before the menu appears.")]
+        public bool Enabled = true;
+        [Tooltip("Marker file written under the persistent data path once both questions are answered. Deleting it makes the questionnaire appear again.")]
+        public string SaveFileName = "DuneVectorFirstRun.dat";
+        [Tooltip("Seconds each screen fades in over.")]
+        [Min(0f)] public float ScreenFadeInSeconds = 0.35f;
+        [Tooltip("Seconds held after the second answer before the title menu takes over, so the confirm reads.")]
+        [Min(0f)] public float CompletionHoldSeconds = 0.4f;
+
+        [Header("Copy")]
+        [Tooltip("Small line above the question on both screens. {0} is the current step and {1} the total.")]
+        public string StepFormat = "SETUP  {0} / {1}";
+        [Tooltip("Question drawn on the first screen.")]
+        public string PostProcessingQuestion = "Would you like to play with postprocessing on?";
+        [Tooltip("Question drawn on the second screen.")]
+        public string VisualizerQuestion = "Would you like to play with music visualizer glitch lines and drone flashes?";
+        [Tooltip("Label under the first screen's left image.")]
+        public string PostProcessingOnCaption = "POSTPROCESSING ON";
+        [Tooltip("Label under the first screen's right image.")]
+        public string PostProcessingOffCaption = "POSTPROCESSING OFF";
+        [Tooltip("Drawn in place of a preview image slot that has no texture assigned.")]
+        public string MissingPreviewLabel = "PREVIEW UNAVAILABLE";
+        public string YesLabel = "YES";
+        public string NoLabel = "NO";
+        [Tooltip("Hint drawn along the bottom of both screens.")]
+        public string FooterHint = "LEFT / RIGHT  SELECT      ENTER  CONFIRM";
+        [Tooltip("Sub-line under the first question.")]
+        public string PostProcessingDetail = "TURNS ON EVERY POST-PROCESSING OPTION IN VIDEO SETTINGS. CHANGE IT LATER IN OPTIONS.";
+        [Tooltip("Sub-line under the second question.")]
+        public string VisualizerDetail = "TURNS ON PRESSURE FRONTS, FOREGROUND STREAKS, AND GLITCH & HUD. CHANGE IT LATER IN OPTIONS.";
+
+        [Header("Post-Processing Previews")]
+        [Tooltip("Screenshot shown for the postprocessing-on side of the comparison.")]
+        public Texture2D PostProcessingOnPreview;
+        [Tooltip("Screenshot shown for the postprocessing-off side of the comparison.")]
+        public Texture2D PostProcessingOffPreview;
+        [Tooltip("Gap between the two comparison images, in reference pixels.")]
+        [Min(0f)] public float PreviewGap = 26f;
+        [Tooltip("Height of the comparison images, in reference pixels.")]
+        [Min(40f)] public float PreviewHeight = 300f;
+        [Tooltip("Border drawn around each comparison image.")]
+        public Color PreviewBorderColor = new Color(0.55f, 0.85f, 1f, 0.5f);
+        [Min(1f)] public float PreviewBorderThickness = 2f;
+        [Tooltip("Fill drawn behind a comparison image slot while its texture is missing.")]
+        public Color PreviewMissingFillColor = new Color(0.03f, 0.06f, 0.09f, 0.85f);
+
+        [Header("Visualizer Demo Video")]
+        [Tooltip("Clip played full screen behind the second question. Imported without transcoding so it stays uncompressed by Unity.")]
+        public VideoClip DemoVideo;
+        [Tooltip("Restart the demo clip when it reaches the end.")]
+        public bool LoopDemoVideo = true;
+        [Tooltip("Volume of the demo clip's own audio track.")]
+        [Range(0f, 1f)] public float DemoVideoAudioVolume;
+        [Tooltip("Multiplier on the demo clip's own playback rate.")]
+        [Range(0.1f, 2f)] public float DemoVideoPlaybackSpeed = 1f;
+        [Tooltip("Crop the demo clip so it covers the whole screen instead of letterboxing it.")]
+        public bool FillScreenWithDemoVideo = true;
+        [Tooltip("Tint multiplied into the demo clip so the question stays readable.")]
+        public Color DemoVideoTint = new Color(1f, 1f, 1f, 1f);
+
+        [Header("Applied On YES")]
+        [Tooltip("Post-processing options switched on when the first question is answered YES, and off when it is answered NO.")]
+        public bool AppliesChromaticAberration = true;
+        public bool AppliesLensDistortion = true;
+        public bool AppliesCrtLines = true;
+        public bool AppliesVignette = true;
+        public bool AppliesLensFlare = true;
+        public bool AppliesBloom = true;
+        [Tooltip("Music visualizer effect groups switched on when the second question is answered YES, and off when it is answered NO.")]
+        public MusicVisualEffectGroups VisualizerEffectsOnYes =
+            MusicVisualEffectGroups.PressureFront
+            | MusicVisualEffectGroups.Streaks
+            | MusicVisualEffectGroups.Glitch
+            | MusicVisualEffectGroups.HudBorder;
+
+        [Header("Panel")]
+        [Tooltip("Full-screen dim laid under the panel so the question carries over any background.")]
+        public Color BackdropColor = new Color(0f, 0f, 0f, 0.72f);
+        [Min(320f)] public float PanelWidth = 1180f;
+        [Tooltip("Padding between the panel edge and its content, in reference pixels.")]
+        [Min(0f)] public float PanelPadding = 46f;
+        [Tooltip("Pushes the panel down the screen from centred.")]
+        public float PanelVerticalOffset = 0f;
+        [Tooltip("Vertical offset used on the second screen, which sits low so the full-screen demo clip stays visible above it.")]
+        public float VisualizerPanelVerticalOffset = 236f;
+        [Tooltip("Full-screen dim used on the second screen. It is lighter than the first screen because the demo clip is the thing being asked about.")]
+        public Color VisualizerBackdropColor = new Color(0f, 0f, 0f, 0.28f);
+        public Color PanelBodyColor = new Color(0.02f, 0.05f, 0.08f, 0.92f);
+        public Color PanelBorderColor = new Color(0.55f, 0.85f, 1f, 0.45f);
+        [Min(1f)] public float PanelBorderThickness = 2f;
+        public Color PanelAccentColor = new Color(1f, 0.65f, 0.18f, 1f);
+        [Min(1f)] public float PanelAccentWidth = 4f;
+        [Min(0f)] public float PanelAccentGlowWidth = 34f;
+        [Tooltip("Length of the bracket drawn into each panel corner.")]
+        [Min(0f)] public float PanelCornerLength = 30f;
+
+        [Header("Typography")]
+        [Min(8)] public int StepFontSize = 18;
+        [Min(12)] public int QuestionFontSize = 42;
+        [Min(8)] public int DetailFontSize = 16;
+        [Min(8)] public int CaptionFontSize = 18;
+        [Min(9)] public int ButtonFontSize = 30;
+        [Min(8)] public int FooterFontSize = 16;
+        [Tooltip("Floor the question, detail, and footer lines shrink to when they are too wide for the panel.")]
+        [Min(6)] public int MinimumFittedFontSize = 12;
+        [Tooltip("Letter spacing added between question glyphs, in reference pixels.")]
+        [Min(0f)] public float QuestionTracking = 2f;
+        [Tooltip("Letter spacing added between step, caption, and footer glyphs, in reference pixels.")]
+        [Min(0f)] public float LabelTracking = 5f;
+        public Color StepColor = new Color(1f, 0.65f, 0.18f, 1f);
+        public Color QuestionColor = new Color(1f, 1f, 1f, 1f);
+        public Color QuestionGlowColor = new Color(0.55f, 0.85f, 1f, 0.3f);
+        [Min(0f)] public float QuestionGlowRadius = 3f;
+        public Color DetailColor = new Color(0.72f, 0.84f, 0.92f, 1f);
+        public Color CaptionColor = new Color(0.72f, 0.84f, 0.92f, 1f);
+        public Color FooterColor = new Color(0.6f, 0.74f, 0.84f, 0.85f);
+        public Color TextShadowColor = new Color(0f, 0f, 0f, 0.75f);
+        [Min(0f)] public float TextShadowOffset = 3f;
+
+        [Header("Answer Buttons")]
+        [Min(80f)] public float ButtonWidth = 300f;
+        [Min(24f)] public float ButtonHeight = 68f;
+        [Min(0f)] public float ButtonGap = 28f;
+        public Color ButtonFillColor = new Color(0.04f, 0.09f, 0.13f, 0.85f);
+        public Color ButtonBorderColor = new Color(0.55f, 0.85f, 1f, 0.35f);
+        public Color ButtonLabelColor = new Color(0.78f, 0.88f, 0.95f, 1f);
+        public Color SelectedButtonFillColor = new Color(1f, 0.65f, 0.18f, 0.22f);
+        public Color SelectedButtonBorderColor = new Color(1f, 0.65f, 0.18f, 1f);
+        public Color SelectedButtonLabelColor = new Color(1f, 1f, 1f, 1f);
+        [Min(1f)] public float ButtonBorderThickness = 2f;
+        [Tooltip("Cycles per second the selected answer's frame pulses at. Zero holds it steady.")]
+        [Min(0f)] public float SelectionPulseSpeed = 0.9f;
+        [Range(0f, 1f)] public float SelectionPulseMinimumAlpha = 0.55f;
+        [Range(0f, 1f)] public float SelectionPulseMaximumAlpha = 1f;
+
+        [Header("Vertical Rhythm")]
+        [Min(0f)] public float StepToQuestionGap = 18f;
+        [Min(0f)] public float QuestionToDetailGap = 10f;
+        [Min(0f)] public float DetailToBodyGap = 30f;
+        [Min(0f)] public float BodyToButtonsGap = 34f;
+        [Min(0f)] public float ButtonsToFooterGap = 26f;
+        [Min(24f)] public float StepRowHeight = 26f;
+        [Min(24f)] public float QuestionRowHeight = 58f;
+        [Min(18f)] public float DetailRowHeight = 24f;
+        [Min(18f)] public float CaptionRowHeight = 26f;
+        [Min(18f)] public float FooterRowHeight = 24f;
+
+        public void EnsureInitialized()
+        {
+            if (string.IsNullOrWhiteSpace(SaveFileName))
+            {
+                SaveFileName = "DuneVectorFirstRun.dat";
+            }
+            if (!SaveFileName.EndsWith(".dat", System.StringComparison.OrdinalIgnoreCase))
+            {
+                SaveFileName += ".dat";
+            }
+            SelectionPulseMaximumAlpha = Mathf.Max(SelectionPulseMinimumAlpha, SelectionPulseMaximumAlpha);
+        }
+    }
+
     [System.Serializable]
     public sealed class TitleScreenTuning
     {
@@ -9610,6 +9780,9 @@ namespace DuneVector
 
         [Tooltip("Startup title screen background video, menu copy, highlight box, and FMOD title theme.")]
         public TitleScreenTuning TitleScreen = new TitleScreenTuning();
+
+        [Tooltip("One-time launch questionnaire drawn over the title screen the first time a save runs.")]
+        public FirstRunSetupTuning FirstRunSetup = new FirstRunSetupTuning();
 
         [Tooltip("FFT-driven pressure fronts, melodic currents, percussive filaments, and global bloom response.")]
         public MusicReactiveSkyTuning MusicReactiveSky = new MusicReactiveSkyTuning();
@@ -9871,6 +10044,8 @@ namespace DuneVector
             Audio.EnsureInitialized();
             TitleScreen ??= new TitleScreenTuning();
             TitleScreen.EnsureInitialized();
+            FirstRunSetup ??= new FirstRunSetupTuning();
+            FirstRunSetup.EnsureInitialized();
             MusicReactiveSky ??= new MusicReactiveSkyTuning();
             Deliveries ??= new DeliveryTuning();
             Deliveries.EnsureInitialized();
