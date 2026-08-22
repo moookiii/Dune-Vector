@@ -4283,14 +4283,25 @@ namespace DuneVector
                 RegisterRailRing(pickupRing);
                 if (kind == PickupKind.Bomb)
                 {
-                    CreatePart(
-                        PrimitiveType.Sphere,
-                        "Bomb Charge Core",
-                        root,
-                        Vector3.zero,
-                        Vector3.one * (_settings.PickupRadius * 0.42f),
-                        Quaternion.identity,
-                        _materials.EnemyCore);
+                    Transform bombIcon = InstantiateBombModel(root, "Bomb Charge Model");
+                    if (bombIcon != null)
+                    {
+                        bombIcon.localScale = Vector3.one *
+                            (_settings.PickupRadius * _settings.PickupBombModelScaleMultiplier);
+                        bombIcon.localRotation =
+                            Quaternion.Euler(_settings.PickupBombModelEulerAngles);
+                    }
+                    else
+                    {
+                        CreatePart(
+                            PrimitiveType.Sphere,
+                            "Bomb Charge Core",
+                            root,
+                            Vector3.zero,
+                            Vector3.one * (_settings.PickupRadius * 0.42f),
+                            Quaternion.identity,
+                            _materials.EnemyCore);
+                    }
                 }
                 PooledPickup pickup = new PooledPickup
                 {
@@ -5444,6 +5455,20 @@ namespace DuneVector
         // the launch LookRotation already aims it along the heading.
         private Transform BuildBombCasingModel()
         {
+            Transform casing = InstantiateBombModel(_bombCasingRoot, "Bomb Casing Model");
+            if (casing == null)
+            {
+                return null;
+            }
+            casing.localScale =
+                Vector3.one * (_settings.BombCasingRadius * 2f * _settings.BombModelScale);
+            return casing;
+        }
+
+        // Shared by the launched casing and the pickup icon so a collected bomb reads as the
+        // same ordnance the drone throws, rather than an anonymous energy core.
+        private Transform InstantiateBombModel(Transform parent, string name)
+        {
             string resourcePath = _settings.BombModelResourcePath;
             if (string.IsNullOrWhiteSpace(resourcePath))
             {
@@ -5453,16 +5478,14 @@ namespace DuneVector
             if (prefab == null)
             {
                 Debug.LogWarning(
-                    $"Resources.Load found no bomb casing model at '{resourcePath}'; " +
-                    "falling back to the primitive casing.");
+                    $"Resources.Load found no bomb model at '{resourcePath}'; " +
+                    "falling back to the primitive visual.");
                 return null;
             }
-            GameObject instance = Instantiate(prefab, _bombCasingRoot);
-            instance.name = "Bomb Casing Model";
+            GameObject instance = Instantiate(prefab, parent);
+            instance.name = name;
             instance.transform.localPosition = Vector3.zero;
             instance.transform.localRotation = Quaternion.identity;
-            instance.transform.localScale =
-                Vector3.one * (_settings.BombCasingRadius * 2f * _settings.BombModelScale);
             DisableVisualPhysics(instance.transform);
             return instance.transform;
         }

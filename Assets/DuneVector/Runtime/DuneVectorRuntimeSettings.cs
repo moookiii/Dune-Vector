@@ -9008,6 +9008,10 @@ namespace DuneVector
         public Vector3 PickupHealthHeartEulerAngles = new Vector3(90f, 180f, 0f);
         [Tooltip("Final screen-plane rotation applied after orienting the imported rail health-heart model.")]
         [Range(-180f, 180f)] public float PickupHealthHeartScreenRotationDegrees = 180f;
+        [Tooltip("Scale multiplier applied to the bomb model inside rail-subgame pickup rings, as a fraction of the pickup radius.")]
+        [Min(0.01f)] public float PickupBombModelScaleMultiplier = 0.62f;
+        [Tooltip("Local orientation of the bomb model inside a screen-facing rail-subgame pickup ring. Broadside so the silhouette reads.")]
+        public Vector3 PickupBombModelEulerAngles = new Vector3(0f, 90f, 0f);
         [Min(0f)] public float PickupRiskLineFraction = 0.82f;
         [Min(1)] public int EnemyDropEveryKills = 4;
         [Min(0f)] public float HealthPickupAmount = 28f;
