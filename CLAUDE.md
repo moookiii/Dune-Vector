@@ -1,4 +1,4 @@
-THERES 4 MAIN TABS WHEN SAYING SETTINGS ALWAYS SAY IF ITS IN PLAYER, GAMEPLAY, ENEMIES, or WORLD
+There are 4 main tabs. When saying settings, always say if it’s in Player, Gameplay, Enemies, or World.
 
 Always commit after work. Say the commit in output always.
 

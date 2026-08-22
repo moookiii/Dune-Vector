@@ -1,4 +1,4 @@
-THERES 4 MAIN TABS WHEN SAYING SETTINGS ALWAYS SAY IF ITS IN PLAYER, GAMEPLAY, ENEMIES, or WORLD
+There are 4 main tabs. When saying settings, always say if it’s in Player, Gameplay, Enemies, or World.
 
 Blender is driven through the official Blender Lab "MCP" extension (lab_blender_org/mcp) listening on 127.0.0.1:9876. Its wire protocol is a NUL-terminated JSON request, {"type":"execute","code":"...","strict_json":<bool>}, answered by a NUL-terminated JSON response. The sandbox has no implicit imports, so always import bpy in the code you send. The uvx blender-mcp entry in .mcp.json is an unrelated third-party PyPI package that speaks an incompatible dialect on the same port; when its tools fail to register, that is the config being wrong, not Blender being down.
 
